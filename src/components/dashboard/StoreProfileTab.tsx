@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
-import { Camera, Loader2, Copy, Check } from "lucide-react";
+import { Camera, Loader2, Copy, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Organization {
@@ -32,6 +31,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   });
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [logoRemoving, setLogoRemoving] = useState(false);
   const [logoUrl, setLogoUrl] = useState(organization.logo_url);
   const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -103,6 +103,24 @@ export default function StoreProfileTab({ organization }: { organization: Organi
       toast.error("Erro ao fazer upload do logo.");
     } finally {
       setLogoUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setLogoRemoving(true);
+    try {
+      await supabase
+        .from("organizations")
+        .update({ logo_url: null })
+        .eq("id", organization.id);
+      setLogoUrl(null);
+      await refreshOrganization();
+      toast.success("Logo removido.");
+    } catch {
+      toast.error("Erro ao remover logo.");
+    } finally {
+      setLogoRemoving(false);
     }
   };
 
@@ -133,19 +151,34 @@ export default function StoreProfileTab({ organization }: { organization: Organi
               <span className="text-3xl">{form.emoji}</span>
             )}
           </div>
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileRef.current?.click()}
-              disabled={logoUploading}
-              className="gap-2"
-            >
-              <Camera className="w-4 h-4" />
-              {logoUploading ? "Enviando..." : "Alterar logo"}
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">JPG, PNG ou WebP. Máx 2MB.</p>
+          <div className="space-y-1">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+                disabled={logoUploading || logoRemoving}
+                className="gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                {logoUploading ? "Enviando..." : "Alterar logo"}
+              </Button>
+              {logoUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveLogo}
+                  disabled={logoUploading || logoRemoving}
+                  className="gap-1.5 text-muted-foreground hover:text-destructive"
+                >
+                  {logoRemoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                  Remover
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">JPG, PNG ou WebP. Máx 2MB.</p>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
           </div>
         </div>
@@ -216,7 +249,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
 
       {/* Primary color */}
       <div>
-        <Label className="text-sm font-medium">Cor primária</Label>
+        <Label className="text-sm font-medium">Cor primária do mural público</Label>
         <div className="flex items-center gap-3 mt-2">
           <input
             type="color"
@@ -230,10 +263,30 @@ export default function StoreProfileTab({ organization }: { organization: Organi
             className="w-32"
             placeholder="#f97316"
           />
-          <div
-            className="flex-1 h-10 rounded-lg border border-border"
-            style={{ backgroundColor: form.primary_color }}
-          />
+        </div>
+
+        {/* Live color preview */}
+        <div className="mt-3 rounded-xl border border-border overflow-hidden">
+          <div className="h-12 flex items-center px-4" style={{ backgroundColor: form.primary_color }}>
+            <span className="text-white text-sm font-bold drop-shadow">{form.name || "Minha Lanchonete"}</span>
+          </div>
+          <div className="bg-card p-3 flex items-center gap-3">
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 rounded-full text-white font-semibold"
+              style={{ backgroundColor: form.primary_color }}
+            >
+              Enviar sugestão
+            </button>
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 rounded-full font-semibold border-2"
+              style={{ color: form.primary_color, borderColor: form.primary_color }}
+            >
+              Votar ❤️
+            </button>
+            <p className="text-xs text-muted-foreground ml-auto">Preview do mural</p>
+          </div>
         </div>
       </div>
 

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useSuggestions, useUpdateSuggestion, useDeleteSuggestion } from "@/hooks/useSuggestions";
 import { Skeleton } from "@/components/ui/skeleton";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,13 +15,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Heart, Trash2, Pencil, Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  analyzing: "bg-blue-100 text-blue-800 border-blue-200",
-  on_menu: "bg-green-100 text-green-800 border-green-200",
-};
+const STATUS_OPTIONS = [
+  { value: "pending", label: "⏳ Pendente", active: "bg-yellow-100 text-yellow-800 border-yellow-400 ring-1 ring-yellow-400", inactive: "bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100" },
+  { value: "analyzing", label: "🔍 Analisando", active: "bg-blue-100 text-blue-800 border-blue-400 ring-1 ring-blue-400", inactive: "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100" },
+  { value: "on_menu", label: "✅ No Cardápio", active: "bg-green-100 text-green-800 border-green-400 ring-1 ring-green-400", inactive: "bg-green-50 text-green-600 border-green-200 hover:bg-green-100" },
+];
 
 const FILTER_OPTIONS = [
   { value: "all", label: "Todas" },
@@ -36,6 +37,7 @@ interface Organization {
 }
 
 export default function MuralTab({ organization }: { organization: Organization }) {
+  const queryClient = useQueryClient();
   const { data: suggestions = [], isLoading } = useSuggestions(organization.id);
   const updateMutation = useUpdateSuggestion(organization.id);
   const deleteMutation = useDeleteSuggestion(organization.id);
@@ -44,6 +46,29 @@ export default function MuralTab({ organization }: { organization: Organization 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel(`suggestions-${organization.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "suggestions",
+          filter: `organization_id=eq.${organization.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["suggestions", organization.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organization.id, queryClient]);
 
   const filtered = filter === "all"
     ? suggestions
@@ -136,21 +161,28 @@ export default function MuralTab({ organization }: { organization: Organization 
                       </>
                     )}
 
+                    {/* Status chips */}
                     {editingId !== s.id && (
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <Select
-                          value={s.status}
-                          onValueChange={(val) => updateMutation.mutate({ id: s.id, status: val })}
-                        >
-                          <SelectTrigger className={`h-7 text-xs w-auto border ${STATUS_COLORS[s.status] ?? ""}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">⏳ Pendente</SelectItem>
-                            <SelectItem value="analyzing">🔍 Analisando</SelectItem>
-                            <SelectItem value="on_menu">✅ No Cardápio</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        {STATUS_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            disabled={updateMutation.isPending}
+                            onClick={() => {
+                              if (s.status !== opt.value) {
+                                updateMutation.mutate({ id: s.id, status: opt.value });
+                              }
+                            }}
+                            className={cn(
+                              "text-xs px-2.5 py-1 rounded-full border font-medium transition-all",
+                              s.status === opt.value ? opt.active : opt.inactive,
+                              updateMutation.isPending && "opacity-50 cursor-not-allowed"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
