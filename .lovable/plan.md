@@ -1,62 +1,199 @@
 
-# Atualização da Landing Page — Cópia Profissional e Persuasiva
+# Cardápio Oficial — Nova funcionalidade completa
 
-## O que muda
+## Visão geral
 
-Apenas o arquivo `src/pages/Index.tsx` será editado. Não há mudança de banco de dados, autenticação ou componentes compartilhados.
-
----
-
-## Seção Hero — Alterações de conteúdo
-
-### H1 (Título Principal)
-- **Antes**: "Seu cardápio criado / pelos seus clientes"
-- **Depois**: "Transforme o desejo dos seus clientes / em lucro real com a TrendFood."
-  - "TrendFood" destacado com `text-primary` (laranja vibrante do projeto, já definido como `hsl(24 95% 53%)` no CSS)
-
-### Subtítulo (parágrafo principal)
-- **Antes**: "Crie uma página pública para seu estabelecimento..."
-- **Depois**: "Descubra exatamente o que seu público quer comer. Crie seu mural de sugestões em segundos, receba votos em tempo real e turbine seu cardápio com os lanches que já nascem campeões de vendas."
-
-### Texto de Apoio (parágrafo secundário — novo)
-Um novo parágrafo menor será adicionado abaixo do subtítulo, antes dos botões:
-> "Faça como centenas de empreendedores que entenderam os desafios de inovar no setor de alimentação. Tenha uma equipe de inteligência de dados trabalhando para sua lanchonete, 24 horas por dia."
-
-### Badge (acima do H1)
-- **Antes**: "Novo jeito de ouvir seus clientes"
-- **Depois**: "Inteligência de dados para o seu negócio" — alinhado com o novo posicionamento premium
-
-### Botão de Ação Principal
-- **Antes**: "Criar minha conta grátis"
-- **Depois**: "Começar a Lucrar Agora" (mantém o link `/auth` e o ícone `ArrowRight`)
+Esta feature adiciona um **Cardápio Oficial** ao sistema, separado do Mural de Sugestões. O dono da lanchonete cadastra seus lanches atuais (com foto, preço e categoria), e a página pública `/unidade/[slug]` ganha duas abas: "Cardápio" (visual de delivery) e "Sugestões" (o mural atual).
 
 ---
 
-## Ajustes de Design aplicados
+## Banco de dados — Nova tabela `menu_items`
 
-| Elemento | Detalhe |
+Uma nova tabela será criada via migration SQL:
+
+```text
+menu_items
+─────────────────────────────────────────────────────────────────
+id             uuid (PK, gen_random_uuid())
+organization_id uuid (FK → organizations.id)
+name           text (obrigatório)
+description    text (nullable)
+price          numeric(10,2) (obrigatório)
+category       text (default: 'Outros')
+image_url      text (nullable)
+available      boolean (default: true)
+created_at     timestamptz (default: now())
+```
+
+**RLS Policies:**
+- `SELECT`: `true` (público — clientes veem o cardápio)
+- `INSERT`: `auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id)`
+- `UPDATE`: mesma verificação de owner
+- `DELETE`: mesma verificação de owner
+
+**Storage:** será criado um novo bucket `menu-images` (público) para upload das fotos dos lanches.
+
+**Realtime:** a tabela será adicionada à publicação `supabase_realtime` para sync automático.
+
+---
+
+## Novo campo na tabela `organizations`
+
+Será adicionada a coluna `whatsapp` (text, nullable) para o botão "Pedir no WhatsApp".
+
+---
+
+## Arquivos a criar
+
+| Arquivo | Descrição |
 |---|---|
-| Fonte | Já é Inter/sans-serif via Tailwind — sem mudança necessária |
-| "TrendFood" no H1 | Encapsulado em `<span className="text-primary">` (laranja `#f97316`) |
-| Contraste mobile | Subtítulo usa `text-muted-foreground` sobre `bg-background` claro — contraste AA já garantido |
-| Texto de apoio | `text-sm md:text-base text-muted-foreground` para hierarquia visual clara |
-| Espaçamento | `mb-4` entre subtítulo e texto de apoio, `mb-8` antes dos botões |
+| `src/hooks/useMenuItems.ts` | Hook React Query para CRUD do cardápio |
+| `src/components/dashboard/MenuTab.tsx` | Nova aba do painel do lojista |
 
----
+## Arquivos a modificar
 
-## Seção CTA (rodapé laranja)
-
-O texto do CTA final também será atualizado para coerência com o novo posicionamento:
-- **Título**: "Pronto para transformar seu cardápio?"
-- **Subtítulo**: "Junte-se a centenas de empreendedores. Comece grátis, sem cartão de crédito."
-- **Botão**: "Começar a Lucrar Agora"
-
----
-
-## Arquivo modificado
-
-| Arquivo | Tipo de mudança |
+| Arquivo | Mudança |
 |---|---|
-| `src/pages/Index.tsx` | Conteúdo de texto + estrutura da seção Hero e CTA |
+| `src/pages/DashboardPage.tsx` | Adicionar aba "Meu Cardápio" no sidebar e no render |
+| `src/pages/UnitPage.tsx` | Reformular em 2 abas: Cardápio + Sugestões |
+| `src/components/dashboard/StoreProfileTab.tsx` | Adicionar campo WhatsApp |
+| `src/integrations/supabase/types.ts` | (auto-gerado — não editar) |
 
-Nenhuma dependência nova. Nenhuma mudança de banco de dados.
+---
+
+## Detalhamento de cada mudança
+
+### 1. `src/hooks/useMenuItems.ts` (novo)
+
+Hook com 4 operações:
+- `useMenuItems(orgId)` → lista itens ordenados por categoria, depois nome
+- `useAddMenuItem(orgId)` → INSERT com upload de imagem
+- `useUpdateMenuItem(orgId)` → UPDATE (preço, disponibilidade, etc.)
+- `useDeleteMenuItem(orgId)` → DELETE + remove imagem do storage
+
+### 2. `src/components/dashboard/MenuTab.tsx` (novo)
+
+Layout da aba "Meu Cardápio" no painel do lojista:
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Meu Cardápio                        [+ Novo Item]      │
+│  12 itens · 3 categorias                               │
+├─────────────────────────────────────────────────────────┤
+│  🍔 Hambúrgueres                                        │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │ [foto] Nome do lanche    R$ 25,90  ✅  [✏️] [🗑️]  │ │
+│  │        Descrição breve             ❌              │ │
+│  └────────────────────────────────────────────────────┘ │
+│  🥤 Bebidas                                             │
+│  ...                                                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Modal de cadastro/edição** com campos:
+- Nome (obrigatório)
+- Descrição (opcional)
+- Preço em R$ (obrigatório, numérico)
+- Categoria (select: Hambúrgueres, Bebidas, Porções, Sobremesas, Combos, Outros)
+- Foto (upload → bucket `menu-images`, máx 5MB)
+- Toggle "Disponível" (switch)
+
+### 3. `src/pages/DashboardPage.tsx`
+
+Adicionar novo item de navegação no sidebar:
+
+```text
+Antes: Home | Gerenciar Mural | Perfil da Loja | Configurações
+Depois: Home | Meu Cardápio | Gerenciar Mural | Perfil da Loja | Configurações
+```
+
+Ícone: `UtensilsCrossed` do lucide-react.
+
+### 4. `src/pages/UnitPage.tsx` (reformulação)
+
+A página pública ganhará duas abas usando o componente `Tabs` do shadcn/ui (já instalado):
+
+**Aba 1 — Cardápio** (visual delivery):
+```text
+┌─────────────────────────────────────────┐
+│  🍔 Hambúrgueres                        │
+│  ┌─────────────────────────────────┐    │
+│  │ [FOTO GRANDE]                   │    │
+│  │ Nome do Lanche          R$25,90 │    │
+│  │ Descrição do lanche             │    │
+│  │ [💬 Pedir no WhatsApp]          │    │
+│  └─────────────────────────────────┘    │
+│  🥤 Bebidas                             │
+│  ...                                    │
+└─────────────────────────────────────────┘
+```
+
+- Cards com foto grande em aspect-ratio 16:9
+- Badge "Indisponível" em vermelho quando `available = false`
+- Itens indisponíveis aparecem no final com opacidade reduzida (não ficam ocultos — o cliente vê mas não pede)
+- Botão "Pedir no WhatsApp" só aparece se o dono cadastrou o número de WhatsApp no Perfil da Loja
+  - Link: `https://wa.me/55{whatsapp}?text=Olá!%20Quero%20pedir%3A%20{nome}%20-%20R%24{preco}`
+
+**Aba 2 — Sugestões** (mural atual — mantido igual, apenas movido para dentro das tabs):
+
+### 5. `src/components/dashboard/StoreProfileTab.tsx`
+
+Adicionar campo WhatsApp (número apenas, sem formatação) com máscara visual:
+```text
+WhatsApp para pedidos
+[55] [11999887766]  ← apenas números, sem espaços ou hífens
+Hint: "Usado para o botão 'Pedir no WhatsApp' na página pública"
+```
+
+---
+
+## Fluxo de dados
+
+```text
+Lojista cadastra item no MenuTab
+  → upload foto → bucket menu-images
+  → INSERT menu_items
+  → invalidateQueries ["menu_items", orgId]
+
+Cliente acessa /unidade/slug
+  → useMenuItems(org.id) carrega cardápio
+  → itens agrupados por categoria
+  → clica "Pedir no WhatsApp"
+  → abre wa.me com mensagem pré-preenchida
+```
+
+---
+
+## Categorias disponíveis
+
+- Hambúrgueres
+- Bebidas
+- Porções
+- Sobremesas
+- Combos
+- Outros
+
+O agrupamento por categoria é feito no frontend — sem coluna de ordenação, os grupos aparecem na ordem pré-definida acima.
+
+---
+
+## Resumo do que NÃO muda
+
+- Toda a lógica de Sugestões (MuralTab, useSuggestions, UnitPage suggestions) é preservada
+- O sistema de auth e organização não muda
+- A landing page não muda
+- O HomeTab não muda (métricas de sugestões continuam funcionando)
+
+---
+
+## Resultado esperado
+
+| Feature | Comportamento |
+|---|---|
+| Aba "Meu Cardápio" no painel | Lojista cadastra/edita/remove itens com foto e preço |
+| Toggle "Disponível" | Desativa item sem excluir — aparece com badge "Indisponível" na página |
+| Aba "Cardápio" na página pública | Visual de delivery com fotos e preços |
+| Botão "Pedir no WhatsApp" | Abre WhatsApp com mensagem pré-preenchida do lanche |
+| Aba "Sugestões" na página pública | Mural de ideias existente, sem alteração de funcionalidade |
+| Agrupamento por categoria | Hambúrgueres, Bebidas, Porções, etc. |
+
