@@ -1,133 +1,211 @@
 
-# Implementação Completa do Cardápio Oficial
+# Plataforma de Gestão de Pedidos para Salão
 
-## Situação atual
+## Visão Geral
 
-Nenhuma das mudanças do plano aprovado foi executada ainda. O banco de dados, os hooks e os componentes precisam ser criados do zero. Abaixo está o plano completo para implementar tudo de uma vez.
-
----
-
-## Passo 1 — Banco de dados (migração SQL)
-
-Serão executadas as seguintes alterações no banco:
-
-**1a. Adicionar coluna `whatsapp` na tabela `organizations`**
-```sql
-ALTER TABLE public.organizations ADD COLUMN whatsapp text;
-```
-
-**1b. Criar tabela `menu_items`**
-```sql
-CREATE TABLE public.menu_items (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  name            text NOT NULL,
-  description     text,
-  price           numeric(10,2) NOT NULL,
-  category        text NOT NULL DEFAULT 'Outros',
-  image_url       text,
-  available       boolean NOT NULL DEFAULT true,
-  created_at      timestamptz NOT NULL DEFAULT now()
-);
-```
-
-**1c. RLS na tabela `menu_items`**
-- SELECT: público (clientes veem o cardápio)
-- INSERT/UPDATE/DELETE: somente o dono da organização (`auth.uid() = organizations.user_id`)
-
-**1d. Bucket de imagens `menu-images`** (público, com RLS para upload autenticado)
-
-**1e. Realtime** ativado para `menu_items`
+Esta feature transforma o sistema em uma plataforma completa de pedidos para restaurante/lanchonete, com três novas telas e um fluxo de pedido completo desde a mesa do cliente até a cozinha e o garçom.
 
 ---
 
-## Passo 2 — Hook `src/hooks/useMenuItems.ts` (novo arquivo)
+## Banco de Dados — Novas tabelas
 
-Fornece 4 operações:
+### Tabela `tables` (Mesas)
 
-| Hook | Função |
+```text
+tables
+─────────────────────────────────────────
+id              uuid (PK)
+organization_id uuid (FK → organizations)
+number          integer (obrigatório, número da mesa)
+label           text (nullable, ex: "Mesa VIP")
+created_at      timestamptz
+```
+
+- RLS: SELECT público (o cliente precisa acessar a mesa sem login)
+- INSERT/UPDATE/DELETE: somente o dono da organização
+
+### Tabela `orders` (Pedidos)
+
+```text
+orders
+─────────────────────────────────────────
+id              uuid (PK)
+organization_id uuid (FK → organizations)
+table_number    integer (número da mesa)
+status          text: 'pending' | 'preparing' | 'ready' | 'delivered'
+notes           text (nullable — observações gerais do pedido)
+created_at      timestamptz
+```
+
+### Tabela `order_items` (Itens do Pedido)
+
+```text
+order_items
+─────────────────────────────────────────
+id          uuid (PK)
+order_id    uuid (FK → orders)
+menu_item_id uuid (FK → menu_items)
+name        text (snapshot do nome na hora do pedido)
+price       numeric (snapshot do preço)
+quantity    integer (default 1)
+```
+
+- RLS: SELECT público (cozinha e garçom visualizam sem login)
+- INSERT: público (cliente finaliza o pedido sem login)
+- UPDATE: somente o dono (para atualizar status)
+- DELETE: somente o dono
+
+---
+
+## Arquivos a criar
+
+| Arquivo | Descrição |
 |---|---|
-| `useMenuItems(orgId)` | Lista itens ordenados por categoria → nome |
-| `useAddMenuItem(orgId)` | Faz upload da foto no bucket, depois INSERT |
-| `useUpdateMenuItem(orgId)` | UPDATE de qualquer campo (preço, available, etc.) |
-| `useDeleteMenuItem(orgId)` | DELETE do registro + remove a imagem do storage |
+| `src/hooks/useOrders.ts` | Hook React Query para pedidos com Realtime |
+| `src/components/dashboard/TablesTab.tsx` | Aba de gerenciamento de mesas e QR Codes |
+| `src/pages/TableOrderPage.tsx` | Página pública `/unidade/[slug]/mesa/[numero]` — cliente monta e envia pedido |
+| `src/pages/KitchenPage.tsx` | Tela `/cozinha?org=[slug]` — Painel da Cozinha com Realtime |
+| `src/pages/WaiterPage.tsx` | Tela `/garcom?org=[slug]` — Painel do Garçom |
 
-Toast de feedback em cada operação (sucesso e erro).
+## Arquivos a modificar
 
----
-
-## Passo 3 — Componente `src/components/dashboard/MenuTab.tsx` (novo arquivo)
-
-Layout da aba "Meu Cardápio" no painel do lojista:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Meu Cardápio                        [+ Novo Item]      │
-│  12 itens · 3 categorias                               │
-├─────────────────────────────────────────────────────────┤
-│  🍔 Hambúrgueres                                        │
-│  ┌──[foto]──────────────────────────────────────────┐   │
-│  │ Nome do lanche         R$ 25,90   ✅  [✏️] [🗑️] │   │
-│  │ Descrição breve                                  │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Modal de cadastro/edição** com campos:
-- Nome (obrigatório)
-- Categoria (Select: Hambúrgueres, Bebidas, Porções, Sobremesas, Combos, Outros)
-- Preço em R$ (obrigatório)
-- Descrição (opcional)
-- Foto (upload, máx 5MB)
-- Toggle "Disponível / Indisponível" (Switch)
-
-**Confirmação de exclusão** via AlertDialog igual ao padrão já usado no MuralTab.
+| Arquivo | Mudança |
+|---|---|
+| `src/App.tsx` | Registrar 3 novas rotas |
+| `src/pages/DashboardPage.tsx` | Adicionar aba "Mesas" no sidebar |
+| `src/pages/UnitPage.tsx` | Manter existente, apenas redirecionar clientes de mesa para a nova rota |
 
 ---
 
-## Passo 4 — `src/pages/DashboardPage.tsx` (edição)
+## Detalhamento de cada parte
 
-Adicionar aba "Meu Cardápio" no sidebar:
+### 1. Aba "Mesas" no Painel do Lojista (`TablesTab.tsx`)
 
+Layout:
+```text
+┌───────────────────────────────────────────────────────┐
+│  Mesas                                 [+ Nova Mesa]  │
+│  5 mesas configuradas                                 │
+├───────────────────────────────────────────────────────┤
+│  Mesa 1  /unidade/slug/mesa/1  [QR] [Copiar] [Lixo]  │
+│  Mesa 2  /unidade/slug/mesa/2  [QR] [Copiar] [Lixo]  │
+│  ...                                                  │
+├───────────────────────────────────────────────────────┤
+│  [Ver Cozinha →]          [Ver Painel do Garçom →]    │
+└───────────────────────────────────────────────────────┘
 ```
-Antes:  Home | Gerenciar Mural | Perfil da Loja | Configurações
-Depois: Home | Meu Cardápio | Gerenciar Mural | Perfil da Loja | Configurações
+
+- Botão **+ Nova Mesa**: abre modal para escolher o número da mesa (ex: Mesa 1, Mesa 2...)
+- **QR Code**: usa a biblioteca `qrcode.react` (a ser instalada) para gerar um QR Code inline que o lojista pode baixar ou imprimir
+- **Copiar Link**: copia a URL `/unidade/[slug]/mesa/[numero]` para o clipboard
+- Atalhos para `/cozinha?org=[slug]` e `/garcom?org=[slug]`
+
+### 2. Página do Cliente na Mesa (`TableOrderPage.tsx`)
+
+Rota: `/unidade/[slug]/mesa/[numero]`
+
+```text
+┌─────────────────────────────────────────┐
+│  🍔 Burger Palace — Mesa 3              │
+├─────────────────────────────────────────┤
+│  🍔 Hambúrgueres                        │
+│  [Foto] Burguer Classic  R$25,90  [+1] │
+│  [Foto] Burguer Duplo    R$32,00  [+1] │
+│  🥤 Bebidas                             │
+│  [Foto] Coca-Cola        R$8,00   [+1] │
+├─────────────────────────────────────────┤
+│  Observações: [__________________]      │
+├─────────────────────────────────────────┤
+│  Carrinho: 3 itens — R$ 66,00          │
+│  [Finalizar Pedido]                     │
+└─────────────────────────────────────────┘
 ```
 
-- Novo TabKey: `"menu"`
-- Ícone: `UtensilsCrossed` do lucide-react
-- Render condicional: `{activeTab === "menu" && <MenuTab organization={organization} />}`
+- Exibe apenas itens com `available = true`
+- Botões `+` e `−` para montar o carrinho localmente (estado no componente)
+- Campo de "Observações" livre (ex: "Sem cebola")
+- Botão **Finalizar Pedido**: INSERT em `orders` + INSERT em `order_items` → exibe tela de confirmação
+- Sem necessidade de login — pedido é anônimo
+
+### 3. Painel da Cozinha — KDS (`KitchenPage.tsx`)
+
+Rota: `/cozinha?org=[slug]`
+
+```text
+┌──────────────────────────────────────────────────────┐
+│  🍳 Cozinha — Burger Palace        [ao vivo]         │
+├──────────────────────────────────────────────────────┤
+│  [NOVO!] Mesa 3 — 14:32           [Marcar como Pronto]│
+│  • 2x Burguer Classic                                │
+│  • 1x Coca-Cola                                      │
+│  Obs: Sem cebola no burger                           │
+│                                                      │
+│  [NOVO!] Mesa 1 — 14:28           [Marcar como Pronto]│
+│  • 1x Burguer Duplo                                  │
+└──────────────────────────────────────────────────────┘
+```
+
+- Exibe pedidos com status `pending` e `preparing`, ordenados do mais novo ao mais antigo
+- **Supabase Realtime**: escuta INSERT e UPDATE na tabela `orders` — atualização instantânea
+- **Alerta sonoro**: ao receber um novo pedido, toca um som de sino (usando a Web Audio API nativa — sem dependência extra)
+- **Alerta visual**: badge pulsante "NOVO!" em laranja nos pedidos recém-chegados (nos últimos 30 segundos)
+- **Botão "Marcar como Pronto"**: atualiza `status` para `'ready'`
+- O card do pedido some da tela da cozinha assim que marcado como Pronto
+- Sem necessidade de login — tela pública mas acessada apenas internamente
+
+### 4. Painel do Garçom (`WaiterPage.tsx`)
+
+Rota: `/garcom?org=[slug]`
+
+```text
+┌──────────────────────────────────────────────────────┐
+│  🧍 Garçom — Burger Palace         [ao vivo]         │
+├──────────────────────────────────────────────────────┤
+│  ✅ PRONTO — Mesa 3 — 14:33                          │
+│  • 2x Burguer Classic                                │
+│  • 1x Coca-Cola                                      │
+│  [Marcar como Entregue]                              │
+└──────────────────────────────────────────────────────┘
+```
+
+- Exibe somente pedidos com status `ready`
+- **Supabase Realtime**: atualiza automaticamente quando a cozinha marca como Pronto
+- **Botão "Marcar como Entregue"**: atualiza `status` para `'delivered'`
+- Destaque em verde e badge "PRONTO" para chamar atenção
 
 ---
 
-## Passo 5 — `src/pages/UnitPage.tsx` (reformulação com 2 abas)
+## Novas Rotas em `App.tsx`
 
-A página pública ganha duas abas usando o componente `Tabs` já instalado (shadcn/ui):
-
-**Aba "Cardápio"** — visual estilo delivery:
-- Cards com foto em aspect-ratio 4:3
-- Agrupamento por categoria na ordem: Hambúrgueres → Bebidas → Porções → Sobremesas → Combos → Outros
-- Badge vermelho "Indisponível" quando `available = false`; item com opacidade reduzida mas visível
-- **Botão "Pedir no WhatsApp"** aparece apenas se `org.whatsapp` estiver preenchido
-  - Link: `https://wa.me/55{whatsapp}?text=Olá!%20Quero%20pedir%3A%20{nome}%20-%20R%24{preco}`
-- Se o cardápio estiver vazio, exibe estado vazio elegante
-
-**Aba "Sugestões"** — mural existente sem nenhuma alteração de lógica, apenas movido para dentro das Tabs.
+```text
+/unidade/:slug/mesa/:tableNumber  → TableOrderPage (cliente)
+/cozinha                          → KitchenPage (cozinha)
+/garcom                           → WaiterPage (garçom)
+```
 
 ---
 
-## Passo 6 — `src/components/dashboard/StoreProfileTab.tsx` (edição)
+## Fluxo completo de um pedido
 
-Adicionar campo WhatsApp antes do botão Salvar:
+```text
+Lojista cria Mesa 3 no painel → gera QR Code → imprime e cola na mesa
 
+Cliente escaneia QR → acessa /unidade/burger-place/mesa/3
+→ escolhe itens → escreve observação → clica "Finalizar Pedido"
+→ INSERT em orders (status: 'pending') + order_items
+→ Confirmação na tela do cliente: "Pedido enviado! 🎉"
+
+Cozinha (KDS em /cozinha?org=burger-place):
+→ Realtime detecta INSERT → som de sino + badge "NOVO!"
+→ Cozinheiro prepara → clica "Marcar como Pronto"
+→ UPDATE orders SET status = 'ready'
+
+Garçom (/garcom?org=burger-place):
+→ Realtime detecta UPDATE → pedido aparece em verde "PRONTO"
+→ Garçom entrega → clica "Marcar como Entregue"
+→ UPDATE orders SET status = 'delivered'
+→ Some da lista do garçom
 ```
-WhatsApp para pedidos (opcional)
-[Número com DDD, ex: 11999887766]
-Hint: "Ative o botão 'Pedir no WhatsApp' na página pública"
-```
-
-- Campo de texto, `inputMode="numeric"`, aceita somente dígitos
-- Salvo junto com os outros campos no `handleSave`
 
 ---
 
@@ -135,11 +213,29 @@ Hint: "Ative o botão 'Pedir no WhatsApp' na página pública"
 
 | Arquivo | Ação |
 |---|---|
-| Banco de dados | Migração: `whatsapp` em organizations + tabela `menu_items` + bucket `menu-images` |
-| `src/hooks/useMenuItems.ts` | Criar (novo) |
-| `src/components/dashboard/MenuTab.tsx` | Criar (novo) |
-| `src/pages/DashboardPage.tsx` | Editar — adicionar aba "Meu Cardápio" |
-| `src/pages/UnitPage.tsx` | Editar — reformular com 2 abas (Cardápio + Sugestões) |
-| `src/components/dashboard/StoreProfileTab.tsx` | Editar — adicionar campo WhatsApp |
+| Banco de dados | Migration: tabelas `tables`, `orders`, `order_items` com RLS |
+| `src/hooks/useOrders.ts` | Criar (novo) — CRUD + Realtime |
+| `src/components/dashboard/TablesTab.tsx` | Criar (novo) — gestão de mesas + QR Code |
+| `src/pages/TableOrderPage.tsx` | Criar (novo) — página do cliente na mesa |
+| `src/pages/KitchenPage.tsx` | Criar (novo) — KDS com Realtime + som |
+| `src/pages/WaiterPage.tsx` | Criar (novo) — painel do garçom |
+| `src/App.tsx` | Editar — 3 novas rotas |
+| `src/pages/DashboardPage.tsx` | Editar — aba "Mesas" no sidebar |
 
-Nenhuma mudança no sistema de auth, no HomeTab, no MuralTab ou na Landing Page.
+Nenhuma mudança no sistema de auth, nas abas existentes (Cardápio, Mural, Perfil, Configurações) ou na landing page.
+
+---
+
+## Dependência a instalar
+
+- `qrcode.react` — para gerar QR Codes no painel de Mesas (sem API externa)
+
+---
+
+## O que NÃO muda
+
+- Sistema de autenticação e organização
+- Cardápio (MenuTab + UnitPage)
+- Mural de sugestões (MuralTab)
+- Landing page
+- HomeTab
