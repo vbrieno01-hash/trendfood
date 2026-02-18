@@ -1,95 +1,83 @@
 
-# Plano de Implementação — 3 Melhorias Principais
+# Diagnóstico e Correção: Performance Crítica de Auth e Dashboard
 
-## Diagnóstico do estado atual
+## Problemas Identificados
 
-Após revisar todo o código, aqui está o status real de cada funcionalidade pedida:
+### Problema 1 — Duplo disparo no `useAuth.tsx` (causa do carregamento infinito)
 
-**1. Página Pública + Aparecimento instantâneo no Dashboard**
-- A página `/unidade/:slug` já envia sugestões corretamente via `useAddSuggestion`
-- O `MuralTab` já busca dados via `useSuggestions`, mas usa polling passivo (React Query com refetch manual)
-- Falta: Supabase Realtime na tabela `suggestions` para que a nova sugestão apareça instantaneamente no dashboard sem precisar recarregar a página
+O código atual tem uma **race condition severa** entre `onAuthStateChange` e `getSession()`. Ambos rodam quase ao mesmo tempo ao montar o componente:
 
-**2. Ação de Status com 1 clique**
-- O `MuralTab` já tem um `<Select>` para trocar o status, mas ele está dentro de uma `SelectTrigger` pequena e pouco visível
-- Falta: Substituir o Select por botões de status clicáveis visualmente claros (chips/badges clicáveis), tornando a troca de status muito mais rápida e intuitiva
+```
+onAuthStateChange dispara → await fetchOrganization() [bloqueia o callback] 
+getSession() resolve     → fetchOrganization() novamente
+```
 
-**3. Perfil da Loja — Logo e Cor Primária**
-- O `StoreProfileTab` JÁ tem tanto o upload de logo quanto o color picker implementados e funcionando
-- Portanto, esta funcionalidade está completa. Vamos verificar se há algum problema de UX e polir
+A especificação do Supabase é clara: **nunca use `await` dentro do callback de `onAuthStateChange`**, pois isso cria um deadlock no lock de autenticação interno, causando exatamente o carregamento infinito relatado. Quando o callback fica bloqueado por um `await`, o Supabase não consegue resolver o estado da sessão, gerando o loop.
 
-## O que será implementado
+### Problema 2 — `QueryClient` sem configuração de timeout/retry
+
+O `QueryClient` em `App.tsx` é criado sem nenhuma configuração. Isso significa que em caso de falha de rede, ele vai fazer 3 retries automáticos com backoff exponencial — podendo travar o dashboard por até 30+ segundos antes de mostrar um erro.
+
+### Problema 3 — RLS com `Permissive: No` (RESTRICTIVE)
+
+Olhando a configuração atual do banco, todas as policies estão como `Permissive: No`, que significa `RESTRICTIVE`. Policies RESTRICTIVE são aplicadas com operador AND — ou seja, o usuário precisa passar em TODAS as policies restritivas simultaneamente. O comportamento correto para multi-tenant é `PERMISSIVE` (OR). Isso pode estar causando bloqueios silenciosos de leitura/escrita.
+
+### Problema 4 — Redirecionamento lento pós-login
+
+Em `DashboardPage.tsx`, o redirecionamento para `/auth` acontece via `navigate()` dentro do render (sem `useEffect`), o que é um anti-pattern no React 18 e causa renders extras.
 
 ---
 
-### Mudança 1 — Realtime no MuralTab
+## Solução Técnica
 
-Adicionar uma subscription Supabase Realtime na tabela `suggestions` diretamente no `MuralTab`. Quando qualquer cliente enviar uma sugestão na página pública, o dashboard atualiza automaticamente via `postgres_changes`.
+### Mudança 1 — `useAuth.tsx` (crítica)
 
-Também precisamos habilitar a tabela `suggestions` na publicação Realtime do banco de dados via migration SQL.
+Refatorar completamente a lógica de auth para seguir o padrão correto:
 
-**Fluxo técnico:**
+- `onAuthStateChange` → apenas atualiza `session` e `user` com `setState` síncrono. **Sem awaits.** Para buscar a organização, usa `setTimeout(..., 0)` para despachar fora do lock.
+- `getSession()` → responsável pelo carregamento inicial. Busca sessão + organização e então define `loading = false`.
+- Flag `isMounted` para evitar setState em componente desmontado.
+
 ```
-Cliente envia sugestão na /unidade/:slug
-  → INSERT na tabela suggestions
-    → Supabase Realtime dispara evento postgres_changes
-      → MuralTab recebe o evento
-        → queryClient.invalidateQueries(["suggestions", orgId])
-          → Lista atualiza instantaneamente ✅
+Antes (bugado):
+onAuthStateChange → await fetchOrganization() → DEADLOCK
+
+Depois (correto):
+onAuthStateChange → setState sincrono → setTimeout → fetchOrganization (fora do lock)
+getSession        → await fetchOrganization → setLoading(false)
 ```
 
-**Arquivos modificados:**
-- `supabase/migrations/` — Habilitar realtime na tabela `suggestions`
-- `src/components/dashboard/MuralTab.tsx` — Adicionar `useEffect` com channel Supabase Realtime
+### Mudança 2 — `App.tsx` — QueryClient com retry e timeout configurados
+
+Configurar o `QueryClient` com:
+- `retry: 1` (apenas 1 retry em vez de 3)
+- `staleTime: 30000` (30s de cache)
+- `networkMode: 'always'`
+
+### Mudança 3 — `DashboardPage.tsx` — Redirecionamento com `useEffect`
+
+Mover o `navigate("/auth")` para dentro de um `useEffect` para evitar side-effects durante o render.
+
+### Mudança 4 — Banco: Corrigir policies RLS para PERMISSIVE
+
+Recriar todas as policies de `RESTRICTIVE` para `PERMISSIVE` via migration SQL. Isso garante que as operações de leitura e escrita não sejam silenciosamente bloqueadas pelo operador AND das policies restritivas.
 
 ---
 
-### Mudança 2 — Status Chips clicáveis no MuralTab
+## Arquivos Modificados
 
-Substituir o `<Select>` de status por 3 botões visuais de status. Cada botão representa um estado e o atualmente ativo fica destacado. Um clique muda instantaneamente.
+| Arquivo | Mudança |
+|---|---|
+| `src/hooks/useAuth.tsx` | Refatorar auth para eliminar deadlock no `onAuthStateChange` |
+| `src/App.tsx` | Configurar `QueryClient` com retry=1 e staleTime |
+| `src/pages/DashboardPage.tsx` | Mover redirect para `useEffect`, melhorar timeout/fallback |
+| `supabase/migrations/` | Recriar policies RLS como PERMISSIVE |
 
-Layout do novo componente de status (por card):
-```
-[ ⏳ Pendente ] [ 🔍 Analisando ] [ ✅ No Cardápio ]
-  (amarelo)       (azul)             (verde)
-     ↑ ativo = borda grossa + cor de fundo
-```
+## Resultado Esperado
 
-Isso elimina o dropdown e torna a ação de mudar status um clique único, muito mais ágil.
-
-**Arquivo modificado:** `src/components/dashboard/MuralTab.tsx`
-
----
-
-### Mudança 3 — Polimento do StoreProfileTab
-
-O upload de logo e o color picker já estão implementados. O que vamos melhorar:
-
-- Adicionar um preview ao vivo da cor primária com um mock da página pública (pequeno preview visual mostrando como ficará o botão e o banner da loja)
-- Melhorar o layout do color picker para ser mais intuitivo
-- Adicionar um botão "Remover logo" para o caso em que o lojista queira voltar a usar o emoji
-
-**Arquivo modificado:** `src/components/dashboard/StoreProfileTab.tsx`
-
----
-
-## Arquivos a criar/modificar
-
-| Ação | Arquivo | Descrição |
+| Situação | Antes | Depois |
 |---|---|---|
-| CRIAR | `supabase/migrations/[ts]_enable_realtime_suggestions.sql` | Adiciona suggestions ao realtime |
-| MODIFICAR | `src/components/dashboard/MuralTab.tsx` | Realtime subscription + status chips |
-| MODIFICAR | `src/components/dashboard/StoreProfileTab.tsx` | Preview da cor + botão remover logo |
-
-## Nenhuma mudança no banco de dados de schema
-
-Apenas uma migration para habilitar a publicação Realtime na tabela `suggestions`. Nenhuma coluna nova.
-
-## Resultado esperado
-
-| Funcionalidade | Antes | Depois |
-|---|---|---|
-| Sugestão enviada pelo cliente | Aparece após recarregar a página | Aparece instantaneamente no MuralTab |
-| Trocar status | Abrir dropdown, escolher opção | Clicar no chip do status desejado |
-| Logo da loja | Já funciona | + botão "Remover logo" |
-| Cor primária | Já funciona | + preview ao vivo da cor no card |
+| Login e ir para dashboard | 3-8 segundos ou infinito | Menos de 1 segundo |
+| Carregamento infinito | Frequente | Eliminado |
+| Erro de RLS silencioso | Possível | Corrigido |
+| Retry em falha de rede | 3x com 30s de espera | 1x com 5s |
