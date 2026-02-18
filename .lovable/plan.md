@@ -1,83 +1,86 @@
 
-# Diagnóstico e Correção: Performance Crítica de Auth e Dashboard
+# Melhorias no Gerenciar Mural — Ações Rápidas e UX
 
-## Problemas Identificados
+## Estado atual (o que já existe)
 
-### Problema 1 — Duplo disparo no `useAuth.tsx` (causa do carregamento infinito)
+Após revisar o código completo, aqui está o que JÁ funciona:
 
-O código atual tem uma **race condition severa** entre `onAuthStateChange` e `getSession()`. Ambos rodam quase ao mesmo tempo ao montar o componente:
+- Status chips clicáveis (3 botões por card para mudar status) — implementado
+- AlertDialog de confirmação para excluir — implementado
+- Toasts de feedback — implementados (mas com texto genérico)
+- Sincronização dos contadores do HomeTab — JÁ FUNCIONA automaticamente porque ambas as abas usam a mesma chave de cache `["suggestions", orgId]`. Qualquer mudança de status no MuralTab invalida o cache e o HomeTab atualiza na mesma instância
 
+## O que será melhorado
+
+### Mudança 1 — Botões de Ação Rápida explícitos por card
+
+O usuário pediu botões com labels claros: "Mover para Analisando" e "Aprovar para o Cardápio". Atualmente os chips funcionam, mas são compactos e exigem que o lojista entenda que deve clicar neles.
+
+A nova abordagem será um sistema de duas camadas:
+
+**Camada 1 — Badge de status atual** (só exibe, não é clicável):
 ```
-onAuthStateChange dispara → await fetchOrganization() [bloqueia o callback] 
-getSession() resolve     → fetchOrganization() novamente
-```
-
-A especificação do Supabase é clara: **nunca use `await` dentro do callback de `onAuthStateChange`**, pois isso cria um deadlock no lock de autenticação interno, causando exatamente o carregamento infinito relatado. Quando o callback fica bloqueado por um `await`, o Supabase não consegue resolver o estado da sessão, gerando o loop.
-
-### Problema 2 — `QueryClient` sem configuração de timeout/retry
-
-O `QueryClient` em `App.tsx` é criado sem nenhuma configuração. Isso significa que em caso de falha de rede, ele vai fazer 3 retries automáticos com backoff exponencial — podendo travar o dashboard por até 30+ segundos antes de mostrar um erro.
-
-### Problema 3 — RLS com `Permissive: No` (RESTRICTIVE)
-
-Olhando a configuração atual do banco, todas as policies estão como `Permissive: No`, que significa `RESTRICTIVE`. Policies RESTRICTIVE são aplicadas com operador AND — ou seja, o usuário precisa passar em TODAS as policies restritivas simultaneamente. O comportamento correto para multi-tenant é `PERMISSIVE` (OR). Isso pode estar causando bloqueios silenciosos de leitura/escrita.
-
-### Problema 4 — Redirecionamento lento pós-login
-
-Em `DashboardPage.tsx`, o redirecionamento para `/auth` acontece via `navigate()` dentro do render (sem `useEffect`), o que é um anti-pattern no React 18 e causa renders extras.
-
----
-
-## Solução Técnica
-
-### Mudança 1 — `useAuth.tsx` (crítica)
-
-Refatorar completamente a lógica de auth para seguir o padrão correto:
-
-- `onAuthStateChange` → apenas atualiza `session` e `user` com `setState` síncrono. **Sem awaits.** Para buscar a organização, usa `setTimeout(..., 0)` para despachar fora do lock.
-- `getSession()` → responsável pelo carregamento inicial. Busca sessão + organização e então define `loading = false`.
-- Flag `isMounted` para evitar setState em componente desmontado.
-
-```
-Antes (bugado):
-onAuthStateChange → await fetchOrganization() → DEADLOCK
-
-Depois (correto):
-onAuthStateChange → setState sincrono → setTimeout → fetchOrganization (fora do lock)
-getSession        → await fetchOrganization → setLoading(false)
+⏳ Pendente   (amarelo, read-only — mostra onde está)
 ```
 
-### Mudança 2 — `App.tsx` — QueryClient com retry e timeout configurados
+**Camada 2 — Botões de ação rápida contextuais** (aparecem conforme o status):
 
-Configurar o `QueryClient` com:
-- `retry: 1` (apenas 1 retry em vez de 3)
-- `staleTime: 30000` (30s de cache)
-- `networkMode: 'always'`
+| Status atual | Ações disponíveis |
+|---|---|
+| `pending` | [🔍 Analisando] [✅ Aprovar para Cardápio] |
+| `analyzing` | [⏳ Voltar para Pendente] [✅ Aprovar para Cardápio] |
+| `on_menu` | [⏳ Pendente] [🔍 Analisando] |
 
-### Mudança 3 — `DashboardPage.tsx` — Redirecionamento com `useEffect`
+Isso torna as ações explícitas e contextuais — o lojista vê exatamente o que cada botão faz.
 
-Mover o `navigate("/auth")` para dentro de um `useEffect` para evitar side-effects durante o render.
+### Mudança 2 — Toast com mensagem correta
 
-### Mudança 4 — Banco: Corrigir policies RLS para PERMISSIVE
+Atualizar o texto do toast em `useSuggestions.ts`:
+- `useUpdateSuggestion` → `"Status atualizado com sucesso! ✅"` (quando é mudança de status)
+- Manter `"Sugestão atualizada!"` para edição de nome/descrição
 
-Recriar todas as policies de `RESTRICTIVE` para `PERMISSIVE` via migration SQL. Isso garante que as operações de leitura e escrita não sejam silenciosamente bloqueadas pelo operador AND das policies restritivas.
+Para isso, o hook `useUpdateSuggestion` receberá um parâmetro opcional `successMessage` que pode ser customizado pelo chamador.
 
----
+### Mudança 3 — Layout visual do card reorganizado
 
-## Arquivos Modificados
+O card ficará com um layout limpo em 3 seções:
+
+```
+┌─────────────────────────────────────────────┐
+│ 🍕 Nome da sugestão        ❤️ 12  ✏️  🗑️   │
+│   Descrição opcional                        │
+│   ⏳ Pendente                               │
+│                                             │
+│  [🔍 Mover para Analisando] [✅ Aprovar]    │
+└─────────────────────────────────────────────┘
+```
+
+- Badge de status: read-only, visual indicator
+- Botões de ação rápida: contextuais, com ícone + label curto
+- Votos + editar + excluir: no canto superior direito (já existente)
+
+### Mudança 4 — Sincronização dos contadores (confirmar que funciona)
+
+A sincronização JÁ está funcionando corretamente via React Query. Ambas as abas (HomeTab e MuralTab) usam `useSuggestions(organization.id)` que compartilha a chave `["suggestions", orgId]`. Quando `updateMutation` chama `queryClient.invalidateQueries`, ambas as abas recebem os dados frescos ao mesmo tempo.
+
+Não é necessária nenhuma mudança de arquitetura aqui — apenas confirmar que os toasts e botões estão corretos.
+
+## Arquivos modificados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/hooks/useAuth.tsx` | Refatorar auth para eliminar deadlock no `onAuthStateChange` |
-| `src/App.tsx` | Configurar `QueryClient` com retry=1 e staleTime |
-| `src/pages/DashboardPage.tsx` | Mover redirect para `useEffect`, melhorar timeout/fallback |
-| `supabase/migrations/` | Recriar policies RLS como PERMISSIVE |
+| `src/hooks/useSuggestions.ts` | Adicionar parâmetro `successMessage` opcional em `useUpdateSuggestion` |
+| `src/components/dashboard/MuralTab.tsx` | Substituir chips por badge read-only + botões de ação contextual; toast personalizado por ação |
 
-## Resultado Esperado
+## Nenhuma mudança de banco de dados necessária
 
-| Situação | Antes | Depois |
+Toda a funcionalidade pedida é puramente de frontend.
+
+## Resultado esperado
+
+| Funcionalidade | Antes | Depois |
 |---|---|---|
-| Login e ir para dashboard | 3-8 segundos ou infinito | Menos de 1 segundo |
-| Carregamento infinito | Frequente | Eliminado |
-| Erro de RLS silencioso | Possível | Corrigido |
-| Retry em falha de rede | 3x com 30s de espera | 1x com 5s |
+| Mudança de status | Chips compactos clicáveis | Badge de status + botões "Mover para Analisando" / "Aprovar para o Cardápio" |
+| Toast de status | "Sugestão atualizada!" | "Status atualizado com sucesso! ✅" |
+| Contadores do dashboard | Já sincronizam | Continuam sincronizando (sem regressão) |
+| Confirmação de exclusão | AlertDialog já presente | Mantido com melhoria no texto |
