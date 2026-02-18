@@ -60,21 +60,23 @@ const Index = () => {
       <section className="max-w-5xl mx-auto px-4 pt-16 pb-12 text-center">
         <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">
           <Zap className="w-3 h-3 mr-1" />
-          Novo jeito de ouvir seus clientes
+          Inteligência de dados para o seu negócio
         </Badge>
         <h1 className="text-4xl md:text-6xl font-extrabold text-foreground mb-5 leading-tight tracking-tight">
-          Seu cardápio criado
+          Transforme o desejo dos seus clientes
           <br />
-          <span className="text-primary">pelos seus clientes</span>
+          em lucro real com a <span className="text-primary">TrendFood.</span>
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed">
-          Crie uma página pública para seu estabelecimento. Seus clientes sugerem novos lanches e votam nos favoritos.
-          Você lança o que realmente vai vender.
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-4 leading-relaxed">
+          Descubra exatamente o que seu público quer comer. Crie seu mural de sugestões em segundos, receba votos em tempo real e turbine seu cardápio com os lanches que já nascem campeões de vendas.
+        </p>
+        <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
+          Faça como centenas de empreendedores que entenderam os desafios de inovar no setor de alimentação. Tenha uma equipe de inteligência de dados trabalhando para sua lanchonete, 24 horas por dia.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button size="lg" className="text-base font-semibold gap-2" asChild>
-          <Link to="/auth">
-              Criar minha conta grátis
+            <Link to="/auth">
+              Começar a Lucrar Agora
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
@@ -152,14 +154,14 @@ const Index = () => {
       <section className="bg-primary py-16 px-4">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-primary-foreground mb-4">
-            Pronto para ouvir seus clientes?
+            Pronto para transformar seu cardápio?
           </h2>
           <p className="text-primary-foreground/80 text-lg mb-8">
-            Comece grátis hoje. Nenhum cartão de crédito necessário.
+            Junte-se a centenas de empreendedores. Comece grátis, sem cartão de crédito.
           </p>
           <Button size="lg" variant="secondary" className="text-base font-semibold gap-2" asChild>
-          <Link to="/auth">
-              Criar minha conta grátis
+            <Link to="/auth">
+              Começar a Lucrar Agora
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
