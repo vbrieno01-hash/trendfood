@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,14 +39,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
 
   const fetchOrganization = async (userId: string) => {
-    const { data } = await supabase
-      .from("organizations")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-    setOrganization(data as Organization | null);
+    try {
+      const { data } = await supabase
+        .from("organizations")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (isMounted.current) {
+        setOrganization(data as Organization | null);
+      }
+    } catch {
+      if (isMounted.current) setOrganization(null);
+    }
   };
 
   const refreshOrganization = async () => {
@@ -58,30 +65,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    isMounted.current = true;
+
+    // 1. Set up listener FIRST — no awaits inside the callback (prevents Supabase auth lock deadlock)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchOrganization(session.user.id);
+      (_event, newSession) => {
+        if (!isMounted.current) return;
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (newSession?.user) {
+          // Dispatch outside the auth lock via setTimeout
+          const userId = newSession.user.id;
+          setTimeout(() => {
+            if (isMounted.current) fetchOrganization(userId);
+          }, 0);
         } else {
           setOrganization(null);
         }
-        setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchOrganization(session.user.id).finally(() => setLoading(false));
+    // 2. Get initial session — responsible for setting loading = false
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (!isMounted.current) return;
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      if (initialSession?.user) {
+        fetchOrganization(initialSession.user.id).finally(() => {
+          if (isMounted.current) setLoading(false);
+        });
       } else {
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted.current = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
@@ -99,3 +120,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+

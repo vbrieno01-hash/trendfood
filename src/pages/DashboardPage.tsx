@@ -21,8 +21,15 @@ const DashboardPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
 
+  // Redirect if not authenticated (inside useEffect to avoid render-phase side-effects)
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [loading, user, navigate]);
+
   // Fallback: if user is authenticated but org is null (race condition from signup),
-  // retry fetching the organization automatically
+  // retry fetching the organization once automatically
   useEffect(() => {
     if (!loading && user && !organization && !retryRef.current) {
       retryRef.current = true;
@@ -30,13 +37,7 @@ const DashboardPage = () => {
     }
   }, [loading, user, organization, refreshOrganizationForUser]);
 
-  // Redirect if not authenticated
-  if (!loading && !user) {
-    navigate("/auth");
-    return null;
-  }
-
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="space-y-3 w-64">
