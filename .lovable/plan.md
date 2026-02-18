@@ -1,74 +1,95 @@
 
-# Diagnóstico Completo e Plano de Correção
+# Plano de Implementação — 3 Melhorias Principais
 
-## O que foi descoberto
+## Diagnóstico do estado atual
 
-Testei o fluxo de cadastro end-to-end e confirmei:
+Após revisar todo o código, aqui está o status real de cada funcionalidade pedida:
 
-**O banco de dados está funcionando.** A organização "Burguer Teste" foi criada com sucesso no banco. As políticas RLS foram recriadas como PERMISSIVE e estão corretas.
+**1. Página Pública + Aparecimento instantâneo no Dashboard**
+- A página `/unidade/:slug` já envia sugestões corretamente via `useAddSuggestion`
+- O `MuralTab` já busca dados via `useSuggestions`, mas usa polling passivo (React Query com refetch manual)
+- Falta: Supabase Realtime na tabela `suggestions` para que a nova sugestão apareça instantaneamente no dashboard sem precisar recarregar a página
 
-**O problema é uma race condition no AuthProvider.** Aqui está a sequência exata do que acontece:
+**2. Ação de Status com 1 clique**
+- O `MuralTab` já tem um `<Select>` para trocar o status, mas ele está dentro de uma `SelectTrigger` pequena e pouco visível
+- Falta: Substituir o Select por botões de status clicáveis visualmente claros (chips/badges clicáveis), tornando a troca de status muito mais rápida e intuitiva
 
+**3. Perfil da Loja — Logo e Cor Primária**
+- O `StoreProfileTab` JÁ tem tanto o upload de logo quanto o color picker implementados e funcionando
+- Portanto, esta funcionalidade está completa. Vamos verificar se há algum problema de UX e polir
+
+## O que será implementado
+
+---
+
+### Mudança 1 — Realtime no MuralTab
+
+Adicionar uma subscription Supabase Realtime na tabela `suggestions` diretamente no `MuralTab`. Quando qualquer cliente enviar uma sugestão na página pública, o dashboard atualiza automaticamente via `postgres_changes`.
+
+Também precisamos habilitar a tabela `suggestions` na publicação Realtime do banco de dados via migration SQL.
+
+**Fluxo técnico:**
 ```
-1. supabase.auth.signUp() → cria usuário → dispara onAuthStateChange IMEDIATAMENTE
-2. onAuthStateChange → fetchOrganization(userId) → org ainda não existe → organization = null
-3. código continua → INSERT profiles → INSERT organizations (sucesso!)
-4. navigate("/dashboard") → DashboardPage renderiza
-5. DashboardPage vê organization = null → mostra "Nenhuma lanchonete encontrada" ❌
-```
-
-O Supabase Auth dispara o evento `onAuthStateChange` ANTES do código inserir a organização no banco. Quando o dashboard carrega, o contexto ainda tem `organization = null`.
-
-## Solução — 3 mudanças cirúrgicas
-
-### 1. `AuthPage.tsx` — Aguardar org antes de navegar
-
-Após o INSERT da organização, chamar `refreshOrganization()` do contexto antes de navegar. Isso garante que o contexto tenha os dados corretos quando o dashboard carregar.
-
-Ou alternativamente (mais robusto): desabilitar o `onAuthStateChange` de disparar `fetchOrganization` durante o signup, e deixar o `navigate` acontecer só depois que o INSERT concluir e o contexto for atualizado.
-
-A abordagem mais limpa: no `handleSignup`, após todos os INSERTs, **chamar `refreshOrganization()` explicitamente** antes de navegar. Isso funciona porque `refreshOrganization` usa o `user` já setado pelo `onAuthStateChange`.
-
-Mas há um problema de timing: `refreshOrganization` usa `user` do estado, que pode não estar setado ainda. A solução mais confiável é passar o `userId` diretamente.
-
-**Abordagem final escolhida:**
-- Expor `fetchOrganization` (ou uma versão com userId explícito) no contexto como `refreshOrganizationForUser(userId)`
-- Ou simplesmente: no `AuthPage.handleSignup`, após o INSERT bem-sucedido, aguardar um pequeno retry loop até o `organization` aparecer
-
-**Na prática, a solução mais simples e robusta:**
-- No `AuthPage.handleSignup`, após inserir a organização com sucesso, chamar diretamente `refreshOrganization()` — mas expondo uma versão que aceita userId
-- Alternativamente: usar `supabase.from("organizations").select(...).eq("user_id", userId)` diretamente no AuthPage antes de navegar, para popular o contexto
-
-**Solução escolhida (mais limpa):** Adicionar `setOrganizationFromSignup` ao AuthContext que recebe o userId e busca a org, ou simplesmente expor `fetchOrganizationById` que recebe um userId.
-
-### 2. `DashboardPage.tsx` — Retry de organização
-
-Adicionar um `useEffect` que tenta fazer `refreshOrganization()` quando `user` existe mas `organization` é null. Isso funciona como fallback para o caso da race condition.
-
-### 3. `useAuth.tsx` — Expor refreshOrganizationForUser
-
-Expor uma função que aceita um userId explícito para ser chamada no momento certo do signup.
-
-## Arquivos a modificar
-
-| Arquivo | Mudança |
-|---|---|
-| `src/hooks/useAuth.tsx` | Expor `refreshOrganizationForUser(userId: string)` no contexto |
-| `src/pages/AuthPage.tsx` | Chamar `refreshOrganizationForUser(userId)` após INSERTs, antes de `navigate` |
-| `src/pages/DashboardPage.tsx` | Adicionar fallback: se `user` existe e `organization` é null, tenta `refreshOrganization()` automaticamente com retry |
-
-## Resultado esperado após a correção
-
-```
-1. supabase.auth.signUp() → cria usuário → dispara onAuthStateChange
-2. onAuthStateChange → fetchOrganization(userId) → null (org ainda não existe)
-3. INSERT profiles → INSERT organizations → SUCESSO
-4. refreshOrganizationForUser(userId) → busca org recém-criada → organization = { id, name, slug, ... }
-5. navigate("/dashboard") → DashboardPage renderiza com organization preenchida ✅
+Cliente envia sugestão na /unidade/:slug
+  → INSERT na tabela suggestions
+    → Supabase Realtime dispara evento postgres_changes
+      → MuralTab recebe o evento
+        → queryClient.invalidateQueries(["suggestions", orgId])
+          → Lista atualiza instantaneamente ✅
 ```
 
-O fallback no DashboardPage garante que mesmo se houver qualquer timing issue, o painel tentará recarregar a organização automaticamente.
+**Arquivos modificados:**
+- `supabase/migrations/` — Habilitar realtime na tabela `suggestions`
+- `src/components/dashboard/MuralTab.tsx` — Adicionar `useEffect` com channel Supabase Realtime
 
-## Mudanças no banco de dados
+---
 
-Nenhuma. O banco está correto — todas as tabelas, colunas, RLS e a função `increment_vote` estão funcionando.
+### Mudança 2 — Status Chips clicáveis no MuralTab
+
+Substituir o `<Select>` de status por 3 botões visuais de status. Cada botão representa um estado e o atualmente ativo fica destacado. Um clique muda instantaneamente.
+
+Layout do novo componente de status (por card):
+```
+[ ⏳ Pendente ] [ 🔍 Analisando ] [ ✅ No Cardápio ]
+  (amarelo)       (azul)             (verde)
+     ↑ ativo = borda grossa + cor de fundo
+```
+
+Isso elimina o dropdown e torna a ação de mudar status um clique único, muito mais ágil.
+
+**Arquivo modificado:** `src/components/dashboard/MuralTab.tsx`
+
+---
+
+### Mudança 3 — Polimento do StoreProfileTab
+
+O upload de logo e o color picker já estão implementados. O que vamos melhorar:
+
+- Adicionar um preview ao vivo da cor primária com um mock da página pública (pequeno preview visual mostrando como ficará o botão e o banner da loja)
+- Melhorar o layout do color picker para ser mais intuitivo
+- Adicionar um botão "Remover logo" para o caso em que o lojista queira voltar a usar o emoji
+
+**Arquivo modificado:** `src/components/dashboard/StoreProfileTab.tsx`
+
+---
+
+## Arquivos a criar/modificar
+
+| Ação | Arquivo | Descrição |
+|---|---|---|
+| CRIAR | `supabase/migrations/[ts]_enable_realtime_suggestions.sql` | Adiciona suggestions ao realtime |
+| MODIFICAR | `src/components/dashboard/MuralTab.tsx` | Realtime subscription + status chips |
+| MODIFICAR | `src/components/dashboard/StoreProfileTab.tsx` | Preview da cor + botão remover logo |
+
+## Nenhuma mudança no banco de dados de schema
+
+Apenas uma migration para habilitar a publicação Realtime na tabela `suggestions`. Nenhuma coluna nova.
+
+## Resultado esperado
+
+| Funcionalidade | Antes | Depois |
+|---|---|---|
+| Sugestão enviada pelo cliente | Aparece após recarregar a página | Aparece instantaneamente no MuralTab |
+| Trocar status | Abrir dropdown, escolher opção | Clicar no chip do status desejado |
+| Logo da loja | Já funciona | + botão "Remover logo" |
+| Cor primária | Já funciona | + preview ao vivo da cor no card |
