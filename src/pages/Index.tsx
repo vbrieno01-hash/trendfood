@@ -73,7 +73,7 @@ const Index = () => {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button size="lg" className="text-base font-semibold gap-2" asChild>
-            <Link to="#demo">
+            <Link to="/cadastro">
               Criar minha conta grátis
               <ArrowRight className="w-4 h-4" />
             </Link>
@@ -157,9 +157,11 @@ const Index = () => {
           <p className="text-primary-foreground/80 text-lg mb-8">
             Comece grátis hoje. Nenhum cartão de crédito necessário.
           </p>
-          <Button size="lg" variant="secondary" className="text-base font-semibold gap-2">
-            Criar minha conta grátis
-            <ArrowRight className="w-4 h-4" />
+          <Button size="lg" variant="secondary" className="text-base font-semibold gap-2" asChild>
+            <Link to="/cadastro">
+              Criar minha conta grátis
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </Button>
         </div>
       </section>
