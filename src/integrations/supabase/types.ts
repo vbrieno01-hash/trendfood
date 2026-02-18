@@ -20,7 +20,9 @@ export type Database = {
           description: string | null
           emoji: string
           id: string
+          logo_url: string | null
           name: string
+          primary_color: string
           slug: string
           user_id: string
         }
@@ -29,7 +31,9 @@ export type Database = {
           description?: string | null
           emoji?: string
           id?: string
+          logo_url?: string | null
           name: string
+          primary_color?: string
           slug: string
           user_id: string
         }
@@ -38,8 +42,37 @@ export type Database = {
           description?: string | null
           emoji?: string
           id?: string
+          logo_url?: string | null
           name?: string
+          primary_color?: string
           slug?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -87,7 +120,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_vote: { Args: { suggestion_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
