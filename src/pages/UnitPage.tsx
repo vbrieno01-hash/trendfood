@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChefHat, Heart, ArrowLeft, Send, Plus, X } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ChefHat, Heart, ArrowLeft, Send, Plus, X, UtensilsCrossed, MessageCircle } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useSuggestions, useAddSuggestion, useIncrementVote } from "@/hooks/useSuggestions";
+import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pendente",
@@ -29,6 +31,7 @@ const UnitPage = () => {
 
   const { data: org, isLoading: orgLoading, isError } = useOrganization(slug);
   const { data: suggestions = [], isLoading: suggestionsLoading } = useSuggestions(org?.id);
+  const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
 
   const addMutation = useAddSuggestion(org?.id ?? "");
   const voteMutation = useIncrementVote(org?.id ?? "");
@@ -38,7 +41,6 @@ const UnitPage = () => {
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  // LocalStorage voted ids
   const [votedIds, setVotedIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem(`voted-${slug}`);
@@ -54,7 +56,6 @@ const UnitPage = () => {
     }
   }, [orgLoading, isError, org, navigate]);
 
-  // Apply primary color as CSS variable
   useEffect(() => {
     if (org?.primary_color) {
       document.documentElement.style.setProperty("--org-primary", org.primary_color);
@@ -70,9 +71,8 @@ const UnitPage = () => {
         <div className="max-w-2xl mx-auto px-4 pt-6 space-y-4">
           <Skeleton className="h-16 w-full rounded-xl" />
           <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-32 w-full rounded-xl" />
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+            <Skeleton key={i} className="h-32 w-full rounded-xl" />
           ))}
         </div>
       </div>
@@ -82,6 +82,7 @@ const UnitPage = () => {
   if (!org) return null;
 
   const primaryColor = org.primary_color || "#f97316";
+  const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
   const handleVote = (id: string) => {
     if (votedIds.has(id) || voteMutation.isPending) return;
@@ -102,6 +103,25 @@ const UnitPage = () => {
       setSubmitted(false);
       setShowForm(false);
     }, 2500);
+  };
+
+  // Group menu items by category
+  const groupedMenu = CATEGORIES.map((cat) => ({
+    ...cat,
+    items: menuItems.filter((i) => i.category === cat.value),
+  })).filter((g) => g.items.length > 0);
+
+  const availableItems = menuItems.filter((i) => i.available);
+
+  const buildWhatsAppLink = (itemName: string, price: number) => {
+    const formattedPrice = new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(price);
+    const text = encodeURIComponent(
+      `Olá! Quero pedir: ${itemName} - ${formattedPrice}`
+    );
+    return `https://wa.me/55${whatsapp}?text=${text}`;
   };
 
   return (
@@ -125,99 +145,204 @@ const UnitPage = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 pb-24 pt-6">
+      <main className="max-w-2xl mx-auto px-4 pb-24 pt-4">
         {/* Banner */}
         <div
-          className="rounded-2xl p-5 mb-6 border"
-          style={{
-            backgroundColor: `${primaryColor}15`,
-            borderColor: `${primaryColor}30`,
-          }}
+          className="rounded-2xl p-4 mb-5 border"
+          style={{ backgroundColor: `${primaryColor}15`, borderColor: `${primaryColor}30` }}
         >
-          <p className="text-xl font-bold text-foreground mb-1">{org.description || `Bem-vindo ao ${org.name}!`}</p>
+          <p className="text-lg font-bold text-foreground mb-0.5">{org.description || `Bem-vindo ao ${org.name}!`}</p>
           <p className="text-muted-foreground text-sm">
-            💡 Sugira um novo item e vote nos favoritos — as melhores ideias entram no cardápio!
+            🍔 Confira nosso cardápio e sugira novos itens!
           </p>
         </div>
 
-        {/* Suggestions list */}
-        <h2 className="font-bold text-foreground text-lg mb-4">
-          💬 Sugestões da galera{" "}
-          <span className="text-muted-foreground font-normal text-base">
-            ({suggestionsLoading ? "..." : suggestions.length})
-          </span>
-        </h2>
+        {/* Tabs */}
+        <Tabs defaultValue="menu">
+          <TabsList className="w-full mb-5">
+            <TabsTrigger value="menu" className="flex-1 gap-1.5">
+              <UtensilsCrossed className="w-3.5 h-3.5" />
+              Cardápio
+              {!menuLoading && menuItems.length > 0 && (
+                <span className="ml-1 text-xs opacity-60">({availableItems.length})</span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="suggestions" className="flex-1 gap-1.5">
+              <MessageCircle className="w-3.5 h-3.5" />
+              Sugestões
+              {!suggestionsLoading && suggestions.length > 0 && (
+                <span className="ml-1 text-xs opacity-60">({suggestions.length})</span>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        {suggestionsLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-xl" />
-            ))}
-          </div>
-        ) : suggestions.length === 0 ? (
-          <div className="bg-card border border-border rounded-2xl p-8 text-center">
-            <p className="text-3xl mb-2">💡</p>
-            <p className="font-semibold text-foreground">Nenhuma sugestão ainda</p>
-            <p className="text-muted-foreground text-sm mt-1">Seja o primeiro a sugerir um item!</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {suggestions.map((s, index) => {
-              const hasVoted = votedIds.has(s.id);
-              return (
-                <Card key={s.id} className="border border-border shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className="font-semibold text-foreground text-sm leading-snug">{s.name}</h3>
-                          <Badge
-                            className={`text-xs shrink-0 border ${STATUS_CLASS[s.status] ?? ""}`}
-                            variant="outline"
-                          >
-                            {STATUS_LABEL[s.status] ?? s.status}
-                          </Badge>
+          {/* ── CARDÁPIO TAB ── */}
+          <TabsContent value="menu" className="mt-0">
+            {menuLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : menuItems.length === 0 ? (
+              <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center">
+                <UtensilsCrossed className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
+                <p className="font-semibold text-foreground">Cardápio ainda não publicado</p>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Em breve teremos novidades! Enquanto isso, deixe uma sugestão. 😊
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-7">
+                {groupedMenu.map((group) => (
+                  <div key={group.value}>
+                    <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                      <span>{group.emoji}</span>
+                      <span>{group.value}</span>
+                    </h2>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-opacity ${!item.available ? "opacity-60" : ""}`}
+                        >
+                          {/* Photo */}
+                          {item.image_url ? (
+                            <div className="aspect-[4/3] w-full overflow-hidden bg-secondary">
+                              <img
+                                src={item.image_url}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="aspect-[4/3] w-full bg-secondary flex items-center justify-center">
+                              <span className="text-5xl opacity-30">{group.emoji}</span>
+                            </div>
+                          )}
+
+                          <div className="p-3">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className="font-semibold text-foreground text-sm leading-snug">{item.name}</h3>
+                              {!item.available && (
+                                <Badge variant="destructive" className="text-xs shrink-0">Indisponível</Badge>
+                              )}
+                            </div>
+                            {item.description && (
+                              <p className="text-muted-foreground text-xs leading-relaxed mb-2 line-clamp-2">
+                                {item.description}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-foreground text-base">
+                                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.price)}
+                              </span>
+                              {whatsapp && item.available && (
+                                <a
+                                  href={buildWhatsAppLink(item.name, item.price)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white transition-transform hover:scale-105 active:scale-95"
+                                  style={{ backgroundColor: "#25D366" }}
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                  </svg>
+                                  Pedir
+                                </a>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        {s.description && (
-                          <p className="text-muted-foreground text-xs leading-relaxed">{s.description}</p>
-                        )}
-                      </div>
+                      ))}
                     </div>
-                    <div className="flex justify-end mt-3">
-                      <button
-                        onClick={() => handleVote(s.id)}
-                        disabled={hasVoted || voteMutation.isPending}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                          hasVoted
-                            ? "bg-red-50 text-red-500 cursor-not-allowed border border-red-100"
-                            : "bg-secondary text-muted-foreground hover:bg-red-50 hover:text-red-500 border border-border hover:border-red-100"
-                        }`}
-                      >
-                        <Heart className={`w-4 h-4 ${hasVoted ? "fill-red-500" : ""}`} />
-                        <span>{s.votes}</span>
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </main>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-      {/* Floating suggestion button */}
-      {!showForm && (
-        <button
-          onClick={() => setShowForm(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95 z-50"
-          style={{ backgroundColor: primaryColor }}
-        >
-          <Plus className="w-6 h-6 text-white" />
-        </button>
-      )}
+          {/* ── SUGESTÕES TAB ── */}
+          <TabsContent value="suggestions" className="mt-0">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-foreground text-base">
+                💬 Sugestões da galera{" "}
+                <span className="text-muted-foreground font-normal text-sm">
+                  ({suggestionsLoading ? "..." : suggestions.length})
+                </span>
+              </h2>
+              <Button
+                size="sm"
+                className="gap-1.5"
+                style={{ backgroundColor: primaryColor }}
+                onClick={() => setShowForm(true)}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Sugerir
+              </Button>
+            </div>
+
+            {suggestionsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : suggestions.length === 0 ? (
+              <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                <p className="text-3xl mb-2">💡</p>
+                <p className="font-semibold text-foreground">Nenhuma sugestão ainda</p>
+                <p className="text-muted-foreground text-sm mt-1">Seja o primeiro a sugerir um item!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {suggestions.map((s, index) => {
+                  const hasVoted = votedIds.has(s.id);
+                  return (
+                    <Card key={s.id} className="border border-border shadow-sm hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className="font-semibold text-foreground text-sm leading-snug">{s.name}</h3>
+                              <Badge
+                                className={`text-xs shrink-0 border ${STATUS_CLASS[s.status] ?? ""}`}
+                                variant="outline"
+                              >
+                                {STATUS_LABEL[s.status] ?? s.status}
+                              </Badge>
+                            </div>
+                            {s.description && (
+                              <p className="text-muted-foreground text-xs leading-relaxed">{s.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-end mt-3">
+                          <button
+                            onClick={() => handleVote(s.id)}
+                            disabled={hasVoted || voteMutation.isPending}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                              hasVoted
+                                ? "bg-red-50 text-red-500 cursor-not-allowed border border-red-100"
+                                : "bg-secondary text-muted-foreground hover:bg-red-50 hover:text-red-500 border border-border hover:border-red-100"
+                            }`}
+                          >
+                            <Heart className={`w-4 h-4 ${hasVoted ? "fill-red-500" : ""}`} />
+                            <span>{s.votes}</span>
+                          </button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </main>
 
       {/* Suggestion modal */}
       {showForm && (

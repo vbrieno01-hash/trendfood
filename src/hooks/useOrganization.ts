@@ -11,6 +11,7 @@ export interface Organization {
   logo_url: string | null;
   user_id: string;
   created_at: string;
+  whatsapp?: string | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {

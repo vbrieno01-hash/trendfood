@@ -16,6 +16,7 @@ interface Organization {
   emoji: string;
   primary_color: string;
   logo_url: string | null;
+  whatsapp?: string | null;
 }
 
 const EMOJI_OPTIONS = ["🍔", "🌮", "🍕", "🍜", "🌯", "🥪", "🍗", "🥗", "🍣", "🥩", "🍟", "🧆"];
@@ -28,6 +29,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     emoji: organization.emoji,
     slug: organization.slug,
     primary_color: organization.primary_color,
+    whatsapp: organization.whatsapp ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -50,6 +52,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           emoji: form.emoji,
           slug: form.slug,
           primary_color: form.primary_color,
+          whatsapp: form.whatsapp || null,
         })
         .eq("id", organization.id);
 
@@ -300,6 +303,26 @@ export default function StoreProfileTab({ organization }: { organization: Organi
             {copied ? "Copiado!" : "Copiar"}
           </Button>
         </div>
+      </div>
+
+      {/* WhatsApp */}
+      <div>
+        <Label htmlFor="store-whatsapp" className="text-sm font-medium">WhatsApp para pedidos <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+        <div className="flex items-center mt-1 rounded-md border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+          <span className="px-3 py-2 text-xs text-muted-foreground bg-secondary border-r border-input shrink-0">
+            +55
+          </span>
+          <input
+            id="store-whatsapp"
+            className="flex-1 px-3 py-2 text-sm bg-background outline-none"
+            value={form.whatsapp}
+            inputMode="numeric"
+            onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value.replace(/\D/g, "") }))}
+            placeholder="11999887766"
+            maxLength={11}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">Ativa o botão "Pedir no WhatsApp" na página pública.</p>
       </div>
 
       <Button type="submit" className="w-full" disabled={saving}>
