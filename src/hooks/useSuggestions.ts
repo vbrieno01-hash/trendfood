@@ -64,7 +64,7 @@ export const useIncrementVote = (orgId: string) => {
   });
 };
 
-export const useUpdateSuggestion = (orgId: string) => {
+export const useUpdateSuggestion = (orgId: string, successMessage?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Suggestion> & { id: string }) => {
@@ -76,7 +76,7 @@ export const useUpdateSuggestion = (orgId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suggestions", orgId] });
-      toast.success("Sugestão atualizada!");
+      toast.success(successMessage ?? "Sugestão atualizada!");
     },
     onError: () => toast.error("Erro ao atualizar sugestão."),
   });
