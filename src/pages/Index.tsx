@@ -48,7 +48,7 @@ const Index = () => {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <ChefHat className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-foreground text-lg">SaborVox</span>
+            <span className="font-bold text-foreground text-lg">TrendFood</span>
           </div>
           <Button size="sm" asChild>
             <Link to="#demo">Ver demo</Link>
@@ -170,9 +170,9 @@ const Index = () => {
           <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
             <ChefHat className="w-3 h-3 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-foreground">SaborVox</span>
+          <span className="font-semibold text-foreground">TrendFood</span>
         </div>
-        <p>© 2025 SaborVox. Feito com ❤️ para o food service brasileiro.</p>
+        <p>© 2025 TrendFood. Feito com ❤️ para o food service brasileiro.</p>
       </footer>
     </div>
   );
