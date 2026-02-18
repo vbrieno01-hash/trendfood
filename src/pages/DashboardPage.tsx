@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,19 @@ type TabKey = "home" | "mural" | "profile" | "settings";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const { user, organization, loading, signOut } = useAuth();
+  const { user, organization, loading, signOut, refreshOrganizationForUser } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const retryRef = useRef(false);
+
+  // Fallback: if user is authenticated but org is null (race condition from signup),
+  // retry fetching the organization automatically
+  useEffect(() => {
+    if (!loading && user && !organization && !retryRef.current) {
+      retryRef.current = true;
+      refreshOrganizationForUser(user.id);
+    }
+  }, [loading, user, organization, refreshOrganizationForUser]);
 
   // Redirect if not authenticated
   if (!loading && !user) {
