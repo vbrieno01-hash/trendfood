@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ const generateSlug = (name: string) =>
 
 const AuthPage = () => {
   const navigate = useNavigate();
+  const { refreshOrganizationForUser } = useAuth();
 
   // Sign up state
   const [signupData, setSignupData] = useState({
@@ -91,6 +93,8 @@ const AuthPage = () => {
       }
 
       toast.success("Conta criada com sucesso! Bem-vindo! 🎉");
+      // Fetch org into context BEFORE navigating to avoid race condition
+      await refreshOrganizationForUser(userId);
       navigate("/dashboard");
     } catch (err: unknown) {
       const error = err as { message?: string };

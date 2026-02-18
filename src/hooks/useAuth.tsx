@@ -21,6 +21,7 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshOrganization: () => Promise<void>;
+  refreshOrganizationForUser: (userId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signOut: async () => {},
   refreshOrganization: async () => {},
+  refreshOrganizationForUser: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -49,6 +51,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshOrganization = async () => {
     if (user) await fetchOrganization(user.id);
+  };
+
+  const refreshOrganizationForUser = async (userId: string) => {
+    await fetchOrganization(userId);
   };
 
   useEffect(() => {
@@ -86,7 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, organization, loading, signOut, refreshOrganization }}>
+    <AuthContext.Provider value={{ user, session, organization, loading, signOut, refreshOrganization, refreshOrganizationForUser }}>
       {children}
     </AuthContext.Provider>
   );
