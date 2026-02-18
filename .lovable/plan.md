@@ -1,69 +1,60 @@
 
-## Diagnóstico e Correção do Fluxo de Cadastro
+## Correção das Políticas RLS — Cadastro ainda não funciona
 
-### O que foi identificado
+### Diagnóstico confirmado
 
-O teste revelou 2 problemas sobrepostos:
+Analisando a migração existente (`20260218225538_*.sql`) e o estado atual do banco, confirmei que:
 
-**Problema 1 — RLS bloqueando o INSERT na tabela `organizations` (erro 401)**
+1. As políticas foram criadas **sem `AS PERMISSIVE`** — no Postgres, isso as torna RESTRICTIVE implicitamente quando combinadas, bloqueando todo acesso.
+2. A migração corretiva ainda **não foi aplicada** — a aprovação não chegou na etapa anterior.
+3. Auto-confirm também ainda não foi habilitado no auth.
 
-Após o `signUp()`, a autenticação retornou status 200 e criou o usuário. Porém, como o e-mail ainda não foi confirmado, o Supabase Auth **não emite uma sessão válida** nesse momento. Quando a próxima linha do código tenta inserir na tabela `organizations`, o token enviado é o token anônimo (sem `auth.uid()`), e a política RLS (`auth.uid() = user_id`) falha.
-
-Mensagem de erro real: `"new row violates row-level security policy for table organizations"`
-
-**Problema 2 — Políticas RLS criadas como RESTRICTIVE em vez de PERMISSIVE**
-
-Ao revisar o schema, todas as políticas foram criadas com `Permissive: No` (ou seja, RESTRICTIVE). Políticas RESTRICTIVE só servem para restringir o que políticas PERMISSIVE já permitem — se não há nenhuma PERMISSIVE, **nada passa nunca**. Precisam ser recriadas como PERMISSIVE.
+O fluxo de cadastro continua falhando com: `new row violates row-level security policy for table "organizations"`
 
 ---
 
-### Solução
+### O que precisa ser feito (uma única migração)
 
-**Parte 1 — Habilitar confirmação automática de e-mail (Auto-confirm)**
+**Passo 1 — Dropar todas as políticas atuais** das tabelas `organizations` e `suggestions`
 
-Para um app de food service como o TrendFood, exigir confirmação de e-mail antes do primeiro acesso cria uma fricção desnecessária. A solução correta é habilitar `auto-confirm` na configuração de autenticação. Com isso:
+**Passo 2 — Recriar como PERMISSIVE** (com `AS PERMISSIVE` explícito):
 
-- O `signUp()` passa a retornar uma **sessão válida imediatamente**
-- `auth.uid()` estará disponível na requisição seguinte
-- O INSERT na `organizations` será autorizado pela RLS
+Tabela `organizations`:
+- `SELECT` público por slug: `USING (true)`
+- `SELECT` restrito ao dono: `USING (auth.uid() = user_id)`
+- `INSERT` somente pelo dono: `WITH CHECK (auth.uid() = user_id)`
+- `UPDATE` somente pelo dono: `USING (auth.uid() = user_id)`
 
-**Parte 2 — Recriar as políticas RLS como PERMISSIVE**
+Tabela `suggestions`:
+- `SELECT` público: `USING (true)`
+- `INSERT` público: `WITH CHECK (true)` — visitantes podem sugerir sem conta
+- `UPDATE` somente pelo dono da organização
 
-A migração vai:
-1. Remover todas as políticas RESTRICTIVE atuais das tabelas `organizations` e `suggestions`
-2. Recriar todas como **PERMISSIVE** (comportamento padrão e correto)
-
-Políticas para `organizations`:
-- SELECT público por slug (qualquer um pode ver a página de uma lanchonete)
-- SELECT restrito ao dono (para o dashboard)
-- INSERT somente se `auth.uid() = user_id`
-- UPDATE somente pelo dono
-
-Políticas para `suggestions`:
-- SELECT público (qualquer um pode ver as sugestões)
-- INSERT público (qualquer visitante pode sugerir)
-- UPDATE somente pelo dono da organização
+**Passo 3 — Habilitar auto-confirm no Auth** para que o `signUp()` retorne uma sessão válida imediatamente, permitindo o INSERT subsequente na `organizations`.
 
 ---
 
-### Arquivos Modificados
+### Por que isso resolve
 
-- **Banco de dados** (via migração): recriar políticas RLS como PERMISSIVE
-- **Configuração de autenticação**: habilitar `auto-confirm email`
-- Nenhum arquivo de código do frontend precisa ser alterado — o problema é 100% no backend
-
----
-
-### Resultado Esperado Após a Correção
+Atualmente o fluxo quebra assim:
 
 ```text
-[Usuário preenche formulário]
-        ↓
-[supabase.auth.signUp()] → 200 OK + sessão ativa imediata
-        ↓
-[INSERT organizations] → 201 Created (auth.uid() disponível)
-        ↓
-[Toast de sucesso]
-        ↓
-[Redirect → /unidade/{slug}/dashboard]
+signUp() → usuário criado, mas sem sessão (e-mail não confirmado)
+INSERT organizations → auth.uid() = null → RLS bloqueia → ERRO 401
 ```
+
+Após a correção:
+
+```text
+signUp() → usuário criado + sessão ativa imediata (auto-confirm)
+INSERT organizations → auth.uid() disponível → RLS permite → SUCESSO
+redirect /unidade/{slug}/dashboard → OK
+```
+
+---
+
+### Arquivos alterados
+
+- **Banco de dados**: nova migração SQL que recria as políticas como PERMISSIVE
+- **Auth**: configurar auto-confirm para sessão imediata
+- **Nenhum arquivo de frontend** precisa mudar
