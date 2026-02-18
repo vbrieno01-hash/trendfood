@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      menu_items: {
+        Row: {
+          available: boolean
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          organization_id: string
+          price: number
+        }
+        Insert: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          organization_id: string
+          price: number
+        }
+        Update: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          organization_id?: string
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -25,6 +69,7 @@ export type Database = {
           primary_color: string
           slug: string
           user_id: string
+          whatsapp: string | null
         }
         Insert: {
           created_at?: string
@@ -36,6 +81,7 @@ export type Database = {
           primary_color?: string
           slug: string
           user_id: string
+          whatsapp?: string | null
         }
         Update: {
           created_at?: string
@@ -47,6 +93,7 @@ export type Database = {
           primary_color?: string
           slug?: string
           user_id?: string
+          whatsapp?: string | null
         }
         Relationships: []
       }
