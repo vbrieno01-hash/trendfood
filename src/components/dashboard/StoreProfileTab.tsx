@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Camera, Loader2, Copy, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
-import { BusinessHours } from "@/hooks/useOrganization";
+import { BusinessHours, DeliveryConfig } from "@/hooks/useOrganization";
+import { DEFAULT_DELIVERY_CONFIG } from "@/hooks/useDeliveryFee";
 
 interface Organization {
   id: string;
@@ -21,7 +22,10 @@ interface Organization {
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
   pix_key?: string | null;
+  store_address?: string | null;
+  delivery_config?: DeliveryConfig | null;
 }
+
 
 const EMOJI_OPTIONS = ["🍔", "🌮", "🍕", "🍜", "🌯", "🥪", "🍗", "🥗", "🍣", "🥩", "🍟", "🧆"];
 
@@ -44,7 +48,13 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     primary_color: organization.primary_color,
     whatsapp: organization.whatsapp ?? "",
     pix_key: organization.pix_key ?? "",
+    store_address: organization.store_address ?? "",
   });
+  const [deliveryConfig, setDeliveryConfig] = useState<DeliveryConfig>(
+    organization.delivery_config
+      ? { ...DEFAULT_DELIVERY_CONFIG, ...(organization.delivery_config as DeliveryConfig) }
+      : DEFAULT_DELIVERY_CONFIG
+  );
   const [businessHours, setBusinessHours] = useState<BusinessHours>(
     organization.business_hours ?? DEFAULT_BUSINESS_HOURS
   );
@@ -73,6 +83,8 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           whatsapp: form.whatsapp || null,
           pix_key: form.pix_key || null,
           business_hours: businessHours as unknown as never,
+          store_address: form.store_address || null,
+          delivery_config: deliveryConfig as unknown as never,
         })
         .eq("id", organization.id);
 
@@ -367,7 +379,100 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         </div>
       </div>
 
-      {/* ── SEÇÃO 5: Horário de Funcionamento ─────────────────────── */}
+      {/* ── SEÇÃO 5: Entrega e Frete ──────────────────────────────── */}
+      <div>
+        <SectionHeader>Entrega e Frete</SectionHeader>
+
+        <div className="mb-5">
+          <Label htmlFor="store-address" className="text-sm font-medium">
+            Endereço da loja <span className="text-muted-foreground font-normal">(origem do cálculo de frete)</span>
+          </Label>
+          <Input
+            id="store-address"
+            value={form.store_address}
+            onChange={(e) => setForm((p) => ({ ...p, store_address: e.target.value }))}
+            placeholder="Ex: Av. Nove de Abril, 123, Centro, Cubatão, SP"
+            className="mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Usado para calcular a distância até o endereço do cliente automaticamente.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Frete até {deliveryConfig.tier1_km} km (R$)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={deliveryConfig.fee_tier1}
+              onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier1: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Limite 1ª faixa (km)</Label>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              value={deliveryConfig.tier1_km}
+              onChange={(e) => setDeliveryConfig((p) => ({ ...p, tier1_km: parseFloat(e.target.value) || 2 }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Frete de {deliveryConfig.tier1_km} a {deliveryConfig.tier2_km} km (R$)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={deliveryConfig.fee_tier2}
+              onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier2: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Limite 2ª faixa (km)</Label>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              value={deliveryConfig.tier2_km}
+              onChange={(e) => setDeliveryConfig((p) => ({ ...p, tier2_km: parseFloat(e.target.value) || 5 }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Frete acima de {deliveryConfig.tier2_km} km (R$)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={deliveryConfig.fee_tier3}
+              onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier3: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Frete grátis acima de (R$)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={5}
+              value={deliveryConfig.free_above}
+              onChange={(e) => setDeliveryConfig((p) => ({ ...p, free_above: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+        </div>
+
+        {/* Preview tabela de frete */}
+        <div className="bg-secondary/50 rounded-xl p-3 text-xs space-y-1 text-muted-foreground">
+          <p className="font-semibold text-foreground text-xs mb-1.5">Tabela atual:</p>
+          <p>📍 Até {deliveryConfig.tier1_km} km → <strong>R$ {deliveryConfig.fee_tier1.toFixed(2).replace(".", ",")}</strong></p>
+          <p>📍 {deliveryConfig.tier1_km}–{deliveryConfig.tier2_km} km → <strong>R$ {deliveryConfig.fee_tier2.toFixed(2).replace(".", ",")}</strong></p>
+          <p>📍 Acima de {deliveryConfig.tier2_km} km → <strong>R$ {deliveryConfig.fee_tier3.toFixed(2).replace(".", ",")}</strong></p>
+          <p>🎁 Pedidos acima de R$ {deliveryConfig.free_above.toFixed(2).replace(".", ",")} → <strong>Grátis</strong></p>
+        </div>
+      </div>
+
+      {/* ── SEÇÃO 6: Horário de Funcionamento ─────────────────────── */}
       <div>
         <SectionHeader>Horário de Funcionamento</SectionHeader>
         <BusinessHoursSection value={businessHours} onChange={setBusinessHours} />
@@ -379,3 +484,4 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     </form>
   );
 }
+
