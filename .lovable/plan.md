@@ -1,27 +1,26 @@
 
 
-# Adicionar exemplo de nome nos campos de pessoa
+# Corrigir acesso ao painel Admin
 
-## O que muda
+## Problema encontrado
 
-Os campos de nome na tela de setup vao mostrar um placeholder com exemplo de nome real em vez de apenas "Pessoa 1", "Pessoa 2", facilitando o entendimento do que preencher.
+O usuario `vendass945@gmail.com` (ID: `50d70a01-2d3a-495b-ba9c-e49794dbd12d`) nao possui a role `admin` na tabela `user_roles`. A role admin esta atribuida a outro usuario antigo (ID: `ccdbec3f-...`). Por isso, ao acessar `/admin`, o sistema redireciona para a pagina inicial.
 
-## Como vai funcionar
+## Solucao
 
-- O placeholder de cada campo vai mudar para incluir um exemplo: "Ex: João", "Ex: Maria", "Ex: Pedro", etc.
-- A lista de nomes de exemplo vai rotacionar entre opcoes comuns brasileiras
+Criar uma migration SQL que insere a role `admin` para o usuario correto na tabela `user_roles`.
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/TableOrderPage.tsx`
+### Migration SQL
 
-Na linha 521, trocar o placeholder de `Pessoa ${index + 1}` para nomes de exemplo usando um array:
-
-```typescript
-const exampleNames = ["João", "Maria", "Pedro", "Ana", "Lucas", "Julia", "Carlos", "Beatriz", "Rafael", "Larissa"];
-
-// No placeholder:
-placeholder={`Ex: ${exampleNames[index % exampleNames.length]}`}
+```sql
+INSERT INTO public.user_roles (user_id, role)
+VALUES ('50d70a01-2d3a-495b-ba9c-e49794dbd12d', 'admin')
+ON CONFLICT (user_id, role) DO NOTHING;
 ```
 
-Nenhuma outra alteracao necessaria.
+Apos a migration ser aplicada, basta fazer logout e login novamente (ou recarregar a pagina) para que o hook `useAuth` busque a role atualizada e libere o acesso ao painel admin.
+
+Nenhuma alteracao de codigo necessaria -- apenas a insercao do dado no banco.
+
