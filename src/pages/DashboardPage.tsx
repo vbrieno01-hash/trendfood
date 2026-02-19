@@ -303,7 +303,7 @@ const DashboardPage = () => {
           {activeTab === "home" && <HomeTab organization={organization} />}
           {activeTab === "menu" && <MenuTab organization={organization} />}
           {activeTab === "tables" && <TablesTab organization={organization} />}
-          {activeTab === "kitchen" && <KitchenTab orgId={organization.id} />}
+          {activeTab === "kitchen" && <KitchenTab orgId={organization.id} orgName={organization.name} />}
           {activeTab === "waiter" && <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
