@@ -36,6 +36,7 @@ export interface Organization {
   pix_key?: string | null;
   store_address?: string | null;
   delivery_config?: DeliveryConfig | null;
+  pix_confirmation_mode?: "direct" | "manual" | "automatic";
   subscription_status?: string;
   subscription_plan?: string;
   trial_ends_at?: string | null;

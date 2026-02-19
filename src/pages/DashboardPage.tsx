@@ -394,7 +394,7 @@ const DashboardPage = () => {
             : <KitchenTab orgId={organization.id} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />)}
           {activeTab === "waiter" && (lockedFeatures.waiter
             ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." />
-            : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />)}
+            : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"} />)}
           {activeTab === "caixa" && (lockedFeatures.caixa
             ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." />
             : <CaixaTab orgId={organization.id} />)}

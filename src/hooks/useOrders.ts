@@ -257,6 +257,62 @@ export const useMarkAsPaid = (organizationId: string) => {
 // All delivered orders (for HomeTab chart)
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Awaiting PIX payment orders (mode manual)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const useAwaitingPaymentOrders = (organizationId: string | undefined) => {
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["orders-awaiting-payment", organizationId],
+    queryFn: async () => {
+      if (!organizationId) throw new Error("No org");
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("organization_id", organizationId)
+        .eq("status", "awaiting_payment")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Order[];
+    },
+    enabled: !!organizationId,
+  });
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const channel = supabase
+      .channel(`orders-awaiting-payment-${organizationId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
+        () => { qc.invalidateQueries({ queryKey: ["orders-awaiting-payment", organizationId] }); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [organizationId, qc]);
+
+  return query;
+};
+
+export const useConfirmPixPayment = (organizationId: string) => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("orders").update({ status: "pending" } as never).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders-awaiting-payment", organizationId] });
+      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+      toast({ title: "✅ Pagamento PIX confirmado! Pedido enviado para a cozinha." });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+};
+
 export const useDeliveredOrders = (organizationId: string | undefined) => {
   return useQuery({
     queryKey: ["orders-delivered", organizationId],
