@@ -76,13 +76,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
         if (newSession?.user) {
-          // Dispatch outside the auth lock via setTimeout
           const userId = newSession.user.id;
+          // Ativa loading durante novo login para evitar render sem organização
+          if (_event === "SIGNED_IN") {
+            setLoading(true);
+          }
           setTimeout(() => {
-            if (isMounted.current) fetchOrganization(userId);
+            if (isMounted.current) {
+              fetchOrganization(userId).finally(() => {
+                if (isMounted.current) setLoading(false);
+              });
+            }
           }, 0);
         } else {
           setOrganization(null);
+          setLoading(false);
         }
       }
     );
