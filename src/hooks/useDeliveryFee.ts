@@ -59,14 +59,45 @@ function stripComplementForGeo(address: string): string {
 }
 
 async function geocode(query: string): Promise<GeoCoord | null> {
-  // Tentativa 1: endereço original
+  const parts = query.split(",").map((p) => p.trim());
+  // Se começa com CEP, tenta só o CEP primeiro (muito mais preciso no Nominatim)
+  if (/^\d{5}-?\d{3}$/.test(parts[0] ?? "")) {
+    const r = await tryGeocode(`${parts[0]}, Brasil`);
+    if (r) return r;
+  }
+  // Query completa
   const result = await tryGeocode(query);
   if (result) return result;
-  // Tentativa 2: fallback com "Brasil" para endereços sem país explícito
+  // Fallback com Brasil
   if (!query.toLowerCase().includes("brasil")) {
     return tryGeocode(`${query}, Brasil`);
   }
   return null;
+}
+
+// Geocodifica o endereço da loja de forma otimizada:
+// Se começa com CEP, usa APENAS o CEP — muito mais preciso no Nominatim.
+// Fallback: endereço textual completo (sem complemento).
+async function geocodeStoreAddress(address: string): Promise<GeoCoord | null> {
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  const cepPattern = /^\d{5}-?\d{3}$/;
+
+  if (cepPattern.test(parts[0] ?? "")) {
+    const cep = parts[0];
+    const city = parts[parts.length - 3] ?? "";
+    const state = parts[parts.length - 2] ?? "";
+
+    // Tentativa 1: só o CEP (mais precisa)
+    const r1 = await tryGeocode(`${cep}, Brasil`);
+    if (r1) return r1;
+
+    // Tentativa 2: CEP + cidade + estado
+    const r2 = await tryGeocode(`${cep}, ${city}, ${state}, Brasil`);
+    if (r2) return r2;
+  }
+
+  // Fallback: endereço textual sem complemento
+  return geocode(stripComplementForGeo(address));
 }
 
 async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number> {
@@ -133,9 +164,9 @@ export function useDeliveryFee(
       setLoading(true);
       setError(null);
       try {
-        // Geocode store (cached) — strip complement so Nominatim can find it
-        if (!storeCoordRef.current) {
-          const coord = await geocode(stripComplementForGeo(storeAddress));
+        // Geocode store (cached) — usa CEP isolado quando disponível para máxima precisão
+          if (!storeCoordRef.current) {
+            const coord = await geocodeStoreAddress(storeAddress);
           if (!coord) throw new Error("Endereço da loja não encontrado");
           storeCoordRef.current = coord;
         }
