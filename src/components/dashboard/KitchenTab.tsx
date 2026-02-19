@@ -37,6 +37,7 @@ const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 const AUTO_PRINT_KEY = "kds_auto_print";
+const NOTIF_KEY = "kds_notifications";
 
 interface KitchenTabProps {
   orgId: string;
@@ -53,6 +54,9 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
   const [autoPrint, setAutoPrint] = useState<boolean>(
     () => localStorage.getItem(AUTO_PRINT_KEY) !== "false"
   );
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
+    () => localStorage.getItem(NOTIF_KEY) === "true"
+  );
 
   const knownIds = useRef<Set<string>>(new Set());
   const pendingPrintIds = useRef<Set<string>>(new Set());
@@ -61,6 +65,17 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
   const toggleAutoPrint = (val: boolean) => {
     setAutoPrint(val);
     localStorage.setItem(AUTO_PRINT_KEY, String(val));
+  };
+
+  const toggleNotifications = async (val: boolean) => {
+    if (val) {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        return;
+      }
+    }
+    setNotificationsEnabled(val);
+    localStorage.setItem(NOTIF_KEY, String(val));
   };
 
   const handleUpdateStatus = (id: string, status: Order["status"]) => {
@@ -82,7 +97,7 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
     );
   };
 
-  // Realtime: bell on new orders + visual update on status changes
+  // Realtime: bell on new orders + visual update on status changes + push notifications
   useEffect(() => {
     if (!orgId) return;
     const channel = supabase
@@ -98,6 +113,14 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
             if (autoPrint) {
               pendingPrintIds.current.add(order.id);
             }
+            // Web Push Notification
+            if (notificationsEnabled && Notification.permission === "granted") {
+              const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+              new Notification(`🔔 Novo pedido! ${tableLabel}`, {
+                icon: "/pwa-192.png",
+                badge: "/pwa-192.png",
+              });
+            }
             qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
           }
         }
@@ -111,7 +134,7 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc, autoPrint]);
+  }, [orgId, qc, autoPrint, notificationsEnabled]);
 
   // Print pending orders once their items are loaded
   useEffect(() => {
@@ -146,7 +169,18 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
             {orders.length} pedido{orders.length !== 1 ? "s" : ""} aguardando
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Push notifications toggle */}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="notif-tab" className="text-xs text-muted-foreground cursor-pointer select-none">
+              🔔 Notificações
+            </Label>
+            <Switch
+              id="notif-tab"
+              checked={notificationsEnabled}
+              onCheckedChange={toggleNotifications}
+            />
+          </div>
           {/* Auto-print toggle */}
           <div className="flex items-center gap-2">
             <Printer className="w-4 h-4 text-muted-foreground" />

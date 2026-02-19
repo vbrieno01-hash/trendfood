@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
-  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download
+  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download,
+  History, Tag, BarChart2
 } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -19,8 +20,11 @@ import StoreProfileTab from "@/components/dashboard/StoreProfileTab";
 import SettingsTab from "@/components/dashboard/SettingsTab";
 import KitchenTab from "@/components/dashboard/KitchenTab";
 import WaiterTab from "@/components/dashboard/WaiterTab";
+import HistoryTab from "@/components/dashboard/HistoryTab";
+import CouponsTab from "@/components/dashboard/CouponsTab";
+import BestSellersTab from "@/components/dashboard/BestSellersTab";
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -103,6 +107,9 @@ const DashboardPage = () => {
     { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
     { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Meu Cardápio" },
     { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas" },
+    { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
+    { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons" },
+    { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos" },
   ];
 
   const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string }[] = [
@@ -303,8 +310,11 @@ const DashboardPage = () => {
           {activeTab === "home" && <HomeTab organization={organization} />}
           {activeTab === "menu" && <MenuTab organization={organization} />}
           {activeTab === "tables" && <TablesTab organization={organization} />}
+          {activeTab === "history" && <HistoryTab orgId={organization.id} />}
+          {activeTab === "coupons" && <CouponsTab orgId={organization.id} />}
+          {activeTab === "bestsellers" && <BestSellersTab orgId={organization.id} />}
           {activeTab === "kitchen" && <KitchenTab orgId={organization.id} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />}
-          {activeTab === "waiter" && <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} />}
+          {activeTab === "waiter" && <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
