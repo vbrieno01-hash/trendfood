@@ -1,48 +1,70 @@
 
-# Grid de 3 Colunas na Página Pública — Cards Verticais Compactos
+# Drawer de Detalhe do Item — Página Pública
 
 ## Diagnóstico
 
-O layout atual é uma **lista vertical de 1 coluna** com cards horizontais (thumbnail 72x72 à esquerda + texto à direita). Para fazer **3 colunas lado a lado**, o card precisa mudar de orientação: a foto vai para **cima** e o texto fica **embaixo** — modelo clássico de vitrine/loja.
+O grid de 3 colunas deixa cada card com ~118px de largura — espaço insuficiente para mostrar a descrição inline. Remover a descrição foi a escolha técnica correta para o grid, mas o cliente perde informação essencial sobre o produto.
 
-O problema de espaço é real: 3 colunas em mobile (390px) = ~118px de largura por card. Com o card horizontal atual (72px de thumb + texto), ficaria espremido demais. A solução é um **card vertical compacto**:
+A solução padrão de mercado (iFood, Rappi, Uber Eats) é: card compacto no grid + drawer/modal com detalhes ao tocar.
+
+## Comportamento Novo
+
+Ao clicar em qualquer card do cardápio:
+1. Um **Drawer** desliza de baixo para cima
+2. Mostra: foto grande (aspect-video), nome completo, descrição completa, preço e controle de quantidade
+3. Botão "Adicionar ao carrinho" (ou stepper se já há qty > 0)
+4. O drawer fecha ao arrastar para baixo ou clicar fora
+
+O card no grid continua igual — apenas o ícone de quantidade (badge) indica itens já adicionados.
+
+## Estrutura do Drawer
 
 ```text
-┌──────┐ ┌──────┐ ┌──────┐
-│ foto │ │ foto │ │ foto │
-│──────│ │──────│ │──────│
-│ Nome │ │ Nome │ │ Nome │
-│R$XX  │ │R$XX  │ │R$XX  │
-│[+Add]│ │[+Add]│ │[+Add]│
-└──────┘ └──────┘ └──────┘
+┌──────────────────────────────────┐
+│ ▬▬▬ (handle de arraste)          │
+│                                  │
+│  [Foto grande — aspect-video]    │
+│                                  │
+│  Nome Completo do Item           │
+│  Descrição completa do produto   │
+│  que pode ser mais longa...      │
+│                                  │
+│  R$ 36,00                        │
+│                                  │
+│  [− 2 +]  ou  [+ Adicionar]      │
+└──────────────────────────────────┘
 ```
 
-## Novo Layout — Grid 3 Colunas
+## Mudanças Técnicas
 
-### Estrutura do card vertical
-- Container: `grid grid-cols-3 gap-2` (substitui `space-y-2`)
-- Card: `flex flex-col bg-card border border-border rounded-xl overflow-hidden`
-- Foto: `w-full aspect-square object-cover` — quadrado perfeito, preenche toda a largura
-- Placeholder sem foto: `aspect-square bg-secondary flex items-center justify-center` com `ImageOff`
-- Área de texto: `p-2 flex flex-col gap-1`
-- Nome: `text-xs font-semibold leading-tight line-clamp-2`
-- Preço: `text-xs font-bold` com a cor primária
-- Badge "Indisponível": `text-[10px]` abaixo do nome
-- Botão Adicionar: largura total `w-full`, `text-[10px] py-1`, centralizado — ou ícone `+` apenas quando item já está no carrinho (stepper compacto)
+### Estado novo
+```typescript
+const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+```
 
-### Controles de quantidade no grid 3 colunas
-Quando qty > 0, o stepper `[− N +]` precisa caber na largura de ~118px:
-- `flex items-center justify-between w-full`
-- Botões: `w-5 h-5 rounded-full`
-- Número: `text-xs font-bold`
+### Card no grid — adicionar onClick
+- Toda a área do card (exceto os botões de qty) torna-se clicável: `onClick={() => setSelectedItem(item)}`
+- Os botões `−` e `+` recebem `e.stopPropagation()` para não abrir o drawer ao ajustar quantidade
 
-### Descrição
-- **Removida** no grid de 3 colunas — não há espaço. O nome em `line-clamp-2` + preço já comunicam o essencial.
+### Drawer de detalhe (componente inline)
+- Usa o componente `Drawer` já instalado (`vaul`) — já importado no arquivo
+- `open={selectedItem !== null}` / `onClose={() => setSelectedItem(null)}`
+- Foto: `w-full aspect-video object-cover` (ou `aspect-square` se não tiver foto, com placeholder `ImageOff`)
+- Nome: `text-lg font-bold`
+- Descrição: `text-sm text-muted-foreground` (completa, sem line-clamp)
+- Preço: `text-xl font-bold` com cor primária
+- Botão de adicionar: mesma lógica do card — se qty=0 mostra `[+ Adicionar]`, se qty>0 mostra stepper `[− N +]`
+- Botão fecha o drawer após adicionar (opcional)
 
-## Arquivo Afetado
+### Indicador de quantidade no card
+Quando `qty > 0`, mostrar um **badge circular** no canto superior direito da foto com o número — feedback visual imediato de que o item está no carrinho.
+- `absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center`
+- Cor: `primaryColor`
+
+## Arquivos Afetados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/UnitPage.tsx` | Linha 376: `space-y-2` → `grid grid-cols-3 gap-2`; Card muda de `flex-row` para `flex-col`; foto vira `aspect-square`; texto em `p-2`; descrição removida; stepper adaptado para espaço pequeno |
+| `src/pages/UnitPage.tsx` | Adicionar estado `selectedItem`, `onClick` nos cards, badge de qty na foto, Drawer de detalhe |
 
 Nenhuma mudança em banco de dados, rotas ou lógica de negócio.
