@@ -1,123 +1,57 @@
 
-# Automação PIX por loja - Cada dono configura seu gateway
+
+# Adicionar 15 opcoes de gateways PIX
 
 ## Resumo
 
-Habilitar a opção "Automático (API)" nas configurações de cada loja, permitindo que o dono escolha seu gateway de pagamento (Mercado Pago, PagSeguro, ou outro) e coloque seu próprio token/Access Token. Quando um pedido PIX for feito, o sistema gera a cobrança automaticamente pelo gateway da loja e verifica o pagamento.
+Expandir o dropdown de provedores de gateway PIX de 2 opcoes (Mercado Pago e PagSeguro) para 15 opcoes, cobrindo os principais bancos e fintechs do Brasil. Os gateways que ja tem integracao real (Mercado Pago e PagSeguro) continuarao funcionando normalmente. Os demais gateways serao adicionados no dropdown e teremos a estrutura preparada nas edge functions para receber novas integracoes no futuro.
 
-## Como vai funcionar para o lojista
+## Gateways que serao adicionados
 
-1. Nas configurações, seleciona "Automático (API)"
-2. Escolhe o gateway (Mercado Pago, PagSeguro, etc.)
-3. Cola o Access Token da conta dele no gateway
-4. Pronto -- os pedidos PIX agora geram QR Code dinâmico e são confirmados automaticamente
+| Provedor | Valor interno | Integracao real |
+|----------|--------------|-----------------|
+| Mercado Pago | mercadopago | Sim (ja existe) |
+| PagSeguro / PagBank | pagseguro | Sim (ja existe) |
+| EFI (Gerencianet) | efi | Sim (API PIX bem documentada) |
+| Asaas | asaas | Sim (API simples) |
+| Inter (Banco Inter) | inter | Preparado |
+| Sicredi | sicredi | Preparado |
+| Bradesco | bradesco | Preparado |
+| Itau | itau | Preparado |
+| Banco do Brasil | bb | Preparado |
+| Santander | santander | Preparado |
+| Caixa | caixa | Preparado |
+| Nubank (Precash) | nubank | Preparado |
+| C6 Bank | c6bank | Preparado |
+| Shipay | shipay | Preparado |
+| OpenPix (Woovi) | openpix | Sim (API simples) |
+
+"Preparado" significa que o provedor aparece no dropdown, o token e salvo, mas na edge function retorna um erro amigavel dizendo que a integracao com aquele provedor ainda esta em desenvolvimento.
 
 ## Detalhes tecnicos
 
-### 1. Banco de dados
+### 1. StoreProfileTab.tsx
 
-Adicionar colunas na tabela `organizations` para guardar as configurações do gateway de cada loja:
+- Substituir os 2 SelectItems por uma lista de 15 provedores com nome amigavel
+- Atualizar o placeholder do campo de token para mostrar instrucoes baseadas no provedor selecionado
+- Atualizar as instrucoes/links de onde pegar o token para os provedores que ja tem integracao (Mercado Pago, PagSeguro, EFI, Asaas, OpenPix)
+- Para os demais, mostrar uma mensagem generica "Use o token/credencial fornecido pelo seu banco"
 
-```sql
-ALTER TABLE public.organizations
-  ADD COLUMN pix_gateway_provider text DEFAULT NULL,
-  ADD COLUMN pix_gateway_token text DEFAULT NULL;
-```
+### 2. Edge Function - verify-pix-payment
 
-- `pix_gateway_provider`: "mercadopago", "pagseguro", ou null
-- `pix_gateway_token`: Access Token do lojista (criptografado em transito, armazenado no banco com RLS protegendo acesso)
+- Adicionar integracao real para EFI (Gerencianet), Asaas e OpenPix (Woovi)
+- Para os demais provedores, retornar erro 400 com mensagem: "Integracao com [provedor] em desenvolvimento. Use Mercado Pago, PagSeguro, EFI, Asaas ou OpenPix."
 
-O token fica seguro porque a tabela `organizations` so permite UPDATE/SELECT pelo dono (auth.uid() = user_id), e a leitura publica nao expoe o token pois o frontend so busca campos necessarios.
+### 3. Edge Function - check-pix-status
 
-### 2. Interface - `StoreProfileTab.tsx`
+- Adicionar verificacao de status para EFI, Asaas e OpenPix
+- Para os demais, retornar erro amigavel
 
-Quando o lojista seleciona "Automatico (API)":
-- Habilitar o radio button (remover o disabled e opacity-50)
-- Mostrar um dropdown para escolher o provedor: Mercado Pago ou PagSeguro
-- Mostrar um campo de texto para colar o Access Token
-- Mostrar instrucoes breves de onde pegar o token (com link para a documentacao do provedor)
-- Salvar `pix_gateway_provider` e `pix_gateway_token` junto com o `pix_confirmation_mode`
-
-### 3. Edge Function - `verify-pix-payment`
-
-Nova edge function que:
-- Recebe o `organization_id` e dados do pedido
-- Busca o `pix_gateway_provider` e `pix_gateway_token` da organizacao (usando service role key)
-- Cria uma cobranca PIX no gateway escolhido
-- Retorna o QR Code e o ID da cobranca
-
-Endpoints dos gateways:
-- **Mercado Pago**: `POST https://api.mercadopago.com/v1/payments` com `payment_method_id: "pix"`
-- **PagSeguro**: `POST https://api.pagseguro.com/instant-payments/cob` (API PIX)
-
-### 4. Edge Function - `check-pix-status`
-
-Nova edge function que verifica se o PIX foi pago:
-- Recebe `organization_id` e `payment_id` (ID da cobranca no gateway)
-- Busca as credenciais da loja
-- Consulta o status no gateway
-- Se pago, atualiza o pedido de `awaiting_payment` para `pending` (libera pra cozinha)
-
-### 5. Fluxo do pedido (`TableOrderPage.tsx`)
-
-Quando o modo e "automatic" e o cliente escolhe PIX:
-1. Pedido criado com status `awaiting_payment`
-2. Chama a edge function `verify-pix-payment` para gerar o QR Code dinamico
-3. Mostra o QR Code na tela do cliente
-4. Um polling (a cada 5 segundos) chama `check-pix-status` para verificar se pagou
-5. Quando pagou, atualiza o status para `pending` e mostra confirmacao
-
-### 6. Hooks - `usePixAutomation.ts`
-
-Novo hook com:
-- `useCreatePixCharge(orgId)`: cria cobranca PIX via edge function
-- `useCheckPixStatus(orgId, paymentId)`: polling do status do pagamento
-
-### 7. Seguranca
-
-- O token do gateway NUNCA e enviado ao frontend -- so e lido pela edge function com service role key
-- O campo `pix_gateway_token` e salvo pelo frontend via update normal (protegido por RLS -- so o dono da org pode atualizar)
-- A leitura publica da organizacao no `TableOrderPage` nao inclui o token (select especifico de campos, ou o token so e lido no backend)
-- Para evitar que o token vaze no select publico, vamos criar uma tabela separada `organization_secrets` com RLS restrito
-
-### 8. Tabela separada para seguranca - `organization_secrets`
-
-Para garantir que o token do gateway nunca vaze em queries publicas:
-
-```sql
-CREATE TABLE public.organization_secrets (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid NOT NULL UNIQUE,
-  pix_gateway_provider text,
-  pix_gateway_token text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.organization_secrets ENABLE ROW LEVEL SECURITY;
-
--- Somente o dono da org pode ler/escrever
-CREATE POLICY secrets_select_owner ON organization_secrets
-  FOR SELECT USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
-
-CREATE POLICY secrets_insert_owner ON organization_secrets
-  FOR INSERT WITH CHECK (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
-
-CREATE POLICY secrets_update_owner ON organization_secrets
-  FOR UPDATE USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
-
-CREATE POLICY secrets_delete_owner ON organization_secrets
-  FOR DELETE USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
-```
-
-## Arquivos modificados/criados
+### Arquivos modificados
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| Migracao SQL | Criar tabela `organization_secrets` |
-| `src/components/dashboard/StoreProfileTab.tsx` | Habilitar modo automatico, campos de provedor e token |
-| `src/hooks/useOrganization.ts` | Incluir dados de secrets para o dono |
-| `src/hooks/usePixAutomation.ts` | Novo hook para criar cobranca e verificar status |
-| `supabase/functions/verify-pix-payment/index.ts` | Edge function para criar cobranca PIX no gateway |
-| `supabase/functions/check-pix-status/index.ts` | Edge function para verificar status do pagamento |
-| `src/pages/TableOrderPage.tsx` | Integrar QR Code dinamico e polling quando modo automatico |
+| `src/components/dashboard/StoreProfileTab.tsx` | Expandir dropdown para 15 provedores, ajustar placeholders e instrucoes |
+| `supabase/functions/verify-pix-payment/index.ts` | Adicionar integracao EFI, Asaas, OpenPix + fallback para provedores em desenvolvimento |
+| `supabase/functions/check-pix-status/index.ts` | Adicionar verificacao de status para EFI, Asaas, OpenPix |
+
