@@ -1,71 +1,70 @@
 
-# Controle de Caixa — Implementação Completa
-
-## Situação atual
-
-Nenhum dos 4 arquivos necessários foi criado. O plano aprovado precisa ser implementado do zero:
-
-- Sem migração de banco para `cash_sessions` e `cash_withdrawals`
-- Sem `src/hooks/useCashSession.ts`
-- Sem `src/components/dashboard/CaixaTab.tsx`
-- `DashboardPage.tsx` ainda sem a aba "Caixa"
+# Atualizar Status do Controle de Caixa no Painel Admin
 
 ## O que será feito
 
-### 1. Migração SQL (banco de dados)
+A imagem enviada mostra a seção "Funcionalidades da Plataforma" no `/admin`. O **Controle de Caixa** aparece como **"Em breve"**, mas a funcionalidade já está completamente implementada. O objetivo é:
 
-Criar duas tabelas novas:
+1. Atualizar o status de `"soon"` para `"available"` no card do Controle de Caixa
+2. Adicionar link de ação "Ver no dashboard" apontando para `/dashboard`
+3. Corrigir o aviso de console `Function components cannot be given refs` no `AdminPage.tsx`
 
-**`cash_sessions`** — controla os turnos do caixa:
-- `id`, `organization_id`, `opened_at`, `closed_at` (null = turno ativo), `opening_balance`, `closing_balance`, `notes`, `created_at`
+---
 
-**`cash_withdrawals`** — registra as sangrias:
-- `id`, `session_id`, `organization_id`, `amount`, `reason`, `created_at`
+## Verificação do estado atual
 
-RLS seguindo o padrão das outras tabelas:
-- `SELECT`: público (mesma política de `orders`, `menu_items`, etc.)
-- `INSERT / UPDATE / DELETE`: somente o dono autenticado da organização
+### Banco de dados — funcionando ✅
+- Tabelas `cash_sessions` e `cash_withdrawals` criadas com RLS
+- Dados reais: 2 sessões fechadas e 1 sangria registrada nos testes anteriores
 
-### 2. Hook `src/hooks/useCashSession.ts`
+### Hooks — funcionando ✅
+- `src/hooks/useCashSession.ts` com todos os 6 hooks implementados
 
-Funções que o componente vai usar:
+### UI — funcionando ✅
+- `src/components/dashboard/CaixaTab.tsx` com 447 linhas — fluxo completo
+- `src/pages/DashboardPage.tsx` com aba "Caixa" na seção Operações
 
-- `useActiveCashSession(orgId)` — busca turno ativo (sem `closed_at`) via react-query
-- `useCashWithdrawals(sessionId)` — lista sangrias do turno ativo
-- `useOpenCashSession()` — mutation para abrir caixa (INSERT em `cash_sessions`)
-- `useCloseCashSession()` — mutation para fechar caixa (UPDATE `closed_at` + `closing_balance`)
-- `useAddWithdrawal()` — mutation para registrar sangria
-- `useCashHistory(orgId)` — últimos 5 turnos encerrados
+### Único ajuste necessário
+No `src/pages/AdminPage.tsx`, linha 100-104:
 
-**Lógica do saldo projetado:**
-Calculada no componente a partir dos pedidos pagos (`orders` onde `paid = true` e `created_at >= session.opened_at`) já disponíveis via query existente de pedidos do dashboard.
+```typescript
+// ANTES
+{
+  icon: <DollarSign className="w-5 h-5" />,
+  title: "Controle de Caixa",
+  description: "Abertura e fechamento de caixa com saldo inicial, sangrias e relatório do turno.",
+  status: "soon",  // ← mudar para "available"
+},
 
-### 3. Componente `src/components/dashboard/CaixaTab.tsx`
+// DEPOIS
+{
+  icon: <DollarSign className="w-5 h-5" />,
+  title: "Controle de Caixa",
+  description: "Abertura e fechamento de caixa com saldo inicial, sangrias e relatório do turno.",
+  status: "available",
+  actionLabel: "Ver no dashboard",
+  actionHref: "/dashboard",
+},
+```
 
-**Estado A — Caixa Fechado:**
-- Card centralizado com campo "Saldo inicial (R$)" e botão "Abrir Caixa"
-- Tabela abaixo com histórico dos últimos 5 turnos (data/hora abertura, saldo inicial, saldo final, diferença)
+---
 
-**Estado B — Turno Ativo:**
-- Hero card verde com saldo projetado em destaque (atualizado a cada 30s via `refetchInterval`)
-- Grid 2×2 de métricas: Saldo inicial | Receita do turno | Total sangrias | Saldo projetado
-- Seção de sangrias: lista das sangrias do turno + botão "Registrar Sangria"
-- Modal de sangria: campos valor (numérico) e motivo (texto livre)
-- Botão "Fechar Caixa" → modal com resumo do turno + campo para saldo final contado fisicamente + campo de observações
+## Correção adicional — aviso de console
 
-### 4. Atualizar `src/pages/DashboardPage.tsx`
+O `Metric` component no `AdminPage.tsx` está recebendo ref indevidamente por estar dentro de um `<div>` com ref implícito. A correção é garantir que o `Metric` não use ref. Isso é apenas um React warning de desenvolvimento, não afeta produção, mas será corrigido.
 
-- Adicionar `"caixa"` ao tipo `TabKey`
-- Inserir item na seção `navItemsOps`:
-  ```
-  { key: "caixa", icon: <Wallet />, label: "Caixa" }
-  ```
-- Adicionar render condicional: `{activeTab === "caixa" && <CaixaTab orgId={organization.id} />}`
-- Importar `CaixaTab` e ícone `Wallet` do lucide-react
+---
 
-## Sequência de execução
+## Arquivo a modificar
 
-1. Criar migração SQL com as duas tabelas + RLS + índices
-2. Criar `src/hooks/useCashSession.ts`
-3. Criar `src/components/dashboard/CaixaTab.tsx`
-4. Atualizar `src/pages/DashboardPage.tsx`
+| Arquivo | Mudança |
+|---|---|
+| `src/pages/AdminPage.tsx` | Status `"soon"` → `"available"` + `actionLabel` + `actionHref` no card de Controle de Caixa |
+
+---
+
+## Resultado esperado
+
+O card do **Controle de Caixa** passará a exibir:
+- Badge verde **"Disponível"** (igual ao Suporte via WhatsApp)
+- Link clicável **"Ver no dashboard →"** que leva o usuário direto ao `/dashboard`
