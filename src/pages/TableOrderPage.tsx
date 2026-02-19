@@ -562,20 +562,32 @@ export default function TableOrderPage() {
       {/* Person selector chips */}
       <div className="sticky top-[73px] z-20 bg-background border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
-          {peopleNames.map((name, index) => (
-            <button
-              key={index}
-              onClick={() => setActivePerson(index)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                activePerson === index
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              <User className="w-3 h-3" />
-              {name}
-            </button>
-          ))}
+          {peopleNames.map((name, index) => {
+            const personItemCount = cartItems
+              .filter(ci => ci.customer_name === name)
+              .reduce((sum, ci) => sum + ci.quantity, 0);
+            return (
+              <button
+                key={index}
+                onClick={() => setActivePerson(index)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  activePerson === index
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                <User className="w-3 h-3" />
+                {name}
+                {personItemCount > 0 && (
+                  <span className={`ml-0.5 text-[10px] rounded-full min-w-4 h-4 flex items-center justify-center px-1 ${
+                    activePerson === index ? "bg-white/20" : "bg-primary/15 text-primary"
+                  }`}>
+                    {personItemCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
