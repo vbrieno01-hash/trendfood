@@ -1,102 +1,93 @@
 
-# Comprovante completo com todos os dados do cliente + CPF/CNPJ
+# Tipo de Pedido: Retirada ou Entrega no Checkout Online
 
-## Visão geral
+## Contexto atual
 
-Com base na imagem de referência, o comprovante precisa exibir estruturadamente: nome do cliente, telefone, endereço, forma de pagamento e CPF/CNPJ. Atualmente esses dados são concatenados em um único campo `notes` como texto livre, então o comprovante não consegue separá-los visualmente.
+O checkout da loja pública (`UnitPage`) não distingue se o cliente vai buscar o pedido ou receber em casa. O campo de endereço é sempre exibido (opcional), sem contexto claro. O comprovante impresso sempre exibe "ENTREGA" para pedidos externos (table_number = 0).
 
-A solução envolve dois grupos de mudanças:
+## O que será adicionado
 
-1. **Checkout (`UnitPage`)** — adicionar campo de CPF/CNPJ e telefone, e estruturar o `notes` de forma que o comprovante possa interpretar os dados.
-2. **Comprovante (`printOrder.ts`)** — redesenhar o layout para exibir cada campo em sua própria linha, com formatação similar à imagem de referência.
+Um novo campo obrigatório **"Como você quer receber?"** com duas opções:
 
----
+- **🛵 Entrega** — exibe os campos de endereço e validação de confirmação
+- **🏃 Retirada no local** — oculta os campos de endereço (desnecessários)
+
+Se o cliente selecionar Retirada, o endereço não é exibido nem validado, simplificando o formulário. O tipo de pedido vai para as notas estruturadas e aparece no comprovante impresso.
+
+## Como ficará o fluxo
+
+```text
+Checkout abre
+       │
+       ▼
+[Entrega] ou [Retirada no local]  ← novo campo obrigatório
+       │
+       ├── Entrega selecionada ──► exibe Endereço + Confirmar Endereço
+       │
+       └── Retirada selecionada ──► oculta campos de endereço
+       │
+       ▼
+Forma de pagamento, Obs., etc.
+       │
+       ▼
+Mensagem WhatsApp inclui o tipo
+       │
+       ▼
+Nota impressa exibe ENTREGA ou RETIRADA no lugar de MESA
+```
 
 ## Como ficará o comprovante
 
+Para Entrega:
 ```text
-┌──────────────────────────────┐
-│        BURGUER DO REI        │
-│  ────────────────────────────│
-│  ENTREGA         19/02 14:32 │
-│  ────────────────────────────│
-│  2x  X-Burguer       R$29,80 │
-│  1x  Batata Frita    R$12,00 │
-│  1x  Coca-Cola        R$8,00 │
-│  ────────────────────────────│
-│  TOTAL: R$ 49,80             │
-│  ────────────────────────────│
-│  [████ QR CODE PIX ████]     │
-│   Pague com Pix              │
-│  ────────────────────────────│
-│  Nome:    João Silva         │
-│  Tel:     (11) 99999-1234    │
-│  End.:    Rua das Flores, 10 │
-│  Pgto:    PIX                │
-│  CPF/CNPJ: 123.456.789-00   │
-│  ────────────────────────────│
-│  ★ novo pedido — kds ★       │
-└──────────────────────────────┘
+  ENTREGA       19/02 — 14:32
 ```
 
----
+Para Retirada:
+```text
+  RETIRADA      19/02 — 14:32
+```
 
 ## Arquivos afetados
 
 | Arquivo | O que muda |
 |---|---|
-| `src/pages/UnitPage.tsx` | Adiciona campos de telefone e CPF/CNPJ no checkout; estrutura o `notes` com prefixos legíveis |
-| `src/lib/printOrder.ts` | Parser do campo `notes` para extrair dados do cliente e renderizar cada linha separadamente no HTML |
-
-Sem alteração de banco — o campo `notes` (texto, já existente) continua sendo usado para armazenar as informações do cliente. O formato será um pouco mais estruturado com separadores claros.
-
----
+| `src/pages/UnitPage.tsx` | Adiciona estado `orderType` (Entrega/Retirada), selector de botões, lógica de exibição condicional dos campos de endereço, inclui TIPO nas notas estruturadas e na mensagem WhatsApp |
+| `src/lib/printOrder.ts` | Lê o campo `TIPO` das notas para exibir "RETIRADA" ou "ENTREGA" no cabeçalho do comprovante |
 
 ## Detalhes técnicos
 
-### Formato do campo `notes` (após a mudança)
-
-Os dados do cliente serão salvos no campo `notes` com um separador especial para que o comprovante possa interpretá-los:
-
-```
-CLIENTE:João Silva|TEL:(11) 99999-1234|END.:Rua das Flores, 10|PGTO:PIX|DOC:123.456.789-00|OBS:sem cebola
-```
-
-Esse formato usa `|` como separador e `CHAVE:valor` para cada campo. O `printOrder.ts` faz o parse desse string e renderiza cada campo em sua própria linha no comprovante.
-
-### Novos campos no checkout (`UnitPage`)
-
-- **Telefone** (opcional) — `inputMode="tel"`, máximo 20 caracteres
-- **CPF/CNPJ** (opcional) — campo de texto simples, sem validação rígida, aceita qualquer formato
-
-Ambos são opcionais para não travar o fluxo do cliente.
-
-### Parser no `printOrder.ts`
-
+### Novo estado e validação em `UnitPage.tsx`
 ```typescript
-function parseNotes(notes: string) {
-  // Se contém o separador "|", é o novo formato estruturado
-  if (!notes.includes("|")) return { raw: notes };
-  
-  const parts = Object.fromEntries(
-    notes.split("|").map(part => {
-      const idx = part.indexOf(":");
-      return [part.slice(0, idx), part.slice(idx + 1)];
-    })
-  );
-  return {
-    name: parts["CLIENTE"],
-    phone: parts["TEL"],
-    address: parts["END."],
-    payment: parts["PGTO"],
-    doc: parts["DOC"],
-    obs: parts["OBS"],
-  };
+const [orderType, setOrderType] = useState<"Entrega" | "Retirada" | "">("");
+const [orderTypeError, setOrderTypeError] = useState(false);
+
+// Validação: orderType é obrigatório
+if (!orderType) { setOrderTypeError(true); valid = false; }
+
+// Endereço só é validado quando for Entrega
+if (orderType === "Entrega" && address.trim() && address.trim() !== addressConfirm.trim()) {
+  setAddressError(true); valid = false;
 }
 ```
 
-### Layout HTML do bloco de dados do cliente
+### Campo adicionado nas notas estruturadas
+```text
+TIPO:Entrega|CLIENTE:João|TEL:...|END.:...|PGTO:PIX|DOC:...|OBS:...
+TIPO:Retirada|CLIENTE:Maria|TEL:...|PGTO:Dinheiro
+```
 
-Os campos são renderizados em uma tabela de duas colunas (rótulo + valor) para manter o alinhamento correto na impressora térmica — igual ao estilo da imagem de referência.
+### Leitura em `printOrder.ts`
+```typescript
+// Já existe parseNotes() — basta adicionar o campo TIPO ao retorno
+const tipo = parts["TIPO"]; // "Entrega" ou "Retirada"
 
-Pedidos de mesa (sem dados de cliente) não são afetados: se o `notes` não tiver o separador `|`, é exibido como observação simples, exatamente como hoje.
+// locationLabel já existente:
+const locationLabel = order.table_number === 0
+  ? (parsed?.tipo === "Retirada" ? "RETIRADA" : "ENTREGA")
+  : `MESA ${order.table_number}`;
+```
+
+### UI do seletor de tipo
+
+Dois botões grandes lado a lado (estilo card), com destaque visual na opção selecionada usando a cor primária da loja — sem dropdown, para facilitar o toque em celular.
