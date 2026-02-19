@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +11,6 @@ import {
 import PlanCard from "@/components/pricing/PlanCard";
 import logoIcon from "@/assets/logo-icon.png";
 import { ArrowLeft } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const PLAN_KEYS = {
@@ -104,9 +102,12 @@ const faqs = [
 const PricingPage = () => {
   const navigate = useNavigate();
   const { user, organization } = useAuth();
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-
   const currentPlan = organization?.subscription_plan || "free";
+
+  const caktoLinks: Record<string, string> = {
+    pro: "https://pay.cakto.com.br/ad3b2o7_776555",
+    enterprise: "https://pay.cakto.com.br/39s38ju_776565",
+  };
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -116,32 +117,15 @@ const PricingPage = () => {
     }
   };
 
-  const handleSelectPlan = async (planKey: string) => {
+  const handleSelectPlan = (planKey: string) => {
     if (!user) {
       navigate("/auth");
       return;
     }
-
     if (planKey === "free") return;
-
-    setLoadingPlan(planKey);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { plan: planKey },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
-    } catch (err: any) {
-      toast({
-        title: "Erro ao iniciar checkout",
-        description: err.message || "Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingPlan(null);
+    const url = caktoLinks[planKey];
+    if (url) {
+      window.open(`${url}?email=${encodeURIComponent(user.email || "")}`, "_blank");
     }
   };
 
@@ -190,7 +174,7 @@ const PricingPage = () => {
               key={plan.name}
               {...plan}
               currentPlan={currentPlan === plan.key}
-              loading={loadingPlan === plan.key}
+              loading={false}
               onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
               external={!user ? plan.external : false}
               ctaLink={!user ? "/auth" : plan.ctaLink}
