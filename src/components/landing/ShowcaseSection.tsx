@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, Home, UtensilsCrossed, Grid3X3, ChefHat as KitchenIcon, Users } from "lucide-react";
+import { ChefHat } from "lucide-react";
 
 const DashboardMockup = () => (
   <div className="relative w-full" style={{ maxWidth: 520 }}>
@@ -15,85 +15,13 @@ const DashboardMockup = () => (
         </div>
       </div>
 
-      {/* App body */}
-      <div className="flex" style={{ height: 300 }}>
-        {/* Sidebar */}
-        <div className="w-28 flex-shrink-0 flex flex-col py-3 px-2 gap-1" style={{ background: "#0f0f1a", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
-          {/* Logo */}
-          <div className="flex items-center gap-1.5 px-1 mb-3">
-            <div className="w-5 h-5 rounded bg-red-600 flex items-center justify-center flex-shrink-0">
-              <ChefHat className="w-3 h-3 text-white" />
-            </div>
-            <span className="text-white text-xs font-bold leading-tight">TrendFood</span>
-          </div>
-          {/* Store name */}
-          <div className="px-1 mb-2">
-            <p className="text-white/40 text-[9px] uppercase tracking-wide">Estabelecimento</p>
-            <p className="text-white text-[10px] font-semibold truncate">Burguer do Rei</p>
-          </div>
-          {/* Nav items */}
-          {[
-            { icon: <Home className="w-3 h-3" />, label: "Home", active: true },
-            { icon: <UtensilsCrossed className="w-3 h-3" />, label: "Cardápio", active: false },
-            { icon: <Grid3X3 className="w-3 h-3" />, label: "Mesas", active: false },
-            { icon: <KitchenIcon className="w-3 h-3" />, label: "Cozinha", active: false },
-            { icon: <Users className="w-3 h-3" />, label: "Garçom", active: false },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${
-                item.active
-                  ? "bg-red-600 text-white"
-                  : "text-white/50 hover:text-white/70"
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </div>
-          ))}
-        </div>
-
-        {/* Main content */}
-        <div className="flex-1 overflow-hidden p-3 flex flex-col gap-2" style={{ background: "#f8f5f2" }}>
-          <p className="text-[10px] font-bold text-gray-700">Home</p>
-
-          {/* Big revenue card */}
-          <div className="rounded-lg p-2.5 text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #c0392b, #e74c3c)" }}>
-            <p className="text-[9px] opacity-80 mb-0.5">Faturamento Hoje</p>
-            <p className="text-base font-black leading-tight">R$ 880,00</p>
-            <p className="text-[9px] opacity-70 mt-0.5">15 pedidos pagos</p>
-          </div>
-
-          {/* Metric cards row */}
-          <div className="grid grid-cols-2 gap-1.5">
-            {[
-              { label: "Fat. Total", value: "R$ 12.440", color: "text-green-600" },
-              { label: "Pedidos hoje", value: "15", color: "text-blue-600" },
-              { label: "Ag. pagamento", value: "R$ 240", color: "text-yellow-600" },
-              { label: "Ticket médio", value: "R$ 58,67", color: "text-purple-600" },
-            ].map((m) => (
-              <div key={m.label} className="bg-white rounded-md p-1.5 border border-gray-100">
-                <p className="text-[8px] text-gray-500 leading-tight">{m.label}</p>
-                <p className={`text-[11px] font-bold ${m.color}`}>{m.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Mini bar chart */}
-          <div className="bg-white rounded-md p-2 border border-gray-100 flex-1">
-            <p className="text-[8px] text-gray-500 mb-1.5">Últimos 7 dias</p>
-            <div className="flex items-end gap-1 h-10">
-              {[40, 65, 45, 80, 55, 70, 100].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                  <div
-                    className="w-full rounded-sm"
-                    style={{ height: `${h}%`, background: i === 6 ? "#e74c3c" : "#f87171", opacity: i === 6 ? 1 : 0.6 }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* App body - Screenshot real do dashboard */}
+      <div className="overflow-hidden" style={{ height: 300 }}>
+        <img
+          src="/dashboard-screenshot.png"
+          alt="Painel TrendFood - Dashboard de vendas"
+          className="w-full h-full object-cover object-top"
+        />
       </div>
     </div>
 
