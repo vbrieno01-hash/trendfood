@@ -1,106 +1,74 @@
 
-# Corrigir Redirecionamento dos QR Codes das Mesas
+# Tornar os Cards de Mesa Clicáveis
 
-## Diagnóstico do Problema
+## Problema
 
-Existem **duas páginas de cardápio** no projeto, criando uma divisão que causa confusão:
+Na aba "Mesas" do dashboard, cada card de mesa exibe três ícones (QR Code, Copiar Link, Excluir), mas clicar na área principal do card ou no número/nome da mesa **não faz nada**. O usuário espera que clicar na mesa abra a página do cardápio daquela mesa.
 
-- **`UnitPage`** (`/unidade/:slug`): Página moderna com carrinho local, checkout via WhatsApp, sugestões, etc.
-- **`TableOrderPage`** (`/unidade/:slug/mesa/:tableNumber`): Página antiga e separada, sem o carrinho WhatsApp, sem o design moderno. É para onde os QR Codes apontam.
-
-Quando um cliente escaneia o QR Code de uma mesa, ele cai na `TableOrderPage` (que não tem o checkout WhatsApp e pode gerar erros), enquanto a experiência correta está na `UnitPage`.
+Além disso, há um bug de indentação em `UnitPage.tsx` na linha 43 — o `useParams` está fora do nível de indentação correto, o que pode causar falhas silenciosas de parsing.
 
 ---
 
-## Solução
+## O Que Será Feito
 
-**Unificar tudo na `UnitPage`**, fazendo ela também ler o parâmetro opcional `:tableNumber` da URL. A `TableOrderPage` será removida das rotas ativas (ou redirecionada).
+### 1. `src/components/dashboard/TablesTab.tsx` — Card clicável
 
-```text
-ANTES:
-/unidade/:slug          → UnitPage  (moderna, WhatsApp)
-/unidade/:slug/mesa/:n  → TableOrderPage (antiga, sem WhatsApp) ← QR Code aponta aqui
+Três melhorias no card de cada mesa:
 
-DEPOIS:
-/unidade/:slug          → UnitPage (mesma página)
-/unidade/:slug/mesa/:n  → UnitPage (mesma página, com tableNumber detectado)
-```
+**a) O card inteiro vira clicável:**
+O `<div>` do card será transformado em um wrapper que abre o link da mesa ao clicar (exceto quando o clique for nos botões de ação).
 
----
+**b) Adicionar botão "Abrir" explícito:**
+Um link visível com ícone `ExternalLink` ao lado do número da mesa, abrindo `/unidade/[slug]/mesa/[numero]` em nova aba.
 
-## Mudanças em Detalhe
+**c) Estilo hover no card:**
+Adicionar `cursor-pointer hover:border-primary/40 hover:bg-secondary/50 transition-colors` no card para dar feedback visual de que é clicável.
 
-### 1. `src/App.tsx`
-- **Alterar** a rota `/unidade/:slug/mesa/:tableNumber` para apontar para `<UnitPage />` ao invés de `<TableOrderPage />`.
-- Remover o import de `TableOrderPage`.
+A estrutura final ficará assim:
 
 ```tsx
-// Antes:
-<Route path="/unidade/:slug/mesa/:tableNumber" element={<TableOrderPage />} />
-
-// Depois:
-<Route path="/unidade/:slug/mesa/:tableNumber" element={<UnitPage />} />
-```
-
-### 2. `src/pages/UnitPage.tsx`
-Quatro mudanças cirúrgicas:
-
-**a) Ler o `tableNumber` da URL:**
-```tsx
-const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
-const tableNum = tableNumber ? parseInt(tableNumber, 10) : null;
-```
-
-**b) Mostrar banner discreto de "Você está na Mesa X":**
-Adicionar logo abaixo do `<header>`, antes do conteúdo principal, um aviso visível apenas quando `tableNum` estiver presente:
-```tsx
-{tableNum && (
-  <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-sm font-medium text-amber-800">
-    🪑 Você está na Mesa {tableNum}
+<a
+  href={getUrl(t.number)}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card
+             hover:border-primary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
+  onClick={(e) => {
+    // Impede propagação quando clica nos botões de ação
+  }}
+>
+  {/* número, nome, url */}
+  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+    {/* botões QR, Copiar, Excluir */}
   </div>
-)}
+</a>
 ```
 
-**c) Incluir "Pedido da Mesa X" na mensagem do WhatsApp:**
-Inserir na função `handleSendWhatsApp`, nas linhas que montam o array `lines`:
-```tsx
-tableNum ? `🪑 *Mesa:* ${tableNum}` : null,
-```
-Isso aparece no WhatsApp abaixo do total, antes do nome do cliente.
+O truque é usar um `<a>` como wrapper do card completo, e nos botões de ação usar `e.stopPropagation()` para que o clique neles não dispare a navegação.
 
-**d) Ajustar o banner de boas-vindas:**
-Quando o cliente vem via mesa, mostrar mensagem contextualizada:
-```tsx
-<p className="text-muted-foreground text-sm">
-  {tableNum
-    ? `🪑 Mesa ${tableNum} — Monte seu pedido e envie pelo WhatsApp!`
-    : `🛒 Monte seu pedido e envie direto pelo WhatsApp!`}
-</p>
-```
+### 2. `src/pages/UnitPage.tsx` — Correção de bug de indentação
 
-### 3. `src/components/dashboard/TablesTab.tsx` (opcional mas recomendado)
-O `getUrl` já gera `/unidade/${organization.slug}/mesa/${num}`, que agora funcionará corretamente com a `UnitPage`. **Nenhuma mudança necessária aqui** — só garantir que a URL de produção seja usada, não a de preview.
+Na linha 43, o `useParams` está com indentação errada (nível 0 ao invés de 2 espaços), o que é tecnicamente válido em JS mas inconsistente e pode causar confusão em ferramentas de linting:
 
-A memória do projeto (`memory/project/public-link-configuration`) já documenta que o domínio correto é `https://snack-hive.lovable.app`. O `TablesTab` usa `window.location.origin`, que em preview pode ser o domínio de preview. Vamos corrigir para usar o domínio de produção fixo:
 ```tsx
-const PRODUCTION_URL = "https://snack-hive.lovable.app";
-const getUrl = (num: number) =>
-  `${PRODUCTION_URL}/unidade/${organization.slug}/mesa/${num}`;
+// Antes (linha 43 sem indentação correta):
+const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
+
+// Depois (indentação correta dentro do componente):
+  const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
 ```
 
 ---
 
-## Fluxo Completo Após a Correção
+## Resultado Esperado
 
-Quando um cliente escanear o QR Code da Mesa 3:
-
-1. Abre `https://snack-hive.lovable.app/unidade/meu-restaurante/mesa/3`
-2. `UnitPage` detecta `tableNumber = "3"` via `useParams`
-3. Exibe banner: *"🪑 Você está na Mesa 3"*
-4. Cliente monta o carrinho normalmente
-5. Abre o drawer de checkout
-6. Clica em "Enviar Pedido pelo WhatsApp"
-7. Mensagem gerada inclui: *"🪑 Mesa: 3"*
+| Ação do usuário | Comportamento |
+|---|---|
+| Clicar no card da mesa (área geral) | Abre `/unidade/slug/mesa/N` em nova aba |
+| Clicar no ícone QR Code | Abre modal do QR (sem abrir nova aba) |
+| Clicar no ícone Copiar | Copia o link (sem abrir nova aba) |
+| Clicar no ícone Excluir | Abre confirmação de exclusão (sem abrir nova aba) |
+| Hover no card | Borda e fundo mudam levemente para indicar que é clicável |
 
 ---
 
@@ -108,7 +76,5 @@ Quando um cliente escanear o QR Code da Mesa 3:
 
 | Arquivo | Ação |
 |---|---|
-| `src/App.tsx` | Alterar rota `/mesa/:tableNumber` para usar `UnitPage` |
-| `src/pages/UnitPage.tsx` | Ler `tableNumber`, adicionar banner e incluir mesa no WhatsApp |
-| `src/components/dashboard/TablesTab.tsx` | Corrigir URL para usar domínio de produção fixo |
-| `src/pages/TableOrderPage.tsx` | Sem alteração (pode permanecer como fallback legacy) |
+| `src/components/dashboard/TablesTab.tsx` | Tornar card clicável com `<a>` wrapper + hover styles + `stopPropagation` nos botões de ação |
+| `src/pages/UnitPage.tsx` | Corrigir indentação do `useParams` |
