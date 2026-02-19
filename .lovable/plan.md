@@ -1,37 +1,51 @@
 
-# Ocultar o Badge do Lovable via CSS
+# Corrigir o Link "Ver Página Pública" no Dashboard
 
-## O que será feito
+## Problema identificado
 
-O badge "Edit in Lovable" é injetado pela plataforma como um elemento DOM com atributos específicos. É possível ocultá-lo adicionando uma regra CSS no arquivo `src/index.css` que força o elemento a ficar invisível.
+No arquivo `src/pages/DashboardPage.tsx` (linha 208) e `src/components/dashboard/StoreProfileTab.tsx` (linha 56–57), o domínio base usado para gerar os links públicos está errado:
 
-## Mudança
-
-Arquivo: `src/index.css`
-
-Adicionar ao final do arquivo:
-
-```css
-/* Hide Lovable badge */
-#lovable-badge,
-[data-lovable-badge],
-a[href*="lovable.app"][style*="position: fixed"],
-a[href*="lovable.dev"][style*="position: fixed"] {
-  display: none !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  visibility: hidden !important;
-}
+```
+https://snack-hive.lovable.app  ← ERRADO (domínio antigo/incorreto)
 ```
 
-Esta regra cobre os seletores mais comuns usados pelo badge injetado pela plataforma.
+O domínio correto de produção é:
 
-## Observação importante
+```
+https://trendfood.lovable.app  ← CORRETO
+```
 
-Esta abordagem usa CSS para forçar a ocultação. Funciona na maioria dos casos, mas como o badge é injetado externamente, a Lovable pode alterar os seletores em futuras atualizações. A forma oficial e permanente de remover o badge é via **Settings → Hide 'Lovable' Badge** (disponível nos planos pagos).
+Por isso, quando o usuário clica em "Ver página pública" no dashboard (especialmente com o app instalado como PWA), a URL gerada aponta para `snack-hive.lovable.app/unidade/...`, que ou não existe ou não está publicado, causando o comportamento de "pedir para publicar o site".
 
-## Arquivo afetado
+## Arquivos afetados
 
-| Arquivo | O que muda |
-|---|---|
-| `src/index.css` | Adiciona 4 linhas de CSS no final do arquivo |
+| Arquivo | Linha | O que muda |
+|---|---|---|
+| `src/pages/DashboardPage.tsx` | 208 | Corrigir href do botão "Ver página pública" |
+| `src/components/dashboard/StoreProfileTab.tsx` | 56 | Corrigir a constante `PUBLIC_BASE_URL` |
+
+## Mudanças
+
+### 1. `src/pages/DashboardPage.tsx`
+
+Linha 208 — alterar o href de:
+```
+href={`https://snack-hive.lovable.app/unidade/${organization.slug}`}
+```
+Para:
+```
+href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
+```
+
+### 2. `src/components/dashboard/StoreProfileTab.tsx`
+
+Linha 56 — alterar a constante de:
+```ts
+const PUBLIC_BASE_URL = "https://snack-hive.lovable.app";
+```
+Para:
+```ts
+const PUBLIC_BASE_URL = "https://trendfood.lovable.app";
+```
+
+Isso corrige tanto o botão "Ver página pública" na sidebar quanto o link de cópia na aba "Perfil da Loja".
