@@ -1,37 +1,27 @@
 
 
-# Indicador visual nos chips de pessoa
+# Adicionar exemplo de nome nos campos de pessoa
 
 ## O que muda
 
-Cada chip de pessoa na barra de selecao vai mostrar um pequeno indicador (bolinha com numero) quando aquela pessoa ja tem itens no carrinho. Isso facilita saber rapidamente quem ja pediu algo.
+Os campos de nome na tela de setup vao mostrar um placeholder com exemplo de nome real em vez de apenas "Pessoa 1", "Pessoa 2", facilitando o entendimento do que preencher.
 
 ## Como vai funcionar
 
-- Ao lado do nome no chip, aparece um badge com o numero total de itens daquela pessoa (ex: "Joao 3")
-- Se a pessoa nao tem itens, nenhum badge aparece
-- O badge acompanha o estilo do chip (cores diferentes para ativo/inativo)
+- O placeholder de cada campo vai mudar para incluir um exemplo: "Ex: João", "Ex: Maria", "Ex: Pedro", etc.
+- A lista de nomes de exemplo vai rotacionar entre opcoes comuns brasileiras
 
 ## Detalhes tecnicos
 
 ### Arquivo: `src/pages/TableOrderPage.tsx`
 
-Na renderizacao dos chips (linhas 565-578), calcular a quantidade de itens por pessoa filtrando `cartItems` pelo `customer_name` e, se maior que zero, exibir um pequeno `<span>` com o numero ao lado do nome.
+Na linha 521, trocar o placeholder de `Pessoa ${index + 1}` para nomes de exemplo usando um array:
 
-Logica:
-```
-const personItemCount = cartItems
-  .filter(ci => ci.customer_name === name)
-  .reduce((sum, ci) => sum + ci.quantity, 0);
-```
+```typescript
+const exampleNames = ["João", "Maria", "Pedro", "Ana", "Lucas", "Julia", "Carlos", "Beatriz", "Rafael", "Larissa"];
 
-Dentro do botao do chip, apos o nome, renderizar condicionalmente:
-```
-{personItemCount > 0 && (
-  <span className="ml-1 bg-white/20 text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
-    {personItemCount}
-  </span>
-)}
+// No placeholder:
+placeholder={`Ex: ${exampleNames[index % exampleNames.length]}`}
 ```
 
-Nenhuma alteracao em banco de dados ou outros arquivos.
+Nenhuma outra alteracao necessaria.
