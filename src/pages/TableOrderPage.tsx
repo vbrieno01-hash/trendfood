@@ -166,11 +166,18 @@ export default function TableOrderPage() {
         : `CUPOM:${appliedCoupon.code}`;
     }
 
+    // Determine initial status: if PIX requires confirmation, start as awaiting_payment
+    // so the kitchen doesn't see it until payment is confirmed
+    const pixMode = org.pix_confirmation_mode ?? "direct";
+    const needsPaymentFirst = pixMode === "automatic" || pixMode === "manual";
+    const initialStatus = needsPaymentFirst ? "awaiting_payment" : "pending";
+
     const order = await placeOrder.mutateAsync({
       organizationId: org.id,
       tableNumber: tableNum,
       notes: finalNotes,
       items: cartItems,
+      initialStatus,
     });
 
     if (appliedCoupon) {
@@ -204,9 +211,14 @@ export default function TableOrderPage() {
     if (orderId) {
       const pixMode = org?.pix_confirmation_mode ?? "direct";
       const isAutomatic = method === "pix" && pixMode === "automatic";
-      const isManual = method === "pix" && pixMode === "manual";
-      const newStatus = (isAutomatic || isManual) ? "awaiting_payment" : "pending";
-      await supabase.from("orders").update({ payment_method: method, status: newStatus } as never).eq("id", orderId);
+
+      if (method === "card") {
+        // Card selected: move order to pending so kitchen can see it
+        await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
+      } else {
+        // PIX selected: keep awaiting_payment, just update payment_method
+        await supabase.from("orders").update({ payment_method: method } as never).eq("id", orderId);
+      }
 
       // If automatic mode, create a charge via gateway
       if (isAutomatic && org) {
