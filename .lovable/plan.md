@@ -1,120 +1,78 @@
 
-# Correção do Painel Admin — 3 Problemas Identificados
+# Redesign do Painel Admin — Profissional e Organizado
 
-## Diagnóstico Preciso
+## O que muda
 
-### Problema 1 — DashboardPage crasha para o usuário admin (principal)
-O usuário admin (`brenojackson30@gmail.com`) não tem nenhuma loja cadastrada. O `DashboardPage.tsx` na linha 180 faz `organization.logo_url` diretamente **sem checar se `organization` é null**. Isso causa um crash instantâneo com `Cannot read properties of null (reading 'logo_url')`.
-
-O fluxo atual:
-- Admin faz login → `organization = null` (confirmado pelo banco: nenhuma org com esse user_id)
-- `DashboardPage` checa apenas `if (!user)` mas não `if (!organization)`
-- Tenta acessar `organization.logo_url` → CRASH
-
-### Problema 2 — Redirecionamento pós-login vai para `/dashboard`
-Após login, o usuário é redirecionado para `/dashboard`. O admin sem organização crasha lá. Ele deveria ser redirecionado para `/admin`.
-
-### Problema 3 — Race condition em useAuth
-O evento `SIGNED_IN` do `onAuthStateChange` seta `loading = true`, mas o `getSession()` inicial já setou `loading = false`. Se o evento disparar depois de `getSession()`, o `loading` oscila e pode fazer o `isAdmin` ser lido como `false` por um instante, causando redirect desnecessário para `/`.
+- **Remove** a seção "Tabela Global de Frete" (cada loja define o seu)
+- **Redesenha** completamente o layout para um painel de controle profissional estilo SaaS
+- Adiciona métricas de topo (KPIs) com cards de resumo da plataforma
+- Troca a lista simples por um **grid de cards** com dados ricos por loja
 
 ---
 
-## Solução — 3 correções cirúrgicas
+## Nova estrutura visual
 
-### Correção 1 — DashboardPage: proteger acesso quando organization é null
+### Header
+Barra superior escura com logo TrendFood, título "Painel Administrativo" e badge com nome do admin logado.
 
-Adicionar um guard depois do check de `!user`:
+### KPIs — 4 cards de métricas no topo
+```text
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  5 Lojas     │  │ 50 Pedidos   │  │ R$ 21.047    │  │  3 c/ Endereço│
+│  Cadastradas │  │  na plataforma│  │  Faturamento │  │  Configuradas│
+└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
 ```
-if (loading || !user) → spinner
-if (!organization) → tela de "Configure sua loja" com link para /admin se isAdmin, ou mensagem de "Sua conta está sendo configurada..."
+
+### Grid de cards de lojas
+Cada loja vira um card com:
+- Avatar/inicial colorida do nome da loja
+- Nome + slug (com link clicável para abrir a loja pública)
+- Badge de status (Trial / Ativo)
+- Badge de endereço (Configurado / Pendente)
+- Métricas: itens no cardápio, total de pedidos, faturamento total
+- Data de cadastro
+- Ícone de acesso externo para abrir a loja
+
+```text
+┌─────────────────────────────────────────┐
+│ [B]  Burguer do Rei          [Trial] [↗]│
+│      /unidade/burguer-do-rei             │
+│  ──────────────────────────────────────  │
+│  3 itens   48 pedidos   R$ 20.826,00    │
+│  Endereço configurado   Desde 18/02/26  │
+└─────────────────────────────────────────┘
 ```
-
-Isso evita o crash E dá uma UX melhor.
-
-### Correção 2 — AuthPage: redirecionar admin para /admin após login
-
-No `AuthPage.tsx`, após login bem-sucedido, verificar se o usuário tem role admin e redirecionar para `/admin` em vez de `/dashboard`.
-
-### Correção 3 — useAuth: corrigir race condition no loading
-
-Reorganizar o `useAuth.tsx` para que:
-- O `onAuthStateChange` NÃO controle `loading` (apenas atualiza estado)
-- Apenas o `getSession()` inicial controle `loading = false`
-- Ambos chamem `fetchOrganization` com `setTimeout(0)` para evitar deadlock
 
 ---
 
-## Arquivos a Modificar
+## Arquivos modificados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/DashboardPage.tsx` | Guard para `organization === null`: mostrar tela de setup ou link admin |
-| `src/pages/AuthPage.tsx` | Após login, checar se admin e redirecionar para `/admin` |
-| `src/hooks/useAuth.tsx` | Corrigir race condition: apenas `getSession()` controla `loading` |
+| `src/pages/AdminPage.tsx` | Reescrita completa: remove frete, adiciona KPIs, cards grid |
 
 ---
 
-## Detalhamento Técnico
+## Detalhes técnicos
 
-### DashboardPage.tsx — guard para organization null
+### Dados carregados no AdminContent
+Além do SELECT básico já existente, adicionar um JOIN para trazer:
+- `menu_items_count` — quantidade de itens no cardápio
+- `orders_count` — total de pedidos
+- `total_revenue` — faturamento total (SUM de order_items.price * quantity)
 
-Inserir logo após o check `if (loading || !user)`:
+Isso é feito via chamadas separadas ao Supabase que já funcionam com as RLS existentes (SELECT público em todas as tabelas).
 
-```tsx
-if (!organization) {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="text-center max-w-sm">
-        <p className="text-4xl mb-4">🏪</p>
-        <h1 className="font-bold text-xl mb-2">Nenhuma loja vinculada</h1>
-        <p className="text-muted-foreground text-sm mb-6">
-          {isAdmin
-            ? "Você está logado como administrador da plataforma."
-            : "Sua conta ainda não tem uma loja configurada."}
-        </p>
-        {isAdmin && (
-          <Button asChild>
-            <Link to="/admin">Acessar Painel Admin</Link>
-          </Button>
-        )}
-        <Button variant="outline" onClick={signOut} className="ml-2">Sair</Button>
-      </div>
-    </div>
-  );
-}
-```
+### KPIs calculados em memória (client-side)
+- Total de lojas = `orgs.length`
+- Total de pedidos = soma de `orders_count` de cada org
+- Faturamento total = soma de `total_revenue` de cada org
+- Lojas com endereço = `orgs.filter(o => o.store_address).length`
 
-### AuthPage.tsx — redirect inteligente pós-login
+### Paleta de cores dos avatares
+Gerada deterministicamente a partir do nome da loja, usando um array de 8 cores (azul, verde, roxo, laranja, etc.) para que cada loja sempre tenha a mesma cor.
 
-Após `signIn` bem-sucedido, buscar role e redirecionar:
-```tsx
-// após login com sucesso:
-const { data: roleData } = await supabase
-  .from("user_roles")
-  .select("role")
-  .eq("user_id", data.user.id)
-  .eq("role", "admin")
-  .maybeSingle();
-
-if (roleData) {
-  navigate("/admin");
-} else {
-  navigate("/dashboard");
-}
-```
-
-### useAuth.tsx — corrigir race condition
-
-Remover o `setLoading(true)` do handler `SIGNED_IN` no `onAuthStateChange`. O loading deve ser controlado apenas pelo `getSession()` inicial. O listener apenas atualiza os dados sem resetar loading:
-
-```tsx
-// ANTES (problemático):
-if (_event === "SIGNED_IN") {
-  setLoading(true); // ← REMOVE ISSO
-}
-
-// DEPOIS:
-// onAuthStateChange apenas atualiza dados, não mexe em loading
-```
-
-Isso garante que `isAdmin` nunca oscile para `false` causando redirect errado.
+### Responsividade
+- Mobile: 1 coluna
+- Tablet: 2 colunas
+- Desktop: 3 colunas (grid)
