@@ -75,6 +75,15 @@ const DashboardPage = () => {
     }
   }, [loading, user, organization, refreshOrganizationForUser]);
 
+  // Listen to popstate (browser back/forward) to update active tab
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabFromUrl = params.get("tab") as TabKey | null;
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [location.search]);
+
   // Post-checkout feedback
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -197,14 +206,6 @@ const DashboardPage = () => {
     navigate(`/dashboard?tab=${key}`, { replace: false });
   };
 
-  // Listen to popstate (browser back/forward) to update active tab
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const tabFromUrl = params.get("tab") as TabKey | null;
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [location.search]);
 
   const handleInstallApp = async () => {
     if (!installPrompt) return;
