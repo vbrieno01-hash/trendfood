@@ -103,7 +103,7 @@ export default function SettingsTab() {
     try {
       await signOut();
       toast.info("Conta desativada. Entre em contato para exclusão completa dos dados.");
-      navigate("/auth");
+      navigate("/auth", { replace: true });
     } catch {
       toast.error("Erro ao excluir conta.");
     } finally {

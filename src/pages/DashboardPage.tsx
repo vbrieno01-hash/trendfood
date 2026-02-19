@@ -39,8 +39,14 @@ const DashboardPage = () => {
   const location = useLocation();
   const { user, organization, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization } = useAuth();
   const planLimits = usePlanLimits(organization);
-  const initialTab = (location.state as { tab?: string })?.tab === "tables" ? "tables" : "home";
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  // Read tab from URL query param, fallback to location.state, then "home"
+  const getInitialTab = (): TabKey => {
+    const params = new URLSearchParams(location.search);
+    const tabFromUrl = params.get("tab") as TabKey | null;
+    const tabFromState = (location.state as { tab?: string })?.tab as TabKey | null;
+    return tabFromUrl || tabFromState || "home";
+  };
+  const [activeTab, setActiveTab] = useState<TabKey>(getInitialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -59,7 +65,7 @@ const DashboardPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user) navigate("/auth");
+    if (!loading && !user) navigate("/auth", { replace: true });
   }, [loading, user, navigate]);
 
   useEffect(() => {
@@ -182,8 +188,23 @@ const DashboardPage = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/auth");
+    navigate("/auth", { replace: true });
   };
+
+  // Sync tabs with URL
+  const handleTabChange = (key: TabKey) => {
+    setActiveTab(key);
+    navigate(`/dashboard?tab=${key}`, { replace: false });
+  };
+
+  // Listen to popstate (browser back/forward) to update active tab
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabFromUrl = params.get("tab") as TabKey | null;
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [location.search]);
 
   const handleInstallApp = async () => {
     if (!installPrompt) return;
@@ -260,7 +281,7 @@ const DashboardPage = () => {
           {navItemsTop.map((item) => (
             <button
               key={item.key}
-              onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
+              onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
               className={navBtnClass(item.key)}
             >
               {item.icon}
@@ -277,7 +298,7 @@ const DashboardPage = () => {
           {navItemsOps.map((item) => (
             <button
               key={item.key}
-              onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
+              onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
               className={navBtnClass(item.key)}
             >
               {item.icon}
@@ -294,7 +315,7 @@ const DashboardPage = () => {
           {navItemsBottom.map((item) => (
             <button
               key={item.key}
-              onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
+              onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
               className={navBtnClass(item.key)}
             >
               {item.icon}
