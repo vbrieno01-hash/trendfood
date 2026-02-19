@@ -117,11 +117,14 @@ export default function TablesTab({ organization }: Props) {
       ) : (
         <div className="space-y-2">
           {tables.map((t) => (
-            <div
+            <a
               key={t.id}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card"
+              href={getUrl(t.number)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-sm">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
                 {t.number}
               </div>
               <div className="flex-1 min-w-0">
@@ -132,12 +135,12 @@ export default function TablesTab({ organization }: Props) {
                   /unidade/{organization.slug}/mesa/{t.number}
                 </p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
                 <Button
                   variant="ghost"
                   size="icon"
                   title="Ver QR Code"
-                  onClick={() => setQrModal({ number: t.number })}
+                  onClick={(e) => { e.preventDefault(); setQrModal({ number: t.number }); }}
                 >
                   <QrCode className="w-4 h-4" />
                 </Button>
@@ -145,7 +148,7 @@ export default function TablesTab({ organization }: Props) {
                   variant="ghost"
                   size="icon"
                   title="Copiar link"
-                  onClick={() => copyLink(t.number)}
+                  onClick={(e) => { e.preventDefault(); copyLink(t.number); }}
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
@@ -153,13 +156,13 @@ export default function TablesTab({ organization }: Props) {
                   variant="ghost"
                   size="icon"
                   title="Excluir mesa"
-                  onClick={() => setDeleteId(t.id)}
+                  onClick={(e) => { e.preventDefault(); setDeleteId(t.id); }}
                   className="hover:text-destructive"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       )}

@@ -40,7 +40,7 @@ const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 const UnitPage = () => {
-const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
+  const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
   const tableNum = tableNumber ? parseInt(tableNumber, 10) : null;
   const navigate = useNavigate();
 
