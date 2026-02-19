@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
 import { BusinessHours } from "@/hooks/useOrganization";
 import { DeliveryConfig, DEFAULT_DELIVERY_CONFIG } from "@/hooks/useDeliveryFee";
-import { usePlatformDeliveryConfig } from "@/hooks/usePlatformDeliveryConfig";
 
 interface Organization {
   id: string;
@@ -99,8 +98,10 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 export default function StoreProfileTab({ organization }: { organization: Organization }) {
   const { refreshOrganization } = useAuth();
-  const { data: globalConfig } = usePlatformDeliveryConfig();
-  const cfg: DeliveryConfig = globalConfig ?? DEFAULT_DELIVERY_CONFIG;
+  const [deliveryConfig, setDeliveryConfig] = useState<DeliveryConfig>({
+    ...DEFAULT_DELIVERY_CONFIG,
+    ...(organization.delivery_config ?? undefined),
+  });
   const [form, setForm] = useState({
     name: organization.name,
     description: organization.description ?? "",
@@ -144,6 +145,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           pix_key: form.pix_key || null,
           business_hours: businessHours as unknown as never,
           store_address: buildStoreAddress(addressFields) || null,
+          delivery_config: deliveryConfig as unknown as never,
         })
         .eq("id", organization.id);
 
@@ -598,18 +600,84 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         </div>
 
 
-        {/* Painel informativo: tabela de frete global */}
-        <div className="bg-secondary/60 rounded-xl p-4 text-sm space-y-1.5 mt-1">
-          <p className="font-semibold text-foreground text-xs mb-2 flex items-center gap-1.5">
-            📦 Tabela de frete <span className="font-normal text-muted-foreground">(configurada globalmente pelo admin da plataforma)</span>
-          </p>
-          <p className="text-muted-foreground">📍 Até <strong>{cfg.tier1_km} km</strong> → <strong className="text-foreground">R$ {cfg.fee_tier1.toFixed(2).replace(".", ",")}</strong></p>
-          <p className="text-muted-foreground">📍 <strong>{cfg.tier1_km}–{cfg.tier2_km} km</strong> → <strong className="text-foreground">R$ {cfg.fee_tier2.toFixed(2).replace(".", ",")}</strong></p>
-          <p className="text-muted-foreground">📍 Acima de <strong>{cfg.tier2_km} km</strong> → <strong className="text-foreground">R$ {cfg.fee_tier3.toFixed(2).replace(".", ",")}</strong></p>
-          <p className="text-muted-foreground">🎁 Pedidos acima de <strong>R$ {cfg.free_above.toFixed(2).replace(".", ",")}</strong> → <strong className="text-foreground">Frete grátis</strong></p>
-          <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
-            Para alterar essas taxas, acesse o Painel Admin em <code className="font-mono">/admin</code>.
-          </p>
+        {/* Taxas de frete editáveis por loja */}
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Taxas de Frete</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-medium mb-1 block">
+                Faixa 1 (R$) <span className="text-muted-foreground font-normal">até {deliveryConfig.tier1_km} km</span>
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={deliveryConfig.fee_tier1}
+                onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier1: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Limite faixa 1 (km)</Label>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={deliveryConfig.tier1_km}
+                onChange={(e) => setDeliveryConfig((p) => ({ ...p, tier1_km: parseFloat(e.target.value) || 2 }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium mb-1 block">
+                Faixa 2 (R$) <span className="text-muted-foreground font-normal">{deliveryConfig.tier1_km}–{deliveryConfig.tier2_km} km</span>
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={deliveryConfig.fee_tier2}
+                onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier2: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Limite faixa 2 (km)</Label>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={deliveryConfig.tier2_km}
+                onChange={(e) => setDeliveryConfig((p) => ({ ...p, tier2_km: parseFloat(e.target.value) || 5 }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium mb-1 block">
+                Faixa 3 (R$) <span className="text-muted-foreground font-normal">acima de {deliveryConfig.tier2_km} km</span>
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={deliveryConfig.fee_tier3}
+                onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier3: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium mb-1 block">Frete grátis acima de (R$)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={5}
+                value={deliveryConfig.free_above}
+                onChange={(e) => setDeliveryConfig((p) => ({ ...p, free_above: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+          </div>
+          <div className="bg-secondary/60 rounded-xl p-3 text-xs space-y-1 mt-3">
+            <p className="font-semibold text-foreground mb-1">Preview:</p>
+            <p className="text-muted-foreground">📍 Até <strong>{deliveryConfig.tier1_km} km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_tier1.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">📍 <strong>{deliveryConfig.tier1_km}–{deliveryConfig.tier2_km} km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_tier2.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">📍 Acima de <strong>{deliveryConfig.tier2_km} km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_tier3.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">🎁 Acima de <strong>R$ {deliveryConfig.free_above.toFixed(2).replace(".", ",")}</strong> → <strong className="text-foreground">Frete grátis</strong></p>
+          </div>
         </div>
       </div>
 

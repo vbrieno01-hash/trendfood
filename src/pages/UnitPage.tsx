@@ -24,7 +24,6 @@ import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryFee } from "@/hooks/useDeliveryFee";
-import { usePlatformDeliveryConfig } from "@/hooks/usePlatformDeliveryConfig";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pendente",
@@ -50,7 +49,6 @@ const UnitPage = () => {
   const { data: org, isLoading: orgLoading, isError } = useOrganization(slug);
   const { data: suggestions = [], isLoading: suggestionsLoading } = useSuggestions(org?.id);
   const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
-  const { data: globalDeliveryConfig } = usePlatformDeliveryConfig();
 
   const addMutation = useAddSuggestion(org?.id ?? "");
   const voteMutation = useIncrementVote(org?.id ?? "");
@@ -125,8 +123,7 @@ const UnitPage = () => {
     fullCustomerAddress,
     _totalPriceForFee,
     org ?? null,
-    !!org && orderType === "Entrega" && checkoutOpen,
-    globalDeliveryConfig
+    !!org && orderType === "Entrega" && checkoutOpen
   );
 
   useEffect(() => {
