@@ -145,6 +145,7 @@ export type Database = {
           name: string
           primary_color: string
           slug: string
+          subscription_status: string
           user_id: string
           whatsapp: string | null
         }
@@ -157,6 +158,7 @@ export type Database = {
           name: string
           primary_color?: string
           slug: string
+          subscription_status?: string
           user_id: string
           whatsapp?: string | null
         }
@@ -169,6 +171,7 @@ export type Database = {
           name?: string
           primary_color?: string
           slug?: string
+          subscription_status?: string
           user_id?: string
           whatsapp?: string | null
         }
