@@ -1,65 +1,45 @@
 
 
-# Feedback visual pos-checkout e teste do fluxo de assinatura
+# Corrigir erro no botao "Gerenciar assinatura"
 
-## Situacao atual
+## Problema
 
-O fluxo de assinatura ja funciona tecnicamente:
-1. Usuario clica "Assinar Pro" na pagina /planos
-2. `create-checkout` cria sessao no Stripe e retorna URL (confirmado nos logs)
-3. Apos pagamento, usuario e redirecionado para `/dashboard?checkout=success`
-4. `check-subscription` e chamado no carregamento da pagina e sincroniza o plano no banco
+O botao "Gerenciar assinatura" no SettingsTab chama a Edge Function `customer-portal`, que busca o cliente no Stripe pelo e-mail. Quando nao existe um cliente Stripe (caso de ativacao manual ou teste), a funcao retorna o erro "No Stripe customer found", que e exibido como toast generico ao usuario.
 
-O que falta: quando o usuario volta do checkout com `?checkout=success`, nao ha nenhum feedback visual (toast de sucesso) e nenhuma chamada imediata para atualizar o plano.
+## Solucao
 
-## O que sera feito
+Tratar o erro especifico "No Stripe customer found" no frontend com uma mensagem amigavel e redirecionar o usuario para a pagina de planos, ja que sem registro no Stripe nao ha assinatura real para gerenciar.
 
-### 1. Adicionar tratamento do parametro `?checkout=success` no DashboardPage
+## Detalhes tecnicos
 
-No arquivo `src/pages/DashboardPage.tsx`:
+### Arquivo: `src/components/dashboard/SettingsTab.tsx`
 
-- Detectar o parametro `checkout=success` na URL
-- Exibir toast de sucesso: "Assinatura ativada! Bem-vindo ao plano Pro"
-- Forcar uma chamada imediata ao `check-subscription` para atualizar o plano no banco
-- Atualizar a organizacao local (`refreshOrganization`) para desbloquear funcionalidades Pro
-- Limpar o parametro da URL para evitar exibir o toast novamente ao recarregar
-
-### 2. Simular compra para teste
-
-Para testar o fluxo completo com o usuario vendass945, atualizar temporariamente o `subscription_plan` no banco de dados para "pro" e verificar que:
-- As funcionalidades bloqueadas (KDS, Cupons, Caixa, Garcom, Mais Vendidos) ficam desbloqueadas
-- A secao de assinatura em Configuracoes mostra "Pro" e o botao "Gerenciar assinatura"
-- A pagina /planos mostra "Plano atual" no card Pro
-
-### Detalhes tecnicos
-
-No `DashboardPage.tsx`, adicionar um `useEffect` que:
+Na funcao `handleManageSubscription`, dentro do bloco catch, verificar se a mensagem de erro contem "No Stripe customer found" e exibir uma mensagem mais clara:
 
 ```typescript
-useEffect(() => {
-  const params = new URLSearchParams(location.search);
-  if (params.get("checkout") === "success") {
-    toast.success("Assinatura ativada com sucesso! Bem-vindo ao plano Pro 🎉");
-    // Forcar verificacao de assinatura
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        supabase.functions.invoke("check-subscription", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        }).then(() => refreshOrganization());
-      }
-    });
-    // Limpar parametro da URL
-    navigate("/dashboard", { replace: true });
+} catch (err: unknown) {
+  const error = err as { message?: string };
+  const msg = error.message ?? data?.error ?? "";
+  if (msg.includes("No Stripe customer found")) {
+    toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar sua assinatura.");
+    navigate("/planos");
+  } else {
+    toast.error(msg || "Erro ao abrir portal de assinatura.");
   }
-}, [location.search]);
+}
 ```
 
-No banco de dados, executar SQL para simular a compra:
-```sql
-UPDATE organizations 
-SET subscription_plan = 'pro', subscription_status = 'active' 
-WHERE user_id = '50d70a01-2d3a-495b-ba9c-e49794dbd12d';
+Tambem ajustar o tratamento do `data.error` que vem da resposta da funcao (atualmente o erro vem dentro de `data.error`, nao como excecao do `supabase.functions.invoke`):
+
+```typescript
+if (data?.error) {
+  if (data.error.includes("No Stripe customer found")) {
+    toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar.");
+    navigate("/planos");
+    return;
+  }
+  throw new Error(data.error);
+}
 ```
 
-Depois de testar, reverter para "free" se necessario.
-
+Apenas um arquivo precisa ser alterado. A mudanca e pequena e localizada no bloco try/catch existente.
