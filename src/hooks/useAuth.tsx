@@ -110,9 +110,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(newSession?.user ?? null);
         if (newSession?.user) {
           const userId = newSession.user.id;
-          setTimeout(() => {
+          if (_event === "SIGNED_IN") {
+            setLoading(true);
+          }
+          setTimeout(async () => {
             if (isMounted.current) {
-              fetchOrganization(userId);
+              await fetchOrganization(userId);
+              if (isMounted.current) setLoading(false);
             }
           }, 0);
         } else {
