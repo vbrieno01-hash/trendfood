@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,10 @@ const UnitPage = () => {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
+  // Category navigation
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const categoryNavRef = useRef<HTMLDivElement>(null);
+
   // Checkout form
   const [buyerName, setBuyerName] = useState("");
   const [address, setAddress] = useState("");
@@ -87,6 +91,45 @@ const UnitPage = () => {
     }
     return () => { document.documentElement.style.removeProperty("--org-primary"); };
   }, [org?.primary_color]);
+
+  // IntersectionObserver: detect which category section is visible
+  const groupedMenuForObserver = CATEGORIES.map((cat) => ({
+    ...cat,
+    items: menuItems.filter((i) => i.category === cat.value),
+  })).filter((g) => g.items.length > 0);
+
+  useEffect(() => {
+    if (groupedMenuForObserver.length === 0) return;
+    const observers = groupedMenuForObserver.map((group) => {
+      const el = document.getElementById(`cat-${group.value}`);
+      if (!el) return null;
+      const obs = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setActiveCategory(group.value);
+            // Auto-scroll the pill into view in the nav bar
+            const pill = document.getElementById(`pill-${group.value}`);
+            pill?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          }
+        },
+        { threshold: 0.25, rootMargin: "-60px 0px -40% 0px" }
+      );
+      obs.observe(el);
+      return obs;
+    });
+    return () => observers.forEach((o) => o?.disconnect());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuItems]);
+
+  const scrollToCategory = (value: string) => {
+    setActiveCategory(value);
+    const el = document.getElementById(`cat-${value}`);
+    if (el) {
+      const offset = 110; // header + nav bar height
+      const top = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: "smooth" });
+    }
+  };
 
   if (orgLoading) {
     return (
@@ -193,7 +236,7 @@ const UnitPage = () => {
     setNotes("");
   };
 
-  // Group menu items by category (available only for display, all for cart)
+  // Group menu items by category
   const groupedMenu = CATEGORIES.map((cat) => ({
     ...cat,
     items: menuItems.filter((i) => i.category === cat.value),
@@ -270,91 +313,123 @@ const UnitPage = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-7">
-                {groupedMenu.map((group) => (
-                  <div key={group.value}>
-                    <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
-                      <span>{group.emoji}</span>
-                      <span>{group.value}</span>
-                    </h2>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {group.items.map((item) => {
-                        const qty = cart[item.id]?.qty ?? 0;
-                        return (
-                          <div
-                            key={item.id}
-                            className={`bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-opacity ${!item.available ? "opacity-60" : ""}`}
-                          >
-                            {/* Photo */}
-                            {item.image_url ? (
-                              <div className="aspect-[4/3] w-full overflow-hidden bg-secondary">
-                                <img
-                                  src={item.image_url}
-                                  alt={item.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div className="aspect-[4/3] w-full bg-secondary flex items-center justify-center">
-                                <span className="text-5xl opacity-30">{group.emoji}</span>
-                              </div>
-                            )}
+              <>
+                {/* ── CATEGORY NAV BAR ── */}
+                {groupedMenu.length > 1 && (
+                  <div
+                    ref={categoryNavRef}
+                    className="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-none"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                  >
+                    {groupedMenu.map((group) => {
+                      const isActive = activeCategory === group.value || (!activeCategory && groupedMenu[0].value === group.value);
+                      return (
+                        <button
+                          key={group.value}
+                          id={`pill-${group.value}`}
+                          onClick={() => scrollToCategory(group.value)}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 border"
+                          style={
+                            isActive
+                              ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
+                              : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }
+                          }
+                        >
+                          <span>{group.emoji}</span>
+                          <span>{group.value}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-                            <div className="p-3">
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <h3 className="font-semibold text-foreground text-sm leading-snug">{item.name}</h3>
-                                {!item.available && (
-                                  <Badge variant="destructive" className="text-xs shrink-0">Indisponível</Badge>
-                                )}
-                              </div>
-                              {item.description && (
-                                <p className="text-muted-foreground text-xs leading-relaxed mb-2 line-clamp-2">
-                                  {item.description}
-                                </p>
+                {/* ── CATEGORY SECTIONS ── */}
+                <div className="space-y-7">
+                  {groupedMenu.map((group) => (
+                    <div key={group.value} id={`cat-${group.value}`}>
+                      <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                        <span>{group.emoji}</span>
+                        <span>{group.value}</span>
+                      </h2>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {group.items.map((item) => {
+                          const qty = cart[item.id]?.qty ?? 0;
+                          return (
+                            <div
+                              key={item.id}
+                              className={`bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-opacity ${!item.available ? "opacity-60" : ""}`}
+                            >
+                              {/* Photo */}
+                              {item.image_url ? (
+                                <div className="aspect-[4/3] w-full overflow-hidden bg-secondary">
+                                  <img
+                                    src={item.image_url}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="aspect-[4/3] w-full bg-secondary flex items-center justify-center">
+                                  <span className="text-5xl opacity-30">{group.emoji}</span>
+                                </div>
                               )}
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-foreground text-base">
-                                  {fmt(item.price)}
-                                </span>
 
-                                {item.available && (
-                                  qty === 0 ? (
-                                    <button
-                                      onClick={() => addToCart(item)}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
-                                      style={{ backgroundColor: primaryColor }}
-                                    >
-                                      <Plus className="w-3.5 h-3.5" />
-                                      Adicionar
-                                    </button>
-                                  ) : (
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        onClick={() => removeFromCart(item.id)}
-                                        className="w-7 h-7 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
-                                      >
-                                        <Minus className="w-3.5 h-3.5" />
-                                      </button>
-                                      <span className="w-6 text-center text-sm font-bold">{qty}</span>
+                              <div className="p-3">
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <h3 className="font-semibold text-foreground text-sm leading-snug">{item.name}</h3>
+                                  {!item.available && (
+                                    <Badge variant="destructive" className="text-xs shrink-0">Indisponível</Badge>
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <p className="text-muted-foreground text-xs leading-relaxed mb-2 line-clamp-2">
+                                    {item.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-bold text-foreground text-base">
+                                    {fmt(item.price)}
+                                  </span>
+
+                                  {item.available && (
+                                    qty === 0 ? (
                                       <button
                                         onClick={() => addToCart(item)}
-                                        className="w-7 h-7 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
                                         style={{ backgroundColor: primaryColor }}
                                       >
                                         <Plus className="w-3.5 h-3.5" />
+                                        Adicionar
                                       </button>
-                                    </div>
-                                  )
-                                )}
+                                    ) : (
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() => removeFromCart(item.id)}
+                                          className="w-7 h-7 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
+                                        >
+                                          <Minus className="w-3.5 h-3.5" />
+                                        </button>
+                                        <span className="w-6 text-center text-sm font-bold">{qty}</span>
+                                        <button
+                                          onClick={() => addToCart(item)}
+                                          className="w-7 h-7 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
+                                          style={{ backgroundColor: primaryColor }}
+                                        >
+                                          <Plus className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </TabsContent>
 
