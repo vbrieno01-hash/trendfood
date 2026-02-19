@@ -1,57 +1,93 @@
 
-# Correção: Tela branca na página pública
+# Correção: "Endereço não encontrado" no cálculo de frete
 
-## Causa raiz identificada
+## Causa raiz
 
-O erro no console é:
+O endereço da loja salvo no banco é `"rua Jaime João olcese"` — sem cidade, estado ou país. O Nominatim (geocodificação gratuita do OpenStreetMap) não consegue localizar endereços ambíguos sem contexto geográfico.
+
+Além disso, a função `extractCityState` tenta extrair cidade/estado do endereço da loja para complementar o endereço do cliente. Como o endereço da loja não tem vírgulas, ela retorna o endereço inteiro como se fosse "cidade/estado", o que contamina a busca do cliente.
+
+Resultado: **ambas as geocodificações falham** → "Endereço não encontrado".
+
+## Três melhorias combinadas
+
+### 1. Fallback de país "Brasil" no geocoding
+
+Quando o Nominatim não encontrar um endereço na primeira tentativa, fazer uma segunda tentativa adicionando `", Brasil"` ao final. Isso resolve a maioria dos casos de endereços sem estado/cidade explícitos.
 
 ```
-Error: Rendered more hooks than during the previous render.
-at useDeliveryFee (useDeliveryFee.ts:57)
-at UnitPage (UnitPage.tsx:262)
+Tentativa 1: "rua Jaime João olcese"          → sem resultados
+Tentativa 2: "rua Jaime João olcese, Brasil"  → encontrado!
 ```
 
-O React proíbe chamar hooks após um `return` condicional (Regra dos Hooks). No `UnitPage.tsx`, o fluxo atual é:
+### 2. Complemento do endereço do cliente mais inteligente
 
+Atualmente o código sempre usa os últimos dois tokens separados por vírgula do endereço da loja como "cidade/estado". Se o endereço da loja não tem vírgulas (como `"rua Jaime João olcese"`), a função retorna o endereço inteiro, poluindo o endereço do cliente.
+
+A correção: só complementar o endereço do cliente com cidade/estado da loja quando o endereço da loja tiver pelo menos 2 partes separadas por vírgula. Sempre adicionar `", Brasil"` ao endereço do cliente se ele não contiver o país.
+
+### 3. UX melhorada: pedido pode ser enviado mesmo sem frete calculado
+
+Quando o frete não pode ser calculado (por endereço incompleto da loja ou do cliente), em vez de bloquear o pedido, mostrar uma mensagem informativa e permitir que o pedido seja enviado com frete "A combinar". O lojista combina o frete via WhatsApp.
+
+Isso evita que o cliente fique preso na tela por causa de uma limitação de geocodificação.
+
+## O que vai mudar visualmente
+
+**Antes** (com erro):
 ```
-linha 156 → if (orgLoading) return <Skeleton />   ← early return
-linha 170 → if (!org) return null                  ← early return
-
-... 40 linhas depois ...
-
-linha 211 → const { fee } = useDeliveryFee(...)   ← HOOK CHAMADO DEPOIS DO RETURN → CRASH
+🛵 Frete    ❌ Endereço não encontrado
 ```
 
-Na primeira renderização, `orgLoading` é `true`, então o componente retorna o skeleton antes de chegar no `useDeliveryFee`. Quando os dados carregam e `orgLoading` vira `false`, o React tenta re-renderizar — mas agora o componente chega até o `useDeliveryFee` e encontra mais hooks do que na renderização anterior, causando o crash e tela branca.
+**Depois (durante digitação / endereço curto)**:
+```
+🛵 Frete    Digite seu endereço
+```
 
-## Solução
+**Depois (quando geocodificação falha)**:
+```
+🛵 Frete    A combinar via WhatsApp
+```
+(pedido pode ser enviado normalmente)
 
-Mover a chamada do `useDeliveryFee` para **antes** dos returns condicionais, junto com todos os outros hooks no topo do componente. O hook já aceita `enabled = false` para ficar inativo enquanto os dados não estão prontos — basta passar `enabled` levando em conta que `org` pode ser `null`.
+**Quando funcionar corretamente**:
+```
+🛵 Frete (1,8 km)    R$ 5,00
+```
 
 ## Arquivo afetado
 
-Somente `src/pages/UnitPage.tsx`:
+Somente `src/hooks/useDeliveryFee.ts`:
 
-- Mover o bloco `useDeliveryFee` (linhas ~211-216) para o topo do componente, logo abaixo dos outros hooks (linha ~55)
-- Ajustar o `enabled` para incluir `!!org` na condição, garantindo que o hook só calcule quando a organização foi carregada
-
+1. Função `geocode` atualizada para tentar com `", Brasil"` como fallback:
 ```typescript
-// ANTES (posição errada — após early returns):
-if (orgLoading) return <Skeleton />;
-if (!org) return null;
-// ...
-const { fee } = useDeliveryFee(address, totalPrice, org, orderType === "Entrega" && checkoutOpen);
-
-// DEPOIS (posição correta — antes de qualquer return):
-const { fee } = useDeliveryFee(
-  address,
-  totalPrice,
-  org ?? null,
-  !!org && orderType === "Entrega" && checkoutOpen  // ← adiciona !!org
-);
-// ...
-if (orgLoading) return <Skeleton />;
-if (!org) return null;
+async function geocode(query: string): Promise<GeoCoord | null> {
+  // Tentativa 1: endereço original
+  const result = await tryGeocode(query);
+  if (result) return result;
+  // Tentativa 2: com "Brasil" como fallback de país
+  if (!query.toLowerCase().includes("brasil")) {
+    return tryGeocode(`${query}, Brasil`);
+  }
+  return null;
+}
 ```
 
-Nenhuma mudança de lógica ou UI — só reposicionamento do hook para respeitar a Regra dos Hooks do React.
+2. Complemento do endereço do cliente corrigido:
+```typescript
+// Só complementa com cidade/estado se o endereço da loja tiver vírgulas
+const cityState = extractCityState(storeAddress);
+const hasCityState = storeAddress.includes(",");
+const fullCustomerAddress = (customerAddress.includes(",") || !hasCityState)
+  ? `${customerAddress}, Brasil`
+  : `${customerAddress}, ${cityState}`;
+```
+
+3. No `UnitPage.tsx`: quando `feeError` e não é `noStoreAddress`, em vez de mostrar erro vermelho "Endereço não encontrado", mostrar texto neutro "A combinar". O botão de envio fica habilitado e o frete é registrado nas notas como "A combinar".
+
+## Arquivos afetados
+
+| Arquivo | O que muda |
+|---|---|
+| `src/hooks/useDeliveryFee.ts` | Fallback de país no geocoding + complemento inteligente do endereço |
+| `src/pages/UnitPage.tsx` | UX do erro de frete: "A combinar" em vez de mensagem vermelha; inclui "A combinar" nas notas quando o frete não pôde ser calculado |
