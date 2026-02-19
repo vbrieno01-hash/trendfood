@@ -97,15 +97,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userId = newSession.user.id;
           setTimeout(() => {
             if (isMounted.current) {
-              fetchOrganization(userId).finally(() => {
-                if (isMounted.current) setLoading(false);
-              });
+              fetchOrganization(userId);
             }
           }, 0);
         } else {
           setOrganization(null);
           setIsAdmin(false);
-          setLoading(false);
         }
       }
     );
