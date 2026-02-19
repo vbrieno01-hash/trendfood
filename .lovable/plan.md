@@ -1,18 +1,31 @@
 
 
-# Salvar logo TrendFood para download
+# Atualizar logo do site e icones PWA
 
 ## O que sera feito
 
-Salvar a imagem enviada (image-35.png) como `public/logo-trendfood.png` no projeto. Isso tornara a logo acessivel pelo link direto:
+Usar a nova imagem da coroa vermelha como:
 
-**https://trendfood.lovable.app/logo-trendfood.png**
+1. **Icone PWA** (instalacao do app) - `pwa-192.png` e `pwa-512.png`
+2. **Favicon** do site - `favicon.ico`
+3. **Logo no header, footer e demais paginas** - substituir o icone `ChefHat` pela imagem real
 
-## Passo unico
+## Arquivos impactados
 
-| Arquivo | Acao |
+| Arquivo | Mudanca |
 |---|---|
-| `public/logo-trendfood.png` | Copiar `user-uploads://image-35.png` para este caminho |
+| `public/pwa-192.png` | Substituir pelo novo icone |
+| `public/pwa-512.png` | Substituir pelo novo icone |
+| `public/favicon.ico` | Substituir pelo novo icone |
+| `src/assets/logo-icon.png` | Novo - imagem importada como modulo para uso nos componentes React |
+| `src/pages/Index.tsx` | Trocar `ChefHat` por `<img>` com a logo no header e footer |
+| `src/pages/DashboardPage.tsx` | Trocar `ChefHat` por `<img>` com a logo na sidebar |
+| `src/pages/AuthPage.tsx` | Trocar `ChefHat` por `<img>` com a logo no topo |
+| `index.html` | Atualizar referencia do favicon para o novo arquivo |
 
-Nenhuma mudanca de codigo necessaria. Apos salvo, basta acessar o link acima para baixar.
+## Detalhes tecnicos
+
+- A imagem sera copiada para `public/` (para PWA/favicon) e `src/assets/` (para import ES6 nos componentes)
+- Nos componentes, o `ChefHat` sera substituido por uma tag `<img>` com a logo importada, mantendo o mesmo tamanho (w-4 h-4, w-8 h-8, etc.) e estilo do container
+- Os icones PWA usam a pasta `public/` pois sao referenciados no manifest
 
