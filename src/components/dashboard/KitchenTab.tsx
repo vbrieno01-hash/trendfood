@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Flame, Printer } from "lucide-react";
 import { printOrder } from "@/lib/printOrder";
+import { toast } from "sonner";
 
 const playBell = () => {
   try {
@@ -57,10 +58,21 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
     () => localStorage.getItem(NOTIF_KEY) === "true"
   );
+  // Track browser permission state for badge display
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    () => (typeof Notification !== "undefined" ? Notification.permission : "default")
+  );
 
   const knownIds = useRef<Set<string>>(new Set());
   const pendingPrintIds = useRef<Set<string>>(new Set());
   const [, forceRender] = useState(0);
+
+  // Stable refs so the Realtime channel never needs to restart when toggles change
+  const autoPrintRef = useRef(autoPrint);
+  const notificationsRef = useRef(notificationsEnabled);
+
+  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+  useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
 
   const toggleAutoPrint = (val: boolean) => {
     setAutoPrint(val);
@@ -70,7 +82,16 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
   const toggleNotifications = async (val: boolean) => {
     if (val) {
       const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+      if (permission === "denied") {
+        toast.error("Notificações bloqueadas pelo navegador", {
+          description: "Clique no cadeado na barra de endereço e permita notificações para este site.",
+          duration: 8000,
+        });
+        return;
+      }
       if (permission !== "granted") {
+        toast.warning("Permissão de notificação não concedida.");
         return;
       }
     }
@@ -97,7 +118,7 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
     );
   };
 
-  // Realtime: bell on new orders + visual update on status changes + push notifications
+  // Realtime: stable channel — uses refs to avoid restarting on toggle changes
   useEffect(() => {
     if (!orgId) return;
     const channel = supabase
@@ -110,11 +131,11 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
           if (!knownIds.current.has(order.id)) {
             knownIds.current.add(order.id);
             playBell();
-            if (autoPrint) {
+            if (autoPrintRef.current) {
               pendingPrintIds.current.add(order.id);
             }
-            // Web Push Notification
-            if (notificationsEnabled && Notification.permission === "granted") {
+            // Web Push Notification — uses ref, no channel restart needed
+            if (notificationsRef.current && Notification.permission === "granted") {
               const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
               new Notification(`🔔 Novo pedido! ${tableLabel}`, {
                 icon: "/pwa-192.png",
@@ -134,7 +155,7 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc, autoPrint, notificationsEnabled]);
+  }, [orgId, qc]); // stable — no autoPrint/notificationsEnabled deps needed
 
   // Print pending orders once their items are loaded
   useEffect(() => {
@@ -180,6 +201,16 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
               checked={notificationsEnabled}
               onCheckedChange={toggleNotifications}
             />
+            {notificationsEnabled && notifPermission === "granted" && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+                Ativo
+              </span>
+            )}
+            {notifPermission === "denied" && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                Bloqueado
+              </span>
+            )}
           </div>
           {/* Auto-print toggle */}
           <div className="flex items-center gap-2">
