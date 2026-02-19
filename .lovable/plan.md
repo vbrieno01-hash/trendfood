@@ -1,39 +1,21 @@
 
-# Remover o Botão "Ver Cardápio Demo"
 
-## Problema
+# Substituir Screenshot do Dashboard na Landing Page
 
-O botão "Ver Cardápio Demo" no Hero linka para `/unidade/burguer-da-hora`, um slug de demonstração que não existe no banco de dados. Clicar nele exibe um catálogo vazio ou página de erro — experiência ruim para visitantes.
+## O que muda
 
-Como a seção de demos já foi removida anteriormente, esse botão ficou "sobrando" e sem propósito real.
+A imagem exibida dentro do mockup de notebook na seção Showcase será substituída pela nova captura de tela enviada (dashboard do "Burguer do Rei" com faturamento e gráfico).
 
-## Solução
+## Passos
 
-Remover o botão secundário do Hero. O botão principal "Começar Grátis" já cobre o CTA principal e é suficiente para conduzir o visitante.
+1. Copiar a imagem `user-uploads://image-32.png` para `public/dashboard-screenshot.png` (substituindo a atual)
+2. Nenhuma mudança de código necessária — o `ShowcaseSection.tsx` já referencia `/dashboard-screenshot.png`
 
-## Arquivo a modificar
+## Arquivo impactado
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/Index.tsx` | Remover o `<Button>` secundário com o Link para `/unidade/burguer-da-hora` |
+| `public/dashboard-screenshot.png` | Substituído pela nova imagem |
 
-O bloco a ser removido (em torno da linha 196–203):
+Zero mudanças de código. A imagem será carregada automaticamente.
 
-```tsx
-<Button
-  size="lg"
-  variant="outline"
-  className="text-base border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent"
-  asChild
->
-  <Link to="/unidade/burguer-da-hora">Ver Cardápio Demo</Link>
-</Button>
-```
-
-O `<div className="flex flex-col sm:flex-row gap-3 justify-center">` ao redor ficará apenas com o botão "Começar Grátis". Caso faça mais sentido visualmente, o container pode ser simplificado para um único botão centralizado.
-
-## Impacto
-
-- Zero quebra de layout (o botão principal permanece)
-- Nenhuma nova dependência
-- Visitantes não chegam mais em página vazia/com erro
