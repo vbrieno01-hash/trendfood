@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, LayoutList, Store, Settings, LogOut, ExternalLink,
-  ChefHat, Menu, UtensilsCrossed, TableProperties
+  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing
 } from "lucide-react";
 import HomeTab from "@/components/dashboard/HomeTab";
 import MuralTab from "@/components/dashboard/MuralTab";
@@ -13,8 +13,10 @@ import MenuTab from "@/components/dashboard/MenuTab";
 import TablesTab from "@/components/dashboard/TablesTab";
 import StoreProfileTab from "@/components/dashboard/StoreProfileTab";
 import SettingsTab from "@/components/dashboard/SettingsTab";
+import KitchenTab from "@/components/dashboard/KitchenTab";
+import WaiterTab from "@/components/dashboard/WaiterTab";
 
-type TabKey = "home" | "menu" | "tables" | "mural" | "profile" | "settings";
+type TabKey = "home" | "menu" | "tables" | "mural" | "kitchen" | "waiter" | "profile" | "settings";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -85,11 +87,19 @@ const DashboardPage = () => {
 
 
 
-  const navItems: { key: TabKey; icon: React.ReactNode; label: string }[] = [
+  const navItemsTop: { key: TabKey; icon: React.ReactNode; label: string }[] = [
     { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
     { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Meu Cardápio" },
     { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas" },
     { key: "mural", icon: <LayoutList className="w-4 h-4" />, label: "Gerenciar Mural" },
+  ];
+
+  const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string }[] = [
+    { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)" },
+    { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Painel do Garçom" },
+  ];
+
+  const navItemsBottom: { key: TabKey; icon: React.ReactNode; label: string }[] = [
     { key: "profile", icon: <Store className="w-4 h-4" />, label: "Perfil da Loja" },
     { key: "settings", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
   ];
@@ -146,8 +156,48 @@ const DashboardPage = () => {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((item) => (
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {navItemsTop.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
+                activeTab === item.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+
+          {/* Operações separator */}
+          <div className="pt-3 pb-1 px-3">
+            <p className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">Operações</p>
+          </div>
+
+          {navItemsOps.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
+                activeTab === item.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+
+          {/* Divider */}
+          <div className="pt-2 pb-1">
+            <div className="border-t border-border" />
+          </div>
+
+          {navItemsBottom.map((item) => (
             <button
               key={item.key}
               onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
@@ -215,6 +265,8 @@ const DashboardPage = () => {
           {activeTab === "menu" && <MenuTab organization={organization} />}
           {activeTab === "tables" && <TablesTab organization={organization} />}
           {activeTab === "mural" && <MuralTab organization={organization} />}
+          {activeTab === "kitchen" && <KitchenTab orgId={organization.id} />}
+          {activeTab === "waiter" && <WaiterTab orgId={organization.id} />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
