@@ -3,9 +3,12 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useMenuItems } from "@/hooks/useMenuItems";
 import { usePlaceOrder } from "@/hooks/useOrders";
+import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
+import type { Coupon } from "@/hooks/useCoupons";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X } from "lucide-react";
 
 interface CartItem {
   menu_item_id: string;
@@ -32,6 +35,12 @@ export default function TableOrderPage() {
   const [notes, setNotes] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+
   const tableNum = parseInt(tableNumber || "0", 10);
 
   const available = items.filter((i) => i.available);
@@ -43,7 +52,6 @@ export default function TableOrderPage() {
     },
     {}
   );
-  // Add uncategorized
   const knownCats = new Set(CATEGORY_ORDER);
   available.forEach((i) => {
     if (!knownCats.has(i.category)) {
@@ -54,7 +62,15 @@ export default function TableOrderPage() {
 
   const cartItems = Object.values(cart);
   const totalItems = cartItems.reduce((s, i) => s + i.quantity, 0);
-  const totalPrice = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
+
+  const discount = appliedCoupon
+    ? appliedCoupon.type === "percent"
+      ? subtotal * (appliedCoupon.value / 100)
+      : Math.min(appliedCoupon.value, subtotal)
+    : 0;
+
+  const totalPrice = Math.max(0, subtotal - discount);
 
   const adjust = (item: typeof available[0], delta: number) => {
     setCart((prev) => {
@@ -68,14 +84,50 @@ export default function TableOrderPage() {
     });
   };
 
+  const handleApplyCoupon = async () => {
+    if (!org || !couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError("");
+    const result = await validateCoupon(org.id, couponCode, subtotal);
+    if (result.valid) {
+      setAppliedCoupon(result.coupon);
+      setCouponError("");
+    } else {
+      const err = result as { valid: false; reason: string };
+      setCouponError(err.reason);
+      setAppliedCoupon(null);
+    }
+    setCouponLoading(false);
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  };
+
   const handleFinish = async () => {
     if (!org || cartItems.length === 0) return;
+
+    let finalNotes = notes;
+    if (appliedCoupon) {
+      finalNotes = finalNotes
+        ? `${finalNotes} | CUPOM:${appliedCoupon.code}`
+        : `CUPOM:${appliedCoupon.code}`;
+    }
+
     await placeOrder.mutateAsync({
       organizationId: org.id,
       tableNumber: tableNum,
-      notes,
+      notes: finalNotes,
       items: cartItems,
     });
+
+    // Increment coupon uses after successful order
+    if (appliedCoupon) {
+      await incrementCouponUses(appliedCoupon.id);
+    }
+
     setSuccess(true);
   };
 
@@ -112,7 +164,7 @@ export default function TableOrderPage() {
           </Button>
           <Button
             variant="ghost"
-            onClick={() => { setCart({}); setNotes(""); setSuccess(false); }}
+            onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); }}
             className="w-full text-sm text-muted-foreground"
           >
             Fazer outro pedido nesta mesa
@@ -215,18 +267,68 @@ export default function TableOrderPage() {
           ))
         )}
 
-        {/* Notes */}
+        {/* Notes + Coupon */}
         {Object.keys(byCategory).length > 0 && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Observações (opcional)
-            </label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex: Sem cebola no burger, alergia a amendoim…"
-              rows={3}
-            />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Observações (opcional)
+              </label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: Sem cebola no burger, alergia a amendoim…"
+                rows={3}
+              />
+            </div>
+
+            {/* Coupon field */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-primary" />
+                Cupom de desconto
+              </label>
+              {appliedCoupon ? (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-300 rounded-lg px-3 py-2">
+                  <span className="flex-1 text-sm font-mono font-bold text-green-800">
+                    {appliedCoupon.code}
+                  </span>
+                  <span className="text-xs text-green-700 font-medium">
+                    {appliedCoupon.type === "percent"
+                      ? `-${appliedCoupon.value}%`
+                      : `-R$ ${appliedCoupon.value.toFixed(2).replace(".", ",")}`}
+                  </span>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="text-green-700 hover:text-green-900 ml-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Digite o código"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                    className="font-mono uppercase"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="flex-shrink-0"
+                  >
+                    {couponLoading ? "…" : "Aplicar"}
+                  </Button>
+                </div>
+              )}
+              {couponError && (
+                <p className="text-xs text-destructive">{couponError}</p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -234,7 +336,18 @@ export default function TableOrderPage() {
       {/* Sticky cart bar */}
       {totalItems > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border z-40">
-          <div className="max-w-lg mx-auto">
+          <div className="max-w-lg mx-auto space-y-2">
+            {/* Discount summary */}
+            {appliedCoupon && discount > 0 && (
+              <div className="flex items-center justify-between text-sm px-1">
+                <span className="text-muted-foreground">
+                  Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}
+                </span>
+                <span className="text-green-700 font-medium">
+                  Desconto: -R$ {discount.toFixed(2).replace(".", ",")}
+                </span>
+              </div>
+            )}
             <Button
               className="w-full h-14 text-base font-bold"
               onClick={handleFinish}

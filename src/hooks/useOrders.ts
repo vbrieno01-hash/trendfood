@@ -271,3 +271,57 @@ export const useDeliveredOrders = (organizationId: string | undefined) => {
     enabled: !!organizationId,
   });
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Order History (delivered orders with period filter, for HistoryTab & BestSellers)
+// ──────────────────────────────────────────────────────────────────────────────
+
+type HistoryPeriod = "today" | "7d" | "30d" | "all";
+
+const getPeriodStart = (period: HistoryPeriod): string | null => {
+  const now = new Date();
+  if (period === "today") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return start.toISOString();
+  }
+  if (period === "7d") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 7);
+    return d.toISOString();
+  }
+  if (period === "30d") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 30);
+    return d.toISOString();
+  }
+  return null; // "all"
+};
+
+export const useOrderHistory = (
+  organizationId: string | undefined,
+  period: HistoryPeriod = "7d"
+) => {
+  return useQuery({
+    queryKey: ["orders-history", organizationId, period],
+    queryFn: async () => {
+      if (!organizationId) throw new Error("No org");
+      let query = supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("organization_id", organizationId)
+        .eq("status", "delivered")
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      const periodStart = getPeriodStart(period);
+      if (periodStart) {
+        query = query.gte("created_at", periodStart);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as Order[];
+    },
+    enabled: !!organizationId,
+  });
+};

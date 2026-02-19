@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useOrders, useUpdateOrderStatus, useDeliveredUnpaidOrders, useMarkAsPaid } from "@/hooks/useOrders";
 import type { Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
-import { BellRing, Loader2, CreditCard, MessageCircle, Clock } from "lucide-react";
+import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer } from "lucide-react";
+import { printOrder } from "@/lib/printOrder";
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -45,9 +46,11 @@ const buildWhatsAppMessage = (order: Order, whatsapp?: string | null): string =>
 interface WaiterTabProps {
   orgId: string;
   whatsapp?: string | null;
+  orgName?: string;
+  pixKey?: string | null;
 }
 
-export default function WaiterTab({ orgId, whatsapp }: WaiterTabProps) {
+export default function WaiterTab({ orgId, whatsapp, orgName, pixKey }: WaiterTabProps) {
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
   const { data: unpaidOrders = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(orgId);
   const updateStatus = useUpdateOrderStatus(orgId, ["ready"]);
@@ -157,13 +160,25 @@ export default function WaiterTab({ orgId, whatsapp }: WaiterTabProps) {
                     </div>
                   )}
 
-                  <Button
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    disabled={busy}
-                    onClick={() => handleDeliver(order.id)}
-                  >
-                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Marcar como Entregue"}
-                  </Button>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() => printOrder(order, orgName, pixKey)}
+                      title="Imprimir comanda"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      Imprimir
+                    </Button>
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      disabled={busy}
+                      onClick={() => handleDeliver(order.id)}
+                    >
+                      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Marcar como Entregue"}
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -243,7 +258,19 @@ export default function WaiterTab({ orgId, whatsapp }: WaiterTabProps) {
                     <span>Dinheiro · Pix · Cartão</span>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    {/* Imprimir comanda */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() => printOrder(order, orgName, pixKey)}
+                      title="Imprimir comanda com QR Pix"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      Imprimir
+                    </Button>
+
                     {/* Enviar conta via WhatsApp */}
                     <a
                       href={waUrl}
