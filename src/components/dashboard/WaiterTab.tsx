@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOrders, useUpdateOrderStatus } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
 import { BellRing, Loader2 } from "lucide-react";
 
 const fmtTime = (iso: string) =>
@@ -15,7 +13,6 @@ interface WaiterTabProps {
 export default function WaiterTab({ orgId }: WaiterTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["ready"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["ready"]);
-  const qc = useQueryClient();
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
 
@@ -37,22 +34,6 @@ export default function WaiterTab({ orgId }: WaiterTabProps) {
       }
     );
   };
-
-  // Realtime: refresh when orders change
-  useEffect(() => {
-    if (!orgId) return;
-    const channel = supabase
-      .channel(`waiter-tab-${orgId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["orders", orgId, ["ready"]] });
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc]);
 
   return (
     <div className="space-y-4">
