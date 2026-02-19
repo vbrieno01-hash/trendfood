@@ -23,6 +23,7 @@ interface Organization {
   emoji: string;
   primary_color: string;
   logo_url: string | null;
+  subscription_status?: string;
 }
 
 export default function HomeTab({ organization }: { organization: Organization }) {
@@ -61,7 +62,24 @@ export default function HomeTab({ organization }: { organization: Organization }
         <h1 className="text-2xl font-bold text-foreground">
           Olá! 👋 {organization.emoji} {organization.name}
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">Aqui está um resumo das suas sugestões</p>
+        <div className="flex items-center gap-2 mt-1">
+          <p className="text-muted-foreground text-sm">Aqui está um resumo das suas sugestões</p>
+          {organization.subscription_status && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
+              organization.subscription_status === "active"
+                ? "bg-green-50 text-green-700 border-green-200"
+                : organization.subscription_status === "inactive"
+                ? "bg-destructive/10 text-destructive border-destructive/20"
+                : "bg-yellow-50 text-yellow-700 border-yellow-200"
+            }`}>
+              {organization.subscription_status === "active"
+                ? "✓ Plano Ativo"
+                : organization.subscription_status === "inactive"
+                ? "✗ Inativo"
+                : "⏳ Período de Teste"}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
