@@ -1,87 +1,106 @@
 
-# Seção "Veja o Sistema em Ação" com Mockups Reais
+# Redesign da AuthPage — Layout Split Screen com Animação de Mapa de Pontos
 
-## O que foi capturado
+## O que o usuário quer
 
-Tirei dois prints reais do sistema agora mesmo:
+Adaptar o layout do componente `travel-connect-signin-1` para a tela de login/cadastro do TrendFood, mantendo:
+- A lógica de autenticação já existente (signup com organization + login)
+- A identidade visual vermelha do site
+- O estilo split screen (esquerda animada + direita com formulário)
 
-**Dashboard (desktop 1280px)** — mostra:
-- Sidebar vermelha com logo TrendFood, nome "Burguer do Rei", navegação
-- Card grande vermelho "Faturamento Hoje: R$ 880,00 | 15 pedidos pagos"
-- 4 cards de métricas: Faturamento total, Pedidos hoje, Aguardando pagamento, Ticket médio
-- Gráfico "Últimos 7 dias" com barras vermelhas e linha verde de faturamento
+## Análise do Componente de Referência
 
-**Cardápio público (mobile 390px)** — mostra:
-- Header com logo e "Burguer do Rei"
-- Abas "Cardápio / Sugestões"
-- Categorias com chips (Hambúrgueres, Porções)
-- Card de produto com foto, nome, descrição e botão "+ Adicionar"
+O componente tem:
+- **Esquerda**: Canvas animado com mapa de pontos + rotas se movendo + logo sobreposto
+- **Direita**: Formulário de email/password com framer-motion
+- Layout 50/50 em desktop, empilhado em mobile
 
----
+## O que precisa ser adaptado
 
-## Nova Seção a Ser Adicionada
+| Elemento do original | Adaptação TrendFood |
+|---|---|
+| "Travel Connect" branding | TrendFood + ChefHat icon |
+| Mapa de rotas de viagem | Mapa de pontos com emojis de comida flutuando (🍔 🍕 🌮) |
+| Gradiente azul | Gradiente vermelho escuro (tema do site) |
+| "Sign in / Login with Google" | Abas "Entrar / Criar conta" (sem Google) |
+| Campos em inglês | Campos em português com toda lógica existente |
+| Animações framer-motion (botão hover) | Manter apenas onde já temos suporte |
 
-Vai entrar entre "Como funciona" (linha 271) e "Features" (linha 273) do `Index.tsx`, com fundo branco/card limpo.
+## Instalação necessária
 
-### Layout Desktop (3 colunas)
+`framer-motion` não está no `package.json` atual. Precisa ser instalado.
+
+**PORÉM**: O projeto já usa animações CSS puras (Tailwind `animate-bounce`, `animate-pulse`). Para evitar dependência extra, vamos implementar as animações usando **CSS puro** em vez de framer-motion — o visual ficará idêntico mas sem nova dependência.
+
+## Estrutura do novo AuthPage
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│       "Veja o sistema em ação"                               │
-│   Uma maneira simples de gerenciar e vender mais             │
-│                                                              │
-│  [Painel de     [  🖥️ MOCKUP LAPTOP CSS   📱 ]  [Cardápio   │
-│   Gestão]       [  sidebar + revenue dash  ]   Digital]     │
-│  badge red      [  + mobile sobrepost dir. ]  badge red      │
-│                 [                          ]                 │
-│  → R$ 880,00    [                          ]  → Clientes     │
-│  ao vivo no     [                          ]  pedem pelo     │
-│  painel...      [                          ]  celular...     │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│  DESKTOP (min-h-screen, flex-row)                      │
+│                                                        │
+│  ┌────────────────┐  ┌──────────────────────────────┐  │
+│  │  LADO ESQUERDO │  │  LADO DIREITO (formulário)   │  │
+│  │  (w-1/2)       │  │  (w-1/2)                     │  │
+│  │                │  │                              │  │
+│  │  Fundo vermelho│  │  Abas: Entrar | Criar conta  │  │
+│  │  escuro        │  │                              │  │
+│  │                │  │  [Form com toda lógica atual]│  │
+│  │  Canvas com    │  │                              │  │
+│  │  pontos        │  │  - Email                     │  │
+│  │  animados      │  │  - Senha (show/hide)         │  │
+│  │                │  │  - Para signup: nome,        │  │
+│  │  🍔 emojis     │  │    lanchonete, slug          │  │
+│  │  flutuando     │  │                              │  │
+│  │                │  │  [Botão CTA vermelho]        │  │
+│  │  Logo TrendFood│  │                              │  │
+│  │  sobreposto    │  │                              │  │
+│  └────────────────┘  └──────────────────────────────┘  │
+└────────────────────────────────────────────────────────┘
+
+MOBILE: empilha verticalmente (esquerda vira topo pequeno)
 ```
 
-### Mockup do Dashboard (laptop CSS, fiel ao print)
+## Detalhes técnicos de implementação
 
-Construído 100% em HTML/Tailwind — sem imagens externas, sem carregamento lento:
+### Lado Esquerdo (painel decorativo)
+- Fundo: `bg-gradient-to-br from-red-900 via-red-800 to-red-950`
+- Canvas (`useRef` + `useEffect`) com pontos em grade, opacidade variável — igual ao componente original mas com cores vermelhas
+- Rotas animadas no canvas simulando pedidos chegando
+- 6 emojis de comida posicionados absolutamente com animação CSS `animate-bounce` em delays diferentes (`animation-delay: 0s, 0.5s, 1s...`)
+- Logo TrendFood (ChefHat) + texto sobreposto no centro/topo esquerdo
+- Frase: "Seu cardápio gerenciado com inteligência"
 
-- Moldura de laptop: bordas arredondadas, barra topo cinza com 3 bolinhas (macOS-style)
-- **Sidebar** esquerda (fundo escuro): Logo TrendFood (ícone vermelho + texto), "Burguer do Rei", itens de nav (Home ativo em vermelho, Cardápio, Mesas, Cozinha, Garçom)
-- **Conteúdo principal**: Card grande vermelho "Faturamento Hoje — R$ 880,00", 2 cards de métricas (Faturamento total, Pedidos hoje), mini-gráfico de barras estilizado
+### Lado Direito (formulário)
+- Fundo branco/card
+- Abas shadcn (Entrar / Criar conta) — mantendo exatamente o mesmo JSX e lógica do AuthPage atual
+- Botões com a cor primária vermelha do site
+- `ArrowRight` icon no botão (inspirado no design original)
+- Responsivo: em mobile o canvas some e o form ocupa 100%
 
-### Mockup do Celular (iPhone CSS, fiel ao print)
+### Animação CSS dos emojis (sem framer-motion)
+```css
+/* Adicionado no JSX via style prop */
+animation: float 3s ease-in-out infinite alternate;
+animationDelay: "0.5s"
+```
 
-Posicionado sobre o canto inferior direito do laptop:
+```css
+/* No index.css */
+@keyframes float {
+  from { transform: translateY(0px) rotate(-5deg); }
+  to { transform: translateY(-18px) rotate(5deg); }
+}
+```
 
-- Frame de celular com notch/barra de status
-- Header com logo e "Burguer do Rei"
-- Chip de categoria "🍔 Hambúrgueres"
-- Card de produto com área de imagem, nome "Duplo cheddar", preço "R$ 36,00", botão "+ Adicionar" preto
-
-### Textos laterais (fiel ao estilo da imagem de referência)
-
-**Esquerda:**
-- Badge vermelho: "Painel de Gestão"
-- Título: "Seus números em tempo real"
-- Texto: "Acompanhe o faturamento do dia, ticket médio e pedidos pagos direto no painel. Tudo atualizado ao vivo, sem precisar recarregar."
-- Seta SVG curva →
-
-**Direita:**
-- Badge vermelho: "Cardápio Digital"
-- Título: "Seus clientes pedem pelo celular"
-- Texto: "Cardápio bonito, responsivo e sem app. O cliente acessa pelo QR Code da mesa e faz o pedido em segundos."
-- Seta SVG curva ←
-
-### Responsividade
-
-- **Desktop**: layout 3 colunas (texto | mockups | texto), mockup laptop com ~500px de largura
-- **Mobile**: empilhado — texto superior, mockup laptop (largura 100%), mockup celular centralizado abaixo, texto inferior
-
----
-
-## Arquivo Afetado
+## Arquivos afetados
 
 | Arquivo | Ação |
 |---|---|
-| `src/pages/Index.tsx` | Inserir nova `<section>` entre linha 271 e 272 |
+| `src/pages/AuthPage.tsx` | Reescrever layout com split screen, mantendo toda lógica de auth |
+| `src/index.css` | Adicionar keyframe `@keyframes float` |
 
-Sem banco de dados, sem novos arquivos — apenas HTML/CSS/Tailwind dentro do Index.tsx existente.
+Sem novos pacotes, sem migrações de banco — apenas visual.
+
+## Resultado esperado
+
+Uma tela de auth moderna, com identidade visual forte de food service, animação de mapa de pontos vermelhos à esquerda com emojis flutuando, e o formulário completo (login + cadastro) à direita — tudo mantendo a lógica existente de criação de conta com organization e slug.
