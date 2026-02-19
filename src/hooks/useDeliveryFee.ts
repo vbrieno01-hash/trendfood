@@ -40,11 +40,19 @@ async function tryGeocode(query: string): Promise<GeoCoord | null> {
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
 
-// Remove the 3rd field (complement) from addresses with 7+ comma-separated parts.
-// Format: street, number, [complement], neighborhood, city, state, Brasil
+// Remove the complement field from store addresses before geocoding.
+// New format (with CEP): CEP, street, number, [complement], neighborhood, city, state, Brasil → 8 parts
+// Old format (no CEP):   street, number, [complement], neighborhood, city, state, Brasil    → 7 parts
+// Complement is always at index 3 (new) or index 2 (old).
 function stripComplementForGeo(address: string): string {
   const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
-  if (parts.length >= 7) {
+  // New format starts with a CEP pattern (digits + optional hyphen)
+  const startsWithCep = /^\d{5}-?\d{3}$/.test(parts[0] ?? "");
+  if (startsWithCep && parts.length >= 8) {
+    // CEP, street, number, [complement], neighborhood, city, state, Brasil → remove index 3
+    parts.splice(3, 1);
+  } else if (!startsWithCep && parts.length >= 7) {
+    // street, number, [complement], neighborhood, city, state, Brasil → remove index 2
     parts.splice(2, 1);
   }
   return parts.join(", ");
