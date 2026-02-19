@@ -142,6 +142,7 @@ export type Database = {
         Row: {
           business_hours: Json | null
           created_at: string
+          delivery_config: Json | null
           description: string | null
           emoji: string
           id: string
@@ -150,6 +151,7 @@ export type Database = {
           pix_key: string | null
           primary_color: string
           slug: string
+          store_address: string | null
           subscription_status: string
           user_id: string
           whatsapp: string | null
@@ -157,6 +159,7 @@ export type Database = {
         Insert: {
           business_hours?: Json | null
           created_at?: string
+          delivery_config?: Json | null
           description?: string | null
           emoji?: string
           id?: string
@@ -165,6 +168,7 @@ export type Database = {
           pix_key?: string | null
           primary_color?: string
           slug: string
+          store_address?: string | null
           subscription_status?: string
           user_id: string
           whatsapp?: string | null
@@ -172,6 +176,7 @@ export type Database = {
         Update: {
           business_hours?: Json | null
           created_at?: string
+          delivery_config?: Json | null
           description?: string | null
           emoji?: string
           id?: string
@@ -180,6 +185,7 @@ export type Database = {
           pix_key?: string | null
           primary_color?: string
           slug?: string
+          store_address?: string | null
           subscription_status?: string
           user_id?: string
           whatsapp?: string | null

@@ -12,6 +12,15 @@ export interface BusinessHours {
   schedule: Record<string, BusinessHoursDay>;
 }
 
+export interface DeliveryConfig {
+  fee_tier1: number;
+  fee_tier2: number;
+  fee_tier3: number;
+  tier1_km: number;
+  tier2_km: number;
+  free_above: number;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -25,6 +34,8 @@ export interface Organization {
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
   pix_key?: string | null;
+  store_address?: string | null;
+  delivery_config?: DeliveryConfig | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {

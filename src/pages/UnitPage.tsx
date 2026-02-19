@@ -16,13 +16,14 @@ import {
 } from "@/components/ui/select";
 import {
   ChefHat, Heart, ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  MessageCircle, ShoppingCart, ImageOff, Lightbulb, CheckCircle2,
+  MessageCircle, ShoppingCart, ImageOff, Lightbulb, CheckCircle2, Loader2,
 } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useSuggestions, useAddSuggestion, useIncrementVote } from "@/hooks/useSuggestions";
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
 import { usePlaceOrder } from "@/hooks/useOrders";
+import { useDeliveryFee } from "@/hooks/useDeliveryFee";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pendente",
@@ -206,6 +207,16 @@ const UnitPage = () => {
   const totalItems = cartItems.reduce((s, i) => s + i.qty, 0);
   const totalPrice = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
 
+  // Delivery fee (active only when Entrega is selected and checkout is open)
+  const { fee: deliveryFee, freeShipping, loading: feeLoading, error: feeError, distanceKm, noStoreAddress } = useDeliveryFee(
+    address,
+    totalPrice,
+    org,
+    orderType === "Entrega" && checkoutOpen
+  );
+
+  const grandTotal = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
+
   // Voting
   const handleVote = (id: string) => {
     if (votedIds.has(id) || voteMutation.isPending) return;
@@ -240,15 +251,23 @@ const UnitPage = () => {
     if (!valid) return;
 
     const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
+    const freightLabel = orderType === "Retirada"
+      ? "Grátis"
+      : freeShipping
+        ? "Grátis"
+        : deliveryFee > 0
+          ? fmt(deliveryFee)
+          : null;
+
     const lines = [
       `🍔 *Novo Pedido — ${org.name}*`,
       ``,
       `📋 *Itens:*`,
-      ...cartItems.map(
-        (i) => `• ${i.qty}x ${i.name} — ${fmt(i.price * i.qty)}`
-      ),
+      ...cartItems.map((i) => `• ${i.qty}x ${i.name} — ${fmt(i.price * i.qty)}`),
       ``,
-      `💰 *Total: ${fmt(totalPrice)}*`,
+      orderType === "Entrega" && freightLabel
+        ? `📦 *Subtotal:* ${fmt(totalPrice)}\n🛵 *Frete:* ${freightLabel}\n💰 *Total:* ${fmt(grandTotal)}`
+        : `💰 *Total: ${fmt(totalPrice)}*`,
       ``,
       `${deliveryEmoji} *Tipo:* ${orderType}`,
       `👤 *Nome:* ${buyerName.trim()}`,
@@ -262,14 +281,20 @@ const UnitPage = () => {
     const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
     window.open(url, "_blank", "noopener,noreferrer");
 
-    // Save order to database (table_number=0 = delivery/pickup) — runs in parallel, doesn't block WhatsApp
+    // Save order to database (table_number=0 = delivery/pickup)
     if (org?.id) {
-      // Structured notes format: TIPO:...|CLIENTE:...|TEL:...|END.:...|PGTO:...|DOC:...|OBS:...
+      const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
+        ? `FRETE:${fmt(deliveryFee)}`
+        : orderType === "Entrega" && freeShipping
+          ? "FRETE:Grátis"
+          : null;
+
       const noteParts: string[] = [
         `TIPO:${orderType}`,
         `CLIENTE:${buyerName.trim()}`,
         buyerPhone.trim() ? `TEL:${buyerPhone.trim()}` : null,
         orderType === "Entrega" && address.trim() ? `END.:${address.trim()}` : null,
+        freteNote,
         `PGTO:${payment}`,
         buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
         notes.trim() ? `OBS:${notes.trim()}` : null,
@@ -300,6 +325,7 @@ const UnitPage = () => {
     setPayment("");
     setNotes("");
   };
+
 
   // Group menu items by category
   const groupedMenu = CATEGORIES.map((cat) => ({
@@ -684,9 +710,47 @@ const UnitPage = () => {
                   <span className="text-sm font-semibold shrink-0">{fmt(item.price * item.qty)}</span>
                 </div>
               ))}
-              <div className="flex items-center justify-between pt-2 font-bold text-foreground">
-                <span>Total</span>
-                <span className="text-lg">{fmt(totalPrice)}</span>
+              {/* Subtotal / Frete / Total */}
+              <div className="border-t border-border/50 pt-2 space-y-1.5">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>{fmt(totalPrice)}</span>
+                </div>
+                {orderType === "Retirada" ? (
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>🏃 Frete</span>
+                    <span className="text-green-600 font-medium">Grátis</span>
+                  </div>
+                ) : orderType === "Entrega" ? (
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      🛵 Frete
+                      {distanceKm != null && (
+                        <span className="text-xs">({distanceKm.toFixed(1)} km)</span>
+                      )}
+                    </span>
+                    {feeLoading ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Calculando...
+                      </span>
+                    ) : feeError ? (
+                      noStoreAddress
+                        ? <span className="text-xs text-muted-foreground italic">A loja não configurou endereço</span>
+                        : <span className="text-xs text-destructive">Endereço não encontrado</span>
+                    ) : freeShipping ? (
+                      <span className="text-green-600 font-medium">Grátis</span>
+                    ) : address.trim().length >= 8 ? (
+                      <span className="font-medium text-foreground">{fmt(deliveryFee)}</span>
+                    ) : (
+                      <span className="text-xs italic">Digite seu endereço</span>
+                    )}
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between pt-1 font-bold text-foreground border-t border-border/50">
+                  <span>Total</span>
+                  <span className="text-lg">{fmt(grandTotal)}</span>
+                </div>
               </div>
             </div>
 
