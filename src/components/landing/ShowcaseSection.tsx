@@ -1,4 +1,6 @@
 import { Badge } from "@/components/ui/badge";
+import dashboardImg from "@/assets/dashboard-screenshot.png";
+import mobileImg from "@/assets/mobile-screenshot.png";
 
 const DashboardMockup = () => (
   <div className="relative w-full" style={{ maxWidth: 520 }}>
@@ -15,11 +17,11 @@ const DashboardMockup = () => (
       </div>
 
       {/* App body - Screenshot real do dashboard */}
-      <div className="overflow-hidden" style={{ height: 300 }}>
+      <div className="overflow-hidden" style={{ height: 340 }}>
         <img
-          src="/dashboard-screenshot.png"
+          src={dashboardImg}
           alt="Painel TrendFood - Dashboard de vendas e faturamento"
-          className="w-full h-full object-cover object-top"
+          className="w-full h-full object-contain"
         />
       </div>
     </div>
@@ -36,7 +38,7 @@ const DashboardMockup = () => (
       {/* Phone frame */}
       <div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800">
         <img
-          src="/mobile-screenshot.png"
+          src={mobileImg}
           alt="Cardápio digital mobile TrendFood"
           className="w-full block"
           style={{ display: "block" }}
