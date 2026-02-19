@@ -100,14 +100,17 @@ const UnitPage = () => {
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState("");
 
-  // Helper: build full address string for geocoding
-  const buildCustomerAddress = (f: { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string }) => {
-    const parts = [f.street, f.number, f.complement, f.neighborhood, f.city, f.state, "Brasil"]
-      .map((p) => p.trim()).filter(Boolean);
-    return parts.join(", ");
-  };
+  // Full address (with complement) for WhatsApp/order notes display
+  const fullCustomerAddressDisplay = [
+    customerAddress.street, customerAddress.number, customerAddress.complement,
+    customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"
+  ].map((p) => p.trim()).filter(Boolean).join(", ");
 
-  const fullCustomerAddress = buildCustomerAddress(customerAddress);
+  // Address WITHOUT complement for geocoding (Nominatim rejects free-text complements like "beco", "Apto 3B")
+  const fullCustomerAddress = [
+    customerAddress.street, customerAddress.number,
+    customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"
+  ].map((p) => p.trim()).filter(Boolean).join(", ");
 
   // Delivery fee — must be before any early returns (Rules of Hooks)
   // cart/totalPrice derived inline here so hook is always at top level
@@ -320,7 +323,7 @@ const UnitPage = () => {
       ``,
       `${deliveryEmoji} *Tipo:* ${orderType}`,
       `👤 *Nome:* ${buyerName.trim()}`,
-      orderType === "Entrega" && fullCustomerAddress ? `🏠 *Endereço:* ${fullCustomerAddress}` : null,
+      orderType === "Entrega" && fullCustomerAddressDisplay ? `🏠 *Endereço:* ${fullCustomerAddressDisplay}` : null,
       `💳 *Pagamento:* ${payment}`,
       notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
     ]
@@ -344,7 +347,7 @@ const UnitPage = () => {
         `TIPO:${orderType}`,
         `CLIENTE:${buyerName.trim()}`,
         buyerPhone.trim() ? `TEL:${buyerPhone.trim()}` : null,
-        orderType === "Entrega" && fullCustomerAddress ? `END.:${fullCustomerAddress}` : null,
+        orderType === "Entrega" && fullCustomerAddressDisplay ? `END.:${fullCustomerAddressDisplay}` : null,
         freteNote,
         `PGTO:${payment}`,
         buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,

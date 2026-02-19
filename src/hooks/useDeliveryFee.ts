@@ -40,6 +40,16 @@ async function tryGeocode(query: string): Promise<GeoCoord | null> {
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
 
+// Remove the 3rd field (complement) from addresses with 7+ comma-separated parts.
+// Format: street, number, [complement], neighborhood, city, state, Brasil
+function stripComplementForGeo(address: string): string {
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 7) {
+    parts.splice(2, 1);
+  }
+  return parts.join(", ");
+}
+
 async function geocode(query: string): Promise<GeoCoord | null> {
   // Tentativa 1: endereço original
   const result = await tryGeocode(query);
@@ -66,12 +76,6 @@ function applyFeeTable(distanceKm: number, subtotal: number, config: DeliveryCon
   return { fee: config.fee_tier3, freeShipping: false };
 }
 
-// Extract last two comma-separated tokens (city/state) from an address string
-function extractCityState(address: string): string {
-  const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
-  if (parts.length >= 2) return parts.slice(-2).join(", ");
-  return address;
-}
 
 export function useDeliveryFee(
   customerAddress: string,
@@ -121,22 +125,15 @@ export function useDeliveryFee(
       setLoading(true);
       setError(null);
       try {
-        // Geocode store (cached)
+        // Geocode store (cached) — strip complement so Nominatim can find it
         if (!storeCoordRef.current) {
-          const coord = await geocode(storeAddress);
+          const coord = await geocode(stripComplementForGeo(storeAddress));
           if (!coord) throw new Error("Endereço da loja não encontrado");
           storeCoordRef.current = coord;
         }
 
-        // Improve customer address precision by appending city/state from store
-        // Only use store city/state if the store address has multiple comma-separated parts
-        const hasCityState = storeAddress.includes(",");
-        const cityState = hasCityState ? extractCityState(storeAddress) : null;
-        const fullCustomerAddress = hasCityState && !customerAddress.includes(",") && cityState
-          ? `${customerAddress}, ${cityState}`
-          : `${customerAddress}, Brasil`;
-
-        const customerCoord = await geocode(fullCustomerAddress);
+        // customerAddress already arrives without complement and with city/state from UnitPage
+        const customerCoord = await geocode(customerAddress);
         if (!customerCoord) throw new Error("Endereço não encontrado");
 
         const km = await getRouteDistanceKm(storeCoordRef.current, customerCoord);
