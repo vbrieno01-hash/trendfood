@@ -4,11 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Home, LayoutList, Store, Settings, LogOut, ExternalLink,
+  Home, Store, Settings, LogOut, ExternalLink,
   ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing
 } from "lucide-react";
 import HomeTab from "@/components/dashboard/HomeTab";
-import MuralTab from "@/components/dashboard/MuralTab";
 import MenuTab from "@/components/dashboard/MenuTab";
 import TablesTab from "@/components/dashboard/TablesTab";
 import StoreProfileTab from "@/components/dashboard/StoreProfileTab";
@@ -16,7 +15,7 @@ import SettingsTab from "@/components/dashboard/SettingsTab";
 import KitchenTab from "@/components/dashboard/KitchenTab";
 import WaiterTab from "@/components/dashboard/WaiterTab";
 
-type TabKey = "home" | "menu" | "tables" | "mural" | "kitchen" | "waiter" | "profile" | "settings";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -93,7 +92,6 @@ const DashboardPage = () => {
     { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
     { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Meu Cardápio" },
     { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas" },
-    { key: "mural", icon: <LayoutList className="w-4 h-4" />, label: "Gerenciar Mural" },
   ];
 
   const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string }[] = [
@@ -266,7 +264,6 @@ const DashboardPage = () => {
           {activeTab === "home" && <HomeTab organization={organization} />}
           {activeTab === "menu" && <MenuTab organization={organization} />}
           {activeTab === "tables" && <TablesTab organization={organization} />}
-          {activeTab === "mural" && <MuralTab organization={organization} />}
           {activeTab === "kitchen" && <KitchenTab orgId={organization.id} />}
           {activeTab === "waiter" && <WaiterTab orgId={organization.id} />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
