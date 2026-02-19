@@ -1,34 +1,28 @@
 
-# 5 Novas Funcionalidades para as Lojas
+# Implementação das 5 Features — Estado atual e plano de execução
 
-Implementação completa das cinco features solicitadas. Cada uma é independente e pode ser entregue sem modificar a estrutura do banco de dados existente (exceto a tabela `coupons`).
+## O que foi verificado
 
----
+- A tabela `coupons` **não existe** no banco ainda
+- Os arquivos `HistoryTab.tsx`, `CouponsTab.tsx`, `BestSellersTab.tsx` **não existem**
+- O hook `useCoupons.ts` **não existe**
+- `useOrders.ts` **não tem** o hook `useOrderHistory`
+- `WaiterTab.tsx` **não tem** botões de impressão (aceita só `orgId` e `whatsapp`, sem `pixKey` ou `orgName`)
+- `KitchenTab.tsx` **não tem** notificações push
+- `DashboardPage.tsx` **não tem** as 3 novas abas na sidebar
 
-## 1. Histórico de Pedidos
+## Ordem de execução
 
-**Nova aba no dashboard:** "Histórico"
+### Passo 1 — Migration SQL (tabela `coupons`)
 
-- Consulta a tabela `orders` filtrada por `status = delivered`, sem limite de data
-- Filtros: período (hoje / últimos 7 dias / últimos 30 dias / personalizado com date picker), busca por número de mesa e status de pagamento (pago / não pago / todos)
-- Cada card mostra: mesa, data/hora, itens, total e badge de pagamento
-- Sem necessidade de nova tabela — usa dados já existentes
-- Novo arquivo: `src/components/dashboard/HistoryTab.tsx`
-- Novo hook: `useOrderHistory` em `src/hooks/useOrders.ts`
+Cria a tabela com RLS completo:
 
----
-
-## 2. Cupons de Desconto
-
-**Nova tabela no banco + nova aba no dashboard + integração no checkout**
-
-### Banco de dados (migration)
 ```sql
 CREATE TABLE public.coupons (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid NOT NULL,
+  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   code            text NOT NULL,
-  type            text NOT NULL CHECK (type IN ('percent', 'fixed')),
+  type            text NOT NULL,
   value           numeric NOT NULL,
   min_order       numeric NOT NULL DEFAULT 0,
   max_uses        integer,
@@ -39,113 +33,117 @@ CREATE TABLE public.coupons (
   UNIQUE (organization_id, code)
 );
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
--- SELECT público (clientes precisam validar o cupom)
+-- SELECT público (clientes precisam validar cupom no checkout)
 CREATE POLICY "coupons_select_public" ON public.coupons FOR SELECT USING (true);
--- CRUD apenas pelo dono da loja
+-- INSERT/UPDATE/DELETE somente pelo dono da loja
 CREATE POLICY "coupons_insert_owner" ON public.coupons FOR INSERT
   WITH CHECK (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
 CREATE POLICY "coupons_update_owner" ON public.coupons FOR UPDATE
   USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
 CREATE POLICY "coupons_delete_owner" ON public.coupons FOR DELETE
   USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
+-- Trigger para validar o type
+CREATE OR REPLACE FUNCTION validate_coupon_type()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.type NOT IN ('percent', 'fixed') THEN
+    RAISE EXCEPTION 'Invalid coupon type';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER check_coupon_type
+  BEFORE INSERT OR UPDATE ON public.coupons
+  FOR EACH ROW EXECUTE FUNCTION validate_coupon_type();
 ```
 
-### Dashboard — nova aba "Cupons"
-- Listagem dos cupons da loja (código, tipo, valor, usos, validade, status)
-- Formulário para criar cupom: código, tipo (% ou R$), valor, pedido mínimo, limite de usos e data de validade
-- Toggle para ativar/desativar cupom
-- Arquivo: `src/components/dashboard/CouponsTab.tsx`
-- Hook: `src/hooks/useCoupons.ts`
+### Passo 2 — Hook `useCoupons.ts` (novo arquivo)
 
-### Checkout (`TableOrderPage.tsx`)
-- Campo "Cupom de desconto" no rodapé do formulário de pedido
-- Botão "Aplicar" que valida o cupom via query no banco
-- Se válido: mostra desconto aplicado em verde e recalcula o total
-- O código do cupom é salvo no campo `notes` do pedido em formato `CUPOM:CODIGO` para rastreamento
-- A coluna `uses` é incrementada no INSERT do pedido
+Contém:
+- `useCoupons(orgId)` — lista os cupons da loja
+- `useCreateCoupon(orgId)` — cria um novo cupom
+- `useUpdateCoupon(orgId)` — atualiza/desativa cupom
+- `useDeleteCoupon(orgId)` — deleta cupom
+- `useValidateCoupon(orgId)` — valida cupom no checkout (sem autenticação necessária pois a policy SELECT é pública)
 
----
+### Passo 3 — `CouponsTab.tsx` (novo arquivo)
 
-## 3. Relatório de Itens Mais Vendidos
+UI completa:
+- Lista de cupons com badge de status (Ativo/Inativo/Expirado), tipo (% ou R$), usos, validade
+- Botão toggle para ativar/desativar
+- Botão delete com confirmação
+- Dialog de criação com campos: código, tipo, valor, pedido mínimo, limite de usos, data de validade
 
-**Nova aba "Mais Vendidos" no dashboard**
+### Passo 4 — `useOrderHistory` em `useOrders.ts`
 
-- Agrega dados de `order_items` via JOIN com `orders` filtrados por `status = delivered` e `organization_id`
-- Ranking exibindo: posição, nome do item, quantidade total vendida, receita gerada, percentual do total de receita
-- Filtros de período: hoje / 7 dias / 30 dias / todo o período
-- Barra de progresso visual mostrando a proporção de cada item
-- Sem nova tabela — processado no frontend com os dados já carregados
-- Arquivo: `src/components/dashboard/BestSellersTab.tsx`
+Novo hook que busca orders com `status = 'delivered'` com filtros de período e paginação (limite de 50 por vez para evitar o limite de 1000 rows do banco).
 
----
+### Passo 5 — `HistoryTab.tsx` (novo arquivo)
 
-## 4. Notificações Push de Pedidos (PWA)
+UI:
+- Filtros: Hoje / 7 dias / 30 dias / Tudo
+- Campo de busca por número de mesa
+- Toggle Pago / Não pago / Todos
+- Cards com: mesa, data/hora, itens, total e badge de pagamento
+- Resumo no topo: total de pedidos e receita do período
 
-**Web Push Notifications para o lojista**
+### Passo 6 — `BestSellersTab.tsx` (novo arquivo)
 
-- Solicita permissão de notificação ao abrir o KDS (`Notification.requestPermission()`)
-- Quando um novo pedido chega via Realtime (já implementado no `KitchenTab`), dispara `new Notification(...)` com:
-  - Título: "🔔 Novo pedido! Mesa X"
-  - Body: lista dos itens
-  - Ícone da PWA (`/pwa-192.png`)
-- Funciona mesmo com o app minimizado (mas ainda na aba aberta), comportamento padrão da Web Notifications API
-- Toggle na interface do KDS para habilitar/desabilitar notificações (salvo no `localStorage`)
-- **Sem service worker extra** — usa a `Notifications API` nativa do browser, que funciona em PWA instalada
-- Modificação no: `src/components/dashboard/KitchenTab.tsx`
+Lógica:
+- Reutiliza `useDeliveredOrders` já existente
+- Agrega `order_items` no frontend agrupando por `name`
+- Calcula: quantidade vendida, receita, % do total
+- Filtros de período identicos ao HistoryTab
+- UI: tabela ranqueada com barra de progresso proporcional
 
----
+### Passo 7 — Notificações push em `KitchenTab.tsx`
 
-## 5. Comanda em PDF / Impressão Melhorada no Painel do Garçom
+Adições:
+- Estado `notificationsEnabled` salvo em `localStorage` com chave `kds_notifications`
+- Botão toggle no header do KDS para habilitar/desabilitar
+- `useEffect` que observa novos pedidos do realtime e dispara `new Notification("🔔 Novo pedido! Mesa X", { body: "...", icon: "/pwa-192.png" })`
+- Solicita `Notification.requestPermission()` ao ativar o toggle pela primeira vez
 
-**Botão "Imprimir Comanda" no WaiterTab**
+### Passo 8 — Impressão em `WaiterTab.tsx`
 
-- Reutiliza o `printOrder` já existente em `src/lib/printOrder.ts`
-- Adiciona botão de impressão nos cards de "Aguardando Pagamento" do `WaiterTab`
-- O print já inclui: cabeçalho da loja, mesa, itens com preços, total, e QR Code PIX (se configurado)
-- Também adiciona botão de impressão nos cards de "Prontos para Entrega"
-- A função já recebe `pixKey` — precisa apenas passar `orgName` e `pixKey` para o `WaiterTab`
-- Modificação em: `src/components/dashboard/WaiterTab.tsx` e `src/pages/DashboardPage.tsx` (passar `pixKey` para WaiterTab)
+- Adiciona props `orgName` e `pixKey` ao componente
+- Importa `printOrder` de `src/lib/printOrder.ts`
+- Adiciona botão "🖨️ Imprimir" nos cards de pedidos prontos para entrega e aguardando pagamento
+- O botão chama `printOrder({ order, orgName, pixKey })`
 
----
+### Passo 9 — Cupom no checkout (`TableOrderPage.tsx`)
 
-## Navegação — Novas abas no Sidebar
+- Campo de texto "Código do cupom" + botão "Aplicar"
+- Ao aplicar: consulta tabela `coupons` filtrando por `organization_id`, `code` (case-insensitive), `active = true`
+- Valida: expiração, pedido mínimo, limite de usos
+- Se válido: mostra desconto em verde e recalcula total
+- Ao confirmar o pedido: salva o código no campo `notes` com prefixo `CUPOM:CODIGO` e incrementa `uses` do cupom
 
-Adicionar 3 novos itens à sidebar em `DashboardPage.tsx`:
+### Passo 10 — `DashboardPage.tsx` (novas abas)
 
-| Ícone | Label | Key |
+Adiciona 3 novas abas na navegação lateral (seção principal):
+
+| Ícone | Label | Posição |
 |---|---|---|
-| `History` (lucide) | Histórico | `history` |
-| `Tag` (lucide) | Cupons | `coupons` |
-| `BarChart2` (lucide) | Mais Vendidos | `bestsellers` |
+| `History` | Histórico | Após Mesas |
+| `Tag` | Cupons | Após Histórico |
+| `BarChart2` | Mais Vendidos | Após Cupons |
 
-As novas abas ficam na seção principal do sidebar (junto com Home, Cardápio, Mesas).
+Atualiza o tipo `TabKey` para incluir `"history" | "coupons" | "bestsellers"`.
 
----
+Passa `orgName={organization.name}` e `pixKey={(organization as any).pix_key}` para `WaiterTab`.
 
-## Resumo dos arquivos
+## Arquivos criados/modificados
 
 | Arquivo | Ação |
 |---|---|
-| `supabase/migrations/...sql` | Nova tabela `coupons` com RLS |
-| `src/components/dashboard/HistoryTab.tsx` | Criado do zero |
-| `src/components/dashboard/CouponsTab.tsx` | Criado do zero |
-| `src/components/dashboard/BestSellersTab.tsx` | Criado do zero |
+| Migration SQL | `coupons` table + RLS + trigger |
 | `src/hooks/useCoupons.ts` | Criado do zero |
+| `src/components/dashboard/CouponsTab.tsx` | Criado do zero |
 | `src/hooks/useOrders.ts` | Adiciona `useOrderHistory` |
-| `src/components/dashboard/KitchenTab.tsx` | Adiciona Web Push Notifications |
-| `src/components/dashboard/WaiterTab.tsx` | Adiciona botões de impressão, recebe `pixKey` |
-| `src/pages/DashboardPage.tsx` | Adiciona 3 abas no sidebar, passa `pixKey` para WaiterTab |
-| `src/pages/TableOrderPage.tsx` | Adiciona campo e validação de cupom no checkout |
-
----
-
-## Ordem de implementação
-
-1. Migration SQL da tabela `coupons`
-2. Hook `useCoupons.ts` + componente `CouponsTab.tsx`
-3. Hook `useOrderHistory` + componente `HistoryTab.tsx`
-4. Componente `BestSellersTab.tsx`
-5. Web Push no `KitchenTab.tsx`
-6. Impressão no `WaiterTab.tsx`
-7. Checkout com cupom em `TableOrderPage.tsx`
-8. Atualização do `DashboardPage.tsx` com todas as novas abas
+| `src/components/dashboard/HistoryTab.tsx` | Criado do zero |
+| `src/components/dashboard/BestSellersTab.tsx` | Criado do zero |
+| `src/components/dashboard/KitchenTab.tsx` | Adiciona notificações push + toggle |
+| `src/components/dashboard/WaiterTab.tsx` | Adiciona props `orgName`/`pixKey` + botões de impressão |
+| `src/pages/TableOrderPage.tsx` | Adiciona campo de cupom no checkout |
+| `src/pages/DashboardPage.tsx` | Adiciona 3 abas, passa novas props para WaiterTab |
