@@ -93,3 +93,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide Lovable badge */
+#lovable-badge,
+[data-lovable-badge],
+a[href*="lovable.app"][style*="position: fixed"],
+a[href*="lovable.dev"][style*="position: fixed"] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
