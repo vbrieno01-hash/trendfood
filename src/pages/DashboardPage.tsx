@@ -330,15 +330,13 @@ const DashboardPage = () => {
                 <p className="text-foreground font-semibold text-sm">Período de teste ativo</p>
                 <p className="text-muted-foreground text-xs">Ative seu plano para acesso contínuo ao painel.</p>
               </div>
-              <a
-                href="https://wa.me/5511999999999?text=Quero+ativar+meu+plano+TrendFood"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/planos"
                 className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors"
               >
                 <Zap className="w-3 h-3" />
                 Ativar plano
-              </a>
+              </Link>
             </div>
           )}
 

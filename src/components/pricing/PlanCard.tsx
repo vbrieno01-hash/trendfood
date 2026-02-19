@@ -1,0 +1,94 @@
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export interface PlanCardProps {
+  name: string;
+  price: string;
+  period?: string;
+  description: string;
+  features: string[];
+  cta: string;
+  ctaLink: string;
+  external?: boolean;
+  highlighted?: boolean;
+  badge?: string;
+}
+
+const PlanCard = ({
+  name,
+  price,
+  period = "/mês",
+  description,
+  features,
+  cta,
+  ctaLink,
+  external,
+  highlighted,
+  badge,
+}: PlanCardProps) => {
+  return (
+    <div
+      className={cn(
+        "relative rounded-2xl border p-6 md:p-8 flex flex-col h-full transition-all",
+        highlighted
+          ? "border-primary bg-card shadow-xl shadow-primary/10 scale-[1.02] md:scale-105"
+          : "border-border bg-card shadow-sm hover:border-primary/30 hover:shadow-md"
+      )}
+    >
+      {badge && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">
+          {badge}
+        </span>
+      )}
+
+      <div className="mb-6">
+        <h3 className="text-lg font-bold text-foreground mb-1">{name}</h3>
+        <p className="text-muted-foreground text-sm mb-4">{description}</p>
+        <div className="flex items-baseline gap-1">
+          <span className="text-4xl font-extrabold text-foreground">{price}</span>
+          {price !== "Grátis" && (
+            <span className="text-muted-foreground text-sm">{period}</span>
+          )}
+        </div>
+      </div>
+
+      <ul className="space-y-3 flex-1 mb-8">
+        {features.map((f) => (
+          <li key={f} className="flex items-start gap-2 text-sm text-foreground">
+            <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      {external ? (
+        <a
+          href={ctaLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "inline-flex items-center justify-center rounded-md text-sm font-bold h-11 px-8 w-full transition-colors",
+            highlighted
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          {cta}
+        </a>
+      ) : (
+        <Button
+          size="lg"
+          variant={highlighted ? "default" : "outline"}
+          className="w-full font-bold"
+          asChild
+        >
+          <Link to={ctaLink}>{cta}</Link>
+        </Button>
+      )}
+    </div>
+  );
+};
+
+export default PlanCard;
