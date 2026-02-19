@@ -95,6 +95,17 @@ const UnitPage = () => {
   const [paymentError, setPaymentError] = useState(false);
   const [addressError, setAddressError] = useState(false);
 
+  // Delivery fee — must be before any early returns (Rules of Hooks)
+  // cart/totalPrice derived inline here so hook is always at top level
+  const _cartItemsForFee = Object.values(cart);
+  const _totalPriceForFee = _cartItemsForFee.reduce((s, i) => s + i.price * i.qty, 0);
+  const { fee: deliveryFee, freeShipping, loading: feeLoading, error: feeError, distanceKm, noStoreAddress } = useDeliveryFee(
+    address,
+    _totalPriceForFee,
+    org ?? null,
+    !!org && orderType === "Entrega" && checkoutOpen
+  );
+
   useEffect(() => {
     if (!orgLoading && (isError || org === null)) navigate("/404");
   }, [orgLoading, isError, org, navigate]);
@@ -207,13 +218,7 @@ const UnitPage = () => {
   const totalItems = cartItems.reduce((s, i) => s + i.qty, 0);
   const totalPrice = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
 
-  // Delivery fee (active only when Entrega is selected and checkout is open)
-  const { fee: deliveryFee, freeShipping, loading: feeLoading, error: feeError, distanceKm, noStoreAddress } = useDeliveryFee(
-    address,
-    totalPrice,
-    org,
-    orderType === "Entrega" && checkoutOpen
-  );
+  // (deliveryFee and related vars declared above, before early returns)
 
   const grandTotal = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
 
