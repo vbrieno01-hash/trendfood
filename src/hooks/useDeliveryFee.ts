@@ -76,23 +76,24 @@ async function geocode(query: string): Promise<GeoCoord | null> {
 }
 
 // Geocodifica o endereço da loja de forma otimizada:
-// Se começa com CEP, usa APENAS o CEP — muito mais preciso no Nominatim.
-// Fallback: endereço textual completo (sem complemento).
+// Prioriza CEP + Cidade + Estado para evitar que CEPs mapeados erroneamente no Nominatim
+// retornem coordenadas de outro estado. Fallback: só Cidade + Estado, depois texto completo.
 async function geocodeStoreAddress(address: string): Promise<GeoCoord | null> {
   const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
   const cepPattern = /^\d{5}-?\d{3}$/;
 
   if (cepPattern.test(parts[0] ?? "")) {
     const cep = parts[0];
+    // city = antepenúltimo (antes de estado e "Brasil")
     const city = parts[parts.length - 3] ?? "";
     const state = parts[parts.length - 2] ?? "";
 
-    // Tentativa 1: só o CEP (mais precisa)
-    const r1 = await tryGeocode(`${cep}, Brasil`);
+    // Tentativa 1: CEP + cidade + estado (força resultado na região correta)
+    const r1 = await tryGeocode(`${cep}, ${city}, ${state}, Brasil`);
     if (r1) return r1;
 
-    // Tentativa 2: CEP + cidade + estado
-    const r2 = await tryGeocode(`${cep}, ${city}, ${state}, Brasil`);
+    // Tentativa 2: só cidade + estado (ignora CEP problemático)
+    const r2 = await tryGeocode(`${city}, ${state}, Brasil`);
     if (r2) return r2;
   }
 
