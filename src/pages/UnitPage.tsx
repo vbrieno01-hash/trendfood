@@ -81,6 +81,8 @@ const UnitPage = () => {
   const isScrollingByClick = useRef(false);
 
   // Checkout form
+  const [orderType, setOrderType] = useState<"Entrega" | "Retirada" | "">("");
+  const [orderTypeError, setOrderTypeError] = useState(false);
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerDoc, setBuyerDoc] = useState("");
@@ -227,15 +229,17 @@ const UnitPage = () => {
   // WhatsApp checkout
   const handleSendWhatsApp = () => {
     let valid = true;
+    if (!orderType) { setOrderTypeError(true); valid = false; } else setOrderTypeError(false);
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
     if (!payment) { setPaymentError(true); valid = false; } else setPaymentError(false);
-    if (address.trim() && address.trim() !== addressConfirm.trim()) {
+    if (orderType === "Entrega" && address.trim() && address.trim() !== addressConfirm.trim()) {
       setAddressError(true); valid = false;
     } else {
       setAddressError(false);
     }
     if (!valid) return;
 
+    const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
     const lines = [
       `🍔 *Novo Pedido — ${org.name}*`,
       ``,
@@ -246,8 +250,9 @@ const UnitPage = () => {
       ``,
       `💰 *Total: ${fmt(totalPrice)}*`,
       ``,
+      `${deliveryEmoji} *Tipo:* ${orderType}`,
       `👤 *Nome:* ${buyerName.trim()}`,
-      address.trim() ? `🏠 *Endereço:* ${address.trim()}` : null,
+      orderType === "Entrega" && address.trim() ? `🏠 *Endereço:* ${address.trim()}` : null,
       `💳 *Pagamento:* ${payment}`,
       notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
     ]
@@ -257,13 +262,14 @@ const UnitPage = () => {
     const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
     window.open(url, "_blank", "noopener,noreferrer");
 
-    // Save order to database (table_number=0 = delivery) — runs in parallel, doesn't block WhatsApp
+    // Save order to database (table_number=0 = delivery/pickup) — runs in parallel, doesn't block WhatsApp
     if (org?.id) {
-      // Structured notes format: CLIENTE:...|TEL:...|END.:...|PGTO:...|DOC:...|OBS:...
+      // Structured notes format: TIPO:...|CLIENTE:...|TEL:...|END.:...|PGTO:...|DOC:...|OBS:...
       const noteParts: string[] = [
+        `TIPO:${orderType}`,
         `CLIENTE:${buyerName.trim()}`,
         buyerPhone.trim() ? `TEL:${buyerPhone.trim()}` : null,
-        address.trim() ? `END.:${address.trim()}` : null,
+        orderType === "Entrega" && address.trim() ? `END.:${address.trim()}` : null,
         `PGTO:${payment}`,
         buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
         notes.trim() ? `OBS:${notes.trim()}` : null,
@@ -285,6 +291,7 @@ const UnitPage = () => {
     // Reset
     setCart({});
     setCheckoutOpen(false);
+    setOrderType("");
     setBuyerName("");
     setBuyerPhone("");
     setBuyerDoc("");
@@ -683,6 +690,39 @@ const UnitPage = () => {
               </div>
             </div>
 
+            {/* Order type selector */}
+            <div className="space-y-2">
+              <h3 className="font-semibold text-foreground text-sm">
+                Como você quer receber? <span className="text-destructive">*</span>
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {(["Entrega", "Retirada"] as const).map((type) => {
+                  const isSelected = orderType === type;
+                  const emoji = type === "Entrega" ? "🛵" : "🏃";
+                  const label = type === "Entrega" ? "Entrega" : "Retirada no local";
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => { setOrderType(type); setOrderTypeError(false); }}
+                      className="flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all"
+                      style={
+                        isSelected
+                          ? { borderColor: primaryColor, backgroundColor: `${primaryColor}18`, color: primaryColor }
+                          : { borderColor: "var(--border)", backgroundColor: "transparent", color: "var(--muted-foreground)" }
+                      }
+                    >
+                      <span className="text-2xl">{emoji}</span>
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {orderTypeError && (
+                <p className="text-destructive text-xs">Selecione como quer receber o pedido</p>
+              )}
+            </div>
+
             {/* Customer info */}
             <div className="space-y-3">
               <h3 className="font-semibold text-foreground text-sm">Seus dados</h3>
@@ -729,35 +769,39 @@ const UnitPage = () => {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="buyer-address" className="text-xs font-medium mb-1 block">
-                  Endereço <span className="text-muted-foreground font-normal">(opcional)</span>
-                </Label>
-              <Input
-                  id="buyer-address"
-                  placeholder="Para entrega, informe o endereço"
-                  value={address}
-                  onChange={(e) => { setAddress(e.target.value); setAddressError(false); }}
-                  maxLength={200}
-                />
-              </div>
+              {orderType === "Entrega" && (
+                <>
+                  <div>
+                    <Label htmlFor="buyer-address" className="text-xs font-medium mb-1 block">
+                      Endereço <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="buyer-address"
+                      placeholder="Rua, número, complemento, bairro"
+                      value={address}
+                      onChange={(e) => { setAddress(e.target.value); setAddressError(false); }}
+                      maxLength={200}
+                    />
+                  </div>
 
-              <div>
-                <Label htmlFor="buyer-address-confirm" className="text-xs font-medium mb-1 block">
-                  Confirme o Endereço <span className="text-muted-foreground font-normal">(opcional)</span>
-                </Label>
-                <Input
-                  id="buyer-address-confirm"
-                  placeholder="Digite novamente para confirmar"
-                  value={addressConfirm}
-                  onChange={(e) => { setAddressConfirm(e.target.value); setAddressError(false); }}
-                  maxLength={200}
-                  className={addressError ? "border-destructive" : ""}
-                />
-                {addressError && (
-                  <p className="text-destructive text-xs mt-1">⚠ Os endereços não conferem</p>
-                )}
-              </div>
+                  <div>
+                    <Label htmlFor="buyer-address-confirm" className="text-xs font-medium mb-1 block">
+                      Confirme o Endereço <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="buyer-address-confirm"
+                      placeholder="Digite novamente para confirmar"
+                      value={addressConfirm}
+                      onChange={(e) => { setAddressConfirm(e.target.value); setAddressError(false); }}
+                      maxLength={200}
+                      className={addressError ? "border-destructive" : ""}
+                    />
+                    {addressError && (
+                      <p className="text-destructive text-xs mt-1">⚠ Os endereços não conferem</p>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div>
                 <Label className="text-xs font-medium mb-1 block">
