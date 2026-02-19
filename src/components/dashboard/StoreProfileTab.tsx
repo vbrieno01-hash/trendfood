@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Loader2, Copy, Check, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Camera, Loader2, Copy, Check, X, Search } from "lucide-react";
 import { toast } from "sonner";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
 import { BusinessHours, DeliveryConfig } from "@/hooks/useOrganization";
@@ -28,6 +29,47 @@ interface Organization {
 
 
 const EMOJI_OPTIONS = ["🍔", "🌮", "🍕", "🍜", "🌯", "🥪", "🍗", "🥗", "🍣", "🥩", "🍟", "🧆"];
+
+const BRAZIL_STATES = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
+  "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
+];
+
+interface AddressFields {
+  cep: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+}
+
+function buildStoreAddress(f: AddressFields): string {
+  const parts = [f.street, f.number, f.complement, f.neighborhood, f.city, f.state, "Brasil"]
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.join(", ");
+}
+
+function parseStoreAddress(address: string): AddressFields {
+  // Try to parse a previously-saved structured address (comma-separated)
+  // For legacy free-text, leave street filled and rest empty
+  const parts = address.split(",").map((p) => p.trim());
+  if (parts.length >= 6 && BRAZIL_STATES.includes(parts[parts.length - 2])) {
+    // Format: street, number, [complement,] neighborhood, city, state, Brasil
+    const withoutBrasil = parts[parts.length - 1].toLowerCase() === "brasil" ? parts.slice(0, -1) : parts;
+    const state = withoutBrasil[withoutBrasil.length - 1];
+    const city = withoutBrasil[withoutBrasil.length - 2];
+    const neighborhood = withoutBrasil[withoutBrasil.length - 3] ?? "";
+    const number = withoutBrasil[1] ?? "";
+    const street = withoutBrasil[0] ?? "";
+    const complement = withoutBrasil.length === 6 ? withoutBrasil[2] : "";
+    return { cep: "", street, number, complement, neighborhood, city, state };
+  }
+  // Fallback: put entire string in street
+  return { cep: "", street: address, number: "", complement: "", neighborhood: "", city: "", state: "" };
+}
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
@@ -58,6 +100,10 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   const [businessHours, setBusinessHours] = useState<BusinessHours>(
     organization.business_hours ?? DEFAULT_BUSINESS_HOURS
   );
+  const [addressFields, setAddressFields] = useState<AddressFields>(
+    organization.store_address ? parseStoreAddress(organization.store_address) : { cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" }
+  );
+  const [cepFetching, setCepFetching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoRemoving, setLogoRemoving] = useState(false);
@@ -83,7 +129,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           whatsapp: form.whatsapp || null,
           pix_key: form.pix_key || null,
           business_hours: businessHours as unknown as never,
-          store_address: form.store_address || null,
+          store_address: buildStoreAddress(addressFields) || null,
           delivery_config: deliveryConfig as unknown as never,
         })
         .eq("id", organization.id);
@@ -152,6 +198,31 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success("Link copiado!");
+  };
+
+  const fetchCep = async (cep: string) => {
+    const cleaned = cep.replace(/\D/g, "");
+    if (cleaned.length !== 8) return;
+    setCepFetching(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        toast.error("CEP não encontrado.");
+        return;
+      }
+      setAddressFields((p) => ({
+        ...p,
+        street: data.logradouro ?? p.street,
+        neighborhood: data.bairro ?? p.neighborhood,
+        city: data.localidade ?? p.city,
+        state: data.uf ?? p.state,
+      }));
+    } catch {
+      toast.error("Erro ao buscar CEP.");
+    } finally {
+      setCepFetching(false);
+    }
   };
 
   return (
@@ -383,21 +454,136 @@ export default function StoreProfileTab({ organization }: { organization: Organi
       <div>
         <SectionHeader>Entrega e Frete</SectionHeader>
 
-        <div className="mb-5">
-          <Label htmlFor="store-address" className="text-sm font-medium">
+        {/* CEP + auto-fill */}
+        <div className="mb-4">
+          <Label className="text-sm font-medium">
             Endereço da loja <span className="text-muted-foreground font-normal">(origem do cálculo de frete)</span>
           </Label>
-          <Input
-            id="store-address"
-            value={form.store_address}
-            onChange={(e) => setForm((p) => ({ ...p, store_address: e.target.value }))}
-            placeholder="Ex: Av. Nove de Abril, 123, Centro, Cubatão, SP"
-            className="mt-1"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Usado para calcular a distância até o endereço do cliente automaticamente.
+          <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+            Preencha o CEP para preenchimento automático. Usado para calcular o frete até o cliente.
           </p>
+
+          {/* CEP row */}
+          <div className="flex gap-2 mb-3">
+            <div className="flex-1">
+              <Label htmlFor="addr-cep" className="text-xs font-medium mb-1 block">CEP *</Label>
+              <Input
+                id="addr-cep"
+                value={addressFields.cep}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, 8);
+                  const formatted = v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v;
+                  setAddressFields((p) => ({ ...p, cep: formatted }));
+                }}
+                onBlur={(e) => fetchCep(e.target.value)}
+                placeholder="00000-000"
+                inputMode="numeric"
+                className="font-mono"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 gap-1.5"
+                disabled={cepFetching}
+                onClick={() => fetchCep(addressFields.cep)}
+              >
+                {cepFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                {cepFetching ? "Buscando..." : "Buscar"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Street + Number */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="col-span-2">
+              <Label htmlFor="addr-street" className="text-xs font-medium mb-1 block">Logradouro *</Label>
+              <Input
+                id="addr-street"
+                value={addressFields.street}
+                onChange={(e) => setAddressFields((p) => ({ ...p, street: e.target.value }))}
+                placeholder="Rua, Av., etc."
+              />
+            </div>
+            <div>
+              <Label htmlFor="addr-number" className="text-xs font-medium mb-1 block">Número *</Label>
+              <Input
+                id="addr-number"
+                value={addressFields.number}
+                onChange={(e) => setAddressFields((p) => ({ ...p, number: e.target.value }))}
+                placeholder="123"
+              />
+            </div>
+          </div>
+
+          {/* Complement */}
+          <div className="mb-3">
+            <Label htmlFor="addr-complement" className="text-xs font-medium mb-1 block">
+              Complemento <span className="text-muted-foreground font-normal">(opcional)</span>
+            </Label>
+            <Input
+              id="addr-complement"
+              value={addressFields.complement}
+              onChange={(e) => setAddressFields((p) => ({ ...p, complement: e.target.value }))}
+              placeholder="Apto, Sala, Bloco..."
+            />
+          </div>
+
+          {/* Neighborhood + City */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <Label htmlFor="addr-neighborhood" className="text-xs font-medium mb-1 block">
+                Bairro <span className="text-muted-foreground font-normal">(opcional)</span>
+              </Label>
+              <Input
+                id="addr-neighborhood"
+                value={addressFields.neighborhood}
+                onChange={(e) => setAddressFields((p) => ({ ...p, neighborhood: e.target.value }))}
+                placeholder="Centro"
+              />
+            </div>
+            <div>
+              <Label htmlFor="addr-city" className="text-xs font-medium mb-1 block">Cidade *</Label>
+              <Input
+                id="addr-city"
+                value={addressFields.city}
+                onChange={(e) => setAddressFields((p) => ({ ...p, city: e.target.value }))}
+                placeholder="Cubatão"
+              />
+            </div>
+          </div>
+
+          {/* State */}
+          <div className="w-32">
+            <Label className="text-xs font-medium mb-1 block">Estado *</Label>
+            <Select
+              value={addressFields.state}
+              onValueChange={(v) => setAddressFields((p) => ({ ...p, state: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="UF" />
+              </SelectTrigger>
+              <SelectContent>
+                {BRAZIL_STATES.map((uf) => (
+                  <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Preview string */}
+          {buildStoreAddress(addressFields) && (
+            <div className="mt-3 bg-secondary/50 rounded-lg px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Endereço salvo: </span>
+                {buildStoreAddress(addressFields)}
+              </p>
+            </div>
+          )}
         </div>
+
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
