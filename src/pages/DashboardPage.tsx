@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
   ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download,
-  History, Tag, BarChart2
+  History, Tag, BarChart2, Wallet
 } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -24,8 +24,9 @@ import WaiterTab from "@/components/dashboard/WaiterTab";
 import HistoryTab from "@/components/dashboard/HistoryTab";
 import CouponsTab from "@/components/dashboard/CouponsTab";
 import BestSellersTab from "@/components/dashboard/BestSellersTab";
+import CaixaTab from "@/components/dashboard/CaixaTab";
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -140,6 +141,7 @@ const DashboardPage = () => {
   const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string }[] = [
     { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)" },
     { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Painel do Garçom" },
+    { key: "caixa", icon: <Wallet className="w-4 h-4" />, label: "Caixa" },
   ];
 
   const navItemsBottom: { key: TabKey; icon: React.ReactNode; label: string }[] = [
@@ -340,6 +342,7 @@ const DashboardPage = () => {
           {activeTab === "bestsellers" && <BestSellersTab orgId={organization.id} />}
           {activeTab === "kitchen" && <KitchenTab orgId={organization.id} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />}
           {activeTab === "waiter" && <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />}
+          {activeTab === "caixa" && <CaixaTab orgId={organization.id} />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
