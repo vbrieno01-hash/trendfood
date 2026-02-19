@@ -1,77 +1,110 @@
 
-# Corrigir o scroll do cardápio que volta sozinho
+# Integrar Cozinha (KDS) e Garçom ao Dashboard Principal
 
-## Causa do Problema
+## Visão Geral
 
-No arquivo `src/pages/UnitPage.tsx`, o `IntersectionObserver` tem esta lógica:
+Atualmente, `KitchenPage` e `WaiterPage` são páginas independentes que usam `?org=slug` na URL e têm seu próprio header. O objetivo é transformá-los em **painéis internos do dashboard**, dentro do mesmo layout com sidebar — exatamente como as abas "Home", "Mesas", etc.
 
-```tsx
-([entry]) => {
-  if (entry.isIntersecting) {
-    setActiveCategory(group.value);
-    // PROBLEMA: Este scrollIntoView está causando o jump!
-    const pill = document.getElementById(`pill-${group.value}`);
-    pill?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }
-},
+---
+
+## Estratégia de Implementação
+
+A abordagem mais limpa é **extrair o conteúdo funcional** de cada página em componentes de aba (`KitchenTab` e `WaiterTab`), que recebem o `organization` diretamente do contexto de autenticação (já disponível no `DashboardPage`) — eliminando a necessidade do `?org=slug`.
+
+```text
+DashboardPage
+├── Sidebar (nav lateral)
+│   ├── Home
+│   ├── Meu Cardápio
+│   ├── Mesas
+│   ├── Gerenciar Mural
+│   ├── ── Operações ──        ← novo separador visual
+│   ├── Cozinha (KDS)          ← novo item
+│   ├── Painel do Garçom       ← novo item
+│   ├── ── ──
+│   ├── Perfil da Loja
+│   └── Configurações
+└── <main>
+    └── {activeTab === "kitchen" && <KitchenTab orgId={org.id} />}
+        {activeTab === "waiter"  && <WaiterTab  orgId={org.id} />}
 ```
 
-Quando o usuário rola a página para baixo, o observer detecta a seção visível e chama `pill?.scrollIntoView(...)`. O `scrollIntoView` pode interferir com o scroll principal da página (window scroll), especialmente em mobile, causando o efeito de "voltar sozinho".
+---
 
-## Solução
+## Arquivos a Criar
 
-**Substituir `scrollIntoView` pelo scroll manual na nav bar**, usando `scrollLeft` diretamente no container da nav, sem afetar o scroll da página principal.
+### 1. `src/components/dashboard/KitchenTab.tsx`
 
-Também vou **adicionar um flag de controle** (`isScrollingByClick`) para evitar que o observer interfira quando o próprio usuário clicar em uma pill (o que causaria duplo scroll).
+Extrai toda a lógica de `KitchenPage.tsx` como componente de aba:
+- Recebe `orgId: string` como prop (sem necessidade de URL params)
+- Mantém toda a lógica de `loadingIds`, `playBell`, realtime via Supabase, badge "NOVO!", timer de 5s
+- Remove o `<header>` e `min-h-screen` — adapta para ocupar o espaço central do dashboard
+- Adiciona um título de seção estilizado no topo da aba
 
-### Mudanças em `src/pages/UnitPage.tsx`
+### 2. `src/components/dashboard/WaiterTab.tsx`
 
-**1. Adicionar um ref de controle de clique:**
+Extrai toda a lógica de `WaiterPage.tsx` como componente de aba:
+- Recebe `orgId: string` como prop
+- Mantém realtime, botão "Marcar como Entregue"
+- Remove `<header>` e `min-h-screen`
+- Adiciona loading state e prevenção de duplo clique (melhoria sobre a versão atual)
+
+---
+
+## Arquivos a Modificar
+
+### 3. `src/pages/DashboardPage.tsx`
+
+**a) Atualizar o tipo `TabKey`:**
 ```tsx
-const isScrollingByClick = useRef(false);
+type TabKey = "home" | "menu" | "tables" | "mural" | "kitchen" | "waiter" | "profile" | "settings";
 ```
 
-**2. Corrigir o callback do IntersectionObserver** — remover o `scrollIntoView` e substituir por scroll manual no container da nav:
+**b) Adicionar novos ícones e items ao `navItems`:**
 ```tsx
-([entry]) => {
-  if (entry.isIntersecting && !isScrollingByClick.current) {
-    setActiveCategory(group.value);
-    // Scroll manual da pill na nav — não afeta o scroll da página
-    const navEl = categoryNavRef.current;
-    const pill = document.getElementById(`pill-${group.value}`);
-    if (navEl && pill) {
-      const pillLeft = pill.offsetLeft - navEl.offsetLeft;
-      const pillCenter = pillLeft - navEl.clientWidth / 2 + pill.clientWidth / 2;
-      navEl.scrollTo({ left: pillCenter, behavior: "smooth" });
-    }
-  }
-},
+import { Flame, BellRing } from "lucide-react";
+
+// Inserir após "mural", antes de "profile":
+{ key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)" },
+{ key: "waiter",  icon: <BellRing className="w-4 h-4" />, label: "Painel do Garçom" },
 ```
 
-**3. Corrigir o `scrollToCategory`** — setar o flag antes de rolar e liberar depois:
+**c) Adicionar separador visual "Operações" no sidebar** — um pequeno label de seção entre as abas de gestão e as abas operacionais, sem quebrar o layout.
+
+**d) Renderizar as novas abas em `<main>`:**
 ```tsx
-const scrollToCategory = (value: string) => {
-  setActiveCategory(value);
-  isScrollingByClick.current = true;
-  const el = document.getElementById(`cat-${value}`);
-  if (el) {
-    const offset = 110;
-    const top = el.getBoundingClientRect().top + window.scrollY - offset;
-    window.scrollTo({ top, behavior: "smooth" });
-  }
-  // Libera o flag após o tempo do scroll suave (~700ms)
-  setTimeout(() => { isScrollingByClick.current = false; }, 800);
-};
+{activeTab === "kitchen" && <KitchenTab orgId={organization.id} />}
+{activeTab === "waiter"  && <WaiterTab  orgId={organization.id} />}
 ```
 
-## Por que isso resolve
+**e) Ajustar o padding do `<main>`** para as abas de cozinha e garçom — elas são densas e se beneficiam de menos padding lateral para mostrar mais cards.
 
-- O `scrollIntoView` nativo pode afetar qualquer scroll pai, incluindo o `window`, causando o "pulo" indesejado na página.
-- O scroll manual via `navEl.scrollTo()` afeta **apenas** o container horizontal da nav bar, sem tocar no scroll vertical da página.
-- O flag `isScrollingByClick` evita conflito quando o usuário clica numa pill (o observer não vai sobrescrever o scroll programático).
+---
 
-## Arquivo afetado
+## Ícones Utilizados (lucide-react — já instalado)
+
+| Painel | Ícone | Justificativa |
+|---|---|---|
+| Cozinha (KDS) | `Flame` | Representa calor, fogo, cozinha |
+| Painel do Garçom | `BellRing` | Sino de chamada, notificação de entrega |
+
+---
+
+## Detalhes Técnicos
+
+- **Sem mudança nas rotas existentes** — `/cozinha` e `/garcom` continuam funcionando para uso em dispositivos dedicados (tablet na cozinha). A integração ao dashboard é **adicional**.
+- **Sem queries duplicadas** — o `orgId` vem direto do `organization.id` do contexto auth, sem necessidade de buscar a organização novamente.
+- **Realtime**: cada tab faz seu próprio `subscribe`/`unsubscribe` via `useEffect` — quando a aba não está ativa, o componente não é renderizado, então não haverá conexões abertas desnecessariamente.
+- **Responsividade**: os cards de pedido já usam `grid gap-4 md:grid-cols-2` — funcionará bem no espaço central do dashboard tanto em mobile quanto em desktop.
+
+---
+
+## Arquivos Afetados
 
 | Arquivo | Ação |
 |---|---|
-| `src/pages/UnitPage.tsx` | Corrigir callback do IntersectionObserver e função `scrollToCategory` |
+| `src/components/dashboard/KitchenTab.tsx` | Criar — conteúdo funcional da tela de cozinha |
+| `src/components/dashboard/WaiterTab.tsx` | Criar — conteúdo funcional do painel do garçom |
+| `src/pages/DashboardPage.tsx` | Modificar — adicionar itens no sidebar e renderizar novas abas |
+| `src/pages/KitchenPage.tsx` | Sem alteração — continua disponível como rota independente |
+| `src/pages/WaiterPage.tsx` | Sem alteração — continua disponível como rota independente |
