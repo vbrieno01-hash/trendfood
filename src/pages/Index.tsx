@@ -185,20 +185,12 @@ const Index = () => {
               Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex justify-center">
               <Button size="lg" className="text-base font-bold gap-2 shadow-lg shadow-primary/40" asChild>
                 <Link to="/auth">
                   Começar Grátis
                   <ArrowRight className="w-4 h-4" />
                 </Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-base border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent"
-                asChild
-              >
-                <Link to="/unidade/burguer-da-hora">Ver Cardápio Demo</Link>
               </Button>
             </div>
 
