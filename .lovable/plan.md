@@ -1,69 +1,49 @@
 
 
-# Nome por pedido + Pagamento na hora (Mesa)
+# Seleção de forma de pagamento antes do QR Code
 
 ## Resumo
 
-Duas melhorias no fluxo de pedido presencial (`TableOrderPage`):
+Adicionar uma etapa intermediaria apos o envio do pedido onde o cliente escolhe a forma de pagamento:
 
-1. **Nome do cliente em cada item** -- Para mesas com varias pessoas, cada um informa seu nome ao adicionar itens. A cozinha e o garcom sabem exatamente quem pediu o que.
+- **PIX**: mostra o QR Code na hora para pagamento imediato
+- **Cartao**: mostra mensagem informando que o pagamento sera feito ao final da refeicao
 
-2. **Pagamento via PIX na hora** -- Apos finalizar o pedido, o cliente ve um QR Code PIX com o valor total para pagar imediatamente pelo celular.
+## Fluxo
 
----
+1. Cliente monta o pedido e clica "Finalizar Pedido"
+2. Pedido e enviado normalmente
+3. Tela de sucesso aparece com duas opcoes: "Pagar com PIX" e "Pagar com Cartao"
+4. Se escolher PIX: exibe QR Code + botao copiar codigo
+5. Se escolher Cartao: exibe mensagem "Pagamento sera realizado ao final da refeicao" com icone de cartao
 
 ## Detalhes tecnicos
 
-### 1. Nome por item no carrinho
+### Arquivo: `src/pages/TableOrderPage.tsx`
 
-**Banco de dados** -- Adicionar coluna `customer_name` na tabela `order_items`:
+- Adicionar estado `paymentMethod` com valores `null | "pix" | "card"`
+- Na tela de sucesso (`if (success)`), quando `paymentMethod` for `null`, mostrar os dois botoes de escolha
+- Ao clicar em PIX, setar `paymentMethod = "pix"` e exibir o QR Code (comportamento atual)
+- Ao clicar em Cartao, setar `paymentMethod = "card"` e exibir mensagem de pagamento posterior
+- O QR Code PIX so aparece se a organizacao tiver `pix_key` configurada. Caso contrario, o botao PIX fica desabilitado ou oculto
+
+### Interface da tela de selecao
+
+Dois cards lado a lado com icones:
+- Card PIX: icone QR/PIX, texto "Pagar agora com PIX"
+- Card Cartao: icone cartao, texto "Pagar no final"
+
+### Salvar forma de pagamento no pedido
+
+Adicionar coluna `payment_method` na tabela `orders` para registrar a escolha:
 
 ```sql
-ALTER TABLE order_items ADD COLUMN customer_name text;
+ALTER TABLE public.orders ADD COLUMN payment_method text DEFAULT 'pending';
 ```
 
-**Frontend (`TableOrderPage.tsx`):**
-- Adicionar um campo "Seu nome" no topo da pagina (abaixo do header), salvo em estado `customerName`
-- Ao adicionar itens ao carrinho, gravar o `customerName` junto com cada item
-- A interface do carrinho mostra os itens agrupados por nome: "Joao: 1x X-Burger, 1x Coca" / "Maria: 1x Salada"
-- O campo de nome e obrigatorio antes de adicionar o primeiro item
+Apos o cliente escolher, atualizar o pedido com `payment_method = 'pix'` ou `payment_method = 'card'`. Isso ajuda o garcom/caixa a saber como cada mesa vai pagar.
 
-**CartItem atualizado:**
-```typescript
-interface CartItem {
-  menu_item_id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  customer_name: string;  // novo
-}
-```
+### Visibilidade no dashboard
 
-**Hook `usePlaceOrder`** -- Incluir `customer_name` ao inserir `order_items`.
-
-**KitchenTab e WaiterTab** -- Exibir o nome do cliente ao lado de cada item (ex: "2x X-Burger -- Joao").
-
-**Impressao (`printOrder.ts`)** -- Incluir o nome do cliente na linha de cada item impresso.
-
-### 2. Pagamento PIX na tela de sucesso
-
-**Tela de sucesso (`TableOrderPage.tsx`):**
-- Apos enviar o pedido, exibir o QR Code PIX usando a funcao `buildPixPayload` ja existente em `printOrder.ts`
-- Extrair a logica de geracao do payload PIX para uma funcao reutilizavel
-- Usar `qrcode.react` (ja instalado) para renderizar o QR inline na tela
-- Mostrar o valor total e instrucoes "Aponte a camera do seu banco para pagar"
-- Botao "Copiar codigo PIX" para colar no app do banco
-
-**Requisito:** A organizacao precisa ter `pix_key` configurado. Se nao tiver, a tela de sucesso mostra apenas a confirmacao normal sem QR.
-
-### Arquivos modificados
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `order_items` (banco) | Adicionar coluna `customer_name` |
-| `src/pages/TableOrderPage.tsx` | Campo nome, carrinho por pessoa, tela PIX |
-| `src/hooks/useOrders.ts` | Incluir `customer_name` no insert e interface |
-| `src/components/dashboard/KitchenTab.tsx` | Mostrar nome do cliente nos itens |
-| `src/components/dashboard/WaiterTab.tsx` | Mostrar nome do cliente nos itens |
-| `src/lib/printOrder.ts` | Extrair `buildPixPayload`, nome no item |
+No `WaiterTab` e `KitchenTab`, exibir um badge indicando a forma de pagamento escolhida (ex: "PIX" em verde, "Cartao" em azul).
 
