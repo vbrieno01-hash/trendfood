@@ -1,150 +1,102 @@
 
-# Cardápio Digital de Vendas — Carrinho + WhatsApp + Assinatura
+# Menu de Navegação Rápida por Categoria (Estilo iFood)
 
-## Contexto do que já existe
+## Diagnóstico do que já existe
 
-A UnitPage já exibe o cardápio com foto/descrição/preço. Hoje, cada item tem um botão "Pedir" que abre o WhatsApp individualmente. A MenuTab no Dashboard já permite gerenciar produtos.
+Após explorar o código:
 
-O que falta:
-1. Substituir o botão "Pedir" por item por um botão "Adicionar ao Carrinho"
-2. Carrinho flutuante que acumula os itens escolhidos
-3. Modal de finalização com Nome, Endereço e Forma de Pagamento
-4. Mensagem formatada para o WhatsApp com todo o pedido
-5. Campo `subscription_status` na tabela `organizations` para controle de acesso ao Dashboard
+- A coluna `category` já existe na tabela `menu_items` do banco de dados.
+- O array `CATEGORIES` com emojis e ordem já existe em `src/hooks/useMenuItems.ts`.
+- O `MenuTab` do Dashboard já tem o Select de categoria funcionando.
+- A `UnitPage` já agrupa os itens por categoria com título e emoji.
 
----
+**O que FALTA**: a barra de navegação rápida (pills clicáveis no topo do cardápio) que rola a página automaticamente até a seção correspondente.
 
-## 1 — Banco de Dados: `subscription_status`
-
-Adicionar coluna `subscription_status` na tabela `organizations`:
-
-```sql
-ALTER TABLE organizations
-  ADD COLUMN subscription_status text NOT NULL DEFAULT 'trial';
-```
-
-Valores possíveis: `'trial'` (acesso padrão para novos cadastros) | `'active'` (plano pago) | `'inactive'` (bloqueado).
-
-Não há mudanças de RLS — a coluna é consultada via `useAuth` que já carrega a organização completa do dono autenticado.
+Nenhuma mudança de banco de dados é necessária. Toda a mudança é exclusivamente visual/comportamental na `UnitPage`.
 
 ---
 
-## 2 — UnitPage: Carrinho Flutuante + Finalização via WhatsApp
+## O que vai mudar para o cliente
 
-### Mudanças no comportamento
-
-O botão "Pedir" (WhatsApp individual por item) será substituído por:
-- Botão **"+ Adicionar"** em cada card de produto
-- Um **carrinho flutuante fixo** no rodapé mostrando quantidade de itens e valor total
-- Ao clicar no carrinho, abre um **drawer/modal de finalização** com:
-  - Resumo dos itens (nome, qtd, preço unitário, subtotal)
-  - Campo **Nome** (texto)
-  - Campo **Endereço** (texto, para delivery — se aplicável)
-  - Campo **Forma de Pagamento** (select: Dinheiro, Cartão de Débito, Cartão de Crédito, PIX)
-  - Campo **Observações** (opcional)
-  - Botão **"Enviar pelo WhatsApp"** — monta e abre a mensagem formatada
-
-### Mensagem formatada para WhatsApp
+Dentro da aba "Cardápio" da página pública, **acima** dos itens, aparecerá uma barra horizontal rolável com chips por categoria:
 
 ```
-🍔 *Novo Pedido — Burger Palace*
-
-📋 *Itens:*
-• 2x Burguer Classic — R$ 51,80
-• 1x Coca-Cola — R$ 8,00
-
-💰 *Total: R$ 59,80*
-
-👤 *Nome:* João Silva
-🏠 *Endereço:* Rua das Flores, 123
-💳 *Pagamento:* PIX
-
-📝 *Obs:* Sem cebola no burger
+┌────────────────────────────────────────────────┐
+│  🍔 Hambúrgueres  🥤 Bebidas  🍟 Porções  ...  │
+└────────────────────────────────────────────────┘
 ```
 
-### Estado local do carrinho
-
-O carrinho vive em `useState` na `UnitPage` — sem persistência, sem banco de dados. Ao finalizar, abre `wa.me/55{whatsapp}?text={encodedMessage}` em nova aba.
-
-Condição: o botão "Enviar pelo WhatsApp" só aparece se o `org.whatsapp` estiver cadastrado. Caso contrário, exibe mensagem "Configure o WhatsApp no painel do lojista".
+- Ao clicar em um chip, a página rola suavemente até o título daquela categoria.
+- O chip da categoria visível no momento fica destacado (pill ativo com a cor primária do estabelecimento).
+- Categorias sem produtos não aparecem nem no menu de navegação nem no cardápio.
 
 ---
 
-## 3 — DashboardPage: Gate de Assinatura
+## Implementação técnica
 
-No `DashboardPage`, após carregar a `organization`, verificar o `subscription_status`:
+### 1 — IDs nas seções de categoria
 
-- `'active'` → acesso total ao dashboard (comportamento atual)
-- `'trial'` → acesso total com um **banner informativo** no topo: "Você está no período de teste."
-- `'inactive'` → bloquear o dashboard inteiro, exibir uma tela de paywall:
+Cada título de categoria recebe um `id` fixo para que o scroll por âncora funcione:
 
-```text
-┌─────────────────────────────────────────────┐
-│  🔒 Sua assinatura está inativa             │
-│                                             │
-│  Para continuar usando o painel, ative      │
-│  seu plano. Entre em contato conosco.       │
-│                                             │
-│  [Falar no WhatsApp]    [Sair]              │
-└─────────────────────────────────────────────┘
+```tsx
+<div key={group.value} id={`cat-${group.value}`}>
+  <h2>...</h2>
+  ...
+</div>
 ```
 
-O `subscription_status` virá da `organization` já carregada pelo `useAuth` — sem nova query necessária.
+### 2 — Barra de pills com scroll ativo
+
+Um `useRef` mapeado com `useIntersectionObserver` detecta qual categoria está visível na tela e marca o pill correspondente como ativo:
+
+```tsx
+const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+// IntersectionObserver para detectar seção visível
+useEffect(() => {
+  const observers = groupedMenu.map((group) => {
+    const el = document.getElementById(`cat-${group.value}`);
+    if (!el) return null;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setActiveCategory(group.value); },
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return obs;
+  });
+  return () => observers.forEach((o) => o?.disconnect());
+}, [groupedMenu]);
+```
+
+### 3 — Scroll suave ao clicar
+
+```tsx
+const scrollToCategory = (value: string) => {
+  const el = document.getElementById(`cat-${value}`);
+  el?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+```
+
+### 4 — Pill ativo com cor primária do estabelecimento
+
+O pill ativo usa `style={{ backgroundColor: primaryColor }}` para respeitar a identidade visual de cada lanchonete, exatamente como o botão "Adicionar" já faz.
 
 ---
 
-## 4 — HomeTab: Atualizar descrição
-
-Mudar o subtítulo do HomeTab de "Aqui está um resumo das suas sugestões" para incluir também o status da assinatura em um badge discreto.
-
----
-
-## Resumo dos arquivos afetados
+## Arquivos afetados
 
 | Arquivo | Ação |
 |---|---|
-| Migration SQL | Adicionar `subscription_status` em `organizations` |
-| `src/pages/UnitPage.tsx` | Refatorar cardápio: carrinho local + drawer de finalização + mensagem WhatsApp |
-| `src/pages/DashboardPage.tsx` | Adicionar gate de assinatura baseado em `subscription_status` |
-| `src/components/dashboard/HomeTab.tsx` | Badge de status da assinatura no cabeçalho |
-| `src/hooks/useAuth.tsx` | Adicionar `subscription_status` ao tipo `Organization` |
+| `src/pages/UnitPage.tsx` | Adicionar barra de navegação por categoria com IntersectionObserver e scroll suave |
 
-Nenhuma mudança em: `MenuTab`, `TablesTab`, `KitchenPage`, `WaiterPage`, `MuralTab`, rotas.
-
----
-
-## Detalhes do carrinho na UnitPage
-
-### Estado
-
-```typescript
-type CartItem = { id: string; name: string; price: number; qty: number; };
-const [cart, setCart] = useState<Record<string, CartItem>>({});
-const [checkoutOpen, setCheckoutOpen] = useState(false);
-```
-
-### Componentes visuais
-
-1. **Card de produto** — botão `[+]` (se qty = 0) ou `[−] N [+]` (se qty > 0)
-2. **Barra flutuante** — aparece quando `totalItems > 0`:
-   - `🛒 3 itens — R$ 59,80` → `[Ver pedido →]`
-3. **Drawer de finalização** (usa o `Drawer` do vaul que já está instalado):
-   - Lista de itens com subtotal
-   - Inputs: Nome*, Endereço, Forma de Pagamento (Select), Observações
-   - Botão verde `Enviar pelo WhatsApp` com ícone do WhatsApp
-
-### Validação
-
-- Nome é obrigatório para enviar
-- Forma de Pagamento deve ser selecionada
-- Se `org.whatsapp` não estiver cadastrado, exibe alerta em vez do botão
+Nenhum outro arquivo precisa ser alterado.
 
 ---
 
 ## O que NÃO muda
 
-- `TableOrderPage` (fluxo de pedido interno por mesa — sem WhatsApp)
-- `KitchenPage`, `WaiterPage`
-- `MenuTab` (gestão de produtos no dashboard)
-- `MuralTab`, `StoreProfileTab`, `SettingsTab`
-- Sistema de auth e rotas
+- Banco de dados: sem migrações.
+- `MenuTab` do Dashboard: sem alterações.
+- `useMenuItems.ts`, `CATEGORIES`: sem alterações.
+- Fluxo do carrinho e WhatsApp: sem alterações.
+- Design dos cards de produto: sem alterações.
