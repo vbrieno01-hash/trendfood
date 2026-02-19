@@ -9,7 +9,8 @@ import { buildPixPayload } from "@/lib/pixPayload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy } from "lucide-react";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 
@@ -40,6 +41,8 @@ export default function TableOrderPage() {
   const [customerName, setCustomerName] = useState("");
   const [success, setSuccess] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card">(null);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -150,7 +153,7 @@ export default function TableOrderPage() {
         : `CUPOM:${appliedCoupon.code}`;
     }
 
-    await placeOrder.mutateAsync({
+    const order = await placeOrder.mutateAsync({
       organizationId: org.id,
       tableNumber: tableNum,
       notes: finalNotes,
@@ -161,7 +164,9 @@ export default function TableOrderPage() {
       await incrementCouponUses(appliedCoupon.id);
     }
 
+    setOrderId(order.id);
     setOrderTotal(totalPrice);
+    setPaymentMethod(null);
     setSuccess(true);
   };
 
@@ -181,24 +186,69 @@ export default function TableOrderPage() {
     );
   }
 
+  const handleSelectPayment = async (method: "pix" | "card") => {
+    setPaymentMethod(method);
+    if (orderId) {
+      await supabase.from("orders").update({ payment_method: method } as never).eq("id", orderId);
+    }
+  };
+
   if (success) {
     const pixPayload = org.pix_key && orderTotal > 0
       ? buildPixPayload(org.pix_key, orderTotal, org.name)
       : null;
 
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center space-y-4 max-w-sm w-full">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
-          <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
-          <p className="text-muted-foreground">
-            Seu pedido para a <strong>Mesa {tableNum}</strong> foi recebido. Em breve a cozinha irá preparar!
-          </p>
+    // Step 1: Choose payment method
+    if (!paymentMethod) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="text-center space-y-6 max-w-sm w-full">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+            <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
+            <p className="text-muted-foreground">
+              Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
+            </p>
+            <p className="text-sm font-medium text-foreground">Como deseja pagar?</p>
 
-          {/* PIX QR Code */}
-          {pixPayload && (
+            <div className="grid grid-cols-2 gap-3">
+              {/* PIX card */}
+              <button
+                onClick={() => handleSelectPayment("pix")}
+                disabled={!pixPayload}
+                className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <QrCode className="w-10 h-10 text-green-600" />
+                <span className="font-bold text-sm text-foreground">Pagar com PIX</span>
+                <span className="text-xs text-muted-foreground">Pague agora</span>
+              </button>
+
+              {/* Card */}
+              <button
+                onClick={() => handleSelectPayment("card")}
+                className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-border bg-card hover:border-blue-400 hover:bg-blue-50 transition-all"
+              >
+                <CreditCard className="w-10 h-10 text-blue-600" />
+                <span className="font-bold text-sm text-foreground">Cartão</span>
+                <span className="text-xs text-muted-foreground">Pague no final</span>
+              </button>
+            </div>
+
+            {!pixPayload && (
+              <p className="text-xs text-muted-foreground">PIX indisponível — chave não configurada.</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Step 2a: PIX chosen
+    if (paymentMethod === "pix" && pixPayload) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="text-center space-y-4 max-w-sm w-full">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+            <h1 className="text-2xl font-bold text-foreground">Pague com PIX</h1>
             <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
-              <p className="font-bold text-foreground text-lg">Pague agora com Pix</p>
               <p className="text-2xl font-black text-primary">
                 R$ {orderTotal.toFixed(2).replace(".", ",")}
               </p>
@@ -221,17 +271,37 @@ export default function TableOrderPage() {
                 Copiar código Pix
               </Button>
             </div>
-          )}
+            <Button
+              variant="ghost"
+              onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); }}
+              className="w-full text-sm text-muted-foreground"
+            >
+              Fazer outro pedido nesta mesa
+            </Button>
+          </div>
+        </div>
+      );
+    }
 
-          <Button
-            onClick={() => navigate("/dashboard", { state: { tab: "tables" } })}
-            className="w-full"
-          >
-            ← Voltar às Mesas
-          </Button>
+    // Step 2b: Card chosen
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center space-y-4 max-w-sm w-full">
+          <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+          <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
+          <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+            <CreditCard className="w-12 h-12 text-blue-500 mx-auto" />
+            <p className="font-bold text-foreground text-lg">Pagamento no final</p>
+            <p className="text-sm text-muted-foreground">
+              O pagamento com cartão será realizado ao final da refeição. Bom apetite! 🍽️
+            </p>
+            <p className="text-2xl font-black text-primary">
+              R$ {orderTotal.toFixed(2).replace(".", ",")}
+            </p>
+          </div>
           <Button
             variant="ghost"
-            onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); }}
+            onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); }}
             className="w-full text-sm text-muted-foreground"
           >
             Fazer outro pedido nesta mesa

@@ -243,6 +243,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           paid: boolean
+          payment_method: string | null
           status: string
           table_number: number
         }
@@ -252,6 +253,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           paid?: boolean
+          payment_method?: string | null
           status?: string
           table_number: number
         }
@@ -261,6 +263,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           paid?: boolean
+          payment_method?: string | null
           status?: string
           table_number?: number
         }
