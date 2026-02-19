@@ -1,81 +1,111 @@
 
-# Realtime não Funciona no Painel do Garçom — Diagnóstico e Correção
+# Três Melhorias: Gráfico, Pagamento e Resumo da Conta
 
-## Causa Raiz
+## O Problema Atual
 
-Há dois problemas que juntos fazem o painel não atualizar instantaneamente:
-
-### Problema 1 — Query Key incompatível no `invalidateQueries` do WaiterTab
-
-O React Query identifica caches usando comparação profunda de arrays. O `useOrders` registra o cache com a query key:
-
-```
-["orders", orgId, ["ready"]]   ← array passado pelo chamador
-```
-
-Já o `WaiterTab` tem um segundo canal realtime com seu próprio `invalidateQueries` hardcoded:
-
-```ts
-qc.invalidateQueries({ queryKey: ["orders", orgId, ["ready"]] });
-```
-
-Esse segundo canal cria uma instância nova do array `["ready"]` — e como o React Query compara arrays por identidade de referência no `invalidateQueries` com match exato, na prática o cache da query pode não ser atingido corretamente dependendo da versão.
-
-### Problema 2 — Dois canais realtime concorrentes
-
-O `useOrders` já cria seu próprio canal realtime para `orders` com o filtro correto. O `WaiterTab` cria **outro canal separado** (`waiter-tab-${orgId}`) escutando a mesma tabela. Isso gera dois canais abertos para a mesma coisa — o que pode causar conflitos de assinatura no WebSocket e resultar em eventos sendo descartados.
-
-### Problema 3 — `staleTime` padrão pode atrasar refetch
-
-O React Query tem `staleTime: 0` por padrão, mas se o `invalidateQueries` não bater exatamente com a query key (problema 1), o cache não é atualizado e o dado fica parado.
+O fluxo termina no garçom marcando "Entregue" — mas sem saber o valor total, sem registrar se pagou, e sem como enviar a conta ao cliente. O Home mostra sugestões (que foram removidas do sistema) em vez de dados reais do negócio.
 
 ---
 
-## Solução
+## O Que Vai Mudar
 
-### `src/components/dashboard/WaiterTab.tsx`
+### 1. Banco de Dados — Adicionar campo `paid` nos pedidos
 
-**Remover completamente o `useEffect` de realtime duplicado** — o `useOrders` já cuida disso internamente. Isso elimina o conflito de canais e simplifica o código.
+A tabela `orders` precisa de uma nova coluna booleana `paid` para registrar se a mesa pagou ou não.
 
-```tsx
-// REMOVER este useEffect inteiro do WaiterTab:
-useEffect(() => {
-  if (!orgId) return;
-  const channel = supabase
-    .channel(`waiter-tab-${orgId}`)
-    .on(...)
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [orgId, qc]);
+```sql
+ALTER TABLE public.orders ADD COLUMN paid boolean NOT NULL DEFAULT false;
 ```
 
-### `src/hooks/useOrders.ts`
-
-**Garantir que o `invalidateQueries` dentro do `useOrders` use `exact: false`** para que qualquer query key que comece com `["orders", organizationId]` seja invalidada, independente do array de statuses:
-
-```ts
-// Antes:
-qc.invalidateQueries({ queryKey: ["orders", organizationId, statuses] });
-
-// Depois (usa prefixo, invalida todos os status):
-qc.invalidateQueries({ queryKey: ["orders", organizationId] });
-```
-
-Isso garante que quando um pedido muda para `ready`, tanto o painel da cozinha (`["orders", orgId, ["pending","preparing"]]`) quanto o painel do garçom (`["orders", orgId, ["ready"]]`) são invalidados e refetchados imediatamente.
+Sem essa coluna não é possível rastrear pagamentos sem alterar o sistema de status.
 
 ---
 
-## Resultado Esperado
+### 2. HomeTab — Gráfico de Faturamento e Pedidos
 
-| Evento | Antes | Depois |
-|---|---|---|
-| Cozinha marca pedido como "Pronto" | Garçom precisa atualizar manualmente | Aparece instantaneamente no painel |
-| Novo pedido chega | Pode não aparecer sem refresh | Aparece instantaneamente |
-| Dois canais concorrentes | Possíveis conflitos de WebSocket | Um único canal estável por tabela |
+O `HomeTab` vai ser refeito para mostrar dados reais de operação do dia/semana:
+
+**Cards de resumo (hoje):**
+- Total de pedidos entregues
+- Faturamento total (R$)
+- Pedidos ainda em aberto (aguardando pagamento)
+- Ticket médio por mesa
+
+**Gráfico de barras (últimos 7 dias):**
+- Eixo X: dias da semana
+- Barras: quantidade de pedidos por dia
+- Linha: faturamento por dia
+
+O componente `recharts` já está instalado e é usado no projeto.
+
+---
+
+### 3. WaiterTab — Controle de Pagamento
+
+No painel do garçom, quando um pedido está com status `ready`, além de "Marcar como Entregue", será adicionado o **valor total da mesa** visível no card.
+
+Após marcar como entregue, o pedido vai aparecer numa nova seção **"Aguardando Pagamento"** com:
+- Número da mesa
+- Lista de itens e quantidades
+- **Valor total em destaque**
+- Botão **"Confirmar Pagamento"** — que marca `paid = true`
+- Botão **"📋 Enviar Conta"** — que abre o WhatsApp com o resumo formatado
+
+**Resumo formatado para WhatsApp (o "prompt único"):**
+
+```
+🧾 *Conta da Mesa 3*
+
+1× X-Burguer        R$ 18,00
+2× Coca-Cola        R$ 10,00
+1× Batata Frita     R$ 12,00
+─────────────────
+*Total: R$ 40,00*
+
+💳 Formas de pagamento aceitas:
+Dinheiro | Pix | Cartão
+
+Obrigado pela visita! 😊
+```
+
+O número de WhatsApp do estabelecimento está em `organization.whatsapp` — pode usar para pré-preencher também.
+
+---
 
 ## Arquivos Afetados
 
 | Arquivo | Ação |
 |---|---|
-| `src/hooks/useOrders.ts` | Mudar `invalidateQueries` para usar prefixo (`queryKey: ["orders", organizationId]`) |
-| `src/components/dashboard/WaiterTab.tsx` | Remover o `useEffect` de realtime duplicado e imports não usados |
+| Migração SQL | Adicionar coluna `paid boolean DEFAULT false` na tabela `orders` |
+| `src/hooks/useOrders.ts` | Adicionar interface `paid` no tipo `Order` + hook `useMarkAsPaid` + query `useDeliveredUnpaidOrders` |
+| `src/components/dashboard/HomeTab.tsx` | Reescrever para mostrar gráfico + cards com dados reais de pedidos |
+| `src/components/dashboard/WaiterTab.tsx` | Adicionar seção "Aguardando Pagamento" + botão "Confirmar Pagamento" + botão "Enviar Conta" com mensagem WhatsApp formatada |
+
+---
+
+## Fluxo Completo Após a Mudança
+
+```text
+Cliente faz pedido
+       ↓
+Cozinha prepara → marca "Pronto"
+       ↓
+Garçom entrega → marca "Entregue"
+       ↓
+Mesa aparece em "Aguardando Pagamento" 
+com valor total + botão Enviar Conta
+       ↓
+Garçom confirma pagamento → mesa sai da lista
+       ↓
+Home registra o faturamento no gráfico
+```
+
+---
+
+## Detalhes Técnicos
+
+- A query de "Aguardando Pagamento" busca `status = 'delivered'` E `paid = false`
+- O `useMarkAsPaid` faz `UPDATE orders SET paid = true WHERE id = ?`
+- O gráfico usa `recharts` (já instalado) com `BarChart` + `Bar`
+- O resumo WhatsApp usa `encodeURIComponent` para montar a URL `wa.me`
+- O `HomeTab` vai buscar pedidos com `status = 'delivered'` para calcular faturamento
