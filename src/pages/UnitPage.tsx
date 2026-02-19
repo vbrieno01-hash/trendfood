@@ -21,6 +21,7 @@ import {
 import { useOrganization } from "@/hooks/useOrganization";
 import { useSuggestions, useAddSuggestion, useIncrementVote } from "@/hooks/useSuggestions";
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
+import { getStoreStatus } from "@/lib/storeStatus";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pendente",
@@ -289,10 +290,31 @@ const UnitPage = () => {
 
       <main className="max-w-2xl mx-auto px-4 pb-32 pt-4">
         {/* Banner */}
+        {/* Banner */}
         <div
-          className="rounded-2xl p-4 mb-5 border"
+          className="rounded-2xl p-4 mb-5 border relative"
           style={{ backgroundColor: `${primaryColor}15`, borderColor: `${primaryColor}30` }}
         >
+          {/* Badge de status aberto/fechado */}
+          {(() => {
+            const status = getStoreStatus(org.business_hours);
+            if (!status) return null;
+            const isOpen = status.open;
+            const opensAt = !isOpen && "opensAt" in status ? status.opensAt : null;
+            return (
+              <span
+                className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  isOpen ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
+                }`}
+              >
+                {isOpen
+                  ? "Aberto agora"
+                  : opensAt
+                  ? `Fechado · abre às ${opensAt}`
+                  : "Fechado hoje"}
+              </span>
+            );
+          })()}
           <p className="text-lg font-bold text-foreground mb-0.5">{org.description || `Bem-vindo ao ${org.name}!`}</p>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5">
             <ShoppingCart className="w-3.5 h-3.5 shrink-0" />

@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Camera, Loader2, Copy, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
+import { BusinessHours } from "@/hooks/useOrganization";
 
 interface Organization {
   id: string;
@@ -17,6 +19,7 @@ interface Organization {
   primary_color: string;
   logo_url: string | null;
   whatsapp?: string | null;
+  business_hours?: BusinessHours | null;
 }
 
 const EMOJI_OPTIONS = ["🍔", "🌮", "🍕", "🍜", "🌯", "🥪", "🍗", "🥗", "🍣", "🥩", "🍟", "🧆"];
@@ -40,6 +43,9 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     primary_color: organization.primary_color,
     whatsapp: organization.whatsapp ?? "",
   });
+  const [businessHours, setBusinessHours] = useState<BusinessHours>(
+    organization.business_hours ?? DEFAULT_BUSINESS_HOURS
+  );
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoRemoving, setLogoRemoving] = useState(false);
@@ -63,6 +69,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           slug: form.slug,
           primary_color: form.primary_color,
           whatsapp: form.whatsapp || null,
+          business_hours: businessHours as unknown as never,
         })
         .eq("id", organization.id);
 
@@ -334,6 +341,12 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           </div>
           <p className="text-xs text-muted-foreground mt-1">Ativa o botão "Pedir no WhatsApp" na página pública.</p>
         </div>
+      </div>
+
+      {/* ── SEÇÃO 4: Horário de Funcionamento ─────────────────────── */}
+      <div>
+        <SectionHeader>Horário de Funcionamento</SectionHeader>
+        <BusinessHoursSection value={businessHours} onChange={setBusinessHours} />
       </div>
 
       <Button type="submit" className="w-full h-10" disabled={saving}>
