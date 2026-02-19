@@ -8,6 +8,9 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import UnitPage from "./pages/UnitPage";
 import DashboardPage from "./pages/DashboardPage";
+import TableOrderPage from "./pages/TableOrderPage";
+import KitchenPage from "./pages/KitchenPage";
+import WaiterPage from "./pages/WaiterPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -36,6 +39,9 @@ const App = () => (
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/cadastro" element={<AuthPage />} />
             <Route path="/unidade/:slug" element={<UnitPage />} />
+            <Route path="/unidade/:slug/mesa/:tableNumber" element={<TableOrderPage />} />
+            <Route path="/cozinha" element={<KitchenPage />} />
+            <Route path="/garcom" element={<WaiterPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
