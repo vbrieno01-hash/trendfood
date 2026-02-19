@@ -1,63 +1,48 @@
 
-# Redesign da Página Pública (UnitPage) — Cards Compactos
+# Grid de 3 Colunas na Página Pública — Cards Verticais Compactos
 
 ## Diagnóstico
 
-Os cards do cardápio estão grandes por três razões:
+O layout atual é uma **lista vertical de 1 coluna** com cards horizontais (thumbnail 72x72 à esquerda + texto à direita). Para fazer **3 colunas lado a lado**, o card precisa mudar de orientação: a foto vai para **cima** e o texto fica **embaixo** — modelo clássico de vitrine/loja.
 
-1. **`aspect-[4/3]`** na foto — cria uma imagem muito alta (75% da largura do card). Em mobile, com grid de 2 colunas, cada imagem ocupa quase metade da tela.
-2. **`grid gap-3 sm:grid-cols-2`** — em mobile, as 2 colunas tornam os cards estreitos e a imagem achatada fica desproporcional.
-3. Emojis decorativos espalhados: no banner (`🛒`), no título de sugestões (`💬`), nos itens do select de pagamento, e no empty state (`💡`).
-
-## Novo Layout — Lista Horizontal Compacta
-
-Cada item do cardápio vira uma **linha horizontal** com thumbnail pequeno à esquerda e informações à direita — padrão usado por iFood, Rappi e apps de delivery modernos:
+O problema de espaço é real: 3 colunas em mobile (390px) = ~118px de largura por card. Com o card horizontal atual (72px de thumb + texto), ficaria espremido demais. A solução é um **card vertical compacto**:
 
 ```text
-┌─────────────────────────────────────────────┐
-│  [Foto 72x72]  Nome do Item                  │
-│                Descrição curta truncada...   │
-│                R$ 36,00    [− 2 +] ou [+ Add]│
-└─────────────────────────────────────────────┘
+┌──────┐ ┌──────┐ ┌──────┐
+│ foto │ │ foto │ │ foto │
+│──────│ │──────│ │──────│
+│ Nome │ │ Nome │ │ Nome │
+│R$XX  │ │R$XX  │ │R$XX  │
+│[+Add]│ │[+Add]│ │[+Add]│
+└──────┘ └──────┘ └──────┘
 ```
 
-- Thumbnail: `w-[72px] h-[72px]` fixo, `rounded-xl`, object-cover
-- Altura total da linha: ~80px (vs. atual ~200px+)
-- Cabe 4-5x mais itens na tela ao mesmo tempo
+## Novo Layout — Grid 3 Colunas
 
-## Mudanças Específicas
+### Estrutura do card vertical
+- Container: `grid grid-cols-3 gap-2` (substitui `space-y-2`)
+- Card: `flex flex-col bg-card border border-border rounded-xl overflow-hidden`
+- Foto: `w-full aspect-square object-cover` — quadrado perfeito, preenche toda a largura
+- Placeholder sem foto: `aspect-square bg-secondary flex items-center justify-center` com `ImageOff`
+- Área de texto: `p-2 flex flex-col gap-1`
+- Nome: `text-xs font-semibold leading-tight line-clamp-2`
+- Preço: `text-xs font-bold` com a cor primária
+- Badge "Indisponível": `text-[10px]` abaixo do nome
+- Botão Adicionar: largura total `w-full`, `text-[10px] py-1`, centralizado — ou ícone `+` apenas quando item já está no carrinho (stepper compacto)
 
-### Cards do Cardápio
-- Remover grid de 2 colunas → lista vertical de 1 coluna (`space-y-2`)
-- Card vira `flex flex-row` (horizontal) com thumbnail à esquerda
-- Foto: `w-[72px] h-[72px] shrink-0 rounded-xl object-cover`
-- Placeholder sem foto: fundo `bg-secondary` com ícone `ImageOff` pequeno (sem emoji)
-- Padding interno: `p-3` (vs. o atual que tem foto `aspect-[4/3]` + `p-3` separados)
-- Nome: `text-sm font-semibold`
-- Descrição: `text-xs text-muted-foreground line-clamp-2` (já existe, mantido)
-- Preço: `text-sm font-bold`
-- Botão Adicionar: menor, `px-2.5 py-1` com ícone `Plus`
+### Controles de quantidade no grid 3 colunas
+Quando qty > 0, o stepper `[− N +]` precisa caber na largura de ~118px:
+- `flex items-center justify-between w-full`
+- Botões: `w-5 h-5 rounded-full`
+- Número: `text-xs font-bold`
 
-### Cabeçalho de Categoria
-- Remover emoji do `<h2>` — manter só o texto
-- Separador com linha horizontal sutil (já existe no dashboard, aplicar o mesmo padrão)
+### Descrição
+- **Removida** no grid de 3 colunas — não há espaço. O nome em `line-clamp-2` + preço já comunicam o essencial.
 
-### Banner superior
-- Remover emoji `🛒` da descrição — substituir por ícone Lucide `ShoppingCart` inline
-
-### Aba de Sugestões
-- Título: remover `💬` — manter o texto limpo
-- Empty state: trocar `💡` por ícone Lucide `Lightbulb`
-- Success state: trocar `🎉` por ícone Lucide `CheckCircle2` com cor verde
-- Select de pagamento: remover emojis (`💵`, `💳`, `📱`)
-
-### Sugestão Modal
-- Success state: trocar `🎉` por ícone `CheckCircle2` verde
-
-## Arquivos Afetados
+## Arquivo Afetado
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/UnitPage.tsx` | Cards de produto horizontais compactos, remoção de emojis decorativos, layout de lista |
+| `src/pages/UnitPage.tsx` | Linha 376: `space-y-2` → `grid grid-cols-3 gap-2`; Card muda de `flex-row` para `flex-col`; foto vira `aspect-square`; texto em `p-2`; descrição removida; stepper adaptado para espaço pequeno |
 
 Nenhuma mudança em banco de dados, rotas ou lógica de negócio.
