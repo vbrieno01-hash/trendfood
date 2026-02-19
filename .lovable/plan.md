@@ -1,78 +1,88 @@
 
-# Campos Estruturados de Endereço da Loja (CEP, Rua, Número, etc.)
+# Campos Estruturados de Endereço do Cliente no Checkout
 
 ## Problema atual
 
-O campo "Endereço da loja" é um único texto livre (`store_address`), o que faz com que os lojistas escrevam endereços incompletos como `"rua Jaime João olcese"` — sem número, cidade ou estado. Isso sabota o geocoding e impede o cálculo automático do frete.
+O campo de endereço do cliente no checkout é um único texto livre ("Rua, número, complemento, bairro"), sem cidade nem estado. O geocoder (Nominatim) não consegue localizar o endereço com precisão, resultando em "A combinar via WhatsApp" em vez de calcular o frete automaticamente.
 
 ## Solução
 
-Substituir o campo de texto livre por **campos separados e guiados**:
+Substituir os dois campos de texto livre (endereço + confirmação) por um formulário estruturado com **preenchimento automático via CEP** — igual ao que foi feito para o endereço da loja no painel.
 
-| Campo | Placeholder | Obrigatório |
+### Campos do cliente
+
+| Campo | Obrigatório | Preenchimento |
 |---|---|---|
-| CEP | 00000-000 | Sim |
-| Logradouro | Rua, Av., etc. | Sim |
-| Número | 123 | Sim |
-| Complemento | Apto, Sala... | Não |
-| Bairro | Centro | Não |
-| Cidade | Cubatão | Sim |
-| Estado | SP | Sim (select) |
+| CEP | Sim | Manual |
+| Logradouro | Sim | Auto (ViaCEP) |
+| Número | Sim | Manual |
+| Complemento | Não | Manual |
+| Bairro | Não | Auto (ViaCEP) |
+| Cidade | Sim | Auto (ViaCEP) |
+| Estado | Sim | Auto (ViaCEP) |
 
-Ao salvar, os campos são **concatenados automaticamente** numa string formatada que já alimenta o geocoding da forma correta:
+Ao digitar o CEP e sair do campo, o sistema consulta a API do **ViaCEP** (gratuita, sem chave) e preenche logradouro, bairro, cidade e estado automaticamente. O cliente só precisa digitar o número.
 
-```
-Rua Jaime João Olcese, 123, Centro, Cubatão, SP, Brasil
-```
-
-Isso elimina a ambiguidade do Nominatim e garante que o frete seja calculado corretamente.
-
-### Bônus: preenchimento automático via CEP
-
-Ao digitar o CEP e sair do campo (blur), o sistema consulta a API pública do ViaCEP (gratuita, sem chave) e preenche automaticamente logradouro, bairro e cidade. O lojista só precisa adicionar o número.
+### Endereço montado automaticamente
 
 ```
-CEP: 11510-020  →  busca ViaCEP
-                →  Logradouro: "Rua Jaime João Olcese"
-                →  Bairro: "Centro"
-                →  Cidade: "Cubatão"
-                →  Estado: "SP"
+Rua das Flores, 42, Apto 3, Centro, Cubatão, SP, Brasil
 ```
+
+Este formato é diretamente compatível com o `useDeliveryFee` existente — o hook recebe a string já completa com cidade e estado, o que garante que o Nominatim encontre o endereço e calcule o frete corretamente.
+
+## Fluxo do usuário
+
+1. Cliente seleciona **Entrega**
+2. Campos estruturados aparecem no lugar do texto livre
+3. Cliente digita o CEP (ex: `11510-020`) e pressiona Tab/sai do campo
+4. Sistema busca ViaCEP → preenche rua, bairro, cidade, estado automaticamente
+5. Cliente digita o número (e complemento se quiser)
+6. Frete é calculado automaticamente em tempo real
+7. Total correto aparece antes de enviar o pedido
+
+## O que muda visualmente
+
+**Antes:**
+```
+[ Rua, número, complemento, bairro           ]
+[ Digite novamente para confirmar            ]
+🛵 Frete    A combinar via WhatsApp
+```
+
+**Depois:**
+```
+CEP *
+[ 11510-020 ]  [ Buscando... ]
+
+Logradouro *                   Número *
+[ Rua das Flores           ]   [ 42  ]
+
+Complemento (opcional)
+[ Apto 3                                     ]
+
+Bairro                         Cidade *
+[ Centro              ]        [ Cubatão     ]
+
+Estado *
+[ SP ▾ ]
+
+🛵 Frete (1.8 km)    R$ 5,00   ← calculado automaticamente!
+```
+
+O campo "Confirme o Endereço" (que era para segurança contra erros de digitação) é removido, pois os campos estruturados já eliminam a ambiguidade — o cliente não pode "errar" o nome da cidade pois é preenchido automaticamente.
 
 ## Arquivos afetados
 
-Somente `src/components/dashboard/StoreProfileTab.tsx`:
+Somente `src/pages/UnitPage.tsx`:
 
-1. Adicionar estado `addressFields` com os subcampos (cep, street, number, complement, neighborhood, city, state)
-2. Inicializar o estado fazendo parse do `store_address` existente ou deixando vazio
-3. Adicionar função `fetchCep(cep)` que chama `https://viacep.com.br/ws/{cep}/json/`
-4. Adicionar função `buildStoreAddress(fields)` que monta a string final para salvar no banco
-5. Substituir o `<Input id="store-address" ... />` pelos campos estruturados em grid
-6. No `handleSave`, usar `buildStoreAddress(addressFields)` em vez de `form.store_address`
+1. **Novos estados**: Substituir `address` e `addressConfirm` por um objeto `customerAddress` com os subcampos (`cep`, `street`, `number`, `complement`, `neighborhood`, `city`, `state`)
+2. **Função `fetchCustomerCep`**: Consulta ViaCEP e preenche os campos automaticamente
+3. **Função `buildCustomerAddress`**: Monta a string completa passada ao `useDeliveryFee` e ao WhatsApp
+4. **UI do checkout**: Substituir os inputs de texto livre pelos campos estruturados em grid (dentro do bloco `orderType === "Entrega"`)
+5. **Validação**: Checar que CEP, logradouro, número, cidade e estado estão preenchidos antes de enviar
+6. **Reset**: Limpar o objeto `customerAddress` junto com os outros campos no reset pós-envio
 
-## Como ficará visualmente
+## Nenhuma mudança no backend nem no hook
 
-```
-┌─────────────────────────────────────────────────────┐
-│ CEP *                                                │
-│ [  00000-000  ]  [Buscando... / Buscar]             │
-│                                                      │
-│ Logradouro *              Número *                   │
-│ [ Rua Jaime João Olcese ] [ 123  ]                  │
-│                                                      │
-│ Complemento (opcional)                               │
-│ [ Apto 4B                                     ]     │
-│                                                      │
-│ Bairro                    Cidade *                   │
-│ [ Centro          ]       [ Cubatão          ]       │
-│                                                      │
-│ Estado *                                             │
-│ [ SP ▾ ]                                            │
-└─────────────────────────────────────────────────────┘
-```
-
-O endereço final salvo no banco (ex: `"Rua Jaime João Olcese, 123, Centro, Cubatão, SP, Brasil"`) é completamente compatível com o `useDeliveryFee` existente — nenhuma mudança necessária no hook.
-
-## Nenhuma migração de banco necessária
-
-O campo `store_address` já existe como `text` na tabela `organizations`. O formato da string apenas melhora — o hook de geocoding continua consumindo do mesmo jeito.
+O `useDeliveryFee` continua recebendo a string de endereço — apenas a qualidade da string melhora (agora inclui cidade, estado e país). Nenhuma migração de banco necessária.
