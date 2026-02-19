@@ -122,14 +122,14 @@ export const useOrders = (
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
         () => {
-          qc.invalidateQueries({ queryKey: ["orders", organizationId, statuses] });
+          qc.invalidateQueries({ queryKey: ["orders", organizationId] });
         }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_items" },
         () => {
-          qc.invalidateQueries({ queryKey: ["orders", organizationId, statuses] });
+          qc.invalidateQueries({ queryKey: ["orders", organizationId] });
         }
       )
       .subscribe();
