@@ -1,88 +1,104 @@
 
-# Campos Estruturados de Endereço do Cliente no Checkout
+# Correção: Geocoding Falha por Complemento no Endereço
 
-## Problema atual
+## Causa raiz identificada
 
-O campo de endereço do cliente no checkout é um único texto livre ("Rua, número, complemento, bairro"), sem cidade nem estado. O geocoder (Nominatim) não consegue localizar o endereço com precisão, resultando em "A combinar via WhatsApp" em vez de calcular o frete automaticamente.
+Ao testar o fluxo completo, o Nominatim retorna `[]` (sem resultado) para o endereço da loja:
+
+```
+"Rua Jaime João Olcese, 51, beco, Vila Couto, Cubatão, SP, Brasil"
+```
+
+O problema é o **complemento "beco"** incluído na string enviada ao Nominatim. O geocoder OpenStreetMap não entende complementos livres como "beco", "Apto 3B", etc. — ele espera apenas rua, número, bairro, cidade, estado.
+
+**Prova encontrada nos logs de rede:**
+```
+GET /search?q=Rua%20Jaime%20Jo%C3%A3o%20Olcese%2C%2051%2C%20beco...
+Response Body: []   ← nenhum resultado!
+```
 
 ## Solução
 
-Substituir os dois campos de texto livre (endereço + confirmação) por um formulário estruturado com **preenchimento automático via CEP** — igual ao que foi feito para o endereço da loja no painel.
+Duas correções simples e independentes:
 
-### Campos do cliente
+### 1. `useDeliveryFee.ts` — remover complemento da string para geocoding
 
-| Campo | Obrigatório | Preenchimento |
-|---|---|---|
-| CEP | Sim | Manual |
-| Logradouro | Sim | Auto (ViaCEP) |
-| Número | Sim | Manual |
-| Complemento | Não | Manual |
-| Bairro | Não | Auto (ViaCEP) |
-| Cidade | Sim | Auto (ViaCEP) |
-| Estado | Sim | Auto (ViaCEP) |
+Ao receber o endereço do cliente para geocodificar, o hook não deve incluir o complemento. Como o endereço chegará como string completa, precisamos de uma função auxiliar que remova tokens de complemento (que costumam ser a 3ª parte de um endereço formatado como `"Rua X, Nº, Complemento, Bairro, Cidade, Estado, Brasil"`).
 
-Ao digitar o CEP e sair do campo, o sistema consulta a API do **ViaCEP** (gratuita, sem chave) e preenche logradouro, bairro, cidade e estado automaticamente. O cliente só precisa digitar o número.
-
-### Endereço montado automaticamente
+A abordagem mais simples: no hook, antes de geocodificar, montar uma versão "limpa" sem o 3º campo (complemento). Como sabemos o formato exato gerado por `buildCustomerAddress` / `buildStoreAddress`:
 
 ```
-Rua das Flores, 42, Apto 3, Centro, Cubatão, SP, Brasil
+campo[0]: rua
+campo[1]: número
+campo[2]: complemento (opcional — pode não existir)
+campo[3]: bairro
+campo[4]: cidade
+campo[5]: estado
+campo[6]: "Brasil"
 ```
 
-Este formato é diretamente compatível com o `useDeliveryFee` existente — o hook recebe a string já completa com cidade e estado, o que garante que o Nominatim encontre o endereço e calcule o frete corretamente.
+Para geocodificar, usar apenas: `rua, número, bairro, cidade, estado, Brasil` — pulando o complemento.
 
-## Fluxo do usuário
+### 2. `UnitPage.tsx` — passar endereço sem complemento para o hook
 
-1. Cliente seleciona **Entrega**
-2. Campos estruturados aparecem no lugar do texto livre
-3. Cliente digita o CEP (ex: `11510-020`) e pressiona Tab/sai do campo
-4. Sistema busca ViaCEP → preenche rua, bairro, cidade, estado automaticamente
-5. Cliente digita o número (e complemento se quiser)
-6. Frete é calculado automaticamente em tempo real
-7. Total correto aparece antes de enviar o pedido
+A string `fullCustomerAddress` passada ao hook deve omitir o complemento. Criar uma função `buildCustomerAddressForGeo` separada do `buildCustomerAddress` (que inclui o complemento para exibição/WhatsApp):
 
-## O que muda visualmente
+```typescript
+// Para geocoding: sem complemento
+const buildCustomerAddressForGeo = (f: CustomerAddress) => {
+  const parts = [f.street, f.number, f.neighborhood, f.city, f.state, "Brasil"]
+    .map((p) => p.trim()).filter(Boolean);
+  return parts.join(", ");
+};
 
-**Antes:**
-```
-[ Rua, número, complemento, bairro           ]
-[ Digite novamente para confirmar            ]
-🛵 Frete    A combinar via WhatsApp
-```
-
-**Depois:**
-```
-CEP *
-[ 11510-020 ]  [ Buscando... ]
-
-Logradouro *                   Número *
-[ Rua das Flores           ]   [ 42  ]
-
-Complemento (opcional)
-[ Apto 3                                     ]
-
-Bairro                         Cidade *
-[ Centro              ]        [ Cubatão     ]
-
-Estado *
-[ SP ▾ ]
-
-🛵 Frete (1.8 km)    R$ 5,00   ← calculado automaticamente!
+// Para WhatsApp/notas: com complemento
+const buildCustomerAddress = (f: CustomerAddress) => {
+  const parts = [f.street, f.number, f.complement, f.neighborhood, f.city, f.state, "Brasil"]
+    .map((p) => p.trim()).filter(Boolean);
+  return parts.join(", ");
+};
 ```
 
-O campo "Confirme o Endereço" (que era para segurança contra erros de digitação) é removido, pois os campos estruturados já eliminam a ambiguidade — o cliente não pode "errar" o nome da cidade pois é preenchido automaticamente.
+### 3. `StoreProfileTab.tsx` — o `buildStoreAddress` também inclui complemento
 
-## Arquivos afetados
+O endereço da loja salvo no banco é: `"Rua Jaime João Olcese, 51, beco, Vila Couto, Cubatão, SP, Brasil"`. O hook de frete usa esse endereço diretamente para geocodificar a loja — e falha pelo mesmo motivo.
 
-Somente `src/pages/UnitPage.tsx`:
+Precisamos que o hook de frete extraia apenas os campos relevantes (sem complemento) ao geocodificar o **endereço da loja**. Como o formato é padronizado, podemos criar uma função `stripComplementForGeo` no hook que remove o 3º campo quando o endereço tem 6+ partes separadas por vírgula.
 
-1. **Novos estados**: Substituir `address` e `addressConfirm` por um objeto `customerAddress` com os subcampos (`cep`, `street`, `number`, `complement`, `neighborhood`, `city`, `state`)
-2. **Função `fetchCustomerCep`**: Consulta ViaCEP e preenche os campos automaticamente
-3. **Função `buildCustomerAddress`**: Monta a string completa passada ao `useDeliveryFee` e ao WhatsApp
-4. **UI do checkout**: Substituir os inputs de texto livre pelos campos estruturados em grid (dentro do bloco `orderType === "Entrega"`)
-5. **Validação**: Checar que CEP, logradouro, número, cidade e estado estão preenchidos antes de enviar
-6. **Reset**: Limpar o objeto `customerAddress` junto com os outros campos no reset pós-envio
+## Arquivos a modificar
 
-## Nenhuma mudança no backend nem no hook
+| Arquivo | O que muda |
+|---|---|
+| `src/hooks/useDeliveryFee.ts` | Função `stripComplementForGeo` que limpa o endereço antes de geocodificar; aplicada tanto na loja quanto no cliente |
+| `src/pages/UnitPage.tsx` | `fullCustomerAddress` usa versão sem complemento; `buildCustomerAddress` (com complemento) mantido apenas para WhatsApp/notas |
 
-O `useDeliveryFee` continua recebendo a string de endereço — apenas a qualidade da string melhora (agora inclui cidade, estado e país). Nenhuma migração de banco necessária.
+## Detalhe técnico da função de limpeza
+
+```typescript
+// Remove o 3º campo (complemento) de endereços com 6+ partes
+// Formato: rua, número, [complemento], bairro, cidade, estado, Brasil
+function stripComplementForGeo(address: string): string {
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  // Endereço com complemento terá 7 partes; sem complemento, 6
+  if (parts.length >= 7) {
+    // Remover a 3ª parte (índice 2) que é o complemento
+    parts.splice(2, 1);
+  }
+  return parts.join(", ");
+}
+```
+
+Resultado esperado:
+```
+Entrada:  "Rua Jaime João Olcese, 51, beco, Vila Couto, Cubatão, SP, Brasil"
+Saída:    "Rua Jaime João Olcese, 51, Vila Couto, Cubatão, SP, Brasil"
+          → Nominatim encontra ✓
+```
+
+## O que o cliente verá depois da correção
+
+```
+🛵 Frete (0,3 km)    R$ 5,00   ← calculado automaticamente!
+```
+
+(Mesmo endereço, mesma cidade — distância curta → tier 1 → R$ 5,00)
