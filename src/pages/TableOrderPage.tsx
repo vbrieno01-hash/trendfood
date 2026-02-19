@@ -518,7 +518,7 @@ export default function TableOrderPage() {
               <div key={index} className="flex items-center gap-2 bg-card border border-border rounded-xl p-3">
                 <User className="w-4 h-4 text-primary flex-shrink-0" />
                 <Input
-                  placeholder={`Pessoa ${index + 1}`}
+                  placeholder={`Ex: ${["João", "Maria", "Pedro", "Ana", "Lucas", "Julia", "Carlos", "Beatriz", "Rafael", "Larissa"][index % 10]}`}
                   value={name}
                   onChange={(e) => handleNameChange(index, e.target.value)}
                   className="border-0 p-0 h-auto text-sm focus-visible:ring-0 shadow-none"
