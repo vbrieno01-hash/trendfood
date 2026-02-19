@@ -1,49 +1,79 @@
 
-
-# Seleção de forma de pagamento antes do QR Code
+# Configuracao de confirmacao PIX nas definicoes da loja
 
 ## Resumo
 
-Adicionar uma etapa intermediaria apos o envio do pedido onde o cliente escolhe a forma de pagamento:
+Adicionar uma opcao na aba "Perfil da Loja" (secao Pagamentos) onde o dono do comercio escolhe como funciona a confirmacao do PIX. A escolha dele define o fluxo automaticamente para todos os pedidos.
 
-- **PIX**: mostra o QR Code na hora para pagamento imediato
-- **Cartao**: mostra mensagem informando que o pagamento sera feito ao final da refeicao
+## As 3 opcoes
 
-## Fluxo
-
-1. Cliente monta o pedido e clica "Finalizar Pedido"
-2. Pedido e enviado normalmente
-3. Tela de sucesso aparece com duas opcoes: "Pagar com PIX" e "Pagar com Cartao"
-4. Se escolher PIX: exibe QR Code + botao copiar codigo
-5. Se escolher Cartao: exibe mensagem "Pagamento sera realizado ao final da refeicao" com icone de cartao
+| Opcao | Descricao | Fluxo do pedido |
+|-------|-----------|-----------------|
+| **Direto** (padrao) | Pedido vai direto pra cozinha, sem confirmar PIX | Status fica `pending`, vai pra cozinha imediatamente |
+| **Manual** | Garcom/caixa confirma que o PIX caiu antes de enviar pra cozinha | Status fica `awaiting_payment` ate o caixa confirmar |
+| **Automatico (API)** | Integracao com gateway de pagamento (futuro) | Placeholder nas configuracoes, mostra aviso "em breve" |
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/TableOrderPage.tsx`
+### 1. Banco de dados
 
-- Adicionar estado `paymentMethod` com valores `null | "pix" | "card"`
-- Na tela de sucesso (`if (success)`), quando `paymentMethod` for `null`, mostrar os dois botoes de escolha
-- Ao clicar em PIX, setar `paymentMethod = "pix"` e exibir o QR Code (comportamento atual)
-- Ao clicar em Cartao, setar `paymentMethod = "card"` e exibir mensagem de pagamento posterior
-- O QR Code PIX so aparece se a organizacao tiver `pix_key` configurada. Caso contrario, o botao PIX fica desabilitado ou oculto
-
-### Interface da tela de selecao
-
-Dois cards lado a lado com icones:
-- Card PIX: icone QR/PIX, texto "Pagar agora com PIX"
-- Card Cartao: icone cartao, texto "Pagar no final"
-
-### Salvar forma de pagamento no pedido
-
-Adicionar coluna `payment_method` na tabela `orders` para registrar a escolha:
+Adicionar coluna `pix_confirmation_mode` na tabela `organizations`:
 
 ```sql
-ALTER TABLE public.orders ADD COLUMN payment_method text DEFAULT 'pending';
+ALTER TABLE public.organizations
+  ADD COLUMN pix_confirmation_mode text NOT NULL DEFAULT 'direct';
 ```
 
-Apos o cliente escolher, atualizar o pedido com `payment_method = 'pix'` ou `payment_method = 'card'`. Isso ajuda o garcom/caixa a saber como cada mesa vai pagar.
+Valores possiveis: `direct`, `manual`, `automatic`
 
-### Visibilidade no dashboard
+### 2. `src/components/dashboard/StoreProfileTab.tsx`
 
-No `WaiterTab` e `KitchenTab`, exibir um badge indicando a forma de pagamento escolhida (ex: "PIX" em verde, "Cartao" em azul).
+Na secao "Pagamentos" (logo abaixo da chave PIX), adicionar um seletor com as 3 opcoes:
 
+- **Direto** - "O pedido vai direto pra cozinha. O PIX e apenas informativo."
+- **Manual** - "O pedido fica aguardando ate voce confirmar que o PIX caiu."
+- **Automatico** - "Integrado com gateway de pagamento (em breve)" - desabilitado
+
+Salvar o valor junto com os outros campos no `handleSave`.
+
+### 3. `src/hooks/useOrganization.ts`
+
+Adicionar `pix_confirmation_mode` na interface `Organization`.
+
+### 4. `src/pages/TableOrderPage.tsx`
+
+Ao escolher PIX no `handleSelectPayment`:
+
+- Se `org.pix_confirmation_mode === 'manual'`: atualizar o pedido com `status = 'awaiting_payment'`
+- Se `org.pix_confirmation_mode === 'direct'` (ou nao definido): manter `status = 'pending'` (comportamento atual)
+
+### 5. `src/hooks/useOrders.ts`
+
+Adicionar hooks para o modo manual:
+
+- `useAwaitingPaymentOrders(orgId)` - busca pedidos com `status = 'awaiting_payment'`
+- `useConfirmPixPayment(orgId)` - muda status de `awaiting_payment` para `pending`
+
+Incluir realtime para atualizacao automatica.
+
+### 6. `src/components/dashboard/WaiterTab.tsx`
+
+Adicionar secao "Aguardando Pagamento PIX" no topo (so aparece quando ha pedidos com `status = 'awaiting_payment'`):
+
+- Card com cor roxa/laranja mostrando mesa, itens, valor
+- Botao "Confirmar Pagamento PIX" que libera o pedido pra cozinha
+
+### 7. Cozinha (`KitchenTab.tsx`)
+
+Nenhuma alteracao necessaria - ja filtra por `["pending", "preparing"]`, pedidos `awaiting_payment` nao aparecem.
+
+## Arquivos modificados
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| Migracao SQL | Adicionar coluna `pix_confirmation_mode` |
+| `src/hooks/useOrganization.ts` | Adicionar campo na interface |
+| `src/components/dashboard/StoreProfileTab.tsx` | Seletor de modo na secao Pagamentos |
+| `src/pages/TableOrderPage.tsx` | Logica condicional baseada no modo |
+| `src/hooks/useOrders.ts` | Hooks para pedidos aguardando pagamento |
+| `src/components/dashboard/WaiterTab.tsx` | Secao de confirmacao manual |
