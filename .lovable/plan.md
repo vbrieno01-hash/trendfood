@@ -1,34 +1,30 @@
 
+# Esconder botao "Comecar Gratis" para usuarios logados
 
-# Adicionar botao "Gerenciar Assinatura" no dashboard
+## Problema
 
-## Resumo
+Quando o usuario ja esta logado e esta no plano Gratis, o card do plano Free ainda exibe o botao "Comecar Gratis" que redireciona para `/auth` (pagina de criar conta/login). Isso nao faz sentido pois o usuario ja tem conta.
 
-Adicionar uma secao de assinatura na aba Configuracoes do dashboard com um botao que chama a edge function `customer-portal` e redireciona o usuario para o portal do Stripe, onde ele pode cancelar, trocar cartao ou mudar de plano.
+## Solucao
 
-## O que sera feito
+Para usuarios logados no plano Free, o botao deve exibir "Plano atual" e ficar desabilitado, igual ao comportamento dos outros planos quando ja estao ativos.
 
-### 1. Atualizar SettingsTab.tsx
+## Detalhes tecnicos
 
-Adicionar uma nova secao "Assinatura" entre as informacoes da conta e a alteracao de senha, contendo:
+### Arquivo: `src/pages/PricingPage.tsx`
 
-- Exibicao do plano atual (Free, Pro ou Enterprise) obtido via `useAuth`
-- Botao "Gerenciar Assinatura" que:
-  - Chama `supabase.functions.invoke('customer-portal')` com o token do usuario
-  - Exibe estado de loading durante a requisicao
-  - Abre a URL retornada em uma nova aba
-  - Exibe toast de erro se falhar
-- Para usuarios no plano Free (sem customer no Stripe), o botao exibe "Fazer upgrade" e redireciona para `/planos`
+Alterar a logica do `onSelect` no PlanCard para incluir tambem o plano Free quando o usuario esta logado:
 
-### 2. Detalhes tecnicos
+De:
+```
+onSelect={user && plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
+```
 
-No arquivo `src/components/dashboard/SettingsTab.tsx`:
+Para:
+```
+onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
+```
 
-- Importar `organization` do `useAuth()` e `useNavigate` (ja importado)
-- Importar icone `CreditCard` do lucide-react
-- Adicionar estado `portalLoading` para controle do botao
-- Criar funcao `handleManageSubscription` que invoca a edge function
-- Renderizar a secao entre "Informacoes da conta" e "Alterar senha"
+Isso faz com que, quando logado, o card Free use o branch do `onSelect` no PlanCard (linhas 78-90), que ja tem a logica de exibir "Plano atual" quando `currentPlan` e `true` e desabilitar o botao.
 
-A edge function `customer-portal` ja esta implementada e deployada, nao precisa de alteracoes.
-
+Apenas uma linha precisa ser alterada. Nenhum outro arquivo precisa de mudanca.
