@@ -1,44 +1,37 @@
 
 
-# Melhorar identificacao de pessoas na mesa
+# Indicador visual nos chips de pessoa
 
 ## O que muda
 
-Antes de montar o pedido, o cliente informa quantas pessoas estao na mesa e o nome de cada uma. Depois, ao adicionar itens, ele seleciona para quem e o item usando abas/chips com os nomes.
+Cada chip de pessoa na barra de selecao vai mostrar um pequeno indicador (bolinha com numero) quando aquela pessoa ja tem itens no carrinho. Isso facilita saber rapidamente quem ja pediu algo.
 
 ## Como vai funcionar
 
-1. **Tela inicial de pessoas**: Ao abrir a pagina da mesa, antes do cardapio, aparece um campo "Quantas pessoas na mesa?" com botoes +/- (minimo 1). Abaixo, campos de nome para cada pessoa (ex: "Pessoa 1", "Pessoa 2").
-
-2. **Chips de selecao**: Apos confirmar os nomes, o cardapio aparece com chips horizontais no topo (abaixo do header) mostrando os nomes. O chip ativo indica para quem os itens serao adicionados. Clicar em outro chip troca a pessoa ativa.
-
-3. **Contadores por pessoa**: Os botoes +/- dos itens refletem a quantidade da pessoa selecionada. Se Joao tem 2 hamburgueres e Jose tem 1, ao selecionar Joao aparece "2", ao selecionar Jose aparece "1".
-
-4. **Resumo agrupado**: O carrinho ja agrupa por pessoa (isso ja existe). Sera mantido e melhorado visualmente.
+- Ao lado do nome no chip, aparece um badge com o numero total de itens daquela pessoa (ex: "Joao 3")
+- Se a pessoa nao tem itens, nenhum badge aparece
+- O badge acompanha o estilo do chip (cores diferentes para ativo/inativo)
 
 ## Detalhes tecnicos
 
 ### Arquivo: `src/pages/TableOrderPage.tsx`
 
-**Novos estados:**
-- `people: string[]` - lista de nomes das pessoas na mesa
-- `activePerson: number` - indice da pessoa ativa (para selecao de chip)
-- `setupDone: boolean` - se ja configurou as pessoas
+Na renderizacao dos chips (linhas 565-578), calcular a quantidade de itens por pessoa filtrando `cartItems` pelo `customer_name` e, se maior que zero, exibir um pequeno `<span>` com o numero ao lado do nome.
 
-**Fluxo:**
-- Se `setupDone === false`, renderiza a tela de setup (quantas pessoas + nomes)
-- Se `setupDone === true`, renderiza o cardapio normal com chips de pessoa no topo
-- O `customerName` atual sera substituido por `people[activePerson]`
-- As funcoes `adjust()` e `getQty()` ja usam `customerName` como chave, entao basta alimentar com o nome da pessoa ativa
+Logica:
+```
+const personItemCount = cartItems
+  .filter(ci => ci.customer_name === name)
+  .reduce((sum, ci) => sum + ci.quantity, 0);
+```
 
-**Tela de setup:**
-- Contador numerico (1-10) para quantidade de pessoas
-- Input de texto para cada pessoa, com placeholder "Pessoa 1", "Pessoa 2", etc.
-- Botao "Comecar pedido" que valida que todos os nomes estao preenchidos
+Dentro do botao do chip, apos o nome, renderizar condicionalmente:
+```
+{personItemCount > 0 && (
+  <span className="ml-1 bg-white/20 text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+    {personItemCount}
+  </span>
+)}
+```
 
-**Chips de pessoa (acima do cardapio):**
-- Barra horizontal com scroll, mostrando os nomes como chips/botoes
-- O chip ativo tem destaque (cor primaria)
-- Clicar troca `activePerson`
-
-**Nenhuma alteracao no banco de dados** - o campo `customer_name` nos `order_items` ja existe e sera usado normalmente.
+Nenhuma alteracao em banco de dados ou outros arquivos.
