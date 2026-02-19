@@ -239,6 +239,7 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
+          gateway_payment_id: string | null
           id: string
           notes: string | null
           organization_id: string
@@ -249,6 +250,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          gateway_payment_id?: string | null
           id?: string
           notes?: string | null
           organization_id: string
@@ -259,6 +261,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          gateway_payment_id?: string | null
           id?: string
           notes?: string | null
           organization_id?: string
@@ -272,6 +275,41 @@ export type Database = {
             foreignKeyName: "orders_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_secrets: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          pix_gateway_provider: string | null
+          pix_gateway_token: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          pix_gateway_provider?: string | null
+          pix_gateway_token?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          pix_gateway_provider?: string | null
+          pix_gateway_token?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_secrets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
