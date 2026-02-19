@@ -22,6 +22,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useSuggestions, useAddSuggestion, useIncrementVote } from "@/hooks/useSuggestions";
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
+import { usePlaceOrder } from "@/hooks/useOrders";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pendente",
@@ -50,6 +51,7 @@ const UnitPage = () => {
 
   const addMutation = useAddSuggestion(org?.id ?? "");
   const voteMutation = useIncrementVote(org?.id ?? "");
+  const placeOrder = usePlaceOrder();
 
   // Suggestion form
   const [showForm, setShowForm] = useState(false);
@@ -252,6 +254,28 @@ const UnitPage = () => {
 
     const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
     window.open(url, "_blank", "noopener,noreferrer");
+
+    // Save order to database (table_number=0 = delivery) — runs in parallel, doesn't block WhatsApp
+    if (org?.id) {
+      const notesText = [
+        `${buyerName.trim()} · ${payment}`,
+        address.trim() ? address.trim() : null,
+        notes.trim() ? `Obs: ${notes.trim()}` : null,
+      ].filter(Boolean).join(" · ");
+
+      placeOrder.mutate({
+        organizationId: org.id,
+        tableNumber: 0,
+        notes: notesText,
+        items: cartItems.map((i) => ({
+          menu_item_id: i.id,
+          name: i.name,
+          price: i.price,
+          quantity: i.qty,
+        })),
+      });
+    }
+
     // Reset
     setCart({});
     setCheckoutOpen(false);
