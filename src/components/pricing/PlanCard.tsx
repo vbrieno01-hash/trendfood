@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface PlanCardProps {
@@ -14,6 +14,9 @@ export interface PlanCardProps {
   external?: boolean;
   highlighted?: boolean;
   badge?: string;
+  onSelect?: () => void;
+  loading?: boolean;
+  currentPlan?: boolean;
 }
 
 const PlanCard = ({
@@ -27,6 +30,9 @@ const PlanCard = ({
   external,
   highlighted,
   badge,
+  onSelect,
+  loading,
+  currentPlan,
 }: PlanCardProps) => {
   return (
     <div
@@ -34,12 +40,18 @@ const PlanCard = ({
         "relative rounded-2xl border p-6 md:p-8 flex flex-col h-full transition-all",
         highlighted
           ? "border-primary bg-card shadow-xl shadow-primary/10 scale-[1.02] md:scale-105"
-          : "border-border bg-card shadow-sm hover:border-primary/30 hover:shadow-md"
+          : "border-border bg-card shadow-sm hover:border-primary/30 hover:shadow-md",
+        currentPlan && "ring-2 ring-primary"
       )}
     >
       {badge && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">
           {badge}
+        </span>
+      )}
+      {currentPlan && (
+        <span className="absolute -top-3 right-4 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+          Seu plano
         </span>
       )}
 
@@ -63,7 +75,20 @@ const PlanCard = ({
         ))}
       </ul>
 
-      {external ? (
+      {onSelect ? (
+        <Button
+          size="lg"
+          variant={highlighted ? "default" : "outline"}
+          className="w-full font-bold"
+          onClick={onSelect}
+          disabled={loading || currentPlan}
+        >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+          ) : null}
+          {currentPlan ? "Plano atual" : cta}
+        </Button>
+      ) : external ? (
         <a
           href={ctaLink}
           target="_blank"

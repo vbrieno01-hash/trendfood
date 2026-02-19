@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,9 +12,18 @@ import {
 import PlanCard from "@/components/pricing/PlanCard";
 import logoIcon from "@/assets/logo-icon.png";
 import { ArrowLeft } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+const PLAN_KEYS = {
+  free: "free",
+  pro: "pro",
+  enterprise: "enterprise",
+} as const;
 
 const plans = [
   {
+    key: PLAN_KEYS.free,
     name: "Grátis",
     price: "Grátis",
     description: "Ideal para começar e testar a plataforma",
@@ -28,6 +38,7 @@ const plans = [
     ctaLink: "/auth",
   },
   {
+    key: PLAN_KEYS.pro,
     name: "Pro",
     price: "R$ 99",
     description: "Para negócios que querem crescer com controle total",
@@ -42,12 +53,13 @@ const plans = [
       "Impressora térmica 80mm",
       "Painel do Atendente",
     ],
-    cta: "Começar Teste Grátis",
+    cta: "Assinar Pro",
     ctaLink: "/auth",
     highlighted: true,
     badge: "Recomendado",
   },
   {
+    key: PLAN_KEYS.enterprise,
     name: "Enterprise",
     price: "R$ 249",
     description: "Para redes e operações de alta demanda",
@@ -59,8 +71,9 @@ const plans = [
       "Integração com delivery",
       "Gerente de conta dedicado",
     ],
-    cta: "Falar com Vendas",
-    ctaLink: "https://wa.me/5511999999999?text=Quero+saber+mais+sobre+o+plano+Enterprise+TrendFood",
+    cta: "Assinar Enterprise",
+    ctaLink:
+      "https://wa.me/5511999999999?text=Quero+saber+mais+sobre+o+plano+Enterprise+TrendFood",
     external: true,
   },
 ];
@@ -90,13 +103,45 @@ const faqs = [
 
 const PricingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, organization } = useAuth();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const currentPlan = organization?.subscription_plan || "free";
 
   const handleBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
     } else {
       navigate("/");
+    }
+  };
+
+  const handleSelectPlan = async (planKey: string) => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    if (planKey === "free") return;
+
+    setLoadingPlan(planKey);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { plan: planKey },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao iniciar checkout",
+        description: err.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingPlan(null);
     }
   };
 
@@ -141,7 +186,21 @@ const PricingPage = () => {
       <section className="px-4 pb-20">
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
           {plans.map((plan) => (
-            <PlanCard key={plan.name} {...plan} />
+            <PlanCard
+              key={plan.name}
+              {...plan}
+              currentPlan={currentPlan === plan.key}
+              loading={loadingPlan === plan.key}
+              onSelect={
+                user
+                  ? plan.key !== "enterprise"
+                    ? () => handleSelectPlan(plan.key)
+                    : undefined
+                  : undefined
+              }
+              external={!user && plan.key === "enterprise" ? true : user ? false : plan.external}
+              ctaLink={!user ? "/auth" : plan.ctaLink}
+            />
           ))}
         </div>
       </section>
