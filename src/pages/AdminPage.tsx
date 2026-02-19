@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
   Store,
   ShieldAlert,
@@ -15,6 +16,8 @@ import {
   BarChart3,
   CheckCircle2,
   AlertCircle,
+  Search,
+  X,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -71,10 +74,12 @@ function AdminContent() {
   const { user } = useAuth();
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "trial">("all");
+  const [addressFilter, setAddressFilter] = useState<"all" | "with" | "without">("all");
 
   useEffect(() => {
     async function load() {
-      // Fetch orgs + menu items count + orders aggregates in parallel
       const [{ data: orgsData }, { data: menuData }, { data: ordersData }, { data: orderItemsData }] =
         await Promise.all([
           supabase
@@ -88,7 +93,6 @@ function AdminContent() {
 
       if (!orgsData) { setLoading(false); return; }
 
-      // Build lookup maps
       const menuCount: Record<string, number> = {};
       (menuData ?? []).forEach((m) => {
         menuCount[m.organization_id] = (menuCount[m.organization_id] ?? 0) + 1;
@@ -100,7 +104,6 @@ function AdminContent() {
         ordersByOrg[o.organization_id].push(o.id);
       });
 
-      // order_id -> revenue
       const revenueByOrder: Record<string, number> = {};
       (orderItemsData ?? []).forEach((oi) => {
         revenueByOrder[oi.order_id] = (revenueByOrder[oi.order_id] ?? 0) + oi.price * oi.quantity;
@@ -123,10 +126,37 @@ function AdminContent() {
     load();
   }, []);
 
-  // KPIs
+  // KPIs (always from full orgs)
   const totalOrders = orgs.reduce((s, o) => s + o.orders_count, 0);
   const totalRevenue = orgs.reduce((s, o) => s + o.total_revenue, 0);
   const withAddress = orgs.filter((o) => o.store_address).length;
+
+  // Filtered list
+  const filteredOrgs = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return orgs
+      .filter((org) =>
+        q === "" || org.name.toLowerCase().includes(q) || org.slug.toLowerCase().includes(q)
+      )
+      .filter((org) => {
+        if (statusFilter === "all") return true;
+        if (statusFilter === "active") return org.subscription_status === "active";
+        return org.subscription_status !== "active";
+      })
+      .filter((org) => {
+        if (addressFilter === "all") return true;
+        if (addressFilter === "with") return !!org.store_address;
+        return !org.store_address;
+      });
+  }, [orgs, search, statusFilter, addressFilter]);
+
+  const hasActiveFilters = search !== "" || statusFilter !== "all" || addressFilter !== "all";
+
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setAddressFilter("all");
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -189,16 +219,85 @@ function AdminContent() {
 
         {/* ── Stores Grid ── */}
         <section>
+          {/* Section header */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
               Lojas da Plataforma
             </h2>
-            {!loading && (
-              <span className="text-xs text-muted-foreground">{orgs.length} lojas</span>
-            )}
           </div>
 
+          {/* ── Filter bar ── */}
+          {!loading && orgs.length > 0 && (
+            <div className="bg-card border border-border rounded-2xl p-4 mb-5 space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Buscar por nome ou URL da loja…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Pills row */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                {/* Status filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground font-medium shrink-0">Status:</span>
+                  {(["all", "active", "trial"] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setStatusFilter(v)}
+                      className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                        statusFilter === v
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {v === "all" ? "Todos" : v === "active" ? "Ativo" : "Trial"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Address filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground font-medium shrink-0">Endereço:</span>
+                  {(["all", "with", "without"] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setAddressFilter(v)}
+                      className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                        addressFilter === v
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {v === "all" ? "Todos" : v === "with" ? "Com endereço" : "Sem endereço"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Counter */}
+                <span className="ml-auto text-xs text-muted-foreground shrink-0">
+                  {filteredOrgs.length === orgs.length
+                    ? `${orgs.length} lojas`
+                    : `${filteredOrgs.length} de ${orgs.length}`}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Grid / states */}
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
@@ -209,9 +308,21 @@ function AdminContent() {
             <div className="text-center py-20 text-muted-foreground text-sm">
               Nenhuma loja cadastrada ainda.
             </div>
+          ) : filteredOrgs.length === 0 ? (
+            <div className="text-center py-20 space-y-3">
+              <p className="text-muted-foreground text-sm">Nenhuma loja encontrada com esses filtros.</p>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {orgs.map((org) => (
+              {filteredOrgs.map((org) => (
                 <StoreCard key={org.id} org={org} />
               ))}
             </div>
