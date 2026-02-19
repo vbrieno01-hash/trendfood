@@ -122,26 +122,6 @@ const features = [
   },
 ];
 
-const examples = [
-  {
-    slug: "burguer-da-hora",
-    name: "Burguer da Hora",
-    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80",
-    alt: "Hambúrguer premium",
-  },
-  {
-    slug: "pizza-feliz",
-    name: "Pizza Feliz",
-    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&q=80",
-    alt: "Pizza artesanal",
-  },
-  {
-    slug: "farma-express",
-    name: "Farma Express",
-    image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&q=80",
-    alt: "Farmácia com medicamentos",
-  },
-];
 
 const proofBadges = [
   "Catálogo Digital",
@@ -339,42 +319,6 @@ const Index = () => {
                 <h3 className="font-semibold text-foreground mb-1">{f.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Demo section */}
-      <section id="demo" className="bg-secondary/40 border-y border-border/60 py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              Catálogo digital ao vivo
-            </Badge>
-            <h2 className="text-3xl font-bold text-foreground mb-3">Veja funcionando agora</h2>
-            <p className="text-muted-foreground">Acesse um catálogo digital real — sem precisar criar conta</p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-            {examples.map((ex) => (
-              <Link
-                key={ex.slug}
-                to={`/unidade/${ex.slug}`}
-                className="group bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-md transition-all"
-              >
-                <div className="h-36 overflow-hidden">
-                  <img
-                    src={ex.image}
-                    alt={ex.alt}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-4">
-                  <span className="font-semibold text-foreground group-hover:text-primary transition-colors block">
-                    {ex.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">/unidade/{ex.slug}</span>
-                </div>
-              </Link>
             ))}
           </div>
         </div>
