@@ -58,6 +58,36 @@ function buildPixPayload(pixKey: string, amount: number, storeName: string): str
   return payload;
 }
 
+// ─── Notes parser ─────────────────────────────────────────────────────────────
+
+interface ParsedNotes {
+  name?: string;
+  phone?: string;
+  address?: string;
+  payment?: string;
+  doc?: string;
+  obs?: string;
+  raw?: string;
+}
+
+function parseNotes(notes: string): ParsedNotes {
+  if (!notes.includes("|")) return { raw: notes };
+  const parts = Object.fromEntries(
+    notes.split("|").map((part) => {
+      const idx = part.indexOf(":");
+      return [part.slice(0, idx), part.slice(idx + 1)];
+    })
+  );
+  return {
+    name: parts["CLIENTE"] || undefined,
+    phone: parts["TEL"] || undefined,
+    address: parts["END."] || undefined,
+    payment: parts["PGTO"] || undefined,
+    doc: parts["DOC"] || undefined,
+    obs: parts["OBS"] || undefined,
+  };
+}
+
 // ─── Main print function ───────────────────────────────────────────────────────
 
 export async function printOrder(
@@ -91,8 +121,31 @@ export async function printOrder(
     )
     .join("");
 
-  const notesHtml = order.notes
-    ? `<div class="notes"><strong>Obs:</strong> ${order.notes}</div>`
+  const parsed = order.notes ? parseNotes(order.notes) : null;
+
+  // For table orders or legacy unstructured notes: show as plain obs
+  const notesHtml = parsed?.raw
+    ? `<div class="notes"><strong>Obs:</strong> ${parsed.raw}</div>`
+    : "";
+
+  // Structured customer info block (delivery orders with new format)
+  const customerRows: Array<[string, string]> = [];
+  if (parsed && !parsed.raw) {
+    if (parsed.name)    customerRows.push(["Nome:",      parsed.name]);
+    if (parsed.phone)   customerRows.push(["Tel:",       parsed.phone]);
+    if (parsed.address) customerRows.push(["End.:",      parsed.address]);
+    if (parsed.payment) customerRows.push(["Pgto:",      parsed.payment]);
+    if (parsed.doc)     customerRows.push(["CPF/CNPJ:", parsed.doc]);
+    if (parsed.obs)     customerRows.push(["Obs:",       parsed.obs]);
+  }
+
+  const customerHtml = customerRows.length > 0
+    ? `<div class="divider"></div>
+       <table class="client-table">
+         ${customerRows.map(([label, value]) =>
+           `<tr><td class="cl">${label}</td><td class="cv">${value}</td></tr>`
+         ).join("")}
+       </table>`
     : "";
 
   const locationLabel = order.table_number === 0 ? "ENTREGA" : `MESA ${order.table_number}`;
@@ -218,6 +271,23 @@ export async function printOrder(
       font-weight: bold;
       letter-spacing: 0.5px;
     }
+    .client-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 4px 0;
+    }
+    .client-table td { padding: 2px 0; vertical-align: top; }
+    .client-table td.cl {
+      white-space: nowrap;
+      font-weight: bold;
+      padding-right: 6px;
+      font-size: 12px;
+      width: 72px;
+    }
+    .client-table td.cv {
+      font-size: 12px;
+      word-break: break-word;
+    }
     .footer {
       text-align: center;
       margin-top: 8px;
@@ -247,6 +317,7 @@ export async function printOrder(
   ${hasTotal ? '<div class="divider"></div>' : ""}
   ${totalHtml}
   ${pixHtml}
+  ${customerHtml}
   <div class="divider"></div>
   <div class="footer">★ novo pedido — kds ★</div>
 </body>

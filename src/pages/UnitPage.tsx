@@ -82,6 +82,8 @@ const UnitPage = () => {
 
   // Checkout form
   const [buyerName, setBuyerName] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerDoc, setBuyerDoc] = useState("");
   const [address, setAddress] = useState("");
   const [addressConfirm, setAddressConfirm] = useState("");
   const [payment, setPayment] = useState("");
@@ -257,16 +259,20 @@ const UnitPage = () => {
 
     // Save order to database (table_number=0 = delivery) — runs in parallel, doesn't block WhatsApp
     if (org?.id) {
-      const notesText = [
-        `${buyerName.trim()} · ${payment}`,
-        address.trim() ? address.trim() : null,
-        notes.trim() ? `Obs: ${notes.trim()}` : null,
-      ].filter(Boolean).join(" · ");
+      // Structured notes format: CLIENTE:...|TEL:...|END.:...|PGTO:...|DOC:...|OBS:...
+      const noteParts: string[] = [
+        `CLIENTE:${buyerName.trim()}`,
+        buyerPhone.trim() ? `TEL:${buyerPhone.trim()}` : null,
+        address.trim() ? `END.:${address.trim()}` : null,
+        `PGTO:${payment}`,
+        buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
+        notes.trim() ? `OBS:${notes.trim()}` : null,
+      ].filter(Boolean) as string[];
 
       placeOrder.mutate({
         organizationId: org.id,
         tableNumber: 0,
-        notes: notesText,
+        notes: noteParts.join("|"),
         items: cartItems.map((i) => ({
           menu_item_id: i.id,
           name: i.name,
@@ -280,6 +286,8 @@ const UnitPage = () => {
     setCart({});
     setCheckoutOpen(false);
     setBuyerName("");
+    setBuyerPhone("");
+    setBuyerDoc("");
     setAddress("");
     setAddressConfirm("");
     setPayment("");
@@ -692,6 +700,33 @@ const UnitPage = () => {
                   className={nameError ? "border-destructive" : ""}
                 />
                 {nameError && <p className="text-destructive text-xs mt-1">Nome é obrigatório</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="buyer-phone" className="text-xs font-medium mb-1 block">
+                  Telefone <span className="text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="buyer-phone"
+                  placeholder="(11) 99999-0000"
+                  value={buyerPhone}
+                  onChange={(e) => setBuyerPhone(e.target.value)}
+                  inputMode="tel"
+                  maxLength={20}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="buyer-doc" className="text-xs font-medium mb-1 block">
+                  CPF / CNPJ <span className="text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="buyer-doc"
+                  placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                  value={buyerDoc}
+                  onChange={(e) => setBuyerDoc(e.target.value)}
+                  maxLength={20}
+                />
               </div>
 
               <div>
