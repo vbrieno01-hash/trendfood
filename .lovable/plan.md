@@ -1,30 +1,49 @@
 
-
-# Corrigir Acesso ao Painel Admin
+# Corrigir Race Condition no Login Admin
 
 ## Problema
 
-O usuario `vendass945@gmail.com` possui a role `admin` na tabela `user_roles`, o que permite acesso ao painel admin. Atualmente existem 2 admins no banco:
+Quando `brenojackson30@gmail.com` faz login, acontece esta sequencia:
 
-- `brenojackson30@gmail.com` (correto)
-- `vendass945@gmail.com` (nao deveria ter acesso)
+1. `onAuthStateChange` dispara com evento SIGNED_IN
+2. `user` e `session` sao atualizados imediatamente (sincrono)
+3. `loading` ja esta `false` (foi definido no carregamento inicial)
+4. `fetchOrganization` roda no `setTimeout` (asssincrono, ainda nao completou)
+5. `AdminPage` renderiza: ve `user` presente, `isAdmin = false`, redireciona para `/`
+6. `fetchOrganization` completa e define `isAdmin = true` -- mas ja e tarde demais
 
 ## Solucao
 
-1. **Remover a role admin** do usuario `vendass945@gmail.com` via migration SQL:
-
-```sql
-DELETE FROM public.user_roles
-WHERE user_id = '50d70a01-2d3a-495b-ba9c-e49794dbd12d'
-AND role = 'admin';
-```
-
-Isso remove apenas a permissao de admin desse usuario. Ele continua podendo usar a plataforma normalmente como dono de loja.
-
-2. **Nenhuma mudanca de codigo necessaria** -- a verificacao `isAdmin` ja funciona corretamente baseada na tabela `user_roles`. O problema era apenas o dado no banco.
+No `onAuthStateChange`, quando o evento for `SIGNED_IN`, definir `loading = true` ANTES de chamar `fetchOrganization`. Isso faz o `AdminPage` mostrar o spinner em vez de redirecionar prematuramente. Depois que `fetchOrganization` terminar, `loading` volta para `false`.
 
 ## Detalhes tecnicos
 
-- A funcao `create-admin-user` (edge function) cria admin para `brenojackson30@gmail.com`. Provavelmente a role de admin do `vendass945` foi inserida manualmente ou por teste.
-- Apos a migration, apenas `brenojackson30@gmail.com` tera acesso ao `/admin`.
+### Arquivo: `src/hooks/useAuth.tsx`
 
+Alterar o callback do `onAuthStateChange`:
+
+```text
+// ANTES (problematico):
+setTimeout(() => {
+  if (isMounted.current) {
+    fetchOrganization(userId);
+  }
+}, 0);
+
+// DEPOIS (corrigido):
+if (_event === "SIGNED_IN") {
+  setLoading(true);
+}
+setTimeout(async () => {
+  if (isMounted.current) {
+    await fetchOrganization(userId);
+    if (isMounted.current) setLoading(false);
+  }
+}, 0);
+```
+
+Isso garante que durante o intervalo entre o login e a conclusao da busca de roles, o `AdminPage` mostra o spinner de carregamento em vez de redirecionar para a pagina inicial.
+
+### Nenhuma outra mudanca necessaria
+- `AdminPage.tsx` ja trata `loading` corretamente (mostra spinner)
+- Banco de dados ja esta correto (breno tem role admin)
