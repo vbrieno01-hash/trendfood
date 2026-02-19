@@ -20,6 +20,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   organization: Organization | null;
+  isAdmin: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshOrganization: () => Promise<void>;
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   organization: null,
+  isAdmin: false,
   loading: true,
   signOut: async () => {},
   refreshOrganization: async () => {},
@@ -40,21 +42,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
 
   const fetchOrganization = async (userId: string) => {
     try {
-      const { data } = await supabase
-        .from("organizations")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const [{ data: orgData }, { data: roleData }] = await Promise.all([
+        supabase
+          .from("organizations")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle(),
+      ]);
       if (isMounted.current) {
-        setOrganization(data as Organization | null);
+        setOrganization(orgData as Organization | null);
+        setIsAdmin(!!roleData);
       }
     } catch {
-      if (isMounted.current) setOrganization(null);
+      if (isMounted.current) {
+        setOrganization(null);
+        setIsAdmin(false);
+      }
     }
   };
 
@@ -90,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }, 0);
         } else {
           setOrganization(null);
+          setIsAdmin(false);
           setLoading(false);
         }
       }
@@ -120,10 +136,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setOrganization(null);
+    setIsAdmin(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, organization, loading, signOut, refreshOrganization, refreshOrganizationForUser }}>
+    <AuthContext.Provider value={{ user, session, organization, isAdmin, loading, signOut, refreshOrganization, refreshOrganizationForUser }}>
       {children}
     </AuthContext.Provider>
   );
