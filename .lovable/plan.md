@@ -1,70 +1,103 @@
 
-# Drawer de Detalhe do Item — Página Pública
+# PWA Instalável + Horário de Funcionamento por Loja
 
-## Diagnóstico
+## Visão Geral
 
-O grid de 3 colunas deixa cada card com ~118px de largura — espaço insuficiente para mostrar a descrição inline. Remover a descrição foi a escolha técnica correta para o grid, mas o cliente perde informação essencial sobre o produto.
+Duas melhorias independentes que se complementam:
 
-A solução padrão de mercado (iFood, Rappi, Uber Eats) é: card compacto no grid + drawer/modal com detalhes ao tocar.
+1. **PWA (App Instalável)** — o cliente consegue adicionar o TrendFood/Snack Hive na tela inicial do celular como se fosse um app de verdade, sem precisar da loja de apps
+2. **Horário de Funcionamento** — cada loja define os dias e horários que está aberta. A página pública mostra "Aberto agora" ou "Fechado · abre às 18h" em tempo real
 
-## Comportamento Novo
+---
 
-Ao clicar em qualquer card do cardápio:
-1. Um **Drawer** desliza de baixo para cima
-2. Mostra: foto grande (aspect-video), nome completo, descrição completa, preço e controle de quantidade
-3. Botão "Adicionar ao carrinho" (ou stepper se já há qty > 0)
-4. O drawer fecha ao arrastar para baixo ou clicar fora
+## Parte 1 — PWA Instalável
 
-O card no grid continua igual — apenas o ícone de quantidade (badge) indica itens já adicionados.
+### O que muda para o usuário final
+- Ao visitar qualquer página do app pelo celular, o navegador exibe um banner "Adicionar à tela inicial"
+- O app abre sem barra de endereço, em tela cheia, como um app nativo
+- Funciona em iPhone (Safari → Compartilhar → Adicionar) e Android (Chrome → instalar automaticamente)
 
-## Estrutura do Drawer
+### Implementação técnica
 
-```text
-┌──────────────────────────────────┐
-│ ▬▬▬ (handle de arraste)          │
-│                                  │
-│  [Foto grande — aspect-video]    │
-│                                  │
-│  Nome Completo do Item           │
-│  Descrição completa do produto   │
-│  que pode ser mais longa...      │
-│                                  │
-│  R$ 36,00                        │
-│                                  │
-│  [− 2 +]  ou  [+ Adicionar]      │
-└──────────────────────────────────┘
+**Pacote a instalar:** `vite-plugin-pwa`
+
+**Arquivos novos/modificados:**
+
+| Arquivo | O que muda |
+|---|---|
+| `vite.config.ts` | Adicionar plugin `VitePWA` com manifest, ícones e configuração de cache. Incluir `/~oauth` no `navigateFallbackDenylist` para não quebrar autenticação |
+| `public/pwa-192.png` | Ícone 192×192 (gerado a partir do favicon existente) |
+| `public/pwa-512.png` | Ícone 512×512 |
+| `index.html` | Tags `<meta theme-color>` e `<link rel="apple-touch-icon">` para suporte iOS |
+
+**Configuração do manifest:**
+```
+Nome: Snack Hive
+Cor tema: #f97316 (laranja padrão)
+Display: standalone (sem barra do navegador)
+Start URL: /
 ```
 
-## Mudanças Técnicas
+O service worker é gerado automaticamente pelo plugin e faz cache dos assets principais para carregamento offline.
 
-### Estado novo
-```typescript
-const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+---
+
+## Parte 2 — Horário de Funcionamento
+
+### Banco de dados
+
+Nova coluna na tabela `organizations`:
+
+```sql
+ALTER TABLE public.organizations
+ADD COLUMN business_hours jsonb DEFAULT NULL;
 ```
 
-### Card no grid — adicionar onClick
-- Toda a área do card (exceto os botões de qty) torna-se clicável: `onClick={() => setSelectedItem(item)}`
-- Os botões `−` e `+` recebem `e.stopPropagation()` para não abrir o drawer ao ajustar quantidade
+Formato do JSON armazenado:
+```json
+{
+  "enabled": true,
+  "schedule": {
+    "seg": { "open": true, "from": "08:00", "to": "22:00" },
+    "ter": { "open": true, "from": "08:00", "to": "22:00" },
+    "qua": { "open": true, "from": "08:00", "to": "22:00" },
+    "qui": { "open": true, "from": "08:00", "to": "22:00" },
+    "sex": { "open": true, "from": "08:00", "to": "23:00" },
+    "sab": { "open": true, "from": "10:00", "to": "23:00" },
+    "dom": { "open": false, "from": "10:00", "to": "20:00" }
+  }
+}
+```
 
-### Drawer de detalhe (componente inline)
-- Usa o componente `Drawer` já instalado (`vaul`) — já importado no arquivo
-- `open={selectedItem !== null}` / `onClose={() => setSelectedItem(null)}`
-- Foto: `w-full aspect-video object-cover` (ou `aspect-square` se não tiver foto, com placeholder `ImageOff`)
-- Nome: `text-lg font-bold`
-- Descrição: `text-sm text-muted-foreground` (completa, sem line-clamp)
-- Preço: `text-xl font-bold` com cor primária
-- Botão de adicionar: mesma lógica do card — se qty=0 mostra `[+ Adicionar]`, se qty>0 mostra stepper `[− N +]`
-- Botão fecha o drawer após adicionar (opcional)
+Se `business_hours` for `null` ou `enabled: false`, a loja é tratada como sempre aberta (sem restrição).
 
-### Indicador de quantidade no card
-Quando `qty > 0`, mostrar um **badge circular** no canto superior direito da foto com o número — feedback visual imediato de que o item está no carrinho.
-- `absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center`
-- Cor: `primaryColor`
+### Dashboard — Aba Perfil da Loja (`StoreProfileTab.tsx`)
 
-## Arquivos Afetados
+Nova seção "Horário de Funcionamento" com:
+- Toggle principal "Controlar horário de funcionamento" (liga/desliga a funcionalidade)
+- Tabela com os 7 dias da semana, cada linha com:
+  - Checkbox para ativar/desativar o dia
+  - Dois inputs `time` (de/até) quando o dia está ativo
+- Salvo junto com o restante do perfil
+
+### Página Pública — `UnitPage.tsx`
+
+Badge de status no banner superior da loja:
+
+- **Verde "Aberto agora"** — dentro do horário configurado
+- **Vermelho "Fechado · abre às 18h"** — fora do horário, mostra quando reabre
+- **Sem badge** — se horário não estiver configurado (sempre aberto)
+
+Lógica de verificação em JavaScript no frontend: compara hora atual do navegador com o JSON de horários. Sem chamada extra ao backend.
+
+### Arquivos afetados
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/UnitPage.tsx` | Adicionar estado `selectedItem`, `onClick` nos cards, badge de qty na foto, Drawer de detalhe |
-
-Nenhuma mudança em banco de dados, rotas ou lógica de negócio.
+| `vite.config.ts` | PWA plugin |
+| `index.html` | Meta tags PWA |
+| `public/pwa-192.png` e `pwa-512.png` | Ícones PWA |
+| `src/components/dashboard/StoreProfileTab.tsx` | Seção de horários |
+| `src/pages/UnitPage.tsx` | Badge de status aberto/fechado no banner |
+| `src/hooks/useOrganization.ts` | Incluir `business_hours` no tipo |
+| Migração SQL | `ADD COLUMN business_hours jsonb` na tabela `organizations` |
