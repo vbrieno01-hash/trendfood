@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
-  History, Tag, BarChart2, Wallet, Lock
+  History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -333,6 +333,34 @@ const DashboardPage = () => {
         </header>
 
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          {/* Trial banners */}
+          {planLimits.trialActive && (
+            <div className="mb-4 rounded-xl bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <Rocket className="w-5 h-5 text-primary shrink-0" />
+                <p className="text-sm font-medium text-foreground">
+                  Você tem <strong>{planLimits.trialDaysLeft} {planLimits.trialDaysLeft === 1 ? "dia" : "dias"}</strong> restantes do plano Pro grátis!
+                </p>
+              </div>
+              <Button asChild size="sm" className="gap-1.5">
+                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Assinar Pro</Link>
+              </Button>
+            </div>
+          )}
+          {planLimits.trialExpired && planLimits.plan === "free" && (
+            <div className="mb-4 rounded-xl bg-destructive/10 border border-destructive/30 p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+                <p className="text-sm font-medium text-foreground">
+                  Seu período de teste Pro expirou. Faça upgrade para continuar usando todos os recursos.
+                </p>
+              </div>
+              <Button asChild size="sm" variant="destructive" className="gap-1.5">
+                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Fazer upgrade</Link>
+              </Button>
+            </div>
+          )}
+
           {activeTab === "home" && <HomeTab organization={organization} />}
           {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}

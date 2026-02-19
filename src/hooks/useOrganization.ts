@@ -38,6 +38,7 @@ export interface Organization {
   delivery_config?: DeliveryConfig | null;
   subscription_status?: string;
   subscription_plan?: string;
+  trial_ends_at?: string | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {
