@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -66,6 +68,22 @@ const DashboardPage = () => {
       refreshOrganizationForUser(user.id);
     }
   }, [loading, user, organization, refreshOrganizationForUser]);
+
+  // Post-checkout feedback
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("checkout") === "success") {
+      toast.success("Assinatura ativada com sucesso! Bem-vindo ao plano Pro 🎉");
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          supabase.functions.invoke("check-subscription", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          }).then(() => refreshOrganization());
+        }
+      });
+      navigate("/dashboard", { replace: true });
+    }
+  }, [location.search, navigate, refreshOrganization]);
 
   if (loading || !user) {
     return (
