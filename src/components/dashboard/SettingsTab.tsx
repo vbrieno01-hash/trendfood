@@ -42,13 +42,26 @@ export default function SettingsTab() {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.error) {
+        if (data.error.includes("No Stripe customer found")) {
+          toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar.");
+          navigate("/planos");
+          return;
+        }
+        throw new Error(data.error);
+      }
       if (data?.url) {
         window.open(data.url, "_blank");
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
-      toast.error(error.message ?? "Erro ao abrir portal de assinatura.");
+      const msg = error.message ?? "";
+      if (msg.includes("No Stripe customer found")) {
+        toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar sua assinatura.");
+        navigate("/planos");
+      } else {
+        toast.error(msg || "Erro ao abrir portal de assinatura.");
+      }
     } finally {
       setPortalLoading(false);
     }
