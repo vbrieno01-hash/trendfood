@@ -165,6 +165,11 @@ const UnitPage = () => {
   const primaryColor = org.primary_color || "#f97316";
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
+  // Store open/closed status
+  const storeStatus = getStoreStatus(org.business_hours);
+  const isClosed = storeStatus !== null && !storeStatus.open;
+  const opensAt = isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
+
   // Cart helpers
   const addToCart = (item: { id: string; name: string; price: number }) => {
     setCart((prev) => {
@@ -296,30 +301,35 @@ const UnitPage = () => {
           style={{ backgroundColor: `${primaryColor}15`, borderColor: `${primaryColor}30` }}
         >
           {/* Badge de status aberto/fechado */}
-          {(() => {
-            const status = getStoreStatus(org.business_hours);
-            if (!status) return null;
-            const isOpen = status.open;
-            const opensAt = !isOpen && "opensAt" in status ? status.opensAt : null;
-            return (
-              <span
-                className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  isOpen ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
-                }`}
-              >
-                {isOpen
-                  ? "Aberto agora"
-                  : opensAt
-                  ? `Fechado · abre às ${opensAt}`
-                  : "Fechado hoje"}
-              </span>
-            );
-          })()}
+          {storeStatus && (
+            <span
+              className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                storeStatus.open ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
+              }`}
+            >
+              {storeStatus.open
+                ? "Aberto agora"
+                : opensAt
+                ? `Fechado · abre às ${opensAt}`
+                : "Fechado hoje"}
+            </span>
+          )}
           <p className="text-lg font-bold text-foreground mb-0.5">{org.description || `Bem-vindo ao ${org.name}!`}</p>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5">
             <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
             Monte seu pedido e envie direto pelo WhatsApp!
           </p>
+          {isClosed && (
+            <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
+              <span className="text-base leading-none mt-0.5">🔒</span>
+              <div>
+                <p className="text-sm font-semibold text-red-600 dark:text-red-400">Loja fechada · pedidos indisponíveis</p>
+                {opensAt && (
+                  <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Abre às {opensAt}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -439,7 +449,11 @@ const UnitPage = () => {
                                 </span>
 
                                 {item.available && (
-                                  qty === 0 ? (
+                                  isClosed ? (
+                                    <span className="mt-auto w-full flex items-center justify-center gap-0.5 py-1 rounded-lg text-[10px] font-semibold bg-muted text-muted-foreground cursor-not-allowed">
+                                      🔒 Fechado
+                                    </span>
+                                  ) : qty === 0 ? (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); addToCart(item); }}
                                       className="mt-auto w-full flex items-center justify-center gap-0.5 py-1 rounded-lg text-[10px] font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
@@ -564,20 +578,33 @@ const UnitPage = () => {
       {/* ── FLOATING CART BAR ── */}
       {totalItems > 0 && (
         <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center px-4">
-          <button
-            onClick={() => setCheckoutOpen(true)}
-            className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                {totalItems}
-              </span>
-              <span>{totalItems === 1 ? "1 item" : `${totalItems} itens`}</span>
+          {isClosed ? (
+            <div className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl font-semibold text-sm w-full max-w-sm justify-between bg-muted text-muted-foreground cursor-not-allowed">
+              <div className="flex items-center gap-2">
+                <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                  {totalItems}
+                </span>
+                <span>🔒 Loja fechada</span>
+              </div>
+              <ShoppingCart className="w-4 h-4 opacity-50" />
+              <span className="opacity-50">{fmt(totalPrice)}</span>
             </div>
-            <ShoppingCart className="w-4 h-4" />
-            <span>{fmt(totalPrice)}</span>
-          </button>
+          ) : (
+            <button
+              onClick={() => setCheckoutOpen(true)}
+              className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                  {totalItems}
+                </span>
+                <span>{totalItems === 1 ? "1 item" : `${totalItems} itens`}</span>
+              </div>
+              <ShoppingCart className="w-4 h-4" />
+              <span>{fmt(totalPrice)}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -709,7 +736,14 @@ const UnitPage = () => {
           </div>
 
           <DrawerFooter className="border-t border-border pt-3">
-            {whatsapp ? (
+            {isClosed ? (
+              <div className="bg-muted rounded-xl p-4 text-center">
+                <p className="text-foreground font-semibold text-sm">🔒 Loja fechada · pedidos indisponíveis</p>
+                {opensAt && (
+                  <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>
+                )}
+              </div>
+            ) : whatsapp ? (
               <button
                 onClick={handleSendWhatsApp}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-semibold text-sm transition-transform hover:scale-[1.02] active:scale-95"
@@ -836,7 +870,12 @@ const UnitPage = () => {
 
                 {/* Ação */}
                 <div className="px-5 pb-6">
-                  {qty === 0 ? (
+                  {isClosed ? (
+                    <div className="bg-muted rounded-xl p-4 text-center">
+                      <p className="font-semibold text-foreground text-sm">🔒 Loja fechada · pedidos indisponíveis</p>
+                      {opensAt && <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>}
+                    </div>
+                  ) : qty === 0 ? (
                     <button
                       onClick={() => { addToCart(selectedItem); setSelectedItem(null); }}
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
