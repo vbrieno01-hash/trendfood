@@ -6,15 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff, Loader2, Check, Search } from "lucide-react";
+import { Eye, EyeOff, Loader2, Check } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
-
-const BRAZIL_STATES = [
-  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
-  "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
-];
 
 const generateSlug = (name: string) =>
   name
@@ -24,23 +18,6 @@ const generateSlug = (name: string) =>
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-");
-
-interface AddressFields {
-  cep: string;
-  street: string;
-  number: string;
-  complement: string;
-  neighborhood: string;
-  city: string;
-  state: string;
-}
-
-function buildStoreAddress(f: AddressFields): string {
-  const parts = [f.cep, f.street, f.number, f.complement, f.neighborhood, f.city, f.state, "Brasil"]
-    .map((p) => p.trim())
-    .filter(Boolean);
-  return parts.join(", ");
-}
 
 const AuthPage = () => {
   const navigate = useNavigate();
@@ -60,12 +37,6 @@ const AuthPage = () => {
   const [signupLoading, setSignupLoading] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
 
-  const [addressFields, setAddressFields] = useState<AddressFields>({
-    cep: "", street: "", number: "", complement: "",
-    neighborhood: "", city: "", state: "",
-  });
-  const [cepFetching, setCepFetching] = useState(false);
-
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [loginLoading, setLoginLoading] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
@@ -76,34 +47,6 @@ const AuthPage = () => {
       businessName: name,
       slug: generateSlug(name),
     }));
-  };
-
-  const fetchCep = async () => {
-    const cleaned = addressFields.cep.replace(/\D/g, "");
-    if (cleaned.length !== 8) {
-      toast.error("Digite um CEP válido com 8 dígitos.");
-      return;
-    }
-    setCepFetching(true);
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
-      const data = await res.json();
-      if (data.erro) {
-        toast.error("CEP não encontrado.");
-        return;
-      }
-      setAddressFields((p) => ({
-        ...p,
-        street: data.logradouro ?? p.street,
-        neighborhood: data.bairro ?? p.neighborhood,
-        city: data.localidade ?? p.city,
-        state: data.uf ?? p.state,
-      }));
-    } catch {
-      toast.error("Erro ao buscar CEP.");
-    } finally {
-      setCepFetching(false);
-    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -130,8 +73,6 @@ const AuthPage = () => {
         full_name: signupData.fullName,
       });
 
-      const storeAddress = buildStoreAddress(addressFields);
-
       const { error: orgError } = await supabase.from("organizations").insert({
         user_id: userId,
         name: signupData.businessName,
@@ -139,7 +80,6 @@ const AuthPage = () => {
         emoji: "🍔",
         description: "Bem-vindo ao nosso mural de sugestões!",
         primary_color: "#f97316",
-        store_address: storeAddress || null,
         whatsapp: signupData.whatsapp || null,
       });
 
@@ -410,124 +350,6 @@ const AuthPage = () => {
                             setSignupData((p) => ({ ...p, whatsapp: e.target.value.replace(/\D/g, "") }))
                           }
                         />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Endereço da loja */}
-                <div className="pt-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-3 font-semibold uppercase tracking-wide">
-                    Endereço da loja <span className="font-normal normal-case">(opcional)</span>
-                  </p>
-                  <div className="space-y-3">
-                    {/* CEP */}
-                    <div>
-                      <Label htmlFor="addr-cep" className="text-sm font-medium mb-1.5 block">CEP</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="addr-cep"
-                          placeholder="00000-000"
-                          inputMode="numeric"
-                          maxLength={9}
-                          value={addressFields.cep}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
-                            const masked = raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5)}` : raw;
-                            setAddressFields((p) => ({ ...p, cep: masked }));
-                          }}
-                          className="h-11 flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-11 px-3 shrink-0 gap-1.5"
-                          onClick={fetchCep}
-                          disabled={cepFetching}
-                        >
-                          {cepFetching
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <Search className="w-4 h-4" />}
-                          Buscar
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Rua */}
-                    <div>
-                      <Label htmlFor="addr-street" className="text-sm font-medium mb-1.5 block">Rua</Label>
-                      <Input
-                        id="addr-street"
-                        placeholder="Rua das Flores"
-                        value={addressFields.street}
-                        onChange={(e) => setAddressFields((p) => ({ ...p, street: e.target.value }))}
-                        className="h-11"
-                      />
-                    </div>
-
-                    {/* Número + Complemento */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="addr-number" className="text-sm font-medium mb-1.5 block">Número</Label>
-                        <Input
-                          id="addr-number"
-                          placeholder="123"
-                          value={addressFields.number}
-                          onChange={(e) => setAddressFields((p) => ({ ...p, number: e.target.value }))}
-                          className="h-11"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="addr-complement" className="text-sm font-medium mb-1.5 block">Complemento</Label>
-                        <Input
-                          id="addr-complement"
-                          placeholder="Apto 4"
-                          value={addressFields.complement}
-                          onChange={(e) => setAddressFields((p) => ({ ...p, complement: e.target.value }))}
-                          className="h-11"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Bairro */}
-                    <div>
-                      <Label htmlFor="addr-neighborhood" className="text-sm font-medium mb-1.5 block">Bairro</Label>
-                      <Input
-                        id="addr-neighborhood"
-                        placeholder="Centro"
-                        value={addressFields.neighborhood}
-                        onChange={(e) => setAddressFields((p) => ({ ...p, neighborhood: e.target.value }))}
-                        className="h-11"
-                      />
-                    </div>
-
-                    {/* Cidade + Estado */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="addr-city" className="text-sm font-medium mb-1.5 block">Cidade</Label>
-                        <Input
-                          id="addr-city"
-                          placeholder="São Paulo"
-                          value={addressFields.city}
-                          onChange={(e) => setAddressFields((p) => ({ ...p, city: e.target.value }))}
-                          className="h-11"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium mb-1.5 block">Estado</Label>
-                        <Select
-                          value={addressFields.state}
-                          onValueChange={(v) => setAddressFields((p) => ({ ...p, state: v }))}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="UF" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BRAZIL_STATES.map((uf) => (
-                              <SelectItem key={uf} value={uf}>{uf}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </div>
                     </div>
                   </div>
