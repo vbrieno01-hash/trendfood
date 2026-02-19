@@ -1,86 +1,59 @@
 
-# Pagamento PIX Automático para Pedidos Online (Delivery/Retirada)
+# Tornar o Calculo de Frete Mais Resiliente
 
-## Situacao Atual
+## Problemas Identificados
 
-Quando o cliente pede pelo cardapio online (delivery ou retirada):
-1. Ele seleciona "PIX" como forma de pagamento
-2. O pedido e salvo no banco com `payment_method = 'pending'`
-3. A mensagem vai pro WhatsApp do lojista
-4. **Nao ha cobranca real** -- o lojista precisa cobrar manualmente
+1. **ViaCEP falhando**: A busca do CEP pode falhar por problemas de rede/CORS. Quando isso acontece, o endereco do cliente fica vazio e o frete nao e calculado.
+2. **Endereco da loja com rua duplicada**: O `store_address` do "Burguer do Rei" esta salvo como `"11510-170, Rua Jaime Joao Olcese, Rua Jaime Joao Olcese, Vila Couto, Cubatao, SP, Brasil"` -- a rua aparece duas vezes, o que pode confundir o geocoder.
+3. **Sem retry nas APIs externas**: Se Nominatim ou OSRM falham uma vez, nao ha nova tentativa.
 
-Para mesas presenciais, o sistema ja gera QR Code PIX e verifica o pagamento automaticamente.
+## Solucoes
 
-## O que sera feito
+### 1. Retry automatico no ViaCEP (`src/pages/UnitPage.tsx`)
+- Adicionar uma tentativa extra com `setTimeout` de 1s se a primeira chamada falhar
+- Manter a mensagem de erro apenas se ambas falharem
 
-Quando o cliente online escolher PIX, em vez de apenas registrar no texto, o sistema vai:
+### 2. Permitir calculo de frete com endereco manual (`src/pages/UnitPage.tsx`)
+- Mesmo se o ViaCEP falhar, o usuario pode preencher manualmente Cidade e Estado
+- O `fullCustomerAddress` ja considera esse caso (branch sem CEP), mas o campo Cidade e Estado estao vazios quando o CEP falha
+- Adicionar um Select para Estado (UF) e permitir que Cidade seja digitada, independente do CEP
 
-1. **Gerar o QR Code PIX** com o valor total do pedido (incluindo frete se aplicavel)
-2. **Exibir uma tela de pagamento** com o QR Code, codigo copia-e-cola e countdown
-3. **Verificar o pagamento automaticamente** (se a loja tiver gateway PIX configurado) ou aguardar confirmacao manual
-4. **Salvar o pedido com `payment_method = 'pix'`** e o status adequado
-5. So enviar a mensagem pro WhatsApp **apos o pagamento ser confirmado** (ou imediatamente se for outro metodo)
+### 3. Retry nas chamadas de geocoding (`src/hooks/useDeliveryFee.ts`)
+- Adicionar retry com backoff (1 tentativa extra apos 1.5s) nas funcoes `tryGeocode` e `getRouteDistanceKm`
+- Ajuda quando Nominatim ou OSRM estao com rate-limit temporario
 
-## Fluxo do cliente
-
-```text
-Carrinho -> Checkout -> Seleciona PIX
-                            |
-                    [Gera QR Code PIX]
-                            |
-                  Tela de Pagamento PIX
-                  (QR Code + Copia/Cola)
-                            |
-              [Verifica pagamento via gateway]
-                            |
-                   Pagamento Confirmado!
-                            |
-              [Salva pedido + Envia WhatsApp]
-```
-
-Para outros metodos (Dinheiro, Cartao), o fluxo continua igual ao atual.
+### 4. Limpar rua duplicada no geocoding da loja (`src/hooks/useDeliveryFee.ts`)
+- Na funcao `geocodeStoreAddress`, detectar e remover campos duplicados consecutivos antes de montar a query
+- Previne que o geocoder se confunda com enderecos mal formatados
 
 ## Detalhes tecnicos
 
-### 1. Novo componente: `src/components/checkout/PixPaymentScreen.tsx`
+### `src/hooks/useDeliveryFee.ts`
 
-- Recebe: valor total, org (para pix_key e gateway config), callback de sucesso
-- Gera payload PIX usando `pixPayload.ts` (ja existe no projeto)
-- Renderiza QR Code usando `qrcode.react` (ja instalado)
-- Exibe codigo copia-e-cola
-- Se a loja tiver gateway configurado (`organization_secrets.pix_gateway_token`): polling automatico via edge function `verify-pix-payment`
-- Se nao tiver gateway: botao "Ja paguei" que marca como `awaiting_payment` para confirmacao manual do lojista
-- Timer de 10 minutos com expiracao
+**Funcao `tryGeocode`**: Adicionar wrapper com retry
+```typescript
+async function tryGeocodeWithRetry(query: string): Promise<GeoCoord | null> {
+  const result = await tryGeocode(query);
+  if (result) return result;
+  // Retry apos 1.5s
+  await new Promise((r) => setTimeout(r, 1500));
+  return tryGeocode(query);
+}
+```
 
-### 2. Alteracao: `src/pages/UnitPage.tsx`
+**Funcao `geocodeStoreAddress`**: Antes de geocodificar, remover partes duplicadas consecutivas do endereco.
 
-- Quando o cliente clicar "Enviar Pedido" com PIX selecionado:
-  - Em vez de enviar direto, abrir o `PixPaymentScreen` em um Drawer/Dialog
-  - Passar o valor total (com frete) e dados da org
-  - So prosseguir com o `placeOrder.mutate()` e envio do WhatsApp apos confirmacao do pagamento
-  - Salvar o pedido com `payment_method: 'pix'` em vez de 'pending'
+**Funcao `getRouteDistanceKm`**: Adicionar try/catch com retry.
 
-### 3. Alteracao: `src/hooks/useOrders.ts`
+### `src/pages/UnitPage.tsx`
 
-- Atualizar `usePlaceOrder` para aceitar `payment_method` opcional como parametro
-- Se `payment_method === 'pix'` e gateway configurado: salvar como `paid: true`
-- Se `payment_method === 'pix'` sem gateway: salvar como `paid: false` + status adequado para confirmacao manual
+**`fetchCustomerCep`**: Adicionar retry (2a tentativa apos 1s em caso de falha de rede).
 
-### 4. Logica condicional por modo de confirmacao
+**Campo Estado**: Trocar de `Select` placeholder para um `Select` funcional com todos os 27 UFs, permitindo preenchimento manual mesmo sem ViaCEP.
 
-- `pix_confirmation_mode === 'direct'` (gateway ativo): verificacao automatica, pedido ja entra como pago
-- `pix_confirmation_mode === 'manual'`: pedido entra como `awaiting_payment`, garcom confirma no painel
-- `pix_confirmation_mode === 'direct'` sem gateway: mostra QR estatico + botao "Ja paguei"
-
-### Resumo de arquivos
+## Resumo de arquivos
 
 | Arquivo | Acao |
 |---------|------|
-| `src/components/checkout/PixPaymentScreen.tsx` | **Novo** -- tela de pagamento PIX |
-| `src/pages/UnitPage.tsx` | Alterar fluxo de checkout quando PIX selecionado |
-| `src/hooks/useOrders.ts` | Aceitar `payment_method` no `usePlaceOrder` |
-
-### Sem mudancas no banco de dados
-- A coluna `payment_method` ja existe na tabela `orders`
-- A coluna `paid` ja existe
-- As edge functions de verificacao PIX ja existem
+| `src/hooks/useDeliveryFee.ts` | Retry no geocoding + limpeza de enderecos duplicados |
+| `src/pages/UnitPage.tsx` | Retry no ViaCEP + UF selecionavel manualmente |
