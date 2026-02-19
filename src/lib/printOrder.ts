@@ -61,6 +61,7 @@ function buildPixPayload(pixKey: string, amount: number, storeName: string): str
 // ─── Notes parser ─────────────────────────────────────────────────────────────
 
 interface ParsedNotes {
+  tipo?: string;
   name?: string;
   phone?: string;
   address?: string;
@@ -79,6 +80,7 @@ function parseNotes(notes: string): ParsedNotes {
     })
   );
   return {
+    tipo: parts["TIPO"] || undefined,
     name: parts["CLIENTE"] || undefined,
     phone: parts["TEL"] || undefined,
     address: parts["END."] || undefined,
@@ -148,7 +150,9 @@ export async function printOrder(
        </table>`
     : "";
 
-  const locationLabel = order.table_number === 0 ? "ENTREGA" : `MESA ${order.table_number}`;
+  const locationLabel = order.table_number === 0
+    ? (parsed?.tipo === "Retirada" ? "RETIRADA" : "ENTREGA")
+    : `MESA ${order.table_number}`;
 
   // Calculate total
   const total = items.reduce((sum, item) => {
