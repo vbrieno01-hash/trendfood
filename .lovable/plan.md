@@ -1,43 +1,40 @@
 
-# Corrigir Duplicacao de CEP e Dados Nao Salvos no Cadastro
 
-## Problema
+# Fix parseStoreAddress to Handle Variable-Length Addresses
 
-Dois bugs relacionados ao fluxo de criacao de conta:
+## Problem
 
-1. **CEP pedido duas vezes**: O formulario de signup (AuthPage) coleta endereco/CEP. Apos o cadastro, o usuario vai para o Dashboard onde o OnboardingWizard abre automaticamente (porque `onboarding_done = false`) e pede o endereco/CEP novamente no passo 2.
+`buildStoreAddress` filters out empty fields with `.filter(Boolean)`, so a partial address like CEP + Number + State produces `"01001000, 100, SP, Brasil"` (4 parts). But `parseStoreAddress` requires `parts.length >= 6` to start parsing, so it falls through to the dumb fallback that puts the entire string into the `street` field.
 
-2. **Dados nao salvos no perfil da loja**: O signup salva `store_address` e `whatsapp` corretamente na organizacao, mas o OnboardingWizard nao le esses dados existentes. Se o usuario passa pelo wizard sem preencher novamente, o passo 2 sobrescreve o endereco com `null`.
+## Solution
 
-## Solucao
+Rewrite `parseStoreAddress` to work with any number of parts by:
 
-Remover os campos de endereco do formulario de signup e deixar essa responsabilidade exclusivamente para o OnboardingWizard, que ja foi projetado para isso. Isso elimina a duplicacao e simplifica o cadastro.
+1. Strip trailing "Brasil" if present
+2. Detect the state (last part matching BRAZIL_STATES list)
+3. Detect the CEP (any part matching the 8-digit pattern)
+4. Assign remaining parts positionally based on the canonical order: street, number, complement, neighborhood, city
 
-### Alteracoes
+## File Changed
 
-**1. AuthPage.tsx - Remover secao de endereco do signup**
-- Remover o estado `addressFields` e `cepFetching`
-- Remover a funcao `fetchCep`
-- Remover toda a secao "Endereco da loja" do formulario
-- Remover a interface `AddressFields` local e a funcao `buildStoreAddress` duplicada
-- Remover a linha que salva `store_address` no insert da organizacao (o OnboardingWizard cuidara disso)
+**`src/lib/storeAddress.ts`** - Replace the `parseStoreAddress` function
 
-**2. OnboardingWizard.tsx - Pre-popular campos com dados existentes**
-- Ao iniciar, ler `organization.store_address` e fazer parse com `parseStoreAddress` para pre-popular os campos de endereco (CEP, rua, numero, etc.)
-- Assim, se o usuario ja tiver um endereco salvo (de qualquer fonte), o wizard mostra os dados preenchidos
+### New Logic
 
-### Resultado esperado
+```
+1. Split by comma, trim each part
+2. Remove trailing "Brasil"
+3. Find and extract state (last part in BRAZIL_STATES)
+4. Find and extract CEP (any part matching /^\d{5}-?\d{3}$/)
+5. Find and extract city (last remaining part, if state was found)
+6. Remaining parts map positionally to: street, number, complement, neighborhood
+```
 
-- O formulario de signup fica mais curto e rapido (sem endereco)
-- O OnboardingWizard e o unico lugar que coleta endereco
-- Se por algum motivo o endereco ja existir, o wizard mostra os dados pre-preenchidos
-- Nenhum dado e sobrescrito com `null` acidentalmente
+This handles all formats:
+- Full: `"01001-000, Rua X, 100, Apto 4, Centro, Sao Paulo, SP, Brasil"` (8 parts)
+- No complement: `"01001-000, Rua X, 100, Centro, Sao Paulo, SP, Brasil"` (7 parts)  
+- Minimal from wizard: `"01001000, 100, SP, Brasil"` (4 parts)
+- Legacy no-CEP: `"Rua X, 100, Centro, Sao Paulo, SP"` (5 parts)
 
-### Arquivos afetados
+No database changes needed.
 
-| Arquivo | O que muda |
-|---------|-----------|
-| `src/pages/AuthPage.tsx` | Remove campos de endereco, interface AddressFields local e funcao buildStoreAddress duplicada |
-| `src/components/dashboard/OnboardingWizard.tsx` | Pre-popula campos de endereco a partir de `organization.store_address` usando `parseStoreAddress` |
-
-Nenhuma alteracao de banco de dados necessaria.
