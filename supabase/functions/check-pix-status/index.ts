@@ -6,6 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const SUPPORTED_PROVIDERS = ["mercadopago", "pagseguro", "efi", "asaas", "openpix"];
+
+const PROVIDER_NAMES: Record<string, string> = {
+  inter: "Inter", sicredi: "Sicredi", bradesco: "Bradesco", itau: "Itaú",
+  bb: "Banco do Brasil", santander: "Santander", caixa: "Caixa Econômica",
+  nubank: "Nubank", c6bank: "C6 Bank", shipay: "Shipay",
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -26,7 +34,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch gateway credentials
     const { data: secrets, error: secretsError } = await supabase
       .from("organization_secrets")
       .select("pix_gateway_provider, pix_gateway_token")
@@ -41,9 +48,20 @@ Deno.serve(async (req) => {
     }
 
     const { pix_gateway_provider, pix_gateway_token } = secrets;
+
+    // Check unsupported providers
+    if (!SUPPORTED_PROVIDERS.includes(pix_gateway_provider)) {
+      const name = PROVIDER_NAMES[pix_gateway_provider] || pix_gateway_provider;
+      return new Response(
+        JSON.stringify({ error: `Integração com ${name} em desenvolvimento. Use Mercado Pago, PagSeguro, EFI, Asaas ou OpenPix.` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     let paid = false;
     let status = "unknown";
 
+    // ── Mercado Pago ──
     if (pix_gateway_provider === "mercadopago") {
       const res = await fetch(`https://api.mercadopago.com/v1/payments/${payment_id}`, {
         headers: { Authorization: `Bearer ${pix_gateway_token}` },
@@ -52,6 +70,7 @@ Deno.serve(async (req) => {
       status = data.status || "unknown";
       paid = status === "approved";
 
+    // ── PagSeguro ──
     } else if (pix_gateway_provider === "pagseguro") {
       const res = await fetch(`https://api.pagseguro.com/instant-payments/cob/${payment_id}`, {
         headers: { Authorization: `Bearer ${pix_gateway_token}` },
@@ -60,14 +79,52 @@ Deno.serve(async (req) => {
       status = data.status || "unknown";
       paid = status === "CONCLUIDA";
 
-    } else {
-      return new Response(
-        JSON.stringify({ error: `Gateway "${pix_gateway_provider}" não suportado.` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // ── EFI (Gerencianet) ──
+    } else if (pix_gateway_provider === "efi") {
+      const [clientId, clientSecret] = pix_gateway_token.split(":");
+      // Get OAuth token
+      const authRes = await fetch("https://pix.api.efipay.com.br/oauth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+        },
+        body: JSON.stringify({ grant_type: "client_credentials" }),
+      });
+      const authData = await authRes.json();
+      if (!authRes.ok) {
+        return new Response(
+          JSON.stringify({ error: "Erro na autenticação EFI" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const res = await fetch(`https://pix.api.efipay.com.br/v2/cob/${payment_id}`, {
+        headers: { Authorization: `Bearer ${authData.access_token}` },
+      });
+      const data = await res.json();
+      status = data.status || "unknown";
+      paid = status === "CONCLUIDA";
+
+    // ── Asaas ──
+    } else if (pix_gateway_provider === "asaas") {
+      const res = await fetch(`https://api.asaas.com/v3/payments/${payment_id}`, {
+        headers: { "access_token": pix_gateway_token },
+      });
+      const data = await res.json();
+      status = data.status || "unknown";
+      paid = status === "RECEIVED" || status === "CONFIRMED";
+
+    // ── OpenPix ──
+    } else if (pix_gateway_provider === "openpix") {
+      const res = await fetch(`https://api.openpix.com.br/api/v1/charge/${payment_id}`, {
+        headers: { Authorization: pix_gateway_token },
+      });
+      const data = await res.json();
+      status = data.charge?.status || "unknown";
+      paid = status === "COMPLETED";
     }
 
-    // If paid, update order status from awaiting_payment to pending
+    // If paid, update order status
     if (paid && order_id) {
       await supabase
         .from("orders")
