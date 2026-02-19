@@ -16,6 +16,7 @@ interface Organization {
   subscription_status: string;
   subscription_plan: string;
   onboarding_done: boolean;
+  trial_ends_at?: string | null;
 }
 
 interface AuthContextType {

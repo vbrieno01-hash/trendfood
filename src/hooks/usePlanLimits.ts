@@ -5,6 +5,7 @@ type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_
 interface OrgLike {
   subscription_status?: string;
   subscription_plan?: string;
+  trial_ends_at?: string | null;
 }
 
 interface PlanLimits {
@@ -14,6 +15,9 @@ interface PlanLimits {
   tableLimit: number | null;
   canAccess: (feature: Feature) => boolean;
   features: Record<Feature, boolean>;
+  trialActive: boolean;
+  trialExpired: boolean;
+  trialDaysLeft: number;
 }
 
 const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
@@ -49,7 +53,15 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
 export function usePlanLimits(organization: OrgLike | null | undefined): PlanLimits {
   const rawPlan = (organization?.subscription_plan ?? "free") as Plan;
 
-  const effectivePlan: Plan = rawPlan;
+  const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
+  const now = new Date();
+  const trialActive = !!trialEndsAt && trialEndsAt > now;
+  const trialExpired = !!trialEndsAt && trialEndsAt <= now;
+  const trialDaysLeft = trialActive
+    ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  const effectivePlan: Plan = trialActive ? "pro" : rawPlan;
 
   const features = FEATURE_ACCESS[effectivePlan];
 
@@ -60,5 +72,8 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
     tableLimit: effectivePlan === "free" ? 1 : null,
     canAccess: (feature: Feature) => features[feature],
     features,
+    trialActive,
+    trialExpired,
+    trialDaysLeft,
   };
 }

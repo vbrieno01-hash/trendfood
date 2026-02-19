@@ -288,6 +288,7 @@ export type Database = {
           store_address: string | null
           subscription_plan: string
           subscription_status: string
+          trial_ends_at: string | null
           user_id: string
           whatsapp: string | null
         }
@@ -307,6 +308,7 @@ export type Database = {
           store_address?: string | null
           subscription_plan?: string
           subscription_status?: string
+          trial_ends_at?: string | null
           user_id: string
           whatsapp?: string | null
         }
@@ -326,6 +328,7 @@ export type Database = {
           store_address?: string | null
           subscription_plan?: string
           subscription_status?: string
+          trial_ends_at?: string | null
           user_id?: string
           whatsapp?: string | null
         }
