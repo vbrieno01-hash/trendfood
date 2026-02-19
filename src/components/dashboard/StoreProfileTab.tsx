@@ -36,57 +36,7 @@ const BRAZIL_STATES = [
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
 ];
 
-interface AddressFields {
-  cep: string;
-  street: string;
-  number: string;
-  complement: string;
-  neighborhood: string;
-  city: string;
-  state: string;
-}
-
-function buildStoreAddress(f: AddressFields): string {
-  // CEP is stored at the beginning so Nominatim can geocode via CEP (much more reliable)
-  const parts = [f.cep, f.street, f.number, f.complement, f.neighborhood, f.city, f.state, "Brasil"]
-    .map((p) => p.trim())
-    .filter(Boolean);
-  return parts.join(", ");
-}
-
-function parseStoreAddress(address: string): AddressFields {
-  // Try to parse a previously-saved structured address (comma-separated)
-  // For legacy free-text, leave street filled and rest empty
-  const parts = address.split(",").map((p) => p.trim());
-  if (parts.length >= 6 && BRAZIL_STATES.includes(parts[parts.length - 2])) {
-    const withoutBrasil = parts[parts.length - 1].toLowerCase() === "brasil" ? parts.slice(0, -1) : parts;
-    const state = withoutBrasil[withoutBrasil.length - 1];
-    const city = withoutBrasil[withoutBrasil.length - 2];
-    const neighborhood = withoutBrasil[withoutBrasil.length - 3] ?? "";
-
-    // Detect new format: first part is CEP (contains only digits and optional hyphen)
-    const firstPart = withoutBrasil[0] ?? "";
-    const isCep = /^\d{5}-?\d{3}$/.test(firstPart);
-
-    if (isCep) {
-      // New format: CEP, street, number, [complement,] neighborhood, city, state
-      const cep = firstPart;
-      const street = withoutBrasil[1] ?? "";
-      const number = withoutBrasil[2] ?? "";
-      // complement exists when there are 8 parts (with Brasil removed → 7)
-      const complement = withoutBrasil.length >= 7 ? withoutBrasil[3] : "";
-      return { cep, street, number, complement, neighborhood, city, state };
-    }
-
-    // Legacy format (no CEP): street, number, [complement,] neighborhood, city, state
-    const number = withoutBrasil[1] ?? "";
-    const street = firstPart;
-    const complement = withoutBrasil.length === 6 ? withoutBrasil[2] : "";
-    return { cep: "", street, number, complement, neighborhood, city, state };
-  }
-  // Fallback: put entire string in street
-  return { cep: "", street: address, number: "", complement: "", neighborhood: "", city: "", state: "" };
-}
+import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
@@ -118,7 +68,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     organization.business_hours ?? DEFAULT_BUSINESS_HOURS
   );
   const [addressFields, setAddressFields] = useState<AddressFields>(
-    organization.store_address ? parseStoreAddress(organization.store_address) : { cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" }
+    organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
   );
   const [cepFetching, setCepFetching] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { buildStoreAddress, getStateFromCep } from "@/lib/storeAddress";
 import { Loader2, ChevronRight, ChevronLeft, Check, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -92,7 +93,10 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
       setCity(data.localidade ?? "");
       setState(data.uf ?? "");
     } catch {
-      toast.error("Erro ao buscar CEP.");
+      // ViaCEP failed — infer state from CEP prefix as fallback
+      const inferredState = getStateFromCep(raw);
+      if (inferredState) setState(inferredState);
+      toast.error("Erro ao buscar CEP. Preencha cidade e estado manualmente.");
     } finally {
       setLoadingCep(false);
     }
@@ -111,10 +115,10 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
   };
 
   const saveStep2 = async () => {
-    // Address is optional — save whatever is filled
-    const parts = [street, number, complement, neighborhood, city, state].filter(Boolean);
-    const address = parts.length > 0
-      ? `${street}${number ? ", " + number : ""}${complement ? " " + complement : ""} - ${neighborhood}, ${city} - ${state}`
+    // Address is optional — save whatever is filled in structured format
+    const hasAnyField = [street, number, neighborhood, city, state].some(Boolean);
+    const address = hasAnyField
+      ? buildStoreAddress({ cep, street, number, complement, neighborhood, city, state })
       : null;
     setSaving(true);
     const { error } = await supabase
