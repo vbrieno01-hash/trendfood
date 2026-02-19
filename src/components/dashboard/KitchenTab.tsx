@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Flame } from "lucide-react";
+import { Loader2, Flame, Printer } from "lucide-react";
+import { printOrder } from "@/lib/printOrder";
 
 const playBell = () => {
   try {
@@ -33,18 +36,31 @@ const isNew = (createdAt: string) =>
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
+const AUTO_PRINT_KEY = "kds_auto_print";
+
 interface KitchenTabProps {
   orgId: string;
+  orgName?: string;
 }
 
-export default function KitchenTab({ orgId }: KitchenTabProps) {
+export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [autoPrint, setAutoPrint] = useState<boolean>(
+    () => localStorage.getItem(AUTO_PRINT_KEY) !== "false"
+  );
+
   const knownIds = useRef<Set<string>>(new Set());
+  const pendingPrintIds = useRef<Set<string>>(new Set());
   const [, forceRender] = useState(0);
+
+  const toggleAutoPrint = (val: boolean) => {
+    setAutoPrint(val);
+    localStorage.setItem(AUTO_PRINT_KEY, String(val));
+  };
 
   const handleUpdateStatus = (id: string, status: Order["status"]) => {
     if (loadingIds.has(id)) return;
@@ -78,6 +94,9 @@ export default function KitchenTab({ orgId }: KitchenTabProps) {
           if (!knownIds.current.has(order.id)) {
             knownIds.current.add(order.id);
             playBell();
+            if (autoPrint) {
+              pendingPrintIds.current.add(order.id);
+            }
             qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
           }
         }
@@ -91,7 +110,18 @@ export default function KitchenTab({ orgId }: KitchenTabProps) {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc]);
+  }, [orgId, qc, autoPrint]);
+
+  // Print pending orders once their items are loaded
+  useEffect(() => {
+    if (pendingPrintIds.current.size === 0) return;
+    orders.forEach((order) => {
+      if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
+        pendingPrintIds.current.delete(order.id);
+        printOrder(order, orgName);
+      }
+    });
+  }, [orders, orgName]);
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
@@ -107,7 +137,7 @@ export default function KitchenTab({ orgId }: KitchenTabProps) {
   return (
     <div className="space-y-4">
       {/* Section header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Flame className="w-5 h-5 text-orange-500" />
           <h2 className="font-bold text-foreground text-xl">Cozinha (KDS)</h2>
@@ -115,10 +145,24 @@ export default function KitchenTab({ orgId }: KitchenTabProps) {
             {orders.length} pedido{orders.length !== 1 ? "s" : ""} aguardando
           </span>
         </div>
-        <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          ao vivo
-        </span>
+        <div className="flex items-center gap-3">
+          {/* Auto-print toggle */}
+          <div className="flex items-center gap-2">
+            <Printer className="w-4 h-4 text-muted-foreground" />
+            <Label htmlFor="auto-print-tab" className="text-xs text-muted-foreground cursor-pointer select-none">
+              Imprimir automático
+            </Label>
+            <Switch
+              id="auto-print-tab"
+              checked={autoPrint}
+              onCheckedChange={toggleAutoPrint}
+            />
+          </div>
+          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            ao vivo
+          </span>
+        </div>
       </div>
 
       {isLoading ? (
@@ -153,13 +197,24 @@ export default function KitchenTab({ orgId }: KitchenTabProps) {
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                   </div>
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-                    order.status === "preparing"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }`}>
-                    {order.status === "preparing" ? "Em Preparo" : "Pendente"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      title="Imprimir pedido"
+                      onClick={() => printOrder(order, orgName)}
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                    </Button>
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                      order.status === "preparing"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                      {order.status === "preparing" ? "Em Preparo" : "Pendente"}
+                    </span>
+                  </div>
                 </div>
 
                 <ul className="space-y-1">

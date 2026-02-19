@@ -3,9 +3,12 @@ import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Printer } from "lucide-react";
+import { printOrder } from "@/lib/printOrder";
 
 // Web Audio API bell sound (no external dependency)
 const playBell = () => {
@@ -36,6 +39,8 @@ const isNew = (createdAt: string) =>
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
+const AUTO_PRINT_KEY = "kds_auto_print";
+
 export default function KitchenPage() {
   const [searchParams] = useSearchParams();
   const orgSlug = searchParams.get("org");
@@ -44,11 +49,19 @@ export default function KitchenPage() {
   const updateStatus = useUpdateOrderStatus(org?.id ?? "", ["pending", "preparing"]);
   const qc = useQueryClient();
 
-  // Track which order IDs are currently loading to prevent double-clicks
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [autoPrint, setAutoPrint] = useState<boolean>(
+    () => localStorage.getItem(AUTO_PRINT_KEY) !== "false"
+  );
 
   const knownIds = useRef<Set<string>>(new Set());
+  const pendingPrintIds = useRef<Set<string>>(new Set());
   const [, forceRender] = useState(0);
+
+  const toggleAutoPrint = (val: boolean) => {
+    setAutoPrint(val);
+    localStorage.setItem(AUTO_PRINT_KEY, String(val));
+  };
 
   const handleUpdateStatus = (id: string, status: Order["status"]) => {
     if (loadingIds.has(id)) return;
@@ -57,7 +70,6 @@ export default function KitchenPage() {
       { id, status },
       {
         onSettled: () => {
-          // Re-enable button after at least 1s
           setTimeout(() => {
             setLoadingIds((prev) => {
               const next = new Set(prev);
@@ -83,6 +95,10 @@ export default function KitchenPage() {
           if (!knownIds.current.has(order.id)) {
             knownIds.current.add(order.id);
             playBell();
+            // Queue for auto-print after items load
+            if (autoPrint) {
+              pendingPrintIds.current.add(order.id);
+            }
             qc.invalidateQueries({ queryKey: ["orders", org.id, ["pending", "preparing"]] });
           }
         }
@@ -96,7 +112,18 @@ export default function KitchenPage() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [org?.id, qc]);
+  }, [org?.id, qc, autoPrint]);
+
+  // Print pending orders once their items are loaded
+  useEffect(() => {
+    if (pendingPrintIds.current.size === 0) return;
+    orders.forEach((order) => {
+      if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
+        pendingPrintIds.current.delete(order.id);
+        printOrder(order, org?.name);
+      }
+    });
+  }, [orders, org?.name]);
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
@@ -133,10 +160,24 @@ export default function KitchenPage() {
               </p>
             </div>
           </div>
-          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            ao vivo
-          </span>
+          <div className="flex items-center gap-4">
+            {/* Auto-print toggle */}
+            <div className="flex items-center gap-2">
+              <Printer className="w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="auto-print" className="text-xs text-muted-foreground cursor-pointer select-none">
+                Imprimir automático
+              </Label>
+              <Switch
+                id="auto-print"
+                checked={autoPrint}
+                onCheckedChange={toggleAutoPrint}
+              />
+            </div>
+            <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              ao vivo
+            </span>
+          </div>
         </div>
       </header>
 
@@ -174,13 +215,24 @@ export default function KitchenPage() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                     </div>
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-                      order.status === "preparing"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}>
-                      {order.status === "preparing" ? "Em Preparo" : "Pendente"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        title="Imprimir pedido"
+                        onClick={() => printOrder(order, org?.name)}
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </Button>
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                        order.status === "preparing"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {order.status === "preparing" ? "Em Preparo" : "Pendente"}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Items */}
