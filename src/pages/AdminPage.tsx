@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import GrowthCharts from "@/components/admin/GrowthCharts";
 import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
+import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
   ShieldAlert,
@@ -29,6 +30,10 @@ import {
   Users,
   Percent,
   Printer,
+  Home,
+  Menu,
+  LogOut,
+  Settings,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -136,6 +141,8 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
+type AdminTab = "home" | "lojas" | "config" | "features";
+
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
 
@@ -154,12 +161,15 @@ export default function AdminPage() {
 }
 
 function AdminContent() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "trial">("all");
   const [addressFilter, setAddressFilter] = useState<"all" | "with" | "without">("all");
+  const [activeTab, setActiveTab] = useState<AdminTab>("home");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -259,208 +269,284 @@ function AdminContent() {
     toast.success("Trial estendido por +7 dias!");
   }
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  // ── Nav items ──
+  const navItems: { key: AdminTab; icon: React.ReactNode; label: string }[] = [
+    { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
+    { key: "lojas", icon: <Store className="w-4 h-4" />, label: "Lojas" },
+    { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
+    { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
+  ];
+
+  const navBtnClass = (key: AdminTab) =>
+    `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left ${
+      activeTab === key
+        ? "bg-primary text-white shadow-sm shadow-primary/30"
+        : "text-white/60 hover:bg-white/10 hover:text-white"
+    }`;
+
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* ── Header ── */}
-      <header className="bg-card border-b border-border sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
-              <ShieldAlert className="w-5 h-5 text-primary-foreground" />
+    <div className="min-h-screen bg-background flex w-full">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <aside
+        className={`
+          fixed top-0 left-0 h-full z-50 flex flex-col
+          w-64 transform transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:relative lg:translate-x-0 lg:z-auto
+        `}
+        style={{ background: "#111111" }}
+      >
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-white/10">
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-xl object-contain shadow-lg shadow-primary/30" />
+            <span className="font-extrabold text-white text-base tracking-tight">TrendFood</span>
+          </Link>
+        </div>
+
+        {/* Admin info */}
+        <div className="px-4 py-4 border-b border-white/10">
+          <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
+              <ShieldAlert className="w-5 h-5 text-primary" />
             </div>
-            <div>
-              <h1 className="text-base font-bold text-foreground leading-none">TrendFood</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Painel Administrativo</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-white text-sm truncate">Admin</p>
+              <p className="text-white/40 text-xs truncate">{user?.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <a
-              href="https://wa.me/5511999999999?text=Olá%2C%20preciso%20de%20suporte%20com%20o%20TrendFood"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition-opacity"
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {navItems.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
+              className={navBtnClass(item.key)}
             >
-              <MessageCircle className="w-4 h-4" />
-              <span className="hidden sm:block">Suporte</span>
-            </a>
-            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-              {user?.email?.[0].toUpperCase()}
-            </div>
-            <span className="text-xs text-muted-foreground hidden sm:block truncate max-w-[180px]">
-              {user?.email}
-            </span>
-          </div>
+              {item.icon}
+              <span className="flex-1 text-left">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Bottom actions */}
+        <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-red-400 transition-all duration-150"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair
+          </button>
         </div>
-      </header>
+      </aside>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
-
-        {/* ── KPI Cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            icon={<Store className="w-5 h-5" />}
-            label="Lojas Cadastradas"
-            value={loading ? null : orgs.length.toString()}
-            color="text-blue-600 dark:text-blue-400"
-            bg="bg-blue-500/10"
-          />
-          <KpiCard
-            icon={<Users className="w-5 h-5" />}
-            label="Assinantes Ativos"
-            value={loading ? null : payingOrgs.length.toString()}
-            color="text-violet-600 dark:text-violet-400"
-            bg="bg-violet-500/10"
-          />
-          <KpiCard
-            icon={<TrendingUp className="w-5 h-5" />}
-            label="MRR (Receita Recorrente)"
-            value={loading ? null : fmt(mrr)}
-            color="text-emerald-600 dark:text-emerald-400"
-            bg="bg-emerald-500/10"
-          />
-          <KpiCard
-            icon={<Percent className="w-5 h-5" />}
-            label="Taxa de Conversão"
-            value={loading ? null : `${conversionRate.toFixed(1)}%`}
-            color="text-orange-600 dark:text-orange-400"
-            bg="bg-orange-500/10"
-          />
-        </div>
-
-        {/* ── Growth Charts ── */}
-        {!loading && <GrowthCharts orgs={orgs} />}
-
-        {/* ── Stores Grid ── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-muted-foreground" />
-              Lojas da Plataforma
-            </h2>
-            {!loading && filteredOrgs.length > 0 && (
-              <button
-                onClick={exportStoresCSV}
-                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Exportar CSV
-              </button>
-            )}
+      {/* ── Main Content ── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile header */}
+        <header className="lg:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-primary" />
+            <span className="font-bold text-sm">Painel Admin</span>
           </div>
+          <div className="w-9" />
+        </header>
 
-          {/* ── Filter bar ── */}
-          {!loading && orgs.length > 0 && (
-            <div className="bg-card border border-border rounded-2xl p-4 mb-5 space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder="Buscar por nome ou URL da loja…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1"
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          {/* ── Home Tab ── */}
+          {activeTab === "home" && (
+            <div className="space-y-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard
+                  icon={<Store className="w-5 h-5" />}
+                  label="Lojas Cadastradas"
+                  value={loading ? null : orgs.length.toString()}
+                  color="text-blue-600 dark:text-blue-400"
+                  bg="bg-blue-500/10"
                 />
-                {search && (
+                <KpiCard
+                  icon={<Users className="w-5 h-5" />}
+                  label="Assinantes Ativos"
+                  value={loading ? null : payingOrgs.length.toString()}
+                  color="text-violet-600 dark:text-violet-400"
+                  bg="bg-violet-500/10"
+                />
+                <KpiCard
+                  icon={<TrendingUp className="w-5 h-5" />}
+                  label="MRR (Receita Recorrente)"
+                  value={loading ? null : fmt(mrr)}
+                  color="text-emerald-600 dark:text-emerald-400"
+                  bg="bg-emerald-500/10"
+                />
+                <KpiCard
+                  icon={<Percent className="w-5 h-5" />}
+                  label="Taxa de Conversão"
+                  value={loading ? null : `${conversionRate.toFixed(1)}%`}
+                  color="text-orange-600 dark:text-orange-400"
+                  bg="bg-orange-500/10"
+                />
+              </div>
+              {!loading && <GrowthCharts orgs={orgs} />}
+            </div>
+          )}
+
+          {/* ── Lojas Tab ── */}
+          {activeTab === "lojas" && (
+            <section className="space-y-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                  Lojas da Plataforma
+                </h2>
+                {!loading && filteredOrgs.length > 0 && (
                   <button
-                    onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={exportStoresCSV}
+                    className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <Download className="w-3.5 h-3.5" />
+                    Exportar CSV
                   </button>
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground font-medium shrink-0">Status:</span>
-                  {(["all", "active", "trial"] as const).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setStatusFilter(v)}
-                      className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
-                        statusFilter === v
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      }`}
-                    >
-                      {v === "all" ? "Todos" : v === "active" ? "Ativo" : "Trial"}
-                    </button>
-                  ))}
+              {/* Filter bar */}
+              {!loading && orgs.length > 0 && (
+                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Buscar por nome ou URL da loja…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-9 h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1"
+                    />
+                    {search && (
+                      <button
+                        onClick={() => setSearch("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground font-medium shrink-0">Status:</span>
+                      {(["all", "active", "trial"] as const).map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setStatusFilter(v)}
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                            statusFilter === v
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          {v === "all" ? "Todos" : v === "active" ? "Ativo" : "Trial"}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground font-medium shrink-0">Endereço:</span>
+                      {(["all", "with", "without"] as const).map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setAddressFilter(v)}
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                            addressFilter === v
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          {v === "all" ? "Todos" : v === "with" ? "Com endereço" : "Sem endereço"}
+                        </button>
+                      ))}
+                    </div>
+
+                    <span className="ml-auto text-xs text-muted-foreground shrink-0">
+                      {filteredOrgs.length === orgs.length
+                        ? `${orgs.length} lojas`
+                        : `${filteredOrgs.length} de ${orgs.length}`}
+                    </span>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground font-medium shrink-0">Endereço:</span>
-                  {(["all", "with", "without"] as const).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setAddressFilter(v)}
-                      className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
-                        addressFilter === v
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      }`}
-                    >
-                      {v === "all" ? "Todos" : v === "with" ? "Com endereço" : "Sem endereço"}
-                    </button>
-                  ))}
-                </div>
-
-                <span className="ml-auto text-xs text-muted-foreground shrink-0">
-                  {filteredOrgs.length === orgs.length
-                    ? `${orgs.length} lojas`
-                    : `${filteredOrgs.length} de ${orgs.length}`}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Grid / states */}
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-64 rounded-2xl" />
-              ))}
-            </div>
-          ) : orgs.length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground text-sm">
-              Nenhuma loja cadastrada ainda.
-            </div>
-          ) : filteredOrgs.length === 0 ? (
-            <div className="text-center py-20 space-y-3">
-              <p className="text-muted-foreground text-sm">Nenhuma loja encontrada com esses filtros.</p>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="text-xs text-primary hover:underline font-medium"
-                >
-                  Limpar filtros
-                </button>
               )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredOrgs.map((org) => (
-                <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} onExtendTrial={handleExtendTrial} />
-              ))}
-            </div>
+
+              {/* Grid / states */}
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-64 rounded-2xl" />
+                  ))}
+                </div>
+              ) : orgs.length === 0 ? (
+                <div className="text-center py-20 text-muted-foreground text-sm">
+                  Nenhuma loja cadastrada ainda.
+                </div>
+              ) : filteredOrgs.length === 0 ? (
+                <div className="text-center py-20 space-y-3">
+                  <p className="text-muted-foreground text-sm">Nenhuma loja encontrada com esses filtros.</p>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      Limpar filtros
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredOrgs.map((org) => (
+                    <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} onExtendTrial={handleExtendTrial} />
+                  ))}
+                </div>
+              )}
+            </section>
           )}
-        </section>
 
-        {/* ── Platform Config ── */}
-        <PlatformConfigSection />
+          {/* ── Config Tab ── */}
+          {activeTab === "config" && <PlatformConfigSection />}
 
-        {/* ── Feature Roadmap ── */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Funcionalidades da Plataforma</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map((f) => (
-              <FeatureCard key={f.title} feature={f} />
-            ))}
-          </div>
-        </section>
-      </main>
+          {/* ── Features Tab ── */}
+          {activeTab === "features" && (
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="w-4 h-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold text-foreground">Funcionalidades da Plataforma</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {FEATURES.map((f) => (
+                  <FeatureCard key={f.title} feature={f} />
+                ))}
+              </div>
+            </section>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
@@ -518,7 +604,7 @@ function SetupScore({ org }: { org: OrgRow }) {
   );
 }
 
-/* ── Store Card (simplified — no order/revenue metrics) ── */
+/* ── Store Card ── */
 function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onExtendTrial: (id: string) => void }) {
   const avatarColor = getAvatarColor(org.name);
   const initial = org.name.charAt(0).toUpperCase();
@@ -526,7 +612,6 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-      {/* Card top */}
       <div className="p-5 flex items-start gap-3 flex-1">
         <div
           className={`w-11 h-11 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-lg shrink-0`}
@@ -553,7 +638,6 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
             </a>
           </div>
 
-          {/* Badges */}
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <Badge
               className={`text-xs px-2 py-0.5 rounded-full border-0 font-medium ${
@@ -586,10 +670,8 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
         </div>
       </div>
 
-      {/* Setup Score */}
       <SetupScore org={org} />
 
-      {/* Plan Management */}
       <div className="border-t border-border px-5 py-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
@@ -622,7 +704,6 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
         )}
       </div>
 
-      {/* Footer */}
       <div className="border-t border-border px-5 py-3 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
           Desde {new Date(org.created_at).toLocaleDateString("pt-BR")}
