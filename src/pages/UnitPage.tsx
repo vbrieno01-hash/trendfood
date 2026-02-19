@@ -87,20 +87,34 @@ const UnitPage = () => {
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerDoc, setBuyerDoc] = useState("");
-  const [address, setAddress] = useState("");
-  const [addressConfirm, setAddressConfirm] = useState("");
   const [payment, setPayment] = useState("");
   const [notes, setNotes] = useState("");
   const [nameError, setNameError] = useState(false);
   const [paymentError, setPaymentError] = useState(false);
   const [addressError, setAddressError] = useState(false);
 
+  // Structured customer address
+  type CustomerAddress = { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string };
+  const emptyAddress: CustomerAddress = { cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" };
+  const [customerAddress, setCustomerAddress] = useState<CustomerAddress>(emptyAddress);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
+
+  // Helper: build full address string for geocoding
+  const buildCustomerAddress = (f: { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string }) => {
+    const parts = [f.street, f.number, f.complement, f.neighborhood, f.city, f.state, "Brasil"]
+      .map((p) => p.trim()).filter(Boolean);
+    return parts.join(", ");
+  };
+
+  const fullCustomerAddress = buildCustomerAddress(customerAddress);
+
   // Delivery fee — must be before any early returns (Rules of Hooks)
   // cart/totalPrice derived inline here so hook is always at top level
   const _cartItemsForFee = Object.values(cart);
   const _totalPriceForFee = _cartItemsForFee.reduce((s, i) => s + i.price * i.qty, 0);
   const { fee: deliveryFee, freeShipping, loading: feeLoading, error: feeError, distanceKm, noStoreAddress } = useDeliveryFee(
-    address,
+    fullCustomerAddress,
     _totalPriceForFee,
     org ?? null,
     !!org && orderType === "Entrega" && checkoutOpen
@@ -242,14 +256,42 @@ const UnitPage = () => {
     setTimeout(() => { setSubmitted(false); setShowForm(false); }, 2500);
   };
 
+  // CEP lookup (ViaCEP)
+  const fetchCustomerCep = async (cep: string) => {
+    const cleaned = cep.replace(/\D/g, "");
+    if (cleaned.length !== 8) return;
+    setCepLoading(true);
+    setCepError("");
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+      const data = await res.json();
+      if (data.erro) { setCepError("CEP não encontrado"); return; }
+      setCustomerAddress((prev) => ({
+        ...prev,
+        street: data.logradouro || prev.street,
+        neighborhood: data.bairro || prev.neighborhood,
+        city: data.localidade || prev.city,
+        state: data.uf || prev.state,
+      }));
+    } catch {
+      setCepError("Erro ao buscar CEP");
+    } finally {
+      setCepLoading(false);
+    }
+  };
+
   // WhatsApp checkout
   const handleSendWhatsApp = () => {
     let valid = true;
     if (!orderType) { setOrderTypeError(true); valid = false; } else setOrderTypeError(false);
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
     if (!payment) { setPaymentError(true); valid = false; } else setPaymentError(false);
-    if (orderType === "Entrega" && address.trim() && address.trim() !== addressConfirm.trim()) {
-      setAddressError(true); valid = false;
+    if (orderType === "Entrega") {
+      if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
+        setAddressError(true); valid = false;
+      } else {
+        setAddressError(false);
+      }
     } else {
       setAddressError(false);
     }
@@ -278,7 +320,7 @@ const UnitPage = () => {
       ``,
       `${deliveryEmoji} *Tipo:* ${orderType}`,
       `👤 *Nome:* ${buyerName.trim()}`,
-      orderType === "Entrega" && address.trim() ? `🏠 *Endereço:* ${address.trim()}` : null,
+      orderType === "Entrega" && fullCustomerAddress ? `🏠 *Endereço:* ${fullCustomerAddress}` : null,
       `💳 *Pagamento:* ${payment}`,
       notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
     ]
@@ -302,7 +344,7 @@ const UnitPage = () => {
         `TIPO:${orderType}`,
         `CLIENTE:${buyerName.trim()}`,
         buyerPhone.trim() ? `TEL:${buyerPhone.trim()}` : null,
-        orderType === "Entrega" && address.trim() ? `END.:${address.trim()}` : null,
+        orderType === "Entrega" && fullCustomerAddress ? `END.:${fullCustomerAddress}` : null,
         freteNote,
         `PGTO:${payment}`,
         buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
@@ -329,8 +371,7 @@ const UnitPage = () => {
     setBuyerName("");
     setBuyerPhone("");
     setBuyerDoc("");
-    setAddress("");
-    setAddressConfirm("");
+    setCustomerAddress(emptyAddress);
     setPayment("");
     setNotes("");
   };
@@ -749,7 +790,7 @@ const UnitPage = () => {
                         : <span className="text-xs text-muted-foreground italic">A combinar via WhatsApp</span>
                     ) : freeShipping ? (
                       <span className="text-green-600 font-medium">Grátis</span>
-                    ) : address.trim().length >= 8 ? (
+                    ) : fullCustomerAddress.length >= 8 ? (
                       <span className="font-medium text-foreground">{fmt(deliveryFee)}</span>
                     ) : (
                       <span className="text-xs italic">Digite seu endereço</span>
@@ -843,37 +884,132 @@ const UnitPage = () => {
               </div>
 
               {orderType === "Entrega" && (
-                <>
+                <div className="space-y-3">
+                  {/* CEP */}
                   <div>
-                    <Label htmlFor="buyer-address" className="text-xs font-medium mb-1 block">
-                      Endereço <span className="text-destructive">*</span>
+                    <Label htmlFor="buyer-cep" className="text-xs font-medium mb-1 block">
+                      CEP <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="buyer-cep"
+                        placeholder="00000-000"
+                        value={customerAddress.cep}
+                        onChange={(e) => {
+                          setCustomerAddress((p) => ({ ...p, cep: e.target.value }));
+                          setAddressError(false);
+                          setCepError("");
+                        }}
+                        onBlur={(e) => fetchCustomerCep(e.target.value)}
+                        inputMode="numeric"
+                        maxLength={9}
+                        className={addressError && !customerAddress.cep ? "border-destructive" : ""}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fetchCustomerCep(customerAddress.cep)}
+                        disabled={cepLoading}
+                        className="shrink-0 px-3 py-2 rounded-md border border-border bg-secondary text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {cepLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                        {cepLoading ? "Buscando..." : "Buscar"}
+                      </button>
+                    </div>
+                    {cepError && <p className="text-destructive text-xs mt-1">{cepError}</p>}
+                  </div>
+
+                  {/* Logradouro + Número */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <Label htmlFor="buyer-street" className="text-xs font-medium mb-1 block">
+                        Logradouro <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="buyer-street"
+                        placeholder="Rua, Av., etc."
+                        value={customerAddress.street}
+                        onChange={(e) => { setCustomerAddress((p) => ({ ...p, street: e.target.value })); setAddressError(false); }}
+                        className={addressError && !customerAddress.street ? "border-destructive" : ""}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="buyer-number" className="text-xs font-medium mb-1 block">
+                        Número <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="buyer-number"
+                        placeholder="123"
+                        value={customerAddress.number}
+                        onChange={(e) => { setCustomerAddress((p) => ({ ...p, number: e.target.value })); setAddressError(false); }}
+                        className={addressError && !customerAddress.number ? "border-destructive" : ""}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Complemento */}
+                  <div>
+                    <Label htmlFor="buyer-complement" className="text-xs font-medium mb-1 block">
+                      Complemento <span className="text-muted-foreground font-normal">(opcional)</span>
                     </Label>
                     <Input
-                      id="buyer-address"
-                      placeholder="Rua, número, complemento, bairro"
-                      value={address}
-                      onChange={(e) => { setAddress(e.target.value); setAddressError(false); }}
-                      maxLength={200}
+                      id="buyer-complement"
+                      placeholder="Apto, Bloco, Sala..."
+                      value={customerAddress.complement}
+                      onChange={(e) => setCustomerAddress((p) => ({ ...p, complement: e.target.value }))}
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="buyer-address-confirm" className="text-xs font-medium mb-1 block">
-                      Confirme o Endereço <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="buyer-address-confirm"
-                      placeholder="Digite novamente para confirmar"
-                      value={addressConfirm}
-                      onChange={(e) => { setAddressConfirm(e.target.value); setAddressError(false); }}
-                      maxLength={200}
-                      className={addressError ? "border-destructive" : ""}
-                    />
-                    {addressError && (
-                      <p className="text-destructive text-xs mt-1">⚠ Os endereços não conferem</p>
-                    )}
+                  {/* Bairro + Cidade */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="buyer-neighborhood" className="text-xs font-medium mb-1 block">
+                        Bairro <span className="text-muted-foreground font-normal">(opcional)</span>
+                      </Label>
+                      <Input
+                        id="buyer-neighborhood"
+                        placeholder="Centro"
+                        value={customerAddress.neighborhood}
+                        onChange={(e) => setCustomerAddress((p) => ({ ...p, neighborhood: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="buyer-city" className="text-xs font-medium mb-1 block">
+                        Cidade <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="buyer-city"
+                        placeholder="Cubatão"
+                        value={customerAddress.city}
+                        onChange={(e) => { setCustomerAddress((p) => ({ ...p, city: e.target.value })); setAddressError(false); }}
+                        className={addressError && !customerAddress.city ? "border-destructive" : ""}
+                      />
+                    </div>
                   </div>
-                </>
+
+                  {/* Estado */}
+                  <div>
+                    <Label htmlFor="buyer-state" className="text-xs font-medium mb-1 block">
+                      Estado <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={customerAddress.state}
+                      onValueChange={(v) => { setCustomerAddress((p) => ({ ...p, state: v })); setAddressError(false); }}
+                    >
+                      <SelectTrigger id="buyer-state" className={addressError && !customerAddress.state ? "border-destructive" : ""}>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((uf) => (
+                          <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {addressError && (
+                    <p className="text-destructive text-xs">⚠ Preencha CEP, logradouro, número, cidade e estado</p>
+                  )}
+                </div>
               )}
 
               <div>
