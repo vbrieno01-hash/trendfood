@@ -41,7 +41,7 @@ export default function SettingsTab() {
       const { data, error } = await supabase.functions.invoke("customer-portal", {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      if (error) throw error;
+      // Check data.error FIRST (even with 500 status, data may contain the body)
       if (data?.error) {
         if (data.error.includes("No Stripe customer found")) {
           toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar.");
@@ -50,6 +50,7 @@ export default function SettingsTab() {
         }
         throw new Error(data.error);
       }
+      if (error) throw error;
       if (data?.url) {
         window.open(data.url, "_blank");
       }
