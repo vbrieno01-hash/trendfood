@@ -1,86 +1,95 @@
 
 
-# Expandir Painel Administrativo com Todas as Funcionalidades
+# Simplificar Painel Admin — Foco no Dono da Plataforma
 
-## Resumo
+## Objetivo
 
-Vamos adicionar 5 novas secoes ao painel admin, transformando-o em um centro de controle completo da plataforma.
+Transformar o painel admin de um painel operacional (que mostra dados das lojas) para um painel de **dono do negocio SaaS**, focado em:
+- Quantos assinantes pagantes existem
+- Quanto ja faturou com assinaturas
+- Evolucao de cadastros e conversoes
 
-## Novas funcionalidades
+## O que REMOVER
 
-### 1. Gerenciamento de Planos
-- Dropdown em cada card de loja para alterar o plano (free/pro/enterprise)
-- Botao para estender ou resetar o trial (definir nova data de trial_ends_at)
-- Atualiza diretamente as colunas `subscription_plan` e `trial_ends_at` na tabela `organizations`
+1. **Feed de Pedidos Recentes** — dados das lojas, nao interessa ao dono da plataforma
+2. **Relatorio Mensal por Loja** — faturamento/ticket medio das lojas, nao e relevante
+3. **Metricas de pedidos e receita das lojas** nos KPIs (pedidos na plataforma, faturamento total das lojas)
+4. **Metricas de itens/pedidos/receita** dentro de cada card de loja
+5. **Grafico de pedidos por mes** — substituir por algo mais relevante
 
-### 2. Grafico de Crescimento
-- Grafico de linha usando Recharts (ja instalado) mostrando:
-  - Evolucao de lojas cadastradas por mes (ultimos 6 meses)
-  - Evolucao de pedidos por mes
-- Dados calculados a partir dos campos `created_at` das tabelas `organizations` e `orders`
+## O que MANTER
 
-### 3. Feed de Pedidos Recentes
-- Lista dos ultimos 20 pedidos de todas as lojas em tempo real
-- Mostra: nome da loja, mesa, valor, status, horario
-- Usa realtime do banco para atualizar automaticamente quando novos pedidos chegam
+1. **Lojas Cadastradas** (KPI) — importante saber quantas lojas existem
+2. **Grid de Lojas** com filtros, busca, gerenciamento de plano e trial — essencial para administrar
+3. **Exportar CSV** de lojas
+4. **Configuracoes da Plataforma** (taxas de entrega)
+5. **Funcionalidades da Plataforma** (roadmap)
 
-### 4. Exportar CSV
-- Botao "Exportar CSV" na secao de lojas que gera um arquivo com: nome, slug, endereco, status, qtd itens, qtd pedidos, receita, data de criacao
-- Botao "Exportar CSV" na secao de relatorio mensal com dados do mes selecionado
+## O que ADICIONAR/ALTERAR nos KPIs
 
-### 5. Configuracoes da Plataforma
-- Interface para editar as taxas de entrega padrao da tabela `platform_config`
-- Campos editaveis: fee_tier1, fee_tier2, fee_tier3, tier1_km, tier2_km, free_above
-- Usa o hook `usePlatformDeliveryConfig` ja existente
+Trocar os 4 KPIs atuais por metricas relevantes para o dono:
+
+1. **Lojas Cadastradas** — total de lojas na plataforma
+2. **Assinantes Ativos** — lojas com `subscription_plan` diferente de "free" (pro + enterprise)
+3. **MRR (Receita Mensal Recorrente)** — calculo: (qtd pro x R$ 99) + (qtd enterprise x R$ 249)
+4. **Taxa de Conversao** — porcentagem de lojas que saíram do plano free para pago
+
+## O que ALTERAR nos Graficos
+
+Trocar os 2 graficos atuais:
+1. **Novas Lojas por Mes** — manter (mostra crescimento da base)
+2. **MRR por Mes** — novo, mostra evolucao da receita recorrente (substituir grafico de pedidos)
+
+## O que SIMPLIFICAR nos Cards de Loja
+
+Remover as metricas de itens/pedidos/receita da loja. Manter apenas:
+- Nome, slug, emoji
+- Badge de status (ativo/trial)
+- Badge de endereco
+- Setup score
+- Gerenciamento de plano e trial
+- Link para ver loja
+- Data de criacao
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/AdminPage.tsx`
+### Arquivos a modificar
 
-O arquivo sera expandido com as seguintes mudancas:
+**`src/pages/AdminPage.tsx`:**
+- Remover imports de `RecentOrdersFeed` e componente do JSX
+- Remover toda a logica de relatorio mensal (state, useEffect, JSX, funcao `generatePdf`, `exportReportCSV`)
+- Remover queries de `orders` e `order_items` do useEffect principal (nao precisa mais)
+- Remover `rawOrders` state e `orgMap` memo
+- Alterar KPIs para: Lojas, Assinantes Ativos, MRR, Taxa de Conversao
+- Simplificar `OrgRow` removendo `orders_count` e `total_revenue`
+- Remover metricas (grid de 3 colunas) do `StoreCard`
+- Remover secao de Relatorio Mensal inteira
 
-**Imports adicionais:**
-- `LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer` de `recharts`
-- `Download, Settings, Clock, RefreshCw, Crown` de `lucide-react`
-- `usePlatformDeliveryConfig, useUpdatePlatformDeliveryConfig` do hook existente
-- `Select, SelectContent, SelectItem, SelectTrigger, SelectValue` dos componentes UI
+**`src/components/admin/GrowthCharts.tsx`:**
+- Remover prop `orders` 
+- Trocar grafico de "Pedidos por Mes" por "MRR por Mes"
+- Receber lista de orgs com plano e created_at para calcular MRR historico
 
-**Novas secoes no JSX (ordem no layout):**
+**Arquivos a deletar (nao mais usados):**
+- `src/components/admin/RecentOrdersFeed.tsx`
 
-1. **KPI Cards** (existente)
-2. **Grafico de Crescimento** (novo) - secao com 2 graficos lado a lado
-3. **Feed de Pedidos Recentes** (novo) - lista scrollavel com os ultimos 20 pedidos
-4. **Lojas da Plataforma** (existente, com botao CSV e dropdown de plano nos cards)
-5. **Relatorio Mensal** (existente, com botao CSV)
-6. **Configuracoes da Plataforma** (novo) - formulario de taxas de entrega
-7. **Funcionalidades** (existente)
+### Calculos
 
-**Logica de dados:**
-
-- Os dados de crescimento serao calculados no `useEffect` existente agrupando `created_at` por mes
-- O feed de pedidos usara uma query separada com `.order('created_at', { ascending: false }).limit(20)` e subscribe via realtime
-- A alteracao de plano usara `supabase.from('organizations').update(...)` direto (admin tem RLS via has_role)
-- O CSV sera gerado client-side com `Blob` e `URL.createObjectURL`
-
-### Migration SQL necessaria
-
-Adicionar policy de UPDATE na tabela `organizations` para admins:
-
-```sql
-CREATE POLICY "admin_update_organizations"
-ON public.organizations
-FOR UPDATE
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
+**MRR:**
+```
+const proCount = orgs.filter(o => o.subscription_plan === 'pro').length;
+const enterpriseCount = orgs.filter(o => o.subscription_plan === 'enterprise').length;
+const mrr = (proCount * 99) + (enterpriseCount * 249);
 ```
 
-Habilitar realtime para pedidos:
-
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+**Taxa de Conversao:**
+```
+const paying = orgs.filter(o => o.subscription_plan !== 'free').length;
+const rate = orgs.length > 0 ? (paying / orgs.length * 100) : 0;
 ```
 
-### Nenhuma nova tabela necessaria
-Todos os dados ja existem nas tabelas atuais. Apenas precisamos da policy de UPDATE para admin e do realtime habilitado.
+**MRR por Mes (grafico):**
+Para cada mes dos ultimos 6, contar quantas lojas tinham plano pago naquele momento (baseado em created_at e plano atual — aproximacao simples).
 
+### Nenhuma migration SQL necessaria
+Todos os dados ja existem. Estamos apenas simplificando a interface.
