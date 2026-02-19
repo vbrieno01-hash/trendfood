@@ -1,31 +1,53 @@
 
 
-# Atualizar logo do site e icones PWA
+# Pagina de Planos e Precos do TrendFood
 
 ## O que sera feito
 
-Usar a nova imagem da coroa vermelha como:
+Criar uma pagina de planos (`/planos`) com 3 opcoes e integrar com o fluxo existente de `subscription_status` da organizacao.
 
-1. **Icone PWA** (instalacao do app) - `pwa-192.png` e `pwa-512.png`
-2. **Favicon** do site - `favicon.ico`
-3. **Logo no header, footer e demais paginas** - substituir o icone `ChefHat` pela imagem real
+## Estrutura dos planos sugerida
 
-## Arquivos impactados
+| Plano | Preco | Funcionalidades |
+|---|---|---|
+| Gratis | R$ 0/mes | Catalogo digital, ate 20 itens no cardapio, 1 ponto de atendimento (QR Code), pedidos por QR Code |
+| Pro | R$ 99/mes | Tudo do Gratis + itens ilimitados, pontos ilimitados, painel de producao (KDS), controle de caixa, cupons de desconto, mais vendidos, impressora termica |
+| Enterprise | R$ 249/mes | Tudo do Pro + multiplas unidades, relatorios avancados, suporte prioritario, integracao com delivery |
+
+## Arquivos a criar/modificar
+
+### Novos arquivos
+
+| Arquivo | Descricao |
+|---|---|
+| `src/pages/PricingPage.tsx` | Pagina com os 3 cards de planos, comparativo de funcionalidades e botoes de acao |
+| `src/components/pricing/PlanCard.tsx` | Componente reutilizavel para cada card de plano |
+
+### Arquivos modificados
 
 | Arquivo | Mudanca |
 |---|---|
-| `public/pwa-192.png` | Substituir pelo novo icone |
-| `public/pwa-512.png` | Substituir pelo novo icone |
-| `public/favicon.ico` | Substituir pelo novo icone |
-| `src/assets/logo-icon.png` | Novo - imagem importada como modulo para uso nos componentes React |
-| `src/pages/Index.tsx` | Trocar `ChefHat` por `<img>` com a logo no header e footer |
-| `src/pages/DashboardPage.tsx` | Trocar `ChefHat` por `<img>` com a logo na sidebar |
-| `src/pages/AuthPage.tsx` | Trocar `ChefHat` por `<img>` com a logo no topo |
-| `index.html` | Atualizar referencia do favicon para o novo arquivo |
+| `src/App.tsx` | Adicionar rota `/planos` |
+| `src/pages/Index.tsx` | Adicionar link "Ver planos" no header e na secao CTA final |
+| `src/pages/DashboardPage.tsx` | Atualizar link "Ativar plano" no banner de trial para apontar para `/planos` |
+
+## Design da pagina
+
+- Header com logo e navegacao (mesmo estilo da landing page)
+- Titulo "Escolha o plano ideal para seu negocio"
+- 3 cards lado a lado (mobile empilhados) com destaque visual no plano Pro (recomendado)
+- Cada card tera: nome, preco, lista de funcionalidades com checks, botao de acao
+- Plano Gratis: botao "Comecar Gratis" -> `/auth`
+- Plano Pro: botao "Comecar Teste Gratis" -> `/auth` (inicia trial)
+- Plano Enterprise: botao "Falar com Vendas" -> link WhatsApp
+- Secao FAQ embaixo com duvidas comuns
+- Footer igual ao da landing page
 
 ## Detalhes tecnicos
 
-- A imagem sera copiada para `public/` (para PWA/favicon) e `src/assets/` (para import ES6 nos componentes)
-- Nos componentes, o `ChefHat` sera substituido por uma tag `<img>` com a logo importada, mantendo o mesmo tamanho (w-4 h-4, w-8 h-8, etc.) e estilo do container
-- Os icones PWA usam a pasta `public/` pois sao referenciados no manifest
+- Os botoes de acao inicialmente direcionam para `/auth` (cadastro) ou WhatsApp
+- A cobranca sera integrada depois (Stripe ou PIX manual) - por enquanto so a pagina visual
+- O campo `subscription_status` na tabela `organizations` ja existe e sera usado para controlar o acesso
+- Nenhuma mudanca no banco de dados necessaria neste momento
+- Estilo seguira o mesmo padrao visual da landing page (cores, tipografia, componentes shadcn/ui)
 
