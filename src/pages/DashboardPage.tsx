@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -29,7 +30,7 @@ type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "s
 const DashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, organization, loading, signOut, refreshOrganizationForUser } = useAuth();
+  const { user, organization, isAdmin, loading, signOut, refreshOrganizationForUser } = useAuth();
   const initialTab = (location.state as { tab?: string })?.tab === "tables" ? "tables" : "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -67,6 +68,30 @@ const DashboardPage = () => {
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!organization) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <p className="text-4xl mb-4">🏪</p>
+          <h1 className="font-bold text-xl mb-2">Nenhuma loja vinculada</h1>
+          <p className="text-muted-foreground text-sm mb-6">
+            {isAdmin
+              ? "Você está logado como administrador da plataforma."
+              : "Sua conta ainda não tem uma loja configurada."}
+          </p>
+          <div className="flex gap-2 justify-center">
+            {isAdmin && (
+              <Button asChild>
+                <Link to="/admin">Acessar Painel Admin</Link>
+              </Button>
+            )}
+            <Button variant="outline" onClick={signOut}>Sair</Button>
+          </div>
         </div>
       </div>
     );

@@ -167,13 +167,25 @@ const AuthPage = () => {
     e.preventDefault();
     setLoginLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: loginData.email,
         password: loginData.password,
       });
       if (error) throw error;
       toast.success("Login realizado com sucesso!");
-      navigate(redirectTo);
+
+      // Redirecionar admin para /admin, demais usuários para /dashboard
+      if (data.user) {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+        navigate(roleData ? "/admin" : redirectTo);
+      } else {
+        navigate(redirectTo);
+      }
     } catch (err: unknown) {
       const error = err as { message?: string };
       toast.error(error.message ?? "E-mail ou senha incorretos.");
