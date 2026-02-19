@@ -1,70 +1,64 @@
 
-# Reformulação Visual da Landing Page — Fotos Reais, Zero Emojis
+# Redesign da Tela de Login/Cadastro — Split Screen Premium
 
-## Diagnóstico do Problema
+## Problema Atual
 
-O usuário apontou corretamente que a página atual parece genérica demais. Os culpados:
+A página `/auth` tem um layout centralizado simples: fundo cinza (`bg-background`), logo pequeno no topo e um card com abas "Criar conta / Entrar". Parece genérica e sem identidade visual — exatamente o que o usuário quer mudar.
 
-1. **Emojis flutuando no hero** (🍔 🍕 🌮 🍟 🧇 🍗 🥤 🌭 🍩 🥪) — parecem feitos com IA, nada profissional
-2. **Cards de "problemas" com emojis grandes** (🤷 📉 😤) — visual infantil
-3. **Cards de "demo" com emojis** (🍔 🍕) — muito genérico
-4. **CTA final com emojis decorativos** (🍔 🍕 🌮 🍟) — mesma sensação
-5. **Hero sem imagem de produto real** — texto puro no escuro, nada para fixar o olhar
+## Nova Proposta: Split Screen
 
-## O Que Vai Mudar
+A tela será dividida em **duas metades lado a lado** no desktop, empilhadas no mobile:
 
-### 1. Hero Section — de emojis para foto real de hambúrguer/lanche
-
-Substituir os emojis flutuantes por **uma foto de fundo real** de comida apetitosa do Unsplash (hamburger premium, com boa iluminação). A foto ficará em modo overlay escuro atrás do texto, criando profundidade sem competir com o conteúdo.
-
-Usar URL do Unsplash:
+```text
+┌────────────────────────────────────────────┐
+│  LADO ESQUERDO (50%)   │  LADO DIREITO (50%) │
+│  Foto real de comida   │                     │
+│  com overlay escuro    │   Formulário de      │
+│  vermelho              │   login/cadastro     │
+│                        │   (igual ao atual    │
+│  Logo TrendFood        │   mas com mais       │
+│  + headline            │   refinamento        │
+│  + 3 bullets de valor  │   visual)            │
+│                        │                     │
+└────────────────────────────────────────────┘
 ```
-https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1920&q=80
-```
-(hambúrguer premium, muito famosa no Unsplash, lighting profissional)
 
-Layout do hero reformulado:
-- Foto em `position: absolute`, `object-cover`, com overlay gradiente escuro-vermelho por cima
-- Header e texto continuam exatamente iguais (hierarquia e copy não mudam)
-- Os "social proof chips" ficam, apenas sem o ícone Star — um traço simples `-` ou nada
-- **Remove** o `<style>` com `@keyframes bounce` e todo o array `floatingEmojis`
+### Lado Esquerdo — Painel Visual
 
-### 2. Seção "Você já passou por isso?" — emojis viram fotos reais
+- **Foto de fundo**: `https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=1200&q=80` (interior de restaurante/bar com iluminação quente e ambiente aconchegante — imagem muito usada no Unsplash)
+- **Overlay**: gradiente escuro vermelho `rgba(90,5,5,0.88)` → `rgba(30,5,5,0.92)` para garantir legibilidade
+- **Conteúdo sobre o overlay**:
+  - Logo TrendFood (ícone branco + nome em branco)
+  - Headline grande em branco: *"Transforme o gosto dos seus clientes em lucro"*
+  - Subtítulo em branco/70%: *"Colete sugestões, receba votos e lance os pratos que já nascem campeões."*
+  - 3 bullets de prova social:
+    - ✓ Sem instalação de aplicativo
+    - ✓ Mural de sugestões em tempo real
+    - ✓ Painel completo de métricas
+  - Badge discreto no rodapé: *"Grátis para começar · Sem cartão de crédito"*
+- **Visível apenas no desktop** (`hidden lg:flex`) — no mobile só o lado direito aparece
 
-Cada card de problema ganha uma foto real de culinária/restaurante no lugar do emoji gigante:
+### Lado Direito — Formulário
 
-| Card | Foto Unsplash | Alt |
-|---|---|---|
-| "Não sabe o que lançar?" | `photo-1414235077428-338989a2e8c0` (cozinheiro pensativo) | Chef pensando no cardápio |
-| "Lança e não vende?" | `photo-1555396273-367ea4eb4db5` (prato na mesa vazio) | Prato não vendido |
-| "Perde clientes?" | `photo-1517248135467-4c7edcad34c4` (restaurante cheio) | Restaurante cheio |
+- Fundo branco/claro puro (`bg-background`)
+- No topo no mobile: logo TrendFood pequeno (apenas no mobile, oculto no desktop)
+- O formulário atual (abas "Criar conta / Entrar") é **mantido integralmente** — mesma lógica, mesmos campos, mesmos handlers
+- Melhorias visuais no formulário:
+  - Tirar o card com borda — o formulário fica direto no painel branco com padding generoso
+  - As abas ganham estilo mais limpo, sem borda inferior pesada
+  - Inputs com `h-11` ao invés de `h-10` (ligeiramente maiores, mais premium)
+  - Botão de submit com `h-11 text-base font-bold`
+  - Label de termos no rodapé mantida
 
-Foto vai em altura fixa `h-40`, `object-cover`, `rounded-xl mb-4`.
+## Responsividade
 
-### 3. Seção "Demo" — emojis viram fotos dos estabelecimentos
-
-Os cards de demonstração (Burguer da Hora e Pizza Feliz) perdem o emoji e ganham uma foto de hambúrguer / pizza do Unsplash como capa visual, mais profissional.
-
-### 4. CTA Final — remove os emojis decorativos flutuantes
-
-Os 4 emojis posicionados absolutamente (🍔 🍕 🌮 🍟) são removidos. No lugar, pode-se colocar uma textura sutil ou simplesmente deixar limpo — o copy forte já basta.
-
-### 5. Seção "Como Funciona" — ícones ok, sem emojis
-
-Os steps já usam ícones Lucide (ChefHat, Heart, BarChart3) — ficam como estão. Nenhum emoji aqui.
+- **Mobile** (`< lg`): apenas o painel direito (formulário) com padding. O painel esquerdo some.
+- **Desktop** (`>= lg`): split 50/50 com `min-h-screen`
 
 ## Arquivos Afetados
 
 | Arquivo | Ação |
 |---|---|
-| `src/pages/Index.tsx` | Remover emojis flutuantes, adicionar foto de fundo hero, trocar emojis dos cards por fotos Unsplash |
+| `src/pages/AuthPage.tsx` | Redesenho completo do layout — split screen. Lógica 100% preservada. |
 
-## Resultado Esperado
-
-Uma landing page com cara de produto real:
-- Hero com **foto de fundo** apetitosa e overlay escuro-vermelho elegante
-- Cards de problema com **fotos reais** de situações de restaurante
-- Cards de demo com **fotos de pratos** ao invés de emojis
-- CTA final limpo, sem decoração infantil
-- Zero emojis decorativos em qualquer lugar da página
-
+Nenhuma alteração de banco de dados, rotas ou lógica de autenticação.
