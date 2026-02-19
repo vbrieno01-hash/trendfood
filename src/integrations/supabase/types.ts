@@ -106,6 +106,7 @@ export type Database = {
           id: string
           notes: string | null
           organization_id: string
+          paid: boolean
           status: string
           table_number: number
         }
@@ -114,6 +115,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id: string
+          paid?: boolean
           status?: string
           table_number: number
         }
@@ -122,6 +124,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id?: string
+          paid?: boolean
           status?: string
           table_number?: number
         }

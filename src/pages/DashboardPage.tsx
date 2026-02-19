@@ -265,7 +265,7 @@ const DashboardPage = () => {
           {activeTab === "menu" && <MenuTab organization={organization} />}
           {activeTab === "tables" && <TablesTab organization={organization} />}
           {activeTab === "kitchen" && <KitchenTab orgId={organization.id} />}
-          {activeTab === "waiter" && <WaiterTab orgId={organization.id} />}
+          {activeTab === "waiter" && <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
