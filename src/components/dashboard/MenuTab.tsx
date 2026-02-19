@@ -4,43 +4,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, ImageOff,
 } from "lucide-react";
 import {
-  useMenuItems,
-  useAddMenuItem,
-  useUpdateMenuItem,
-  useDeleteMenuItem,
-  CATEGORIES,
-  MenuItem,
-  MenuItemInput,
+  useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
+  CATEGORIES, MenuItem, MenuItemInput,
 } from "@/hooks/useMenuItems";
 
 interface Organization {
@@ -77,8 +57,8 @@ export default function MenuTab({ organization }: { organization: Organization }
     items: items.filter((i) => i.category === cat.value),
   })).filter((g) => g.items.length > 0);
 
-  const totalCategories = grouped.length;
   const totalItems = items.length;
+  const totalCategories = grouped.length;
 
   const openCreate = () => {
     setEditItem(null);
@@ -105,9 +85,7 @@ export default function MenuTab({ organization }: { organization: Organization }
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      return;
-    }
+    if (file.size > 5 * 1024 * 1024) return;
     setForm((p) => ({ ...p, imageFile: file }));
     setImagePreview(URL.createObjectURL(file));
   };
@@ -144,96 +122,102 @@ export default function MenuTab({ organization }: { organization: Organization }
 
   const isPending = addMutation.isPending || updateMutation.isPending;
 
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(price);
+
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Meu Cardápio</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {isLoading ? "..." : `${totalItems} ${totalItems === 1 ? "item" : "itens"} · ${totalCategories} ${totalCategories === 1 ? "categoria" : "categorias"}`}
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {isLoading ? "…" : `${totalItems} ${totalItems === 1 ? "item" : "itens"} · ${totalCategories} ${totalCategories === 1 ? "categoria" : "categorias"}`}
           </p>
         </div>
-        <Button onClick={openCreate} className="gap-2">
+        <Button onClick={openCreate} size="sm" className="gap-1.5 h-9">
           <Plus className="w-4 h-4" />
-          Novo Item
+          Novo item
         </Button>
       </div>
 
       {/* Loading */}
       {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+        <div className="space-y-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-lg" />
           ))}
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && items.length === 0 && (
-        <div className="border border-dashed border-border rounded-2xl p-12 text-center">
-          <UtensilsCrossed className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
+        <div className="border border-dashed border-border rounded-xl p-12 text-center">
+          <UtensilsCrossed className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
           <h3 className="font-semibold text-foreground mb-1">Cardápio vazio</h3>
           <p className="text-muted-foreground text-sm mb-4">
             Adicione seus lanches, bebidas e porções para exibi-los na página pública.
           </p>
-          <Button onClick={openCreate} variant="outline" className="gap-2">
+          <Button onClick={openCreate} variant="outline" size="sm" className="gap-1.5">
             <Plus className="w-4 h-4" />
             Adicionar primeiro item
           </Button>
         </div>
       )}
 
-      {/* Grouped items */}
+      {/* Grouped items — compact list */}
       {!isLoading && grouped.map((group) => (
         <div key={group.value}>
-          <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-            <span>{group.emoji}</span>
-            <span>{group.value}</span>
-            <span className="text-muted-foreground font-normal text-sm">({group.items.length})</span>
-          </h2>
-          <div className="space-y-2">
+          {/* Category header — sem emoji */}
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {group.value}
+            </span>
+            <span className="text-xs text-muted-foreground/60">({group.items.length})</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* Item rows */}
+          <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
             {group.items.map((item) => (
               <div
                 key={item.id}
-                className={`flex items-center gap-3 bg-card border border-border rounded-xl p-3 transition-opacity ${!item.available ? "opacity-60" : ""}`}
+                className={`flex items-center gap-3 px-3 py-2.5 bg-card hover:bg-secondary/40 transition-colors ${!item.available ? "opacity-50" : ""}`}
               >
-                {/* Image */}
-                <div className="w-14 h-14 rounded-lg overflow-hidden bg-secondary shrink-0 flex items-center justify-center">
+                {/* Thumbnail */}
+                <div className="w-10 h-10 rounded-md overflow-hidden bg-secondary shrink-0 flex items-center justify-center">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-2xl">{group.emoji}</span>
+                    <ImageOff className="w-4 h-4 text-muted-foreground/40" />
                   )}
                 </div>
 
-                {/* Info */}
+                {/* Name + description */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-foreground text-sm truncate">{item.name}</p>
-                    {!item.available && (
-                      <Badge variant="destructive" className="text-xs shrink-0">Indisponível</Badge>
-                    )}
-                  </div>
+                  <p className="text-sm font-medium text-foreground truncate leading-tight">{item.name}</p>
                   {item.description && (
-                    <p className="text-muted-foreground text-xs truncate mt-0.5">{item.description}</p>
+                    <p className="text-xs text-muted-foreground truncate leading-tight">{item.description}</p>
                   )}
-                  <p className="text-sm font-semibold text-foreground mt-1">
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.price)}
-                  </p>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Price */}
+                <span className="text-sm font-semibold text-foreground tabular-nums shrink-0 w-20 text-right">
+                  {formatPrice(item.price)}
+                </span>
+
+                {/* Switch + actions */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   <Switch
                     checked={item.available}
                     onCheckedChange={() => handleToggleAvailable(item)}
                     disabled={updateMutation.isPending}
+                    className="scale-90"
                   />
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-8 h-8"
+                    className="w-7 h-7 text-muted-foreground hover:text-foreground"
                     onClick={() => openEdit(item)}
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -241,7 +225,7 @@ export default function MenuTab({ organization }: { organization: Organization }
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-8 h-8 text-muted-foreground hover:text-destructive"
+                    className="w-7 h-7 text-muted-foreground hover:text-destructive"
                     onClick={() => setDeleteTarget(item)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -283,13 +267,7 @@ export default function MenuTab({ organization }: { organization: Organization }
                     {imagePreview ? "Alterar foto" : "Adicionar foto"}
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">JPG, PNG ou WebP. Máx 5MB.</p>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                 </div>
               </div>
             </div>
@@ -312,10 +290,7 @@ export default function MenuTab({ organization }: { organization: Organization }
             {/* Category */}
             <div>
               <Label className="text-sm font-medium">Categoria</Label>
-              <Select
-                value={form.category}
-                onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}
-              >
+              <Select value={form.category} onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -394,7 +369,6 @@ export default function MenuTab({ organization }: { organization: Organization }
             <AlertDialogTitle>Remover item?</AlertDialogTitle>
             <AlertDialogDescription>
               <strong>{deleteTarget?.name}</strong> será removido do cardápio permanentemente.
-              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
