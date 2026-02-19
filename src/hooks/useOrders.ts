@@ -21,6 +21,7 @@ export interface Order {
   notes: string | null;
   created_at: string;
   paid: boolean;
+  payment_method?: string | null;
   order_items?: OrderItem[];
 }
 

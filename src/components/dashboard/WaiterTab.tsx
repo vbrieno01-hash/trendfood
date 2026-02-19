@@ -136,7 +136,14 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixKey }: WaiterTa
                         <span className="text-xs font-bold bg-green-500 text-white rounded-full px-2.5 py-0.5">
                           ✅ PRONTO
                         </span>
-                        <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                         <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                         {(order as any).payment_method && (order as any).payment_method !== "pending" && (
+                           <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
+                             (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                           }`}>
+                             {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
+                           </span>
+                         )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                     </div>
@@ -225,6 +232,13 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixKey }: WaiterTa
                           💰 PAGAR
                         </span>
                         <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                        {(order as any).payment_method && (order as any).payment_method !== "pending" && (
+                          <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
+                            (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                     </div>
