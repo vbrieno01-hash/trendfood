@@ -5,6 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import GrowthCharts from "@/components/admin/GrowthCharts";
+import RecentOrdersFeed from "@/components/admin/RecentOrdersFeed";
+import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
 import {
   Store,
   ShieldAlert,
@@ -24,6 +28,9 @@ import {
   DollarSign,
   FileText,
   ArrowRight,
+  Download,
+  Crown,
+  CalendarPlus,
 } from "lucide-react";
 
 // ── Report types ──
@@ -162,6 +169,22 @@ const AVATAR_COLORS = [
   "bg-indigo-500",
 ];
 
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const PLAN_OPTIONS = [
+  { value: "free", label: "Grátis" },
+  { value: "pro", label: "Pro" },
+  { value: "enterprise", label: "Enterprise" },
+];
+
 function getAvatarColor(name: string) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -175,6 +198,8 @@ interface OrgRow {
   store_address: string | null;
   created_at: string;
   subscription_status: string;
+  subscription_plan: string;
+  trial_ends_at: string | null;
   emoji: string;
   menu_items_count: number;
   orders_count: number;
@@ -276,17 +301,17 @@ function AdminContent() {
   const [reportMonth, setReportMonth] = useState(() => MONTH_OPTIONS[0].value);
   const [reportData, setReportData] = useState<ReportRow[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
-
+  const [rawOrders, setRawOrders] = useState<{ created_at: string }[]>([]);
   useEffect(() => {
     async function load() {
       const [{ data: orgsData }, { data: menuData }, { data: ordersData }, { data: orderItemsData }] =
         await Promise.all([
           supabase
             .from("organizations")
-            .select("id, name, slug, store_address, created_at, subscription_status, emoji, whatsapp, business_hours")
+            .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours")
             .order("created_at", { ascending: false }),
           supabase.from("menu_items").select("organization_id"),
-          supabase.from("orders").select("id, organization_id"),
+          supabase.from("orders").select("id, organization_id, created_at"),
           supabase.from("order_items").select("order_id, price, quantity"),
         ]);
 
@@ -313,6 +338,8 @@ function AdminContent() {
         const revenue = orderIds.reduce((sum, oid) => sum + (revenueByOrder[oid] ?? 0), 0);
         return {
           ...org,
+          subscription_plan: org.subscription_plan ?? "free",
+          trial_ends_at: org.trial_ends_at ?? null,
           menu_items_count: menuCount[org.id] ?? 0,
           orders_count: orderIds.length,
           total_revenue: revenue,
@@ -322,6 +349,7 @@ function AdminContent() {
       });
 
       setOrgs(enriched);
+      setRawOrders((ordersData ?? []).map((o) => ({ created_at: o.created_at })));
       setLoading(false);
     }
     load();
@@ -399,10 +427,58 @@ function AdminContent() {
 
   const hasActiveFilters = search !== "" || statusFilter !== "all" || addressFilter !== "all";
 
+  // ── Org map for feed ──
+  const orgMap = useMemo(() => {
+    const map: Record<string, { name: string; emoji: string }> = {};
+    orgs.forEach((o) => { map[o.id] = { name: o.name, emoji: o.emoji }; });
+    return map;
+  }, [orgs]);
+
   function clearFilters() {
     setSearch("");
     setStatusFilter("all");
     setAddressFilter("all");
+  }
+
+  // ── CSV Export ──
+  function exportStoresCSV() {
+    const header = "Nome,Slug,Endereço,Status,Plano,Itens,Pedidos,Receita,Criado em\n";
+    const rows = filteredOrgs.map((o) =>
+      `"${o.name}","${o.slug}","${o.store_address ?? ""}","${o.subscription_status}","${o.subscription_plan}",${o.menu_items_count},${o.orders_count},${o.total_revenue.toFixed(2)},"${new Date(o.created_at).toLocaleDateString("pt-BR")}"`
+    ).join("\n");
+    downloadCSV(header + rows, "lojas.csv");
+  }
+
+  function exportReportCSV() {
+    const monthLabel = MONTH_OPTIONS.find((o) => o.value === reportMonth)?.label ?? reportMonth;
+    const header = "Loja,Faturamento,Pedidos Pagos,Ticket Médio,Top Item\n";
+    const rows = reportData.map((r) =>
+      `"${r.org.name}",${r.revenue.toFixed(2)},${r.paidOrders},${r.avgTicket.toFixed(2)},"${r.topItems[0]?.name ?? "-"}"`
+    ).join("\n");
+    downloadCSV(header + rows, `relatorio-${monthLabel.replace(" ", "-")}.csv`);
+  }
+
+  // ── Plan update ──
+  async function handlePlanChange(orgId: string, plan: string) {
+    const { error } = await supabase
+      .from("organizations")
+      .update({ subscription_plan: plan })
+      .eq("id", orgId);
+    if (error) { toast.error("Erro ao atualizar plano"); return; }
+    setOrgs((prev) => prev.map((o) => o.id === orgId ? { ...o, subscription_plan: plan } : o));
+    toast.success("Plano atualizado!");
+  }
+
+  async function handleExtendTrial(orgId: string) {
+    const newDate = new Date();
+    newDate.setDate(newDate.getDate() + 7);
+    const { error } = await supabase
+      .from("organizations")
+      .update({ trial_ends_at: newDate.toISOString() })
+      .eq("id", orgId);
+    if (error) { toast.error("Erro ao estender trial"); return; }
+    setOrgs((prev) => prev.map((o) => o.id === orgId ? { ...o, trial_ends_at: newDate.toISOString() } : o));
+    toast.success("Trial estendido por +7 dias!");
   }
 
   return (
@@ -473,6 +549,12 @@ function AdminContent() {
           />
         </div>
 
+        {/* ── Growth Charts ── */}
+        {!loading && <GrowthCharts orgs={orgs} orders={rawOrders} />}
+
+        {/* ── Recent Orders Feed ── */}
+        {!loading && <RecentOrdersFeed orgMap={orgMap} />}
+
         {/* ── Stores Grid ── */}
         <section>
           {/* Section header */}
@@ -481,6 +563,15 @@ function AdminContent() {
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
               Lojas da Plataforma
             </h2>
+            {!loading && filteredOrgs.length > 0 && (
+              <button
+                onClick={exportStoresCSV}
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Exportar CSV
+              </button>
+            )}
           </div>
 
           {/* ── Filter bar ── */}
@@ -579,7 +670,7 @@ function AdminContent() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredOrgs.map((org) => (
-                <StoreCard key={org.id} org={org} />
+                <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} onExtendTrial={handleExtendTrial} />
               ))}
             </div>
           )}
@@ -592,15 +683,26 @@ function AdminContent() {
               <FileText className="w-4 h-4 text-muted-foreground" />
               Relatório Mensal por Loja
             </h2>
-            <select
-              value={reportMonth}
-              onChange={(e) => setReportMonth(e.target.value)}
-              className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {MONTH_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-3">
+              {!loadingReport && reportData.length > 0 && (
+                <button
+                  onClick={exportReportCSV}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Exportar CSV
+                </button>
+              )}
+              <select
+                value={reportMonth}
+                onChange={(e) => setReportMonth(e.target.value)}
+                className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {MONTH_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {loading || loadingReport ? (
@@ -658,6 +760,9 @@ function AdminContent() {
             </div>
           )}
         </section>
+
+        {/* ── Platform Config ── */}
+        <PlatformConfigSection />
 
         {/* ── Feature Roadmap ── */}
         <section>
@@ -730,7 +835,7 @@ function SetupScore({ org }: { org: OrgRow }) {
 }
 
 /* ── Store Card ── */
-function StoreCard({ org }: { org: OrgRow }) {
+function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onExtendTrial: (id: string) => void }) {
   const avatarColor = getAvatarColor(org.name);
   const initial = org.name.charAt(0).toUpperCase();
   const isActive = org.subscription_status === "active";
@@ -802,6 +907,39 @@ function StoreCard({ org }: { org: OrgRow }) {
         <Metric label="Itens" value={org.menu_items_count.toString()} />
         <Metric label="Pedidos" value={org.orders_count.toString()} />
         <Metric label="Receita" value={fmt(org.total_revenue)} small />
+      </div>
+
+      {/* Plan Management */}
+      <div className="border-t border-border px-5 py-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <Crown className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Plano:</span>
+          </div>
+          <select
+            value={org.subscription_plan}
+            onChange={(e) => onPlanChange(org.id, e.target.value)}
+            className="text-xs border border-border rounded-md px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {PLAN_OPTIONS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+        {org.trial_ends_at && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">
+              Trial até {new Date(org.trial_ends_at).toLocaleDateString("pt-BR")}
+            </span>
+            <button
+              onClick={() => onExtendTrial(org.id)}
+              className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
+            >
+              <CalendarPlus className="w-3 h-3" />
+              +7 dias
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
