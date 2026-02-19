@@ -1,52 +1,70 @@
 
-# Substituir Mockup CSS do Celular pela Screenshot Real do Mobile
+# Reformulação Visual da Landing Page — Fotos Reais, Zero Emojis
 
-## Situação Atual
+## Diagnóstico do Problema
 
-O mockup do celular em `src/components/landing/ShowcaseSection.tsx` (linhas 33–83) é construído 100% em CSS/HTML com status bar, header, tabs, chips e card de produto simulados.
+O usuário apontou corretamente que a página atual parece genérica demais. Os culpados:
 
-O usuário enviou a screenshot real do dashboard mobile (`user-uploads://image-13.png`) — que mostra o painel "Burguer do Rei" com o card vermelho de "Faturamento Hoje R$ 880,00", cards de métricas e gráfico dos últimos 7 dias.
+1. **Emojis flutuando no hero** (🍔 🍕 🌮 🍟 🧇 🍗 🥤 🌭 🍩 🥪) — parecem feitos com IA, nada profissional
+2. **Cards de "problemas" com emojis grandes** (🤷 📉 😤) — visual infantil
+3. **Cards de "demo" com emojis** (🍔 🍕) — muito genérico
+4. **CTA final com emojis decorativos** (🍔 🍕 🌮 🍟) — mesma sensação
+5. **Hero sem imagem de produto real** — texto puro no escuro, nada para fixar o olhar
 
-## O Que Será Feito
+## O Que Vai Mudar
 
-### 1. Salvar a imagem no projeto
+### 1. Hero Section — de emojis para foto real de hambúrguer/lanche
+
+Substituir os emojis flutuantes por **uma foto de fundo real** de comida apetitosa do Unsplash (hamburger premium, com boa iluminação). A foto ficará em modo overlay escuro atrás do texto, criando profundidade sem competir com o conteúdo.
+
+Usar URL do Unsplash:
 ```
-user-uploads://image-13.png → public/mobile-screenshot.png
+https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1920&q=80
 ```
-Usar `public/` para referência via URL direta, igual ao que foi feito com `dashboard-screenshot.png`.
+(hambúrguer premium, muito famosa no Unsplash, lighting profissional)
 
-### 2. Atualizar `ShowcaseSection.tsx`
+Layout do hero reformulado:
+- Foto em `position: absolute`, `object-cover`, com overlay gradiente escuro-vermelho por cima
+- Header e texto continuam exatamente iguais (hierarquia e copy não mudam)
+- Os "social proof chips" ficam, apenas sem o ícone Star — um traço simples `-` ou nada
+- **Remove** o `<style>` com `@keyframes bounce` e todo o array `floatingEmojis`
 
-Substituir todo o conteúdo interno do phone frame (linhas 40–82) por uma `<img>` com a screenshot real, mantendo:
-- A div de posicionamento absoluto (right, bottom, width: 110)
-- A moldura do phone frame (`rounded-2xl`, `border-2`, `border-gray-800`, `shadow-2xl`)
-- Remover o `ChefHat` import se não for mais usado
+### 2. Seção "Você já passou por isso?" — emojis viram fotos reais
 
-O novo conteúdo do phone frame ficará:
-```tsx
-{/* Phone frame */}
-<div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800">
-  <img
-    src="/mobile-screenshot.png"
-    alt="Painel mobile TrendFood"
-    className="w-full block"
-    style={{ display: "block" }}
-  />
-</div>
-```
+Cada card de problema ganha uma foto real de culinária/restaurante no lugar do emoji gigante:
 
-- Sem `height` fixo — a imagem define a altura naturalmente pelo aspect ratio do celular
-- `object-top` não é necessário pois queremos mostrar toda a tela do mobile
-- A largura é controlada pela div pai (`width: 110`)
+| Card | Foto Unsplash | Alt |
+|---|---|---|
+| "Não sabe o que lançar?" | `photo-1414235077428-338989a2e8c0` (cozinheiro pensativo) | Chef pensando no cardápio |
+| "Lança e não vende?" | `photo-1555396273-367ea4eb4db5` (prato na mesa vazio) | Prato não vendido |
+| "Perde clientes?" | `photo-1517248135467-4c7edcad34c4` (restaurante cheio) | Restaurante cheio |
 
-### 3. Limpar imports
-Remover `import { ChefHat } from "lucide-react"` já que não será mais utilizado no componente.
+Foto vai em altura fixa `h-40`, `object-cover`, `rounded-xl mb-4`.
+
+### 3. Seção "Demo" — emojis viram fotos dos estabelecimentos
+
+Os cards de demonstração (Burguer da Hora e Pizza Feliz) perdem o emoji e ganham uma foto de hambúrguer / pizza do Unsplash como capa visual, mais profissional.
+
+### 4. CTA Final — remove os emojis decorativos flutuantes
+
+Os 4 emojis posicionados absolutamente (🍔 🍕 🌮 🍟) são removidos. No lugar, pode-se colocar uma textura sutil ou simplesmente deixar limpo — o copy forte já basta.
+
+### 5. Seção "Como Funciona" — ícones ok, sem emojis
+
+Os steps já usam ícones Lucide (ChefHat, Heart, BarChart3) — ficam como estão. Nenhum emoji aqui.
 
 ## Arquivos Afetados
 
 | Arquivo | Ação |
 |---|---|
-| `public/mobile-screenshot.png` | Criar — copiar do upload do usuário |
-| `src/components/landing/ShowcaseSection.tsx` | Substituir mockup CSS do celular por `<img>` + remover import ChefHat |
+| `src/pages/Index.tsx` | Remover emojis flutuantes, adicionar foto de fundo hero, trocar emojis dos cards por fotos Unsplash |
 
-Sem banco de dados, sem novos pacotes.
+## Resultado Esperado
+
+Uma landing page com cara de produto real:
+- Hero com **foto de fundo** apetitosa e overlay escuro-vermelho elegante
+- Cards de problema com **fotos reais** de situações de restaurante
+- Cards de demo com **fotos de pratos** ao invés de emojis
+- CTA final limpo, sem decoração infantil
+- Zero emojis decorativos em qualquer lugar da página
+
