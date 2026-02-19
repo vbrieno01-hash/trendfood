@@ -147,6 +147,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          pix_key: string | null
           primary_color: string
           slug: string
           subscription_status: string
@@ -161,6 +162,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          pix_key?: string | null
           primary_color?: string
           slug: string
           subscription_status?: string
@@ -175,6 +177,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          pix_key?: string | null
           primary_color?: string
           slug?: string
           subscription_status?: string

@@ -41,9 +41,10 @@ const AUTO_PRINT_KEY = "kds_auto_print";
 interface KitchenTabProps {
   orgId: string;
   orgName?: string;
+  pixKey?: string | null;
 }
 
-export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
+export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -118,10 +119,10 @@ export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        printOrder(order, orgName);
+        printOrder(order, orgName, pixKey);
       }
     });
-  }, [orders, orgName]);
+  }, [orders, orgName, pixKey]);
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
@@ -203,7 +204,7 @@ export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       title="Imprimir pedido"
-                      onClick={() => printOrder(order, orgName)}
+                      onClick={() => printOrder(order, orgName, pixKey)}
                     >
                       <Printer className="w-3.5 h-3.5" />
                     </Button>

@@ -20,6 +20,7 @@ interface Organization {
   logo_url: string | null;
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
+  pix_key?: string | null;
 }
 
 const EMOJI_OPTIONS = ["🍔", "🌮", "🍕", "🍜", "🌯", "🥪", "🍗", "🥗", "🍣", "🥩", "🍟", "🧆"];
@@ -42,6 +43,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     slug: organization.slug,
     primary_color: organization.primary_color,
     whatsapp: organization.whatsapp ?? "",
+    pix_key: organization.pix_key ?? "",
   });
   const [businessHours, setBusinessHours] = useState<BusinessHours>(
     organization.business_hours ?? DEFAULT_BUSINESS_HOURS
@@ -69,6 +71,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           slug: form.slug,
           primary_color: form.primary_color,
           whatsapp: form.whatsapp || null,
+          pix_key: form.pix_key || null,
           business_hours: businessHours as unknown as never,
         })
         .eq("id", organization.id);
@@ -343,7 +346,28 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         </div>
       </div>
 
-      {/* ── SEÇÃO 4: Horário de Funcionamento ─────────────────────── */}
+      {/* ── SEÇÃO 4: Pagamentos ───────────────────────────────────────── */}
+      <div>
+        <SectionHeader>Pagamentos</SectionHeader>
+
+        <div>
+          <Label htmlFor="store-pix" className="text-sm font-medium">
+            Chave PIX <span className="text-muted-foreground font-normal">(opcional)</span>
+          </Label>
+          <Input
+            id="store-pix"
+            value={form.pix_key}
+            onChange={(e) => setForm((p) => ({ ...p, pix_key: e.target.value.trim() }))}
+            placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"
+            className="mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Quando cadastrada, o QR Code PIX com o valor total aparece automaticamente no comprovante de impressão.
+          </p>
+        </div>
+      </div>
+
+      {/* ── SEÇÃO 5: Horário de Funcionamento ─────────────────────── */}
       <div>
         <SectionHeader>Horário de Funcionamento</SectionHeader>
         <BusinessHoursSection value={businessHours} onChange={setBusinessHours} />
