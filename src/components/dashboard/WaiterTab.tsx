@@ -149,7 +149,10 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixKey }: WaiterTa
                         <span className="w-6 h-6 rounded-md bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {item.quantity}×
                         </span>
-                        {item.name}
+                        <span>{item.name}</span>
+                        {(item as any).customer_name && (
+                          <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -239,7 +242,10 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixKey }: WaiterTa
                           <span className="w-6 h-6 rounded-md bg-yellow-100 text-yellow-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
                             {item.quantity}×
                           </span>
-                          {item.name}
+                          <span>{item.name}</span>
+                          {(item as any).customer_name && (
+                            <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
+                          )}
                         </div>
                         <span className="text-muted-foreground text-xs">{fmtBRL(item.price * item.quantity)}</span>
                       </li>

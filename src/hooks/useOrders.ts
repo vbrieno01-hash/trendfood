@@ -10,6 +10,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
+  customer_name?: string | null;
 }
 
 export interface Order {
@@ -153,7 +154,7 @@ export const usePlaceOrder = () => {
       organizationId: string;
       tableNumber: number;
       notes: string;
-      items: { menu_item_id: string; name: string; price: number; quantity: number }[];
+      items: { menu_item_id: string; name: string; price: number; quantity: number; customer_name?: string }[];
     }) => {
       const { data: order, error: orderError } = await supabase
         .from("orders")
@@ -168,6 +169,7 @@ export const usePlaceOrder = () => {
         name: i.name,
         price: i.price,
         quantity: i.quantity,
+        customer_name: i.customer_name || null,
       }));
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
       if (itemsError) throw itemsError;

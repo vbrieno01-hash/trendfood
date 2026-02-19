@@ -5,16 +5,20 @@ import { useMenuItems } from "@/hooks/useMenuItems";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
 import type { Coupon } from "@/hooks/useCoupons";
+import { buildPixPayload } from "@/lib/pixPayload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X } from "lucide-react";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { toast } from "sonner";
 
 interface CartItem {
   menu_item_id: string;
   name: string;
   price: number;
   quantity: number;
+  customer_name: string;
 }
 
 const CATEGORY_ORDER = [
@@ -33,7 +37,9 @@ export default function TableOrderPage() {
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [notes, setNotes] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [success, setSuccess] = useState(false);
+  const [orderTotal, setOrderTotal] = useState(0);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -72,17 +78,45 @@ export default function TableOrderPage() {
 
   const totalPrice = Math.max(0, subtotal - discount);
 
+  // Cart key includes customer_name so the same item by different people is separate
+  const cartKey = (itemId: string, name: string) => `${itemId}__${name}`;
+
   const adjust = (item: typeof available[0], delta: number) => {
+    const cName = customerName.trim() || "Sem nome";
+    const key = cartKey(item.id, cName);
     setCart((prev) => {
-      const existing = prev[item.id];
+      const existing = prev[key];
       const newQty = (existing?.quantity ?? 0) + delta;
       if (newQty <= 0) {
-        const { [item.id]: _, ...rest } = prev;
+        const { [key]: _, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [item.id]: { menu_item_id: item.id, name: item.name, price: item.price, quantity: newQty } };
+      return {
+        ...prev,
+        [key]: {
+          menu_item_id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: newQty,
+          customer_name: cName,
+        },
+      };
     });
   };
+
+  // Get qty for current customer name
+  const getQty = (itemId: string) => {
+    const cName = customerName.trim() || "Sem nome";
+    return cart[cartKey(itemId, cName)]?.quantity ?? 0;
+  };
+
+  // Group cart by customer_name for display
+  const cartByPerson = cartItems.reduce<Record<string, CartItem[]>>((acc, item) => {
+    const name = item.customer_name;
+    if (!acc[name]) acc[name] = [];
+    acc[name].push(item);
+    return acc;
+  }, {});
 
   const handleApplyCoupon = async () => {
     if (!org || !couponCode.trim()) return;
@@ -123,11 +157,11 @@ export default function TableOrderPage() {
       items: cartItems,
     });
 
-    // Increment coupon uses after successful order
     if (appliedCoupon) {
       await incrementCouponUses(appliedCoupon.id);
     }
 
+    setOrderTotal(totalPrice);
     setSuccess(true);
   };
 
@@ -148,14 +182,47 @@ export default function TableOrderPage() {
   }
 
   if (success) {
+    const pixPayload = org.pix_key && orderTotal > 0
+      ? buildPixPayload(org.pix_key, orderTotal, org.name)
+      : null;
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center space-y-4 max-w-sm">
+        <div className="text-center space-y-4 max-w-sm w-full">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
           <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
           <p className="text-muted-foreground">
             Seu pedido para a <strong>Mesa {tableNum}</strong> foi recebido. Em breve a cozinha irá preparar!
           </p>
+
+          {/* PIX QR Code */}
+          {pixPayload && (
+            <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+              <p className="font-bold text-foreground text-lg">Pague agora com Pix</p>
+              <p className="text-2xl font-black text-primary">
+                R$ {orderTotal.toFixed(2).replace(".", ",")}
+              </p>
+              <div className="flex justify-center">
+                <QRCodeSVG value={pixPayload} size={200} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Aponte a câmera do app do seu banco para o QR Code acima
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  navigator.clipboard.writeText(pixPayload);
+                  toast.success("Código PIX copiado!");
+                }}
+              >
+                <Copy className="w-3.5 h-3.5 mr-1.5" />
+                Copiar código Pix
+              </Button>
+            </div>
+          )}
+
           <Button
             onClick={() => navigate("/dashboard", { state: { tab: "tables" } })}
             className="w-full"
@@ -164,7 +231,7 @@ export default function TableOrderPage() {
           </Button>
           <Button
             variant="ghost"
-            onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); }}
+            onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); }}
             className="w-full text-sm text-muted-foreground"
           >
             Fazer outro pedido nesta mesa
@@ -197,6 +264,19 @@ export default function TableOrderPage() {
         </div>
       </div>
 
+      {/* Customer name input */}
+      <div className="max-w-lg mx-auto px-4 pt-4">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-xl p-3">
+          <User className="w-4 h-4 text-primary flex-shrink-0" />
+          <Input
+            placeholder="Seu nome (para identificar o pedido)"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            className="border-0 p-0 h-auto text-sm focus-visible:ring-0 shadow-none"
+          />
+        </div>
+      </div>
+
       {/* Menu */}
       <div className="max-w-lg mx-auto px-4 py-4 space-y-6">
         {Object.keys(byCategory).length === 0 ? (
@@ -213,7 +293,7 @@ export default function TableOrderPage() {
               </h2>
               <div className="space-y-3">
                 {catItems.map((item) => {
-                  const qty = cart[item.id]?.quantity ?? 0;
+                  const qty = getQty(item.id);
                   return (
                     <div key={item.id} className="flex gap-3 bg-card rounded-xl border border-border p-3">
                       {item.image_url ? (
@@ -265,6 +345,26 @@ export default function TableOrderPage() {
               </div>
             </section>
           ))
+        )}
+
+        {/* Cart summary grouped by person */}
+        {totalItems > 0 && Object.keys(cartByPerson).length > 0 && (
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-primary" />
+              Resumo do pedido
+            </h3>
+            {Object.entries(cartByPerson).map(([person, personItems]) => (
+              <div key={person} className="space-y-1">
+                <p className="text-xs font-bold text-primary">{person}</p>
+                {personItems.map((ci) => (
+                  <p key={ci.menu_item_id + ci.customer_name} className="text-xs text-muted-foreground ml-3">
+                    {ci.quantity}× {ci.name} — R$ {(ci.price * ci.quantity).toFixed(2).replace(".", ",")}
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Notes + Coupon */}
@@ -337,7 +437,6 @@ export default function TableOrderPage() {
       {totalItems > 0 && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border z-40">
           <div className="max-w-lg mx-auto space-y-2">
-            {/* Discount summary */}
             {appliedCoupon && discount > 0 && (
               <div className="flex items-center justify-between text-sm px-1">
                 <span className="text-muted-foreground">

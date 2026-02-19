@@ -1,61 +1,12 @@
 import QRCode from "qrcode";
+import { buildPixPayload } from "./pixPayload";
 
 export interface PrintableOrder {
   id: string;
   table_number: number;
   created_at: string;
   notes?: string | null;
-  order_items?: Array<{ id: string; name: string; quantity: number; price?: number }>;
-}
-
-// ─── PIX Payload Builder (EMV / QRCPS-MPM — Banco Central do Brasil) ─────────
-
-function emvField(id: string, value: string): string {
-  const len = value.length.toString().padStart(2, "0");
-  return `${id}${len}${value}`;
-}
-
-function crc16(payload: string): string {
-  let crc = 0xffff;
-  for (let i = 0; i < payload.length; i++) {
-    crc ^= payload.charCodeAt(i) << 8;
-    for (let j = 0; j < 8; j++) {
-      crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
-    }
-  }
-  return (crc & 0xffff).toString(16).toUpperCase().padStart(4, "0");
-}
-
-function buildPixPayload(pixKey: string, amount: number, storeName: string): string {
-  const merchantAccountInfo = emvField(
-    "26",
-    emvField("00", "BR.GOV.BCB.PIX") + emvField("01", pixKey)
-  );
-
-  const amountStr = amount.toFixed(2);
-  const storeNameClean = storeName
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9 ]/g, "")
-    .substring(0, 25)
-    .toUpperCase()
-    .trim() || "LOJA";
-
-  let payload =
-    emvField("00", "01") +        // Payload Format Indicator
-    emvField("01", "12") +        // Point of Initiation Method (dynamic)
-    merchantAccountInfo +
-    emvField("52", "0000") +      // Merchant Category Code
-    emvField("53", "986") +       // Transaction Currency (BRL)
-    emvField("54", amountStr) +   // Transaction Amount
-    emvField("58", "BR") +        // Country Code
-    emvField("59", storeNameClean) + // Merchant Name
-    emvField("60", "SAO PAULO") + // Merchant City
-    emvField("62", emvField("05", "***")) + // Additional Data Field
-    "6304";                        // CRC placeholder
-
-  payload += crc16(payload);
-  return payload;
+  order_items?: Array<{ id: string; name: string; quantity: number; price?: number; customer_name?: string | null }>;
 }
 
 // ─── Notes parser ─────────────────────────────────────────────────────────────
@@ -119,7 +70,7 @@ export async function printOrder(
       (item) =>
         `<tr>
           <td class="qty">${item.quantity}x</td>
-          <td class="name">${item.name}</td>
+          <td class="name">${item.name}${item.customer_name ? ` <span class="cname">— ${item.customer_name}</span>` : ""}</td>
           <td class="price">${item.price != null ? "R$ " + (item.quantity * item.price).toFixed(2).replace(".", ",") : ""}</td>
         </tr>`
     )
@@ -294,6 +245,11 @@ export async function printOrder(
     .client-table td.cv {
       font-size: 12px;
       word-break: break-word;
+    }
+    .cname {
+      font-weight: normal;
+      font-size: 11px;
+      color: #555;
     }
     .footer {
       text-align: center;
