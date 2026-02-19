@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,10 @@ function buildStoreAddress(f: AddressFields): string {
 
 const AuthPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { refreshOrganizationForUser } = useAuth();
+
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
 
   const [signupData, setSignupData] = useState({
     fullName: "",
@@ -170,7 +173,7 @@ const AuthPage = () => {
       });
       if (error) throw error;
       toast.success("Login realizado com sucesso!");
-      navigate("/dashboard");
+      navigate(redirectTo);
     } catch (err: unknown) {
       const error = err as { message?: string };
       toast.error(error.message ?? "E-mail ou senha incorretos.");
