@@ -25,13 +25,14 @@ import HistoryTab from "@/components/dashboard/HistoryTab";
 import CouponsTab from "@/components/dashboard/CouponsTab";
 import BestSellersTab from "@/components/dashboard/BestSellersTab";
 import CaixaTab from "@/components/dashboard/CaixaTab";
+import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 
 type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, organization, isAdmin, loading, signOut, refreshOrganizationForUser } = useAuth();
+  const { user, organization, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization } = useAuth();
   const initialTab = (location.state as { tab?: string })?.tab === "tables" ? "tables" : "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -171,8 +172,16 @@ const DashboardPage = () => {
         : "text-white/60 hover:bg-white/10 hover:text-white"
     }`;
 
+  const showOnboarding = organization && !(organization as any).onboarding_done;
+
   return (
     <div className="min-h-screen bg-background flex w-full">
+      {showOnboarding && (
+        <OnboardingWizard
+          organization={organization}
+          onComplete={async () => { await refreshOrganization(); }}
+        />
+      )}
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
