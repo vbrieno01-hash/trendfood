@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useMenuItems } from "@/hooks/useMenuItems";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Minus, Plus, ShoppingCart, CheckCircle } from "lucide-react";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft } from "lucide-react";
 
 interface CartItem {
   menu_item_id: string;
@@ -20,6 +20,10 @@ const CATEGORY_ORDER = [
 
 export default function TableOrderPage() {
   const { slug, tableNumber } = useParams<{ slug: string; tableNumber: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const fromDashboard = location.state?.from === "dashboard";
+
   const { data: org, isLoading: orgLoading } = useOrganization(slug);
   const { data: items = [], isLoading: itemsLoading } = useMenuItems(org?.id);
   const placeOrder = usePlaceOrder();
@@ -117,6 +121,12 @@ export default function TableOrderPage() {
       {/* Header */}
       <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => fromDashboard ? navigate("/dashboard") : navigate(-1)}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors mr-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
           {org.logo_url ? (
             <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-xl object-cover" />
           ) : (

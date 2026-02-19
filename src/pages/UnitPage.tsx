@@ -40,8 +40,7 @@ const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 const UnitPage = () => {
-  const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
-  const tableNum = tableNumber ? parseInt(tableNumber, 10) : null;
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
   const { data: org, isLoading: orgLoading, isError } = useOrganization(slug);
@@ -227,7 +226,6 @@ const UnitPage = () => {
       ``,
       `💰 *Total: ${fmt(totalPrice)}*`,
       ``,
-      tableNum ? `🪑 *Mesa:* ${tableNum}` : null,
       `👤 *Nome:* ${buyerName.trim()}`,
       address.trim() ? `🏠 *Endereço:* ${address.trim()}` : null,
       `💳 *Pagamento:* ${payment}`,
@@ -276,12 +274,7 @@ const UnitPage = () => {
         </div>
       </header>
 
-      {/* Mesa banner */}
-      {tableNum && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-sm font-medium text-amber-800">
-          🪑 Você está na Mesa {tableNum}
-        </div>
-      )}
+      {/* Mesa banner removed — UnitPage is now public-only (no table context) */}
 
       <main className="max-w-2xl mx-auto px-4 pb-32 pt-4">
         {/* Banner */}
@@ -291,9 +284,7 @@ const UnitPage = () => {
         >
           <p className="text-lg font-bold text-foreground mb-0.5">{org.description || `Bem-vindo ao ${org.name}!`}</p>
           <p className="text-muted-foreground text-sm">
-            {tableNum
-              ? `🪑 Mesa ${tableNum} — Monte seu pedido e envie pelo WhatsApp!`
-              : `🛒 Monte seu pedido e envie direto pelo WhatsApp!`}
+            🛒 Monte seu pedido e envie direto pelo WhatsApp!
           </p>
         </div>
 
