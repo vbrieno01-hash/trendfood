@@ -38,7 +38,8 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const publicUrl = `${window.location.origin}/unidade/${form.slug}`;
+  const PUBLIC_BASE_URL = "https://snack-hive.lovable.app";
+  const publicUrl = `${PUBLIC_BASE_URL}/unidade/${form.slug}`;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
