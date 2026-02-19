@@ -216,6 +216,11 @@ const UnitPage = () => {
     let valid = true;
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
     if (!payment) { setPaymentError(true); valid = false; } else setPaymentError(false);
+    if (address.trim() && address.trim() !== addressConfirm.trim()) {
+      setAddressError(true); valid = false;
+    } else {
+      setAddressError(false);
+    }
     if (!valid) return;
 
     const lines = [
@@ -243,6 +248,7 @@ const UnitPage = () => {
     setCheckoutOpen(false);
     setBuyerName("");
     setAddress("");
+    setAddressConfirm("");
     setPayment("");
     setNotes("");
   };
@@ -614,13 +620,30 @@ const UnitPage = () => {
                 <Label htmlFor="buyer-address" className="text-xs font-medium mb-1 block">
                   Endereço <span className="text-muted-foreground font-normal">(opcional)</span>
                 </Label>
-                <Input
+              <Input
                   id="buyer-address"
                   placeholder="Para entrega, informe o endereço"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => { setAddress(e.target.value); setAddressError(false); }}
                   maxLength={200}
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="buyer-address-confirm" className="text-xs font-medium mb-1 block">
+                  Confirme o Endereço <span className="text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="buyer-address-confirm"
+                  placeholder="Digite novamente para confirmar"
+                  value={addressConfirm}
+                  onChange={(e) => { setAddressConfirm(e.target.value); setAddressError(false); }}
+                  maxLength={200}
+                  className={addressError ? "border-destructive" : ""}
+                />
+                {addressError && (
+                  <p className="text-destructive text-xs mt-1">⚠ Os endereços não conferem</p>
+                )}
               </div>
 
               <div>
