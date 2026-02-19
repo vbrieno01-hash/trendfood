@@ -1,64 +1,70 @@
 
-# Redesign da Tela de Login/Cadastro — Split Screen Premium
+# Redesign do Dashboard — Identidade Visual Forte, Sem Morto
 
-## Problema Atual
+## Diagnóstico
 
-A página `/auth` tem um layout centralizado simples: fundo cinza (`bg-background`), logo pequeno no topo e um card com abas "Criar conta / Entrar". Parece genérica e sem identidade visual — exatamente o que o usuário quer mudar.
+Olhando a screenshot, os problemas são claros:
 
-## Nova Proposta: Split Screen
+1. **Sidebar morta**: fundo branco liso, logo pequeno sem destaque, separadores invisíveis, itens cinzas apagados
+2. **HomeTab sem hierarquia**: header "Olá! 👋" parece texto comum, sem peso visual
+3. **Cards de métricas brancos**: se misturam com o fundo da página — zero contraste, zero impacto
+4. **Card de faturamento hoje**: gradiente vermelho correto, mas o ícone $  gigante translúcido não agrega nada
+5. **Banner de trial**: amarelo genérico de aviso de browser, sem design
+6. **Gráfico**: bom dado, péssima apresentação — sem título visual, sem contexto
 
-A tela será dividida em **duas metades lado a lado** no desktop, empilhadas no mobile:
+## O Que Vai Mudar
 
-```text
-┌────────────────────────────────────────────┐
-│  LADO ESQUERDO (50%)   │  LADO DIREITO (50%) │
-│  Foto real de comida   │                     │
-│  com overlay escuro    │   Formulário de      │
-│  vermelho              │   login/cadastro     │
-│                        │   (igual ao atual    │
-│  Logo TrendFood        │   mas com mais       │
-│  + headline            │   refinamento        │
-│  + 3 bullets de valor  │   visual)            │
-│                        │                     │
-└────────────────────────────────────────────┘
-```
+### 1. Sidebar — Fundo escuro/dark com identidade
 
-### Lado Esquerdo — Painel Visual
+A sidebar vai ter fundo escuro quase preto (`#0f0f0f` ou `#111`) com o logo e itens em branco. Isso cria o contraste clássico de dashboards profissionais como Vercel, Linear, Stripe.
 
-- **Foto de fundo**: `https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=1200&q=80` (interior de restaurante/bar com iluminação quente e ambiente aconchegante — imagem muito usada no Unsplash)
-- **Overlay**: gradiente escuro vermelho `rgba(90,5,5,0.88)` → `rgba(30,5,5,0.92)` para garantir legibilidade
-- **Conteúdo sobre o overlay**:
-  - Logo TrendFood (ícone branco + nome em branco)
-  - Headline grande em branco: *"Transforme o gosto dos seus clientes em lucro"*
-  - Subtítulo em branco/70%: *"Colete sugestões, receba votos e lance os pratos que já nascem campeões."*
-  - 3 bullets de prova social:
-    - ✓ Sem instalação de aplicativo
-    - ✓ Mural de sugestões em tempo real
-    - ✓ Painel completo de métricas
-  - Badge discreto no rodapé: *"Grátis para começar · Sem cartão de crédito"*
-- **Visível apenas no desktop** (`hidden lg:flex`) — no mobile só o lado direito aparece
+- Logo TrendFood com texto branco
+- Org info com avatar mais destacado
+- Itens de nav: texto branco/70% em repouso, `bg-white/10` no hover, fundo vermelho no ativo
+- Separador "OPERAÇÕES" em branco/30%
+- "Ver página pública" e "Sair" na base, mais sutis
 
-### Lado Direito — Formulário
+### 2. HomeTab — Header repaginado
 
-- Fundo branco/claro puro (`bg-background`)
-- No topo no mobile: logo TrendFood pequeno (apenas no mobile, oculto no desktop)
-- O formulário atual (abas "Criar conta / Entrar") é **mantido integralmente** — mesma lógica, mesmos campos, mesmos handlers
-- Melhorias visuais no formulário:
-  - Tirar o card com borda — o formulário fica direto no painel branco com padding generoso
-  - As abas ganham estilo mais limpo, sem borda inferior pesada
-  - Inputs com `h-11` ao invés de `h-10` (ligeiramente maiores, mais premium)
-  - Botão de submit com `h-11 text-base font-bold`
-  - Label de termos no rodapé mantida
+Substituir o "Olá! 👋 {emoji} {nome}" por uma saudação mais profissional:
+- Nome da organização em fonte grande e bold
+- Subtítulo: data de hoje (ex: "Quinta-feira, 19 de fevereiro")
+- Badge de status (trial/ativo) mais visual
 
-## Responsividade
+### 3. Card "Faturamento Hoje" — mais impactante
 
-- **Mobile** (`< lg`): apenas o painel direito (formulário) com padding. O painel esquerdo some.
-- **Desktop** (`>= lg`): split 50/50 com `min-h-screen`
+- Adicionar um padrão sutil de bolinhas ou grid no fundo (via CSS `background-image: radial-gradient`)
+- Mostrar também a variação percentual (ex: "+12% vs ontem") — calculando comparação com o dia anterior dos dados existentes
+- Ícone substituído por algo mais contextual (seta de tendência)
+
+### 4. Cards de métricas — glassmorphism sutil
+
+Em vez de fundo branco (`bg-card`), usar fundo ligeiramente colorido com borda colorida correspondente ao ícone:
+- Faturamento total: borda verde sutil, fundo `bg-green-50/60`
+- Pedidos hoje: borda azul sutil, fundo `bg-blue-50/60`
+- Aguardando: borda amarela sutil, fundo `bg-amber-50/60`
+- Ticket médio: borda roxa sutil, fundo `bg-purple-50/60`
+
+Valor em fonte maior (`text-2xl`), label menor. Sem caixa quadrada genérica de ícone — ícone direto com a cor da categoria.
+
+### 5. Banner de trial — Design próprio
+
+Substituir o yellow banner genérico por um componente com a identidade TrendFood:
+- Fundo com gradiente vermelho-âmbar muito sutil
+- Ícone Lucide `Zap` em vez do emoji ⏳
+- Botão "Ativar plano" (CTA) ao lado direito, pequeno e ativo
+
+### 6. Gráfico — Header melhorado
+
+- Título sem emoji, tipografia mais forte
+- Adicionar período e total de pedidos no subtítulo
+- Gráfico mantido igual (dados são bons)
 
 ## Arquivos Afetados
 
 | Arquivo | Ação |
 |---|---|
-| `src/pages/AuthPage.tsx` | Redesenho completo do layout — split screen. Lógica 100% preservada. |
+| `src/pages/DashboardPage.tsx` | Sidebar dark com identidade, banner de trial redesenhado |
+| `src/components/dashboard/HomeTab.tsx` | Header repaginado, cards de métricas coloridos, card hero melhorado |
 
-Nenhuma alteração de banco de dados, rotas ou lógica de autenticação.
+Nenhuma mudança de banco de dados, rotas ou lógica de autenticação.
