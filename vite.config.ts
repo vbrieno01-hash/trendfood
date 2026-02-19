@@ -20,8 +20,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "pwa-192.png", "pwa-512.png"],
       manifest: {
-        name: "Snack Hive",
-        short_name: "Snack Hive",
+        name: "TrendFood",
+        short_name: "TrendFood",
         description: "Plataforma de cardápio e sugestões para food service",
         theme_color: "#f97316",
         background_color: "#ffffff",
