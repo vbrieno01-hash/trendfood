@@ -271,9 +271,21 @@ const UnitPage = () => {
     if (cleaned.length !== 8) return;
     setCepLoading(true);
     setCepError("");
-    try {
+
+    const doFetch = async () => {
       const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
-      const data = await res.json();
+      return res.json();
+    };
+
+    try {
+      let data: Record<string, string>;
+      try {
+        data = await doFetch();
+      } catch {
+        // Retry após 1s
+        await new Promise((r) => setTimeout(r, 1000));
+        data = await doFetch();
+      }
       if (data.erro) { setCepError("CEP não encontrado"); return; }
       setCustomerAddress((prev) => ({
         ...prev,
@@ -283,7 +295,7 @@ const UnitPage = () => {
         state: data.uf || prev.state,
       }));
     } catch {
-      setCepError("Erro ao buscar CEP");
+      setCepError("Erro ao buscar CEP. Preencha cidade e estado manualmente.");
     } finally {
       setCepLoading(false);
     }

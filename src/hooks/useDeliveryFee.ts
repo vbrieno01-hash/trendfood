@@ -40,6 +40,28 @@ async function tryGeocode(query: string): Promise<GeoCoord | null> {
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
 
+// Retry wrapper: tenta uma vez, se falhar espera 1.5s e tenta de novo
+async function tryGeocodeWithRetry(query: string): Promise<GeoCoord | null> {
+  try {
+    const result = await tryGeocode(query);
+    if (result) return result;
+  } catch { /* ignore first failure */ }
+  await new Promise((r) => setTimeout(r, 1500));
+  return tryGeocode(query);
+}
+
+// Remove partes duplicadas consecutivas de um endereço
+function deduplicateAddressParts(address: string): string {
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  const deduped: string[] = [];
+  for (const part of parts) {
+    if (deduped.length === 0 || deduped[deduped.length - 1] !== part) {
+      deduped.push(part);
+    }
+  }
+  return deduped.join(", ");
+}
+
 // Remove the complement field from store addresses before geocoding.
 // New format (with CEP): CEP, street, number, [complement], neighborhood, city, state, Brasil → 8 parts
 // Old format (no CEP):   street, number, [complement], neighborhood, city, state, Brasil    → 7 parts
@@ -62,15 +84,15 @@ async function geocode(query: string): Promise<GeoCoord | null> {
   const parts = query.split(",").map((p) => p.trim());
   // Se começa com CEP, tenta só o CEP primeiro (muito mais preciso no Nominatim)
   if (/^\d{5}-?\d{3}$/.test(parts[0] ?? "")) {
-    const r = await tryGeocode(`${parts[0]}, Brasil`);
+    const r = await tryGeocodeWithRetry(`${parts[0]}, Brasil`);
     if (r) return r;
   }
   // Query completa
-  const result = await tryGeocode(query);
+  const result = await tryGeocodeWithRetry(query);
   if (result) return result;
   // Fallback com Brasil
   if (!query.toLowerCase().includes("brasil")) {
-    return tryGeocode(`${query}, Brasil`);
+    return tryGeocodeWithRetry(`${query}, Brasil`);
   }
   return null;
 }
@@ -79,7 +101,9 @@ async function geocode(query: string): Promise<GeoCoord | null> {
 // Prioriza CEP + Cidade + Estado para evitar que CEPs mapeados erroneamente no Nominatim
 // retornem coordenadas de outro estado. Fallback: só Cidade + Estado, depois texto completo.
 async function geocodeStoreAddress(address: string): Promise<GeoCoord | null> {
-  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  // Remove partes duplicadas consecutivas (ex: rua repetida)
+  const cleanAddress = deduplicateAddressParts(address);
+  const parts = cleanAddress.split(",").map((p) => p.trim()).filter(Boolean);
   const cepPattern = /^\d{5}-?\d{3}$/;
 
   if (cepPattern.test(parts[0] ?? "")) {
@@ -89,24 +113,31 @@ async function geocodeStoreAddress(address: string): Promise<GeoCoord | null> {
     const state = parts[parts.length - 2] ?? "";
 
     // Tentativa 1: CEP + cidade + estado (força resultado na região correta)
-    const r1 = await tryGeocode(`${cep}, ${city}, ${state}, Brasil`);
+    const r1 = await tryGeocodeWithRetry(`${cep}, ${city}, ${state}, Brasil`);
     if (r1) return r1;
 
     // Tentativa 2: só cidade + estado (ignora CEP problemático)
-    const r2 = await tryGeocode(`${city}, ${state}, Brasil`);
+    const r2 = await tryGeocodeWithRetry(`${city}, ${state}, Brasil`);
     if (r2) return r2;
   }
 
-  // Fallback: endereço textual sem complemento
-  return geocode(stripComplementForGeo(address));
+  // Fallback: endereço textual sem complemento (já deduplicado)
+  return geocode(stripComplementForGeo(cleanAddress));
 }
 
 async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number> {
   const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) return data.routes[0].distance / 1000;
+  } catch { /* retry below */ }
+  // Retry após 1.5s
+  await new Promise((r) => setTimeout(r, 1500));
   const res = await fetch(url);
   const data = await res.json();
   if (!data.routes || data.routes.length === 0) throw new Error("Rota não encontrada");
-  return data.routes[0].distance / 1000; // meters → km
+  return data.routes[0].distance / 1000;
 }
 
 function applyFeeTable(distanceKm: number, subtotal: number, config: DeliveryConfig): { fee: number; freeShipping: boolean } {
