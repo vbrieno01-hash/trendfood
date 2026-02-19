@@ -100,7 +100,9 @@ const FEATURES: Feature[] = [
     icon: <DollarSign className="w-5 h-5" />,
     title: "Controle de Caixa",
     description: "Abertura e fechamento de caixa com saldo inicial, sangrias e relatório do turno.",
-    status: "soon",
+    status: "available",
+    actionLabel: "Ver no dashboard",
+    actionHref: "/dashboard",
   },
   {
     icon: <FileText className="w-5 h-5" />,
