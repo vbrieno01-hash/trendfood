@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN business_hours jsonb DEFAULT NULL;

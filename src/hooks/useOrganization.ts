@@ -1,6 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface BusinessHoursDay {
+  open: boolean;
+  from: string;
+  to: string;
+}
+
+export interface BusinessHours {
+  enabled: boolean;
+  schedule: Record<string, BusinessHoursDay>;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -12,6 +23,7 @@ export interface Organization {
   user_id: string;
   created_at: string;
   whatsapp?: string | null;
+  business_hours?: BusinessHours | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {
@@ -25,7 +37,7 @@ export const useOrganization = (slug: string | undefined) => {
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;
-      return data as Organization | null;
+      return data as unknown as Organization | null;
     },
     enabled: !!slug,
   });
