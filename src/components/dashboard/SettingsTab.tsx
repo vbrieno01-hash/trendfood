@@ -10,16 +10,49 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
-  const { user, signOut } = useAuth();
+  const { user, session, organization, signOut } = useAuth();
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const currentPlan = organization?.subscription_plan || "free";
+  const isFree = currentPlan === "free";
+
+  const planLabels: Record<string, string> = {
+    free: "Grátis",
+    pro: "Pro",
+    enterprise: "Enterprise",
+  };
+
+  const handleManageSubscription = async () => {
+    if (isFree) {
+      navigate("/planos");
+      return;
+    }
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error(error.message ?? "Erro ao abrir portal de assinatura.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +112,40 @@ export default function SettingsTab() {
             <p className="text-xs text-muted-foreground">E-mail</p>
             <p className="text-sm font-medium text-foreground">{user?.email}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Subscription */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Assinatura</p>
+        </div>
+        <div className="px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <CreditCard className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Plano atual</p>
+              <p className="text-sm font-medium text-foreground">{planLabels[currentPlan] || currentPlan}</p>
+            </div>
+          </div>
+          <Button
+            variant={isFree ? "default" : "outline"}
+            size="sm"
+            onClick={handleManageSubscription}
+            disabled={portalLoading}
+            className="h-9 gap-2"
+          >
+            {portalLoading ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Abrindo...</>
+            ) : isFree ? (
+              <><Zap className="w-4 h-4" /> Fazer upgrade</>
+            ) : (
+              "Gerenciar assinatura"
+            )}
+          </Button>
         </div>
       </div>
 
