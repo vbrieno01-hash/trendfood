@@ -1,47 +1,81 @@
 
-# Botão "Voltar às Mesas" na Tela de Sucesso
+# Realtime não Funciona no Painel do Garçom — Diagnóstico e Correção
 
-## Contexto
+## Causa Raiz
 
-A tela de sucesso ("Pedido enviado! 🎉") em `TableOrderPage.tsx` exibe um botão "Fazer outro pedido" que reseta o carrinho e volta ao cardápio da mesma mesa. 
+Há dois problemas que juntos fazem o painel não atualizar instantaneamente:
 
-O usuário é o atendente, e após confirmar o pedido de uma mesa, ele quer ir diretamente de volta à **aba Mesas do Dashboard** para atender a próxima.
+### Problema 1 — Query Key incompatível no `invalidateQueries` do WaiterTab
 
-## Mudança
+O React Query identifica caches usando comparação profunda de arrays. O `useOrders` registra o cache com a query key:
 
-### `src/pages/TableOrderPage.tsx` — Tela de sucesso
-
-Substituir o botão "Fazer outro pedido" por dois botões:
-
-1. **"Voltar às Mesas"** (primário) — navega para `/dashboard` com a aba "mesas" ativa via state, para que o dashboard abra direto nessa aba.
-2. **"Outro pedido nesta mesa"** (secundário, menor) — mantém o comportamento atual de resetar o carrinho.
-
-```tsx
-// Botão principal — volta ao dashboard na aba Mesas
-<Button
-  onClick={() => navigate("/dashboard", { state: { tab: "mesas" } })}
-  className="w-full"
->
-  ← Voltar às Mesas
-</Button>
-
-// Botão secundário — faz outro pedido na mesma mesa
-<Button
-  variant="ghost"
-  onClick={() => { setCart({}); setNotes(""); setSuccess(false); }}
-  className="w-full text-sm text-muted-foreground"
->
-  Fazer outro pedido nesta mesa
-</Button>
+```
+["orders", orgId, ["ready"]]   ← array passado pelo chamador
 ```
 
-## Como o Dashboard recebe o estado de aba
+Já o `WaiterTab` tem um segundo canal realtime com seu próprio `invalidateQueries` hardcoded:
 
-Verifico também se `DashboardPage.tsx` já suporta receber um `state.tab` via `useLocation` para abrir diretamente na aba Mesas — se não suportar, adiciono esse comportamento também.
+```ts
+qc.invalidateQueries({ queryKey: ["orders", orgId, ["ready"]] });
+```
+
+Esse segundo canal cria uma instância nova do array `["ready"]` — e como o React Query compara arrays por identidade de referência no `invalidateQueries` com match exato, na prática o cache da query pode não ser atingido corretamente dependendo da versão.
+
+### Problema 2 — Dois canais realtime concorrentes
+
+O `useOrders` já cria seu próprio canal realtime para `orders` com o filtro correto. O `WaiterTab` cria **outro canal separado** (`waiter-tab-${orgId}`) escutando a mesma tabela. Isso gera dois canais abertos para a mesma coisa — o que pode causar conflitos de assinatura no WebSocket e resultar em eventos sendo descartados.
+
+### Problema 3 — `staleTime` padrão pode atrasar refetch
+
+O React Query tem `staleTime: 0` por padrão, mas se o `invalidateQueries` não bater exatamente com a query key (problema 1), o cache não é atualizado e o dado fica parado.
+
+---
+
+## Solução
+
+### `src/components/dashboard/WaiterTab.tsx`
+
+**Remover completamente o `useEffect` de realtime duplicado** — o `useOrders` já cuida disso internamente. Isso elimina o conflito de canais e simplifica o código.
+
+```tsx
+// REMOVER este useEffect inteiro do WaiterTab:
+useEffect(() => {
+  if (!orgId) return;
+  const channel = supabase
+    .channel(`waiter-tab-${orgId}`)
+    .on(...)
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [orgId, qc]);
+```
+
+### `src/hooks/useOrders.ts`
+
+**Garantir que o `invalidateQueries` dentro do `useOrders` use `exact: false`** para que qualquer query key que comece com `["orders", organizationId]` seja invalidada, independente do array de statuses:
+
+```ts
+// Antes:
+qc.invalidateQueries({ queryKey: ["orders", organizationId, statuses] });
+
+// Depois (usa prefixo, invalida todos os status):
+qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+```
+
+Isso garante que quando um pedido muda para `ready`, tanto o painel da cozinha (`["orders", orgId, ["pending","preparing"]]`) quanto o painel do garçom (`["orders", orgId, ["ready"]]`) são invalidados e refetchados imediatamente.
+
+---
+
+## Resultado Esperado
+
+| Evento | Antes | Depois |
+|---|---|---|
+| Cozinha marca pedido como "Pronto" | Garçom precisa atualizar manualmente | Aparece instantaneamente no painel |
+| Novo pedido chega | Pode não aparecer sem refresh | Aparece instantaneamente |
+| Dois canais concorrentes | Possíveis conflitos de WebSocket | Um único canal estável por tabela |
 
 ## Arquivos Afetados
 
 | Arquivo | Ação |
 |---|---|
-| `src/pages/TableOrderPage.tsx` | Trocar botão único por dois botões na tela de sucesso |
-| `src/pages/DashboardPage.tsx` | (se necessário) Ler `location.state.tab` para abrir na aba correta |
+| `src/hooks/useOrders.ts` | Mudar `invalidateQueries` para usar prefixo (`queryKey: ["orders", organizationId]`) |
+| `src/components/dashboard/WaiterTab.tsx` | Remover o `useEffect` de realtime duplicado e imports não usados |
