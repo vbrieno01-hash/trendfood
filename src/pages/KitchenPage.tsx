@@ -5,6 +5,7 @@ import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 
 // Web Audio API bell sound (no external dependency)
 const playBell = () => {
@@ -43,10 +44,33 @@ export default function KitchenPage() {
   const updateStatus = useUpdateOrderStatus(org?.id ?? "", ["pending", "preparing"]);
   const qc = useQueryClient();
 
+  // Track which order IDs are currently loading to prevent double-clicks
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+
   const knownIds = useRef<Set<string>>(new Set());
   const [, forceRender] = useState(0);
 
-  // Realtime: play bell on new orders
+  const handleUpdateStatus = (id: string, status: Order["status"]) => {
+    if (loadingIds.has(id)) return;
+    setLoadingIds((prev) => new Set(prev).add(id));
+    updateStatus.mutate(
+      { id, status },
+      {
+        onSettled: () => {
+          // Re-enable button after at least 1s
+          setTimeout(() => {
+            setLoadingIds((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+          }, 1000);
+        },
+      }
+    );
+  };
+
+  // Realtime: bell on new orders + visual update on status changes
   useEffect(() => {
     if (!org?.id) return;
     const channel = supabase
@@ -61,6 +85,13 @@ export default function KitchenPage() {
             playBell();
             qc.invalidateQueries({ queryKey: ["orders", org.id, ["pending", "preparing"]] });
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `organization_id=eq.${org.id}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["orders", org.id, ["pending", "preparing"]] });
         }
       )
       .subscribe();
@@ -122,6 +153,7 @@ export default function KitchenPage() {
           <div className="grid gap-4 md:grid-cols-2">
             {orders.map((order) => {
               const isOrderNew = isNew(order.created_at);
+              const isOrderLoading = loadingIds.has(order.id);
               return (
                 <div
                   key={order.id}
@@ -142,12 +174,12 @@ export default function KitchenPage() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                     </div>
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
                       order.status === "preparing"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-yellow-100 text-yellow-700"
                     }`}>
-                      {order.status === "preparing" ? "Preparando" : "Pendente"}
+                      {order.status === "preparing" ? "Em Preparo" : "Pendente"}
                     </span>
                   </div>
 
@@ -177,17 +209,27 @@ export default function KitchenPage() {
                         variant="outline"
                         size="sm"
                         className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
-                        onClick={() => updateStatus.mutate({ id: order.id, status: "preparing" })}
+                        disabled={isOrderLoading}
+                        onClick={() => handleUpdateStatus(order.id, "preparing")}
                       >
-                        Iniciar preparo
+                        {isOrderLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          "Iniciar preparo"
+                        )}
                       </Button>
                     )}
                     <Button
                       size="sm"
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => updateStatus.mutate({ id: order.id, status: "ready" })}
+                      disabled={isOrderLoading}
+                      onClick={() => handleUpdateStatus(order.id, "ready")}
                     >
-                      ✓ Marcar como Pronto
+                      {isOrderLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        "✓ Marcar como Pronto"
+                      )}
                     </Button>
                   </div>
                 </div>
