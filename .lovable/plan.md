@@ -1,70 +1,91 @@
 
-# Redesign do Dashboard — Identidade Visual Forte, Sem Morto
+# Redesign de Todas as Abas do Dashboard — Visual Profissional
 
-## Diagnóstico
+## Diagnóstico por Aba
 
-Olhando a screenshot, os problemas são claros:
+Analisando o código e as screenshots enviadas, os problemas são:
 
-1. **Sidebar morta**: fundo branco liso, logo pequeno sem destaque, separadores invisíveis, itens cinzas apagados
-2. **HomeTab sem hierarquia**: header "Olá! 👋" parece texto comum, sem peso visual
-3. **Cards de métricas brancos**: se misturam com o fundo da página — zero contraste, zero impacto
-4. **Card de faturamento hoje**: gradiente vermelho correto, mas o ícone $  gigante translúcido não agrega nada
-5. **Banner de trial**: amarelo genérico de aviso de browser, sem design
-6. **Gráfico**: bom dado, péssima apresentação — sem título visual, sem contexto
+**MenuTab (Cardápio) — prioridade máxima:**
+- Cards muito grandes (padding `p-3`, imagem `w-14 h-14`, texto grande) — não cabem muitos itens na tela
+- Emoji do grupo ainda aparece dentro dos cards sem foto
+- Cabeçalhos de categoria com emojis (`{group.emoji}`)
+- Layout "lista" muito generoso em espaçamento, parece software dos anos 2010
+
+**StoreProfileTab (Perfil da Loja):**
+- Grade de emojis da loja: 12 botões de emojis circulares, muito infantil e genérica
+- Formulário plano, sem seções/cards que agrupem campos relacionados
+- Preview de cor primária ok, mas o entorno está sem hierarquia
+
+**SettingsTab (Configurações):**
+- Cards com bordas simples (`bg-card border border-border`) — sem personalidade
+- "Zona de Perigo" tem ShieldAlert mas o card não tem suficiente destaque visual
+- Seção de e-mail muito pequena e sem destaque
+
+**MuralTab (Gerenciar Mural):**
+- Cards de sugestão (`Card + CardContent p-4`) muito cheios de espaço
+- Status badges com emojis (⏳ 🔍 ✅)
+- Empty state com emoji 🗒️
+
+**TablesTab (Mesas):**
+- Empty state com emoji 🪑
+- Cards de mesa ok estruturalmente mas poderia ser mais denso
 
 ## O Que Vai Mudar
 
-### 1. Sidebar — Fundo escuro/dark com identidade
+### 1. MenuTab — Layout tabela/linha compacta
 
-A sidebar vai ter fundo escuro quase preto (`#0f0f0f` ou `#111`) com o logo e itens em branco. Isso cria o contraste clássico de dashboards profissionais como Vercel, Linear, Stripe.
+Transformar os cards grandes em **linhas compactas estilo lista de arquivo**, como Figma ou Linear mostram itens:
 
-- Logo TrendFood com texto branco
-- Org info com avatar mais destacado
-- Itens de nav: texto branco/70% em repouso, `bg-white/10` no hover, fundo vermelho no ativo
-- Separador "OPERAÇÕES" em branco/30%
-- "Ver página pública" e "Sair" na base, mais sutis
+- Altura da linha: `py-2.5 px-3` (ao invés de `p-3`)
+- Imagem: `w-10 h-10 rounded-md` (ao invés de `w-14 h-14`)
+- Fonte do nome: `text-sm font-medium` sem badge grande
+- Preço alinhado à direita em coluna fixa
+- Switch menor
+- Categoria header: só texto `text-xs uppercase tracking-wider text-muted-foreground` — sem emoji
+- Sem imagem placeholder com emoji — usar ícone `ImageOff` do Lucide em cinza claro
+- Resultado: 2-3x mais itens visíveis na tela ao mesmo tempo
 
-### 2. HomeTab — Header repaginado
+### 2. StoreProfileTab — Remover grade de emojis / Agrupar em seções com cards
 
-Substituir o "Olá! 👋 {emoji} {nome}" por uma saudação mais profissional:
-- Nome da organização em fonte grande e bold
-- Subtítulo: data de hoje (ex: "Quinta-feira, 19 de fevereiro")
-- Badge de status (trial/ativo) mais visual
+A grade de emojis é necessária para a funcionalidade, mas pode ser apresentada de forma mais contida:
+- Tornar a seção "Emoji da loja" colapsável ou substituir por um select discreto
+- Alternativamente: manter os botões mas reduzir para `w-9 h-9` e agrupar num container com `overflow-x-auto` numa linha horizontal scroll ao invés de grade 2D
+- Agrupar campos em 3 seções visuais separadas por linha divisória:
+  1. **Identidade** (Logo + Emoji + Nome + Descrição)
+  2. **URL e Cor** (Slug + Cor primária + Preview)
+  3. **Contato** (WhatsApp)
+- Cada seção com título `text-xs uppercase tracking-wider text-muted-foreground mb-3`
 
-### 3. Card "Faturamento Hoje" — mais impactante
+### 3. SettingsTab — Tipografia mais forte, cards com mais personalidade
 
-- Adicionar um padrão sutil de bolinhas ou grid no fundo (via CSS `background-image: radial-gradient`)
-- Mostrar também a variação percentual (ex: "+12% vs ontem") — calculando comparação com o dia anterior dos dados existentes
-- Ícone substituído por algo mais contextual (seta de tendência)
+- Header da página com subtítulo dinâmico (e-mail do usuário ao lado do título)
+- Card "Informações da conta": adicionar ícone `Mail` ao lado do e-mail, fundo muito sutil `bg-secondary/40`
+- Card "Alterar senha": adicionar ícone `KeyRound` no header da seção
+- Card "Zona de Perigo": borda `border-destructive/40`, fundo `bg-destructive/3`, e um parágrafo mais impactante
+- Botões com `h-10` ao invés de `h-9`, mais peso
 
-### 4. Cards de métricas — glassmorphism sutil
+### 4. MuralTab — Status badges sem emoji, cards mais compactos
 
-Em vez de fundo branco (`bg-card`), usar fundo ligeiramente colorido com borda colorida correspondente ao ícone:
-- Faturamento total: borda verde sutil, fundo `bg-green-50/60`
-- Pedidos hoje: borda azul sutil, fundo `bg-blue-50/60`
-- Aguardando: borda amarela sutil, fundo `bg-amber-50/60`
-- Ticket médio: borda roxa sutil, fundo `bg-purple-50/60`
+- Substituir `STATUS_BADGE` emojis por indicadores coloridos puros:
+  - Pendente: ponto amarelo `●` CSS ou `div` redondo, label `"Pendente"`
+  - Analisando: ponto azul, label `"Analisando"`
+  - No Cardápio: ponto verde, label `"No Cardápio"`
+- Cards de sugestão: reduzir `p-4` para `px-4 py-3`
+- Empty state: ícone Lucide `MessageSquareDashed` ao invés de 🗒️
 
-Valor em fonte maior (`text-2xl`), label menor. Sem caixa quadrada genérica de ícone — ícone direto com a cor da categoria.
+### 5. TablesTab — Empty state sem emoji
 
-### 5. Banner de trial — Design próprio
-
-Substituir o yellow banner genérico por um componente com a identidade TrendFood:
-- Fundo com gradiente vermelho-âmbar muito sutil
-- Ícone Lucide `Zap` em vez do emoji ⏳
-- Botão "Ativar plano" (CTA) ao lado direito, pequeno e ativo
-
-### 6. Gráfico — Header melhorado
-
-- Título sem emoji, tipografia mais forte
-- Adicionar período e total de pedidos no subtítulo
-- Gráfico mantido igual (dados são bons)
+- Substituir `🪑` por ícone Lucide `LayoutGrid` ou `Grid3X3`
+- Melhorar os quick links (Cozinha/Garçom) com fundo colorido sutil ao invés de só borda cinza
 
 ## Arquivos Afetados
 
-| Arquivo | Ação |
+| Arquivo | Mudança Principal |
 |---|---|
-| `src/pages/DashboardPage.tsx` | Sidebar dark com identidade, banner de trial redesenhado |
-| `src/components/dashboard/HomeTab.tsx` | Header repaginado, cards de métricas coloridos, card hero melhorado |
+| `src/components/dashboard/MenuTab.tsx` | Linhas compactas, sem emoji nas categorias, imagem menor |
+| `src/components/dashboard/StoreProfileTab.tsx` | Emojis em linha horizontal scroll, seções agrupadas |
+| `src/components/dashboard/SettingsTab.tsx` | Cards com mais personalidade, ícones, Zona de Perigo mais impactante |
+| `src/components/dashboard/MuralTab.tsx` | Status badges sem emoji, cards compactos, empty state com ícone |
+| `src/components/dashboard/TablesTab.tsx` | Empty state sem emoji, quick links melhorados |
 
-Nenhuma mudança de banco de dados, rotas ou lógica de autenticação.
+Nenhuma mudança em banco de dados, rotas ou lógica de negócio.
