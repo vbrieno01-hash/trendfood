@@ -4,96 +4,121 @@ import { Badge } from "@/components/ui/badge";
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
 import {
   ChefHat,
-  Heart,
   BarChart3,
   Zap,
   ArrowRight,
   QrCode,
   UtensilsCrossed,
   TrendingUp,
-  Lightbulb,
-  ThumbsUp,
   ChevronRight,
+  Flame,
+  BellRing,
+  Wallet,
+  Tag,
+  Printer,
+  BarChart2,
 } from "lucide-react";
 
 const problems = [
   {
-    image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80",
-    alt: "Chef pensando no cardápio",
-    title: "Não sabe o que lançar?",
+    image: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=600&q=80",
+    alt: "Comanda em papel na cozinha",
+    title: "Comanda em papel e confusão na cozinha",
     description:
-      "Você testa um produto novo sem saber se vai vender. Corre o risco de investir em algo que não tem saída.",
+      "Pedido que chega por papelzinho e se perde no caminho — garçom chamando cozinheiro, item errado na mesa, cliente insatisfeito.",
   },
   {
-    image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80",
-    alt: "Prato não vendido na mesa",
-    title: "Lança e não vende?",
+    image: "https://images.unsplash.com/photo-1559329007-40df8a9345d8?w=600&q=80",
+    alt: "Cliente esperando conta",
+    title: "Clientes esperando para pagar",
     description:
-      "O novo lanche não emplacou. Desperdício de ingredientes, tempo e energia — sem entender o porquê.",
+      "Mesa parada esperando garçom com maquininha, sem conseguir fechar a conta. Rotatividade baixa, lucro menor.",
   },
   {
-    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80",
-    alt: "Restaurante cheio de clientes",
-    title: "Perde clientes para a concorrência?",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80",
+    alt: "Planilha de controle financeiro",
+    title: "Sem controle do que vende",
     description:
-      "Seu concorrente lançou exatamente o que seu cliente queria. E você ficou para trás por não ter ouvido seu público.",
+      "Fim do mês sem saber qual prato vendeu mais, qual dia faturou menos, quanto entrou no caixa. Decisões no escuro.",
   },
 ];
 
 const steps = [
   {
     number: "01",
-    icon: <ChefHat className="w-6 h-6" />,
-    title: "Crie seu estabelecimento",
+    icon: <UtensilsCrossed className="w-6 h-6" />,
+    title: "Crie seu cardápio online",
     description:
-      "Cadastre seu negócio em menos de 2 minutos e receba um link exclusivo para compartilhar com seus clientes via WhatsApp, Instagram ou QR Code nas mesas.",
+      "Monte categorias, preços e fotos em minutos. Seu menu fica disponível via link para qualquer dispositivo, sem precisar baixar nenhum app.",
   },
   {
     number: "02",
-    icon: <Heart className="w-6 h-6" />,
-    title: "Clientes sugerem e votam",
+    icon: <QrCode className="w-6 h-6" />,
+    title: "Gere QR Codes para cada mesa",
     description:
-      "Seus clientes acessam a página pública, enviam ideias de novos pratos e votam nos favoritos — sem precisar baixar nenhum aplicativo.",
+      "Cada mesa recebe um QR Code único. O cliente escaneia e faz o pedido direto pelo celular, sem precisar chamar o garçom.",
   },
   {
     number: "03",
-    icon: <BarChart3 className="w-6 h-6" />,
-    title: "Você decide o que lançar",
+    icon: <Flame className="w-6 h-6" />,
+    title: "Cozinha e garçom recebem em tempo real",
     description:
-      "No seu painel completo, veja as sugestões mais votadas em tempo real e coloque as melhores no cardápio com total confiança de que vão vender.",
+      "O KDS (tela da cozinha) toca um alerta sonoro e imprime automaticamente cada pedido. Garçom acompanha as mesas no painel.",
+  },
+  {
+    number: "04",
+    icon: <BarChart3 className="w-6 h-6" />,
+    title: "Feche o caixa com relatório completo",
+    description:
+      "Abertura e fechamento de turno, registro de sangrias e conferência de saldo. Veja faturamento e mais vendidos do dia.",
   },
 ];
 
 const features = [
   {
-    icon: <Lightbulb className="w-5 h-5" />,
-    title: "Mural de Sugestões",
-    description: "Página pública onde clientes enviam e veem as sugestões da comunidade.",
-  },
-  {
-    icon: <ThumbsUp className="w-5 h-5" />,
-    title: "Votação em Tempo Real",
-    description: "Os clientes votam nos lanches favoritos. Você vê os resultados ao vivo.",
-  },
-  {
     icon: <UtensilsCrossed className="w-5 h-5" />,
-    title: "Gestão de Pedidos",
-    description: "Controle de mesas, garçom e cozinha integrados em um só painel.",
-  },
-  {
-    icon: <ChefHat className="w-5 h-5" />,
     title: "Cardápio Digital",
-    description: "Monte seu cardápio online com categorias, preços e fotos dos produtos.",
-  },
-  {
-    icon: <TrendingUp className="w-5 h-5" />,
-    title: "Painel de Métricas",
-    description: "Acompanhe tendências, pedidos e o desempenho do seu negócio.",
+    description: "Monte seu menu com categorias, preços e fotos. Acessível via link ou QR Code.",
   },
   {
     icon: <QrCode className="w-5 h-5" />,
-    title: "QR Code para Mesas",
-    description: "Gere QR Codes para cada mesa. Clientes pedem sem precisar chamar o garçom.",
+    title: "Pedidos por QR Code",
+    description: "Cada mesa tem QR único. O cliente pede direto pelo celular, sem app.",
+  },
+  {
+    icon: <Flame className="w-5 h-5" />,
+    title: "Cozinha (KDS)",
+    description: "Tela dedicada para a cozinha com alerta sonoro e impressão automática.",
+  },
+  {
+    icon: <BellRing className="w-5 h-5" />,
+    title: "Painel do Garçom",
+    description: "Visão de todas as mesas ativas e fechamento de conta com PIX integrado.",
+  },
+  {
+    icon: <Wallet className="w-5 h-5" />,
+    title: "Controle de Caixa",
+    description: "Abra e feche turnos, registre sangrias e confira o saldo ao final.",
+  },
+  {
+    icon: <BarChart2 className="w-5 h-5" />,
+    title: "Mais Vendidos",
+    description: "Ranking de itens por período com receita gerada por cada produto.",
+  },
+  {
+    icon: <Tag className="w-5 h-5" />,
+    title: "Cupons de Desconto",
+    description: "Crie promoções com valor fixo ou percentual e gerencie o uso.",
+  },
+  {
+    icon: <TrendingUp className="w-5 h-5" />,
+    title: "Faturamento em Tempo Real",
+    description: "Dashboard com gráfico dos últimos 7 dias, ticket médio e total do dia.",
+  },
+  {
+    icon: <Printer className="w-5 h-5" />,
+    title: "Impressora Térmica",
+    description: "Impressão automática 80mm com QR Code PIX no recibo do cliente.",
   },
 ];
 
@@ -113,11 +138,11 @@ const examples = [
 ];
 
 const proofBadges = [
-  "Sem instalação de app",
-  "Link compartilhável",
-  "Votação em tempo real",
-  "100% mobile",
-  "Painel completo",
+  "Cardápio Digital",
+  "Pedido por QR Code",
+  "Cozinha em Tempo Real",
+  "Sem app para instalar",
+  "PIX integrado",
 ];
 
 const Index = () => {
@@ -127,14 +152,14 @@ const Index = () => {
       <section className="relative overflow-hidden min-h-screen flex flex-col">
         {/* Background photo */}
         <img
-          src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1920&q=80"
-          alt="Hambúrguer premium apetitoso"
+          src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&q=80"
+          alt="Restaurante movimentado com mesas e clientes"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
         {/* Overlay */}
         <div
           className="absolute inset-0"
-          style={{ background: "linear-gradient(135deg, rgba(26,5,5,0.92) 0%, rgba(45,10,10,0.88) 40%, rgba(26,5,5,0.95) 100%)" }}
+          style={{ background: "linear-gradient(135deg, rgba(26,5,5,0.93) 0%, rgba(45,10,10,0.89) 40%, rgba(26,5,5,0.96) 100%)" }}
         />
 
         {/* Header */}
@@ -157,21 +182,21 @@ const Index = () => {
           <div className="max-w-5xl mx-auto px-4 py-20 text-center w-full">
             <Badge className="mb-6 bg-primary/20 text-red-300 border-primary/30 hover:bg-primary/20">
               <Zap className="w-3 h-3 mr-1" />
-              Inteligência de dados para o seu negócio
+              Sistema completo para food service
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight tracking-tight">
-              Seu cardápio,{" "}
-              <span className="text-primary">turbinado</span>
+              Gerencie seu restaurante{" "}
+              <span className="text-primary">inteiro.</span>
               <br />
-              pelos seus clientes
+              Do pedido ao caixa.
             </h1>
 
             <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-4 leading-relaxed">
-              Descubra exatamente o que seu público quer comer. Colete sugestões, receba votos em tempo real e lance os pratos que já nascem campeões de vendas.
+              Cardápio digital, pedidos por QR Code, cozinha integrada, controle de caixa e relatórios — tudo em um só lugar, sem papel e sem app para instalar.
             </p>
             <p className="text-sm md:text-base text-white/50 max-w-xl mx-auto mb-10 leading-relaxed">
-              Uma equipe de inteligência de dados trabalhando para sua lanchonete, 24 horas por dia — sem precisar de app.
+              Comece grátis em menos de 2 minutos. Seu restaurante mais organizado a partir de hoje.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -187,7 +212,7 @@ const Index = () => {
                 className="text-base border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent"
                 asChild
               >
-                <Link to="/unidade/burguer-da-hora">Ver Demo ao Vivo</Link>
+                <Link to="/unidade/burguer-da-hora">Ver Cardápio Demo</Link>
               </Button>
             </div>
 
@@ -255,10 +280,10 @@ const Index = () => {
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
               Como funciona
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Três passos simples</h2>
-            <p className="text-muted-foreground text-lg">Para ouvir seus clientes e lucrar mais</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Quatro passos simples</h2>
+            <p className="text-muted-foreground text-lg">Do cardápio ao fechamento do caixa, tudo integrado</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-4 md:gap-0 items-start">
+          <div className="grid md:grid-cols-4 gap-4 md:gap-0 items-start">
             {steps.map((step, idx) => (
               <div key={step.number} className="flex md:contents">
                 <div className="bg-card rounded-2xl p-6 border border-border shadow-sm flex-1">
@@ -268,12 +293,12 @@ const Index = () => {
                     </div>
                     <span className="text-4xl font-black text-border">{step.number}</span>
                   </div>
-                  <h3 className="font-bold text-foreground text-lg mb-2">{step.title}</h3>
+                  <h3 className="font-bold text-foreground text-base mb-2">{step.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
                 </div>
                 {idx < steps.length - 1 && (
-                  <div className="hidden md:flex items-center justify-center px-2 self-center">
-                    <ChevronRight className="w-6 h-6 text-primary" />
+                  <div className="hidden md:flex items-center justify-center px-1 self-center">
+                    <ChevronRight className="w-5 h-5 text-primary" />
                   </div>
                 )}
               </div>
@@ -293,7 +318,7 @@ const Index = () => {
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Funcionalidades completas</h2>
             <p className="text-muted-foreground text-lg">
-              Do mural de sugestões ao controle de mesas — sem precisar de vários sistemas
+              Do cardápio digital ao controle de caixa — sem precisar de vários sistemas
             </p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -318,10 +343,10 @@ const Index = () => {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              Exemplos ao vivo
+              Cardápio digital ao vivo
             </Badge>
             <h2 className="text-3xl font-bold text-foreground mb-3">Veja funcionando agora</h2>
-            <p className="text-muted-foreground">Acesse as páginas de demonstração sem precisar criar conta</p>
+            <p className="text-muted-foreground">Acesse um cardápio digital real — sem precisar criar conta</p>
           </div>
           <div className="grid sm:grid-cols-2 gap-4 max-w-lg mx-auto">
             {examples.map((ex) => (
@@ -353,10 +378,10 @@ const Index = () => {
       <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #7a0c0c 0%, hsl(0 84% 32%) 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
-            Pronto para lucrar mais com o que seus clientes já querem?
+            Seu restaurante mais organizado a partir de hoje
           </h2>
           <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
-            Junte-se a centenas de empreendedores. Comece grátis, sem cartão de crédito, em menos de 2 minutos.
+            Sem papel, sem confusão, sem app para baixar. Cadastre-se grátis e configure em minutos.
           </p>
           <Button
             size="lg"
@@ -364,7 +389,7 @@ const Index = () => {
             asChild
           >
             <Link to="/auth">
-              Começar a Lucrar Agora
+              Começar Grátis Agora
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
