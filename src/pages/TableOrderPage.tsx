@@ -105,11 +105,17 @@ export default function TableOrderPage() {
             Seu pedido para a <strong>Mesa {tableNum}</strong> foi recebido. Em breve a cozinha irá preparar!
           </p>
           <Button
-            variant="outline"
-            onClick={() => { setCart({}); setNotes(""); setSuccess(false); }}
+            onClick={() => navigate("/dashboard", { state: { tab: "tables" } })}
             className="w-full"
           >
-            Fazer outro pedido
+            ← Voltar às Mesas
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => { setCart({}); setNotes(""); setSuccess(false); }}
+            className="w-full text-sm text-muted-foreground"
+          >
+            Fazer outro pedido nesta mesa
           </Button>
         </div>
       </div>
