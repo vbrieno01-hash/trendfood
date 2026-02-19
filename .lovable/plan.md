@@ -1,65 +1,85 @@
 
-# Impressão automática para pedidos online (UnitPage / WhatsApp)
+# QR Code PIX no Comprovante de Impressão
 
-## Problema
+## Visão geral
 
-O fluxo de pedido online (`/unidade/slug`) envia apenas uma mensagem de WhatsApp. O pedido nunca entra no banco, portanto o listener Realtime da cozinha nunca dispara e nada é impresso.
+Quando o lojista clicar em imprimir (automático ou manual), o comprovante vai exibir:
+- Total do pedido (soma de quantidade × preço de cada item)
+- QR Code PIX gerado automaticamente com o valor exato
+- Chave PIX configurável pelo dono da loja no painel
 
-## Solução
+Se a loja não tiver uma chave PIX cadastrada, o comprovante é impresso normalmente, sem QR code.
 
-Ao confirmar o pedido no checkout da `UnitPage`, além de abrir o WhatsApp, o sistema também insere o pedido no banco de dados. O listener Realtime da cozinha já existente recebe o INSERT e dispara a impressão automaticamente — sem nenhuma mudança na tela da cozinha.
+---
 
-## Fluxo após a mudança
+## O que será adicionado
+
+### 1. Campo "Chave PIX" no banco e no painel
+
+Uma nova coluna `pix_key` na tabela `organizations` (texto, nullable).
+
+No painel → aba **Perfil da Loja**, uma nova seção "Pagamentos" com um campo para o dono informar sua chave PIX (CPF, CNPJ, e-mail, telefone ou chave aleatória).
+
+### 2. Preço dos itens no comprovante
+
+Atualmente o `PrintableOrder` só carrega `{ id, name, quantity }` por item — sem preço. O `OrderItem` já tem `price`. Será adicionado `price` ao tipo `PrintableOrder.order_items`, e todas as chamadas a `printOrder` já passam objetos `Order` que contêm `order_items` completos (com preço), então basta atualizar a interface.
+
+### 3. Gerador de payload PIX (sem dependência externa)
+
+Uma função pura `buildPixPayload(pixKey, amount, storeName)` será criada diretamente no código. O payload segue o padrão EMV usado pelo Banco Central (o mesmo que todos os bancos e apps de pagamento reconhecem). Inclui CRC16 para validação.
+
+### 4. QR Code gerado localmente
+
+Será instalado o pacote `qrcode` (já existe como dependência indireta via `qrcode.react`, mas precisa ser declarado diretamente). Ele converte o payload PIX em uma imagem PNG em base64 que é embutida diretamente no HTML do comprovante — funciona offline, sem APIs externas.
+
+### 5. Layout final do comprovante atualizado
 
 ```text
-Cliente online monta carrinho
-        │
-        ▼
-Clica "Enviar Pedido via WhatsApp"
-        │
-        ├─── abre WhatsApp com a mensagem ← (já existe)
-        │
-        └─── INSERT no banco (orders + order_items)
-                    │
-                    ▼
-            Realtime dispara na cozinha
-                    │
-                    ▼
-            Auto-print do comprovante ← (já existe)
+┌──────────────────────────┐
+│      BURGUER DO REI      │
+│  ────────────────────────│
+│  MESA 5       19/02 14:32│
+│  ────────────────────────│
+│  2x  X-Burguer           │
+│  1x  Batata Frita        │
+│  1x  Coca-Cola           │
+│  ────────────────────────│
+│  TOTAL: R$ 54,90         │
+│  ────────────────────────│
+│  [████ QR CODE PIX ████] │
+│   Pague com Pix           │
+│  ────────────────────────│
+│  ★ novo pedido — kds ★   │
+└──────────────────────────┘
 ```
 
-## Detalhe: número de mesa para pedidos delivery
-
-A tabela `orders` exige um `table_number` (inteiro). Pedidos online de delivery não têm mesa. A convenção adotada é `table_number = 0`, e o comprovante exibirá **"ENTREGA"** em vez de "MESA 0".
+---
 
 ## Arquivos afetados
 
 | Arquivo | O que muda |
 |---|---|
-| `src/pages/UnitPage.tsx` | Chama `usePlaceOrder` após o envio do WhatsApp para salvar o pedido no banco |
-| `src/lib/printOrder.ts` | Quando `table_number === 0`, exibe `ENTREGA` no lugar de `MESA 0` |
-| `src/pages/KitchenPage.tsx` | Label "ENTREGA" quando `table_number === 0` nos cards da cozinha |
-| `src/components/dashboard/KitchenTab.tsx` | Idem no painel do dashboard |
+| Migração SQL | Adiciona coluna `pix_key text` em `organizations` |
+| `src/hooks/useOrganization.ts` | Adiciona `pix_key` na interface `Organization` |
+| `src/components/dashboard/StoreProfileTab.tsx` | Seção "Pagamentos" com campo de chave PIX |
+| `src/lib/printOrder.ts` | Adiciona `price` em `order_items`, calcula total, gera payload PIX e QR code |
+| `src/pages/KitchenPage.tsx` | Passa `org.pix_key` para `printOrder` |
+| `src/components/dashboard/KitchenTab.tsx` | Idem — passa `pixKey` recebido como prop |
+| `src/pages/DashboardPage.tsx` | Passa `organization.pix_key` para `KitchenTab` |
 
-## Como ficará o comprovante de entrega
+---
 
-```text
-┌──────────────────────┐
-│    BURGUER DO REI    │
-│  ────────────────────│
-│  ENTREGA   19/02 — 14:32
-│  ────────────────────│
-│  2x  X-Burguer       │
-│  1x  Batata Frita    │
-│  ────────────────────│
-│  Obs: sem cebola     │
-└──────────────────────┘
+## Detalhes técnicos
+
+### Pacote adicionado
+- `qrcode` — gera QR code como data URL (`await QRCode.toDataURL(pixPayload)`)
+
+### Assinatura atualizada de `printOrder`
+```typescript
+printOrder(order, storeName?, pixKey?)
 ```
 
-## Considerações técnicas
+O QR code só aparece se `pixKey` estiver preenchida E o pedido tiver itens com preço.
 
-- O `usePlaceOrder` já existe em `src/hooks/useOrders.ts` e funciona com qualquer `tableNumber`, incluindo `0`.
-- A inserção ocorre **em paralelo** com a abertura do WhatsApp — não bloqueia nem atrasa o envio da mensagem.
-- Se o popup da impressora for bloqueado pelo navegador, o botão manual de impressão na tela da cozinha cobre esse cenário.
-- Nenhuma migração de banco é necessária — `table_number = 0` já é válido pelo schema atual (`integer`, sem constraint de mínimo).
-- O `buyerName` (nome do cliente informado no checkout) será incluído nas observações (`notes`) do pedido para identificação na cozinha: ex. `"João Silva · PIX · Rua das Flores 10"`.
+### Payload PIX (padrão Banco Central)
+A função `buildPixPayload` gera o string EMV completo com CRC16 — compatível com qualquer app de pagamento PIX (Nubank, PicPay, bancos, etc.).
