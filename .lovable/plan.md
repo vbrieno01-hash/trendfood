@@ -1,31 +1,74 @@
 
-# Centralizar e corrigir o gráfico "Últimos 7 dias"
+# Corrigir o bug de "precisa recarregar após o login"
 
-## Problema identificado
+## Causa raiz
 
-Olhando a imagem, o gráfico está visivelmente deslocado para a direita. Isso ocorre por dois motivos combinados:
+Existe uma condição de corrida (race condition) no `useAuth.tsx`:
 
-1. **Margem esquerda zero no gráfico**: `margin={{ top: 4, right: 16, left: 0, bottom: 0 }}` — sem margem à esquerda, os labels do eixo Y esquerdo (números de pedidos) são cortados ou empurram o conteúdo do gráfico para a direita.
+1. Na carga inicial da página, `getSession()` não encontra sessão → `setLoading(false)`
+2. O usuário faz login → `navigate("/dashboard")` é chamado imediatamente
+3. O `onAuthStateChange` dispara de forma assíncrona e define o `user`, mas despacha `fetchOrganization` via `setTimeout` para evitar deadlock
+4. O `DashboardPage` já renderizou com `loading=false`, `user` setado mas `organization=null`
+5. O `retryRef` tenta uma correção, mas como o `retryRef.current` é `true` após a primeira tentativa, ele não consegue repetir
 
-2. **Largura do YAxis esquerdo não especificada**: sem `width` fixo no `YAxis`, o Recharts calcula automaticamente e pode criar desequilíbrio visual entre os dois eixos (esquerdo e direito).
+O problema é que `loading` nunca volta para `true` quando um novo login acontece, então o dashboard renderiza sem a organização estar carregada.
 
-3. **`max-w-4xl` no container**: limita a largura total do dashboard, mas não afeta diretamente o gráfico.
+## Solução
 
-## Mudanças no arquivo `src/components/dashboard/HomeTab.tsx`
-
-### 1. Aumentar a margem esquerda do `ComposedChart`
-De: `margin={{ top: 4, right: 16, left: 0, bottom: 0 }}`  
-Para: `margin={{ top: 4, right: 8, left: 8, bottom: 0 }}`
-
-### 2. Definir `width` fixo nos dois `YAxis` para equilíbrio visual
-- YAxis esquerdo: `width={35}` — espaço suficiente para números inteiros
-- YAxis direito: `width={55}` — espaço para rótulos como `R$1000`
-
-### 3. Remover `max-w-4xl` do container principal
-Para que o gráfico use toda a largura disponível no painel, removendo a restrição artificial de largura que faz o layout parecer desequilibrado.
+Modificar o `onAuthStateChange` em `useAuth.tsx` para:
+- Quando o evento for `SIGNED_IN` (novo login), ativar `loading=true` novamente
+- Aguardar a busca da organização completar antes de desativar o `loading`
+- Isso garante que o dashboard só renderiza quando a organização já está disponível
 
 ## Arquivo afetado
 
-| Arquivo | O que muda |
-|---|---|
-| `src/components/dashboard/HomeTab.tsx` | Ajuste nas margens do `ComposedChart` e largura dos dois `YAxis` |
+`src/hooks/useAuth.tsx` — ajuste no callback do `onAuthStateChange`
+
+### Mudança
+
+Atualmente o `onAuthStateChange` despacha `fetchOrganization` via `setTimeout` sem controle de loading:
+
+```typescript
+// ANTES — sem controle de loading no re-login
+(_event, newSession) => {
+  setSession(newSession);
+  setUser(newSession?.user ?? null);
+  if (newSession?.user) {
+    const userId = newSession.user.id;
+    setTimeout(() => {
+      if (isMounted.current) fetchOrganization(userId);
+    }, 0);
+  } else {
+    setOrganization(null);
+  }
+}
+```
+
+A correção usa o evento `_event` para identificar quando é um SIGNED_IN novo e ativa o `loading` até a org ser carregada:
+
+```typescript
+// DEPOIS — ativa loading durante novo login
+(_event, newSession) => {
+  setSession(newSession);
+  setUser(newSession?.user ?? null);
+  if (newSession?.user) {
+    const userId = newSession.user.id;
+    // Se for um novo login (não carga inicial), ativar loading
+    if (_event === "SIGNED_IN") {
+      setLoading(true);
+    }
+    setTimeout(() => {
+      if (isMounted.current) {
+        fetchOrganization(userId).finally(() => {
+          if (isMounted.current) setLoading(false);
+        });
+      }
+    }, 0);
+  } else {
+    setOrganization(null);
+    setLoading(false);
+  }
+}
+```
+
+Desta forma, quando o usuário faz login e o dashboard é carregado, ele vê o skeleton de loading corretamente enquanto a organização é buscada, e só renderiza o conteúdo completo quando tudo está pronto — sem precisar recarregar a página.
