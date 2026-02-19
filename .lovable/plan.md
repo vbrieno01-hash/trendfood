@@ -1,62 +1,84 @@
 
-# Corrigir o bug do horário de funcionamento com fechamento à meia-noite
+# Impressão Automática de Pedidos
 
-## Causa raiz identificada
+## Como a impressão funciona no navegador
 
-Na função `getStoreStatus` em `src/lib/storeStatus.ts`, o cálculo de minutos trata "00:00" como 0 minutos. Quando a loja fecha à meia-noite ("00:00"), a condição de abertura falha:
+O navegador não permite controlar impressoras diretamente sem interação do usuário — essa é uma limitação de segurança de todos os navegadores modernos. Portanto, existem duas abordagens possíveis:
 
-```
-fromMin = 900  (15:00)
-toMin   = 0    (00:00 → meia-noite mal interpretada)
+**Opção A (implementada aqui): Impressão semi-automática com `window.print()`**
+- Quando um novo pedido chega, abre automaticamente uma janela de impressão do sistema operacional com o comprovante formatado para impressora térmica (80mm)
+- O usuário precisa apenas pressionar Enter ou clicar em "Imprimir" na janela do sistema
+- Funciona com qualquer impressora — inclusive as térmicas mais comuns (Epson, Bematech, etc.)
+- Também adiciona um botão manual "Imprimir" em cada card de pedido, caso a impressão automática seja bloqueada
 
-Verificação: currentMinutes >= 900 && currentMinutes < 0  →  IMPOSSÍVEL de ser verdadeiro
-```
+**Opção B: Integração com impressoras via serviço externo (ex: QZ Tray, Star WebPRNT)**
+- Requer instalação de software adicional no computador da cozinha
+- Muito mais complexo e fora do escopo atual
 
-Isso faz a loja aparecer como fechada mesmo que seja, por exemplo, 17h — dentro do horário configurado.
+A **Opção A** é a mais prática e funciona sem nenhuma instalação extra.
 
-## Solução
+## O que será implementado
 
-Duas correções no arquivo `src/lib/storeStatus.ts`:
+### 1. Comprovante formatado para impressora térmica
+Um layout de impressão otimizado para papel 80mm com:
+- Nome da loja + número da mesa em destaque
+- Horário do pedido
+- Lista de itens com quantidade
+- Observações (se houver)
+- Linha separadora no final
 
-### 1. Tratar "00:00" como fim do dia (1440 minutos)
-Quando o horário de fechamento é "00:00" (meia-noite), deve representar o final do dia, não o início. Basta ajustar `toMin` para 1440 nesse caso.
+### 2. Impressão automática na KitchenPage (`/cozinha`)
+No `KitchenPage.tsx` (tela dedicada da cozinha), quando chega um novo pedido via Realtime:
+- O sistema aguarda 1 segundo para os `order_items` carregarem junto ao pedido
+- Abre automaticamente a janela de impressão do sistema
 
-### 2. Permitir horários que cruzam a meia-noite (ex: 22:00 às 02:00)
-Se `toMin < fromMin`, significa que o horário vai além de meia-noite. A verificação precisa considerar isso.
+### 3. Impressão automática na KitchenTab (aba do dashboard)
+No `KitchenTab.tsx` (aba dentro do painel), mesma lógica — impressão automática ao chegar novo pedido.
 
-## Mudanças em `src/lib/storeStatus.ts`
+### 4. Botão manual de impressão em cada card
+Cada card de pedido terá um botão de impressora, permitindo reimprimir se necessário.
 
-Substituir `timeToMinutes` por uma versão que aceita o contexto de "fechamento":
+### 5. Toggle para ativar/desativar impressão automática
+Um switch no header da tela de cozinha permite ao usuário desativar a impressão automática caso não queira usar (preferência salva no `localStorage`).
 
-```typescript
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function toMinutesClose(time: string): number {
-  const mins = timeToMinutes(time);
-  // 00:00 como horário de fechamento = meia-noite = fim do dia
-  return mins === 0 ? 1440 : mins;
-}
-```
-
-E atualizar a lógica de verificação:
-
-```typescript
-const fromMin = timeToMinutes(today.from);
-const toMin = toMinutesClose(today.to);
-
-// Suporte a horários que cruzam meia-noite (ex: 22:00 às 02:00)
-const isOpen = toMin > fromMin
-  ? currentMinutes >= fromMin && currentMinutes < toMin        // normal
-  : currentMinutes >= fromMin || currentMinutes < toMin;       // cruza meia-noite
-```
-
-## Arquivo afetado
+## Arquivos afetados
 
 | Arquivo | O que muda |
 |---|---|
-| `src/lib/storeStatus.ts` | Corrige `timeToMinutes` para "00:00" e suporte a horários pós-meia-noite |
+| `src/lib/printOrder.ts` | Novo arquivo — função utilitária que gera o HTML de impressão e dispara `window.print()` |
+| `src/pages/KitchenPage.tsx` | Chama `printOrder` no callback de INSERT do Realtime + botão de impressão manual + toggle |
+| `src/components/dashboard/KitchenTab.tsx` | Mesma lógica do KitchenPage |
 
-Essa correção resolve o caso do usuário (seg: 15:00 às 00:00) e também cobre futuros casos de horários que cruzam a meia-noite.
+## Detalhes técnicos da impressão
+
+A função `printOrder` vai:
+1. Criar uma nova janela (`window.open`)
+2. Injetar HTML formatado para 80mm com estilos CSS de impressão
+3. Chamar `window.print()` na nova janela
+4. Fechar a janela após a impressão
+
+```
+┌─────────────────────┐
+│  🍳 BURGUER DO REI  │
+│  ═══════════════════│
+│  MESA 5             │
+│  14:32              │
+│  ───────────────────│
+│  2x  X-Burguer      │
+│  1x  Batata Frita   │
+│  1x  Coca-Cola      │
+│  ───────────────────│
+│  Obs: sem cebola    │
+│  ═══════════════════│
+│  NOVO PEDIDO - KDS  │
+└─────────────────────┘
+```
+
+## Fluxo de funcionamento
+
+1. Cliente faz pedido → INSERT no banco
+2. Realtime dispara evento INSERT na KitchenPage/KitchenTab
+3. Sistema verifica se impressão automática está ativada
+4. Abre janela de impressão formatada automaticamente
+5. Usuário confirma na janela do sistema (ou cancela)
+6. O pedido também aparece no KDS normalmente
