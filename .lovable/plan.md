@@ -1,67 +1,70 @@
 
-# Onboarding Guiado — Wizard Passo a Passo para Novas Lojas
+# Página de Documentação — Impressora Térmica 80mm
 
 ## Objetivo
 
-Criar um modal de onboarding exibido automaticamente no primeiro acesso da loja ao dashboard, guiando o usuário por 4 etapas para configurar as informações essenciais. Ao final, atualizar o status do card "Onboarding Guiado" no `/admin` de `"soon"` para `"available"`.
+Criar uma página dedicada `/docs/impressora-termica` com guia completo de configuração da impressora térmica 80mm, incluindo requisitos, passo a passo e troubleshooting. Também atualizar o card "Impressora Térmica" no `/admin` para redirecionar para essa página de documentação.
 
 ---
 
-## Como identificar o "primeiro acesso"
+## O que será criado
 
-A tabela `organizations` não tem uma coluna `onboarding_done`. A estratégia será **adicionar uma coluna `onboarding_done` (boolean, default false)** via migração de banco de dados. O modal aparece quando `onboarding_done = false`. Ao concluir ou pular, marca `true` no banco — garantindo que nunca mais apareça.
+### Nova página: `src/pages/DocsTerminalPage.tsx`
 
-Alternativa sem migração (localStorage) foi descartada pois não persiste entre dispositivos/browsers.
+Uma página pública (sem autenticação necessária) acessível em `/docs/impressora-termica`, com layout limpo e organizado em seções:
 
----
-
-## As 4 Etapas do Wizard
+**Estrutura da página:**
 
 ```text
-ETAPA 1 — Nome e Emoji
-  └── Campo: Nome da loja (required)
-  └── Seletor: Emoji (grid de 12 opções)
-  └── Dados salvos em: organizations.name, organizations.emoji
+Header
+  └── Logo TrendFood + "Documentação" + link "Voltar ao dashboard"
 
-ETAPA 2 — Endereço de Entrega
-  └── Campo: CEP (auto-preenche via ViaCEP)
-  └── Campos: Rua, Número, Complemento, Bairro, Cidade, Estado
-  └── Dados salvos em: organizations.store_address (formato estruturado já existente)
+Seção 1 — Visão Geral
+  └── O que é, como funciona a impressão no sistema
 
-ETAPA 3 — Horários de Funcionamento
-  └── Toggle: Ativar controle de horário
-  └── Tabela: Dias da semana com checkboxes e horários de/até
-  └── Reutiliza o componente: BusinessHoursSection (já existente)
-  └── Dados salvos em: organizations.business_hours (JSONB)
+Seção 2 — Requisitos
+  └── Hardware compatível
+  └── Sistema operacional / navegador
+  └── Configurações necessárias na impressora
 
-ETAPA 4 — Primeiro Item do Cardápio
-  └── Campo: Nome do item (required)
-  └── Campo: Preço (required)
-  └── Select: Categoria (reutiliza CATEGORIES do useMenuItems)
-  └── Textarea: Descrição (opcional)
-  └── Dados salvos em: menu_items (INSERT)
+Seção 3 — Passo a Passo de Configuração
+  Passo 1 → Configurar chave PIX no dashboard (Configurações)
+  Passo 2 → Abrir a aba Cozinha (KDS) no dashboard
+  Passo 3 → Ativar o toggle "Imprimir automático"
+  Passo 4 → Configurar impressora no sistema operacional (tamanho 80mm)
+  Passo 5 → Definir a impressora como padrão
+  Passo 6 → Testar com um pedido de exemplo
+
+Seção 4 — Exemplo de Recibo
+  └── Preview visual de como fica o recibo impresso
+  └── Itens mostrados: nome da loja, mesa/entrega, lista de itens, total, QR Code PIX
+
+Seção 5 — Troubleshooting
+  └── Problema: popup bloqueado pelo navegador → Solução
+  └── Problema: impressão cortando conteúdo → Solução (tamanho de página 80mm)
+  └── Problema: QR Code PIX não aparece → Solução (chave PIX não configurada)
+  └── Problema: impressão não dispara automaticamente → Solução (toggle)
+  └── Problema: acentos/caracteres especiais quebrados → Solução (encoding)
+
+Seção 6 — Impressoras Recomendadas
+  └── Cards com modelos populares no Brasil (Elgin i9, Bematech MP-4200, Epson TM-T20X, Daruma DR800)
+
+Footer
+  └── Link para suporte via WhatsApp
 ```
 
 ---
 
-## Lógica de persistência de cada etapa
+## Conteúdo técnico real (baseado na implementação existente)
 
-- Etapas 1, 2 e 3: Um único `UPDATE` em `organizations` ao navegar para a próxima etapa (auto-save progressivo)
-- Etapa 4: `INSERT` em `menu_items` com `organization_id` da org
-- Ao finalizar: `UPDATE organizations SET onboarding_done = true` + `refreshOrganization()` para recarregar o contexto
+A documentação refletirá a implementação real do `src/lib/printOrder.ts` e `src/components/dashboard/KitchenTab.tsx`:
 
----
-
-## Onde exibir o modal
-
-No `DashboardPage.tsx`, após carregar o usuário e a organização:
-
-```typescript
-// Mostrar o onboarding se onboarding_done === false
-const showOnboarding = organization && !(organization as any).onboarding_done;
-```
-
-O modal usa `Dialog` do Radix (já importado no projeto via `src/components/ui/dialog.tsx`) e **não pode ser fechado clicando fora** (`modal={true}`, sem `DialogClose` no overlay) — só com o botão "Pular" ou "Concluir".
+- O sistema abre uma **janela popup** (`window.open`) com HTML formatado para 80mm
+- O diálogo de impressão é disparado automaticamente via `window.print()` com delay de 500ms
+- O QR Code PIX é gerado via biblioteca `qrcode` usando o padrão **EMV/QRCPS-MPM do Banco Central**
+- A impressora precisa estar configurada no SO com **tamanho de página 80mm x automático**
+- O toggle "Imprimir automático" salva preferência por dispositivo via `localStorage`
+- Funciona em qualquer navegador que suporte `window.print()` — Chrome recomendado
 
 ---
 
@@ -69,93 +72,47 @@ O modal usa `Dialog` do Radix (já importado no projeto via `src/components/ui/d
 
 | Arquivo | Ação | Descrição |
 |---|---|---|
-| `supabase/migrations/` | Criar migração | `ALTER TABLE organizations ADD COLUMN onboarding_done boolean NOT NULL DEFAULT false;` |
-| `src/components/dashboard/OnboardingWizard.tsx` | Criar | Componente do modal com os 4 steps |
-| `src/pages/DashboardPage.tsx` | Modificar | Importar e renderizar `OnboardingWizard` condicionalmente |
-| `src/hooks/useAuth.tsx` | Modificar | Incluir `onboarding_done` na interface `Organization` |
-| `src/pages/AdminPage.tsx` | Modificar | Status `"soon"` → `"available"` no card "Onboarding Guiado" |
+| `src/pages/DocsTerminalPage.tsx` | Criar | Página de documentação completa |
+| `src/App.tsx` | Modificar | Adicionar rota `/docs/impressora-termica` |
+| `src/pages/AdminPage.tsx` | Modificar | Card "Impressora Térmica" — `actionLabel: "Ver documentação"`, `actionHref: "/docs/impressora-termica"` |
 
 ---
 
-## Estrutura do componente OnboardingWizard
+## Design da página
 
-```
-OnboardingWizard
-  ├── Props: organization, onComplete
-  ├── Estado: step (1-4), form por step
-  │
-  ├── STEP 1 — Nome & Emoji
-  │     Input: nome (required), grid de emojis
-  │     Botão: "Próximo →" (salva name+emoji na org)
-  │
-  ├── STEP 2 — Endereço
-  │     Input CEP (com busca ViaCEP), rua, número, complemento, bairro, cidade, estado
-  │     Botões: "← Voltar" | "Próximo →" (salva store_address na org)
-  │
-  ├── STEP 3 — Horários
-  │     Reutiliza <BusinessHoursSection> existente
-  │     Botões: "← Voltar" | "Próximo →" (salva business_hours na org)
-  │
-  └── STEP 4 — Primeiro Item
-        Inputs: nome, preço, categoria, descrição
-        Botões: "← Voltar" | "Concluir ✓" (insere item + marca onboarding_done=true)
-```
+A página usará o mesmo sistema de design do projeto (Tailwind, componentes ui/):
 
-### Barra de progresso
-
-```
-[●●●○]  Etapa 3 de 4 — Horários de Funcionamento
-```
-
-Indicador visual com 4 círculos, preenchidos conforme o passo atual. Abaixo, título e subtítulo da etapa.
-
-### Botão "Pular configuração" (link discreto no footer do modal)
-
-Ao clicar, pergunta "Tem certeza? Você poderá configurar isso depois em Perfil da Loja." com um `AlertDialog`, e se confirmado, marca `onboarding_done = true` sem salvar nada.
+- **Fundo**: `bg-background` (respeita dark mode)
+- **Cards de seção**: `bg-card border border-border rounded-2xl`
+- **Badges de passos**: números circulares com `bg-primary text-white`
+- **Alertas/avisos**: usando o componente `Alert` já existente
+- **Código/comandos**: blocos `<code>` com fundo `bg-muted`
+- **Ícones**: `lucide-react` já instalado (Printer, CheckCircle2, AlertCircle, Wifi, Monitor, Smartphone, etc.)
+- **Responsivo**: funciona bem em mobile e desktop
 
 ---
 
-## Migração de banco de dados
+## Rota no App.tsx
 
-```sql
-ALTER TABLE public.organizations 
-ADD COLUMN onboarding_done boolean NOT NULL DEFAULT false;
+```typescript
+// Adicionar antes do catch-all
+<Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
 ```
 
-- Sem impacto nas políticas RLS existentes (a coluna é atualizada via `organizations_update_own` que já permite o dono atualizar sua org)
-- Lojas existentes receberão `onboarding_done = false` por padrão — mas como são lojas já configuradas, podemos na mesma migração marcar todas as existentes como `true`:
-
-```sql
-ALTER TABLE public.organizations 
-ADD COLUMN onboarding_done boolean NOT NULL DEFAULT false;
-
--- Marcar lojas já existentes como onboarded (possuem name diferente do padrão ou já têm store_address)
-UPDATE public.organizations SET onboarding_done = true;
-```
-
-Isso garante que apenas **novas lojas criadas após essa migração** vejam o wizard.
+A página **não requer autenticação** — pode ser acessada diretamente por qualquer link de suporte.
 
 ---
 
 ## Mudança no card do AdminPage
 
 ```typescript
-// ANTES
 {
-  icon: <Sparkles className="w-5 h-5" />,
-  title: "Onboarding Guiado",
-  description: "Wizard passo a passo para novas lojas configurarem cardápio, horários e pagamentos em minutos.",
-  status: "soon",
-},
-
-// DEPOIS
-{
-  icon: <Sparkles className="w-5 h-5" />,
-  title: "Onboarding Guiado",
-  description: "Wizard passo a passo para novas lojas configurarem nome, endereço, horários e primeiro item do cardápio.",
-  status: "available",
-  actionLabel: "Ver no dashboard",
-  actionHref: "/dashboard",
+  icon: <Printer className="w-5 h-5" />,
+  title: "Impressora Térmica",
+  description: "Impressão automática de pedidos em impressoras térmicas 80mm com QR Code PIX.",
+  status: "beta",
+  actionLabel: "Ver documentação",   // era: "Ver no dashboard"
+  actionHref: "/docs/impressora-termica", // era: "/dashboard"
 },
 ```
 
@@ -163,8 +120,8 @@ Isso garante que apenas **novas lojas criadas após essa migração** vejam o wi
 
 ## Resumo
 
-- 1 migração SQL (adiciona coluna + marca existentes como onboarded)
-- 1 componente novo: `OnboardingWizard.tsx`
-- 3 arquivos modificados: `DashboardPage.tsx`, `useAuth.tsx`, `AdminPage.tsx`
+- 1 página nova: `DocsTerminalPage.tsx`
+- 2 arquivos modificados: `App.tsx` (nova rota), `AdminPage.tsx` (link do card)
 - Zero novas dependências
-- Reutiliza `BusinessHoursSection`, `CATEGORIES`, `Dialog`, `AlertDialog`, e a lógica de ViaCEP já existentes
+- Página pública, sem autenticação
+- Conteúdo 100% baseado na implementação real do sistema
