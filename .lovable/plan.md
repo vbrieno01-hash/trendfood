@@ -1,53 +1,30 @@
 
 
-# Adicionar Sidebar ao Painel Admin (igual ao Dashboard)
+# Corrigir Acesso ao Painel Admin
 
-## Objetivo
+## Problema
 
-Transformar o layout do Admin de uma pagina unica com scroll para um layout com sidebar lateral escura (igual ao Dashboard dos clientes), onde cada secao abre como uma "aba" ao clicar no menu lateral.
+O usuario `vendass945@gmail.com` possui a role `admin` na tabela `user_roles`, o que permite acesso ao painel admin. Atualmente existem 2 admins no banco:
 
-## Estrutura das Abas
+- `brenojackson30@gmail.com` (correto)
+- `vendass945@gmail.com` (nao deveria ter acesso)
 
-| Aba | Icone | Conteudo |
-|-----|-------|----------|
-| Home | Home | KPI Cards + Graficos de Crescimento |
-| Lojas | Store | Grid de lojas com filtros, busca, CSV |
-| Configuracoes | Settings | Taxas de entrega (PlatformConfigSection) |
-| Funcionalidades | Sparkles | Roadmap de features |
+## Solucao
 
-## Layout
+1. **Remover a role admin** do usuario `vendass945@gmail.com` via migration SQL:
 
-Mesmo padrao do `DashboardPage.tsx`:
-- Sidebar escura fixa a esquerda (`#111111`) com 256px de largura
-- Logo TrendFood no topo da sidebar
-- Info do admin (email) abaixo do logo
-- Itens de navegacao com highlight na aba ativa (bg-primary)
-- Botao "Sair" no rodape da sidebar
-- No mobile: sidebar oculta com botao hamburguer no header
-- Overlay escuro ao abrir sidebar no mobile
+```sql
+DELETE FROM public.user_roles
+WHERE user_id = '50d70a01-2d3a-495b-ba9c-e49794dbd12d'
+AND role = 'admin';
+```
+
+Isso remove apenas a permissao de admin desse usuario. Ele continua podendo usar a plataforma normalmente como dono de loja.
+
+2. **Nenhuma mudanca de codigo necessaria** -- a verificacao `isAdmin` ja funciona corretamente baseada na tabela `user_roles`. O problema era apenas o dado no banco.
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/AdminPage.tsx`
-
-**Mudancas na funcao `AdminContent`:**
-
-1. Adicionar states: `activeTab` (tipo union "home" | "lojas" | "config" | "features") e `sidebarOpen` (boolean)
-2. Definir array de itens de navegacao com key, icon e label
-3. Substituir o layout atual (header + main scroll) pelo layout com sidebar:
-   - Sidebar escura identica ao Dashboard (logo, info do admin, nav items, botao sair)
-   - Header mobile com hamburguer
-   - Area de conteudo que renderiza condicionalmente baseado em `activeTab`
-4. Mover cada secao para renderizacao condicional:
-   - `activeTab === "home"`: KPI Cards + GrowthCharts
-   - `activeTab === "lojas"`: Filtros + Grid de lojas + CSV
-   - `activeTab === "config"`: PlatformConfigSection
-   - `activeTab === "features"`: Feature Roadmap
-5. Importar `logoIcon` de `@/assets/logo-icon.png` e icones necessarios (Home, Menu, LogOut)
-6. Usar `useAuth` para `signOut` e `useNavigate` para redirecionar apos logout
-
-**Componentes internos (KpiCard, StoreCard, SetupScore, FeatureCard):** permanecem iguais, sem alteracao.
-
-### Nenhuma migration SQL necessaria
-Apenas mudanca de layout/UI.
+- A funcao `create-admin-user` (edge function) cria admin para `brenojackson30@gmail.com`. Provavelmente a role de admin do `vendass945` foi inserida manualmente ou por teste.
+- Apos a migration, apenas `brenojackson30@gmail.com` tera acesso ao `/admin`.
 
