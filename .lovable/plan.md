@@ -1,31 +1,34 @@
 
 
-# Corrigir botao Enterprise abrindo WhatsApp
+# Adicionar botao "Gerenciar Assinatura" no dashboard
 
-## Problema
+## Resumo
 
-Quando o usuario esta logado e clica em "Assinar Enterprise", o botao redireciona para o WhatsApp em vez de abrir o checkout do Stripe. Isso acontece porque o codigo atual exclui o plano Enterprise do `onSelect` (linha 197-198) e o `ctaLink` ainda aponta para o link do WhatsApp.
+Adicionar uma secao de assinatura na aba Configuracoes do dashboard com um botao que chama a edge function `customer-portal` e redireciona o usuario para o portal do Stripe, onde ele pode cancelar, trocar cartao ou mudar de plano.
 
-## Solucao
+## O que sera feito
 
-Alterar o `PricingPage.tsx` para que, quando o usuario estiver logado, o plano Enterprise tambem use `handleSelectPlan` (que chama a edge function `create-checkout`), da mesma forma que o plano Pro.
+### 1. Atualizar SettingsTab.tsx
 
-## Detalhes tecnicos
+Adicionar uma nova secao "Assinatura" entre as informacoes da conta e a alteracao de senha, contendo:
 
-No arquivo `src/pages/PricingPage.tsx`, duas mudancas sao necessarias:
+- Exibicao do plano atual (Free, Pro ou Enterprise) obtido via `useAuth`
+- Botao "Gerenciar Assinatura" que:
+  - Chama `supabase.functions.invoke('customer-portal')` com o token do usuario
+  - Exibe estado de loading durante a requisicao
+  - Abre a URL retornada em uma nova aba
+  - Exibe toast de erro se falhar
+- Para usuarios no plano Free (sem customer no Stripe), o botao exibe "Fazer upgrade" e redireciona para `/planos`
 
-1. **Linha 196-199**: Remover a condicao que exclui o Enterprise do `onSelect`. Mudar de:
-```
-onSelect={user ? plan.key !== "enterprise" ? () => handleSelectPlan(plan.key) : undefined : undefined}
-```
-Para:
-```
-onSelect={user && plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
-```
+### 2. Detalhes tecnicos
 
-2. **Linha 201**: Ajustar a logica de `external` para que, quando logado, nenhum plano seja externo:
-```
-external={!user ? plan.external : false}
-```
+No arquivo `src/components/dashboard/SettingsTab.tsx`:
 
-Com isso, o botao Enterprise para usuarios logados chamara o Stripe checkout normalmente, e para usuarios nao logados continuara redirecionando para `/auth`.
+- Importar `organization` do `useAuth()` e `useNavigate` (ja importado)
+- Importar icone `CreditCard` do lucide-react
+- Adicionar estado `portalLoading` para controle do botao
+- Criar funcao `handleManageSubscription` que invoca a edge function
+- Renderizar a secao entre "Informacoes da conta" e "Alterar senha"
+
+A edge function `customer-portal` ja esta implementada e deployada, nao precisa de alteracoes.
+
