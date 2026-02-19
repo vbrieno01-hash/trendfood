@@ -1,47 +1,52 @@
 
-# Substituir Mockup CSS pela Screenshot Real do Dashboard
+# Substituir Mockup CSS do Celular pela Screenshot Real do Mobile
 
 ## Situação Atual
 
-O arquivo `src/components/landing/ShowcaseSection.tsx` ainda usa o mockup em HTML/CSS (linhas 19–97). A imagem enviada pelo usuário (`user-uploads://image-12.png`) nunca foi salva no projeto — a pasta `src/assets/` está vazia.
+O mockup do celular em `src/components/landing/ShowcaseSection.tsx` (linhas 33–83) é construído 100% em CSS/HTML com status bar, header, tabs, chips e card de produto simulados.
 
-## O que Será Feito
+O usuário enviou a screenshot real do dashboard mobile (`user-uploads://image-13.png`) — que mostra o painel "Burguer do Rei" com o card vermelho de "Faturamento Hoje R$ 880,00", cards de métricas e gráfico dos últimos 7 dias.
+
+## O Que Será Feito
 
 ### 1. Salvar a imagem no projeto
-Copiar `user-uploads://image-12.png` → `public/dashboard-screenshot.png`
-
-(Usar `public/` em vez de `src/assets/` para evitar problema de import de binário com Vite — referenciada via URL `/dashboard-screenshot.png`)
+```
+user-uploads://image-13.png → public/mobile-screenshot.png
+```
+Usar `public/` para referência via URL direta, igual ao que foi feito com `dashboard-screenshot.png`.
 
 ### 2. Atualizar `ShowcaseSection.tsx`
 
-Substituir o bloco "App body" (linhas 18–97), que contém o mockup CSS com sidebar + métricas + gráfico, por uma simples tag `<img>` com a screenshot real:
+Substituir todo o conteúdo interno do phone frame (linhas 40–82) por uma `<img>` com a screenshot real, mantendo:
+- A div de posicionamento absoluto (right, bottom, width: 110)
+- A moldura do phone frame (`rounded-2xl`, `border-2`, `border-gray-800`, `shadow-2xl`)
+- Remover o `ChefHat` import se não for mais usado
 
+O novo conteúdo do phone frame ficará:
 ```tsx
-{/* App body - Screenshot real do dashboard */}
-<div className="overflow-hidden" style={{ height: 300 }}>
+{/* Phone frame */}
+<div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800">
   <img
-    src="/dashboard-screenshot.png"
-    alt="Painel TrendFood - Dashboard de vendas"
-    className="w-full h-full object-cover object-top"
+    src="/mobile-screenshot.png"
+    alt="Painel mobile TrendFood"
+    className="w-full block"
+    style={{ display: "block" }}
   />
 </div>
 ```
 
-- `object-cover`: preenche toda a área sem distorcer
-- `object-top`: mostra a parte de cima da imagem (header + card de faturamento + métricas)
-- `height: 300`: mantém a mesma altura do mockup anterior
+- Sem `height` fixo — a imagem define a altura naturalmente pelo aspect ratio do celular
+- `object-top` não é necessário pois queremos mostrar toda a tela do mobile
+- A largura é controlada pela div pai (`width: 110`)
 
-### O que Permanece Intacto
-- Moldura do laptop (barra de título macOS com 3 bolinhas)
-- Base do laptop (haste cinza)
-- Celular sobreposto no canto inferior direito (mockup do cardápio)
-- Textos laterais com badges e setas
+### 3. Limpar imports
+Remover `import { ChefHat } from "lucide-react"` já que não será mais utilizado no componente.
 
 ## Arquivos Afetados
 
 | Arquivo | Ação |
 |---|---|
-| `public/dashboard-screenshot.png` | Criar — copiar do upload do usuário |
-| `src/components/landing/ShowcaseSection.tsx` | Substituir linhas 18–97 por `<img>` |
+| `public/mobile-screenshot.png` | Criar — copiar do upload do usuário |
+| `src/components/landing/ShowcaseSection.tsx` | Substituir mockup CSS do celular por `<img>` + remover import ChefHat |
 
 Sem banco de dados, sem novos pacotes.
