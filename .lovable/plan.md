@@ -1,78 +1,31 @@
 
 
-# Implementar Pagamento com Stripe
+# Corrigir botao Enterprise abrindo WhatsApp
 
-## Resumo
+## Problema
 
-O Stripe ja esta habilitado e os produtos foram criados:
-- **Pro**: R$ 99/mes (price_1T2c1KLp69ds1uZn22cFIqbO / prod_U0dHItuetrHRdN)
-- **Enterprise**: R$ 249/mes (price_1T2c2WLp69ds1uZnFUojrhIp / prod_U0dJWUh6LviRiy)
+Quando o usuario esta logado e clica em "Assinar Enterprise", o botao redireciona para o WhatsApp em vez de abrir o checkout do Stripe. Isso acontece porque o codigo atual exclui o plano Enterprise do `onSelect` (linha 197-198) e o `ctaLink` ainda aponta para o link do WhatsApp.
 
-Agora vamos implementar o fluxo completo de checkout e verificacao de assinatura.
+## Solucao
 
-## Fluxo do usuario
-
-```text
-Pagina de Planos -> Clica "Assinar Pro"
-  -> Edge function cria sessao no Stripe
-    -> Redireciona para checkout do Stripe
-      -> Paga com cartao
-        -> Volta ao dashboard com ?checkout=success
-          -> check-subscription sincroniza o plano no banco
-```
-
-## O que sera feito
-
-### 1. Configurar edge functions no config.toml
-- Adicionar entradas para `create-checkout`, `check-subscription` e `customer-portal` com `verify_jwt = false`
-
-### 2. Edge Function: create-checkout
-- Autentica o usuario via token
-- Recebe o plano desejado (pro/enterprise) e o orgId
-- Busca ou cria customer no Stripe pelo email
-- Cria sessao de checkout com o preco correto
-- Retorna URL do checkout para redirecionamento
-
-### 3. Edge Function: check-subscription
-- Autentica o usuario via token
-- Busca customer no Stripe pelo email
-- Verifica se tem assinatura ativa
-- Identifica o plano pelo product ID
-- Sincroniza subscription_plan e subscription_status na tabela organizations
-- Chamada no login, ao carregar a pagina e periodicamente
-
-### 4. Edge Function: customer-portal
-- Permite ao usuario gerenciar sua assinatura (cancelar, trocar cartao)
-- Cria sessao do Stripe Customer Portal
-- Retorna URL para redirecionamento
-
-### 5. Atualizar PlanCard.tsx
-- Aceitar prop `onSelect` opcional
-- Quando presente, renderizar botao com onClick em vez de Link
-- Aceitar prop `loading` para estado de carregamento
-
-### 6. Atualizar PricingPage.tsx
-- Para usuarios logados: botao chama create-checkout e redireciona ao Stripe
-- Para usuarios nao logados: botao continua redirecionando para /auth
-- Estado de loading durante o redirecionamento
-- Destacar o plano atual do usuario (se ja assinante)
-
-### 7. Integrar check-subscription no AuthContext
-- Chamar check-subscription apos login e ao carregar sessao
-- Atualizar subscription_plan da organizacao no estado global
-- Refresh periodico a cada 60 segundos
+Alterar o `PricingPage.tsx` para que, quando o usuario estiver logado, o plano Enterprise tambem use `handleSelectPlan` (que chama a edge function `create-checkout`), da mesma forma que o plano Pro.
 
 ## Detalhes tecnicos
 
-**Mapeamento de produtos Stripe:**
-```text
-pro:       price_1T2c1KLp69ds1uZn22cFIqbO / prod_U0dHItuetrHRdN
-enterprise: price_1T2c2WLp69ds1uZnFUojrhIp / prod_U0dJWUh6LviRiy
+No arquivo `src/pages/PricingPage.tsx`, duas mudancas sao necessarias:
+
+1. **Linha 196-199**: Remover a condicao que exclui o Enterprise do `onSelect`. Mudar de:
+```
+onSelect={user ? plan.key !== "enterprise" ? () => handleSelectPlan(plan.key) : undefined : undefined}
+```
+Para:
+```
+onSelect={user && plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
 ```
 
-**Edge functions usam:**
-- STRIPE_SECRET_KEY (ja configurado)
-- SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ja disponiveis)
+2. **Linha 201**: Ajustar a logica de `external` para que, quando logado, nenhum plano seja externo:
+```
+external={!user ? plan.external : false}
+```
 
-**Nenhuma migracao de banco necessaria** - o check-subscription sincroniza os campos subscription_plan e subscription_status ja existentes na tabela organizations.
-
+Com isso, o botao Enterprise para usuarios logados chamara o Stripe checkout normalmente, e para usuarios nao logados continuara redirecionando para `/auth`.
