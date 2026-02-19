@@ -1,109 +1,106 @@
 
-# Diagnóstico definitivo e correção do geocoding da loja
+# Correção definitiva do cálculo de frete
 
-## Causa raiz confirmada por log de rede real
+## Os dois problemas identificados com evidências reais
 
-O log de rede capturado durante o teste mostrou exatamente o que falha:
+### Problema 1: CEP `11510-170` da loja retorna cidade errada no Nominatim
 
+O log de rede confirmou:
 ```
-GET nominatim/search?q=11510-170, Rua Jaime João Olcese, 51, Vila Couto, Cubatão, SP, Brasil
-Response Body: []   ← zero resultados!
+GET nominatim/search?q=11510-170, Brasil
+Response: Encruzilhada do Sul, Rio Grande do Sul ← ERRADO! Deveria ser Cubatão SP
 ```
 
-O Nominatim não conhece "Rua Jaime João Olcese" — este nome de rua simplesmente não existe no mapa OpenStreetMap de Cubatão. Por isso, mesmo com CEP no início da string, a busca falha porque o Nominatim tenta combinar todos os tokens e não encontra correspondência.
+O Nominatim não tem o CEP `11510-170` mapeado para Cubatão/SP. Quando retorna resultado de estado diferente do esperado, o sistema aceita as coordenadas erradas e a rota calculada fica completamente sem sentido.
 
-**A solução correta:** Quando o endereço da loja começa com CEP, usar SOMENTE o CEP para geocodificar a loja. O CEP `11510-170` sozinho localiza o ponto geográfico com precisão máxima — o Nominatim entende CEP brasileiro diretamente.
+**Solução:** Após geocodificar pelo CEP, validar se o resultado está no estado correto. Se o estado da resposta não bater com o estado esperado (extraído do `store_address`), descartar o resultado e usar fallback por nome da cidade.
 
-## O que muda
+### Problema 2: Cálculo não dispara até o número ser digitado
 
-Apenas um arquivo: `src/hooks/useDeliveryFee.ts`
+O `fullCustomerAddress` exige `cep && number && city`. Mas:
+1. O usuário digita CEP e clica Buscar → campos são preenchidos automaticamente (rua, bairro, cidade)
+2. **Mas o número ainda está vazio** → `fullCustomerAddress` cai no fallback textual → street/number estão vazios → string é `", , Centro, Cubatão, SP, Brasil"` com partes vazias → geocoding falha
 
-### Função `geocodeStoreAddress` (nova)
+E mesmo quando o número é digitado, a string gerada (`11510-020, 42, Cubatão, SP, Brasil`) vai ao Nominatim que retorna coordenadas do **CEP** (centro da rua), não do número específico — o que na prática é preciso o suficiente.
 
-Em vez de usar `stripComplementForGeo(storeAddress)` para geocodificar a loja, criaremos uma função específica que extrai somente o CEP quando disponível:
+**Solução:** Modificar `fullCustomerAddress` para usar CEP + cidade + estado (sem número) como query principal quando o número não foi preenchido ainda, permitindo pré-calcular o frete assim que o CEP é buscado.
+
+## Arquivos a modificar
+
+### 1. `src/hooks/useDeliveryFee.ts`
+
+Adicionar validação geográfica: após geocodificar pelo CEP da loja, verificar se o resultado está no estado/país correto usando a API de reverse geocoding do Nominatim — ou mais simples, usar diretamente **cidade + estado** como query quando o CEP falha.
+
+A mudança concreta: em `geocodeStoreAddress`, quando o CEP retorna resultado, validar se a cidade/estado batem. Implementar isso verificando a `display_name` retornada pelo Nominatim:
 
 ```typescript
-// Geocodifica o endereço da loja de forma otimizada:
-// Se começa com CEP, usa APENAS "CEP, Cidade, Estado, Brasil" — muito mais preciso no Nominatim.
-// Fallback: endereço textual completo (sem complemento).
 async function geocodeStoreAddress(address: string): Promise<GeoCoord | null> {
-  const parts = address.split(",").map(p => p.trim()).filter(Boolean);
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
   const cepPattern = /^\d{5}-?\d{3}$/;
-  
+
   if (cepPattern.test(parts[0] ?? "")) {
-    // Endereço novo: CEP, rua, numero, [complement], bairro, cidade, estado, Brasil
-    // Extrai CEP, cidade e estado para query mínima e precisa
     const cep = parts[0];
-    // cidade = antepenúltimo (antes de estado e Brasil)
+    // Extrai cidade e estado do endereço para validação
     const city = parts[parts.length - 3] ?? "";
     const state = parts[parts.length - 2] ?? "";
-    
-    // Tentativa 1: só o CEP (mais precisa)
-    const r1 = await tryGeocode(`${cep}, Brasil`);
+
+    // Tentativa 1: CEP + cidade + estado (mais precisa e sem risco de confusão)
+    const r1 = await tryGeocode(`${cep}, ${city}, ${state}, Brasil`);
     if (r1) return r1;
-    
-    // Tentativa 2: CEP + cidade + estado
-    const r2 = await tryGeocode(`${cep}, ${city}, ${state}, Brasil`);
+
+    // Tentativa 2: só cidade + estado (ignora CEP problemático)
+    const r2 = await tryGeocode(`${city}, ${state}, Brasil`);
     if (r2) return r2;
   }
-  
-  // Fallback: texto sem complemento
+
+  // Fallback: endereço textual sem complemento
   return geocode(stripComplementForGeo(address));
 }
 ```
 
-### No `useEffect` do hook
+A chave é a **Tentativa 1**: `CEP, Cidade, Estado, Brasil` — o Nominatim usa todos os tokens para filtrar, então mesmo que o CEP não bata exatamente, a combinação com cidade e estado força o resultado correto na região certa.
 
-Substituir:
-```typescript
-const coord = await geocode(stripComplementForGeo(storeAddress));
-```
-Por:
-```typescript
-const coord = await geocodeStoreAddress(storeAddress);
-```
+### 2. `src/pages/UnitPage.tsx`
 
-### Para o cliente (UnitPage.tsx já está correto)
-
-O `fullCustomerAddress` já está montado como `"11510-020, 123, Cubatão, SP, Brasil"` — e o CEP `11510-020` (Rua Armando de Salles Oliveira) o Nominatim encontra normalmente. O geocoding do cliente já funciona com CEP.
-
-A função `geocode` do hook também pode ser melhorada para, quando receber uma string que começa com CEP, tentar primeiro só o CEP:
+Modificar `fullCustomerAddress` para não exigir número para iniciar o cálculo. Assim que o CEP é buscado e cidade é preenchida, o frete já pode ser estimado:
 
 ```typescript
-async function geocode(query: string): Promise<GeoCoord | null> {
-  const parts = query.split(",").map(p => p.trim());
-  // Se começa com CEP, tenta só o CEP primeiro
-  if (/^\d{5}-?\d{3}$/.test(parts[0] ?? "")) {
-    const r = await tryGeocode(`${parts[0]}, Brasil`);
-    if (r) return r;
-  }
-  // Query completa
-  const result = await tryGeocode(query);
-  if (result) return result;
-  // Fallback com Brasil
-  if (!query.toLowerCase().includes("brasil")) {
-    return tryGeocode(`${query}, Brasil`);
-  }
-  return null;
-}
+// Para geocoding: prioriza CEP + cidade para estimativa imediata
+// Adiciona número quando disponível para maior precisão
+const fullCustomerAddress = customerAddress.cep && customerAddress.city
+  ? [customerAddress.cep, customerAddress.number, customerAddress.city, customerAddress.state, "Brasil"]
+      .filter(Boolean).join(", ")
+  : [customerAddress.street, customerAddress.number, customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"]
+      .map((p) => p.trim()).filter(Boolean).join(", ");
 ```
 
-## Resultado esperado após a correção
+Isso permite que:
+- Assim que CEP é buscado e cidade preenchida → cálculo dispara imediatamente
+- Quando número é digitado → recalcula com maior precisão
+- Sem CEP → usa endereço textual como fallback
+
+## Fluxo após a correção
 
 ```
-Loja: storeAddress = "11510-170, Rua Jaime João Olcese, 51, Casa, Vila Couto, Cubatão, SP, Brasil"
-geocodeStoreAddress extrai CEP → tryGeocode("11510-170, Brasil") → coordenadas ✓
+Loja (11510-170, Cubatão, SP):
+  tryGeocode("11510-170, Cubatão, SP, Brasil") → coordenadas de Cubatão SP ✓
+  (não mais Encruzilhada do Sul RS!)
 
-Cliente: fullCustomerAddress = "11510-020, 123, Cubatão, SP, Brasil"  
-geocode("11510-020, 123, Cubatão, SP, Brasil")
-→ CEP detectado → tryGeocode("11510-020, Brasil") → coordenadas ✓
+Cliente digita CEP 11510-020 → Buscar:
+  ViaCEP preenche: Rua Armando de Salles Oliveira, Centro, Cubatão, SP
 
-OSRM calcula rota entre os dois pontos → distância → frete R$ 5,00 ✓
+  fullCustomerAddress = "11510-020, Cubatão, SP, Brasil"  ← sem número ainda
+  → Nominatim encontra Cubatão SP → coordenadas ✓
+  → OSRM calcula distância → frete R$ 5,00 aparece IMEDIATAMENTE ✓
+
+Cliente digita número 42:
+  fullCustomerAddress = "11510-020, 42, Cubatão, SP, Brasil"
+  → Recalcula com número → ainda R$ 5,00 ✓
 ```
 
-## Arquivo a modificar
+## Resumo das mudanças
 
-Apenas `src/hooks/useDeliveryFee.ts`:
-- Adicionar função `geocodeStoreAddress` que prioriza CEP isolado
-- Melhorar `geocode` para detectar e usar CEP sozinho primeiro
-- Trocar chamada de `geocode(stripComplementForGeo(storeAddress))` por `geocodeStoreAddress(storeAddress)`
+| Arquivo | Linha(s) | Mudança |
+|---|---|---|
+| `src/hooks/useDeliveryFee.ts` | `geocodeStoreAddress` | Tentativa 1 usa `CEP + Cidade + Estado` em vez de só CEP |
+| `src/pages/UnitPage.tsx` | `fullCustomerAddress` | Remove exigência de número para calcular (só CEP + cidade já basta) |
