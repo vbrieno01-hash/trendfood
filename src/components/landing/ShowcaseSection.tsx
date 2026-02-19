@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { ChefHat } from "lucide-react";
 
 const DashboardMockup = () => (
   <div className="relative w-full" style={{ maxWidth: 520 }}>
@@ -35,50 +34,13 @@ const DashboardMockup = () => (
       style={{ right: -28, bottom: -32, width: 110 }}
     >
       {/* Phone frame */}
-      <div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800" style={{ background: "#fff" }}>
-        {/* Status bar */}
-        <div className="flex items-center justify-between px-2 py-1" style={{ background: "#0f0f1a" }}>
-          <span className="text-[7px] text-white font-medium">9:41</span>
-          <div className="w-8 h-2 rounded-full bg-black border border-gray-600 mx-auto absolute left-1/2 -translate-x-1/2" />
-          <div className="flex gap-0.5">
-            <div className="w-1.5 h-1.5 rounded-sm bg-white/60" />
-            <div className="w-1.5 h-1.5 rounded-sm bg-white/60" />
-          </div>
-        </div>
-
-        {/* App header */}
-        <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-100">
-          <div className="w-4 h-4 rounded bg-red-600 flex items-center justify-center flex-shrink-0">
-            <ChefHat className="w-2.5 h-2.5 text-white" />
-          </div>
-          <span className="text-[9px] font-bold text-gray-800 truncate">Burguer do Rei</span>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100">
-          <div className="flex-1 py-1 text-center text-[8px] font-bold text-red-600 border-b-2 border-red-600">Cardápio</div>
-          <div className="flex-1 py-1 text-center text-[8px] text-gray-400">Sugestões</div>
-        </div>
-
-        {/* Category chip */}
-        <div className="px-2 py-1.5 flex gap-1">
-          <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[7px] font-semibold">🍔 Hambúrg.</span>
-        </div>
-
-        {/* Product card */}
-        <div className="mx-2 mb-2 rounded-lg border border-gray-100 overflow-hidden shadow-sm">
-          <div className="h-10 bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center">
-            <span className="text-xl">🍔</span>
-          </div>
-          <div className="p-1.5">
-            <p className="text-[8px] font-bold text-gray-800">Duplo Cheddar</p>
-            <p className="text-[7px] text-gray-400 leading-tight">Dois hambúrgueres, queijo...</p>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] font-black text-red-600">R$ 36,00</span>
-              <div className="px-1.5 py-0.5 rounded bg-gray-900 text-white text-[7px] font-bold">+ Add</div>
-            </div>
-          </div>
-        </div>
+      <div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800">
+        <img
+          src="/mobile-screenshot.png"
+          alt="Painel mobile TrendFood"
+          className="w-full block"
+          style={{ display: "block" }}
+        />
       </div>
     </div>
   </div>
