@@ -1,59 +1,55 @@
 
-# Tornar o Calculo de Frete Mais Resiliente
 
-## Problemas Identificados
+# Corrigir Calculo de Frete com Fallback Manual
 
-1. **ViaCEP falhando**: A busca do CEP pode falhar por problemas de rede/CORS. Quando isso acontece, o endereco do cliente fica vazio e o frete nao e calculado.
-2. **Endereco da loja com rua duplicada**: O `store_address` do "Burguer do Rei" esta salvo como `"11510-170, Rua Jaime Joao Olcese, Rua Jaime Joao Olcese, Vila Couto, Cubatao, SP, Brasil"` -- a rua aparece duas vezes, o que pode confundir o geocoder.
-3. **Sem retry nas APIs externas**: Se Nominatim ou OSRM falham uma vez, nao ha nova tentativa.
+## Problema Identificado
 
-## Solucoes
+Quando o ViaCEP falha (como esta acontecendo no ambiente atual), os campos Cidade e Estado ficam vazios no state (`customerAddress`). Embora o campo Cidade mostre "Cubatao" na tela, isso e apenas o **placeholder** do input -- o valor real esta vazio.
 
-### 1. Retry automatico no ViaCEP (`src/pages/UnitPage.tsx`)
-- Adicionar uma tentativa extra com `setTimeout` de 1s se a primeira chamada falhar
-- Manter a mensagem de erro apenas se ambas falharem
+Consequencia: o endereco enviado ao geocoder fica incompleto (ex: "Rua Jaime Joao Olcese, 100, Brasil"), e o Nominatim nao encontra o endereco, fazendo o frete cair no fallback "A combinar via WhatsApp".
 
-### 2. Permitir calculo de frete com endereco manual (`src/pages/UnitPage.tsx`)
-- Mesmo se o ViaCEP falhar, o usuario pode preencher manualmente Cidade e Estado
-- O `fullCustomerAddress` ja considera esse caso (branch sem CEP), mas o campo Cidade e Estado estao vazios quando o CEP falha
-- Adicionar um Select para Estado (UF) e permitir que Cidade seja digitada, independente do CEP
+## Solucao
 
-### 3. Retry nas chamadas de geocoding (`src/hooks/useDeliveryFee.ts`)
-- Adicionar retry com backoff (1 tentativa extra apos 1.5s) nas funcoes `tryGeocode` e `getRouteDistanceKm`
-- Ajuda quando Nominatim ou OSRM estao com rate-limit temporario
+### 1. Manter o CEP digitado no state mesmo quando ViaCEP falha (`src/pages/UnitPage.tsx`)
 
-### 4. Limpar rua duplicada no geocoding da loja (`src/hooks/useDeliveryFee.ts`)
-- Na funcao `geocodeStoreAddress`, detectar e remover campos duplicados consecutivos antes de montar a query
-- Previne que o geocoder se confunda com enderecos mal formatados
+Atualmente, quando o ViaCEP falha, o `customerAddress.cep` pode estar preenchido (o usuario digitou), mas `city` e `state` ficam vazios. O `fullCustomerAddress` na condicao `customerAddress.cep && customerAddress.city` falha porque `city` esta vazio, e o branch de fallback monta o endereco sem cidade.
+
+**Correcao**: Na funcao `fetchCustomerCep`, quando ViaCEP falha, manter o CEP digitado no state para que o usuario preencha cidade e estado manualmente. A condicao do `fullCustomerAddress` ja lida com ambos os cenarios corretamente -- o problema e que o branch de fallback (sem CEP+city) tambem precisa de city/state para funcionar.
+
+### 2. Incluir cidade e estado no fallback do `fullCustomerAddress`
+
+O branch de fallback (linha 118) ja inclui `customerAddress.city` e `customerAddress.state`, entao funciona **se o usuario preencher esses campos**. O problema e que o usuario pode nao perceber que precisa preencher (pois ve o placeholder).
+
+**Correcao**: Tornar mais obvio que os campos precisam ser preenchidos:
+- Quando ViaCEP falha, pre-selecionar o estado com base no CEP quando possivel (os 2 primeiros digitos do CEP identificam a regiao)
+- Destacar visualmente os campos Cidade e Estado quando estiverem vazios apos falha do CEP
+
+### 3. Mapeamento de CEP para Estado
+
+Adicionar uma funcao auxiliar que extrai o estado a partir dos 2 primeiros digitos do CEP (tabela de faixas conhecida) e pre-preenche automaticamente o campo Estado quando o ViaCEP falha. Isso reduz fricao para o usuario.
+
+Exemplos de faixas:
+- 01-19 = SP
+- 20-28 = RJ
+- 29 = ES
+- 30-39 = MG
+- etc.
 
 ## Detalhes tecnicos
 
-### `src/hooks/useDeliveryFee.ts`
+### Arquivo: `src/pages/UnitPage.tsx`
 
-**Funcao `tryGeocode`**: Adicionar wrapper com retry
-```typescript
-async function tryGeocodeWithRetry(query: string): Promise<GeoCoord | null> {
-  const result = await tryGeocode(query);
-  if (result) return result;
-  // Retry apos 1.5s
-  await new Promise((r) => setTimeout(r, 1500));
-  return tryGeocode(query);
-}
-```
+1. **Nova funcao `getStateFromCep`**: Mapeia os 2 primeiros digitos do CEP para o estado (UF). Funciona para todos os 27 estados brasileiros.
 
-**Funcao `geocodeStoreAddress`**: Antes de geocodificar, remover partes duplicadas consecutivas do endereco.
+2. **`fetchCustomerCep` (apos falha)**: Quando ambas tentativas do ViaCEP falharem, chamar `getStateFromCep(cep)` e pre-preencher `customerAddress.state` com o resultado. Isso garante que o estado seja preenchido automaticamente mesmo sem ViaCEP.
 
-**Funcao `getRouteDistanceKm`**: Adicionar try/catch com retry.
+3. **`fullCustomerAddress`**: O branch de fallback (quando `!customerAddress.cep || !customerAddress.city`) ja inclui city/state na montagem do endereco. Nenhuma mudanca necessaria aqui, pois o problema era que city/state estavam vazios -- agora state sera pre-preenchido e city sera mais evidente para preenchimento manual.
 
-### `src/pages/UnitPage.tsx`
+4. **UX dos campos**: Quando ViaCEP falha e os campos estao vazios, adicionar borda de destaque (amarela) nos campos Cidade e Estado para chamar atencao do usuario de que precisa preencher.
 
-**`fetchCustomerCep`**: Adicionar retry (2a tentativa apos 1s em caso de falha de rede).
-
-**Campo Estado**: Trocar de `Select` placeholder para um `Select` funcional com todos os 27 UFs, permitindo preenchimento manual mesmo sem ViaCEP.
-
-## Resumo de arquivos
+### Resumo de arquivos
 
 | Arquivo | Acao |
 |---------|------|
-| `src/hooks/useDeliveryFee.ts` | Retry no geocoding + limpeza de enderecos duplicados |
-| `src/pages/UnitPage.tsx` | Retry no ViaCEP + UF selecionavel manualmente |
+| `src/pages/UnitPage.tsx` | Adicionar `getStateFromCep`, pre-preencher estado no fallback, destaque visual em campos vazios |
+
