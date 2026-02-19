@@ -30,8 +30,9 @@ export default function TablesTab({ organization }: Props) {
   const [qrModal, setQrModal] = useState<{ number: number } | null>(null);
   const qrRef = useRef<SVGSVGElement | null>(null);
 
+  const PRODUCTION_URL = "https://snack-hive.lovable.app";
   const getUrl = (num: number) =>
-    `${window.location.origin}/unidade/${organization.slug}/mesa/${num}`;
+    `${PRODUCTION_URL}/unidade/${organization.slug}/mesa/${num}`;
 
   const copyLink = async (num: number) => {
     await navigator.clipboard.writeText(getUrl(num));
