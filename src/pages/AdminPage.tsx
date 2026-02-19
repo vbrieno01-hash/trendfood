@@ -290,7 +290,7 @@ function AdminContent() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/auth");
+    navigate("/auth", { replace: true });
   };
 
   // ── Nav items ──

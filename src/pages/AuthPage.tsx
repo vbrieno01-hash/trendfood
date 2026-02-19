@@ -155,7 +155,7 @@ const AuthPage = () => {
 
       toast.success("Conta criada com sucesso! Bem-vindo! 🎉");
       await refreshOrganizationForUser(userId);
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (err: unknown) {
       const error = err as { message?: string };
       toast.error(error.message ?? "Erro ao criar conta.");
@@ -183,9 +183,9 @@ const AuthPage = () => {
           .eq("user_id", data.user.id)
           .eq("role", "admin")
           .maybeSingle();
-        navigate(roleData ? "/admin" : redirectTo);
+        navigate(roleData ? "/admin" : redirectTo, { replace: true });
       } else {
-        navigate(redirectTo);
+        navigate(redirectTo, { replace: true });
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
