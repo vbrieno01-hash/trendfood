@@ -6,10 +6,11 @@ import { usePlaceOrder } from "@/hooks/useOrders";
 import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
 import type { Coupon } from "@/hooks/useCoupons";
 import { buildPixPayload } from "@/lib/pixPayload";
+import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode } from "lucide-react";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
@@ -49,6 +50,18 @@ export default function TableOrderPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
+
+  // Automatic PIX state
+  const [autoPixPaymentId, setAutoPixPaymentId] = useState<string | null>(null);
+  const [autoPixQrCode, setAutoPixQrCode] = useState<string | null>(null);
+  const [autoPixLoading, setAutoPixLoading] = useState(false);
+  const { createCharge } = useCreatePixCharge();
+  const { paid: autoPixPaid } = useCheckPixStatus(
+    org?.id,
+    autoPixPaymentId,
+    orderId,
+    !!autoPixPaymentId && paymentMethod === "pix"
+  );
 
   const tableNum = parseInt(tableNumber || "0", 10);
 
@@ -190,8 +203,21 @@ export default function TableOrderPage() {
     setPaymentMethod(method);
     if (orderId) {
       const pixMode = org?.pix_confirmation_mode ?? "direct";
-      const newStatus = method === "pix" && pixMode === "manual" ? "awaiting_payment" : "pending";
+      const isAutomatic = method === "pix" && pixMode === "automatic";
+      const isManual = method === "pix" && pixMode === "manual";
+      const newStatus = (isAutomatic || isManual) ? "awaiting_payment" : "pending";
       await supabase.from("orders").update({ payment_method: method, status: newStatus } as never).eq("id", orderId);
+
+      // If automatic mode, create a charge via gateway
+      if (isAutomatic && org) {
+        setAutoPixLoading(true);
+        const result = await createCharge(org.id, orderId, orderTotal, `Pedido ${org.name}`);
+        if (result) {
+          setAutoPixPaymentId(result.payment_id);
+          setAutoPixQrCode(result.pix_copia_e_cola || result.qr_code);
+        }
+        setAutoPixLoading(false);
+      }
     }
   };
 
@@ -244,7 +270,109 @@ export default function TableOrderPage() {
     }
 
     // Step 2a: PIX chosen
-    if (paymentMethod === "pix" && pixPayload) {
+    if (paymentMethod === "pix") {
+      const pixMode = org.pix_confirmation_mode ?? "direct";
+      const isAutomatic = pixMode === "automatic";
+
+      // Automatic mode: show dynamic QR from gateway with polling
+      if (isAutomatic) {
+        if (autoPixLoading) {
+          return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+              <div className="text-center space-y-4">
+                <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+                <p className="text-muted-foreground">Gerando QR Code PIX...</p>
+              </div>
+            </div>
+          );
+        }
+
+        if (autoPixPaid) {
+          return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+              <div className="text-center space-y-4 max-w-sm w-full">
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+                <h1 className="text-2xl font-bold text-foreground">Pagamento confirmado! ✅</h1>
+                <p className="text-muted-foreground">Seu pedido foi enviado para a cozinha. Bom apetite! 🍽️</p>
+                <Button
+                  variant="ghost"
+                  onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); setAutoPixPaymentId(null); setAutoPixQrCode(null); }}
+                  className="w-full text-sm text-muted-foreground"
+                >
+                  Fazer outro pedido nesta mesa
+                </Button>
+              </div>
+            </div>
+          );
+        }
+
+        const dynamicQr = autoPixQrCode;
+        return (
+          <div className="min-h-screen bg-background flex items-center justify-center p-4">
+            <div className="text-center space-y-4 max-w-sm w-full">
+              <h1 className="text-2xl font-bold text-foreground">Pague com PIX</h1>
+              <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+                <p className="text-2xl font-black text-primary">
+                  R$ {orderTotal.toFixed(2).replace(".", ",")}
+                </p>
+                {dynamicQr ? (
+                  <>
+                    <div className="flex justify-center">
+                      <QRCodeSVG value={dynamicQr} size={200} />
+                    </div>
+                    <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Aguardando pagamento...
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        navigator.clipboard.writeText(dynamicQr);
+                        toast.success("Código PIX copiado!");
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5 mr-1.5" />
+                      Copiar código Pix
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-destructive">Erro ao gerar QR Code. Tente novamente.</p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); setAutoPixPaymentId(null); setAutoPixQrCode(null); }}
+                className="w-full text-sm text-muted-foreground"
+              >
+                Fazer outro pedido nesta mesa
+              </Button>
+            </div>
+          </div>
+        );
+      }
+
+      // Direct/Manual mode: show static QR from PIX key
+      if (!pixPayload) {
+        return (
+          <div className="min-h-screen bg-background flex items-center justify-center p-4">
+            <div className="text-center space-y-4 max-w-sm w-full">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+              <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
+              <p className="text-muted-foreground">PIX indisponível — chave não configurada.</p>
+              <Button
+                variant="ghost"
+                onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); }}
+                className="w-full text-sm text-muted-foreground"
+              >
+                Fazer outro pedido nesta mesa
+              </Button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
           <div className="text-center space-y-4 max-w-sm w-full">

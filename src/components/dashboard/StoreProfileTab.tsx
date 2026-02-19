@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Loader2, Copy, Check, X, Search } from "lucide-react";
+import { Camera, Loader2, Copy, Check, X, Search, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
 import { BusinessHours } from "@/hooks/useOrganization";
@@ -126,7 +126,29 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   const [logoRemoving, setLogoRemoving] = useState(false);
   const [logoUrl, setLogoUrl] = useState(organization.logo_url);
   const [copied, setCopied] = useState(false);
+  const [showToken, setShowToken] = useState(false);
+  const [gatewayProvider, setGatewayProvider] = useState("");
+  const [gatewayToken, setGatewayToken] = useState("");
+  const [secretsLoading, setSecretsLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load existing gateway secrets
+  useEffect(() => {
+    const loadSecrets = async () => {
+      setSecretsLoading(true);
+      const { data } = await supabase
+        .from("organization_secrets" as any)
+        .select("pix_gateway_provider, pix_gateway_token")
+        .eq("organization_id", organization.id)
+        .maybeSingle();
+      if (data) {
+        setGatewayProvider((data as any).pix_gateway_provider || "");
+        setGatewayToken((data as any).pix_gateway_token || "");
+      }
+      setSecretsLoading(false);
+    };
+    loadSecrets();
+  }, [organization.id]);
 
   const PUBLIC_BASE_URL = "https://trendfood.lovable.app";
   const publicUrl = `${PUBLIC_BASE_URL}/unidade/${form.slug}`;
@@ -159,6 +181,33 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           throw error;
         }
         return;
+      }
+
+      // Save gateway secrets if automatic mode
+      if (form.pix_confirmation_mode === "automatic" && gatewayProvider && gatewayToken) {
+        const { data: existing } = await supabase
+          .from("organization_secrets" as any)
+          .select("id")
+          .eq("organization_id", organization.id)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("organization_secrets" as any)
+            .update({
+              pix_gateway_provider: gatewayProvider,
+              pix_gateway_token: gatewayToken,
+            } as any)
+            .eq("organization_id", organization.id);
+        } else {
+          await supabase
+            .from("organization_secrets" as any)
+            .insert({
+              organization_id: organization.id,
+              pix_gateway_provider: gatewayProvider,
+              pix_gateway_token: gatewayToken,
+            } as any);
+        }
       }
 
       await refreshOrganization();
@@ -520,26 +569,117 @@ export default function StoreProfileTab({ organization }: { organization: Organi
 
             {/* Automático */}
             <label
-              className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-not-allowed opacity-50 ${
+              className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                 form.pix_confirmation_mode === "automatic"
                   ? "border-primary bg-primary/5"
-                  : "border-border"
+                  : "border-border hover:border-primary/30"
               }`}
             >
               <input
                 type="radio"
                 name="pix_mode"
                 value="automatic"
-                disabled
                 checked={form.pix_confirmation_mode === "automatic"}
+                onChange={() => setForm((p) => ({ ...p, pix_confirmation_mode: "automatic" }))}
                 className="mt-0.5"
               />
               <div>
                 <p className="text-sm font-semibold text-foreground">🤖 Automático (API)</p>
-                <p className="text-xs text-muted-foreground">Integrado com gateway de pagamento para verificar automaticamente. <span className="font-semibold text-primary">Em breve!</span></p>
+                <p className="text-xs text-muted-foreground">Integrado com gateway de pagamento para verificar automaticamente.</p>
               </div>
             </label>
           </div>
+
+          {/* Gateway config — shown when automatic mode is selected */}
+          {form.pix_confirmation_mode === "automatic" && (
+            <div className="mt-4 p-4 bg-secondary/50 rounded-xl border border-border space-y-4">
+              <p className="text-sm font-semibold text-foreground">⚙️ Configuração do Gateway</p>
+
+              {secretsLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Carregando...
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label className="text-xs font-medium mb-1 block">Provedor</Label>
+                    <Select value={gatewayProvider} onValueChange={setGatewayProvider}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o gateway" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mercadopago">Mercado Pago</SelectItem>
+                        <SelectItem value="pagseguro">PagSeguro / PagBank</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium mb-1 block">Access Token</Label>
+                    <div className="relative">
+                      <Input
+                        type={showToken ? "text" : "password"}
+                        value={gatewayToken}
+                        onChange={(e) => setGatewayToken(e.target.value)}
+                        placeholder={
+                          gatewayProvider === "mercadopago"
+                            ? "APP_USR-..."
+                            : gatewayProvider === "pagseguro"
+                            ? "Token PagSeguro"
+                            : "Selecione o provedor primeiro"
+                        }
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowToken(!showToken)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {gatewayProvider === "mercadopago" && (
+                    <p className="text-xs text-muted-foreground">
+                      Encontre seu Access Token em{" "}
+                      <a
+                        href="https://www.mercadopago.com.br/developers/panel/app"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                      >
+                        Mercado Pago Developers → Credenciais
+                      </a>
+                    </p>
+                  )}
+                  {gatewayProvider === "pagseguro" && (
+                    <p className="text-xs text-muted-foreground">
+                      Encontre seu token em{" "}
+                      <a
+                        href="https://minhaconta.pagseguro.uol.com.br/minha-conta/configuracoes"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                      >
+                        PagSeguro → Minha Conta → Configurações
+                      </a>
+                    </p>
+                  )}
+
+                  {!gatewayProvider || !gatewayToken ? (
+                    <p className="text-xs text-amber-600 font-medium">
+                      ⚠️ Selecione o provedor e cole o token para ativar a verificação automática.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-green-600 font-medium">
+                      ✅ Gateway configurado! Os pedidos PIX serão verificados automaticamente.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
