@@ -77,10 +77,12 @@ const UnitPage = () => {
   // Checkout form
   const [buyerName, setBuyerName] = useState("");
   const [address, setAddress] = useState("");
+  const [addressConfirm, setAddressConfirm] = useState("");
   const [payment, setPayment] = useState("");
   const [notes, setNotes] = useState("");
   const [nameError, setNameError] = useState(false);
   const [paymentError, setPaymentError] = useState(false);
+  const [addressError, setAddressError] = useState(false);
 
   useEffect(() => {
     if (!orgLoading && (isError || org === null)) navigate("/404");
