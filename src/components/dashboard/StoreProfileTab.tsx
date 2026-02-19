@@ -25,6 +25,7 @@ interface Organization {
   pix_key?: string | null;
   store_address?: string | null;
   delivery_config?: DeliveryConfig | null;
+  pix_confirmation_mode?: "direct" | "manual" | "automatic";
 }
 
 
@@ -111,6 +112,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     whatsapp: organization.whatsapp ?? "",
     pix_key: organization.pix_key ?? "",
     store_address: organization.store_address ?? "",
+    pix_confirmation_mode: organization.pix_confirmation_mode ?? "direct",
   });
   const [businessHours, setBusinessHours] = useState<BusinessHours>(
     organization.business_hours ?? DEFAULT_BUSINESS_HOURS
@@ -143,6 +145,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           primary_color: form.primary_color,
           whatsapp: form.whatsapp || null,
           pix_key: form.pix_key || null,
+          pix_confirmation_mode: form.pix_confirmation_mode,
           business_hours: businessHours as unknown as never,
           store_address: buildStoreAddress(addressFields) || null,
           delivery_config: deliveryConfig as unknown as never,
@@ -462,6 +465,81 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           <p className="text-xs text-muted-foreground mt-1">
             Quando cadastrada, o QR Code PIX com o valor total aparece automaticamente no comprovante de impressão.
           </p>
+        </div>
+
+        {/* PIX Confirmation Mode */}
+        <div className="mt-5">
+          <Label className="text-sm font-medium">Confirmação do PIX</Label>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+            Escolha como funciona a confirmação do pagamento PIX antes de enviar o pedido para a cozinha.
+          </p>
+          <div className="space-y-2">
+            {/* Direto */}
+            <label
+              className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                form.pix_confirmation_mode === "direct"
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/30"
+              }`}
+            >
+              <input
+                type="radio"
+                name="pix_mode"
+                value="direct"
+                checked={form.pix_confirmation_mode === "direct"}
+                onChange={() => setForm((p) => ({ ...p, pix_confirmation_mode: "direct" }))}
+                className="mt-0.5"
+              />
+              <div>
+                <p className="text-sm font-semibold text-foreground">⚡ Direto</p>
+                <p className="text-xs text-muted-foreground">O pedido vai direto pra cozinha. O PIX é apenas informativo.</p>
+              </div>
+            </label>
+
+            {/* Manual */}
+            <label
+              className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                form.pix_confirmation_mode === "manual"
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/30"
+              }`}
+            >
+              <input
+                type="radio"
+                name="pix_mode"
+                value="manual"
+                checked={form.pix_confirmation_mode === "manual"}
+                onChange={() => setForm((p) => ({ ...p, pix_confirmation_mode: "manual" }))}
+                className="mt-0.5"
+              />
+              <div>
+                <p className="text-sm font-semibold text-foreground">👋 Manual</p>
+                <p className="text-xs text-muted-foreground">O pedido fica aguardando até você confirmar que o PIX caiu. Só depois vai pra cozinha.</p>
+              </div>
+            </label>
+
+            {/* Automático */}
+            <label
+              className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-not-allowed opacity-50 ${
+                form.pix_confirmation_mode === "automatic"
+                  ? "border-primary bg-primary/5"
+                  : "border-border"
+              }`}
+            >
+              <input
+                type="radio"
+                name="pix_mode"
+                value="automatic"
+                disabled
+                checked={form.pix_confirmation_mode === "automatic"}
+                className="mt-0.5"
+              />
+              <div>
+                <p className="text-sm font-semibold text-foreground">🤖 Automático (API)</p>
+                <p className="text-xs text-muted-foreground">Integrado com gateway de pagamento para verificar automaticamente. <span className="font-semibold text-primary">Em breve!</span></p>
+              </div>
+            </label>
+          </div>
         </div>
       </div>
 

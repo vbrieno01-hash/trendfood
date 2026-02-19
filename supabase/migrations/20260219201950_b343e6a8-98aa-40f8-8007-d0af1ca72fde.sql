@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN pix_confirmation_mode text NOT NULL DEFAULT 'direct';

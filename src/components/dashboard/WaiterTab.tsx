@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useOrders, useUpdateOrderStatus, useDeliveredUnpaidOrders, useMarkAsPaid } from "@/hooks/useOrders";
+import { useOrders, useUpdateOrderStatus, useDeliveredUnpaidOrders, useMarkAsPaid, useAwaitingPaymentOrders, useConfirmPixPayment } from "@/hooks/useOrders";
 import type { Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
-import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer } from "lucide-react";
+import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode } from "lucide-react";
 import { printOrder } from "@/lib/printOrder";
 
 const fmtTime = (iso: string) =>
@@ -48,16 +48,20 @@ interface WaiterTabProps {
   whatsapp?: string | null;
   orgName?: string;
   pixKey?: string | null;
+  pixConfirmationMode?: "direct" | "manual" | "automatic";
 }
 
-export default function WaiterTab({ orgId, whatsapp, orgName, pixKey }: WaiterTabProps) {
+export default function WaiterTab({ orgId, whatsapp, orgName, pixKey, pixConfirmationMode }: WaiterTabProps) {
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
   const { data: unpaidOrders = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(orgId);
+  const { data: awaitingOrders = [], isLoading: loadingAwaiting } = useAwaitingPaymentOrders(orgId);
   const updateStatus = useUpdateOrderStatus(orgId, ["ready"]);
   const markAsPaid = useMarkAsPaid(orgId);
+  const confirmPix = useConfirmPixPayment(orgId);
 
   const [loadingDeliver, setLoadingDeliver] = useState<Set<string>>(new Set());
   const [loadingPay, setLoadingPay] = useState<Set<string>>(new Set());
+  const [loadingConfirmPix, setLoadingConfirmPix] = useState<Set<string>>(new Set());
 
   const handleDeliver = (id: string) => {
     if (loadingDeliver.has(id)) return;
@@ -92,10 +96,101 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixKey }: WaiterTa
     });
   };
 
-  const isLoading = loadingReady || loadingUnpaid;
+  const handleConfirmPix = (id: string) => {
+    if (loadingConfirmPix.has(id)) return;
+    setLoadingConfirmPix((prev) => new Set(prev).add(id));
+    confirmPix.mutate(id, {
+      onSettled: () => {
+        setLoadingConfirmPix((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      },
+    });
+  };
+
+  const isLoading = loadingReady || loadingUnpaid || loadingAwaiting;
+  const showAwaitingSection = pixConfirmationMode === "manual" && awaitingOrders.length > 0;
 
   return (
     <div className="space-y-8 max-w-4xl">
+      {/* ── SEÇÃO: Aguardando Pagamento PIX (modo manual) ─────────── */}
+      {showAwaitingSection && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <QrCode className="w-5 h-5 text-orange-600" />
+            <h2 className="font-bold text-foreground text-xl">Aguardando PIX</h2>
+            <span className="ml-1 text-sm font-semibold text-orange-700 bg-orange-100 border border-orange-200 rounded-full px-2.5 py-0.5">
+              {awaitingOrders.length}
+            </span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {awaitingOrders.map((order) => {
+              const busyPix = loadingConfirmPix.has(order.id);
+              const total = calcTotal(order);
+              return (
+                <div
+                  key={order.id}
+                  className="rounded-2xl border-2 border-orange-400 bg-card p-5 space-y-3 shadow-md shadow-orange-50"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold bg-orange-500 text-white rounded-full px-2.5 py-0.5">
+                          ⏳ PIX
+                        </span>
+                        <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
+                    </div>
+                    <span className="font-black text-orange-700 text-lg">{fmtBRL(total)}</span>
+                  </div>
+
+                  <ul className="space-y-1">
+                    {(order.order_items ?? []).map((item) => (
+                      <li key={item.id} className="flex items-center gap-2 text-sm text-foreground">
+                        <span className="w-6 h-6 rounded-md bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                          {item.quantity}×
+                        </span>
+                        <span>{item.name}</span>
+                        {(item as any).customer_name && (
+                          <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {order.notes && (
+                    <div className="bg-muted rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">Obs:</span> {order.notes}
+                    </div>
+                  )}
+
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700">
+                    ⚠️ Confirme que o PIX caiu na sua conta antes de liberar para a cozinha.
+                  </div>
+
+                  <Button
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold"
+                    disabled={busyPix}
+                    onClick={() => handleConfirmPix(order.id)}
+                  >
+                    {busyPix ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                      <>
+                        <QrCode className="w-4 h-4 mr-1.5" />
+                        Confirmar PIX — Enviar pra Cozinha
+                      </>
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── SEÇÃO: Prontos para entrega ───────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">

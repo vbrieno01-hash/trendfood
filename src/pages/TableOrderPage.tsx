@@ -189,7 +189,9 @@ export default function TableOrderPage() {
   const handleSelectPayment = async (method: "pix" | "card") => {
     setPaymentMethod(method);
     if (orderId) {
-      await supabase.from("orders").update({ payment_method: method } as never).eq("id", orderId);
+      const pixMode = org?.pix_confirmation_mode ?? "direct";
+      const newStatus = method === "pix" && pixMode === "manual" ? "awaiting_payment" : "pending";
+      await supabase.from("orders").update({ payment_method: method, status: newStatus } as never).eq("id", orderId);
     }
   };
 
