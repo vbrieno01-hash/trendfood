@@ -1,142 +1,71 @@
 
-# Controle de Caixa — Abertura, Fechamento, Sangrias e Relatório do Turno
+# Controle de Caixa — Implementação Completa
 
-## O que será construído
+## Situação atual
 
-Uma nova aba **"Caixa"** no dashboard da loja com fluxo completo de gestão de caixa:
+Nenhum dos 4 arquivos necessários foi criado. O plano aprovado precisa ser implementado do zero:
 
-- Abertura de caixa com saldo inicial em dinheiro
-- Registro de sangrias (retiradas durante o turno)
-- Painel do turno ativo: receita de pedidos, entradas, saídas e saldo projetado
-- Fechamento de caixa com saldo final informado e resumo do turno
-- Histórico dos últimos turnos encerrados
+- Sem migração de banco para `cash_sessions` e `cash_withdrawals`
+- Sem `src/hooks/useCashSession.ts`
+- Sem `src/components/dashboard/CaixaTab.tsx`
+- `DashboardPage.tsx` ainda sem a aba "Caixa"
 
----
+## O que será feito
 
-## Fluxo de estados da tela
+### 1. Migração SQL (banco de dados)
 
-```text
-┌────────────────────────┐     ┌─────────────────────────────────────────────┐
-│   Caixa Fechado        │     │   Turno Aberto                              │
-│                        │     │                                             │
-│  [💰 Abrir Caixa]      │────▶│  Saldo inicial: R$ 200,00                  │
-│                        │     │  Receita (pedidos pagos): R$ 850,00         │
-└────────────────────────┘     │  Sangrias: - R$ 100,00                      │
-                               │  Saldo projetado: R$ 950,00                 │
-                               │                                             │
-                               │  [+ Registrar Sangria]  [🔒 Fechar Caixa]  │
-                               └─────────────────────────────────────────────┘
-```
+Criar duas tabelas novas:
 
----
+**`cash_sessions`** — controla os turnos do caixa:
+- `id`, `organization_id`, `opened_at`, `closed_at` (null = turno ativo), `opening_balance`, `closing_balance`, `notes`, `created_at`
 
-## Banco de dados — nova tabela `cash_sessions`
+**`cash_withdrawals`** — registra as sangrias:
+- `id`, `session_id`, `organization_id`, `amount`, `reason`, `created_at`
 
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | uuid PK | Identificador único |
-| `organization_id` | uuid FK | Vínculo com a loja |
-| `opened_at` | timestamptz | Quando o caixa foi aberto |
-| `closed_at` | timestamptz nullable | Quando foi fechado (null = turno ativo) |
-| `opening_balance` | numeric | Saldo inicial informado |
-| `closing_balance` | numeric nullable | Saldo final informado no fechamento |
-| `notes` | text nullable | Observações opcionais |
-| `created_at` | timestamptz | Timestamp de criação |
+RLS seguindo o padrão das outras tabelas:
+- `SELECT`: público (mesma política de `orders`, `menu_items`, etc.)
+- `INSERT / UPDATE / DELETE`: somente o dono autenticado da organização
 
-Nova tabela `cash_withdrawals` para as sangrias:
+### 2. Hook `src/hooks/useCashSession.ts`
 
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | uuid PK | Identificador único |
-| `session_id` | uuid FK | Vinculado ao `cash_sessions.id` |
-| `organization_id` | uuid FK | Loja (para RLS simplificada) |
-| `amount` | numeric | Valor retirado |
-| `reason` | text nullable | Motivo da sangria |
-| `created_at` | timestamptz | Momento da retirada |
+Funções que o componente vai usar:
 
-### Políticas de RLS
+- `useActiveCashSession(orgId)` — busca turno ativo (sem `closed_at`) via react-query
+- `useCashWithdrawals(sessionId)` — lista sangrias do turno ativo
+- `useOpenCashSession()` — mutation para abrir caixa (INSERT em `cash_sessions`)
+- `useCloseCashSession()` — mutation para fechar caixa (UPDATE `closed_at` + `closing_balance`)
+- `useAddWithdrawal()` — mutation para registrar sangria
+- `useCashHistory(orgId)` — últimos 5 turnos encerrados
 
-Ambas as tabelas seguirão o mesmo padrão das outras tabelas do sistema:
-- `SELECT`: público (para facilitar exibição em terminais de cozinha/garçom)
-- `INSERT / UPDATE / DELETE`: apenas o dono autenticado da organização
+**Lógica do saldo projetado:**
+Calculada no componente a partir dos pedidos pagos (`orders` onde `paid = true` e `created_at >= session.opened_at`) já disponíveis via query existente de pedidos do dashboard.
 
----
+### 3. Componente `src/components/dashboard/CaixaTab.tsx`
 
-## Arquivos a criar/modificar
+**Estado A — Caixa Fechado:**
+- Card centralizado com campo "Saldo inicial (R$)" e botão "Abrir Caixa"
+- Tabela abaixo com histórico dos últimos 5 turnos (data/hora abertura, saldo inicial, saldo final, diferença)
 
-| Arquivo | Ação |
-|---|---|
-| `supabase/migrations/[timestamp].sql` | Nova tabela `cash_sessions`, `cash_withdrawals` + RLS |
-| `src/hooks/useCashSession.ts` | Hook novo: `useActiveCashSession`, `useOpenCashSession`, `useCloseCashSession`, `useCashWithdrawals`, `useAddWithdrawal`, `useCashHistory` |
-| `src/components/dashboard/CaixaTab.tsx` | Componente novo — a tela completa do caixa |
-| `src/pages/DashboardPage.tsx` | Adicionar `"caixa"` ao `TabKey`, ao array de nav e ao render condicional |
-
----
-
-## Detalhes da implementação
-
-### Hook `useCashSession.ts`
-
-```typescript
-// busca o turno aberto da org (sem closed_at)
-useActiveCashSession(orgId)
-
-// busca sangrias de um turno
-useCashWithdrawals(sessionId)
-
-// abre caixa: INSERT em cash_sessions
-useOpenCashSession(orgId)
-
-// fecha caixa: UPDATE cash_sessions SET closed_at, closing_balance
-useCloseCashSession(orgId)
-
-// insere sangria
-useAddWithdrawal(orgId, sessionId)
-
-// histórico dos últimos turnos fechados
-useCashHistory(orgId)
-```
-
-### Lógica de saldo projetado no turno ativo
-
-```
-saldoProjetado = opening_balance
-               + receita de pedidos PAGOS durante o turno (orders.paid = true, created_at >= opened_at)
-               - soma das sangrias do turno
-```
-
-A receita dos pedidos já está disponível via `useDeliveredOrders`, basta filtrar por `created_at >= session.opened_at`.
-
-### CaixaTab — estrutura de seções
-
-**Estado: caixa fechado**
-- Card simples com botão "Abrir Caixa" e campo para saldo inicial
-- Tabela dos últimos 5 turnos encerrados (data, saldo inicial, saldo final, total de vendas)
-
-**Estado: turno ativo**
-- Hero card verde com saldo projetado atual (atualizado em tempo real via react-query refetch)
+**Estado B — Turno Ativo:**
+- Hero card verde com saldo projetado em destaque (atualizado a cada 30s via `refetchInterval`)
 - Grid 2×2 de métricas: Saldo inicial | Receita do turno | Total sangrias | Saldo projetado
-- Botão "Registrar Sangria" → modal com campo de valor e motivo
-- Lista de sangrias do turno atual
-- Botão "Fechar Caixa" → modal de confirmação com campo de saldo final e resumo
+- Seção de sangrias: lista das sangrias do turno + botão "Registrar Sangria"
+- Modal de sangria: campos valor (numérico) e motivo (texto livre)
+- Botão "Fechar Caixa" → modal com resumo do turno + campo para saldo final contado fisicamente + campo de observações
 
-### Posição na sidebar
+### 4. Atualizar `src/pages/DashboardPage.tsx`
 
-A aba "Caixa" será adicionada em `navItemsOps` (seção Operações), junto com Cozinha e Garçom — pois é uma função operacional do dia-a-dia.
-
-```text
-Operações
-  🔥 Cozinha (KDS)
-  🔔 Painel do Garçom
-  💵 Caixa           ← novo
-```
-
----
+- Adicionar `"caixa"` ao tipo `TabKey`
+- Inserir item na seção `navItemsOps`:
+  ```
+  { key: "caixa", icon: <Wallet />, label: "Caixa" }
+  ```
+- Adicionar render condicional: `{activeTab === "caixa" && <CaixaTab orgId={organization.id} />}`
+- Importar `CaixaTab` e ícone `Wallet` do lucide-react
 
 ## Sequência de execução
 
-1. Criar migração SQL com as duas tabelas e políticas RLS
-2. Criar `src/hooks/useCashSession.ts` com todos os hooks
-3. Criar `src/components/dashboard/CaixaTab.tsx` com toda a UI
-4. Atualizar `src/pages/DashboardPage.tsx` para registrar a nova aba
-
+1. Criar migração SQL com as duas tabelas + RLS + índices
+2. Criar `src/hooks/useCashSession.ts`
+3. Criar `src/components/dashboard/CaixaTab.tsx`
+4. Atualizar `src/pages/DashboardPage.tsx`
