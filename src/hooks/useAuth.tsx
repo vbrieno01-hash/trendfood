@@ -14,6 +14,7 @@ interface Organization {
   created_at: string;
   whatsapp?: string | null;
   subscription_status: string;
+  onboarding_done: boolean;
 }
 
 interface AuthContextType {

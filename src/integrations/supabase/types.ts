@@ -281,6 +281,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          onboarding_done: boolean
           pix_key: string | null
           primary_color: string
           slug: string
@@ -298,6 +299,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          onboarding_done?: boolean
           pix_key?: string | null
           primary_color?: string
           slug: string
@@ -315,6 +317,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          onboarding_done?: boolean
           pix_key?: string | null
           primary_color?: string
           slug?: string

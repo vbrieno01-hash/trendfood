@@ -215,8 +215,10 @@ const FEATURES: Feature[] = [
   {
     icon: <Sparkles className="w-5 h-5" />,
     title: "Onboarding Guiado",
-    description: "Wizard passo a passo para novas lojas configurarem cardápio, horários e pagamentos em minutos.",
-    status: "soon",
+    description: "Wizard passo a passo para novas lojas configurarem nome, endereço, horários e primeiro item do cardápio.",
+    status: "available",
+    actionLabel: "Ver no dashboard",
+    actionHref: "/dashboard",
   },
   {
     icon: <DollarSign className="w-5 h-5" />,
