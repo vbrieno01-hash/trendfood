@@ -93,12 +93,3 @@
     @apply bg-background text-foreground;
   }
 }
-
-@keyframes float {
-  from {
-    transform: translateY(0px) rotate(-5deg);
-  }
-  to {
-    transform: translateY(-18px) rotate(5deg);
-  }
-}
