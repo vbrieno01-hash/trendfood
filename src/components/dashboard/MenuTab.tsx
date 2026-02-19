@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +40,7 @@ const EMPTY_FORM: MenuItemInput = {
   image_url: null,
 };
 
-export default function MenuTab({ organization }: { organization: Organization }) {
+export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
   const { data: items = [], isLoading } = useMenuItems(organization.id);
   const addMutation = useAddMenuItem(organization.id);
   const updateMutation = useUpdateMenuItem(organization.id);
@@ -60,7 +61,14 @@ export default function MenuTab({ organization }: { organization: Organization }
   const totalItems = items.length;
   const totalCategories = grouped.length;
 
+  const { toast } = useToast();
+  const limitReached = menuItemLimit != null && items.length >= menuItemLimit;
+
   const openCreate = () => {
+    if (limitReached) {
+      toast({ title: "Limite de itens atingido", description: "Faça upgrade para adicionar mais itens ao cardápio.", variant: "destructive" });
+      return;
+    }
     setEditItem(null);
     setForm(EMPTY_FORM);
     setImagePreview(null);
@@ -132,10 +140,10 @@ export default function MenuTab({ organization }: { organization: Organization }
         <div>
           <h1 className="text-2xl font-bold text-foreground">Meu Cardápio</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {isLoading ? "…" : `${totalItems} ${totalItems === 1 ? "item" : "itens"} · ${totalCategories} ${totalCategories === 1 ? "categoria" : "categorias"}`}
+            {isLoading ? "…" : `${totalItems} ${totalItems === 1 ? "item" : "itens"}${menuItemLimit != null ? ` / ${menuItemLimit}` : ""} · ${totalCategories} ${totalCategories === 1 ? "categoria" : "categorias"}`}
           </p>
         </div>
-        <Button onClick={openCreate} size="sm" className="gap-1.5 h-9">
+        <Button onClick={openCreate} size="sm" className="gap-1.5 h-9" disabled={limitReached}>
           <Plus className="w-4 h-4" />
           Novo item
         </Button>

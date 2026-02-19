@@ -7,8 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download,
-  History, Tag, BarChart2, Wallet
+  History, Tag, BarChart2, Wallet, Lock
 } from "lucide-react";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -34,6 +36,7 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, organization, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization } = useAuth();
+  const planLimits = usePlanLimits(organization);
   const initialTab = (location.state as { tab?: string })?.tab === "tables" ? "tables" : "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -131,19 +134,27 @@ const DashboardPage = () => {
     );
   }
 
-  const navItemsTop: { key: TabKey; icon: React.ReactNode; label: string }[] = [
+  const lockedFeatures: Record<string, boolean> = {
+    coupons: !planLimits.canAccess("cupons"),
+    bestsellers: !planLimits.canAccess("bestsellers"),
+    kitchen: !planLimits.canAccess("kds"),
+    waiter: !planLimits.canAccess("waiter"),
+    caixa: !planLimits.canAccess("caixa"),
+  };
+
+  const navItemsTop: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] = [
     { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
     { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Meu Cardápio" },
     { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas" },
     { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
-    { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons" },
-    { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos" },
+    { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
+    { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
   ];
 
-  const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string }[] = [
-    { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)" },
-    { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Painel do Garçom" },
-    { key: "caixa", icon: <Wallet className="w-4 h-4" />, label: "Caixa" },
+  const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] = [
+    { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
+    { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Painel do Garçom", locked: lockedFeatures.waiter },
+    { key: "caixa", icon: <Wallet className="w-4 h-4" />, label: "Caixa", locked: lockedFeatures.caixa },
   ];
 
   const navItemsBottom: { key: TabKey; icon: React.ReactNode; label: string }[] = [
@@ -235,7 +246,8 @@ const DashboardPage = () => {
               className={navBtnClass(item.key)}
             >
               {item.icon}
-              {item.label}
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
             </button>
           ))}
 
@@ -251,7 +263,8 @@ const DashboardPage = () => {
               className={navBtnClass(item.key)}
             >
               {item.icon}
-              {item.label}
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
             </button>
           ))}
 
@@ -341,14 +354,24 @@ const DashboardPage = () => {
           )}
 
           {activeTab === "home" && <HomeTab organization={organization} />}
-          {activeTab === "menu" && <MenuTab organization={organization} />}
-          {activeTab === "tables" && <TablesTab organization={organization} />}
-          {activeTab === "history" && <HistoryTab orgId={organization.id} />}
-          {activeTab === "coupons" && <CouponsTab orgId={organization.id} />}
-          {activeTab === "bestsellers" && <BestSellersTab orgId={organization.id} />}
-          {activeTab === "kitchen" && <KitchenTab orgId={organization.id} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />}
-          {activeTab === "waiter" && <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />}
-          {activeTab === "caixa" && <CaixaTab orgId={organization.id} />}
+          {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} />}
+          {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
+          {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
+          {activeTab === "coupons" && (lockedFeatures.coupons
+            ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." />
+            : <CouponsTab orgId={organization.id} />)}
+          {activeTab === "bestsellers" && (lockedFeatures.bestsellers
+            ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." />
+            : <BestSellersTab orgId={organization.id} />)}
+          {activeTab === "kitchen" && (lockedFeatures.kitchen
+            ? <UpgradePrompt title="Painel da Cozinha (KDS)" description="Gerencie pedidos em tempo real com o KDS. Disponível nos planos Pro e Enterprise." />
+            : <KitchenTab orgId={organization.id} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />)}
+          {activeTab === "waiter" && (lockedFeatures.waiter
+            ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." />
+            : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixKey={(organization as { pix_key?: string | null }).pix_key} />)}
+          {activeTab === "caixa" && (lockedFeatures.caixa
+            ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." />
+            : <CaixaTab orgId={organization.id} />)}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
