@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
+import logoIcon from "@/assets/logo-icon.png";
 import {
-  ChefHat,
   BarChart3,
   Zap,
   ArrowRight,
@@ -152,9 +152,7 @@ const Index = () => {
         <header className="relative z-10 border-b border-white/10">
           <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <ChefHat className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
               <span className="font-bold text-white text-lg">TrendFood</span>
             </div>
             <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent" asChild>
@@ -342,9 +340,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border/60 py-8 px-4 text-center text-muted-foreground text-sm bg-background">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
-            <ChefHat className="w-3 h-3 text-primary-foreground" />
-          </div>
+          <img src={logoIcon} alt="TrendFood" className="w-6 h-6 rounded-md object-contain" />
           <span className="font-semibold text-foreground">TrendFood</span>
         </div>
         <p>© 2025 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
