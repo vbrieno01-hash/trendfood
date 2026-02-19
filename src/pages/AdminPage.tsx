@@ -26,6 +26,128 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+// ── Report types ──
+interface ReportRow {
+  org: OrgRow;
+  totalOrders: number;
+  paidOrders: number;
+  revenue: number;
+  avgTicket: number;
+  topItems: { name: string; qty: number }[];
+}
+
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+function generateMonthOptions() {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    options.push({ value, label });
+  }
+  return options;
+}
+
+function generatePdf(row: ReportRow, monthLabel: string) {
+  const win = window.open("", "_blank", "width=800,height=600");
+  if (!win) return;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Relatório Mensal – ${row.org.name}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; padding: 40px; }
+    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f97316; padding-bottom: 20px; margin-bottom: 32px; }
+    .brand { font-size: 22px; font-weight: 800; color: #f97316; letter-spacing: -0.5px; }
+    .store { text-align: right; }
+    .store-name { font-size: 18px; font-weight: 700; }
+    .store-month { font-size: 13px; color: #666; margin-top: 2px; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 8px; }
+    .card-value { font-size: 22px; font-weight: 800; color: #111; }
+    .card-value.revenue { color: #16a34a; }
+    .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #555; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 12px; color: #888; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }
+    td { font-size: 13px; padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
+    tr:last-child td { border-bottom: none; }
+    .rank { width: 32px; height: 32px; border-radius: 50%; background: #f97316; color: #fff; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+    .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-size: 11px; color: #aaa; display: flex; justify-content: space-between; }
+    .no-data { text-align: center; color: #aaa; font-size: 13px; padding: 24px 0; }
+    @media print {
+      body { padding: 20px; }
+      .no-print { display: none !important; }
+      @page { margin: 1cm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">TrendFood</div>
+    <div class="store">
+      <div class="store-name">${row.org.emoji} ${row.org.name}</div>
+      <div class="store-month">Relatório de ${monthLabel}</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Faturamento</div>
+      <div class="card-value revenue">${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(row.revenue)}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Pedidos Pagos</div>
+      <div class="card-value">${row.paidOrders}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Ticket Médio</div>
+      <div class="card-value">${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(row.avgTicket)}</div>
+    </div>
+  </div>
+
+  <div class="section-title">Top 5 Itens Mais Vendidos</div>
+  ${row.topItems.length === 0
+    ? `<div class="no-data">Nenhum item registrado neste período.</div>`
+    : `<table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Item</th>
+        <th>Quantidade</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${row.topItems.map((item, i) => `
+      <tr>
+        <td><span class="rank">${i + 1}</span></td>
+        <td>${item.name}</td>
+        <td><strong>${item.qty}</strong></td>
+      </tr>`).join("")}
+    </tbody>
+  </table>`}
+
+  <div class="footer">
+    <span>trendfood.com.br</span>
+    <span>Gerado em ${new Date().toLocaleString("pt-BR")}</span>
+  </div>
+
+`;
+  const scriptTag = `<script>window.onload = () => window.print();</` + `script>`;
+  const fullHtml = html + scriptTag + `\n</body>\n</html>`;
+
+  win.document.write(fullHtml);
+  win.document.close();
+}
+
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -107,8 +229,10 @@ const FEATURES: Feature[] = [
   {
     icon: <FileText className="w-5 h-5" />,
     title: "Relatório PDF Mensal",
-    description: "Relatório automático por e-mail com faturamento, pedidos e ticket médio do mês.",
-    status: "planned",
+    description: "Gere relatórios mensais por loja com faturamento, pedidos e ticket médio diretamente no painel admin.",
+    status: "available",
+    actionLabel: "Ver relatório",
+    actionHref: "/admin",
   },
 ];
 
@@ -136,6 +260,8 @@ export default function AdminPage() {
   return <AdminContent />;
 }
 
+const MONTH_OPTIONS = generateMonthOptions();
+
 function AdminContent() {
   const { user } = useAuth();
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
@@ -143,6 +269,11 @@ function AdminContent() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "trial">("all");
   const [addressFilter, setAddressFilter] = useState<"all" | "with" | "without">("all");
+
+  // ── Report state ──
+  const [reportMonth, setReportMonth] = useState(() => MONTH_OPTIONS[0].value);
+  const [reportData, setReportData] = useState<ReportRow[]>([]);
+  const [loadingReport, setLoadingReport] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -193,6 +324,52 @@ function AdminContent() {
     }
     load();
   }, []);
+
+  // ── Load report data when month or orgs change ──
+  useEffect(() => {
+    if (orgs.length === 0) return;
+    async function loadReport() {
+      setLoadingReport(true);
+      const [year, month] = reportMonth.split("-").map(Number);
+      const start = new Date(year, month - 1, 1).toISOString();
+      const end = new Date(year, month, 1).toISOString();
+
+      const { data: ordersData } = await supabase
+        .from("orders")
+        .select("id, organization_id, status, paid, order_items(name, price, quantity)")
+        .gte("created_at", start)
+        .lt("created_at", end);
+
+      const rows: ReportRow[] = orgs.map((org) => {
+        const orgOrders = (ordersData ?? []).filter((o) => o.organization_id === org.id);
+        const totalOrders = orgOrders.filter((o) => o.status === "delivered").length;
+        const paidOrders = orgOrders.filter((o) => o.paid).length;
+
+        const paidOrderItems = orgOrders
+          .filter((o) => o.paid)
+          .flatMap((o) => (o.order_items as { name: string; price: number; quantity: number }[]));
+
+        const revenue = paidOrderItems.reduce((s, i) => s + i.price * i.quantity, 0);
+        const avgTicket = paidOrders > 0 ? revenue / paidOrders : 0;
+
+        // Aggregate top items
+        const itemMap: Record<string, number> = {};
+        paidOrderItems.forEach((i) => {
+          itemMap[i.name] = (itemMap[i.name] ?? 0) + i.quantity;
+        });
+        const topItems = Object.entries(itemMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, qty]) => ({ name, qty }));
+
+        return { org, totalOrders, paidOrders, revenue, avgTicket, topItems };
+      });
+
+      setReportData(rows);
+      setLoadingReport(false);
+    }
+    loadReport();
+  }, [reportMonth, orgs]);
 
   // KPIs (always from full orgs)
   const totalOrders = orgs.reduce((s, o) => s + o.orders_count, 0);
@@ -402,6 +579,80 @@ function AdminContent() {
               {filteredOrgs.map((org) => (
                 <StoreCard key={org.id} org={org} />
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Monthly Report ── */}
+        <section id="relatorio-mensal">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4 text-muted-foreground" />
+              Relatório Mensal por Loja
+            </h2>
+            <select
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+              className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {MONTH_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {loading || loadingReport ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
+            </div>
+          ) : reportData.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              Nenhuma loja cadastrada.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {reportData.map((row) => {
+                const monthLabel = MONTH_OPTIONS.find((o) => o.value === reportMonth)?.label ?? reportMonth;
+                return (
+                  <div key={row.org.id} className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-4">
+                    {/* Store header */}
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl ${getAvatarColor(row.org.name)} flex items-center justify-center text-white font-bold text-base shrink-0`}>
+                        {row.org.emoji !== "🍽️" ? row.org.emoji : row.org.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{row.org.name}</p>
+                        <p className="text-xs text-muted-foreground">{monthLabel}</p>
+                      </div>
+                    </div>
+
+                    {/* Metrics */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-muted/40 rounded-xl p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Faturamento</p>
+                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{fmt(row.revenue)}</p>
+                      </div>
+                      <div className="bg-muted/40 rounded-xl p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Pedidos</p>
+                        <p className="text-sm font-bold text-foreground leading-tight">{row.paidOrders}</p>
+                      </div>
+                      <div className="bg-muted/40 rounded-xl p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Ticket Médio</p>
+                        <p className="text-sm font-bold text-foreground leading-tight">{fmt(row.avgTicket)}</p>
+                      </div>
+                    </div>
+
+                    {/* Generate PDF button */}
+                    <button
+                      onClick={() => generatePdf(row, monthLabel)}
+                      className="mt-auto flex items-center justify-center gap-2 w-full text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 transition-colors rounded-xl py-2.5 px-4"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Gerar PDF
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
