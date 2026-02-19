@@ -69,6 +69,9 @@ const UnitPage = () => {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
+  // Item detail drawer
+  const [selectedItem, setSelectedItem] = useState<typeof menuItems[0] | null>(null);
+
   // Category navigation
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const categoryNavRef = useRef<HTMLDivElement>(null);
@@ -379,10 +382,11 @@ const UnitPage = () => {
                           return (
                             <div
                               key={item.id}
-                              className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col transition-opacity ${!item.available ? "opacity-60" : ""}`}
+                              onClick={() => item.available && setSelectedItem(item)}
+                              className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col transition-opacity ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97] transition-transform"}`}
                             >
-                              {/* Foto quadrada */}
-                              <div className="aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
+                              {/* Foto quadrada + badge de qty */}
+                              <div className="relative aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
                                 {item.image_url ? (
                                   <img
                                     src={item.image_url}
@@ -391,6 +395,14 @@ const UnitPage = () => {
                                   />
                                 ) : (
                                   <ImageOff className="w-5 h-5 text-muted-foreground opacity-30" />
+                                )}
+                                {qty > 0 && (
+                                  <span
+                                    className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow"
+                                    style={{ backgroundColor: primaryColor }}
+                                  >
+                                    {qty}
+                                  </span>
                                 )}
                               </div>
 
@@ -407,7 +419,7 @@ const UnitPage = () => {
                                 {item.available && (
                                   qty === 0 ? (
                                     <button
-                                      onClick={() => addToCart(item)}
+                                      onClick={(e) => { e.stopPropagation(); addToCart(item); }}
                                       className="mt-auto w-full flex items-center justify-center gap-0.5 py-1 rounded-lg text-[10px] font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
                                       style={{ backgroundColor: primaryColor }}
                                     >
@@ -417,14 +429,14 @@ const UnitPage = () => {
                                   ) : (
                                     <div className="mt-auto flex items-center justify-between w-full">
                                       <button
-                                        onClick={() => removeFromCart(item.id)}
+                                        onClick={(e) => { e.stopPropagation(); removeFromCart(item.id); }}
                                         className="w-5 h-5 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
                                       >
                                         <Minus className="w-2.5 h-2.5" />
                                       </button>
                                       <span className="text-xs font-bold">{qty}</span>
                                       <button
-                                        onClick={() => addToCart(item)}
+                                        onClick={(e) => { e.stopPropagation(); addToCart(item); }}
                                         className="w-5 h-5 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
                                         style={{ backgroundColor: primaryColor }}
                                       >
@@ -766,6 +778,84 @@ const UnitPage = () => {
           </div>
         </div>
       )}
+
+      {/* ── ITEM DETAIL DRAWER ── */}
+      <Drawer open={selectedItem !== null} onClose={() => setSelectedItem(null)}>
+        <DrawerContent className="max-h-[90vh]">
+          {selectedItem && (() => {
+            const qty = cart[selectedItem.id]?.qty ?? 0;
+            return (
+              <>
+                {/* Foto */}
+                <div className="w-full aspect-video bg-secondary overflow-hidden">
+                  {selectedItem.image_url ? (
+                    <img
+                      src={selectedItem.image_url}
+                      alt={selectedItem.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageOff className="w-10 h-10 text-muted-foreground opacity-30" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Conteúdo */}
+                <div className="p-5 space-y-3 overflow-y-auto">
+                  <h2 className="text-lg font-bold text-foreground leading-snug">{selectedItem.name}</h2>
+                  {selectedItem.description && (
+                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedItem.description}</p>
+                  )}
+                  <p className="text-xl font-bold" style={{ color: primaryColor }}>
+                    {fmt(selectedItem.price)}
+                  </p>
+                </div>
+
+                {/* Ação */}
+                <div className="px-5 pb-6">
+                  {qty === 0 ? (
+                    <button
+                      onClick={() => { addToCart(selectedItem); setSelectedItem(null); }}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar ao carrinho
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4 flex-1 bg-secondary rounded-xl px-4 py-2.5">
+                        <button
+                          onClick={() => removeFromCart(selectedItem.id)}
+                          className="w-7 h-7 rounded-full bg-background shadow flex items-center justify-center hover:bg-muted transition-colors"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="flex-1 text-center font-bold text-base">{qty}</span>
+                        <button
+                          onClick={() => addToCart(selectedItem)}
+                          className="w-7 h-7 rounded-full text-white shadow flex items-center justify-center transition-colors"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setSelectedItem(null)}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        Confirmar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
