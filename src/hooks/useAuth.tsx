@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -84,25 +84,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await fetchOrganization(userId);
   };
 
-  const checkSubscription = useCallback(async (session: Session | null) => {
-    if (!session?.access_token) return;
-    try {
-      const { data, error } = await supabase.functions.invoke("check-subscription", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!error && data && !data.error && isMounted.current) {
-        // Refresh org to pick up synced subscription data
-        if (session.user) await fetchOrganization(session.user.id);
-      }
-    } catch {
-      // silent fail
-    }
-  }, []);
-
   useEffect(() => {
     isMounted.current = true;
 
-    // 1. Set up listener FIRST — no awaits inside the callback (prevents Supabase auth lock deadlock)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         if (!isMounted.current) return;
@@ -126,7 +110,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // 2. Get initial session — responsible for setting loading = false
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (!isMounted.current) return;
       setSession(initialSession);
@@ -134,27 +117,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (initialSession?.user) {
         fetchOrganization(initialSession.user.id).then(() => {
           if (isMounted.current) setLoading(false);
-          // Check subscription after org loaded
-          checkSubscription(initialSession);
         });
       } else {
         setLoading(false);
       }
     });
 
-    // 3. Periodic subscription check every 60s
-    const intervalId = setInterval(() => {
-      supabase.auth.getSession().then(({ data: { session: s } }) => {
-        if (s && isMounted.current) checkSubscription(s);
-      });
-    }, 60_000);
-
     return () => {
       isMounted.current = false;
       subscription.unsubscribe();
-      clearInterval(intervalId);
     };
-  }, [checkSubscription]);
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();

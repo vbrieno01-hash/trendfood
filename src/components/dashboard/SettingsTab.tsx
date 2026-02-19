@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,13 +14,12 @@ import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap } from "lucide-re
 import { toast } from "sonner";
 
 export default function SettingsTab() {
-  const { user, session, organization, signOut } = useAuth();
+  const { user, organization, signOut } = useAuth();
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
 
   const currentPlan = organization?.subscription_plan || "free";
   const isFree = currentPlan === "free";
@@ -32,45 +30,8 @@ export default function SettingsTab() {
     enterprise: "Enterprise",
   };
 
-  const handleManageSubscription = async () => {
-    if (isFree) {
-      navigate("/planos");
-      return;
-    }
-    setPortalLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("customer-portal", {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-
-      if (error) {
-        if (error instanceof FunctionsHttpError) {
-          const errorBody = await error.context.json();
-          if (errorBody?.error?.includes("No Stripe customer found")) {
-            toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar.");
-            navigate("/planos");
-            return;
-          }
-          throw new Error(errorBody?.error || "Erro ao abrir portal.");
-        }
-        throw error;
-      }
-
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
-    } catch (err: unknown) {
-      const error = err as { message?: string };
-      const msg = error.message ?? "";
-      if (msg.includes("No Stripe customer found")) {
-        toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar sua assinatura.");
-        navigate("/planos");
-      } else {
-        toast.error(msg || "Erro ao abrir portal de assinatura.");
-      }
-    } finally {
-      setPortalLoading(false);
-    }
+  const handleManageSubscription = () => {
+    navigate("/planos");
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -154,15 +115,12 @@ export default function SettingsTab() {
             variant={isFree ? "default" : "outline"}
             size="sm"
             onClick={handleManageSubscription}
-            disabled={portalLoading}
             className="h-9 gap-2"
           >
-            {portalLoading ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Abrindo...</>
-            ) : isFree ? (
+            {isFree ? (
               <><Zap className="w-4 h-4" /> Fazer upgrade</>
             ) : (
-              "Gerenciar assinatura"
+              "Trocar plano"
             )}
           </Button>
         </div>
