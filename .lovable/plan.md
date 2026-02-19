@@ -1,81 +1,78 @@
 
-# Integrar Stripe para Pagamento de Assinaturas
+
+# Implementar Pagamento com Stripe
 
 ## Resumo
 
-Quando o cliente clicar em "Assinar Pro" ou "Assinar Enterprise", ele sera redirecionado para uma pagina de checkout do Stripe. Apos o pagamento, o Stripe notifica o sistema via webhook, que atualiza automaticamente o plano da organizacao no banco de dados.
+O Stripe ja esta habilitado e os produtos foram criados:
+- **Pro**: R$ 99/mes (price_1T2c1KLp69ds1uZn22cFIqbO / prod_U0dHItuetrHRdN)
+- **Enterprise**: R$ 249/mes (price_1T2c2WLp69ds1uZnFUojrhIp / prod_U0dJWUh6LviRiy)
+
+Agora vamos implementar o fluxo completo de checkout e verificacao de assinatura.
 
 ## Fluxo do usuario
 
 ```text
-Dashboard -> Clica "Assinar Pro" -> Pagina de Planos
-  -> Clica no botao do plano -> Redirecionado ao Checkout Stripe
-    -> Paga com cartao -> Stripe confirma
-      -> Webhook atualiza subscription_plan e subscription_status
-        -> Usuario volta ao Dashboard com plano ativo
+Pagina de Planos -> Clica "Assinar Pro"
+  -> Edge function cria sessao no Stripe
+    -> Redireciona para checkout do Stripe
+      -> Paga com cartao
+        -> Volta ao dashboard com ?checkout=success
+          -> check-subscription sincroniza o plano no banco
 ```
 
 ## O que sera feito
 
-### 1. Habilitar integracao Stripe
-- Conectar o Stripe ao projeto usando a integracao nativa do Lovable
-- Configurar produtos e precos (Pro R$99/mes, Enterprise R$249/mes)
+### 1. Configurar edge functions no config.toml
+- Adicionar entradas para `create-checkout`, `check-subscription` e `customer-portal` com `verify_jwt = false`
 
-### 2. Edge Function: create-checkout (nova)
-- Recebe o plano desejado (pro/enterprise) e o ID da organizacao
-- Cria uma sessao de checkout no Stripe com:
-  - Preco correto do plano
-  - URL de sucesso (volta ao dashboard)
-  - URL de cancelamento (volta a pagina de planos)
-  - Metadata com org_id para identificar a organizacao no webhook
-- Retorna a URL do checkout para o frontend
+### 2. Edge Function: create-checkout
+- Autentica o usuario via token
+- Recebe o plano desejado (pro/enterprise) e o orgId
+- Busca ou cria customer no Stripe pelo email
+- Cria sessao de checkout com o preco correto
+- Retorna URL do checkout para redirecionamento
 
-### 3. Edge Function: stripe-webhook (nova)
-- Escuta eventos do Stripe (checkout.session.completed, customer.subscription.updated, customer.subscription.deleted)
-- Quando o pagamento e confirmado:
-  - Atualiza `subscription_plan` para "pro" ou "enterprise"
-  - Atualiza `subscription_status` para "active"
-  - Remove `trial_ends_at` (nao precisa mais de trial)
-- Quando a assinatura e cancelada:
-  - Atualiza `subscription_plan` para "free"
-  - Atualiza `subscription_status` para "active" (volta ao plano gratis)
+### 3. Edge Function: check-subscription
+- Autentica o usuario via token
+- Busca customer no Stripe pelo email
+- Verifica se tem assinatura ativa
+- Identifica o plano pelo product ID
+- Sincroniza subscription_plan e subscription_status na tabela organizations
+- Chamada no login, ao carregar a pagina e periodicamente
 
-### 4. Atualizar pagina de Planos (PricingPage.tsx)
-- Para usuarios logados: botao "Assinar Pro" chama a edge function create-checkout e redireciona ao Stripe
-- Para usuarios nao logados: botao continua redirecionando para /auth (cadastro)
-- Adicionar estado de loading no botao durante o redirecionamento
+### 4. Edge Function: customer-portal
+- Permite ao usuario gerenciar sua assinatura (cancelar, trocar cartao)
+- Cria sessao do Stripe Customer Portal
+- Retorna URL para redirecionamento
 
 ### 5. Atualizar PlanCard.tsx
-- Aceitar uma prop `onSelect` opcional (callback ao clicar)
-- Quando `onSelect` esta presente, usar onClick em vez de Link
+- Aceitar prop `onSelect` opcional
+- Quando presente, renderizar botao com onClick em vez de Link
+- Aceitar prop `loading` para estado de carregamento
 
-### 6. Adicionar coluna stripe_customer_id na tabela organizations
-- Nova coluna para vincular a organizacao ao cliente Stripe
-- Permite gerenciar assinaturas futuras (cancelamento, upgrade, etc.)
+### 6. Atualizar PricingPage.tsx
+- Para usuarios logados: botao chama create-checkout e redireciona ao Stripe
+- Para usuarios nao logados: botao continua redirecionando para /auth
+- Estado de loading durante o redirecionamento
+- Destacar o plano atual do usuario (se ja assinante)
+
+### 7. Integrar check-subscription no AuthContext
+- Chamar check-subscription apos login e ao carregar sessao
+- Atualizar subscription_plan da organizacao no estado global
+- Refresh periodico a cada 60 segundos
 
 ## Detalhes tecnicos
 
-**Banco de dados (migracao):**
-- Adicionar coluna `stripe_customer_id` (text, nullable) na tabela `organizations`
-- Adicionar coluna `stripe_subscription_id` (text, nullable) na tabela `organizations`
+**Mapeamento de produtos Stripe:**
+```text
+pro:       price_1T2c1KLp69ds1uZn22cFIqbO / prod_U0dHItuetrHRdN
+enterprise: price_1T2c2WLp69ds1uZnFUojrhIp / prod_U0dJWUh6LviRiy
+```
 
-**Edge Function create-checkout:**
-- Verifica autenticacao do usuario
-- Busca ou cria customer no Stripe usando o email do usuario
-- Salva `stripe_customer_id` na organizacao
-- Cria sessao de checkout com mode: "subscription"
-- Retorna checkout URL
+**Edge functions usam:**
+- STRIPE_SECRET_KEY (ja configurado)
+- SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ja disponiveis)
 
-**Edge Function stripe-webhook:**
-- Valida assinatura do webhook usando STRIPE_WEBHOOK_SECRET
-- Processa eventos: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted
-- Usa service role key para atualizar a tabela organizations
+**Nenhuma migracao de banco necessaria** - o check-subscription sincroniza os campos subscription_plan e subscription_status ja existentes na tabela organizations.
 
-**Frontend (PricingPage.tsx):**
-- Importa `supabase` client
-- Chama `supabase.functions.invoke('create-checkout', { body: { plan, orgId } })`
-- Redireciona com `window.location.href = checkoutUrl`
-
-**Secrets necessarios:**
-- STRIPE_SECRET_KEY (chave secreta do Stripe)
-- STRIPE_WEBHOOK_SECRET (secret do webhook)
