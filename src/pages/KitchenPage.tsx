@@ -120,10 +120,10 @@ export default function KitchenPage() {
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        printOrder(order, org?.name);
+        printOrder(order, org?.name, org?.pix_key);
       }
     });
-  }, [orders, org?.name]);
+  }, [orders, org?.name, org?.pix_key]);
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function KitchenPage() {
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         title="Imprimir pedido"
-                        onClick={() => printOrder(order, org?.name)}
+                        onClick={() => printOrder(order, org?.name, org?.pix_key)}
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </Button>

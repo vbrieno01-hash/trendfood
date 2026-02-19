@@ -24,6 +24,7 @@ export interface Organization {
   created_at: string;
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
+  pix_key?: string | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {

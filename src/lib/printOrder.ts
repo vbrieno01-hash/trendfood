@@ -1,13 +1,71 @@
+import QRCode from "qrcode";
+
 export interface PrintableOrder {
   id: string;
   table_number: number;
   created_at: string;
   notes?: string | null;
-  order_items?: Array<{ id: string; name: string; quantity: number }>;
+  order_items?: Array<{ id: string; name: string; quantity: number; price?: number }>;
 }
 
-export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
-  const win = window.open("", "_blank", "width=400,height=600");
+// ─── PIX Payload Builder (EMV / QRCPS-MPM — Banco Central do Brasil) ─────────
+
+function emvField(id: string, value: string): string {
+  const len = value.length.toString().padStart(2, "0");
+  return `${id}${len}${value}`;
+}
+
+function crc16(payload: string): string {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+  }
+  return (crc & 0xffff).toString(16).toUpperCase().padStart(4, "0");
+}
+
+function buildPixPayload(pixKey: string, amount: number, storeName: string): string {
+  const merchantAccountInfo = emvField(
+    "26",
+    emvField("00", "BR.GOV.BCB.PIX") + emvField("01", pixKey)
+  );
+
+  const amountStr = amount.toFixed(2);
+  const storeNameClean = storeName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9 ]/g, "")
+    .substring(0, 25)
+    .toUpperCase()
+    .trim() || "LOJA";
+
+  let payload =
+    emvField("00", "01") +        // Payload Format Indicator
+    emvField("01", "12") +        // Point of Initiation Method (dynamic)
+    merchantAccountInfo +
+    emvField("52", "0000") +      // Merchant Category Code
+    emvField("53", "986") +       // Transaction Currency (BRL)
+    emvField("54", amountStr) +   // Transaction Amount
+    emvField("58", "BR") +        // Country Code
+    emvField("59", storeNameClean) + // Merchant Name
+    emvField("60", "SAO PAULO") + // Merchant City
+    emvField("62", emvField("05", "***")) + // Additional Data Field
+    "6304";                        // CRC placeholder
+
+  payload += crc16(payload);
+  return payload;
+}
+
+// ─── Main print function ───────────────────────────────────────────────────────
+
+export async function printOrder(
+  order: PrintableOrder,
+  storeName = "Cozinha",
+  pixKey?: string | null
+) {
+  const win = window.open("", "_blank", "width=400,height=700");
   if (!win) return; // blocked by popup blocker
 
   const date = new Date(order.created_at).toLocaleDateString("pt-BR", {
@@ -20,12 +78,15 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
     minute: "2-digit",
   });
 
-  const itemsHtml = (order.order_items ?? [])
+  const items = order.order_items ?? [];
+
+  const itemsHtml = items
     .map(
       (item) =>
         `<tr>
           <td class="qty">${item.quantity}x</td>
           <td class="name">${item.name}</td>
+          <td class="price">${item.price != null ? "R$ " + (item.quantity * item.price).toFixed(2).replace(".", ",") : ""}</td>
         </tr>`
     )
     .join("");
@@ -35,6 +96,37 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
     : "";
 
   const locationLabel = order.table_number === 0 ? "ENTREGA" : `MESA ${order.table_number}`;
+
+  // Calculate total
+  const total = items.reduce((sum, item) => {
+    return sum + (item.price != null ? item.quantity * item.price : 0);
+  }, 0);
+
+  const hasTotal = total > 0;
+  const totalHtml = hasTotal
+    ? `<div class="total">TOTAL: R$ ${total.toFixed(2).replace(".", ",")}</div>`
+    : "";
+
+  // Generate PIX QR Code
+  let pixHtml = "";
+  if (pixKey && hasTotal) {
+    try {
+      const pixPayload = buildPixPayload(pixKey, total, storeName);
+      const qrDataUrl = await QRCode.toDataURL(pixPayload, {
+        width: 200,
+        margin: 1,
+        errorCorrectionLevel: "M",
+      });
+      pixHtml = `
+        <div class="divider"></div>
+        <div class="pix-section">
+          <img src="${qrDataUrl}" alt="QR Code PIX" class="qr-img" />
+          <p class="pix-label">📱 Pague com Pix</p>
+        </div>`;
+    } catch {
+      // QR code generation failed — print without it
+    }
+  }
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -90,6 +182,12 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
       white-space: nowrap;
     }
     td.name { padding-left: 4px; }
+    td.price {
+      text-align: right;
+      white-space: nowrap;
+      font-size: 12px;
+      color: #333;
+    }
     .notes {
       margin-top: 6px;
       font-size: 12px;
@@ -97,6 +195,28 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
       border: 1px solid #ccc;
       padding: 4px 6px;
       border-radius: 2px;
+    }
+    .total {
+      font-size: 16px;
+      font-weight: bold;
+      text-align: right;
+      margin: 6px 0 2px;
+      letter-spacing: 0.5px;
+    }
+    .pix-section {
+      text-align: center;
+      padding: 6px 0;
+    }
+    .qr-img {
+      width: 160px;
+      height: 160px;
+      display: block;
+      margin: 0 auto 4px;
+    }
+    .pix-label {
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
     }
     .footer {
       text-align: center;
@@ -124,6 +244,9 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
   <div class="divider"></div>
   <table>${itemsHtml}</table>
   ${notesHtml}
+  ${hasTotal ? '<div class="divider"></div>' : ""}
+  ${totalHtml}
+  ${pixHtml}
   <div class="divider"></div>
   <div class="footer">★ novo pedido — kds ★</div>
 </body>
@@ -132,9 +255,8 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
   win.document.write(html);
   win.document.close();
   win.focus();
-  // Small delay so the document renders before print dialog opens
   setTimeout(() => {
     win.print();
     win.close();
-  }, 300);
+  }, 500);
 }
