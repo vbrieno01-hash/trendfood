@@ -106,10 +106,12 @@ const UnitPage = () => {
     customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"
   ].map((p) => p.trim()).filter(Boolean).join(", ");
 
-  // Address for geocoding: CEP + number + city is the most reliable query for Nominatim in Brazil.
+  // Address for geocoding: as soon as CEP + city are available, triggers calculation immediately.
+  // Number is optional for the initial estimate — added when available for extra precision.
   // Falls back to textual address (without complement) if CEP is missing.
-  const fullCustomerAddress = customerAddress.cep && customerAddress.number && customerAddress.city
-    ? `${customerAddress.cep}, ${customerAddress.number}, ${customerAddress.city}, ${customerAddress.state}, Brasil`
+  const fullCustomerAddress = customerAddress.cep && customerAddress.city
+    ? [customerAddress.cep, customerAddress.number, customerAddress.city, customerAddress.state, "Brasil"]
+        .filter(Boolean).join(", ")
     : [customerAddress.street, customerAddress.number, customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"]
         .map((p) => p.trim()).filter(Boolean).join(", ");
 
