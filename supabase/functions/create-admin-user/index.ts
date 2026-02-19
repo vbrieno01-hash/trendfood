@@ -19,32 +19,50 @@ Deno.serve(async (req) => {
 
     // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const alreadyExists = existingUsers?.users?.some(
+    const existingUser = existingUsers?.users?.find(
       (u) => u.email === "brenojackson30@gmail.com"
     );
 
-    if (alreadyExists) {
-      return new Response(
-        JSON.stringify({ message: "Usuário admin já existe." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+    let userId: string;
+
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        email: "brenojackson30@gmail.com",
+        password: "123@Qpzm",
+        email_confirm: true,
+      });
+
+      if (error) {
+        return new Response(
+          JSON.stringify({ error: error.message }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
+      userId = data.user!.id;
     }
 
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: "brenojackson30@gmail.com",
-      password: "123@Qpzm",
-      email_confirm: true,
-    });
+    // Ensure admin role exists in user_roles table
+    const { error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
 
-    if (error) {
+    if (roleError) {
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: `Role insert failed: ${roleError.message}` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
     return new Response(
-      JSON.stringify({ message: "Usuário admin criado com sucesso!", user_id: data.user?.id }),
+      JSON.stringify({
+        message: existingUser
+          ? "Usuário admin já existe. Role admin garantida."
+          : "Usuário admin criado com sucesso!",
+        user_id: userId,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (err) {
@@ -54,3 +72,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+

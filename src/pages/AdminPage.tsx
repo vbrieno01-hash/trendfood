@@ -11,8 +11,6 @@ import { usePlatformDeliveryConfig, useUpdatePlatformDeliveryConfig } from "@/ho
 import { DeliveryConfig } from "@/hooks/useDeliveryFee";
 import { toast } from "sonner";
 
-const ADMIN_EMAILS = ["brenojackson30@gmail.com"];
-
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -26,7 +24,7 @@ interface OrgRow {
 }
 
 export default function AdminPage() {
-  const { user, loading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
 
   if (loading) {
     return (
@@ -40,7 +38,7 @@ export default function AdminPage() {
     return <Navigate to="/auth?redirect=/admin" replace />;
   }
 
-  if (!ADMIN_EMAILS.includes(user.email ?? "")) {
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
