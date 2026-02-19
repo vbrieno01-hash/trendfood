@@ -1,81 +1,73 @@
 
-# Correções: Admin + Frete por Loja
+# Problema: Usuário Admin não existe no sistema
 
-## O que está errado hoje
-
-### 1. E-mail do admin errado
-O `AdminPage.tsx` usa `trendfoodapp@gmail.com` como e-mail admin, mas o correto é `brenojackson30@gmail.com`.
-
-### 2. Frete global quando deveria ser por loja
-O plano anterior foi implementado de forma errada em relação ao frete:
-- A implementação atual usa `platform_config` (tabela global) para calcular o frete de TODAS as lojas
-- `UnitPage.tsx` já busca `usePlatformDeliveryConfig()` e passa `globalDeliveryConfig` para `useDeliveryFee`
-- `useDeliveryFee.ts` usa `globalConfig ?? DEFAULT_DELIVERY_CONFIG` — ignorando a config da loja
-- `StoreProfileTab.tsx` removeu os campos de edição de taxa e virou só leitura da config global
-
-**O correto:** cada loja tem liberdade total para configurar suas próprias taxas de frete. Isso é salvo em `organizations.delivery_config` e cada loja pode editar no painel dela.
-
----
+## Causa raiz
+O e-mail `brenojackson30@gmail.com` com senha `123@Qpzm` **nunca foi cadastrado** no sistema de autenticação. Por isso o login retorna `invalid_credentials`. O `AdminPage.tsx` está correto — o problema é que o usuário não existe.
 
 ## A solução
 
-### Correção 1: E-mail do admin
-`src/pages/AdminPage.tsx` linha 14:
-```typescript
-// DE:
-const ADMIN_EMAILS = ["trendfoodapp@gmail.com"];
-// PARA:
-const ADMIN_EMAILS = ["brenojackson30@gmail.com"];
+Criar o usuário admin diretamente via SQL com e-mail já confirmado (sem precisar de verificação por e-mail), usando a função interna do Supabase Auth.
+
+### SQL a executar (migration)
+
+```sql
+-- Cria o usuário admin com e-mail e senha já confirmados
+SELECT extensions.pgcrypto_gen_random_uuid(); -- apenas para verificar se extensão existe
+
+INSERT INTO auth.users (
+  id,
+  instance_id,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  role,
+  aud,
+  confirmation_token,
+  recovery_token
+) VALUES (
+  gen_random_uuid(),
+  '00000000-0000-0000-0000-000000000000',
+  'brenojackson30@gmail.com',
+  crypt('123@Qpzm', gen_salt('bf')),
+  now(),
+  '{"provider":"email","providers":["email"]}',
+  '{}',
+  now(),
+  now(),
+  'authenticated',
+  'authenticated',
+  '',
+  ''
+)
+ON CONFLICT (email) DO NOTHING;
 ```
 
-Além disso, corrigir o redirect: quando não há usuário logado, vai para `/auth` em vez de `/` (landing), e após o login redireciona de volta para `/admin`.
+Isso cria o usuário com:
+- E-mail: `brenojackson30@gmail.com`
+- Senha: `123@Qpzm`
+- E-mail já confirmado (sem precisar verificar caixa de entrada)
+- Papel `authenticated` — necessário para que as políticas RLS permitam as operações do admin
 
-### Correção 2: Frete volta a ser por loja
+## Fluxo após a correção
 
-**`src/hooks/useDeliveryFee.ts`**
-Remover o parâmetro `globalConfig` e voltar a ler `org.delivery_config`:
-```typescript
-// Usa a config da LOJA, senão DEFAULT
-const config: DeliveryConfig = {
-  ...DEFAULT_DELIVERY_CONFIG,
-  ...(org?.delivery_config ?? {}),
-};
+```text
+Acessa /admin sem login
+  → redireciona para /auth?redirect=/admin  ✓ (já implementado)
+  → faz login com brenojackson30@gmail.com / 123@Qpzm  ✓ (usuário criado)
+  → redireciona automaticamente para /admin  ✓ (já implementado)
+  → painel admin abre com lista de lojas e tabela de frete  ✓
 ```
 
-**`src/pages/UnitPage.tsx`**
-Remover a busca de `usePlatformDeliveryConfig` e o parâmetro `globalDeliveryConfig` passado para `useDeliveryFee`.
+## Nenhuma alteração de código necessária
 
-**`src/components/dashboard/StoreProfileTab.tsx`**
-Restaurar os campos editáveis de frete (faixa 1, faixa 2, faixa 3, limite km, frete grátis acima de) para que cada loja possa configurar sua própria taxa. Salvar em `organizations.delivery_config` ao clicar em Salvar.
+O código do `AdminPage.tsx`, `AuthPage.tsx` e o redirect já estão corretos após as últimas correções. O único problema é a ausência do usuário no banco de dados.
 
-Remover a dependência de `usePlatformDeliveryConfig` e o painel informativo "configurado globalmente".
+## Arquivo modificado
 
-### Correção 3: Redirect do Admin para login correto
-**`src/pages/AdminPage.tsx`**
-```typescript
-// Sem usuário → vai para login com redirect de volta para /admin
-if (!user) return <Navigate to="/auth?redirect=/admin" replace />;
-// Com usuário mas sem permissão → home
-if (!ADMIN_EMAILS.includes(user.email ?? "")) return <Navigate to="/" replace />;
-```
-
-**`src/pages/AuthPage.tsx`**
-Ler parâmetro `redirect` da URL após login bem-sucedido:
-```typescript
-const redirectTo = new URLSearchParams(location.search).get("redirect") || "/dashboard";
-navigate(redirectTo);
-```
-
----
-
-## Arquivos modificados
-
-| Arquivo | Mudança |
+| O que muda | Como |
 |---|---|
-| `src/pages/AdminPage.tsx` | Corrigir e-mail para `brenojackson30@gmail.com` + redirect para `/auth?redirect=/admin` |
-| `src/pages/AuthPage.tsx` | Ler parâmetro `redirect` pós-login |
-| `src/hooks/useDeliveryFee.ts` | Remover `globalConfig`, voltar a usar `org.delivery_config` |
-| `src/pages/UnitPage.tsx` | Remover `usePlatformDeliveryConfig`, não passar mais globalConfig |
-| `src/components/dashboard/StoreProfileTab.tsx` | Restaurar campos editáveis de taxa de frete por loja |
-
-**O `platform_config` e `usePlatformDeliveryConfig` continuam existindo** — são usados apenas no painel admin para o admin ver estatísticas futuras. A tabela não interfere mais nos fretes.
+| Base de usuários (auth.users) | Migration SQL insere o usuário admin com senha criptografada e e-mail confirmado |
