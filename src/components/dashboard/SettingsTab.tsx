@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -41,16 +42,20 @@ export default function SettingsTab() {
       const { data, error } = await supabase.functions.invoke("customer-portal", {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      // Check data.error FIRST (even with 500 status, data may contain the body)
-      if (data?.error) {
-        if (data.error.includes("No Stripe customer found")) {
-          toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar.");
-          navigate("/planos");
-          return;
+
+      if (error) {
+        if (error instanceof FunctionsHttpError) {
+          const errorBody = await error.context.json();
+          if (errorBody?.error?.includes("No Stripe customer found")) {
+            toast.error("Nenhuma assinatura encontrada. Assine um plano para gerenciar.");
+            navigate("/planos");
+            return;
+          }
+          throw new Error(errorBody?.error || "Erro ao abrir portal.");
         }
-        throw new Error(data.error);
+        throw error;
       }
-      if (error) throw error;
+
       if (data?.url) {
         window.open(data.url, "_blank");
       }
