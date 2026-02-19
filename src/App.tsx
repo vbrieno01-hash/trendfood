@@ -12,6 +12,7 @@ import KitchenPage from "./pages/KitchenPage";
 import WaiterPage from "./pages/WaiterPage";
 import TableOrderPage from "./pages/TableOrderPage";
 import AdminPage from "./pages/AdminPage";
+import DocsTerminalPage from "./pages/DocsTerminalPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/garcom" element={<WaiterPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

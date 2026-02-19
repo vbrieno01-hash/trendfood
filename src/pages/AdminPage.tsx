@@ -209,8 +209,8 @@ const FEATURES: Feature[] = [
     title: "Impressora Térmica",
     description: "Impressão automática de pedidos em impressoras térmicas 80mm com QR Code PIX.",
     status: "beta",
-    actionLabel: "Ver no dashboard",
-    actionHref: "/dashboard",
+    actionLabel: "Ver documentação",
+    actionHref: "/docs/impressora-termica",
   },
   {
     icon: <Sparkles className="w-5 h-5" />,
