@@ -1,139 +1,120 @@
 
-# Relatório Completo de Teste do Site — TrendFood
+# Correção do Painel Admin — 3 Problemas Identificados
 
-## Resultado Geral: APROVADO com 1 problema a corrigir
+## Diagnóstico Preciso
 
-Testei o site de ponta a ponta em todas as telas, botões e funcionalidades. Aqui está o resultado completo.
+### Problema 1 — DashboardPage crasha para o usuário admin (principal)
+O usuário admin (`brenojackson30@gmail.com`) não tem nenhuma loja cadastrada. O `DashboardPage.tsx` na linha 180 faz `organization.logo_url` diretamente **sem checar se `organization` é null**. Isso causa um crash instantâneo com `Cannot read properties of null (reading 'logo_url')`.
 
----
+O fluxo atual:
+- Admin faz login → `organization = null` (confirmado pelo banco: nenhuma org com esse user_id)
+- `DashboardPage` checa apenas `if (!user)` mas não `if (!organization)`
+- Tenta acessar `organization.logo_url` → CRASH
 
-## TELAS TESTADAS E STATUS
+### Problema 2 — Redirecionamento pós-login vai para `/dashboard`
+Após login, o usuário é redirecionado para `/dashboard`. O admin sem organização crasha lá. Ele deveria ser redirecionado para `/admin`.
 
-### Landing Page (/)
-- STATUS: FUNCIONANDO
-- Botão "Começar Grátis" → abre tela de cadastro corretamente
-- Botão "Ver Demo ao Vivo" → presente e clicável
-- Layout visual sem erros
-
-### Tela de Cadastro / Login (/auth)
-- STATUS: FUNCIONANDO
-- Formulário de cadastro: nome, e-mail, senha, nome da lanchonete, URL pública, WhatsApp, endereço da loja (com busca de CEP) — todos os campos funcionando
-- Aba "Entrar" → exibe e-mail, senha e botão "Entrar no painel" funcionando
-- Termos de Uso com link
-
-### Dashboard — Home
-- STATUS: FUNCIONANDO
-- Faturamento do dia: R$ 56,00 (2 pedidos pagos)
-- Faturamento total: R$ 6.942,00
-- Ticket médio: R$ 144,63
-- Gráfico dos últimos 7 dias renderizando corretamente
-- Sidebar com todas as abas visíveis: Home, Meu Cardápio, Mesas, Histórico, Cupons, Mais Vendidos, Cozinha (KDS), Painel do Garçom, Perfil da Loja, Configurações
-
-### Dashboard — Histórico
-- STATUS: FUNCIONANDO
-- Filtros: Hoje / 7 dias / 30 dias / Tudo — clicáveis
-- Filtro de pagamento: Todos / Pagos / Não pagos — clicáveis
-- Campo de busca por mesa — presente
-- 48 pedidos exibidos, R$ 6.942,00 de receita
-- Cards com: tipo (Entrega/Mesa), badge Pago, valor, data/hora, itens e notas completas
-
-### Dashboard — Cupons
-- STATUS: FUNCIONANDO
-- Cupom TESTE10 listado (10% desconto, 0 usos, Ativo)
-- Toggle de ativar/desativar presente
-- Botão de deletar (lixeira) presente
-- Botão "+ Novo Cupom" presente
-
-### Dashboard — Mais Vendidos
-- STATUS: FUNCIONANDO
-- 3 itens únicos vendidos
-- Receita total: R$ 6.942,00
-- Ranking: 🥇 Porção queijo e bacon (65×, R$ 3.770,00, 54,3%) / 🥈 Duplo cheddar (62×, R$ 2.232,00, 32,2%) / 🥉 Pcq (47×, R$ 940,00, 13,5%)
-- Barras de progresso proporcionais funcionando
-- Filtros de período (Hoje / 7 dias / 30 dias / Tudo) funcionando
-
-### Dashboard — Cozinha (KDS)
-- STATUS: FUNCIONANDO
-- Toggle "Notificações" presente (ativa push notifications)
-- Toggle "Imprimir automático" presente e ativado
-- Badge "ao vivo" verde funcionando (realtime ativo)
-- Mensagem "Nenhum pedido pendente" quando sem pedidos
-
-### Dashboard — Painel do Garçom
-- STATUS: FUNCIONANDO
-- Seção "Prontos para Entrega" com badge "ao vivo"
-- Seção "Aguardando Pagamento"
-- Mensagens de estado vazio corretas
-
-### Página Pública da Loja (/unidade/burguer-do-rei)
-- STATUS: FUNCIONANDO
-- Cardápio carregando com fotos, nomes, preços e descrições
-- Badge "Fechado · abre às 08:00" exibindo corretamente
-- Botões dos itens bloqueados quando loja fechada (comportamento correto)
-- Abas Cardápio e Sugestões funcionando
-- Navegação por categoria (pílulas) funcionando
-
-### Página de Mesa (/unidade/burguer-do-rei/mesa/1)
-- STATUS: FUNCIONANDO
-- Cardápio carregando com imagens
-- Botão + adiciona item ao carrinho
-- Carrinho aparece na barra inferior com total
-- Campo "Cupom de desconto" presente
-- TESTE10 aplicado com sucesso: Subtotal R$ 36,00 → Desconto -R$ 3,60 → Total R$ 32,40
-- Botão "Finalizar Pedido" funcionando
-
-### Loja em Outra Cidade (São Paulo — Av. Paulista)
-- STATUS: FUNCIONANDO
-- Loja sem cardápio exibe mensagem "Cardápio ainda não publicado" corretamente
-- Página carrega sem erros
+### Problema 3 — Race condition em useAuth
+O evento `SIGNED_IN` do `onAuthStateChange` seta `loading = true`, mas o `getSession()` inicial já setou `loading = false`. Se o evento disparar depois de `getSession()`, o `loading` oscila e pode fazer o `isAdmin` ser lido como `false` por um instante, causando redirect desnecessário para `/`.
 
 ---
 
-## FRETE MULTI-CIDADES: CONFIRMADO FUNCIONANDO
+## Solução — 3 correções cirúrgicas
 
-Verificado diretamente no banco de dados — a loja "Burguer do Rei" (Cubatão/SP) já recebeu pedidos com frete calculado automaticamente de:
+### Correção 1 — DashboardPage: proteger acesso quando organization é null
 
-- Cubatão, SP → R$ 12,00 de frete
-- Teresina, PI (outro estado!) → R$ 12,00 de frete calculado automaticamente
+Adicionar um guard depois do check de `!user`:
+```
+if (loading || !user) → spinner
+if (!organization) → tela de "Configure sua loja" com link para /admin se isAdmin, ou mensagem de "Sua conta está sendo configurada..."
+```
 
-O motor de frete usa GPS real via OSRM + geocodificação Nominatim e funciona para QUALQUER cidade do Brasil. Cada loja configura seu próprio endereço de origem e a tabela de preços por distância.
+Isso evita o crash E dá uma UX melhor.
 
----
+### Correção 2 — AuthPage: redirecionar admin para /admin após login
 
-## PROBLEMA ENCONTRADO: Imagem incorreta em loja cadastrada
+No `AuthPage.tsx`, após login bem-sucedido, verificar se o usuário tem role admin e redirecionar para `/admin` em vez de `/dashboard`.
 
-### Gravidade: Baixa (é dado do usuário, não bug da plataforma)
-- Loja "Jubileu story" tem uma foto de pessoa cadastrada como imagem de produto ("Duplo bacon")
-- Isso é responsabilidade do dono da loja ao cadastrar o produto
-- A plataforma exibe a imagem que foi enviada — não há bug técnico
+### Correção 3 — useAuth: corrigir race condition no loading
 
----
-
-## ERROS DE CONSOLE
-
-- Nenhum erro JavaScript encontrado
-- Avisos de `postMessage` são do ambiente de desenvolvimento do Lovable (não aparecem em produção)
-- Zero erros de rede ou de banco de dados
+Reorganizar o `useAuth.tsx` para que:
+- O `onAuthStateChange` NÃO controle `loading` (apenas atualiza estado)
+- Apenas o `getSession()` inicial controle `loading = false`
+- Ambos chamem `fetchOrganization` com `setTimeout(0)` para evitar deadlock
 
 ---
 
-## RESUMO FINAL
+## Arquivos a Modificar
 
-| Área | Status |
+| Arquivo | Mudança |
 |---|---|
-| Landing page | OK |
-| Cadastro / Login | OK |
-| Dashboard — Home | OK |
-| Dashboard — Histórico | OK |
-| Dashboard — Cupons | OK |
-| Dashboard — Mais Vendidos | OK |
-| Dashboard — KDS | OK |
-| Dashboard — Garçom | OK |
-| Página pública da loja | OK |
-| Checkout via mesa | OK |
-| Cupom de desconto no checkout | OK |
-| Frete para qualquer cidade do Brasil | OK |
-| Loja sem cardápio | OK |
-| Loja fechada bloqueando pedidos | OK |
+| `src/pages/DashboardPage.tsx` | Guard para `organization === null`: mostrar tela de setup ou link admin |
+| `src/pages/AuthPage.tsx` | Após login, checar se admin e redirecionar para `/admin` |
+| `src/hooks/useAuth.tsx` | Corrigir race condition: apenas `getSession()` controla `loading` |
 
-O site está pronto para divulgação. Pode ser utilizado por lojistas de qualquer cidade do Brasil.
+---
+
+## Detalhamento Técnico
+
+### DashboardPage.tsx — guard para organization null
+
+Inserir logo após o check `if (loading || !user)`:
+
+```tsx
+if (!organization) {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="text-center max-w-sm">
+        <p className="text-4xl mb-4">🏪</p>
+        <h1 className="font-bold text-xl mb-2">Nenhuma loja vinculada</h1>
+        <p className="text-muted-foreground text-sm mb-6">
+          {isAdmin
+            ? "Você está logado como administrador da plataforma."
+            : "Sua conta ainda não tem uma loja configurada."}
+        </p>
+        {isAdmin && (
+          <Button asChild>
+            <Link to="/admin">Acessar Painel Admin</Link>
+          </Button>
+        )}
+        <Button variant="outline" onClick={signOut} className="ml-2">Sair</Button>
+      </div>
+    </div>
+  );
+}
+```
+
+### AuthPage.tsx — redirect inteligente pós-login
+
+Após `signIn` bem-sucedido, buscar role e redirecionar:
+```tsx
+// após login com sucesso:
+const { data: roleData } = await supabase
+  .from("user_roles")
+  .select("role")
+  .eq("user_id", data.user.id)
+  .eq("role", "admin")
+  .maybeSingle();
+
+if (roleData) {
+  navigate("/admin");
+} else {
+  navigate("/dashboard");
+}
+```
+
+### useAuth.tsx — corrigir race condition
+
+Remover o `setLoading(true)` do handler `SIGNED_IN` no `onAuthStateChange`. O loading deve ser controlado apenas pelo `getSession()` inicial. O listener apenas atualiza os dados sem resetar loading:
+
+```tsx
+// ANTES (problemático):
+if (_event === "SIGNED_IN") {
+  setLoading(true); // ← REMOVE ISSO
+}
+
+// DEPOIS:
+// onAuthStateChange apenas atualiza dados, não mexe em loading
+```
+
+Isso garante que `isAdmin` nunca oscile para `false` causando redirect errado.
