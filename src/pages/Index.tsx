@@ -22,24 +22,24 @@ import {
 const problems = [
   {
     image: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=600&q=80",
-    alt: "Comanda em papel na cozinha",
-    title: "Comanda em papel e confusão na cozinha",
+    alt: "Pedido em papel no atendimento",
+    title: "Pedido em papel e confusão no atendimento",
     description:
-      "Pedido que chega por papelzinho e se perde no caminho — garçom chamando cozinheiro, item errado na mesa, cliente insatisfeito.",
+      "Pedido que chega por papelzinho e se perde — atendente sem saber a fila, item errado, cliente insatisfeito.",
   },
   {
     image: "https://images.unsplash.com/photo-1559329007-40df8a9345d8?w=600&q=80",
     alt: "Cliente esperando conta",
     title: "Clientes esperando para pagar",
     description:
-      "Mesa parada esperando garçom com maquininha, sem conseguir fechar a conta. Rotatividade baixa, lucro menor.",
+      "Fila parada esperando atendente com maquininha, sem conseguir fechar a conta. Rotatividade baixa, lucro menor.",
   },
   {
     image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80",
     alt: "Planilha de controle financeiro",
     title: "Sem controle do que vende",
     description:
-      "Fim do mês sem saber qual prato vendeu mais, qual dia faturou menos, quanto entrou no caixa. Decisões no escuro.",
+      "Fim do mês sem saber qual produto vendeu mais, qual dia faturou menos, quanto entrou no caixa. Decisões no escuro.",
   },
 ];
 
@@ -47,23 +47,23 @@ const steps = [
   {
     number: "01",
     icon: <UtensilsCrossed className="w-6 h-6" />,
-    title: "Crie seu cardápio online",
+    title: "Crie seu catálogo online",
     description:
-      "Monte categorias, preços e fotos em minutos. Seu menu fica disponível via link para qualquer dispositivo, sem precisar baixar nenhum app.",
+      "Monte categorias, preços e fotos em minutos. Seu catálogo fica disponível via link para qualquer dispositivo, sem precisar baixar nenhum app.",
   },
   {
     number: "02",
     icon: <QrCode className="w-6 h-6" />,
-    title: "Gere QR Codes para cada mesa",
+    title: "Gere QR Codes para cada ponto de atendimento",
     description:
-      "Cada mesa recebe um QR Code único. O cliente escaneia e faz o pedido direto pelo celular, sem precisar chamar o garçom.",
+      "Cada ponto recebe um QR Code único. O cliente escaneia e faz o pedido direto pelo celular, sem precisar chamar o atendente.",
   },
   {
     number: "03",
     icon: <Flame className="w-6 h-6" />,
-    title: "Cozinha e garçom recebem em tempo real",
+    title: "Equipe recebe o pedido em tempo real",
     description:
-      "O KDS (tela da cozinha) toca um alerta sonoro e imprime automaticamente cada pedido. Garçom acompanha as mesas no painel.",
+      "O painel de produção (KDS) toca um alerta sonoro e imprime automaticamente cada pedido. A equipe acompanha tudo no painel.",
   },
   {
     number: "04",
@@ -77,23 +77,23 @@ const steps = [
 const features = [
   {
     icon: <UtensilsCrossed className="w-5 h-5" />,
-    title: "Cardápio Digital",
-    description: "Monte seu menu com categorias, preços e fotos. Acessível via link ou QR Code.",
+    title: "Catálogo Digital",
+    description: "Monte seu catálogo com categorias, preços e fotos. Acessível via link ou QR Code.",
   },
   {
     icon: <QrCode className="w-5 h-5" />,
     title: "Pedidos por QR Code",
-    description: "Cada mesa tem QR único. O cliente pede direto pelo celular, sem app.",
+    description: "Cada ponto de atendimento tem QR único. O cliente pede sem precisar de app.",
   },
   {
     icon: <Flame className="w-5 h-5" />,
-    title: "Cozinha (KDS)",
-    description: "Tela dedicada para a cozinha com alerta sonoro e impressão automática.",
+    title: "Painel de Produção (KDS)",
+    description: "Tela dedicada ao atendimento com alerta sonoro e impressão automática.",
   },
   {
     icon: <BellRing className="w-5 h-5" />,
-    title: "Painel do Garçom",
-    description: "Visão de todas as mesas ativas e fechamento de conta com PIX integrado.",
+    title: "Painel do Atendente",
+    description: "Visão de todos os pedidos ativos e fechamento de conta com PIX integrado.",
   },
   {
     icon: <Wallet className="w-5 h-5" />,
@@ -103,7 +103,7 @@ const features = [
   {
     icon: <BarChart2 className="w-5 h-5" />,
     title: "Mais Vendidos",
-    description: "Ranking de itens por período com receita gerada por cada produto.",
+    description: "Ranking de produtos por período com receita gerada por cada item.",
   },
   {
     icon: <Tag className="w-5 h-5" />,
@@ -135,12 +135,18 @@ const examples = [
     image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&q=80",
     alt: "Pizza artesanal",
   },
+  {
+    slug: "farma-express",
+    name: "Farma Express",
+    image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&q=80",
+    alt: "Farmácia com medicamentos",
+  },
 ];
 
 const proofBadges = [
-  "Cardápio Digital",
+  "Catálogo Digital",
   "Pedido por QR Code",
-  "Cozinha em Tempo Real",
+  "Atendimento em Tempo Real",
   "Sem app para instalar",
   "PIX integrado",
 ];
@@ -182,21 +188,21 @@ const Index = () => {
           <div className="max-w-5xl mx-auto px-4 py-20 text-center w-full">
             <Badge className="mb-6 bg-primary/20 text-red-300 border-primary/30 hover:bg-primary/20">
               <Zap className="w-3 h-3 mr-1" />
-              Sistema completo para food service
+              Sistema completo para qualquer negócio
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight tracking-tight">
-              Gerencie seu restaurante{" "}
+              Gerencie seu negócio{" "}
               <span className="text-primary">inteiro.</span>
               <br />
               Do pedido ao caixa.
             </h1>
 
             <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-4 leading-relaxed">
-              Cardápio digital, pedidos por QR Code, cozinha integrada, controle de caixa e relatórios — tudo em um só lugar, sem papel e sem app para instalar.
+              Catálogo digital, pedidos por QR Code, atendimento integrado, controle de caixa e relatórios — tudo em um só lugar, sem papel e sem app para instalar.
             </p>
             <p className="text-sm md:text-base text-white/50 max-w-xl mx-auto mb-10 leading-relaxed">
-              Comece grátis em menos de 2 minutos. Seu restaurante mais organizado a partir de hoje.
+              Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -343,12 +349,12 @@ const Index = () => {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              Cardápio digital ao vivo
+              Catálogo digital ao vivo
             </Badge>
             <h2 className="text-3xl font-bold text-foreground mb-3">Veja funcionando agora</h2>
-            <p className="text-muted-foreground">Acesse um cardápio digital real — sem precisar criar conta</p>
+            <p className="text-muted-foreground">Acesse um catálogo digital real — sem precisar criar conta</p>
           </div>
-          <div className="grid sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+          <div className="grid sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
             {examples.map((ex) => (
               <Link
                 key={ex.slug}
@@ -378,7 +384,7 @@ const Index = () => {
       <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #7a0c0c 0%, hsl(0 84% 32%) 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
-            Seu restaurante mais organizado a partir de hoje
+            Seu negócio mais organizado a partir de hoje
           </h2>
           <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
             Sem papel, sem confusão, sem app para baixar. Cadastre-se grátis e configure em minutos.
@@ -405,7 +411,7 @@ const Index = () => {
           </div>
           <span className="font-semibold text-foreground">TrendFood</span>
         </div>
-        <p>© 2025 TrendFood. Feito com ❤️ para o food service brasileiro.</p>
+        <p>© 2025 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
       </footer>
     </div>
   );

@@ -94,13 +94,13 @@ const ShowcaseSection = () => {
           {/* Right text */}
           <div className="lg:w-56 flex-shrink-0 text-center lg:text-left order-3">
             <Badge className="mb-3 bg-primary/10 text-primary border-primary/20">
-              Cardápio Digital
+              Catálogo Digital
             </Badge>
             <h3 className="font-bold text-foreground text-lg mb-2">
               Seus clientes pedem pelo celular
             </h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Cardápio bonito, responsivo e sem app. O cliente escaneia o QR Code da mesa e faz o pedido em segundos — direto para a cozinha.
+              Catálogo bonito, responsivo e sem app. O cliente escaneia o QR Code do ponto de atendimento e faz o pedido em segundos — direto para o painel da equipe.
             </p>
             {/* Arrow pointing left (desktop) */}
             <div className="hidden lg:flex justify-start mt-4">
