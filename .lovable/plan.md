@@ -1,111 +1,47 @@
 
-# Três Melhorias: Gráfico, Pagamento e Resumo da Conta
+# Confirmação de Endereço no Checkout
 
-## O Problema Atual
-
-O fluxo termina no garçom marcando "Entregue" — mas sem saber o valor total, sem registrar se pagou, e sem como enviar a conta ao cliente. O Home mostra sugestões (que foram removidas do sistema) em vez de dados reais do negócio.
-
----
+## O Problema
+O campo de endereço aparece só uma vez no drawer de checkout. Se o cliente errar o endereço (digitar rua errada, número trocado etc.), o motoboy vai para o endereço errado sem nenhuma verificação.
 
 ## O Que Vai Mudar
 
-### 1. Banco de Dados — Adicionar campo `paid` nos pedidos
+### Campo duplicado no formulário
+Logo após o campo "Endereço (opcional)", vai aparecer um segundo campo:
 
-A tabela `orders` precisa de uma nova coluna booleana `paid` para registrar se a mesa pagou ou não.
+**"Confirme o Endereço"** — com texto de apoio dizendo "Digite novamente para confirmar"
 
-```sql
-ALTER TABLE public.orders ADD COLUMN paid boolean NOT NULL DEFAULT false;
+Se o cliente preencher o primeiro endereço mas deixar o segundo em branco (ou diferente), o formulário bloqueia o envio e exibe uma mensagem de erro em vermelho.
+
+Se o endereço estiver vazio nos dois campos, tudo segue normal (endereço continua opcional).
+
+### Lógica de Validação
+```
+SE address está preenchido E addressConfirm está diferente de address
+  → bloquear envio
+  → mostrar erro: "Os endereços não conferem"
 ```
 
-Sem essa coluna não é possível rastrear pagamentos sem alterar o sistema de status.
+### Reset do formulário
+Após enviar o pedido via WhatsApp, o campo `addressConfirm` também é limpo junto com os demais campos.
 
----
+## Arquivo Afetado
 
-### 2. HomeTab — Gráfico de Faturamento e Pedidos
+| Arquivo | Linhas | Ação |
+|---|---|---|
+| `src/pages/UnitPage.tsx` | 215–248 | Adicionar validação de endereços na função `handleSendWhatsApp` |
+| `src/pages/UnitPage.tsx` | 613–624 | Adicionar campo "Confirme o Endereço" após o campo de endereço |
+| `src/pages/UnitPage.tsx` | 242–248 | Limpar `addressConfirm` no reset |
 
-O `HomeTab` vai ser refeito para mostrar dados reais de operação do dia/semana:
-
-**Cards de resumo (hoje):**
-- Total de pedidos entregues
-- Faturamento total (R$)
-- Pedidos ainda em aberto (aguardando pagamento)
-- Ticket médio por mesa
-
-**Gráfico de barras (últimos 7 dias):**
-- Eixo X: dias da semana
-- Barras: quantidade de pedidos por dia
-- Linha: faturamento por dia
-
-O componente `recharts` já está instalado e é usado no projeto.
-
----
-
-### 3. WaiterTab — Controle de Pagamento
-
-No painel do garçom, quando um pedido está com status `ready`, além de "Marcar como Entregue", será adicionado o **valor total da mesa** visível no card.
-
-Após marcar como entregue, o pedido vai aparecer numa nova seção **"Aguardando Pagamento"** com:
-- Número da mesa
-- Lista de itens e quantidades
-- **Valor total em destaque**
-- Botão **"Confirmar Pagamento"** — que marca `paid = true`
-- Botão **"📋 Enviar Conta"** — que abre o WhatsApp com o resumo formatado
-
-**Resumo formatado para WhatsApp (o "prompt único"):**
+## Resultado Visual
 
 ```
-🧾 *Conta da Mesa 3*
+Endereço (opcional)
+[ Para entrega, informe o endereço ]
 
-1× X-Burguer        R$ 18,00
-2× Coca-Cola        R$ 10,00
-1× Batata Frita     R$ 12,00
-─────────────────
-*Total: R$ 40,00*
-
-💳 Formas de pagamento aceitas:
-Dinheiro | Pix | Cartão
-
-Obrigado pela visita! 😊
+Confirme o Endereço
+[ Digite novamente para confirmar  ]
+⚠ Os endereços não conferem         ← aparece só se houver divergência
 ```
 
-O número de WhatsApp do estabelecimento está em `organization.whatsapp` — pode usar para pré-preencher também.
-
----
-
-## Arquivos Afetados
-
-| Arquivo | Ação |
-|---|---|
-| Migração SQL | Adicionar coluna `paid boolean DEFAULT false` na tabela `orders` |
-| `src/hooks/useOrders.ts` | Adicionar interface `paid` no tipo `Order` + hook `useMarkAsPaid` + query `useDeliveredUnpaidOrders` |
-| `src/components/dashboard/HomeTab.tsx` | Reescrever para mostrar gráfico + cards com dados reais de pedidos |
-| `src/components/dashboard/WaiterTab.tsx` | Adicionar seção "Aguardando Pagamento" + botão "Confirmar Pagamento" + botão "Enviar Conta" com mensagem WhatsApp formatada |
-
----
-
-## Fluxo Completo Após a Mudança
-
-```text
-Cliente faz pedido
-       ↓
-Cozinha prepara → marca "Pronto"
-       ↓
-Garçom entrega → marca "Entregue"
-       ↓
-Mesa aparece em "Aguardando Pagamento" 
-com valor total + botão Enviar Conta
-       ↓
-Garçom confirma pagamento → mesa sai da lista
-       ↓
-Home registra o faturamento no gráfico
-```
-
----
-
-## Detalhes Técnicos
-
-- A query de "Aguardando Pagamento" busca `status = 'delivered'` E `paid = false`
-- O `useMarkAsPaid` faz `UPDATE orders SET paid = true WHERE id = ?`
-- O gráfico usa `recharts` (já instalado) com `BarChart` + `Bar`
-- O resumo WhatsApp usa `encodeURIComponent` para montar a URL `wa.me`
-- O `HomeTab` vai buscar pedidos com `status = 'delivered'` para calcular faturamento
+Sem banco de dados, sem migrações — é uma mudança puramente de interface no formulário de checkout.
