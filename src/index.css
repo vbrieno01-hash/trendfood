@@ -13,17 +13,17 @@
     --popover: 0 0% 100%;
     --popover-foreground: 20 14% 8%;
 
-    /* Orange-amber vibrant primary */
-    --primary: 24 95% 53%;
+    /* Red vibrant primary - food service */
+    --primary: 0 84% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 20% 94%;
-    --secondary-foreground: 20 14% 20%;
+    --secondary: 0 10% 94%;
+    --secondary-foreground: 0 10% 20%;
 
-    --muted: 30 15% 93%;
-    --muted-foreground: 20 10% 45%;
+    --muted: 0 8% 93%;
+    --muted-foreground: 0 5% 45%;
 
-    --accent: 24 95% 53%;
+    --accent: 0 84% 52%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
