@@ -193,7 +193,7 @@ export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
                           NOVO!
                         </span>
                       )}
-                      <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                      <span className="font-bold text-foreground text-lg">{order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                   </div>

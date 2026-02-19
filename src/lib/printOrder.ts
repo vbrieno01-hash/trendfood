@@ -34,11 +34,13 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
     ? `<div class="notes"><strong>Obs:</strong> ${order.notes}</div>`
     : "";
 
+  const locationLabel = order.table_number === 0 ? "ENTREGA" : `MESA ${order.table_number}`;
+
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Pedido Mesa ${order.table_number}</title>
+  <title>Pedido ${locationLabel}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -116,7 +118,7 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
   </div>
   <div class="divider"></div>
   <div class="mesa-row">
-    <span class="mesa">MESA ${order.table_number}</span>
+    <span class="mesa">${locationLabel}</span>
     <span class="time">${date} — ${time}</span>
   </div>
   <div class="divider"></div>
