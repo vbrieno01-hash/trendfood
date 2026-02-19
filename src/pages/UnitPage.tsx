@@ -72,6 +72,7 @@ const UnitPage = () => {
   // Category navigation
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const categoryNavRef = useRef<HTMLDivElement>(null);
+  const isScrollingByClick = useRef(false);
 
   // Checkout form
   const [buyerName, setBuyerName] = useState("");
@@ -105,11 +106,16 @@ const UnitPage = () => {
       if (!el) return null;
       const obs = new IntersectionObserver(
         ([entry]) => {
-          if (entry.isIntersecting) {
+          if (entry.isIntersecting && !isScrollingByClick.current) {
             setActiveCategory(group.value);
-            // Auto-scroll the pill into view in the nav bar
+            // Scroll manual da pill na nav — não afeta o scroll da página principal
+            const navEl = categoryNavRef.current;
             const pill = document.getElementById(`pill-${group.value}`);
-            pill?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            if (navEl && pill) {
+              const pillLeft = pill.offsetLeft - navEl.offsetLeft;
+              const pillCenter = pillLeft - navEl.clientWidth / 2 + pill.clientWidth / 2;
+              navEl.scrollTo({ left: pillCenter, behavior: "smooth" });
+            }
           }
         },
         { threshold: 0.25, rootMargin: "-60px 0px -40% 0px" }
@@ -123,12 +129,15 @@ const UnitPage = () => {
 
   const scrollToCategory = (value: string) => {
     setActiveCategory(value);
+    isScrollingByClick.current = true;
     const el = document.getElementById(`cat-${value}`);
     if (el) {
       const offset = 110; // header + nav bar height
       const top = el.getBoundingClientRect().top + window.scrollY - offset;
       window.scrollTo({ top, behavior: "smooth" });
     }
+    // Libera o flag após o scroll suave (~800ms)
+    setTimeout(() => { isScrollingByClick.current = false; }, 800);
   };
 
   if (orgLoading) {
