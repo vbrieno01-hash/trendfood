@@ -15,6 +15,12 @@ function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
+function toMinutesClose(time: string): number {
+  const mins = timeToMinutes(time);
+  // 00:00 como horário de fechamento = meia-noite = fim do dia
+  return mins === 0 ? 1440 : mins;
+}
+
 export type StoreStatus =
   | null
   | { open: true }
@@ -35,9 +41,14 @@ export function getStoreStatus(businessHours: BusinessHours | null | undefined):
   }
 
   const fromMin = timeToMinutes(today.from);
-  const toMin = timeToMinutes(today.to);
+  const toMin = toMinutesClose(today.to);
 
-  if (currentMinutes >= fromMin && currentMinutes < toMin) {
+  // Suporte a horários que cruzam meia-noite (ex: 22:00 às 02:00)
+  const isOpen = toMin > fromMin
+    ? currentMinutes >= fromMin && currentMinutes < toMin
+    : currentMinutes >= fromMin || currentMinutes < toMin;
+
+  if (isOpen) {
     return { open: true };
   }
 
