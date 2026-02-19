@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChefHat, Eye, EyeOff, Loader2, Check, Search } from "lucide-react";
+import { Eye, EyeOff, Loader2, Check, Search } from "lucide-react";
+import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
 
 const BRAZIL_STATES = [
@@ -220,9 +221,7 @@ const AuthPage = () => {
         <div className="relative z-10 flex flex-col h-full justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-              <ChefHat className="w-5 h-5 text-white" />
-            </div>
+            <img src={logoIcon} alt="TrendFood" className="w-10 h-10 rounded-xl object-contain" />
             <span className="font-extrabold text-white text-xl tracking-tight">TrendFood</span>
           </div>
 
@@ -266,9 +265,7 @@ const AuthPage = () => {
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-8 lg:hidden">
           <Link to="/" className="inline-flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <ChefHat className="w-4 h-4 text-primary-foreground" />
-            </div>
+            <img src={logoIcon} alt="TrendFood" className="w-9 h-9 rounded-xl object-contain" />
             <span className="font-extrabold text-foreground text-lg">TrendFood</span>
           </Link>
         </div>

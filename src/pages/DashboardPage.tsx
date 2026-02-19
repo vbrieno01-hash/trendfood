@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
-  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download,
+  Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download,
   History, Tag, BarChart2, Wallet
 } from "lucide-react";
+import logoIcon from "@/assets/logo-icon.png";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -203,9 +204,7 @@ const DashboardPage = () => {
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/10">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-              <ChefHat className="w-4 h-4 text-white" />
-            </div>
+            <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-xl object-contain shadow-lg shadow-primary/30" />
             <span className="font-extrabold text-white text-base tracking-tight">TrendFood</span>
           </Link>
         </div>
