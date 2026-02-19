@@ -1,102 +1,45 @@
 
-# Menu de Navegação Rápida por Categoria (Estilo iFood)
+# Corrigir URL pública no painel do lojista
 
-## Diagnóstico do que já existe
+## Problema
 
-Após explorar o código:
-
-- A coluna `category` já existe na tabela `menu_items` do banco de dados.
-- O array `CATEGORIES` com emojis e ordem já existe em `src/hooks/useMenuItems.ts`.
-- O `MenuTab` do Dashboard já tem o Select de categoria funcionando.
-- A `UnitPage` já agrupa os itens por categoria com título e emoji.
-
-**O que FALTA**: a barra de navegação rápida (pills clicáveis no topo do cardápio) que rola a página automaticamente até a seção correspondente.
-
-Nenhuma mudança de banco de dados é necessária. Toda a mudança é exclusivamente visual/comportamental na `UnitPage`.
-
----
-
-## O que vai mudar para o cliente
-
-Dentro da aba "Cardápio" da página pública, **acima** dos itens, aparecerá uma barra horizontal rolável com chips por categoria:
+Na aba "Perfil da Loja" do dashboard, o link exibido como "URL pública da sua lanchonete" é gerado com `window.location.origin`, que retorna a URL do ambiente atual (preview ou produção). Quando o lojista acessa o painel pelo link de preview (`lovableproject.com`), o link gerado fica:
 
 ```
-┌────────────────────────────────────────────────┐
-│  🍔 Hambúrgueres  🥤 Bebidas  🍟 Porções  ...  │
-└────────────────────────────────────────────────┘
+https://4930409c-277c-4049-bcfe-e466bb996cff.lovableproject.com/unidade/burguer-do-rei
 ```
 
-- Ao clicar em um chip, a página rola suavemente até o título daquela categoria.
-- O chip da categoria visível no momento fica destacado (pill ativo com a cor primária do estabelecimento).
-- Categorias sem produtos não aparecem nem no menu de navegação nem no cardápio.
+...que exige login da Lovable para acessar. O link correto deveria ser sempre:
 
----
+```
+https://snack-hive.lovable.app/unidade/burguer-do-rei
+```
 
-## Implementação técnica
+## Solução
 
-### 1 — IDs nas seções de categoria
+Substituir `window.location.origin` pelo domínio oficial fixo publicado.
 
-Cada título de categoria recebe um `id` fixo para que o scroll por âncora funcione:
+### Arquivo: `src/components/dashboard/StoreProfileTab.tsx`
 
+**Linha 41 — antes:**
 ```tsx
-<div key={group.value} id={`cat-${group.value}`}>
-  <h2>...</h2>
-  ...
-</div>
+const publicUrl = `${window.location.origin}/unidade/${form.slug}`;
 ```
 
-### 2 — Barra de pills com scroll ativo
-
-Um `useRef` mapeado com `useIntersectionObserver` detecta qual categoria está visível na tela e marca o pill correspondente como ativo:
-
+**Depois:**
 ```tsx
-const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
-// IntersectionObserver para detectar seção visível
-useEffect(() => {
-  const observers = groupedMenu.map((group) => {
-    const el = document.getElementById(`cat-${group.value}`);
-    if (!el) return null;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setActiveCategory(group.value); },
-      { threshold: 0.3 }
-    );
-    obs.observe(el);
-    return obs;
-  });
-  return () => observers.forEach((o) => o?.disconnect());
-}, [groupedMenu]);
+const PUBLIC_BASE_URL = "https://snack-hive.lovable.app";
+const publicUrl = `${PUBLIC_BASE_URL}/unidade/${form.slug}`;
 ```
 
-### 3 — Scroll suave ao clicar
+## Por que isso resolve
 
-```tsx
-const scrollToCategory = (value: string) => {
-  const el = document.getElementById(`cat-${value}`);
-  el?.scrollIntoView({ behavior: "smooth", block: "start" });
-};
-```
+- O link exibido e copiado pelo lojista sempre apontará para o site publicado correto.
+- Funciona independentemente de o lojista estar acessando o painel pelo preview ou pelo site publicado.
+- Nenhuma outra parte do sistema usa esse URL gerado — é apenas para exibição e cópia.
 
-### 4 — Pill ativo com cor primária do estabelecimento
-
-O pill ativo usa `style={{ backgroundColor: primaryColor }}` para respeitar a identidade visual de cada lanchonete, exatamente como o botão "Adicionar" já faz.
-
----
-
-## Arquivos afetados
+## Arquivo afetado
 
 | Arquivo | Ação |
 |---|---|
-| `src/pages/UnitPage.tsx` | Adicionar barra de navegação por categoria com IntersectionObserver e scroll suave |
-
-Nenhum outro arquivo precisa ser alterado.
-
----
-
-## O que NÃO muda
-
-- Banco de dados: sem migrações.
-- `MenuTab` do Dashboard: sem alterações.
-- `useMenuItems.ts`, `CATEGORIES`: sem alterações.
-- Fluxo do carrinho e WhatsApp: sem alterações.
-- Design dos cards de produto: sem alterações.
+| `src/components/dashboard/StoreProfileTab.tsx` | Substituir `window.location.origin` pelo domínio publicado fixo |
