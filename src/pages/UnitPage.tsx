@@ -106,11 +106,12 @@ const UnitPage = () => {
     customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"
   ].map((p) => p.trim()).filter(Boolean).join(", ");
 
-  // Address WITHOUT complement for geocoding (Nominatim rejects free-text complements like "beco", "Apto 3B")
-  const fullCustomerAddress = [
-    customerAddress.street, customerAddress.number,
-    customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"
-  ].map((p) => p.trim()).filter(Boolean).join(", ");
+  // Address for geocoding: CEP + number + city is the most reliable query for Nominatim in Brazil.
+  // Falls back to textual address (without complement) if CEP is missing.
+  const fullCustomerAddress = customerAddress.cep && customerAddress.number && customerAddress.city
+    ? `${customerAddress.cep}, ${customerAddress.number}, ${customerAddress.city}, ${customerAddress.state}, Brasil`
+    : [customerAddress.street, customerAddress.number, customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"]
+        .map((p) => p.trim()).filter(Boolean).join(", ");
 
   // Delivery fee — must be before any early returns (Rules of Hooks)
   // cart/totalPrice derived inline here so hook is always at top level
