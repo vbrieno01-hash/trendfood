@@ -8,7 +8,6 @@ import {
   BarChart3,
   Zap,
   ArrowRight,
-  Star,
   QrCode,
   UtensilsCrossed,
   TrendingUp,
@@ -17,34 +16,24 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const floatingEmojis = [
-  { emoji: "🍔", top: "10%", left: "5%", delay: "0s", duration: "3s" },
-  { emoji: "🍕", top: "20%", left: "88%", delay: "0.5s", duration: "4s" },
-  { emoji: "🌮", top: "60%", left: "92%", delay: "1s", duration: "3.5s" },
-  { emoji: "🍟", top: "75%", left: "4%", delay: "1.5s", duration: "4.5s" },
-  { emoji: "🧇", top: "45%", left: "2%", delay: "0.3s", duration: "3.8s" },
-  { emoji: "🍗", top: "30%", left: "94%", delay: "0.8s", duration: "4.2s" },
-  { emoji: "🥤", top: "85%", left: "85%", delay: "1.2s", duration: "3.3s" },
-  { emoji: "🌭", top: "88%", left: "40%", delay: "0.6s", duration: "5s" },
-  { emoji: "🍩", top: "12%", left: "60%", delay: "1.8s", duration: "3.6s" },
-  { emoji: "🥪", top: "55%", left: "96%", delay: "0.2s", duration: "4.8s" },
-];
-
 const problems = [
   {
-    emoji: "🤷",
+    image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80",
+    alt: "Chef pensando no cardápio",
     title: "Não sabe o que lançar?",
     description:
       "Você testa um produto novo sem saber se vai vender. Corre o risco de investir em algo que não tem saída.",
   },
   {
-    emoji: "📉",
+    image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80",
+    alt: "Prato não vendido na mesa",
     title: "Lança e não vende?",
     description:
       "O novo lanche não emplacou. Desperdício de ingredientes, tempo e energia — sem entender o porquê.",
   },
   {
-    emoji: "😤",
+    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80",
+    alt: "Restaurante cheio de clientes",
     title: "Perde clientes para a concorrência?",
     description:
       "Seu concorrente lançou exatamente o que seu cliente queria. E você ficou para trás por não ter ouvido seu público.",
@@ -109,29 +98,44 @@ const features = [
 ];
 
 const examples = [
-  { slug: "burguer-da-hora", name: "Burguer da Hora", emoji: "🍔" },
-  { slug: "pizza-feliz", name: "Pizza Feliz", emoji: "🍕" },
+  {
+    slug: "burguer-da-hora",
+    name: "Burguer da Hora",
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80",
+    alt: "Hambúrguer premium",
+  },
+  {
+    slug: "pizza-feliz",
+    name: "Pizza Feliz",
+    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&q=80",
+    alt: "Pizza artesanal",
+  },
+];
+
+const proofBadges = [
+  "Sem instalação de app",
+  "Link compartilhável",
+  "Votação em tempo real",
+  "100% mobile",
+  "Painel completo",
 ];
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section - dark with floating emojis */}
-      <section className="relative overflow-hidden min-h-screen flex flex-col" style={{ background: "linear-gradient(135deg, #1a0505 0%, #2d0a0a 40%, #1a0505 100%)" }}>
-        {/* Floating emojis */}
-        {floatingEmojis.map((item, i) => (
-          <span
-            key={i}
-            className="absolute text-3xl md:text-4xl select-none pointer-events-none opacity-40"
-            style={{
-              top: item.top,
-              left: item.left,
-              animation: `bounce ${item.duration} ease-in-out ${item.delay} infinite alternate`,
-            }}
-          >
-            {item.emoji}
-          </span>
-        ))}
+      {/* Hero Section */}
+      <section className="relative overflow-hidden min-h-screen flex flex-col">
+        {/* Background photo */}
+        <img
+          src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1920&q=80"
+          alt="Hambúrguer premium apetitoso"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+        {/* Overlay */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(135deg, rgba(26,5,5,0.92) 0%, rgba(45,10,10,0.88) 40%, rgba(26,5,5,0.95) 100%)" }}
+        />
 
         {/* Header */}
         <header className="relative z-10 border-b border-white/10">
@@ -189,12 +193,11 @@ const Index = () => {
 
             {/* Social proof chips */}
             <div className="mt-12 flex flex-wrap gap-2 justify-center">
-              {["Sem instalação de app", "Link compartilhável", "Votação em tempo real", "100% mobile", "Painel completo"].map((b) => (
+              {proofBadges.map((b) => (
                 <span
                   key={b}
-                  className="px-3 py-1.5 rounded-full bg-white/10 text-white/70 text-sm font-medium flex items-center gap-1.5 border border-white/10"
+                  className="px-3 py-1.5 rounded-full bg-white/10 text-white/70 text-sm font-medium border border-white/10"
                 >
-                  <Star className="w-3 h-3 text-primary fill-primary" />
                   {b}
                 </span>
               ))}
@@ -221,11 +224,19 @@ const Index = () => {
             {problems.map((p) => (
               <div
                 key={p.title}
-                className="bg-card rounded-2xl p-6 border border-border shadow-sm hover:border-primary/30 hover:shadow-md transition-all"
+                className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:border-primary/30 hover:shadow-md transition-all"
               >
-                <div className="text-4xl mb-4">{p.emoji}</div>
-                <h3 className="font-bold text-foreground text-lg mb-2">{p.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{p.description}</p>
+                <div className="h-44 overflow-hidden">
+                  <img
+                    src={p.image}
+                    alt={p.alt}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-6">
+                  <h3 className="font-bold text-foreground text-lg mb-2">{p.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{p.description}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -317,13 +328,21 @@ const Index = () => {
               <Link
                 key={ex.slug}
                 to={`/unidade/${ex.slug}`}
-                className="group bg-card border border-border rounded-2xl p-6 flex flex-col items-center gap-3 hover:border-primary/40 hover:shadow-md transition-all"
+                className="group bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-md transition-all"
               >
-                <span className="text-5xl">{ex.emoji}</span>
-                <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {ex.name}
-                </span>
-                <span className="text-xs text-muted-foreground">/unidade/{ex.slug}</span>
+                <div className="h-36 overflow-hidden">
+                  <img
+                    src={ex.image}
+                    alt={ex.alt}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="p-4">
+                  <span className="font-semibold text-foreground group-hover:text-primary transition-colors block">
+                    {ex.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">/unidade/{ex.slug}</span>
+                </div>
               </Link>
             ))}
           </div>
@@ -332,12 +351,6 @@ const Index = () => {
 
       {/* CTA final */}
       <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #7a0c0c 0%, hsl(0 84% 32%) 100%)" }}>
-        {/* Decorative emojis */}
-        <span className="absolute left-8 top-8 text-5xl opacity-20 select-none">🍔</span>
-        <span className="absolute right-12 bottom-8 text-5xl opacity-20 select-none">🍕</span>
-        <span className="absolute right-24 top-6 text-4xl opacity-20 select-none">🌮</span>
-        <span className="absolute left-16 bottom-6 text-4xl opacity-20 select-none">🍟</span>
-
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
             Pronto para lucrar mais com o que seus clientes já querem?
@@ -369,13 +382,6 @@ const Index = () => {
         </div>
         <p>© 2025 TrendFood. Feito com ❤️ para o food service brasileiro.</p>
       </footer>
-
-      <style>{`
-        @keyframes bounce {
-          0% { transform: translateY(0px) rotate(-5deg); }
-          100% { transform: translateY(-20px) rotate(5deg); }
-        }
-      `}</style>
     </div>
   );
 };
