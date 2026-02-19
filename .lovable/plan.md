@@ -1,93 +1,78 @@
 
-# Correção: "Endereço não encontrado" no cálculo de frete
+# Campos Estruturados de Endereço da Loja (CEP, Rua, Número, etc.)
 
-## Causa raiz
+## Problema atual
 
-O endereço da loja salvo no banco é `"rua Jaime João olcese"` — sem cidade, estado ou país. O Nominatim (geocodificação gratuita do OpenStreetMap) não consegue localizar endereços ambíguos sem contexto geográfico.
+O campo "Endereço da loja" é um único texto livre (`store_address`), o que faz com que os lojistas escrevam endereços incompletos como `"rua Jaime João olcese"` — sem número, cidade ou estado. Isso sabota o geocoding e impede o cálculo automático do frete.
 
-Além disso, a função `extractCityState` tenta extrair cidade/estado do endereço da loja para complementar o endereço do cliente. Como o endereço da loja não tem vírgulas, ela retorna o endereço inteiro como se fosse "cidade/estado", o que contamina a busca do cliente.
+## Solução
 
-Resultado: **ambas as geocodificações falham** → "Endereço não encontrado".
+Substituir o campo de texto livre por **campos separados e guiados**:
 
-## Três melhorias combinadas
+| Campo | Placeholder | Obrigatório |
+|---|---|---|
+| CEP | 00000-000 | Sim |
+| Logradouro | Rua, Av., etc. | Sim |
+| Número | 123 | Sim |
+| Complemento | Apto, Sala... | Não |
+| Bairro | Centro | Não |
+| Cidade | Cubatão | Sim |
+| Estado | SP | Sim (select) |
 
-### 1. Fallback de país "Brasil" no geocoding
-
-Quando o Nominatim não encontrar um endereço na primeira tentativa, fazer uma segunda tentativa adicionando `", Brasil"` ao final. Isso resolve a maioria dos casos de endereços sem estado/cidade explícitos.
+Ao salvar, os campos são **concatenados automaticamente** numa string formatada que já alimenta o geocoding da forma correta:
 
 ```
-Tentativa 1: "rua Jaime João olcese"          → sem resultados
-Tentativa 2: "rua Jaime João olcese, Brasil"  → encontrado!
+Rua Jaime João Olcese, 123, Centro, Cubatão, SP, Brasil
 ```
 
-### 2. Complemento do endereço do cliente mais inteligente
+Isso elimina a ambiguidade do Nominatim e garante que o frete seja calculado corretamente.
 
-Atualmente o código sempre usa os últimos dois tokens separados por vírgula do endereço da loja como "cidade/estado". Se o endereço da loja não tem vírgulas (como `"rua Jaime João olcese"`), a função retorna o endereço inteiro, poluindo o endereço do cliente.
+### Bônus: preenchimento automático via CEP
 
-A correção: só complementar o endereço do cliente com cidade/estado da loja quando o endereço da loja tiver pelo menos 2 partes separadas por vírgula. Sempre adicionar `", Brasil"` ao endereço do cliente se ele não contiver o país.
+Ao digitar o CEP e sair do campo (blur), o sistema consulta a API pública do ViaCEP (gratuita, sem chave) e preenche automaticamente logradouro, bairro e cidade. O lojista só precisa adicionar o número.
 
-### 3. UX melhorada: pedido pode ser enviado mesmo sem frete calculado
-
-Quando o frete não pode ser calculado (por endereço incompleto da loja ou do cliente), em vez de bloquear o pedido, mostrar uma mensagem informativa e permitir que o pedido seja enviado com frete "A combinar". O lojista combina o frete via WhatsApp.
-
-Isso evita que o cliente fique preso na tela por causa de uma limitação de geocodificação.
-
-## O que vai mudar visualmente
-
-**Antes** (com erro):
 ```
-🛵 Frete    ❌ Endereço não encontrado
+CEP: 11510-020  →  busca ViaCEP
+                →  Logradouro: "Rua Jaime João Olcese"
+                →  Bairro: "Centro"
+                →  Cidade: "Cubatão"
+                →  Estado: "SP"
 ```
-
-**Depois (durante digitação / endereço curto)**:
-```
-🛵 Frete    Digite seu endereço
-```
-
-**Depois (quando geocodificação falha)**:
-```
-🛵 Frete    A combinar via WhatsApp
-```
-(pedido pode ser enviado normalmente)
-
-**Quando funcionar corretamente**:
-```
-🛵 Frete (1,8 km)    R$ 5,00
-```
-
-## Arquivo afetado
-
-Somente `src/hooks/useDeliveryFee.ts`:
-
-1. Função `geocode` atualizada para tentar com `", Brasil"` como fallback:
-```typescript
-async function geocode(query: string): Promise<GeoCoord | null> {
-  // Tentativa 1: endereço original
-  const result = await tryGeocode(query);
-  if (result) return result;
-  // Tentativa 2: com "Brasil" como fallback de país
-  if (!query.toLowerCase().includes("brasil")) {
-    return tryGeocode(`${query}, Brasil`);
-  }
-  return null;
-}
-```
-
-2. Complemento do endereço do cliente corrigido:
-```typescript
-// Só complementa com cidade/estado se o endereço da loja tiver vírgulas
-const cityState = extractCityState(storeAddress);
-const hasCityState = storeAddress.includes(",");
-const fullCustomerAddress = (customerAddress.includes(",") || !hasCityState)
-  ? `${customerAddress}, Brasil`
-  : `${customerAddress}, ${cityState}`;
-```
-
-3. No `UnitPage.tsx`: quando `feeError` e não é `noStoreAddress`, em vez de mostrar erro vermelho "Endereço não encontrado", mostrar texto neutro "A combinar". O botão de envio fica habilitado e o frete é registrado nas notas como "A combinar".
 
 ## Arquivos afetados
 
-| Arquivo | O que muda |
-|---|---|
-| `src/hooks/useDeliveryFee.ts` | Fallback de país no geocoding + complemento inteligente do endereço |
-| `src/pages/UnitPage.tsx` | UX do erro de frete: "A combinar" em vez de mensagem vermelha; inclui "A combinar" nas notas quando o frete não pôde ser calculado |
+Somente `src/components/dashboard/StoreProfileTab.tsx`:
+
+1. Adicionar estado `addressFields` com os subcampos (cep, street, number, complement, neighborhood, city, state)
+2. Inicializar o estado fazendo parse do `store_address` existente ou deixando vazio
+3. Adicionar função `fetchCep(cep)` que chama `https://viacep.com.br/ws/{cep}/json/`
+4. Adicionar função `buildStoreAddress(fields)` que monta a string final para salvar no banco
+5. Substituir o `<Input id="store-address" ... />` pelos campos estruturados em grid
+6. No `handleSave`, usar `buildStoreAddress(addressFields)` em vez de `form.store_address`
+
+## Como ficará visualmente
+
+```
+┌─────────────────────────────────────────────────────┐
+│ CEP *                                                │
+│ [  00000-000  ]  [Buscando... / Buscar]             │
+│                                                      │
+│ Logradouro *              Número *                   │
+│ [ Rua Jaime João Olcese ] [ 123  ]                  │
+│                                                      │
+│ Complemento (opcional)                               │
+│ [ Apto 4B                                     ]     │
+│                                                      │
+│ Bairro                    Cidade *                   │
+│ [ Centro          ]       [ Cubatão          ]       │
+│                                                      │
+│ Estado *                                             │
+│ [ SP ▾ ]                                            │
+└─────────────────────────────────────────────────────┘
+```
+
+O endereço final salvo no banco (ex: `"Rua Jaime João Olcese, 123, Centro, Cubatão, SP, Brasil"`) é completamente compatível com o `useDeliveryFee` existente — nenhuma mudança necessária no hook.
+
+## Nenhuma migração de banco necessária
+
+O campo `store_address` já existe como `text` na tabela `organizations`. O formato da string apenas melhora — o hook de geocoding continua consumindo do mesmo jeito.
