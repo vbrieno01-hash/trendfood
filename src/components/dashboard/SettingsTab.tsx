@@ -10,7 +10,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
@@ -49,8 +49,6 @@ export default function SettingsTab() {
   const handleDeleteAccount = async () => {
     setDeleteLoading(true);
     try {
-      // Sign out first, then delete via supabase (requires service role in edge function for full deletion)
-      // For now, sign out and show a message
       await signOut();
       toast.info("Conta desativada. Entre em contato para exclusão completa dos dados.");
       navigate("/auth");
@@ -62,89 +60,105 @@ export default function SettingsTab() {
   };
 
   return (
-    <div className="space-y-8 max-w-lg">
+    <div className="space-y-6 max-w-lg">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
-        <p className="text-muted-foreground text-sm mt-1">Gerencie sua conta</p>
+        <p className="text-muted-foreground text-sm mt-0.5">Gerencie sua conta e segurança</p>
       </div>
 
       {/* Account info */}
-      <div className="bg-card border border-border rounded-xl p-5">
-        <h2 className="font-semibold text-foreground mb-3">Informações da conta</h2>
-        <p className="text-sm text-muted-foreground">
-          E-mail: <span className="text-foreground font-medium">{user?.email}</span>
-        </p>
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Informações da conta</p>
+        </div>
+        <div className="px-4 py-4 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Mail className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">E-mail</p>
+            <p className="text-sm font-medium text-foreground">{user?.email}</p>
+          </div>
+        </div>
       </div>
 
       {/* Change password */}
-      <div className="bg-card border border-border rounded-xl p-5">
-        <h2 className="font-semibold text-foreground mb-4">Alterar senha</h2>
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <div>
-            <Label htmlFor="new-pwd" className="text-sm font-medium">Nova senha</Label>
-            <Input
-              id="new-pwd"
-              type="password"
-              placeholder="Mínimo 6 caracteres"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1"
-              minLength={6}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="confirm-pwd" className="text-sm font-medium">Confirmar nova senha</Label>
-            <Input
-              id="confirm-pwd"
-              type="password"
-              placeholder="Repita a nova senha"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1"
-              minLength={6}
-              required
-            />
-          </div>
-          <Button type="submit" disabled={pwdLoading}>
-            {pwdLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : "Alterar senha"}
-          </Button>
-        </form>
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Alterar senha</p>
+        </div>
+        <div className="px-4 py-4">
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <Label htmlFor="new-pwd" className="text-sm font-medium">Nova senha</Label>
+              <Input
+                id="new-pwd"
+                type="password"
+                placeholder="Mínimo 6 caracteres"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-1"
+                minLength={6}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-pwd" className="text-sm font-medium">Confirmar nova senha</Label>
+              <Input
+                id="confirm-pwd"
+                type="password"
+                placeholder="Repita a nova senha"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mt-1"
+                minLength={6}
+                required
+              />
+            </div>
+            <Button type="submit" disabled={pwdLoading} className="h-10">
+              {pwdLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Alterar senha"}
+            </Button>
+          </form>
+        </div>
       </div>
 
       {/* Danger zone */}
-      <div className="bg-card border border-destructive/30 rounded-xl p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <ShieldAlert className="w-5 h-5 text-destructive" />
-          <h2 className="font-semibold text-destructive">Zona de Perigo</h2>
+      <div className="rounded-xl border border-destructive/40 overflow-hidden">
+        <div className="px-4 py-3 border-b border-destructive/20 bg-destructive/5 flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-destructive" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Zona de Perigo</p>
         </div>
-        <p className="text-muted-foreground text-sm mb-4">
-          Ao excluir sua conta, todos os dados serão perdidos permanentemente.
-        </p>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm" disabled={deleteLoading}>
-              {deleteLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Excluindo...</> : "Excluir minha conta"}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Sua lanchonete e todas as sugestões serão perdidas.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteAccount}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Sim, excluir conta
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="px-4 py-4">
+          <p className="text-sm text-muted-foreground mb-1 font-medium">Excluir minha conta</p>
+          <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+            Ao excluir sua conta, sua lanchonete, cardápio e todas as sugestões de clientes serão perdidos permanentemente. Esta ação <strong>não pode ser desfeita</strong>.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={deleteLoading} className="h-10">
+                {deleteLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Excluindo...</> : "Excluir minha conta"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Sua lanchonete e todas as sugestões serão perdidas permanentemente. Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAccount}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Sim, excluir conta
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </div>
   );
