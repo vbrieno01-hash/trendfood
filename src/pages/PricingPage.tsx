@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
@@ -88,25 +89,36 @@ const faqs = [
 ];
 
 const PricingPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border/60">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <button onClick={handleBack} className="flex items-center gap-2">
             <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-bold text-foreground text-lg">TrendFood</span>
-          </Link>
+          </button>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" asChild>
-              <Link to="/">
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                Voltar
-              </Link>
+            <Button size="sm" variant="ghost" onClick={handleBack}>
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Voltar
             </Button>
-            <Button size="sm" asChild>
-              <Link to="/auth">Entrar</Link>
-            </Button>
+            {!user && (
+              <Button size="sm" asChild>
+                <Link to="/auth">Entrar</Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>
