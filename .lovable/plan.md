@@ -1,144 +1,141 @@
 
-# Diagnóstico e Correção — Notificações da Cozinha
+# Atualização Completa da Landing Page
 
-## Problema Relatado
-O toggle "🔔 Notificações" na aba Cozinha (KDS) não está funcionando corretamente.
+## Problema
 
----
-
-## Diagnóstico: 3 bugs identificados
-
-### Bug 1 — O toggle de notificações começa SEMPRE desativado (crítico)
-
-No `KitchenTab.tsx`, linha 58:
-```typescript
-// ESTADO INICIAL: só ativa se localStorage = "true"
-const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
-  () => localStorage.getItem(NOTIF_KEY) === "true"
-);
-```
-
-Porém na função `toggleNotifications` (linha 70), ao ativar o toggle, o código pede permissão do navegador. Se o navegador **já tinha concedido permissão** anteriormente (em sessão anterior), o fluxo funciona normalmente. Mas se o navegador **bloquear ou negar**, o estado não é salvo e o toggle não muda visualmente — o usuário pensa que funcionou mas não funcionou. Não há nenhum feedback de erro ou aviso.
-
-### Bug 2 — Nenhum feedback ao usuário quando a permissão é negada (UX crítico)
-
-```typescript
-const toggleNotifications = async (val: boolean) => {
-  if (val) {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      return; // ← silencioso! O toggle visualmente "volta" mas sem explicação
-    }
-  }
-  // ...
-};
-```
-
-Quando o navegador nega (ou o usuário clica "Bloquear"), a função simplesmente retorna sem nada. O toggle do Switch reverte, mas o usuário não sabe **por que** nem **como resolver**.
-
-### Bug 3 — O canal Realtime cria conflito com o canal do `useOrders`
-
-Em `useOrders.ts` (linha 121), já existe um canal Realtime para os pedidos:
-```
-channel: `orders-${organizationId}-${statuses.join("-")}`
-```
-
-Em `KitchenTab.tsx` (linha 104), há um segundo canal paralelo:
-```
-channel: `kitchen-tab-${orgId}`
-```
-
-Ambos escutam `INSERT` na tabela `orders` com o mesmo filtro. O Supabase Realtime pode entregar o evento apenas ao primeiro canal registrado, fazendo com que o sino e as notificações não disparem em alguns casos. Além disso, toda vez que `autoPrint` ou `notificationsEnabled` mudam (linha 137), o canal é destruído e recriado — com risco de perder eventos durante a reconexão.
+A landing page atual está desatualizada e desalinhada com o que o sistema realmente entrega. Ela posiciona o TrendFood como uma ferramenta de "sugestões e votações de clientes", quando na verdade o produto evoluiu para um **sistema completo de gestão de restaurantes**: cardápio digital com QR Code, KDS de cozinha, painel do garçom, caixa com controle de turno, cupons de desconto, mais vendidos, notificações push, impressão térmica e muito mais.
 
 ---
 
-## Raiz dos problemas
+## O que existe hoje (foco desatualizado)
 
-```text
-1. Toggle silencioso sem feedback → usuário não sabe que permissão foi negada
-2. Canal Realtime duplicado → eventos podem não chegar ao handler de notificações
-3. useEffect com dependências mutáveis (autoPrint, notificationsEnabled) → canal reinicia desnecessariamente
+| Seção | Problema |
+|---|---|
+| Hero | "Turbinado pelos seus clientes" — foco errado em sugestões |
+| Problema | 3 cards sobre "não saber o que lançar" — irrelevante para o produto atual |
+| Como funciona | "3 passos: crie, clientes sugerem, você decide" — descreve só o mural |
+| Features | 6 cards com mural de sugestões como destaque principal |
+| Demo | Só linka para `/unidade/burguer-da-hora` sem contexto |
+| CTA | "Lucrar com o que seus clientes querem" — ainda no ângulo errado |
+| Badges | "Votação em tempo real" como destaque — funcionalidade secundária |
+
+---
+
+## O que o sistema realmente entrega (baseado no código)
+
+Tirado do `DashboardPage.tsx`, abas implementadas e hooks existentes:
+
+- **Cardápio Digital** — Monte categorias, preços e fotos; cliente acessa via link
+- **Mesas + QR Code** — Cada mesa tem QR Code; cliente pede sem chamar garçom
+- **Cozinha (KDS)** — Tela dedicada com som de alerta, notificações push, impressão térmica automática
+- **Painel do Garçom** — Visão de mesas ativas, pagamento com PIX integrado
+- **Caixa** — Abertura/fechamento de turno, sangrias, conferência de saldo
+- **Histórico de Pedidos** — Consulta com filtros
+- **Mais Vendidos** — Ranking por período (hoje, 7d, 30d, tudo) com receita
+- **Cupons de Desconto** — Criação, ativação/desativação, tipos fixo/percentual
+- **Faturamento em Tempo Real** — Dashboard com gráfico dos últimos 7 dias, ticket médio
+- **Mural de Sugestões** — Clientes sugerem pratos (funcionalidade secundária, não a principal)
+- **Horário de Funcionamento** — Loja com status aberto/fechado automático
+- **Impressora Térmica** — Impressão automática 80mm com QR PIX
+- **PWA instalável** — App pode ser instalado no celular
+
+---
+
+## Nova narrativa central
+
+**De**: "Descubra o que seu cliente quer comer"
+**Para**: "Gerencie seu restaurante inteiro em um só lugar"
+
+Posicionamento: sistema completo de gestão para food service, do pedido à caixa — sem mensalidade cara, sem papelada.
+
+---
+
+## Estrutura da nova landing page
+
+### 1. Hero (reescrito)
+
+Novo headline: **"Gerencie seu restaurante inteiro. Do pedido ao caixa."**
+
+Subtítulo focado em: cardápio digital + pedido por QR Code + cozinha integrada
+
+Badges de prova social atualizados:
+- "Cardápio Digital"
+- "Pedido por QR Code"
+- "Cozinha em Tempo Real"
+- "Sem app para instalar"
+- "PIX integrado"
+
+Botão principal: "Começar Grátis" → `/auth`
+Botão secundário: "Ver cardápio demo" → `/unidade/burguer-da-hora`
+
+---
+
+### 2. Seção de Dores (reescrita)
+
+Substituir pelos problemas reais que o sistema resolve:
+
+| Card | Título | Descrição |
+|---|---|---|
+| 1 | Anotação em papel e confusão na cozinha | Pedido que chega por papelzinho e se perde — garçom chamando cozinheiro, item errado na mesa |
+| 2 | Clientes esperando para pagar | Mesa que fica parada esperando garçom com máquina, sem conseguir fechar a conta |
+| 3 | Sem controle do que vende | Fim do mês sem saber qual prato vendeu mais, qual dia faturou menos, quanto entrou no caixa |
+
+---
+
+### 3. Como funciona (reescrito)
+
+4 passos (não mais 3):
+
+```
+01 → Crie seu cardápio online
+     Monte categorias, preços e fotos em minutos
+
+02 → Gere QR Codes para cada mesa
+     Cliente escaneia e faz o pedido direto pelo celular
+
+03 → Cozinha e garçom recebem em tempo real
+     KDS com alerta sonoro + impressão automática
+
+04 → Feche o caixa com relatório completo
+     Veja faturamento, mais vendidos e controle de turno
 ```
 
 ---
 
-## Solução proposta
+### 4. ShowcaseSection (manter, apenas atualizar textos)
 
-### Arquivo: `src/components/dashboard/KitchenTab.tsx`
+A seção com mockup de laptop e celular já usa screenshots reais — manter mas atualizar os textos laterais para refletir o dashboard atual.
 
-**Correção 1 — Feedback visual ao negar permissão**
+---
 
-Importar `toast` (sonner) e mostrar uma mensagem orientando o usuário a habilitar manualmente no navegador quando a permissão for negada:
+### 5. Features (reescrito — 9 cards, grid 3x3)
 
-```typescript
-import { toast } from "sonner";
+Substituir os 6 cards atuais pelos módulos reais:
 
-const toggleNotifications = async (val: boolean) => {
-  if (val) {
-    const permission = await Notification.requestPermission();
-    if (permission === "denied") {
-      toast.error("Notificações bloqueadas pelo navegador", {
-        description: "Clique no cadeado na barra de endereço e permita notificações para este site.",
-        duration: 8000,
-      });
-      return;
-    }
-    if (permission !== "granted") {
-      toast.warning("Permissão de notificação não concedida.");
-      return;
-    }
-  }
-  setNotificationsEnabled(val);
-  localStorage.setItem(NOTIF_KEY, String(val));
-};
-```
+| Ícone | Título | Descrição |
+|---|---|---|
+| `UtensilsCrossed` | Cardápio Digital | Monte seu menu com categorias, preços e fotos |
+| `QrCode` | Pedidos por QR Code | Cada mesa tem QR único; cliente pede sem app |
+| `Flame` | Cozinha (KDS) | Tela para a cozinha com alerta sonoro e impressão automática |
+| `BellRing` | Painel do Garçom | Visão das mesas ativas e fechamento com PIX |
+| `Wallet` | Controle de Caixa | Abra e feche turnos, registre sangrias, confira o saldo |
+| `BarChart2` | Mais Vendidos | Ranking de itens por período com receita gerada |
+| `Tag` | Cupons de Desconto | Crie promoções com valor fixo ou percentual |
+| `TrendingUp` | Faturamento em Tempo Real | Dashboard com gráfico dos últimos 7 dias e ticket médio |
+| `Printer` | Impressora Térmica | Impressão automática 80mm com QR Code PIX no recibo |
 
-**Correção 2 — Estabilizar o canal Realtime com `useRef` para evitar recriação**
+---
 
-Usar refs para `autoPrint` e `notificationsEnabled` dentro do `useEffect`, eliminando-os das dependências. Isso evita que o canal Realtime seja destruído e recriado cada vez que o toggle é alterado:
+### 6. Seção de Demo (manter estrutura, atualizar texto)
 
-```typescript
-const autoPrintRef = useRef(autoPrint);
-const notificationsRef = useRef(notificationsEnabled);
+Manter os 2 cards de exemplos (`burguer-da-hora`, `pizza-feliz`) mas atualizar o contexto: em vez de "exemplos ao vivo", mostrar como "veja um cardápio digital de verdade".
 
-// Sincronizar refs com estado
-useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
-useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
+---
 
-// Canal Realtime: usar refs dentro do handler, sem deps mutáveis
-useEffect(() => {
-  if (!orgId) return;
-  const channel = supabase
-    .channel(`kitchen-tab-${orgId}`)
-    .on("postgres_changes", { event: "INSERT", ... }, (payload) => {
-      const order = payload.new as Order;
-      if (!knownIds.current.has(order.id)) {
-        knownIds.current.add(order.id);
-        playBell();
-        if (autoPrintRef.current) { // ← usa ref, não estado
-          pendingPrintIds.current.add(order.id);
-        }
-        if (notificationsRef.current && Notification.permission === "granted") { // ← ref
-          new Notification(`🔔 Novo pedido!`, { ... });
-        }
-        qc.invalidateQueries(...);
-      }
-    })
-    // ...
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [orgId, qc]); // ← apenas orgId e qc como dependências
-```
+### 7. CTA Final (reescrito)
 
-**Correção 3 — Indicador visual do estado da permissão**
-
-Mostrar badge informativo ao lado do toggle para indicar o estado atual da permissão (`granted` / `denied` / `default`), assim o usuário sabe imediatamente se as notificações estão realmente ativas no navegador:
-
-```text
-[🔔 Notificações] [Switch ON] ← badge verde "Ativo"
-[🔔 Notificações] [Switch OFF] ← badge cinza
-[🔔 Notificações] [Switch bloqueado] ← badge vermelho "Bloqueado pelo navegador"
-```
+**Novo headline**: "Seu restaurante mais organizado a partir de hoje"
+**Subtítulo**: "Sem papel, sem confusão, sem app para baixar. Cadastre-se grátis e configure em minutos."
 
 ---
 
@@ -146,16 +143,17 @@ Mostrar badge informativo ao lado do toggle para indicar o estado atual da permi
 
 | Arquivo | Mudança |
 |---|---|
-| `src/components/dashboard/KitchenTab.tsx` | Feedback ao negar permissão, canal Realtime estável com refs, badge de status |
+| `src/pages/Index.tsx` | Reescrever todas as seções: Hero, Problemas, Como Funciona, Features, CTA |
+| `src/components/landing/ShowcaseSection.tsx` | Atualizar textos laterais (esquerda/direita) para refletir dashboard atual |
 
-Nenhuma mudança de banco de dados necessária.
+Zero novas dependências. Ícones do `lucide-react` já instalados. Imagens do Unsplash já em uso.
 
 ---
 
-## Resumo das correções
+## Resumo
 
-- 1 arquivo modificado: `KitchenTab.tsx`
+- 2 arquivos modificados
 - Zero novas dependências
-- O sino e o auto-print continuam funcionando normalmente
-- O canal Realtime não será mais reiniciado ao trocar os toggles
-- O usuário receberá feedback claro quando as notificações forem bloqueadas
+- Narrativa atualizada: sistema completo de gestão, não apenas mural de sugestões
+- Todas as funcionalidades reais do dashboard representadas
+- Design e componentes existentes mantidos (sem quebrar layout)
