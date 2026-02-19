@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ShowcaseSection from "@/components/landing/ShowcaseSection";
 import {
   ChefHat,
   Heart,
@@ -269,6 +270,8 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      <ShowcaseSection />
 
       {/* Features */}
       <section className="py-20 px-4 bg-background">
