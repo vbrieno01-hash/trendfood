@@ -121,7 +121,8 @@ export function useDeliveryFee(
   customerAddress: string,
   subtotal: number,
   org: Organization | null | undefined,
-  enabled: boolean
+  enabled: boolean,
+  globalConfig?: DeliveryConfig
 ): UseDeliveryFeeResult {
   const [fee, setFee] = useState(0);
   const [freeShipping, setFreeShipping] = useState(false);
@@ -134,10 +135,8 @@ export function useDeliveryFee(
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const storeAddress = (org as { store_address?: string | null })?.store_address;
-  const deliveryConfigRaw = (org as { delivery_config?: DeliveryConfig | null })?.delivery_config;
-  const config: DeliveryConfig = deliveryConfigRaw
-    ? { ...DEFAULT_DELIVERY_CONFIG, ...deliveryConfigRaw }
-    : DEFAULT_DELIVERY_CONFIG;
+  // Usa globalConfig (platform_config) se disponível, senão DEFAULT
+  const config: DeliveryConfig = globalConfig ?? DEFAULT_DELIVERY_CONFIG;
 
   const noStoreAddress = !storeAddress;
 
