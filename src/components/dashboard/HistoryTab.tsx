@@ -6,12 +6,13 @@ import { useOrderHistory } from "@/hooks/useOrders";
 
 interface HistoryTabProps {
   orgId: string;
+  restrictTo7Days?: boolean;
 }
 
 type Period = "today" | "7d" | "30d" | "all";
 type PaidFilter = "all" | "paid" | "unpaid";
 
-const periodOptions: { key: Period; label: string }[] = [
+const allPeriodOptions: { key: Period; label: string }[] = [
   { key: "today", label: "Hoje" },
   { key: "7d", label: "7 dias" },
   { key: "30d", label: "30 dias" },
@@ -37,7 +38,10 @@ const fmtDateTime = (iso: string) => {
   });
 };
 
-export default function HistoryTab({ orgId }: HistoryTabProps) {
+export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) {
+  const periodOptions = restrictTo7Days
+    ? allPeriodOptions.filter((o) => o.key === "today" || o.key === "7d")
+    : allPeriodOptions;
   const [period, setPeriod] = useState<Period>("7d");
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
   const [search, setSearch] = useState("");
@@ -66,6 +70,13 @@ export default function HistoryTab({ orgId }: HistoryTabProps) {
         <History className="w-5 h-5 text-primary" />
         <h2 className="font-bold text-foreground text-xl">Histórico de Pedidos</h2>
       </div>
+
+      {restrictTo7Days && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm text-muted-foreground">
+          📊 No plano Grátis, o histórico é limitado aos últimos 7 dias.{" "}
+          <a href="/planos" className="text-primary font-medium hover:underline">Fazer upgrade</a>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">

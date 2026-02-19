@@ -18,9 +18,9 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface Props { organization: Organization }
+interface Props { organization: Organization; tableLimit?: number | null }
 
-export default function TablesTab({ organization }: Props) {
+export default function TablesTab({ organization, tableLimit }: Props) {
   const { data: tables = [], isLoading } = useTables(organization.id);
   const addTable = useAddTable(organization.id);
   const deleteTable = useDeleteTable(organization.id);
@@ -67,6 +67,8 @@ export default function TablesTab({ organization }: Props) {
   const kitchenUrl = `/cozinha?org=${organization.slug}`;
   const waiterUrl = `/garcom?org=${organization.slug}`;
 
+  const tableLimitReached = tableLimit != null && tables.length >= tableLimit;
+
   return (
     <div className="max-w-3xl space-y-6">
       {/* Header */}
@@ -74,10 +76,10 @@ export default function TablesTab({ organization }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Mesas</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {tables.length} {tables.length === 1 ? "mesa configurada" : "mesas configuradas"}
+            {tables.length} {tables.length === 1 ? "mesa configurada" : "mesas configuradas"}{tableLimit != null ? ` / ${tableLimit}` : ""}
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)} size="sm" className="gap-1.5 h-9">
+        <Button onClick={() => { if (tableLimitReached) { toast({ title: "Limite de mesas atingido", description: "Faça upgrade para criar mais mesas.", variant: "destructive" }); return; } setAddOpen(true); }} size="sm" className="gap-1.5 h-9" disabled={tableLimitReached}>
           <Plus className="w-4 h-4" />
           Nova Mesa
         </Button>

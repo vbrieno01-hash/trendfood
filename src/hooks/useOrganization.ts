@@ -36,6 +36,8 @@ export interface Organization {
   pix_key?: string | null;
   store_address?: string | null;
   delivery_config?: DeliveryConfig | null;
+  subscription_status?: string;
+  subscription_plan?: string;
 }
 
 export const useOrganization = (slug: string | undefined) => {
