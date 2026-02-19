@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChefHat, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ChefHat, Eye, EyeOff, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 
 const generateSlug = (name: string) =>
@@ -22,7 +22,6 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { refreshOrganizationForUser } = useAuth();
 
-  // Sign up state
   const [signupData, setSignupData] = useState({
     fullName: "",
     email: "",
@@ -33,7 +32,6 @@ const AuthPage = () => {
   const [signupLoading, setSignupLoading] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
 
-  // Login state
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [loginLoading, setLoginLoading] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
@@ -55,7 +53,6 @@ const AuthPage = () => {
     setSignupLoading(true);
 
     try {
-      // 1. Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: signupData.email,
         password: signupData.password,
@@ -66,13 +63,11 @@ const AuthPage = () => {
 
       const userId = authData.user.id;
 
-      // 2. Insert profile
       await supabase.from("profiles").insert({
         user_id: userId,
         full_name: signupData.fullName,
       });
 
-      // 3. Insert organization
       const { error: orgError } = await supabase.from("organizations").insert({
         user_id: userId,
         name: signupData.businessName,
@@ -93,7 +88,6 @@ const AuthPage = () => {
       }
 
       toast.success("Conta criada com sucesso! Bem-vindo! 🎉");
-      // Fetch org into context BEFORE navigating to avoid race condition
       await refreshOrganizationForUser(userId);
       navigate("/dashboard");
     } catch (err: unknown) {
@@ -124,108 +118,196 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <ChefHat className="w-5 h-5 text-primary-foreground" />
+    <div className="min-h-screen flex">
+      {/* LEFT PANEL — Visual (desktop only) */}
+      <div
+        className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 overflow-hidden"
+        style={{ minHeight: "100vh" }}
+      >
+        {/* Background photo */}
+        <img
+          src="https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=1200&q=80"
+          alt="Interior de restaurante aconchegante"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Dark red gradient overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(90,5,5,0.90) 0%, rgba(20,3,3,0.95) 100%)",
+          }}
+        />
+
+        {/* Content over overlay */}
+        <div className="relative z-10 flex flex-col h-full justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+              <ChefHat className="w-5 h-5 text-white" />
             </div>
-            <span className="font-extrabold text-foreground text-xl">TrendFood</span>
+            <span className="font-extrabold text-white text-xl tracking-tight">TrendFood</span>
+          </div>
+
+          {/* Center content */}
+          <div className="flex-1 flex flex-col justify-center py-16">
+            <h1 className="text-4xl font-extrabold text-white leading-tight mb-4">
+              Transforme o gosto dos seus clientes em lucro
+            </h1>
+            <p className="text-white/70 text-lg leading-relaxed mb-10">
+              Colete sugestões, receba votos e lance os pratos que já nascem campeões.
+            </p>
+
+            {/* Bullets */}
+            <ul className="space-y-4">
+              {[
+                "Sem instalação de aplicativo",
+                "Mural de sugestões em tempo real",
+                "Painel completo de métricas",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                  </div>
+                  <span className="text-white/90 text-sm font-medium">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Footer badge */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/50 font-medium">
+              Grátis para começar · Sem cartão de crédito
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT PANEL — Form */}
+      <div className="flex-1 lg:w-1/2 bg-background flex flex-col justify-center px-6 py-12 lg:px-16">
+        {/* Mobile-only logo */}
+        <div className="flex justify-center mb-8 lg:hidden">
+          <Link to="/" className="inline-flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <ChefHat className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-extrabold text-foreground text-lg">TrendFood</span>
           </Link>
-          <p className="text-muted-foreground text-sm mt-2">Seu mural de sugestões para lanchonetes</p>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+        <div className="w-full max-w-sm mx-auto">
           <Tabs defaultValue="signup">
-            <TabsList className="w-full rounded-none border-b border-border h-12 bg-secondary/40 grid grid-cols-2">
-              <TabsTrigger value="signup" className="rounded-none h-full text-sm font-semibold">
+            <TabsList className="w-full h-11 bg-muted/60 rounded-xl p-1 grid grid-cols-2 mb-8">
+              <TabsTrigger
+                value="signup"
+                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
                 Criar conta
               </TabsTrigger>
-              <TabsTrigger value="login" className="rounded-none h-full text-sm font-semibold">
+              <TabsTrigger
+                value="login"
+                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
                 Entrar
               </TabsTrigger>
             </TabsList>
 
             {/* SIGNUP TAB */}
-            <TabsContent value="signup" className="p-6 space-y-4">
-              <div className="text-center mb-2">
-                <h2 className="font-bold text-foreground text-lg">Crie seu estabelecimento</h2>
-                <p className="text-muted-foreground text-sm">Pronto em menos de 2 minutos</p>
+            <TabsContent value="signup" className="mt-0 space-y-5">
+              <div className="mb-6">
+                <h2 className="font-bold text-foreground text-2xl">Crie seu estabelecimento</h2>
+                <p className="text-muted-foreground text-sm mt-1">Pronto em menos de 2 minutos</p>
               </div>
               <form onSubmit={handleSignup} className="space-y-4">
                 <div>
-                  <Label htmlFor="fullName" className="text-sm font-medium">Seu nome completo</Label>
+                  <Label htmlFor="fullName" className="text-sm font-medium mb-1.5 block">
+                    Seu nome completo
+                  </Label>
                   <Input
                     id="fullName"
                     placeholder="João da Silva"
                     value={signupData.fullName}
                     onChange={(e) => setSignupData((p) => ({ ...p, fullName: e.target.value }))}
-                    className="mt-1"
+                    className="h-11"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
+                  <Label htmlFor="email" className="text-sm font-medium mb-1.5 block">
+                    E-mail
+                  </Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="joao@email.com"
                     value={signupData.email}
                     onChange={(e) => setSignupData((p) => ({ ...p, email: e.target.value }))}
-                    className="mt-1"
+                    className="h-11"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="signup-pwd" className="text-sm font-medium">Senha</Label>
-                  <div className="relative mt-1">
+                  <Label htmlFor="signup-pwd" className="text-sm font-medium mb-1.5 block">
+                    Senha
+                  </Label>
+                  <div className="relative">
                     <Input
                       id="signup-pwd"
                       type={showSignupPwd ? "text" : "password"}
                       placeholder="Mínimo 6 caracteres"
                       value={signupData.password}
                       onChange={(e) => setSignupData((p) => ({ ...p, password: e.target.value }))}
+                      className="h-11 pr-10"
                       minLength={6}
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowSignupPwd((v) => !v)}
                     >
                       {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-3 font-medium">Dados do seu estabelecimento</p>
-                  <div className="space-y-3">
+
+                <div className="pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-3 font-semibold uppercase tracking-wide">
+                    Dados do estabelecimento
+                  </p>
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="businessName" className="text-sm font-medium">Nome da lanchonete</Label>
+                      <Label htmlFor="businessName" className="text-sm font-medium mb-1.5 block">
+                        Nome da lanchonete
+                      </Label>
                       <Input
                         id="businessName"
                         placeholder="Burguer da Vila"
                         value={signupData.businessName}
                         onChange={(e) => handleBusinessNameChange(e.target.value)}
-                        className="mt-1"
+                        className="h-11"
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="slug" className="text-sm font-medium">Slug (URL pública)</Label>
-                      <div className="flex items-center mt-1 rounded-md border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                        <span className="px-3 py-2 text-xs text-muted-foreground bg-secondary border-r border-input shrink-0">
-                          /unidade/
+                      <Label htmlFor="slug" className="text-sm font-medium mb-1.5 block">
+                        URL pública
+                      </Label>
+                      <div className="flex items-center rounded-lg border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 h-11">
+                        <span className="px-3 text-xs text-muted-foreground bg-muted border-r border-input h-full flex items-center shrink-0 font-mono">
+                          /u/
                         </span>
                         <input
                           id="slug"
-                          className="flex-1 px-3 py-2 text-sm bg-background outline-none"
+                          className="flex-1 px-3 text-sm bg-background outline-none h-full"
                           placeholder="burguer-da-vila"
                           value={signupData.slug}
                           onChange={(e) =>
-                            setSignupData((p) => ({ ...p, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") }))
+                            setSignupData((p) => ({
+                              ...p,
+                              slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                            }))
                           }
                           required
                         />
@@ -233,9 +315,12 @@ const AuthPage = () => {
                     </div>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={signupLoading}>
+
+                <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={signupLoading}>
                   {signupLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Criando conta...</>
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Criando conta...
+                    </>
                   ) : (
                     "Criar minha conta grátis"
                   )}
@@ -244,47 +329,54 @@ const AuthPage = () => {
             </TabsContent>
 
             {/* LOGIN TAB */}
-            <TabsContent value="login" className="p-6 space-y-4">
-              <div className="text-center mb-2">
-                <h2 className="font-bold text-foreground text-lg">Bem-vindo de volta</h2>
-                <p className="text-muted-foreground text-sm">Acesse seu painel</p>
+            <TabsContent value="login" className="mt-0 space-y-5">
+              <div className="mb-6">
+                <h2 className="font-bold text-foreground text-2xl">Bem-vindo de volta</h2>
+                <p className="text-muted-foreground text-sm mt-1">Acesse seu painel de gestão</p>
               </div>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <Label htmlFor="login-email" className="text-sm font-medium">E-mail</Label>
+                  <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block">
+                    E-mail
+                  </Label>
                   <Input
                     id="login-email"
                     type="email"
                     placeholder="joao@email.com"
                     value={loginData.email}
                     onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
-                    className="mt-1"
+                    className="h-11"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="login-pwd" className="text-sm font-medium">Senha</Label>
-                  <div className="relative mt-1">
+                  <Label htmlFor="login-pwd" className="text-sm font-medium mb-1.5 block">
+                    Senha
+                  </Label>
+                  <div className="relative">
                     <Input
                       id="login-pwd"
                       type={showLoginPwd ? "text" : "password"}
                       placeholder="••••••••"
                       value={loginData.password}
                       onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
+                      className="h-11 pr-10"
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowLoginPwd((v) => !v)}
                     >
                       {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={loginLoading}>
+                <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={loginLoading}>
                   {loginLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Entrando...</>
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Entrando...
+                    </>
                   ) : (
                     "Entrar no painel"
                   )}
@@ -292,11 +384,12 @@ const AuthPage = () => {
               </form>
             </TabsContent>
           </Tabs>
-        </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Ao criar sua conta, você concorda com nossos Termos de Uso.
-        </p>
+          <p className="text-center text-xs text-muted-foreground mt-8">
+            Ao criar sua conta, você concorda com nossos{" "}
+            <span className="underline cursor-pointer hover:text-foreground transition-colors">Termos de Uso</span>.
+          </p>
+        </div>
       </div>
     </div>
   );
