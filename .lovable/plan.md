@@ -1,74 +1,62 @@
 
-# Corrigir o bug de "precisa recarregar após o login"
+# Corrigir o bug do horário de funcionamento com fechamento à meia-noite
 
-## Causa raiz
+## Causa raiz identificada
 
-Existe uma condição de corrida (race condition) no `useAuth.tsx`:
+Na função `getStoreStatus` em `src/lib/storeStatus.ts`, o cálculo de minutos trata "00:00" como 0 minutos. Quando a loja fecha à meia-noite ("00:00"), a condição de abertura falha:
 
-1. Na carga inicial da página, `getSession()` não encontra sessão → `setLoading(false)`
-2. O usuário faz login → `navigate("/dashboard")` é chamado imediatamente
-3. O `onAuthStateChange` dispara de forma assíncrona e define o `user`, mas despacha `fetchOrganization` via `setTimeout` para evitar deadlock
-4. O `DashboardPage` já renderizou com `loading=false`, `user` setado mas `organization=null`
-5. O `retryRef` tenta uma correção, mas como o `retryRef.current` é `true` após a primeira tentativa, ele não consegue repetir
+```
+fromMin = 900  (15:00)
+toMin   = 0    (00:00 → meia-noite mal interpretada)
 
-O problema é que `loading` nunca volta para `true` quando um novo login acontece, então o dashboard renderiza sem a organização estar carregada.
+Verificação: currentMinutes >= 900 && currentMinutes < 0  →  IMPOSSÍVEL de ser verdadeiro
+```
+
+Isso faz a loja aparecer como fechada mesmo que seja, por exemplo, 17h — dentro do horário configurado.
 
 ## Solução
 
-Modificar o `onAuthStateChange` em `useAuth.tsx` para:
-- Quando o evento for `SIGNED_IN` (novo login), ativar `loading=true` novamente
-- Aguardar a busca da organização completar antes de desativar o `loading`
-- Isso garante que o dashboard só renderiza quando a organização já está disponível
+Duas correções no arquivo `src/lib/storeStatus.ts`:
+
+### 1. Tratar "00:00" como fim do dia (1440 minutos)
+Quando o horário de fechamento é "00:00" (meia-noite), deve representar o final do dia, não o início. Basta ajustar `toMin` para 1440 nesse caso.
+
+### 2. Permitir horários que cruzam a meia-noite (ex: 22:00 às 02:00)
+Se `toMin < fromMin`, significa que o horário vai além de meia-noite. A verificação precisa considerar isso.
+
+## Mudanças em `src/lib/storeStatus.ts`
+
+Substituir `timeToMinutes` por uma versão que aceita o contexto de "fechamento":
+
+```typescript
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function toMinutesClose(time: string): number {
+  const mins = timeToMinutes(time);
+  // 00:00 como horário de fechamento = meia-noite = fim do dia
+  return mins === 0 ? 1440 : mins;
+}
+```
+
+E atualizar a lógica de verificação:
+
+```typescript
+const fromMin = timeToMinutes(today.from);
+const toMin = toMinutesClose(today.to);
+
+// Suporte a horários que cruzam meia-noite (ex: 22:00 às 02:00)
+const isOpen = toMin > fromMin
+  ? currentMinutes >= fromMin && currentMinutes < toMin        // normal
+  : currentMinutes >= fromMin || currentMinutes < toMin;       // cruza meia-noite
+```
 
 ## Arquivo afetado
 
-`src/hooks/useAuth.tsx` — ajuste no callback do `onAuthStateChange`
+| Arquivo | O que muda |
+|---|---|
+| `src/lib/storeStatus.ts` | Corrige `timeToMinutes` para "00:00" e suporte a horários pós-meia-noite |
 
-### Mudança
-
-Atualmente o `onAuthStateChange` despacha `fetchOrganization` via `setTimeout` sem controle de loading:
-
-```typescript
-// ANTES — sem controle de loading no re-login
-(_event, newSession) => {
-  setSession(newSession);
-  setUser(newSession?.user ?? null);
-  if (newSession?.user) {
-    const userId = newSession.user.id;
-    setTimeout(() => {
-      if (isMounted.current) fetchOrganization(userId);
-    }, 0);
-  } else {
-    setOrganization(null);
-  }
-}
-```
-
-A correção usa o evento `_event` para identificar quando é um SIGNED_IN novo e ativa o `loading` até a org ser carregada:
-
-```typescript
-// DEPOIS — ativa loading durante novo login
-(_event, newSession) => {
-  setSession(newSession);
-  setUser(newSession?.user ?? null);
-  if (newSession?.user) {
-    const userId = newSession.user.id;
-    // Se for um novo login (não carga inicial), ativar loading
-    if (_event === "SIGNED_IN") {
-      setLoading(true);
-    }
-    setTimeout(() => {
-      if (isMounted.current) {
-        fetchOrganization(userId).finally(() => {
-          if (isMounted.current) setLoading(false);
-        });
-      }
-    }, 0);
-  } else {
-    setOrganization(null);
-    setLoading(false);
-  }
-}
-```
-
-Desta forma, quando o usuário faz login e o dashboard é carregado, ele vê o skeleton de loading corretamente enquanto a organização é buscada, e só renderiza o conteúdo completo quando tudo está pronto — sem precisar recarregar a página.
+Essa correção resolve o caso do usuário (seg: 15:00 às 00:00) e também cobre futuros casos de horários que cruzam a meia-noite.
