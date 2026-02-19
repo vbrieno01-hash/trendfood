@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,8 +20,10 @@ type TabKey = "home" | "menu" | "tables" | "mural" | "kitchen" | "waiter" | "pro
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, organization, loading, signOut, refreshOrganizationForUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const initialTab = (location.state as { tab?: string })?.tab === "tables" ? "tables" : "home";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
 
