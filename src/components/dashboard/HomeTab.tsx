@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend,
 } from "recharts";
-import { DollarSign, ShoppingBag, Clock, TrendingUp } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { subDays, format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -29,7 +29,9 @@ export default function HomeTab({ organization }: { organization: Organization }
 
   // ── Today's stats ──────────────────────────────────────────────
   const today = startOfDay(new Date());
+  const yesterday = subDays(today, 1);
   const todayDelivered = delivered.filter((o) => isSameDay(new Date(o.created_at), today));
+  const yesterdayDelivered = delivered.filter((o) => isSameDay(new Date(o.created_at), yesterday));
 
   const totalRevenue = delivered
     .filter((o) => o.paid)
@@ -39,12 +41,22 @@ export default function HomeTab({ organization }: { organization: Organization }
     .filter((o) => o.paid)
     .reduce((acc, o) => acc + (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0), 0);
 
+  const yesterdayRevenue = yesterdayDelivered
+    .filter((o) => o.paid)
+    .reduce((acc, o) => acc + (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0), 0);
+
   const pendingPayment = unpaid.length;
 
   const avgTicket =
     delivered.filter((o) => o.paid).length > 0
       ? totalRevenue / delivered.filter((o) => o.paid).length
       : 0;
+
+  // Revenue trend vs yesterday
+  const revenueDelta =
+    yesterdayRevenue > 0
+      ? Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100)
+      : null;
 
   // ── Last 7 days chart data ─────────────────────────────────────
   const last7 = Array.from({ length: 7 }, (_, i) => {
@@ -60,12 +72,15 @@ export default function HomeTab({ organization }: { organization: Organization }
     };
   });
 
+  const totalLast7Orders = last7.reduce((s, d) => s + d.pedidos, 0);
+
   const stats = [
     {
-      label: "Faturamento pago (total)",
+      label: "Faturamento total",
       value: fmtBRL(totalRevenue),
       icon: <DollarSign className="w-5 h-5" />,
       color: "text-green-600",
+      border: "border-green-200",
       bg: "bg-green-50",
     },
     {
@@ -73,27 +88,36 @@ export default function HomeTab({ organization }: { organization: Organization }
       value: todayDelivered.length,
       icon: <ShoppingBag className="w-5 h-5" />,
       color: "text-blue-600",
+      border: "border-blue-200",
       bg: "bg-blue-50",
     },
     {
       label: "Aguardando pagamento",
       value: pendingPayment,
       icon: <Clock className="w-5 h-5" />,
-      color: "text-yellow-600",
-      bg: "bg-yellow-50",
+      color: "text-amber-600",
+      border: "border-amber-200",
+      bg: "bg-amber-50",
     },
     {
-      label: "Ticket médio por pedido",
+      label: "Ticket médio",
       value: fmtBRL(avgTicket),
       icon: <TrendingUp className="w-5 h-5" />,
       color: "text-purple-600",
+      border: "border-purple-200",
       bg: "bg-purple-50",
     },
   ];
 
+  // Date header
+  const todayLabel = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
+  const todayCapitalized = todayLabel.charAt(0).toUpperCase() + todayLabel.slice(1);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <Skeleton className="h-16 w-64 rounded-xl" />
+        <Skeleton className="h-28 rounded-2xl" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
@@ -106,62 +130,105 @@ export default function HomeTab({ organization }: { organization: Organization }
 
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">
-          Olá! 👋 {organization.emoji} {organization.name}
-        </h1>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-muted-foreground text-sm">Resumo do seu negócio</p>
-          {organization.subscription_status && (
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
-                organization.subscription_status === "active"
-                  ? "bg-green-50 text-green-700 border-green-200"
-                  : organization.subscription_status === "inactive"
-                  ? "bg-destructive/10 text-destructive border-destructive/20"
-                  : "bg-yellow-50 text-yellow-700 border-yellow-200"
-              }`}
-            >
-              {organization.subscription_status === "active"
-                ? "✓ Plano Ativo"
-                : organization.subscription_status === "inactive"
-                ? "✗ Inativo"
-                : "⏳ Período de Teste"}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Today revenue highlight */}
-      <div className="rounded-2xl bg-gradient-to-r from-primary to-primary/70 text-primary-foreground p-5 flex items-center justify-between shadow-md">
+      {/* ── Header ────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm opacity-80 font-medium">Faturamento Hoje</p>
-          <p className="text-3xl font-black mt-1">{fmtBRL(todayRevenue)}</p>
-          <p className="text-xs opacity-70 mt-0.5">{todayDelivered.filter((o) => o.paid).length} pedido(s) pago(s)</p>
+          <h1 className="text-3xl font-black text-foreground leading-tight tracking-tight">
+            {organization.name}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-0.5">{todayCapitalized}</p>
         </div>
-        <DollarSign className="w-12 h-12 opacity-20" />
+        {organization.subscription_status && (
+          <span
+            className={`mt-1 text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0 ${
+              organization.subscription_status === "active"
+                ? "bg-green-50 text-green-700 border-green-200"
+                : organization.subscription_status === "inactive"
+                ? "bg-red-50 text-red-600 border-red-200"
+                : "bg-amber-50 text-amber-700 border-amber-200"
+            }`}
+          >
+            {organization.subscription_status === "active"
+              ? "✓ Plano Ativo"
+              : organization.subscription_status === "inactive"
+              ? "✗ Inativo"
+              : "Período de Teste"}
+          </span>
+        )}
       </div>
 
-      {/* Stats cards */}
+      {/* ── Today revenue hero ────────────────────────────── */}
+      <div
+        className="rounded-2xl text-white p-5 flex items-center justify-between shadow-lg overflow-hidden relative"
+        style={{
+          background: "linear-gradient(135deg, hsl(0 84% 46%), hsl(0 84% 35%))",
+        }}
+      >
+        {/* Dot pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+            backgroundSize: "18px 18px",
+          }}
+        />
+        <div className="relative z-10">
+          <p className="text-sm text-white/70 font-medium uppercase tracking-wider">Faturamento Hoje</p>
+          <p className="text-4xl font-black mt-1 tracking-tight">{fmtBRL(todayRevenue)}</p>
+          <div className="flex items-center gap-3 mt-2">
+            <p className="text-xs text-white/60">{todayDelivered.filter((o) => o.paid).length} pedido(s) pago(s)</p>
+            {revenueDelta !== null && (
+              <span
+                className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
+                  revenueDelta > 0
+                    ? "bg-white/20 text-white"
+                    : revenueDelta < 0
+                    ? "bg-black/20 text-white/80"
+                    : "bg-white/10 text-white/60"
+                }`}
+              >
+                {revenueDelta > 0 ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : revenueDelta < 0 ? (
+                  <TrendingDown className="w-3 h-3" />
+                ) : (
+                  <Minus className="w-3 h-3" />
+                )}
+                {revenueDelta > 0 ? "+" : ""}{revenueDelta}% vs ontem
+              </span>
+            )}
+          </div>
+        </div>
+        <TrendingUp className="relative z-10 w-14 h-14 text-white/20 flex-shrink-0" />
+      </div>
+
+      {/* ── Stats cards ───────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((stat) => (
-          <Card key={stat.label} className="border border-border shadow-sm">
-            <CardContent className="p-4 flex flex-col gap-2">
-              <div className={`w-8 h-8 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center`}>
-                {stat.icon}
-              </div>
-              <p className="text-xl font-black text-foreground leading-tight">{stat.value}</p>
-              <p className="text-xs text-muted-foreground font-medium leading-tight">{stat.label}</p>
-            </CardContent>
-          </Card>
+          <div
+            key={stat.label}
+            className={`rounded-xl border ${stat.border} ${stat.bg} p-4 flex flex-col gap-3`}
+          >
+            <div className={`${stat.color}`}>
+              {stat.icon}
+            </div>
+            <div>
+              <p className="text-2xl font-black text-foreground leading-tight">{stat.value}</p>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5 leading-tight">{stat.label}</p>
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Chart */}
+      {/* ── Chart ─────────────────────────────────────────── */}
       <Card className="border border-border shadow-sm">
         <CardContent className="p-5">
-          <h2 className="font-bold text-foreground text-base mb-4">📊 Últimos 7 dias</h2>
+          <div className="mb-4">
+            <h2 className="font-black text-foreground text-base">Últimos 7 dias</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {totalLast7Orders} pedido{totalLast7Orders !== 1 ? "s" : ""} no período · faturamento em R$
+            </p>
+          </div>
           {delivered.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-3xl mb-2">📭</p>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
-  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing
+  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap
 } from "lucide-react";
 import HomeTab from "@/components/dashboard/HomeTab";
 import MenuTab from "@/components/dashboard/MenuTab";
@@ -26,15 +26,10 @@ const DashboardPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
 
-  // Redirect if not authenticated (inside useEffect to avoid render-phase side-effects)
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
+    if (!loading && !user) navigate("/auth");
   }, [loading, user, navigate]);
 
-  // Fallback: if user is authenticated but org is null (race condition from signup),
-  // retry fetching the organization once automatically
   useEffect(() => {
     if (!loading && user && !organization && !retryRef.current) {
       retryRef.current = true;
@@ -54,7 +49,6 @@ const DashboardPage = () => {
     );
   }
 
-  // Subscription gate
   const subscriptionStatus = (organization as { subscription_status?: string }).subscription_status ?? "trial";
 
   if (subscriptionStatus === "inactive") {
@@ -86,8 +80,6 @@ const DashboardPage = () => {
     );
   }
 
-
-
   const navItemsTop: { key: TabKey; icon: React.ReactNode; label: string }[] = [
     { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
     { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Meu Cardápio" },
@@ -109,63 +101,68 @@ const DashboardPage = () => {
     navigate("/auth");
   };
 
+  // Sidebar nav button style helper
+  const navBtnClass = (key: TabKey) =>
+    `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left ${
+      activeTab === key
+        ? "bg-primary text-white shadow-sm shadow-primary/30"
+        : "text-white/60 hover:bg-white/10 hover:text-white"
+    }`;
+
   return (
     <div className="min-h-screen bg-background flex w-full">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* ── Sidebar ──────────────────────────────────────────────── */}
       <aside
         className={`
-          fixed top-0 left-0 h-full z-50 bg-card border-r border-border flex flex-col
+          fixed top-0 left-0 h-full z-50 flex flex-col
           w-64 transform transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
         `}
+        style={{ background: "#111111" }}
       >
         {/* Logo */}
-        <div className="p-4 border-b border-border">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <ChefHat className="w-3.5 h-3.5 text-primary-foreground" />
+        <div className="px-5 py-5 border-b border-white/10">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+              <ChefHat className="w-4 h-4 text-white" />
             </div>
-            <span className="font-extrabold text-foreground text-base">TrendFood</span>
+            <span className="font-extrabold text-white text-base tracking-tight">TrendFood</span>
           </Link>
         </div>
 
         {/* Org info */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-3">
+        <div className="px-4 py-4 border-b border-white/10">
+          <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5">
             {organization.logo_url ? (
-              <img src={organization.logo_url} alt={organization.name} className="w-10 h-10 rounded-lg object-cover" />
+              <img src={organization.logo_url} alt={organization.name} className="w-9 h-9 rounded-lg object-cover ring-1 ring-white/20" />
             ) : (
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-xl">
+              <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center text-lg border border-primary/30">
                 {organization.emoji}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground text-sm truncate">{organization.name}</p>
-              <p className="text-muted-foreground text-xs truncate">/unidade/{organization.slug}</p>
+              <p className="font-bold text-white text-sm truncate">{organization.name}</p>
+              <p className="text-white/40 text-xs truncate">/{organization.slug}</p>
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItemsTop.map((item) => (
             <button
               key={item.key}
               onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
-                activeTab === item.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
+              className={navBtnClass(item.key)}
             >
               {item.icon}
               {item.label}
@@ -173,19 +170,15 @@ const DashboardPage = () => {
           ))}
 
           {/* Operações separator */}
-          <div className="pt-3 pb-1 px-3">
-            <p className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">Operações</p>
+          <div className="pt-5 pb-2 px-3">
+            <p className="text-xs font-semibold text-white/30 uppercase tracking-widest">Operações</p>
           </div>
 
           {navItemsOps.map((item) => (
             <button
               key={item.key}
               onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
-                activeTab === item.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
+              className={navBtnClass(item.key)}
             >
               {item.icon}
               {item.label}
@@ -193,19 +186,15 @@ const DashboardPage = () => {
           ))}
 
           {/* Divider */}
-          <div className="pt-2 pb-1">
-            <div className="border-t border-border" />
+          <div className="pt-4 pb-1">
+            <div className="border-t border-white/10" />
           </div>
 
           {navItemsBottom.map((item) => (
             <button
               key={item.key}
               onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
-                activeTab === item.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
+              className={navBtnClass(item.key)}
             >
               {item.icon}
               {item.label}
@@ -214,19 +203,19 @@ const DashboardPage = () => {
         </nav>
 
         {/* Bottom actions */}
-        <div className="p-3 border-t border-border space-y-1">
+        <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
           <a
             href={`https://snack-hive.lovable.app/unidade/${organization.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-all duration-150"
           >
             <ExternalLink className="w-4 h-4" />
             Ver página pública
           </a>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-red-500/15 hover:text-red-400 transition-all duration-150"
           >
             <LogOut className="w-4 h-4" />
             Sair
@@ -234,7 +223,7 @@ const DashboardPage = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* ── Main Content ──────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
         <header className="lg:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-30">
@@ -252,15 +241,28 @@ const DashboardPage = () => {
         </header>
 
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          {/* Trial banner — redesigned */}
           {subscriptionStatus === "trial" && (
-            <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-center gap-3">
-              <span className="text-xl">⏳</span>
-              <div>
-                <p className="text-yellow-800 font-semibold text-sm">Você está no período de teste</p>
-                <p className="text-yellow-700 text-xs">Ative seu plano para acesso contínuo ao painel.</p>
+            <div className="mb-5 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/8 to-amber-500/8 px-4 py-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
+                <Zap className="w-4 h-4 text-primary" />
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-foreground font-semibold text-sm">Período de teste ativo</p>
+                <p className="text-muted-foreground text-xs">Ative seu plano para acesso contínuo ao painel.</p>
+              </div>
+              <a
+                href="https://wa.me/5511999999999?text=Quero+ativar+meu+plano+TrendFood"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors"
+              >
+                <Zap className="w-3 h-3" />
+                Ativar plano
+              </a>
             </div>
           )}
+
           {activeTab === "home" && <HomeTab organization={organization} />}
           {activeTab === "menu" && <MenuTab organization={organization} />}
           {activeTab === "tables" && <TablesTab organization={organization} />}
