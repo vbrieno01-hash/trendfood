@@ -30,7 +30,7 @@ interface UseDeliveryFeeResult {
   noStoreAddress: boolean;
 }
 
-async function geocode(query: string): Promise<GeoCoord | null> {
+async function tryGeocode(query: string): Promise<GeoCoord | null> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
   const res = await fetch(url, {
     headers: { "Accept-Language": "pt-BR", "User-Agent": "TrendFood/1.0" },
@@ -38,6 +38,17 @@ async function geocode(query: string): Promise<GeoCoord | null> {
   const data = await res.json();
   if (!data || data.length === 0) return null;
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+}
+
+async function geocode(query: string): Promise<GeoCoord | null> {
+  // Tentativa 1: endereço original
+  const result = await tryGeocode(query);
+  if (result) return result;
+  // Tentativa 2: fallback com "Brasil" para endereços sem país explícito
+  if (!query.toLowerCase().includes("brasil")) {
+    return tryGeocode(`${query}, Brasil`);
+  }
+  return null;
 }
 
 async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number> {
@@ -118,10 +129,12 @@ export function useDeliveryFee(
         }
 
         // Improve customer address precision by appending city/state from store
-        const cityState = extractCityState(storeAddress);
-        const fullCustomerAddress = customerAddress.includes(",")
-          ? customerAddress
-          : `${customerAddress}, ${cityState}`;
+        // Only use store city/state if the store address has multiple comma-separated parts
+        const hasCityState = storeAddress.includes(",");
+        const cityState = hasCityState ? extractCityState(storeAddress) : null;
+        const fullCustomerAddress = hasCityState && !customerAddress.includes(",") && cityState
+          ? `${customerAddress}, ${cityState}`
+          : `${customerAddress}, Brasil`;
 
         const customerCoord = await geocode(fullCustomerAddress);
         if (!customerCoord) throw new Error("Endereço não encontrado");

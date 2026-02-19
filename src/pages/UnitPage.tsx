@@ -262,7 +262,9 @@ const UnitPage = () => {
         ? "Grátis"
         : deliveryFee > 0
           ? fmt(deliveryFee)
-          : null;
+          : feeError
+            ? "A combinar"
+            : null;
 
     const lines = [
       `🍔 *Novo Pedido — ${org.name}*`,
@@ -292,7 +294,9 @@ const UnitPage = () => {
         ? `FRETE:${fmt(deliveryFee)}`
         : orderType === "Entrega" && freeShipping
           ? "FRETE:Grátis"
-          : null;
+          : orderType === "Entrega" && feeError
+            ? "FRETE:A combinar"
+            : null;
 
       const noteParts: string[] = [
         `TIPO:${orderType}`,
@@ -742,7 +746,7 @@ const UnitPage = () => {
                     ) : feeError ? (
                       noStoreAddress
                         ? <span className="text-xs text-muted-foreground italic">A loja não configurou endereço</span>
-                        : <span className="text-xs text-destructive">Endereço não encontrado</span>
+                        : <span className="text-xs text-muted-foreground italic">A combinar via WhatsApp</span>
                     ) : freeShipping ? (
                       <span className="text-green-600 font-medium">Grátis</span>
                     ) : address.trim().length >= 8 ? (
