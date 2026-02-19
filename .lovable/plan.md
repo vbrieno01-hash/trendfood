@@ -1,21 +1,21 @@
 
 
-# Substituir Screenshot do Dashboard na Landing Page
+# Substituir Screenshot Mobile na Landing Page
 
 ## O que muda
 
-A imagem exibida dentro do mockup de notebook na seção Showcase será substituída pela nova captura de tela enviada (dashboard do "Burguer do Rei" com faturamento e gráfico).
+A imagem do celular exibida no mockup da seção Showcase será substituída pela nova captura de tela enviada (dashboard mobile do "Burguer do Rei" com faturamento).
 
 ## Passos
 
-1. Copiar a imagem `user-uploads://image-32.png` para `public/dashboard-screenshot.png` (substituindo a atual)
-2. Nenhuma mudança de código necessária — o `ShowcaseSection.tsx` já referencia `/dashboard-screenshot.png`
+1. Copiar a imagem `user-uploads://fasfasdasfasdasf.jpeg` para `public/mobile-screenshot.png` (substituindo a atual)
+2. Nenhuma mudança de código necessaria -- o `ShowcaseSection.tsx` ja referencia `/mobile-screenshot.png`
 
 ## Arquivo impactado
 
-| Arquivo | Mudança |
+| Arquivo | Mudanca |
 |---|---|
-| `public/dashboard-screenshot.png` | Substituído pela nova imagem |
+| `public/mobile-screenshot.png` | Substituido pela nova imagem |
 
-Zero mudanças de código. A imagem será carregada automaticamente.
+Zero mudancas de codigo. A imagem sera carregada automaticamente no mockup do celular.
 
