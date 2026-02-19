@@ -1,51 +1,31 @@
 
-# Corrigir o Link "Ver Página Pública" no Dashboard
+# Centralizar e corrigir o gráfico "Últimos 7 dias"
 
 ## Problema identificado
 
-No arquivo `src/pages/DashboardPage.tsx` (linha 208) e `src/components/dashboard/StoreProfileTab.tsx` (linha 56–57), o domínio base usado para gerar os links públicos está errado:
+Olhando a imagem, o gráfico está visivelmente deslocado para a direita. Isso ocorre por dois motivos combinados:
 
-```
-https://snack-hive.lovable.app  ← ERRADO (domínio antigo/incorreto)
-```
+1. **Margem esquerda zero no gráfico**: `margin={{ top: 4, right: 16, left: 0, bottom: 0 }}` — sem margem à esquerda, os labels do eixo Y esquerdo (números de pedidos) são cortados ou empurram o conteúdo do gráfico para a direita.
 
-O domínio correto de produção é:
+2. **Largura do YAxis esquerdo não especificada**: sem `width` fixo no `YAxis`, o Recharts calcula automaticamente e pode criar desequilíbrio visual entre os dois eixos (esquerdo e direito).
 
-```
-https://trendfood.lovable.app  ← CORRETO
-```
+3. **`max-w-4xl` no container**: limita a largura total do dashboard, mas não afeta diretamente o gráfico.
 
-Por isso, quando o usuário clica em "Ver página pública" no dashboard (especialmente com o app instalado como PWA), a URL gerada aponta para `snack-hive.lovable.app/unidade/...`, que ou não existe ou não está publicado, causando o comportamento de "pedir para publicar o site".
+## Mudanças no arquivo `src/components/dashboard/HomeTab.tsx`
 
-## Arquivos afetados
+### 1. Aumentar a margem esquerda do `ComposedChart`
+De: `margin={{ top: 4, right: 16, left: 0, bottom: 0 }}`  
+Para: `margin={{ top: 4, right: 8, left: 8, bottom: 0 }}`
 
-| Arquivo | Linha | O que muda |
-|---|---|---|
-| `src/pages/DashboardPage.tsx` | 208 | Corrigir href do botão "Ver página pública" |
-| `src/components/dashboard/StoreProfileTab.tsx` | 56 | Corrigir a constante `PUBLIC_BASE_URL` |
+### 2. Definir `width` fixo nos dois `YAxis` para equilíbrio visual
+- YAxis esquerdo: `width={35}` — espaço suficiente para números inteiros
+- YAxis direito: `width={55}` — espaço para rótulos como `R$1000`
 
-## Mudanças
+### 3. Remover `max-w-4xl` do container principal
+Para que o gráfico use toda a largura disponível no painel, removendo a restrição artificial de largura que faz o layout parecer desequilibrado.
 
-### 1. `src/pages/DashboardPage.tsx`
+## Arquivo afetado
 
-Linha 208 — alterar o href de:
-```
-href={`https://snack-hive.lovable.app/unidade/${organization.slug}`}
-```
-Para:
-```
-href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
-```
-
-### 2. `src/components/dashboard/StoreProfileTab.tsx`
-
-Linha 56 — alterar a constante de:
-```ts
-const PUBLIC_BASE_URL = "https://snack-hive.lovable.app";
-```
-Para:
-```ts
-const PUBLIC_BASE_URL = "https://trendfood.lovable.app";
-```
-
-Isso corrige tanto o botão "Ver página pública" na sidebar quanto o link de cópia na aba "Perfil da Loja".
+| Arquivo | O que muda |
+|---|---|
+| `src/components/dashboard/HomeTab.tsx` | Ajuste nas margens do `ComposedChart` e largura dos dois `YAxis` |
