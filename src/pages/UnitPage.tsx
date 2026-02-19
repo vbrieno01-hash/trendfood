@@ -373,16 +373,16 @@ const UnitPage = () => {
                         </h2>
                         <div className="flex-1 h-px bg-border" />
                       </div>
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
                         {group.items.map((item) => {
                           const qty = cart[item.id]?.qty ?? 0;
                           return (
                             <div
                               key={item.id}
-                              className={`bg-card border border-border rounded-xl overflow-hidden flex flex-row items-center gap-3 p-3 transition-opacity ${!item.available ? "opacity-60" : ""}`}
+                              className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col transition-opacity ${!item.available ? "opacity-60" : ""}`}
                             >
-                              {/* Thumbnail */}
-                              <div className="w-[72px] h-[72px] shrink-0 rounded-lg overflow-hidden bg-secondary flex items-center justify-center">
+                              {/* Foto quadrada */}
+                              <div className="aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
                                 {item.image_url ? (
                                   <img
                                     src={item.image_url}
@@ -395,53 +395,44 @@ const UnitPage = () => {
                               </div>
 
                               {/* Info */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2 mb-0.5">
-                                  <h3 className="font-semibold text-foreground text-sm leading-snug">{item.name}</h3>
-                                  {!item.available && (
-                                    <Badge variant="destructive" className="text-xs shrink-0">Indisponível</Badge>
-                                  )}
-                                </div>
-                                {item.description && (
-                                  <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2 mb-1.5">
-                                    {item.description}
-                                  </p>
+                              <div className="p-2 flex flex-col gap-1 flex-1">
+                                <h3 className="font-semibold text-foreground text-xs leading-tight line-clamp-2">{item.name}</h3>
+                                {!item.available && (
+                                  <span className="text-[10px] text-destructive font-medium">Indisponível</span>
                                 )}
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="font-bold text-foreground text-sm">
-                                    {fmt(item.price)}
-                                  </span>
+                                <span className="font-bold text-foreground text-xs">
+                                  {fmt(item.price)}
+                                </span>
 
-                                  {item.available && (
-                                    qty === 0 ? (
+                                {item.available && (
+                                  qty === 0 ? (
+                                    <button
+                                      onClick={() => addToCart(item)}
+                                      className="mt-auto w-full flex items-center justify-center gap-0.5 py-1 rounded-lg text-[10px] font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                                      style={{ backgroundColor: primaryColor }}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      Add
+                                    </button>
+                                  ) : (
+                                    <div className="mt-auto flex items-center justify-between w-full">
+                                      <button
+                                        onClick={() => removeFromCart(item.id)}
+                                        className="w-5 h-5 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
+                                      >
+                                        <Minus className="w-2.5 h-2.5" />
+                                      </button>
+                                      <span className="text-xs font-bold">{qty}</span>
                                       <button
                                         onClick={() => addToCart(item)}
-                                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                                        className="w-5 h-5 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
                                         style={{ backgroundColor: primaryColor }}
                                       >
-                                        <Plus className="w-3 h-3" />
-                                        Adicionar
+                                        <Plus className="w-2.5 h-2.5" />
                                       </button>
-                                    ) : (
-                                      <div className="flex items-center gap-1">
-                                        <button
-                                          onClick={() => removeFromCart(item.id)}
-                                          className="w-6 h-6 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
-                                        >
-                                          <Minus className="w-3 h-3" />
-                                        </button>
-                                        <span className="w-5 text-center text-sm font-bold">{qty}</span>
-                                        <button
-                                          onClick={() => addToCart(item)}
-                                          className="w-6 h-6 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
-                                          style={{ backgroundColor: primaryColor }}
-                                        >
-                                          <Plus className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                    )
-                                  )}
-                                </div>
+                                    </div>
+                                  )
+                                )}
                               </div>
                             </div>
                           );
