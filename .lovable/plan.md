@@ -1,49 +1,67 @@
 
-# Relatório PDF Mensal no Painel Admin
+# Onboarding Guiado — Wizard Passo a Passo para Novas Lojas
 
 ## Objetivo
 
-Implementar um painel de **Relatório Mensal** no `/admin` que permite ao administrador gerar um PDF por loja com faturamento, número de pedidos e ticket médio do mês selecionado. Ao finalizar, o status do card "Relatório PDF Mensal" muda de `planned` para `available`.
+Criar um modal de onboarding exibido automaticamente no primeiro acesso da loja ao dashboard, guiando o usuário por 4 etapas para configurar as informações essenciais. Ao final, atualizar o status do card "Onboarding Guiado" no `/admin` de `"soon"` para `"available"`.
 
 ---
 
-## Estratégia de geração de PDF
+## Como identificar o "primeiro acesso"
 
-Não há biblioteca de PDF instalada no projeto. A abordagem mais simples e sem dependências externas é usar **`window.print()`** com estilos CSS `@media print` em uma janela separada (`window.open`). Isso gera um PDF nativo via o diálogo de impressão do browser (opção "Salvar como PDF"), sem instalar pacotes adicionais.
+A tabela `organizations` não tem uma coluna `onboarding_done`. A estratégia será **adicionar uma coluna `onboarding_done` (boolean, default false)** via migração de banco de dados. O modal aparece quando `onboarding_done = false`. Ao concluir ou pular, marca `true` no banco — garantindo que nunca mais apareça.
 
-Vantagens:
-- Zero dependências novas
-- Funciona em qualquer browser moderno
-- HTML/CSS total — formatação rica, logo, cores
+Alternativa sem migração (localStorage) foi descartada pois não persiste entre dispositivos/browsers.
 
 ---
 
-## Fluxo do usuário
+## As 4 Etapas do Wizard
 
 ```text
-/admin (seção Relatório Mensal)
-  ├── Seletor de mês (ex: Janeiro 2026)
-  ├── Grid de lojas com métricas do mês:
-  │     ├── Faturamento (R$ X,XX)
-  │     ├── Pedidos (N pedidos)
-  │     └── Ticket Médio (R$ X,XX)
-  └── Botão "Gerar PDF" por loja  →  abre janela de impressão com layout do relatório
+ETAPA 1 — Nome e Emoji
+  └── Campo: Nome da loja (required)
+  └── Seletor: Emoji (grid de 12 opções)
+  └── Dados salvos em: organizations.name, organizations.emoji
+
+ETAPA 2 — Endereço de Entrega
+  └── Campo: CEP (auto-preenche via ViaCEP)
+  └── Campos: Rua, Número, Complemento, Bairro, Cidade, Estado
+  └── Dados salvos em: organizations.store_address (formato estruturado já existente)
+
+ETAPA 3 — Horários de Funcionamento
+  └── Toggle: Ativar controle de horário
+  └── Tabela: Dias da semana com checkboxes e horários de/até
+  └── Reutiliza o componente: BusinessHoursSection (já existente)
+  └── Dados salvos em: organizations.business_hours (JSONB)
+
+ETAPA 4 — Primeiro Item do Cardápio
+  └── Campo: Nome do item (required)
+  └── Campo: Preço (required)
+  └── Select: Categoria (reutiliza CATEGORIES do useMenuItems)
+  └── Textarea: Descrição (opcional)
+  └── Dados salvos em: menu_items (INSERT)
 ```
 
 ---
 
-## Dados buscados para o relatório
+## Lógica de persistência de cada etapa
 
-A query usa os dados já disponíveis nas tabelas `orders` e `order_items`, filtrados por `organization_id` e pelo intervalo de datas do mês selecionado (`>= início do mês` e `< início do mês seguinte`). Apenas pedidos com `status = 'delivered'` e `paid = true` são contados como receita.
+- Etapas 1, 2 e 3: Um único `UPDATE` em `organizations` ao navegar para a próxima etapa (auto-save progressivo)
+- Etapa 4: `INSERT` em `menu_items` com `organization_id` da org
+- Ao finalizar: `UPDATE organizations SET onboarding_done = true` + `refreshOrganization()` para recarregar o contexto
 
-Campos do relatório por loja:
-- Nome da loja, emoji, slug
-- Mês/ano de referência
-- Total de pedidos entregues
-- Total de pedidos pagos
-- Faturamento total (sum de `price * quantity` dos itens de pedidos pagos)
-- Ticket médio (faturamento / pedidos pagos)
-- Lista dos top 5 itens mais vendidos no período (nome + quantidade)
+---
+
+## Onde exibir o modal
+
+No `DashboardPage.tsx`, após carregar o usuário e a organização:
+
+```typescript
+// Mostrar o onboarding se onboarding_done === false
+const showOnboarding = organization && !(organization as any).onboarding_done;
+```
+
+O modal usa `Dialog` do Radix (já importado no projeto via `src/components/ui/dialog.tsx`) e **não pode ser fechado clicando fora** (`modal={true}`, sem `DialogClose` no overlay) — só com o botão "Pular" ou "Concluir".
 
 ---
 
@@ -51,104 +69,102 @@ Campos do relatório por loja:
 
 | Arquivo | Ação | Descrição |
 |---|---|---|
-| `src/pages/AdminPage.tsx` | Modificar | Adicionar seção "Relatório Mensal" com seletor de mês, grid de métricas por loja e botão "Gerar PDF" por loja |
-| `src/pages/AdminPage.tsx` | Modificar | Atualizar `FEATURES` — status de "Relatório PDF Mensal" de `planned` → `available` com `actionLabel` e `actionHref` |
+| `supabase/migrations/` | Criar migração | `ALTER TABLE organizations ADD COLUMN onboarding_done boolean NOT NULL DEFAULT false;` |
+| `src/components/dashboard/OnboardingWizard.tsx` | Criar | Componente do modal com os 4 steps |
+| `src/pages/DashboardPage.tsx` | Modificar | Importar e renderizar `OnboardingWizard` condicionalmente |
+| `src/hooks/useAuth.tsx` | Modificar | Incluir `onboarding_done` na interface `Organization` |
+| `src/pages/AdminPage.tsx` | Modificar | Status `"soon"` → `"available"` no card "Onboarding Guiado" |
 
 ---
 
-## Estrutura de implementação dentro do AdminPage.tsx
-
-### 1. Novo estado e dados
-
-```typescript
-// Dentro de AdminContent
-const [reportMonth, setReportMonth] = useState(() => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-});
-const [reportData, setReportData] = useState<ReportRow[]>([]);
-const [loadingReport, setLoadingReport] = useState(false);
-```
-
-Interface `ReportRow`:
-```typescript
-interface ReportRow {
-  org: OrgRow;
-  totalOrders: number;
-  paidOrders: number;
-  revenue: number;
-  avgTicket: number;
-  topItems: { name: string; qty: number }[];
-}
-```
-
-### 2. Função de carga dos dados do relatório
-
-Ao trocar o mês, busca `orders` filtrados pelo intervalo de datas do mês, faz join com `order_items` (select inline) e calcula as métricas localmente no client — sem nova migração de banco de dados.
-
-### 3. Função `generatePdf(row: ReportRow)`
-
-Abre `window.open()` com HTML completo formatado:
-- Cabeçalho: logo texto "TrendFood", nome da loja, mês de referência
-- Cards: Faturamento, Pedidos Pagos, Ticket Médio
-- Tabela: top 5 itens mais vendidos
-- Rodapé: gerado em {data/hora}
-- CSS `@media print` embutido para ocultar botões e otimizar impressão
-- Chama `window.print()` automaticamente após carregar
-
-### 4. UI da nova seção
+## Estrutura do componente OnboardingWizard
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  📊 Relatório Mensal    [Seletor de Mês ▼]          │
-│                                                     │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐             │
-│  │ Loja A  │  │ Loja B  │  │ Loja C  │             │
-│  │ R$1.200 │  │ R$ 800  │  │ R$ 600  │             │
-│  │ 24 ped. │  │ 16 ped. │  │ 12 ped. │             │
-│  │ TM R$50 │  │ TM R$50 │  │ TM R$50 │             │
-│  │[Gerar PDF]│ │[Gerar PDF]│ │[Gerar PDF]│           │
-│  └─────────┘  └─────────┘  └─────────┘             │
-└─────────────────────────────────────────────────────┘
+OnboardingWizard
+  ├── Props: organization, onComplete
+  ├── Estado: step (1-4), form por step
+  │
+  ├── STEP 1 — Nome & Emoji
+  │     Input: nome (required), grid de emojis
+  │     Botão: "Próximo →" (salva name+emoji na org)
+  │
+  ├── STEP 2 — Endereço
+  │     Input CEP (com busca ViaCEP), rua, número, complemento, bairro, cidade, estado
+  │     Botões: "← Voltar" | "Próximo →" (salva store_address na org)
+  │
+  ├── STEP 3 — Horários
+  │     Reutiliza <BusinessHoursSection> existente
+  │     Botões: "← Voltar" | "Próximo →" (salva business_hours na org)
+  │
+  └── STEP 4 — Primeiro Item
+        Inputs: nome, preço, categoria, descrição
+        Botões: "← Voltar" | "Concluir ✓" (insere item + marca onboarding_done=true)
 ```
+
+### Barra de progresso
+
+```
+[●●●○]  Etapa 3 de 4 — Horários de Funcionamento
+```
+
+Indicador visual com 4 círculos, preenchidos conforme o passo atual. Abaixo, título e subtítulo da etapa.
+
+### Botão "Pular configuração" (link discreto no footer do modal)
+
+Ao clicar, pergunta "Tem certeza? Você poderá configurar isso depois em Perfil da Loja." com um `AlertDialog`, e se confirmado, marca `onboarding_done = true` sem salvar nada.
 
 ---
 
-## Segurança
+## Migração de banco de dados
 
-- O painel de relatórios já está dentro do `AdminContent`, que só é renderizado após verificar `isAdmin` (via `has_role` no banco). 
-- Nenhuma nova RLS é necessária — a query reutiliza as políticas `SELECT` públicas já existentes nas tabelas `orders` e `order_items`, que são lidas somente pelo admin autenticado neste contexto.
+```sql
+ALTER TABLE public.organizations 
+ADD COLUMN onboarding_done boolean NOT NULL DEFAULT false;
+```
+
+- Sem impacto nas políticas RLS existentes (a coluna é atualizada via `organizations_update_own` que já permite o dono atualizar sua org)
+- Lojas existentes receberão `onboarding_done = false` por padrão — mas como são lojas já configuradas, podemos na mesma migração marcar todas as existentes como `true`:
+
+```sql
+ALTER TABLE public.organizations 
+ADD COLUMN onboarding_done boolean NOT NULL DEFAULT false;
+
+-- Marcar lojas já existentes como onboarded (possuem name diferente do padrão ou já têm store_address)
+UPDATE public.organizations SET onboarding_done = true;
+```
+
+Isso garante que apenas **novas lojas criadas após essa migração** vejam o wizard.
 
 ---
 
-## Mudança no card de Features
+## Mudança no card do AdminPage
 
 ```typescript
 // ANTES
 {
-  icon: <FileText className="w-5 h-5" />,
-  title: "Relatório PDF Mensal",
-  description: "Relatório automático por e-mail com faturamento, pedidos e ticket médio do mês.",
-  status: "planned",
+  icon: <Sparkles className="w-5 h-5" />,
+  title: "Onboarding Guiado",
+  description: "Wizard passo a passo para novas lojas configurarem cardápio, horários e pagamentos em minutos.",
+  status: "soon",
 },
 
 // DEPOIS
 {
-  icon: <FileText className="w-5 h-5" />,
-  title: "Relatório PDF Mensal",
-  description: "Gere relatórios mensais por loja com faturamento, pedidos e ticket médio diretamente no painel admin.",
+  icon: <Sparkles className="w-5 h-5" />,
+  title: "Onboarding Guiado",
+  description: "Wizard passo a passo para novas lojas configurarem nome, endereço, horários e primeiro item do cardápio.",
   status: "available",
-  actionLabel: "Gerar relatório",
-  actionHref: "/admin",
+  actionLabel: "Ver no dashboard",
+  actionHref: "/dashboard",
 },
 ```
 
 ---
 
-## Resumo das mudanças
+## Resumo
 
-- 1 arquivo modificado: `src/pages/AdminPage.tsx`
-- Sem novas dependências
-- Sem migrations de banco de dados
-- PDF gerado via impressão nativa do browser (Ctrl+P / Salvar como PDF)
-- Seção de relatório inserida entre as Lojas da Plataforma e o Feature Roadmap
+- 1 migração SQL (adiciona coluna + marca existentes como onboarded)
+- 1 componente novo: `OnboardingWizard.tsx`
+- 3 arquivos modificados: `DashboardPage.tsx`, `useAuth.tsx`, `AdminPage.tsx`
+- Zero novas dependências
+- Reutiliza `BusinessHoursSection`, `CATEGORIES`, `Dialog`, `AlertDialog`, e a lógica de ViaCEP já existentes
