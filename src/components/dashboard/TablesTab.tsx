@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useTables, useAddTable, useDeleteTable } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export default function TablesTab({ organization }: Props) {
   const addTable = useAddTable(organization.id);
   const deleteTable = useDeleteTable(organization.id);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [addOpen, setAddOpen] = useState(false);
   const [tableNumber, setTableNumber] = useState("");
@@ -117,11 +119,9 @@ export default function TablesTab({ organization }: Props) {
       ) : (
         <div className="space-y-2">
           {tables.map((t) => (
-            <a
+            <div
               key={t.id}
-              href={getUrl(t.number)}
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={() => navigate(`/unidade/${organization.slug}/mesa/${t.number}`)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
@@ -135,12 +135,12 @@ export default function TablesTab({ organization }: Props) {
                   /unidade/{organization.slug}/mesa/{t.number}
                 </p>
               </div>
-              <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="ghost"
                   size="icon"
                   title="Ver QR Code"
-                  onClick={(e) => { e.preventDefault(); setQrModal({ number: t.number }); }}
+                  onClick={() => setQrModal({ number: t.number })}
                 >
                   <QrCode className="w-4 h-4" />
                 </Button>
@@ -148,7 +148,7 @@ export default function TablesTab({ organization }: Props) {
                   variant="ghost"
                   size="icon"
                   title="Copiar link"
-                  onClick={(e) => { e.preventDefault(); copyLink(t.number); }}
+                  onClick={() => copyLink(t.number)}
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
@@ -156,13 +156,13 @@ export default function TablesTab({ organization }: Props) {
                   variant="ghost"
                   size="icon"
                   title="Excluir mesa"
-                  onClick={(e) => { e.preventDefault(); setDeleteId(t.id); }}
+                  onClick={() => setDeleteId(t.id)}
                   className="hover:text-destructive"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
-            </a>
+            </div>
           ))}
         </div>
       )}
