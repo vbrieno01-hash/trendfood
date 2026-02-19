@@ -33,30 +33,46 @@ export function buildStoreAddress(f: AddressFields): string {
  * Handles both new (CEP-first) and legacy formats.
  */
 export function parseStoreAddress(address: string): AddressFields {
-  const parts = address.split(",").map((p) => p.trim());
-  if (parts.length >= 6 && BRAZIL_STATES.includes(parts[parts.length - 2])) {
-    const withoutBrasil = parts[parts.length - 1].toLowerCase() === "brasil" ? parts.slice(0, -1) : parts;
-    const state = withoutBrasil[withoutBrasil.length - 1];
-    const city = withoutBrasil[withoutBrasil.length - 2];
-    const neighborhood = withoutBrasil[withoutBrasil.length - 3] ?? "";
+  if (!address) return { ...EMPTY_ADDRESS };
 
-    const firstPart = withoutBrasil[0] ?? "";
-    const isCep = /^\d{5}-?\d{3}$/.test(firstPart);
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
 
-    if (isCep) {
-      const cep = firstPart;
-      const street = withoutBrasil[1] ?? "";
-      const number = withoutBrasil[2] ?? "";
-      const complement = withoutBrasil.length >= 7 ? withoutBrasil[3] : "";
-      return { cep, street, number, complement, neighborhood, city, state };
-    }
-
-    const number = withoutBrasil[1] ?? "";
-    const street = firstPart;
-    const complement = withoutBrasil.length === 6 ? withoutBrasil[2] : "";
-    return { cep: "", street, number, complement, neighborhood, city, state };
+  // 1. Remove trailing "Brasil"
+  if (parts.length > 0 && parts[parts.length - 1].toLowerCase() === "brasil") {
+    parts.pop();
   }
-  return { cep: "", street: address, number: "", complement: "", neighborhood: "", city: "", state: "" };
+
+  if (parts.length === 0) return { ...EMPTY_ADDRESS };
+
+  // 2. Extract state (last part if it matches a known UF)
+  let state = "";
+  if (BRAZIL_STATES.includes(parts[parts.length - 1])) {
+    state = parts.pop()!;
+  }
+
+  // 3. Extract CEP (any part matching 8-digit pattern)
+  let cep = "";
+  const cepIdx = parts.findIndex((p) => /^\d{5}-?\d{3}$/.test(p));
+  if (cepIdx !== -1) {
+    cep = parts.splice(cepIdx, 1)[0];
+  }
+
+  // 4. Extract city (last remaining part, if state was found)
+  let city = "";
+  if (state && parts.length > 0) {
+    city = parts.pop()!;
+  }
+
+  // 5. Extract neighborhood (last remaining part, after city removed)
+  let neighborhood = "";
+  if (parts.length >= 3) {
+    neighborhood = parts.pop()!;
+  }
+
+  // 6. Remaining: street, number, complement
+  const [street = "", number = "", complement = ""] = parts;
+
+  return { cep, street, number, complement, neighborhood, city, state };
 }
 
 /**
