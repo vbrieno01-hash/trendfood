@@ -10,7 +10,7 @@ import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation"
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode, Loader2 } from "lucide-react";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode, Loader2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
@@ -39,11 +39,19 @@ export default function TableOrderPage() {
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [notes, setNotes] = useState("");
-  const [customerName, setCustomerName] = useState("");
   const [success, setSuccess] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card">(null);
+
+  // People setup state
+  const [setupDone, setSetupDone] = useState(false);
+  const [peopleCount, setPeopleCount] = useState(1);
+  const [peopleNames, setPeopleNames] = useState<string[]>([""]);
+  const [activePerson, setActivePerson] = useState(0);
+
+  // Derived customer name from active person
+  const customerName = setupDone ? (peopleNames[activePerson] || "Sem nome") : "Sem nome";
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -98,7 +106,7 @@ export default function TableOrderPage() {
   const cartKey = (itemId: string, name: string) => `${itemId}__${name}`;
 
   const adjust = (item: typeof available[0], delta: number) => {
-    const cName = customerName.trim() || "Sem nome";
+    const cName = customerName;
     const key = cartKey(item.id, cName);
     setCart((prev) => {
       const existing = prev[key];
@@ -122,8 +130,7 @@ export default function TableOrderPage() {
 
   // Get qty for current customer name
   const getQty = (itemId: string) => {
-    const cName = customerName.trim() || "Sem nome";
-    return cart[cartKey(itemId, cName)]?.quantity ?? 0;
+    return cart[cartKey(itemId, customerName)]?.quantity ?? 0;
   };
 
   // Group cart by customer_name for display
@@ -133,6 +140,34 @@ export default function TableOrderPage() {
     acc[name].push(item);
     return acc;
   }, {});
+
+  // People setup handlers
+  const handlePeopleCountChange = (delta: number) => {
+    const newCount = Math.max(1, Math.min(10, peopleCount + delta));
+    setPeopleCount(newCount);
+    setPeopleNames((prev) => {
+      if (newCount > prev.length) {
+        return [...prev, ...Array(newCount - prev.length).fill("")];
+      }
+      return prev.slice(0, newCount);
+    });
+  };
+
+  const handleNameChange = (index: number, value: string) => {
+    setPeopleNames((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const handleStartOrder = () => {
+    // Fill empty names with defaults
+    const finalNames = peopleNames.map((n, i) => n.trim() || `Pessoa ${i + 1}`);
+    setPeopleNames(finalNames);
+    setActivePerson(0);
+    setSetupDone(true);
+  };
 
   const handleApplyCoupon = async () => {
     if (!org || !couponCode.trim()) return;
@@ -166,8 +201,6 @@ export default function TableOrderPage() {
         : `CUPOM:${appliedCoupon.code}`;
     }
 
-    // Determine initial status: if PIX requires confirmation, start as awaiting_payment
-    // so the kitchen doesn't see it until payment is confirmed
     const pixMode = org.pix_confirmation_mode ?? "direct";
     const needsPaymentFirst = pixMode === "automatic" || pixMode === "manual";
     const initialStatus = needsPaymentFirst ? "awaiting_payment" : "pending";
@@ -213,14 +246,11 @@ export default function TableOrderPage() {
       const isAutomatic = method === "pix" && pixMode === "automatic";
 
       if (method === "card") {
-        // Card selected: move order to pending so kitchen can see it
         await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
       } else {
-        // PIX selected: keep awaiting_payment, just update payment_method
         await supabase.from("orders").update({ payment_method: method } as never).eq("id", orderId);
       }
 
-      // If automatic mode, create a charge via gateway
       if (isAutomatic && org) {
         setAutoPixLoading(true);
         const result = await createCharge(org.id, orderId, orderTotal, `Pedido ${org.name}`);
@@ -233,12 +263,25 @@ export default function TableOrderPage() {
     }
   };
 
+  const resetAll = () => {
+    setCart({});
+    setNotes("");
+    setSuccess(false);
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setOrderTotal(0);
+    setPaymentMethod(null);
+    setOrderId(null);
+    setAutoPixPaymentId(null);
+    setAutoPixQrCode(null);
+  };
+
+  // ── Success / Payment screens ──────────────────────────────────────────
   if (success) {
     const pixPayload = org.pix_key && orderTotal > 0
       ? buildPixPayload(org.pix_key, orderTotal, org.name)
       : null;
 
-    // Step 1: Choose payment method
     if (!paymentMethod) {
       return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -249,9 +292,7 @@ export default function TableOrderPage() {
               Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-sm font-medium text-foreground">Como deseja pagar?</p>
-
             <div className="grid grid-cols-2 gap-3">
-              {/* PIX card */}
               <button
                 onClick={() => handleSelectPayment("pix")}
                 disabled={!pixPayload}
@@ -261,8 +302,6 @@ export default function TableOrderPage() {
                 <span className="font-bold text-sm text-foreground">Pagar com PIX</span>
                 <span className="text-xs text-muted-foreground">Pague agora</span>
               </button>
-
-              {/* Card */}
               <button
                 onClick={() => handleSelectPayment("card")}
                 className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-border bg-card hover:border-blue-400 hover:bg-blue-50 transition-all"
@@ -272,7 +311,6 @@ export default function TableOrderPage() {
                 <span className="text-xs text-muted-foreground">Pague no final</span>
               </button>
             </div>
-
             {!pixPayload && (
               <p className="text-xs text-muted-foreground">PIX indisponível — chave não configurada.</p>
             )}
@@ -281,12 +319,10 @@ export default function TableOrderPage() {
       );
     }
 
-    // Step 2a: PIX chosen
     if (paymentMethod === "pix") {
       const pixMode = org.pix_confirmation_mode ?? "direct";
       const isAutomatic = pixMode === "automatic";
 
-      // Automatic mode: show dynamic QR from gateway with polling
       if (isAutomatic) {
         if (autoPixLoading) {
           return (
@@ -306,11 +342,7 @@ export default function TableOrderPage() {
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
                 <h1 className="text-2xl font-bold text-foreground">Pagamento confirmado! ✅</h1>
                 <p className="text-muted-foreground">Seu pedido foi enviado para a cozinha. Bom apetite! 🍽️</p>
-                <Button
-                  variant="ghost"
-                  onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); setAutoPixPaymentId(null); setAutoPixQrCode(null); }}
-                  className="w-full text-sm text-muted-foreground"
-                >
+                <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                   Fazer outro pedido nesta mesa
                 </Button>
               </div>
@@ -337,13 +369,8 @@ export default function TableOrderPage() {
                       Aguardando pagamento...
                     </div>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        navigator.clipboard.writeText(dynamicQr);
-                        toast.success("Código PIX copiado!");
-                      }}
+                      variant="outline" size="sm" className="w-full"
+                      onClick={() => { navigator.clipboard.writeText(dynamicQr); toast.success("Código PIX copiado!"); }}
                     >
                       <Copy className="w-3.5 h-3.5 mr-1.5" />
                       Copiar código Pix
@@ -353,11 +380,7 @@ export default function TableOrderPage() {
                   <p className="text-sm text-destructive">Erro ao gerar QR Code. Tente novamente.</p>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); setAutoPixPaymentId(null); setAutoPixQrCode(null); }}
-                className="w-full text-sm text-muted-foreground"
-              >
+              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
             </div>
@@ -365,7 +388,6 @@ export default function TableOrderPage() {
         );
       }
 
-      // Direct/Manual mode: show static QR from PIX key
       if (!pixPayload) {
         return (
           <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -373,11 +395,7 @@ export default function TableOrderPage() {
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
               <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
               <p className="text-muted-foreground">PIX indisponível — chave não configurada.</p>
-              <Button
-                variant="ghost"
-                onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); }}
-                className="w-full text-sm text-muted-foreground"
-              >
+              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
             </div>
@@ -401,23 +419,14 @@ export default function TableOrderPage() {
                 Aponte a câmera do app do seu banco para o QR Code acima
               </p>
               <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  navigator.clipboard.writeText(pixPayload);
-                  toast.success("Código PIX copiado!");
-                }}
+                variant="outline" size="sm" className="w-full"
+                onClick={() => { navigator.clipboard.writeText(pixPayload); toast.success("Código PIX copiado!"); }}
               >
                 <Copy className="w-3.5 h-3.5 mr-1.5" />
                 Copiar código Pix
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); }}
-              className="w-full text-sm text-muted-foreground"
-            >
+            <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
               Fazer outro pedido nesta mesa
             </Button>
           </div>
@@ -425,7 +434,7 @@ export default function TableOrderPage() {
       );
     }
 
-    // Step 2b: Card chosen
+    // Card chosen
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-sm w-full">
@@ -441,11 +450,7 @@ export default function TableOrderPage() {
               R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            onClick={() => { setCart({}); setNotes(""); setSuccess(false); setAppliedCoupon(null); setCouponCode(""); setOrderTotal(0); setPaymentMethod(null); setOrderId(null); }}
-            className="w-full text-sm text-muted-foreground"
-          >
+          <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
             Fazer outro pedido nesta mesa
           </Button>
         </div>
@@ -453,6 +458,84 @@ export default function TableOrderPage() {
     );
   }
 
+  // ── People setup screen ────────────────────────────────────────────────
+  if (!setupDone) {
+    return (
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => fromDashboard ? navigate("/dashboard") : navigate(-1)}
+              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors mr-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            {org.logo_url ? (
+              <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-xl object-cover" />
+            ) : (
+              <span className="text-2xl">{org.emoji}</span>
+            )}
+            <div>
+              <h1 className="font-bold text-foreground text-base leading-tight">{org.name}</h1>
+              <p className="text-muted-foreground text-sm">Mesa {tableNum}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-md mx-auto px-4 py-8 space-y-6">
+          <div className="text-center space-y-2">
+            <Users className="w-12 h-12 text-primary mx-auto" />
+            <h2 className="text-xl font-bold text-foreground">Quem está na mesa?</h2>
+            <p className="text-sm text-muted-foreground">Informe quantas pessoas e os nomes para organizar o pedido.</p>
+          </div>
+
+          {/* People counter */}
+          <div className="bg-card border border-border rounded-xl p-4">
+            <label className="text-sm font-medium text-foreground mb-3 block">Quantas pessoas?</label>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => handlePeopleCountChange(-1)}
+                disabled={peopleCount <= 1}
+                className="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-secondary transition-colors disabled:opacity-40"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="text-3xl font-bold text-foreground w-12 text-center">{peopleCount}</span>
+              <button
+                onClick={() => handlePeopleCountChange(1)}
+                disabled={peopleCount >= 10}
+                className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Name inputs */}
+          <div className="space-y-3">
+            {peopleNames.map((name, index) => (
+              <div key={index} className="flex items-center gap-2 bg-card border border-border rounded-xl p-3">
+                <User className="w-4 h-4 text-primary flex-shrink-0" />
+                <Input
+                  placeholder={`Pessoa ${index + 1}`}
+                  value={name}
+                  onChange={(e) => handleNameChange(index, e.target.value)}
+                  className="border-0 p-0 h-auto text-sm focus-visible:ring-0 shadow-none"
+                />
+              </div>
+            ))}
+          </div>
+
+          <Button className="w-full h-12 text-base font-bold" onClick={handleStartOrder}>
+            Começar pedido →
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main menu screen ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background pb-40">
       {/* Header */}
@@ -476,16 +559,23 @@ export default function TableOrderPage() {
         </div>
       </div>
 
-      {/* Customer name input */}
-      <div className="max-w-lg mx-auto px-4 pt-4">
-        <div className="flex items-center gap-2 bg-card border border-border rounded-xl p-3">
-          <User className="w-4 h-4 text-primary flex-shrink-0" />
-          <Input
-            placeholder="Seu nome (para identificar o pedido)"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="border-0 p-0 h-auto text-sm focus-visible:ring-0 shadow-none"
-          />
+      {/* Person selector chips */}
+      <div className="sticky top-[73px] z-20 bg-background border-b border-border">
+        <div className="max-w-lg mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+          {peopleNames.map((name, index) => (
+            <button
+              key={index}
+              onClick={() => setActivePerson(index)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                activePerson === index
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              <User className="w-3 h-3" />
+              {name}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -568,9 +658,12 @@ export default function TableOrderPage() {
             </h3>
             {Object.entries(cartByPerson).map(([person, personItems]) => (
               <div key={person} className="space-y-1">
-                <p className="text-xs font-bold text-primary">{person}</p>
+                <p className="text-xs font-bold text-primary flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  {person}
+                </p>
                 {personItems.map((ci) => (
-                  <p key={ci.menu_item_id + ci.customer_name} className="text-xs text-muted-foreground ml-3">
+                  <p key={ci.menu_item_id + ci.customer_name} className="text-xs text-muted-foreground ml-5">
                     {ci.quantity}× {ci.name} — R$ {(ci.price * ci.quantity).toFixed(2).replace(".", ",")}
                   </p>
                 ))}
