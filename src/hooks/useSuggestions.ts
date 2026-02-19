@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -13,7 +14,9 @@ export interface Suggestion {
 }
 
 export const useSuggestions = (orgId: string | undefined) => {
-  return useQuery({
+  const qc = useQueryClient();
+
+  const query = useQuery({
     queryKey: ["suggestions", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -27,6 +30,29 @@ export const useSuggestions = (orgId: string | undefined) => {
     },
     enabled: !!orgId,
   });
+
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel(`suggestions-${orgId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "suggestions",
+          filter: `organization_id=eq.${orgId}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ["suggestions", orgId] });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [orgId, qc]);
+
+  return query;
 };
 
 export const useAddSuggestion = (orgId: string) => {
