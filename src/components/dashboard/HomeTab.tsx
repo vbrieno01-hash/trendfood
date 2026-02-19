@@ -129,7 +129,7 @@ export default function HomeTab({ organization }: { organization: Organization }
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       {/* ── Header ────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -236,17 +236,19 @@ export default function HomeTab({ organization }: { organization: Organization }
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={last7} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <ComposedChart data={last7} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="dia" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
                 <YAxis
                   yAxisId="left"
+                  width={35}
                   tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                   allowDecimals={false}
                 />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
+                  width={55}
                   tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                   tickFormatter={(v) => `R$${v}`}
                 />
