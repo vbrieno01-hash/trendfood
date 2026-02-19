@@ -18,6 +18,12 @@ import {
   AlertCircle,
   Search,
   X,
+  MessageCircle,
+  Printer,
+  Sparkles,
+  DollarSign,
+  FileText,
+  ArrowRight,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -51,7 +57,65 @@ interface OrgRow {
   menu_items_count: number;
   orders_count: number;
   total_revenue: number;
+  whatsapp: string | null;
+  business_hours: object | null;
 }
+
+// ── Feature Roadmap data ──
+type FeatureStatus = "available" | "beta" | "soon" | "planned";
+
+interface Feature {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  status: FeatureStatus;
+  actionLabel?: string;
+  actionHref?: string;
+}
+
+const FEATURES: Feature[] = [
+  {
+    icon: <MessageCircle className="w-5 h-5" />,
+    title: "Suporte via WhatsApp",
+    description: "Atendimento direto pelo WhatsApp para tirar dúvidas e resolver problemas em tempo real.",
+    status: "available",
+    actionLabel: "Abrir suporte",
+    actionHref: "https://wa.me/5511999999999?text=Olá%2C%20preciso%20de%20suporte%20com%20o%20TrendFood",
+  },
+  {
+    icon: <Printer className="w-5 h-5" />,
+    title: "Impressora Térmica",
+    description: "Impressão automática de pedidos em impressoras térmicas 80mm com QR Code PIX.",
+    status: "beta",
+    actionLabel: "Ver no dashboard",
+    actionHref: "/dashboard",
+  },
+  {
+    icon: <Sparkles className="w-5 h-5" />,
+    title: "Onboarding Guiado",
+    description: "Wizard passo a passo para novas lojas configurarem cardápio, horários e pagamentos em minutos.",
+    status: "soon",
+  },
+  {
+    icon: <DollarSign className="w-5 h-5" />,
+    title: "Controle de Caixa",
+    description: "Abertura e fechamento de caixa com saldo inicial, sangrias e relatório do turno.",
+    status: "soon",
+  },
+  {
+    icon: <FileText className="w-5 h-5" />,
+    title: "Relatório PDF Mensal",
+    description: "Relatório automático por e-mail com faturamento, pedidos e ticket médio do mês.",
+    status: "planned",
+  },
+];
+
+const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }> = {
+  available: { label: "Disponível", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+  beta: { label: "Beta", className: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
+  soon: { label: "Em breve", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
+  planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
+};
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -84,7 +148,7 @@ function AdminContent() {
         await Promise.all([
           supabase
             .from("organizations")
-            .select("id, name, slug, store_address, created_at, subscription_status, emoji")
+            .select("id, name, slug, store_address, created_at, subscription_status, emoji, whatsapp, business_hours")
             .order("created_at", { ascending: false }),
           supabase.from("menu_items").select("organization_id"),
           supabase.from("orders").select("id, organization_id"),
@@ -117,6 +181,8 @@ function AdminContent() {
           menu_items_count: menuCount[org.id] ?? 0,
           orders_count: orderIds.length,
           total_revenue: revenue,
+          whatsapp: org.whatsapp ?? null,
+          business_hours: org.business_hours as object | null,
         };
       });
 
@@ -172,7 +238,16 @@ function AdminContent() {
               <p className="text-xs text-muted-foreground mt-0.5">Painel Administrativo</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <a
+              href="https://wa.me/5511999999999?text=Olá%2C%20preciso%20de%20suporte%20com%20o%20TrendFood"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition-opacity"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden sm:block">Suporte</span>
+            </a>
             <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
               {user?.email?.[0].toUpperCase()}
             </div>
@@ -183,7 +258,7 @@ function AdminContent() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
 
         {/* ── KPI Cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -301,7 +376,7 @@ function AdminContent() {
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-52 rounded-2xl" />
+                <Skeleton key={i} className="h-64 rounded-2xl" />
               ))}
             </div>
           ) : orgs.length === 0 ? (
@@ -327,6 +402,19 @@ function AdminContent() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* ── Feature Roadmap ── */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Funcionalidades da Plataforma</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {FEATURES.map((f) => (
+              <FeatureCard key={f.title} feature={f} />
+            ))}
+          </div>
         </section>
       </main>
     </div>
@@ -354,6 +442,34 @@ function KpiCard({
         <p className="text-2xl font-bold text-foreground leading-none">{value}</p>
       )}
       <p className="text-xs text-muted-foreground leading-snug">{label}</p>
+    </div>
+  );
+}
+
+/* ── Setup Score ── */
+function SetupScore({ org }: { org: OrgRow }) {
+  const checks = [
+    !!org.store_address,
+    !!org.whatsapp,
+    org.menu_items_count > 0,
+    !!org.business_hours,
+  ];
+  const score = checks.filter(Boolean).length;
+  const pct = score * 25;
+  return (
+    <div className="px-5 pb-4 space-y-1.5">
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>Setup</span>
+        <span className={pct === 100 ? "text-emerald-600 dark:text-emerald-400 font-medium" : ""}>{pct}%</span>
+      </div>
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${
+            pct === 100 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-rose-400"
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -420,6 +536,9 @@ function StoreCard({ org }: { org: OrgRow }) {
         </div>
       </div>
 
+      {/* Setup Score */}
+      <SetupScore org={org} />
+
       {/* Divider */}
       <div className="border-t border-border mx-5" />
 
@@ -451,6 +570,40 @@ function Metric({ label, value, small }: { label: string; value: string; small?:
     <div className="py-3 px-4 flex flex-col items-center gap-0.5">
       <p className={`font-bold text-foreground ${small ? "text-xs" : "text-sm"}`}>{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+/* ── Feature Card ── */
+function FeatureCard({ feature }: { feature: Feature }) {
+  const { label, className } = STATUS_CONFIG[feature.status];
+  const isActionable = feature.status === "available" || feature.status === "beta";
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between gap-3">
+        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+          {feature.icon}
+        </div>
+        <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${className}`}>
+          {label}
+        </span>
+      </div>
+      <div className="space-y-1 flex-1">
+        <p className="text-sm font-semibold text-foreground">{feature.title}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+      </div>
+      {isActionable && feature.actionLabel && feature.actionHref && (
+        <a
+          href={feature.actionHref}
+          target={feature.actionHref.startsWith("http") ? "_blank" : undefined}
+          rel={feature.actionHref.startsWith("http") ? "noopener noreferrer" : undefined}
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-auto"
+        >
+          {feature.actionLabel}
+          <ArrowRight className="w-3 h-3" />
+        </a>
+      )}
     </div>
   );
 }
