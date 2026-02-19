@@ -10,6 +10,11 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
   const win = window.open("", "_blank", "width=400,height=600");
   if (!win) return; // blocked by popup blocker
 
+  const date = new Date(order.created_at).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+
   const time = new Date(order.created_at).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -112,7 +117,7 @@ export function printOrder(order: PrintableOrder, storeName = "Cozinha") {
   <div class="divider"></div>
   <div class="mesa-row">
     <span class="mesa">MESA ${order.table_number}</span>
-    <span class="time">${time}</span>
+    <span class="time">${date} — ${time}</span>
   </div>
   <div class="divider"></div>
   <table>${itemsHtml}</table>
