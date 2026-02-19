@@ -28,7 +28,7 @@ import {
   Crown,
   CalendarPlus,
   Users,
-  Percent,
+  
   Printer,
   Home,
   Menu,
@@ -208,7 +208,26 @@ function AdminContent() {
   const proCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "pro").length, [orgs]);
   const enterpriseCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "enterprise").length, [orgs]);
   const mrr = proCount * 99 + enterpriseCount * 249;
-  const conversionRate = orgs.length > 0 ? (payingOrgs.length / orgs.length * 100) : 0;
+  
+
+  // ── Financial metrics ──
+  const trialCount = useMemo(() => orgs.filter((o) => {
+    if (!o.trial_ends_at) return false;
+    return new Date(o.trial_ends_at) > new Date();
+  }).length, [orgs]);
+
+  const subscriberDetails = useMemo(() => {
+    const now = new Date();
+    return payingOrgs.map((o) => {
+      const created = new Date(o.created_at);
+      const monthsActive = Math.max(1, Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+      const planValue = o.subscription_plan === "enterprise" ? 249 : 99;
+      const totalEstimated = monthsActive * planValue;
+      return { ...o, monthsActive, planValue, totalEstimated };
+    });
+  }, [payingOrgs]);
+
+  const totalRevenue = useMemo(() => subscriberDetails.reduce((acc, s) => acc + s.totalEstimated, 0), [subscriberDetails]);
 
   // Filtered list
   const filteredOrgs = useMemo(() => {
@@ -377,37 +396,101 @@ function AdminContent() {
           {/* ── Home Tab ── */}
           {activeTab === "home" && (
             <div className="space-y-8">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <KpiCard
-                  icon={<Store className="w-5 h-5" />}
-                  label="Lojas Cadastradas"
-                  value={loading ? null : orgs.length.toString()}
-                  color="text-blue-600 dark:text-blue-400"
-                  bg="bg-blue-500/10"
-                />
-                <KpiCard
-                  icon={<Users className="w-5 h-5" />}
-                  label="Assinantes Ativos"
-                  value={loading ? null : payingOrgs.length.toString()}
-                  color="text-violet-600 dark:text-violet-400"
-                  bg="bg-violet-500/10"
+                  icon={<DollarSign className="w-5 h-5" />}
+                  label="Receita Total Estimada"
+                  value={loading ? null : fmt(totalRevenue)}
+                  color="text-emerald-600 dark:text-emerald-400"
+                  bg="bg-emerald-500/10"
                 />
                 <KpiCard
                   icon={<TrendingUp className="w-5 h-5" />}
                   label="MRR (Receita Recorrente)"
                   value={loading ? null : fmt(mrr)}
-                  color="text-emerald-600 dark:text-emerald-400"
-                  bg="bg-emerald-500/10"
+                  color="text-blue-600 dark:text-blue-400"
+                  bg="bg-blue-500/10"
                 />
                 <KpiCard
-                  icon={<Percent className="w-5 h-5" />}
-                  label="Taxa de Conversão"
-                  value={loading ? null : `${conversionRate.toFixed(1)}%`}
+                  icon={<CalendarPlus className="w-5 h-5" />}
+                  label="A Receber (Mês)"
+                  value={loading ? null : fmt(mrr)}
+                  color="text-violet-600 dark:text-violet-400"
+                  bg="bg-violet-500/10"
+                />
+                <KpiCard
+                  icon={<Store className="w-5 h-5" />}
+                  label="Lojas Cadastradas"
+                  value={loading ? null : orgs.length.toString()}
+                  color="text-cyan-600 dark:text-cyan-400"
+                  bg="bg-cyan-500/10"
+                />
+                <KpiCard
+                  icon={<Users className="w-5 h-5" />}
+                  label="Assinantes Ativos"
+                  value={loading ? null : payingOrgs.length.toString()}
                   color="text-orange-600 dark:text-orange-400"
                   bg="bg-orange-500/10"
                 />
+                <KpiCard
+                  icon={<Sparkles className="w-5 h-5" />}
+                  label="Trials Ativos"
+                  value={loading ? null : trialCount.toString()}
+                  color="text-amber-600 dark:text-amber-400"
+                  bg="bg-amber-500/10"
+                />
               </div>
               {!loading && <GrowthCharts orgs={orgs} />}
+
+              {/* ── Detalhamento de Assinantes ── */}
+              {!loading && (
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Crown className="w-4 h-4 text-muted-foreground" />
+                    <h2 className="text-sm font-semibold text-foreground">Detalhamento de Assinantes</h2>
+                  </div>
+                  {subscriberDetails.length === 0 ? (
+                    <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                      <p className="text-sm text-muted-foreground">Nenhum assinante pago ainda</p>
+                    </div>
+                  ) : (
+                    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border">
+                              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Loja</th>
+                              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Plano</th>
+                              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Valor/mês</th>
+                              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Meses Ativos</th>
+                              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Total Estimado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {subscriberDetails.map((s) => (
+                              <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                                <td className="px-4 py-3 font-medium">{s.emoji} {s.name}</td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="secondary" className="text-xs capitalize">{s.subscription_plan}</Badge>
+                                </td>
+                                <td className="px-4 py-3 text-right tabular-nums">{fmt(s.planValue)}</td>
+                                <td className="px-4 py-3 text-right tabular-nums">{s.monthsActive}</td>
+                                <td className="px-4 py-3 text-right tabular-nums font-medium">{fmt(s.totalEstimated)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-muted/30">
+                              <td colSpan={4} className="px-4 py-3 text-xs font-semibold text-muted-foreground text-right">Total</td>
+                              <td className="px-4 py-3 text-right font-bold tabular-nums">{fmt(totalRevenue)}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
             </div>
           )}
 
