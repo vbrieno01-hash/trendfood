@@ -121,7 +121,7 @@ export default function TablesTab({ organization }: Props) {
           {tables.map((t) => (
             <div
               key={t.id}
-              onClick={() => navigate(`/unidade/${organization.slug}/mesa/${t.number}`)}
+              onClick={() => navigate(`/unidade/${organization.slug}/mesa/${t.number}`, { state: { from: "dashboard" } })}
               className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
