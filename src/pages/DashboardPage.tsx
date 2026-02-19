@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
-  Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download,
+  Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
   History, Tag, BarChart2, Wallet, Lock
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -103,7 +103,7 @@ const DashboardPage = () => {
     );
   }
 
-  const subscriptionStatus = (organization as { subscription_status?: string }).subscription_status ?? "trial";
+  const subscriptionStatus = (organization as { subscription_status?: string }).subscription_status ?? "active";
 
   if (subscriptionStatus === "inactive") {
     return (
@@ -333,26 +333,6 @@ const DashboardPage = () => {
         </header>
 
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          {/* Trial banner — redesigned */}
-          {subscriptionStatus === "trial" && (
-            <div className="mb-5 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/8 to-amber-500/8 px-4 py-3 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
-                <Zap className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-foreground font-semibold text-sm">Período de teste ativo</p>
-                <p className="text-muted-foreground text-xs">Ative seu plano para acesso contínuo ao painel.</p>
-              </div>
-              <Link
-                to="/planos"
-                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors"
-              >
-                <Zap className="w-3 h-3" />
-                Ativar plano
-              </Link>
-            </div>
-          )}
-
           {activeTab === "home" && <HomeTab organization={organization} />}
           {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}

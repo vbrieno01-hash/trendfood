@@ -47,11 +47,9 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
 };
 
 export function usePlanLimits(organization: OrgLike | null | undefined): PlanLimits {
-  const status = organization?.subscription_status ?? "trial";
   const rawPlan = (organization?.subscription_plan ?? "free") as Plan;
 
-  // Trial users get pro-level access
-  const effectivePlan: Plan = status === "trial" ? "pro" : rawPlan;
+  const effectivePlan: Plan = rawPlan;
 
   const features = FEATURE_ACCESS[effectivePlan];
 

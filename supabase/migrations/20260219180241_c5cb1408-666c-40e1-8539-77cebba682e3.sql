@@ -1,0 +1,1 @@
+ALTER TABLE organizations ALTER COLUMN subscription_status SET DEFAULT 'active';
