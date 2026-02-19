@@ -1,80 +1,56 @@
 
-# Tornar os Cards de Mesa Clicáveis
+# Tornar os Cards de Mesa Clicáveis na Mesma Aba
 
 ## Problema
 
-Na aba "Mesas" do dashboard, cada card de mesa exibe três ícones (QR Code, Copiar Link, Excluir), mas clicar na área principal do card ou no número/nome da mesa **não faz nada**. O usuário espera que clicar na mesa abra a página do cardápio daquela mesa.
+O card de cada mesa usa `<a href={...} target="_blank">`, o que sempre abre uma nova aba do navegador. O usuário quer que ao clicar no card, a navegação ocorra **dentro do mesmo site**, sem abrir nova aba.
 
-Além disso, há um bug de indentação em `UnitPage.tsx` na linha 43 — o `useParams` está fora do nível de indentação correto, o que pode causar falhas silenciosas de parsing.
+## Solução
 
----
+Substituir o elemento `<a target="_blank">` por um `<div>` clicável que usa o hook `useNavigate` do React Router para navegar internamente para `/unidade/[slug]/mesa/[numero]`.
 
-## O Que Será Feito
+Os botões de ação (QR Code, Copiar, Excluir) continuam funcionando normalmente com `e.stopPropagation()`.
 
-### 1. `src/components/dashboard/TablesTab.tsx` — Card clicável
+## Mudanças em `src/components/dashboard/TablesTab.tsx`
 
-Três melhorias no card de cada mesa:
-
-**a) O card inteiro vira clicável:**
-O `<div>` do card será transformado em um wrapper que abre o link da mesa ao clicar (exceto quando o clique for nos botões de ação).
-
-**b) Adicionar botão "Abrir" explícito:**
-Um link visível com ícone `ExternalLink` ao lado do número da mesa, abrindo `/unidade/[slug]/mesa/[numero]` em nova aba.
-
-**c) Estilo hover no card:**
-Adicionar `cursor-pointer hover:border-primary/40 hover:bg-secondary/50 transition-colors` no card para dar feedback visual de que é clicável.
-
-A estrutura final ficará assim:
-
+**a) Importar `useNavigate`:**
 ```tsx
-<a
-  href={getUrl(t.number)}
-  target="_blank"
-  rel="noopener noreferrer"
+import { useNavigate } from "react-router-dom";
+```
+
+**b) Usar o hook dentro do componente:**
+```tsx
+const navigate = useNavigate();
+```
+
+**c) Trocar `<a href target="_blank">` por `<div onClick>` com navigate interno:**
+```tsx
+<div
+  key={t.id}
+  onClick={() => navigate(`/unidade/${organization.slug}/mesa/${t.number}`)}
   className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card
              hover:border-primary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
-  onClick={(e) => {
-    // Impede propagação quando clica nos botões de ação
-  }}
 >
-  {/* número, nome, url */}
+  {/* ... conteúdo ... */}
   <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-    {/* botões QR, Copiar, Excluir */}
+    {/* botões QR, Copiar, Excluir — sem preventDefault, apenas stopPropagation */}
   </div>
-</a>
+</div>
 ```
 
-O truque é usar um `<a>` como wrapper do card completo, e nos botões de ação usar `e.stopPropagation()` para que o clique neles não dispare a navegação.
-
-### 2. `src/pages/UnitPage.tsx` — Correção de bug de indentação
-
-Na linha 43, o `useParams` está com indentação errada (nível 0 ao invés de 2 espaços), o que é tecnicamente válido em JS mas inconsistente e pode causar confusão em ferramentas de linting:
-
-```tsx
-// Antes (linha 43 sem indentação correta):
-const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
-
-// Depois (indentação correta dentro do componente):
-  const { slug, tableNumber } = useParams<{ slug: string; tableNumber?: string }>();
-```
-
----
+O `e.stopPropagation()` no container dos botões impede que o clique nos ícones dispare o `onClick` do card pai.
 
 ## Resultado Esperado
 
-| Ação do usuário | Comportamento |
+| Ação | Comportamento |
 |---|---|
-| Clicar no card da mesa (área geral) | Abre `/unidade/slug/mesa/N` em nova aba |
-| Clicar no ícone QR Code | Abre modal do QR (sem abrir nova aba) |
-| Clicar no ícone Copiar | Copia o link (sem abrir nova aba) |
-| Clicar no ícone Excluir | Abre confirmação de exclusão (sem abrir nova aba) |
-| Hover no card | Borda e fundo mudam levemente para indicar que é clicável |
+| Clicar no card da mesa | Navega para o cardápio da mesa **na mesma aba** |
+| Clicar no ícone QR Code | Abre modal do QR (sem navegar) |
+| Clicar no ícone Copiar | Copia o link (sem navegar) |
+| Clicar no ícone Excluir | Abre confirmação de exclusão (sem navegar) |
 
----
-
-## Arquivos Afetados
+## Arquivo Afetado
 
 | Arquivo | Ação |
 |---|---|
-| `src/components/dashboard/TablesTab.tsx` | Tornar card clicável com `<a>` wrapper + hover styles + `stopPropagation` nos botões de ação |
-| `src/pages/UnitPage.tsx` | Corrigir indentação do `useParams` |
+| `src/components/dashboard/TablesTab.tsx` | Trocar `<a target="_blank">` por `<div onClick={navigate(...)}>` |
