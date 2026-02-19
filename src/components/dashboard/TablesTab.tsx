@@ -34,7 +34,7 @@ export default function TablesTab({ organization, tableLimit }: Props) {
   const [qrModal, setQrModal] = useState<{ number: number } | null>(null);
   const qrRef = useRef<SVGSVGElement | null>(null);
 
-  const PRODUCTION_URL = "https://snack-hive.lovable.app";
+  const PRODUCTION_URL = "https://trendfood.lovable.app";
   const getUrl = (num: number) => `${PRODUCTION_URL}/unidade/${organization.slug}/mesa/${num}`;
 
   const copyLink = async (num: number) => {
