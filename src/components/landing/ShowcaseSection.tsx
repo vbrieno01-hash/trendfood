@@ -18,7 +18,7 @@ const DashboardMockup = () => (
       <div className="overflow-hidden" style={{ height: 300 }}>
         <img
           src="/dashboard-screenshot.png"
-          alt="Painel TrendFood - Dashboard de vendas"
+          alt="Painel TrendFood - Dashboard de vendas e faturamento"
           className="w-full h-full object-cover object-top"
         />
       </div>
@@ -37,7 +37,7 @@ const DashboardMockup = () => (
       <div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800">
         <img
           src="/mobile-screenshot.png"
-          alt="Painel mobile TrendFood"
+          alt="Cardápio digital mobile TrendFood"
           className="w-full block"
           style={{ display: "block" }}
         />
@@ -56,11 +56,11 @@ const ShowcaseSection = () => {
             Veja o sistema em ação
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 leading-tight">
-            Uma maneira simples de{" "}
-            <span className="text-primary">gerenciar e vender mais</span>
+            Painel completo de gestão{" "}
+            <span className="text-primary">e cardápio digital integrado</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Do painel de gestão ao cardápio digital — tudo integrado, tudo em tempo real.
+            Do painel de faturamento ao cardápio do cliente — tudo integrado, tudo em tempo real.
           </p>
         </div>
 
@@ -72,12 +72,12 @@ const ShowcaseSection = () => {
               Painel de Gestão
             </Badge>
             <h3 className="font-bold text-foreground text-lg mb-2">
-              Seus números em tempo real
+              Faturamento e pedidos em tempo real
             </h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Acompanhe o faturamento do dia, ticket médio e pedidos pagos direto no painel. Tudo atualizado ao vivo, sem precisar recarregar.
+              Acompanhe o faturamento do dia, ticket médio, mais vendidos e pedidos ativos — tudo atualizado ao vivo no seu dashboard.
             </p>
-            {/* Arrow pointing right (desktop) / down (mobile) */}
+            {/* Arrow pointing right (desktop) */}
             <div className="hidden lg:flex justify-end mt-4">
               <svg width="60" height="40" viewBox="0 0 60 40" fill="none" className="text-primary opacity-60">
                 <path d="M4 20 Q30 4 54 20" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="4 3"/>
@@ -100,7 +100,7 @@ const ShowcaseSection = () => {
               Seus clientes pedem pelo celular
             </h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Cardápio bonito, responsivo e sem app. O cliente acessa pelo QR Code da mesa e faz o pedido em segundos.
+              Cardápio bonito, responsivo e sem app. O cliente escaneia o QR Code da mesa e faz o pedido em segundos — direto para a cozinha.
             </p>
             {/* Arrow pointing left (desktop) */}
             <div className="hidden lg:flex justify-start mt-4">
