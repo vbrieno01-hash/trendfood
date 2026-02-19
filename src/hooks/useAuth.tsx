@@ -92,10 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(newSession?.user ?? null);
         if (newSession?.user) {
           const userId = newSession.user.id;
-          // Ativa loading durante novo login para evitar render sem organização
-          if (_event === "SIGNED_IN") {
-            setLoading(true);
-          }
           setTimeout(() => {
             if (isMounted.current) {
               fetchOrganization(userId).finally(() => {
