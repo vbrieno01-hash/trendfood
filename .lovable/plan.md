@@ -1,127 +1,161 @@
 
-# Página de Documentação — Impressora Térmica 80mm
+# Diagnóstico e Correção — Notificações da Cozinha
 
-## Objetivo
-
-Criar uma página dedicada `/docs/impressora-termica` com guia completo de configuração da impressora térmica 80mm, incluindo requisitos, passo a passo e troubleshooting. Também atualizar o card "Impressora Térmica" no `/admin` para redirecionar para essa página de documentação.
+## Problema Relatado
+O toggle "🔔 Notificações" na aba Cozinha (KDS) não está funcionando corretamente.
 
 ---
 
-## O que será criado
+## Diagnóstico: 3 bugs identificados
 
-### Nova página: `src/pages/DocsTerminalPage.tsx`
+### Bug 1 — O toggle de notificações começa SEMPRE desativado (crítico)
 
-Uma página pública (sem autenticação necessária) acessível em `/docs/impressora-termica`, com layout limpo e organizado em seções:
+No `KitchenTab.tsx`, linha 58:
+```typescript
+// ESTADO INICIAL: só ativa se localStorage = "true"
+const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
+  () => localStorage.getItem(NOTIF_KEY) === "true"
+);
+```
 
-**Estrutura da página:**
+Porém na função `toggleNotifications` (linha 70), ao ativar o toggle, o código pede permissão do navegador. Se o navegador **já tinha concedido permissão** anteriormente (em sessão anterior), o fluxo funciona normalmente. Mas se o navegador **bloquear ou negar**, o estado não é salvo e o toggle não muda visualmente — o usuário pensa que funcionou mas não funcionou. Não há nenhum feedback de erro ou aviso.
+
+### Bug 2 — Nenhum feedback ao usuário quando a permissão é negada (UX crítico)
+
+```typescript
+const toggleNotifications = async (val: boolean) => {
+  if (val) {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      return; // ← silencioso! O toggle visualmente "volta" mas sem explicação
+    }
+  }
+  // ...
+};
+```
+
+Quando o navegador nega (ou o usuário clica "Bloquear"), a função simplesmente retorna sem nada. O toggle do Switch reverte, mas o usuário não sabe **por que** nem **como resolver**.
+
+### Bug 3 — O canal Realtime cria conflito com o canal do `useOrders`
+
+Em `useOrders.ts` (linha 121), já existe um canal Realtime para os pedidos:
+```
+channel: `orders-${organizationId}-${statuses.join("-")}`
+```
+
+Em `KitchenTab.tsx` (linha 104), há um segundo canal paralelo:
+```
+channel: `kitchen-tab-${orgId}`
+```
+
+Ambos escutam `INSERT` na tabela `orders` com o mesmo filtro. O Supabase Realtime pode entregar o evento apenas ao primeiro canal registrado, fazendo com que o sino e as notificações não disparem em alguns casos. Além disso, toda vez que `autoPrint` ou `notificationsEnabled` mudam (linha 137), o canal é destruído e recriado — com risco de perder eventos durante a reconexão.
+
+---
+
+## Raiz dos problemas
 
 ```text
-Header
-  └── Logo TrendFood + "Documentação" + link "Voltar ao dashboard"
-
-Seção 1 — Visão Geral
-  └── O que é, como funciona a impressão no sistema
-
-Seção 2 — Requisitos
-  └── Hardware compatível
-  └── Sistema operacional / navegador
-  └── Configurações necessárias na impressora
-
-Seção 3 — Passo a Passo de Configuração
-  Passo 1 → Configurar chave PIX no dashboard (Configurações)
-  Passo 2 → Abrir a aba Cozinha (KDS) no dashboard
-  Passo 3 → Ativar o toggle "Imprimir automático"
-  Passo 4 → Configurar impressora no sistema operacional (tamanho 80mm)
-  Passo 5 → Definir a impressora como padrão
-  Passo 6 → Testar com um pedido de exemplo
-
-Seção 4 — Exemplo de Recibo
-  └── Preview visual de como fica o recibo impresso
-  └── Itens mostrados: nome da loja, mesa/entrega, lista de itens, total, QR Code PIX
-
-Seção 5 — Troubleshooting
-  └── Problema: popup bloqueado pelo navegador → Solução
-  └── Problema: impressão cortando conteúdo → Solução (tamanho de página 80mm)
-  └── Problema: QR Code PIX não aparece → Solução (chave PIX não configurada)
-  └── Problema: impressão não dispara automaticamente → Solução (toggle)
-  └── Problema: acentos/caracteres especiais quebrados → Solução (encoding)
-
-Seção 6 — Impressoras Recomendadas
-  └── Cards com modelos populares no Brasil (Elgin i9, Bematech MP-4200, Epson TM-T20X, Daruma DR800)
-
-Footer
-  └── Link para suporte via WhatsApp
+1. Toggle silencioso sem feedback → usuário não sabe que permissão foi negada
+2. Canal Realtime duplicado → eventos podem não chegar ao handler de notificações
+3. useEffect com dependências mutáveis (autoPrint, notificationsEnabled) → canal reinicia desnecessariamente
 ```
 
 ---
 
-## Conteúdo técnico real (baseado na implementação existente)
+## Solução proposta
 
-A documentação refletirá a implementação real do `src/lib/printOrder.ts` e `src/components/dashboard/KitchenTab.tsx`:
+### Arquivo: `src/components/dashboard/KitchenTab.tsx`
 
-- O sistema abre uma **janela popup** (`window.open`) com HTML formatado para 80mm
-- O diálogo de impressão é disparado automaticamente via `window.print()` com delay de 500ms
-- O QR Code PIX é gerado via biblioteca `qrcode` usando o padrão **EMV/QRCPS-MPM do Banco Central**
-- A impressora precisa estar configurada no SO com **tamanho de página 80mm x automático**
-- O toggle "Imprimir automático" salva preferência por dispositivo via `localStorage`
-- Funciona em qualquer navegador que suporte `window.print()` — Chrome recomendado
+**Correção 1 — Feedback visual ao negar permissão**
 
----
-
-## Arquivos a criar/modificar
-
-| Arquivo | Ação | Descrição |
-|---|---|---|
-| `src/pages/DocsTerminalPage.tsx` | Criar | Página de documentação completa |
-| `src/App.tsx` | Modificar | Adicionar rota `/docs/impressora-termica` |
-| `src/pages/AdminPage.tsx` | Modificar | Card "Impressora Térmica" — `actionLabel: "Ver documentação"`, `actionHref: "/docs/impressora-termica"` |
-
----
-
-## Design da página
-
-A página usará o mesmo sistema de design do projeto (Tailwind, componentes ui/):
-
-- **Fundo**: `bg-background` (respeita dark mode)
-- **Cards de seção**: `bg-card border border-border rounded-2xl`
-- **Badges de passos**: números circulares com `bg-primary text-white`
-- **Alertas/avisos**: usando o componente `Alert` já existente
-- **Código/comandos**: blocos `<code>` com fundo `bg-muted`
-- **Ícones**: `lucide-react` já instalado (Printer, CheckCircle2, AlertCircle, Wifi, Monitor, Smartphone, etc.)
-- **Responsivo**: funciona bem em mobile e desktop
-
----
-
-## Rota no App.tsx
+Importar `toast` (sonner) e mostrar uma mensagem orientando o usuário a habilitar manualmente no navegador quando a permissão for negada:
 
 ```typescript
-// Adicionar antes do catch-all
-<Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
+import { toast } from "sonner";
+
+const toggleNotifications = async (val: boolean) => {
+  if (val) {
+    const permission = await Notification.requestPermission();
+    if (permission === "denied") {
+      toast.error("Notificações bloqueadas pelo navegador", {
+        description: "Clique no cadeado na barra de endereço e permita notificações para este site.",
+        duration: 8000,
+      });
+      return;
+    }
+    if (permission !== "granted") {
+      toast.warning("Permissão de notificação não concedida.");
+      return;
+    }
+  }
+  setNotificationsEnabled(val);
+  localStorage.setItem(NOTIF_KEY, String(val));
+};
 ```
 
-A página **não requer autenticação** — pode ser acessada diretamente por qualquer link de suporte.
+**Correção 2 — Estabilizar o canal Realtime com `useRef` para evitar recriação**
 
----
-
-## Mudança no card do AdminPage
+Usar refs para `autoPrint` e `notificationsEnabled` dentro do `useEffect`, eliminando-os das dependências. Isso evita que o canal Realtime seja destruído e recriado cada vez que o toggle é alterado:
 
 ```typescript
-{
-  icon: <Printer className="w-5 h-5" />,
-  title: "Impressora Térmica",
-  description: "Impressão automática de pedidos em impressoras térmicas 80mm com QR Code PIX.",
-  status: "beta",
-  actionLabel: "Ver documentação",   // era: "Ver no dashboard"
-  actionHref: "/docs/impressora-termica", // era: "/dashboard"
-},
+const autoPrintRef = useRef(autoPrint);
+const notificationsRef = useRef(notificationsEnabled);
+
+// Sincronizar refs com estado
+useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
+
+// Canal Realtime: usar refs dentro do handler, sem deps mutáveis
+useEffect(() => {
+  if (!orgId) return;
+  const channel = supabase
+    .channel(`kitchen-tab-${orgId}`)
+    .on("postgres_changes", { event: "INSERT", ... }, (payload) => {
+      const order = payload.new as Order;
+      if (!knownIds.current.has(order.id)) {
+        knownIds.current.add(order.id);
+        playBell();
+        if (autoPrintRef.current) { // ← usa ref, não estado
+          pendingPrintIds.current.add(order.id);
+        }
+        if (notificationsRef.current && Notification.permission === "granted") { // ← ref
+          new Notification(`🔔 Novo pedido!`, { ... });
+        }
+        qc.invalidateQueries(...);
+      }
+    })
+    // ...
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [orgId, qc]); // ← apenas orgId e qc como dependências
+```
+
+**Correção 3 — Indicador visual do estado da permissão**
+
+Mostrar badge informativo ao lado do toggle para indicar o estado atual da permissão (`granted` / `denied` / `default`), assim o usuário sabe imediatamente se as notificações estão realmente ativas no navegador:
+
+```text
+[🔔 Notificações] [Switch ON] ← badge verde "Ativo"
+[🔔 Notificações] [Switch OFF] ← badge cinza
+[🔔 Notificações] [Switch bloqueado] ← badge vermelho "Bloqueado pelo navegador"
 ```
 
 ---
 
-## Resumo
+## Arquivos a modificar
 
-- 1 página nova: `DocsTerminalPage.tsx`
-- 2 arquivos modificados: `App.tsx` (nova rota), `AdminPage.tsx` (link do card)
+| Arquivo | Mudança |
+|---|---|
+| `src/components/dashboard/KitchenTab.tsx` | Feedback ao negar permissão, canal Realtime estável com refs, badge de status |
+
+Nenhuma mudança de banco de dados necessária.
+
+---
+
+## Resumo das correções
+
+- 1 arquivo modificado: `KitchenTab.tsx`
 - Zero novas dependências
-- Página pública, sem autenticação
-- Conteúdo 100% baseado na implementação real do sistema
+- O sino e o auto-print continuam funcionando normalmente
+- O canal Realtime não será mais reiniciado ao trocar os toggles
+- O usuário receberá feedback claro quando as notificações forem bloqueadas
