@@ -151,15 +151,17 @@ export const usePlaceOrder = () => {
       tableNumber,
       notes,
       items,
+      initialStatus,
     }: {
       organizationId: string;
       tableNumber: number;
       notes: string;
       items: { menu_item_id: string; name: string; price: number; quantity: number; customer_name?: string }[];
+      initialStatus?: string;
     }) => {
       const { data: order, error: orderError } = await supabase
         .from("orders")
-        .insert({ organization_id: organizationId, table_number: tableNumber, notes: notes || null })
+        .insert({ organization_id: organizationId, table_number: tableNumber, notes: notes || null, status: initialStatus || "pending" })
         .select()
         .single();
       if (orderError) throw orderError;
