@@ -19,6 +19,7 @@ export interface Order {
   status: "pending" | "preparing" | "ready" | "delivered";
   notes: string | null;
   created_at: string;
+  paid: boolean;
   order_items?: OrderItem[];
 }
 
@@ -186,8 +187,87 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["orders", organizationId, statuses] });
+      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Delivered but unpaid orders (Aguardando Pagamento)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const useDeliveredUnpaidOrders = (organizationId: string | undefined) => {
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["orders-unpaid", organizationId],
+    queryFn: async () => {
+      if (!organizationId) throw new Error("No org");
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("organization_id", organizationId)
+        .eq("status", "delivered")
+        .eq("paid", false)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Order[];
+    },
+    enabled: !!organizationId,
+  });
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const channel = supabase
+      .channel(`orders-unpaid-${organizationId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
+        () => { qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] }); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [organizationId, qc]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return query;
+};
+
+export const useMarkAsPaid = (organizationId: string) => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("orders").update({ paid: true } as never).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] });
+      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+      toast({ title: "✅ Pagamento confirmado!" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// All delivered orders (for HomeTab chart)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const useDeliveredOrders = (organizationId: string | undefined) => {
+  return useQuery({
+    queryKey: ["orders-delivered", organizationId],
+    queryFn: async () => {
+      if (!organizationId) throw new Error("No org");
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("organization_id", organizationId)
+        .eq("status", "delivered")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Order[];
+    },
+    enabled: !!organizationId,
   });
 };
