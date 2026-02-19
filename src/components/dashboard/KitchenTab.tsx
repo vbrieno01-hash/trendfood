@@ -289,7 +289,10 @@ export default function KitchenTab({ orgId, orgName, pixKey }: KitchenTabProps) 
                       <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
                         {item.quantity}×
                       </span>
-                      {item.name}
+                      <span>{item.name}</span>
+                      {(item as any).customer_name && (
+                        <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
+                      )}
                     </li>
                   ))}
                 </ul>

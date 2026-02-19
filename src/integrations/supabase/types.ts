@@ -193,6 +193,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          customer_name: string | null
           id: string
           menu_item_id: string | null
           name: string
@@ -201,6 +202,7 @@ export type Database = {
           quantity: number
         }
         Insert: {
+          customer_name?: string | null
           id?: string
           menu_item_id?: string | null
           name: string
@@ -209,6 +211,7 @@ export type Database = {
           quantity?: number
         }
         Update: {
+          customer_name?: string | null
           id?: string
           menu_item_id?: string | null
           name?: string
