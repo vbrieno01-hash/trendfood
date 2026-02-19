@@ -1,36 +1,81 @@
 
-# Corrigir persistencia de sessao (login sendo perdido ao fechar o app)
+# Integrar Stripe para Pagamento de Assinaturas
 
-## Problema
+## Resumo
 
-Quando voce fecha o site ou app e reabre, ele pede login novamente. Isso acontece porque existe uma "corrida" no codigo de autenticacao: dois processos tentam verificar se o usuario esta logado ao mesmo tempo, e um deles pode concluir antes do outro com a informacao errada (sem sessao), fazendo o app achar que voce nao esta logado e te redirecionar para a tela de login.
+Quando o cliente clicar em "Assinar Pro" ou "Assinar Enterprise", ele sera redirecionado para uma pagina de checkout do Stripe. Apos o pagamento, o Stripe notifica o sistema via webhook, que atualiza automaticamente o plano da organizacao no banco de dados.
 
-## Solucao
+## Fluxo do usuario
 
-Separar as responsabilidades: apenas o carregamento inicial (`getSession`) controla quando o app termina de carregar. O listener de mudancas (`onAuthStateChange`) so atualiza o estado para eventos futuros (login, logout), sem interferir no carregamento inicial.
+```text
+Dashboard -> Clica "Assinar Pro" -> Pagina de Planos
+  -> Clica no botao do plano -> Redirecionado ao Checkout Stripe
+    -> Paga com cartao -> Stripe confirma
+      -> Webhook atualiza subscription_plan e subscription_status
+        -> Usuario volta ao Dashboard com plano ativo
+```
+
+## O que sera feito
+
+### 1. Habilitar integracao Stripe
+- Conectar o Stripe ao projeto usando a integracao nativa do Lovable
+- Configurar produtos e precos (Pro R$99/mes, Enterprise R$249/mes)
+
+### 2. Edge Function: create-checkout (nova)
+- Recebe o plano desejado (pro/enterprise) e o ID da organizacao
+- Cria uma sessao de checkout no Stripe com:
+  - Preco correto do plano
+  - URL de sucesso (volta ao dashboard)
+  - URL de cancelamento (volta a pagina de planos)
+  - Metadata com org_id para identificar a organizacao no webhook
+- Retorna a URL do checkout para o frontend
+
+### 3. Edge Function: stripe-webhook (nova)
+- Escuta eventos do Stripe (checkout.session.completed, customer.subscription.updated, customer.subscription.deleted)
+- Quando o pagamento e confirmado:
+  - Atualiza `subscription_plan` para "pro" ou "enterprise"
+  - Atualiza `subscription_status` para "active"
+  - Remove `trial_ends_at` (nao precisa mais de trial)
+- Quando a assinatura e cancelada:
+  - Atualiza `subscription_plan` para "free"
+  - Atualiza `subscription_status` para "active" (volta ao plano gratis)
+
+### 4. Atualizar pagina de Planos (PricingPage.tsx)
+- Para usuarios logados: botao "Assinar Pro" chama a edge function create-checkout e redireciona ao Stripe
+- Para usuarios nao logados: botao continua redirecionando para /auth (cadastro)
+- Adicionar estado de loading no botao durante o redirecionamento
+
+### 5. Atualizar PlanCard.tsx
+- Aceitar uma prop `onSelect` opcional (callback ao clicar)
+- Quando `onSelect` esta presente, usar onClick em vez de Link
+
+### 6. Adicionar coluna stripe_customer_id na tabela organizations
+- Nova coluna para vincular a organizacao ao cliente Stripe
+- Permite gerenciar assinaturas futuras (cancelamento, upgrade, etc.)
 
 ## Detalhes tecnicos
 
-**Arquivo:** `src/hooks/useAuth.tsx`
+**Banco de dados (migracao):**
+- Adicionar coluna `stripe_customer_id` (text, nullable) na tabela `organizations`
+- Adicionar coluna `stripe_subscription_id` (text, nullable) na tabela `organizations`
 
-Mudancas no `useEffect`:
+**Edge Function create-checkout:**
+- Verifica autenticacao do usuario
+- Busca ou cria customer no Stripe usando o email do usuario
+- Salva `stripe_customer_id` na organizacao
+- Cria sessao de checkout com mode: "subscription"
+- Retorna checkout URL
 
-1. Remover o `setLoading(false)` de dentro do callback `onAuthStateChange` -- ele so deve atualizar `session`, `user`, e buscar a organizacao, mas nunca controlar o estado de `loading`
-2. Manter o `getSession()` como unico responsavel por definir `loading = false` apos buscar sessao e organizacao
-3. No `onAuthStateChange`, usar `setTimeout` para buscar organizacao (ja esta assim) mas sem chamar `setLoading`
-4. Garantir que o listener trata corretamente eventos subsequentes (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED) sem interferir no carregamento inicial
+**Edge Function stripe-webhook:**
+- Valida assinatura do webhook usando STRIPE_WEBHOOK_SECRET
+- Processa eventos: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted
+- Usa service role key para atualizar a tabela organizations
 
-Fluxo corrigido:
+**Frontend (PricingPage.tsx):**
+- Importa `supabase` client
+- Chama `supabase.functions.invoke('create-checkout', { body: { plan, orgId } })`
+- Redireciona com `window.location.href = checkoutUrl`
 
-```text
-App inicia -> loading = true
-  |
-  +--> onAuthStateChange registrado (nao muda loading)
-  |      Atualiza session/user e busca org em background
-  |
-  +--> getSession() executa
-         Se tem sessao -> busca org -> loading = false
-         Se nao tem sessao -> loading = false
-```
-
-Isso garante que o app so libera a tela depois de verificar completamente se existe uma sessao salva, evitando o redirecionamento prematuro para /auth.
+**Secrets necessarios:**
+- STRIPE_SECRET_KEY (chave secreta do Stripe)
+- STRIPE_WEBHOOK_SECRET (secret do webhook)
