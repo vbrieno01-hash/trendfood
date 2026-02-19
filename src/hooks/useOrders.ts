@@ -152,16 +152,27 @@ export const usePlaceOrder = () => {
       notes,
       items,
       initialStatus,
+      paymentMethod,
+      paid,
     }: {
       organizationId: string;
       tableNumber: number;
       notes: string;
       items: { menu_item_id: string; name: string; price: number; quantity: number; customer_name?: string }[];
       initialStatus?: string;
+      paymentMethod?: string;
+      paid?: boolean;
     }) => {
       const { data: order, error: orderError } = await supabase
         .from("orders")
-        .insert({ organization_id: organizationId, table_number: tableNumber, notes: notes || null, status: initialStatus || "pending" })
+        .insert({
+          organization_id: organizationId,
+          table_number: tableNumber,
+          notes: notes || null,
+          status: initialStatus || "pending",
+          ...(paymentMethod ? { payment_method: paymentMethod } : {}),
+          ...(paid !== undefined ? { paid } : {}),
+        })
         .select()
         .single();
       if (orderError) throw orderError;
