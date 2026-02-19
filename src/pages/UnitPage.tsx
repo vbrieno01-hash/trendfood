@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import {
   ChefHat, Heart, ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  MessageCircle, ShoppingCart,
+  MessageCircle, ShoppingCart, ImageOff, Lightbulb, CheckCircle2,
 } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useSuggestions, useAddSuggestion, useIncrementVote } from "@/hooks/useSuggestions";
@@ -291,8 +291,9 @@ const UnitPage = () => {
           style={{ backgroundColor: `${primaryColor}15`, borderColor: `${primaryColor}30` }}
         >
           <p className="text-lg font-bold text-foreground mb-0.5">{org.description || `Bem-vindo ao ${org.name}!`}</p>
-          <p className="text-muted-foreground text-sm">
-            🛒 Monte seu pedido e envie direto pelo WhatsApp!
+          <p className="text-muted-foreground text-sm flex items-center gap-1.5">
+            <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+            Monte seu pedido e envie direto pelo WhatsApp!
           </p>
         </div>
 
@@ -363,50 +364,51 @@ const UnitPage = () => {
                 )}
 
                 {/* ── CATEGORY SECTIONS ── */}
-                <div className="space-y-7">
+                <div className="space-y-6">
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
-                      <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
-                        <span>{group.emoji}</span>
-                        <span>{group.value}</span>
-                      </h2>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {group.value}
+                        </h2>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      <div className="space-y-2">
                         {group.items.map((item) => {
                           const qty = cart[item.id]?.qty ?? 0;
                           return (
                             <div
                               key={item.id}
-                              className={`bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-opacity ${!item.available ? "opacity-60" : ""}`}
+                              className={`bg-card border border-border rounded-xl overflow-hidden flex flex-row items-center gap-3 p-3 transition-opacity ${!item.available ? "opacity-60" : ""}`}
                             >
-                              {/* Photo */}
-                              {item.image_url ? (
-                                <div className="aspect-[4/3] w-full overflow-hidden bg-secondary">
+                              {/* Thumbnail */}
+                              <div className="w-[72px] h-[72px] shrink-0 rounded-lg overflow-hidden bg-secondary flex items-center justify-center">
+                                {item.image_url ? (
                                   <img
                                     src={item.image_url}
                                     alt={item.name}
                                     className="w-full h-full object-cover"
                                   />
-                                </div>
-                              ) : (
-                                <div className="aspect-[4/3] w-full bg-secondary flex items-center justify-center">
-                                  <span className="text-5xl opacity-30">{group.emoji}</span>
-                                </div>
-                              )}
+                                ) : (
+                                  <ImageOff className="w-5 h-5 text-muted-foreground opacity-30" />
+                                )}
+                              </div>
 
-                              <div className="p-3">
-                                <div className="flex items-start justify-between gap-2 mb-1">
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2 mb-0.5">
                                   <h3 className="font-semibold text-foreground text-sm leading-snug">{item.name}</h3>
                                   {!item.available && (
                                     <Badge variant="destructive" className="text-xs shrink-0">Indisponível</Badge>
                                   )}
                                 </div>
                                 {item.description && (
-                                  <p className="text-muted-foreground text-xs leading-relaxed mb-2 line-clamp-2">
+                                  <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2 mb-1.5">
                                     {item.description}
                                   </p>
                                 )}
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="font-bold text-foreground text-base">
+                                  <span className="font-bold text-foreground text-sm">
                                     {fmt(item.price)}
                                   </span>
 
@@ -414,27 +416,27 @@ const UnitPage = () => {
                                     qty === 0 ? (
                                       <button
                                         onClick={() => addToCart(item)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
                                         style={{ backgroundColor: primaryColor }}
                                       >
-                                        <Plus className="w-3.5 h-3.5" />
+                                        <Plus className="w-3 h-3" />
                                         Adicionar
                                       </button>
                                     ) : (
                                       <div className="flex items-center gap-1">
                                         <button
                                           onClick={() => removeFromCart(item.id)}
-                                          className="w-7 h-7 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
+                                          className="w-6 h-6 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
                                         >
-                                          <Minus className="w-3.5 h-3.5" />
+                                          <Minus className="w-3 h-3" />
                                         </button>
-                                        <span className="w-6 text-center text-sm font-bold">{qty}</span>
+                                        <span className="w-5 text-center text-sm font-bold">{qty}</span>
                                         <button
                                           onClick={() => addToCart(item)}
-                                          className="w-7 h-7 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
+                                          className="w-6 h-6 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
                                           style={{ backgroundColor: primaryColor }}
                                         >
-                                          <Plus className="w-3.5 h-3.5" />
+                                          <Plus className="w-3 h-3" />
                                         </button>
                                       </div>
                                     )
@@ -456,7 +458,7 @@ const UnitPage = () => {
           <TabsContent value="suggestions" className="mt-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-foreground text-base">
-                💬 Sugestões da galera{" "}
+                Sugestões da galera{" "}
                 <span className="text-muted-foreground font-normal text-sm">
                   ({suggestionsLoading ? "..." : suggestions.length})
                 </span>
@@ -480,7 +482,7 @@ const UnitPage = () => {
               </div>
             ) : suggestions.length === 0 ? (
               <div className="bg-card border border-border rounded-2xl p-8 text-center">
-                <p className="text-3xl mb-2">💡</p>
+                <Lightbulb className="w-8 h-8 text-muted-foreground opacity-30 mx-auto mb-2" />
                 <p className="font-semibold text-foreground">Nenhuma sugestão ainda</p>
                 <p className="text-muted-foreground text-sm mt-1">Seja o primeiro a sugerir um item!</p>
               </div>
@@ -655,10 +657,10 @@ const UnitPage = () => {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Dinheiro">💵 Dinheiro</SelectItem>
-                    <SelectItem value="Cartão de Débito">💳 Cartão de Débito</SelectItem>
-                    <SelectItem value="Cartão de Crédito">💳 Cartão de Crédito</SelectItem>
-                    <SelectItem value="PIX">📱 PIX</SelectItem>
+                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                    <SelectItem value="PIX">PIX</SelectItem>
                   </SelectContent>
                 </Select>
                 {paymentError && <p className="text-destructive text-xs mt-1">Selecione uma forma de pagamento</p>}
@@ -726,7 +728,7 @@ const UnitPage = () => {
 
             {submitted ? (
               <div className="text-center py-6">
-                <p className="text-4xl mb-3">🎉</p>
+                <CheckCircle2 className="w-10 h-10 mx-auto mb-3" style={{ color: "#16a34a" }} />
                 <p className="font-semibold text-foreground text-lg">Sugestão enviada!</p>
                 <p className="text-muted-foreground text-sm">Obrigado pela sua ideia.</p>
               </div>
