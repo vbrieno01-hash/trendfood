@@ -610,6 +610,19 @@ export default function StoreProfileTab({ organization }: { organization: Organi
                       <SelectContent>
                         <SelectItem value="mercadopago">Mercado Pago</SelectItem>
                         <SelectItem value="pagseguro">PagSeguro / PagBank</SelectItem>
+                        <SelectItem value="efi">EFI (Gerencianet)</SelectItem>
+                        <SelectItem value="asaas">Asaas</SelectItem>
+                        <SelectItem value="openpix">OpenPix (Woovi)</SelectItem>
+                        <SelectItem value="inter">Inter (Banco Inter)</SelectItem>
+                        <SelectItem value="sicredi">Sicredi</SelectItem>
+                        <SelectItem value="bradesco">Bradesco</SelectItem>
+                        <SelectItem value="itau">Itaú</SelectItem>
+                        <SelectItem value="bb">Banco do Brasil</SelectItem>
+                        <SelectItem value="santander">Santander</SelectItem>
+                        <SelectItem value="caixa">Caixa Econômica</SelectItem>
+                        <SelectItem value="nubank">Nubank</SelectItem>
+                        <SelectItem value="c6bank">C6 Bank</SelectItem>
+                        <SelectItem value="shipay">Shipay</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -626,6 +639,14 @@ export default function StoreProfileTab({ organization }: { organization: Organi
                             ? "APP_USR-..."
                             : gatewayProvider === "pagseguro"
                             ? "Token PagSeguro"
+                            : gatewayProvider === "efi"
+                            ? "Client ID e Secret (formato: clientId:clientSecret)"
+                            : gatewayProvider === "asaas"
+                            ? "$aact_..."
+                            : gatewayProvider === "openpix"
+                            ? "AppID da OpenPix"
+                            : gatewayProvider
+                            ? "Token/credencial do seu banco"
                             : "Selecione o provedor primeiro"
                         }
                         className="pr-10"
@@ -643,12 +664,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
                   {gatewayProvider === "mercadopago" && (
                     <p className="text-xs text-muted-foreground">
                       Encontre seu Access Token em{" "}
-                      <a
-                        href="https://www.mercadopago.com.br/developers/panel/app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline"
-                      >
+                      <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noopener noreferrer" className="text-primary underline">
                         Mercado Pago Developers → Credenciais
                       </a>
                     </p>
@@ -656,14 +672,39 @@ export default function StoreProfileTab({ organization }: { organization: Organi
                   {gatewayProvider === "pagseguro" && (
                     <p className="text-xs text-muted-foreground">
                       Encontre seu token em{" "}
-                      <a
-                        href="https://minhaconta.pagseguro.uol.com.br/minha-conta/configuracoes"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline"
-                      >
+                      <a href="https://minhaconta.pagseguro.uol.com.br/minha-conta/configuracoes" target="_blank" rel="noopener noreferrer" className="text-primary underline">
                         PagSeguro → Minha Conta → Configurações
                       </a>
+                    </p>
+                  )}
+                  {gatewayProvider === "efi" && (
+                    <p className="text-xs text-muted-foreground">
+                      Crie suas credenciais em{" "}
+                      <a href="https://app.gerencianet.com.br/api/minhas-aplicacoes" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                        EFI → API → Minhas Aplicações
+                      </a>
+                      . Formato: <code className="text-xs">clientId:clientSecret</code>
+                    </p>
+                  )}
+                  {gatewayProvider === "asaas" && (
+                    <p className="text-xs text-muted-foreground">
+                      Gere sua API Key em{" "}
+                      <a href="https://www.asaas.com/customerApiKeys/index" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                        Asaas → Integrações → API
+                      </a>
+                    </p>
+                  )}
+                  {gatewayProvider === "openpix" && (
+                    <p className="text-xs text-muted-foreground">
+                      Crie seu AppID em{" "}
+                      <a href="https://app.openpix.com.br/home/applications" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                        OpenPix → Aplicações
+                      </a>
+                    </p>
+                  )}
+                  {["inter", "sicredi", "bradesco", "itau", "bb", "santander", "caixa", "nubank", "c6bank", "shipay"].includes(gatewayProvider) && (
+                    <p className="text-xs text-amber-600">
+                      ⚠️ Integração com este provedor em desenvolvimento. Use Mercado Pago, PagSeguro, EFI, Asaas ou OpenPix.
                     </p>
                   )}
 
