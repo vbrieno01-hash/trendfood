@@ -155,9 +155,14 @@ const Index = () => {
               <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
               <span className="font-bold text-white text-lg">TrendFood</span>
             </div>
-            <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent" asChild>
-              <Link to="/auth">Entrar</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10" asChild>
+                <Link to="/planos">Ver planos</Link>
+              </Button>
+              <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent" asChild>
+                <Link to="/auth">Entrar</Link>
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -323,16 +328,26 @@ const Index = () => {
           <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
             Sem papel, sem confusão, sem app para baixar. Cadastre-se grátis e configure em minutos.
           </p>
-          <Button
-            size="lg"
-            className="text-base font-bold gap-2 bg-white text-primary hover:bg-white/90 shadow-xl"
-            asChild
-          >
-            <Link to="/auth">
-              Começar Grátis Agora
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </Button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              size="lg"
+              className="text-base font-bold gap-2 bg-white text-primary hover:bg-white/90 shadow-xl"
+              asChild
+            >
+              <Link to="/auth">
+                Começar Grátis Agora
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-base font-bold border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent"
+              asChild
+            >
+              <Link to="/planos">Ver planos</Link>
+            </Button>
+          </div>
           <p className="mt-4 text-white/40 text-sm">Sem cartão de crédito · Cancele quando quiser</p>
         </div>
       </section>
