@@ -1,47 +1,86 @@
 
-# Metricas Financeiras no Painel Admin
+# Pagamento PIX Automático para Pedidos Online (Delivery/Retirada)
 
-## O que sera adicionado
+## Situacao Atual
 
-Novos cartoes de KPI e uma secao de detalhamento financeiro na aba "Home" do painel admin, mostrando:
+Quando o cliente pede pelo cardapio online (delivery ou retirada):
+1. Ele seleciona "PIX" como forma de pagamento
+2. O pedido e salvo no banco com `payment_method = 'pending'`
+3. A mensagem vai pro WhatsApp do lojista
+4. **Nao ha cobranca real** -- o lojista precisa cobrar manualmente
 
-1. **Receita Total Estimada** -- quanto ja foi faturado com assinaturas desde o inicio (calculado com base na data de criacao de cada org pagante e o valor do plano)
-2. **MRR Atual** (ja existe) -- receita recorrente mensal
-3. **A Receber Este Mes** -- valor pendente/projetado para o mes corrente
-4. **Trials Ativos** -- quantas lojas estao em trial (potencial de conversao)
-5. **Tabela de detalhamento** -- lista resumida mostrando cada assinante pagante, plano, valor mensal e meses ativos
+Para mesas presenciais, o sistema ja gera QR Code PIX e verifica o pagamento automaticamente.
 
-## Calculo da receita
+## O que sera feito
 
-Como nao existe uma tabela de pagamentos/invoices no banco, a receita sera estimada:
-- Para cada org com plano "pro" ou "enterprise", calcula-se quantos meses desde `created_at` ate hoje
-- Multiplica pela mensalidade (Pro = R$ 99, Enterprise = R$ 249)
-- Isso da uma estimativa do total faturado
+Quando o cliente online escolher PIX, em vez de apenas registrar no texto, o sistema vai:
+
+1. **Gerar o QR Code PIX** com o valor total do pedido (incluindo frete se aplicavel)
+2. **Exibir uma tela de pagamento** com o QR Code, codigo copia-e-cola e countdown
+3. **Verificar o pagamento automaticamente** (se a loja tiver gateway PIX configurado) ou aguardar confirmacao manual
+4. **Salvar o pedido com `payment_method = 'pix'`** e o status adequado
+5. So enviar a mensagem pro WhatsApp **apos o pagamento ser confirmado** (ou imediatamente se for outro metodo)
+
+## Fluxo do cliente
+
+```text
+Carrinho -> Checkout -> Seleciona PIX
+                            |
+                    [Gera QR Code PIX]
+                            |
+                  Tela de Pagamento PIX
+                  (QR Code + Copia/Cola)
+                            |
+              [Verifica pagamento via gateway]
+                            |
+                   Pagamento Confirmado!
+                            |
+              [Salva pedido + Envia WhatsApp]
+```
+
+Para outros metodos (Dinheiro, Cartao), o fluxo continua igual ao atual.
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/AdminPage.tsx`
+### 1. Novo componente: `src/components/checkout/PixPaymentScreen.tsx`
 
-**Novos KPIs calculados** (adicionar junto aos existentes no `useMemo`):
-- `totalRevenue`: soma de (meses ativos x valor do plano) para cada org pagante
-- `pendingThisMonth`: MRR atual (valor a receber no mes corrente)
-- `trialCount`: contagem de orgs com trial ativo
+- Recebe: valor total, org (para pix_key e gateway config), callback de sucesso
+- Gera payload PIX usando `pixPayload.ts` (ja existe no projeto)
+- Renderiza QR Code usando `qrcode.react` (ja instalado)
+- Exibe codigo copia-e-cola
+- Se a loja tiver gateway configurado (`organization_secrets.pix_gateway_token`): polling automatico via edge function `verify-pix-payment`
+- Se nao tiver gateway: botao "Ja paguei" que marca como `awaiting_payment` para confirmacao manual do lojista
+- Timer de 10 minutos com expiracao
 
-**Novos cartoes na grid de KPIs** (expandir de 4 para 6 cartoes):
-- "Receita Total Estimada" com icone DollarSign
-- "A Receber (Mes)" com icone de calendario
-- Manter os 4 existentes
+### 2. Alteracao: `src/pages/UnitPage.tsx`
 
-**Nova secao: Detalhamento de Assinantes**
-- Tabela simples abaixo dos graficos de crescimento
-- Colunas: Nome da Loja, Plano, Valor/mes, Meses Ativos, Total Estimado
-- Apenas lojas com plano pago (pro ou enterprise)
-- Se nenhuma loja paga, exibe mensagem "Nenhum assinante pago ainda"
+- Quando o cliente clicar "Enviar Pedido" com PIX selecionado:
+  - Em vez de enviar direto, abrir o `PixPaymentScreen` em um Drawer/Dialog
+  - Passar o valor total (com frete) e dados da org
+  - So prosseguir com o `placeOrder.mutate()` e envio do WhatsApp apos confirmacao do pagamento
+  - Salvar o pedido com `payment_method: 'pix'` em vez de 'pending'
 
-### Arquivo: `src/components/admin/GrowthCharts.tsx`
-- Sem alteracoes
+### 3. Alteracao: `src/hooks/useOrders.ts`
 
-### Resumo das mudancas
-- Apenas o arquivo `src/pages/AdminPage.tsx` sera modificado
-- Nenhuma mudanca no banco de dados
-- Nenhuma nova dependencia
+- Atualizar `usePlaceOrder` para aceitar `payment_method` opcional como parametro
+- Se `payment_method === 'pix'` e gateway configurado: salvar como `paid: true`
+- Se `payment_method === 'pix'` sem gateway: salvar como `paid: false` + status adequado para confirmacao manual
+
+### 4. Logica condicional por modo de confirmacao
+
+- `pix_confirmation_mode === 'direct'` (gateway ativo): verificacao automatica, pedido ja entra como pago
+- `pix_confirmation_mode === 'manual'`: pedido entra como `awaiting_payment`, garcom confirma no painel
+- `pix_confirmation_mode === 'direct'` sem gateway: mostra QR estatico + botao "Ja paguei"
+
+### Resumo de arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| `src/components/checkout/PixPaymentScreen.tsx` | **Novo** -- tela de pagamento PIX |
+| `src/pages/UnitPage.tsx` | Alterar fluxo de checkout quando PIX selecionado |
+| `src/hooks/useOrders.ts` | Aceitar `payment_method` no `usePlaceOrder` |
+
+### Sem mudancas no banco de dados
+- A coluna `payment_method` ja existe na tabela `orders`
+- A coluna `paid` ja existe
+- As edge functions de verificacao PIX ja existem
