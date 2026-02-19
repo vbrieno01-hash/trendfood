@@ -5,8 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
-  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap
+  ChefHat, Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Zap, Download
 } from "lucide-react";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 import HomeTab from "@/components/dashboard/HomeTab";
 import MenuTab from "@/components/dashboard/MenuTab";
 import TablesTab from "@/components/dashboard/TablesTab";
@@ -25,6 +30,20 @@ const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [appInstalled, setAppInstalled] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => setAppInstalled(true));
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
@@ -99,6 +118,15 @@ const DashboardPage = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) return;
+    (installPrompt as BeforeInstallPromptEvent).prompt();
+    const { outcome } = await (installPrompt as BeforeInstallPromptEvent).userChoice;
+    if (outcome === "accepted") {
+      setInstallPrompt(null);
+    }
   };
 
   // Sidebar nav button style helper
@@ -204,6 +232,15 @@ const DashboardPage = () => {
 
         {/* Bottom actions */}
         <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
+          {installPrompt && !appInstalled && (
+            <button
+              onClick={handleInstallApp}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-primary hover:bg-primary/15 transition-all duration-150"
+            >
+              <Download className="w-4 h-4" />
+              Instalar App
+            </button>
+          )}
           <a
             href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
             target="_blank"
@@ -215,7 +252,7 @@ const DashboardPage = () => {
           </a>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-red-500/15 hover:text-red-400 transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-red-400 transition-all duration-150"
           >
             <LogOut className="w-4 h-4" />
             Sair
