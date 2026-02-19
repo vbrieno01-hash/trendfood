@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { buildStoreAddress, getStateFromCep } from "@/lib/storeAddress";
+import { buildStoreAddress, getStateFromCep, parseStoreAddress } from "@/lib/storeAddress";
 import { Loader2, ChevronRight, ChevronLeft, Check, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -20,6 +20,7 @@ interface Organization {
   emoji: string;
   slug: string;
   business_hours?: BusinessHours | null;
+  store_address?: string | null;
 }
 
 interface Props {
@@ -45,15 +46,16 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
   const [name, setName] = useState(organization.name);
   const [emoji, setEmoji] = useState(organization.emoji);
 
-  // Step 2 state
-  const [cep, setCep] = useState("");
+  // Step 2 state — pre-populate from existing store_address
+  const existingAddr = organization.store_address ? parseStoreAddress(organization.store_address) : null;
+  const [cep, setCep] = useState(existingAddr?.cep ?? "");
   const [loadingCep, setLoadingCep] = useState(false);
-  const [street, setStreet] = useState("");
-  const [number, setNumber] = useState("");
-  const [complement, setComplement] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
+  const [street, setStreet] = useState(existingAddr?.street ?? "");
+  const [number, setNumber] = useState(existingAddr?.number ?? "");
+  const [complement, setComplement] = useState(existingAddr?.complement ?? "");
+  const [neighborhood, setNeighborhood] = useState(existingAddr?.neighborhood ?? "");
+  const [city, setCity] = useState(existingAddr?.city ?? "");
+  const [state, setState] = useState(existingAddr?.state ?? "");
 
   // Step 3 state
   const [businessHours, setBusinessHours] = useState<BusinessHours>(
