@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Organization } from "@/hooks/useOrganization";
 import {
-  Copy, Trash2, QrCode, ExternalLink, UtensilsCrossed, ChefHat, Grid3X3, Plus,
+  Copy, Trash2, QrCode, Grid3X3, Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -64,8 +64,6 @@ export default function TablesTab({ organization, tableLimit }: Props) {
     URL.revokeObjectURL(url);
   };
 
-  const kitchenUrl = `/cozinha?org=${organization.slug}`;
-  const waiterUrl = `/garcom?org=${organization.slug}`;
 
   const tableLimitReached = tableLimit != null && tables.length >= tableLimit;
 
