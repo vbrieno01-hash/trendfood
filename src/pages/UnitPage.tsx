@@ -533,7 +533,7 @@ const UnitPage = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border/60 sticky top-0 z-40">
+      <header className="bg-card sticky top-0 z-40 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
@@ -545,7 +545,7 @@ const UnitPage = () => {
             ) : (
               <span className="text-2xl">{org.emoji}</span>
             )}
-            <p className="font-bold text-foreground text-sm leading-tight">{org.name}</p>
+            <p className="font-bold text-foreground text-base leading-tight">{org.name}</p>
           </div>
           <div className="w-16" />
         </div>
@@ -557,8 +557,8 @@ const UnitPage = () => {
         {/* Banner */}
         {/* Banner */}
         <div
-          className="rounded-2xl p-4 mb-5 border relative"
-          style={{ backgroundColor: `${primaryColor}15`, borderColor: `${primaryColor}30` }}
+          className="rounded-2xl p-4 mb-5 bg-card border-l-4 shadow-sm relative"
+          style={{ borderLeftColor: primaryColor, borderTopColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'transparent' }}
         >
           {/* Badge de status aberto/fechado */}
           {storeStatus && (
@@ -581,7 +581,7 @@ const UnitPage = () => {
           </p>
           {isClosed && (
             <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
-              <span className="text-base leading-none mt-0.5">🔒</span>
+              <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-red-600 dark:text-red-400">
                   {isPaused ? "Loja temporariamente fechada" : "Loja fechada · pedidos indisponíveis"}
@@ -643,11 +643,11 @@ const UnitPage = () => {
                     {groupedMenu.map((group) => {
                       const isActive = activeCategory === group.value || (!activeCategory && groupedMenu[0].value === group.value);
                       return (
-                        <button
+                         <button
                           key={group.value}
                           id={`pill-${group.value}`}
                           onClick={() => scrollToCategory(group.value)}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 border"
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0 border"
                           style={
                             isActive
                               ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
@@ -663,14 +663,14 @@ const UnitPage = () => {
                 )}
 
                 {/* ── CATEGORY SECTIONS ── */}
-                <div className="space-y-6">
+                <div className="space-y-8">
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
                           {group.value}
                         </h2>
-                        <div className="flex-1 h-px bg-border" />
+                        <div className="flex-1 h-px bg-border/60" />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {group.items.map((item) => {
@@ -679,7 +679,7 @@ const UnitPage = () => {
                             <div
                               key={item.id}
                               onClick={() => item.available && setSelectedItem(item)}
-                              className={`bg-card border border-border rounded-xl overflow-hidden flex flex-col transition-opacity ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97] transition-transform"}`}
+                              className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200 ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
                             >
                               {/* Foto quadrada + badge de qty */}
                               <div className="relative aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
@@ -703,12 +703,12 @@ const UnitPage = () => {
                               </div>
 
                               {/* Info */}
-                              <div className="p-2 flex flex-col gap-1 flex-1">
-                                <h3 className="font-semibold text-foreground text-xs leading-tight line-clamp-2">{item.name}</h3>
+                              <div className="p-2.5 flex flex-col gap-1 flex-1">
+                                <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
                                 {!item.available && (
                                   <span className="text-[10px] text-destructive font-medium">Indisponível</span>
                                 )}
-                                <span className="font-bold text-foreground text-xs">
+                                <span className="font-bold text-sm" style={{ color: primaryColor }}>
                                   {fmt(item.price)}
                                 </span>
 
@@ -720,27 +720,27 @@ const UnitPage = () => {
                                   ) : qty === 0 ? (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); addToCart(item); }}
-                                      className="mt-auto w-full flex items-center justify-center gap-0.5 py-1 rounded-lg text-[10px] font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
                                       style={{ backgroundColor: primaryColor }}
                                     >
-                                      <Plus className="w-3 h-3" />
+                                      <Plus className="w-3.5 h-3.5" />
                                       Add
                                     </button>
                                   ) : (
                                     <div className="mt-auto flex items-center justify-between w-full">
                                       <button
                                         onClick={(e) => { e.stopPropagation(); removeFromCart(item.id); }}
-                                        className="w-5 h-5 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
+                                        className="w-6 h-6 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
                                       >
-                                        <Minus className="w-2.5 h-2.5" />
+                                        <Minus className="w-3 h-3" />
                                       </button>
-                                      <span className="text-xs font-bold">{qty}</span>
+                                      <span className="text-sm font-bold">{qty}</span>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); addToCart(item); }}
-                                        className="w-5 h-5 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
+                                        className="w-6 h-6 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
                                         style={{ backgroundColor: primaryColor }}
                                       >
-                                        <Plus className="w-2.5 h-2.5" />
+                                        <Plus className="w-3 h-3" />
                                       </button>
                                     </div>
                                   )
