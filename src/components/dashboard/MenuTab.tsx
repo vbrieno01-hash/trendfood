@@ -134,7 +134,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(price);
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -177,8 +177,8 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
       {!isLoading && grouped.map((group) => (
         <div key={group.value}>
           {/* Category header — sem emoji */}
-          <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
+            <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               {group.value}
             </span>
             <span className="text-xs text-muted-foreground/60">({group.items.length})</span>
@@ -190,27 +190,27 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
             {group.items.map((item) => (
               <div
                 key={item.id}
-                className={`flex items-center gap-3 px-3 py-2.5 bg-card hover:bg-secondary/40 transition-colors ${!item.available ? "opacity-50" : ""}`}
+                className={`flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-secondary/40 transition-colors ${!item.available ? "opacity-50" : ""}`}
               >
                 {/* Thumbnail */}
-                <div className="w-10 h-10 rounded-md overflow-hidden bg-secondary shrink-0 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-lg overflow-hidden bg-secondary shrink-0 flex items-center justify-center">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
-                    <ImageOff className="w-4 h-4 text-muted-foreground/40" />
+                    <ImageOff className="w-5 h-5 text-muted-foreground/40" />
                   )}
                 </div>
 
                 {/* Name + description */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate leading-tight">{item.name}</p>
+                  <p className="text-base font-medium text-foreground truncate leading-tight">{item.name}</p>
                   {item.description && (
-                    <p className="text-xs text-muted-foreground truncate leading-tight">{item.description}</p>
+                    <p className="text-sm text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
                   )}
                 </div>
 
                 {/* Price */}
-                <span className="text-sm font-semibold text-foreground tabular-nums shrink-0 w-20 text-right">
+                <span className="text-base font-bold text-primary tabular-nums shrink-0 w-24 text-right">
                   {formatPrice(item.price)}
                 </span>
 
@@ -225,16 +225,16 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-7 h-7 text-muted-foreground hover:text-foreground"
+                    className="w-8 h-8 text-muted-foreground hover:text-foreground"
                     onClick={() => openEdit(item)}
                     title="Editar"
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-7 h-7 text-muted-foreground hover:text-foreground"
+                    className="w-8 h-8 text-muted-foreground hover:text-foreground"
                     onClick={() => {
                       if (limitReached) {
                         toast({ title: "Limite de itens atingido", description: "Faça upgrade para adicionar mais itens.", variant: "destructive" });
@@ -260,11 +260,11 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="w-7 h-7 text-muted-foreground hover:text-destructive"
+                    className="w-8 h-8 text-muted-foreground hover:text-destructive"
                     onClick={() => setDeleteTarget(item)}
                     title="Remover"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
