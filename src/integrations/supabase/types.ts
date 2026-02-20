@@ -529,7 +529,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_coupon_uses: {
+        Args: { _coupon_id: string }
+        Returns: undefined
+      }
       increment_vote: { Args: { suggestion_id: string }; Returns: undefined }
+      validate_coupon_by_code: {
+        Args: { _cart_total: number; _code: string; _org_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin"
