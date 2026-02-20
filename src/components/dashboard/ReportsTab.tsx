@@ -6,9 +6,13 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  DollarSign, ShoppingCart, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Minus, Download,
+  DollarSign, ShoppingCart, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Minus, Download, FileImage, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import html2canvas from "html2canvas";
 
 interface ReportsTabProps {
   orgId: string;
@@ -144,10 +148,7 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
 
   const periodLabel = PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
 
-  const handleDownloadReport = () => {
-    const w = window.open("", "_blank");
-    if (!w) return;
-
+  const buildReportHtml = (forImage = false) => {
     const cleanAddress = orgAddress?.replace(/\|/g, ", ") ?? "";
     const formattedWhatsapp = orgWhatsapp
       ? orgWhatsapp.replace(/^55(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3").replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3")
@@ -163,16 +164,16 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       .join("");
 
     const trendfoodLogo = window.location.origin + "/logo-trendfood.png";
-    const watermarkHtml = `<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${trendfoodLogo}" style="width:100%;height:auto" /></div>`;
+    const watermarkHtml = `<div style="position:${forImage ? "absolute" : "fixed"};top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${trendfoodLogo}" style="width:100%;height:auto" /></div>`;
 
     const headerLogoHtml = orgLogo
       ? `<img src="${orgLogo}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
       : "";
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas - ${orgName}</title>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas - ${orgName}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,sans-serif;padding:32px 40px;color:#1a1a1a;position:relative}
+  body{font-family:system-ui,-apple-system,sans-serif;padding:32px 40px;color:#1a1a1a;position:relative;background:#fff}
   .header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
   .header img{flex-shrink:0}
   .store-name{font-size:22px;font-weight:800;color:#111}
@@ -232,11 +233,55 @@ ${watermarkHtml}
   <div class="footer">Relatório gerado via TrendFood • ${emissionDate}</div>
 </div>
 
-<script>window.onload=function(){window.print()}</script>
 </body></html>`;
+  };
 
-    w.document.write(html);
+  const handleDownloadPDF = () => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const html = buildReportHtml(false);
+    w.document.write(html + `<script>window.onload=function(){window.print()}</script>`);
     w.document.close();
+  };
+
+  const handleDownloadImage = async () => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.left = "-9999px";
+    iframe.style.width = "800px";
+    iframe.style.height = "2000px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument;
+    if (!iframeDoc) { document.body.removeChild(iframe); return; }
+
+    const html = buildReportHtml(true);
+    iframeDoc.open();
+    iframeDoc.write(html);
+    iframeDoc.close();
+
+    // Wait for images/fonts to load
+    await new Promise((r) => setTimeout(r, 800));
+
+    try {
+      const canvas = await html2canvas(iframeDoc.body, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        width: 800,
+      });
+
+      const link = document.createElement("a");
+      link.download = `relatorio-${orgName.replace(/\s+/g, "-").toLowerCase()}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch {
+      // Fallback: open as PDF
+      handleDownloadPDF();
+    } finally {
+      document.body.removeChild(iframe);
+    }
   };
 
   if (isLoading) {
@@ -273,10 +318,24 @@ ${watermarkHtml}
               </button>
             ))}
           </div>
-          <Button size="sm" variant="outline" onClick={handleDownloadReport}>
-            <Download className="w-4 h-4 mr-1" />
-            Baixar
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Download className="w-4 h-4 mr-1" />
+                Baixar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDownloadImage}>
+                <FileImage className="w-4 h-4 mr-2" />
+                Imagem (PNG)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPDF}>
+                <FileText className="w-4 h-4 mr-2" />
+                PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
