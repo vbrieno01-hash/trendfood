@@ -173,7 +173,7 @@ const PricingPage = () => {
             <PlanCard
               key={plan.name}
               {...plan}
-              currentPlan={currentPlan === plan.key}
+              currentPlan={!!user && currentPlan === plan.key}
               loading={false}
               onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
               external={false}
