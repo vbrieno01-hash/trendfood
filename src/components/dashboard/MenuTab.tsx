@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, ImageOff, Copy,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy,
 } from "lucide-react";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
@@ -193,11 +193,11 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                 className={`flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-secondary/40 transition-colors ${!item.available ? "opacity-50" : ""}`}
               >
                 {/* Thumbnail */}
-                <div className="w-14 h-14 rounded-lg overflow-hidden bg-secondary shrink-0 flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-gradient-to-br from-amber-50 to-orange-100 shrink-0 flex items-center justify-center">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
-                    <ImageOff className="w-5 h-5 text-muted-foreground/40" />
+                    <UtensilsCrossed className="w-5 h-5 text-orange-300" />
                   )}
                 </div>
 
