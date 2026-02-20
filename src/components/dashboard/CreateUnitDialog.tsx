@@ -11,6 +11,7 @@ interface CreateUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
+  parentPlan: string;
   onCreated: () => Promise<void>;
 }
 
@@ -24,7 +25,7 @@ function toSlug(name: string) {
     .slice(0, 40);
 }
 
-export default function CreateUnitDialog({ open, onOpenChange, userId, onCreated }: CreateUnitDialogProps) {
+export default function CreateUnitDialog({ open, onOpenChange, userId, parentPlan, onCreated }: CreateUnitDialogProps) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -47,6 +48,8 @@ export default function CreateUnitDialog({ open, onOpenChange, userId, onCreated
         slug: slug.trim(),
         user_id: userId,
         whatsapp: whatsapp.trim() || null,
+        subscription_plan: parentPlan,
+        trial_ends_at: null,
       });
       if (error) {
         if (error.code === "23505") {

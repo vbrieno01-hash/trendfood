@@ -247,6 +247,7 @@ const DashboardPage = () => {
           open={createUnitOpen}
           onOpenChange={setCreateUnitOpen}
           userId={user.id}
+          parentPlan={organization?.subscription_plan ?? "free"}
           onCreated={async () => {
             await refreshOrganization();
           }}
