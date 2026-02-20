@@ -1,30 +1,23 @@
 
+# Correção: Horário de Funcionamento resetando ao trocar de aba
 
-# Melhorias para Facilitar a Vida dos Lojistas
+## Problema
+O campo `business_hours` não está sendo carregado na query do `useAuth.tsx`. Quando você navega para outra aba e volta, o componente re-monta e recebe `organization.business_hours = undefined`, que cai no valor padrão com `enabled: false`.
 
-## ✅ Concluído
+## Solução
+Adicionar `business_hours` na query SELECT do `fetchOrganization` dentro do `useAuth.tsx`.
 
-### 1. Pausar Loja Temporariamente
-- Adicionado campo `paused` na tabela `organizations`
-- Toggle no dashboard Home para pausar/reativar
-- Banner na página pública (UnitPage) bloqueando pedidos quando pausada
+## Detalhes técnicos
+Uma única linha precisa ser alterada no arquivo `src/hooks/useAuth.tsx`:
 
-### 2. Duplicar Item do Cardápio
-- Botão "Duplicar" (ícone Copy) em cada item do cardápio no MenuTab
-- Cria cópia com nome "(Cópia) Nome do Item" no formulário de edição
+Na função `fetchOrganization`, a query atual é:
+```
+.select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused")
+```
 
-### 3. Exportar Histórico CSV
-- Botão "Exportar CSV" no HistoryTab
-- Exporta pedidos filtrados com data, mesa, itens, valor, status e observações
+Será atualizada para incluir `business_hours`:
+```
+.select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours")
+```
 
----
-
-## 🔜 Pendente
-
-### 4. Notificações Push de Novos Pedidos
-- Usar Web Push API + Service Worker
-- Pedir permissão ao usuário no dashboard
-
-### 5. Relatório Diário Automático no WhatsApp
-- Edge function agendada (cron) às 23h
-- Resumo do dia enviado via WhatsApp
+Também será adicionado `business_hours` na interface `Organization` do `useAuth.tsx` para manter a tipagem correta.
