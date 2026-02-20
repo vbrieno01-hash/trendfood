@@ -1,24 +1,26 @@
 
-# Separar pedidos da loja e entregas no Historico
+# Corrigir botoes de voltar no site
 
-## O que muda
-O historico de pedidos passara a ter um filtro adicional de **tipo** (Todos / Loja / Entregas) e os resumos (cards de Pedidos e Receita) mostrarao os totais do filtro selecionado. A logica ja existente identifica entregas como `table_number === 0`.
+## Problema
+Ao clicar na seta de voltar na pagina da mesa (TableOrderPage), o sistema navega para `/dashboard` ao inves de voltar para a aba de Mesas no dashboard. Isso acontece porque o codigo usa `navigate("/dashboard")` em vez de `navigate(-1)`.
 
-## Detalhes Tecnicos
+## Solucao
+Alterar os dois botoes de voltar no `TableOrderPage.tsx` para sempre usar `navigate(-1)`, que volta para a pagina anterior real no historico do navegador (neste caso, a aba de Mesas no dashboard).
 
-### Arquivo: `src/components/dashboard/HistoryTab.tsx`
+## Alteracoes
 
-1. **Novo filtro de tipo** - Adicionar um state `typeFilter` com opcoes:
-   - `"all"` - Todos
-   - `"store"` - Loja (table_number > 0)
-   - `"delivery"` - Entregas (table_number === 0)
+### Arquivo: `src/components/dashboard/TablesTab.tsx`
+- Sem alteracoes necessarias. O `state: { from: "dashboard" }` pode permanecer para uso futuro, nao causa problemas.
 
-2. **Botoes de filtro** - Renderizar um novo grupo de botoes (mesmo estilo dos filtros existentes de periodo e pagamento) entre o filtro de pagamento e a busca.
+### Arquivo: `src/pages/TableOrderPage.tsx`
+- **Linha 469**: Trocar `fromDashboard ? navigate("/dashboard") : navigate(-1)` por `navigate(-1)`
+- **Linha 545**: Mesma correcao
 
-3. **Logica de filtragem** - Adicionar ao `filtered` existente:
-   - Se `typeFilter === "store"`: excluir pedidos com `table_number === 0`
-   - Se `typeFilter === "delivery"`: incluir apenas pedidos com `table_number === 0`
+### Outros botoes de voltar verificados (OK, sem problemas):
+- `PricingPage.tsx`: Ja usa `navigate(-1)` corretamente
+- `UnitPage.tsx`: Usa `Link to="/"` (correto, volta para a landing)
+- `DocsTerminalPage.tsx`: Usa `Link to="/dashboard"` (correto, e uma pagina de docs avulsa)
 
-4. **Resumo expandido** - Alterar o grid de resumo de 2 para 4 colunas (ou manter 2x2 em mobile), adicionando cards de "Pedidos Loja" e "Entregas" com suas contagens separadas, para dar visibilidade mesmo quando o filtro esta em "Todos".
-
-Nenhuma alteracao no banco de dados ou nos hooks e necessaria - apenas mudancas visuais e de filtragem no componente.
+## Impacto
+- Nenhuma mudanca funcional alem da correcao da navegacao
+- O comportamento para clientes (que acessam via QR Code) permanece identico: `navigate(-1)` volta para a pagina anterior
