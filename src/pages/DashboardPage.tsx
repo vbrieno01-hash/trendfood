@@ -377,7 +377,7 @@ const DashboardPage = () => {
           )}
           <button
             onClick={() => {
-              const msg = encodeURIComponent("Conhece o TrendFood? Sistema completo pra lanchonete, restaurante e delivery! Confira: https://trendfood.lovable.app");
+              const msg = encodeURIComponent("Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app");
               window.open(`https://wa.me/?text=${msg}`, "_blank");
             }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-all duration-150"
