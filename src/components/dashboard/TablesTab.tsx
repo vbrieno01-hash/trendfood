@@ -85,29 +85,6 @@ export default function TablesTab({ organization, tableLimit }: Props) {
         </Button>
       </div>
 
-      {/* Quick links — com fundo colorido sutil */}
-      <div className="grid grid-cols-2 gap-3">
-        <a
-          href={kitchenUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-sm font-medium text-orange-800"
-        >
-          <ChefHat className="w-4 h-4 text-orange-500 shrink-0" />
-          <span className="flex-1">Painel da Cozinha</span>
-          <ExternalLink className="w-3.5 h-3.5 text-orange-400" />
-        </a>
-        <a
-          href={waiterUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 transition-colors text-sm font-medium text-green-800"
-        >
-          <UtensilsCrossed className="w-4 h-4 text-green-500 shrink-0" />
-          <span className="flex-1">Painel do Garçom</span>
-          <ExternalLink className="w-3.5 h-3.5 text-green-400" />
-        </a>
-      </div>
 
       {/* Tables list */}
       {isLoading ? (
