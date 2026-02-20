@@ -160,7 +160,7 @@ export default function SettingsTab() {
             size="sm"
             className="h-9 gap-2"
             onClick={() => {
-              const msg = encodeURIComponent("Conhece o TrendFood? Sistema completo pra lanchonete! 🍔🚀 https://trendfood.lovable.app");
+              const msg = encodeURIComponent("Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app");
               window.open(`https://wa.me/?text=${msg}`, "_blank");
             }}
           >
