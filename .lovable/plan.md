@@ -1,71 +1,47 @@
 
+# Notificacao em Tempo Real para Atualizacao de Plano
 
-# Migracao Stripe para Cakto
+## Objetivo
+Quando o webhook da Cakto atualizar o `subscription_plan` ou `subscription_status` na tabela `organizations`, o dashboard deve detectar a mudanca automaticamente, atualizar o estado local e exibir um toast de confirmacao -- sem recarregar a pagina.
 
-## Resumo
-Substituir toda a integracao com Stripe pela Cakto, usando dois webhooks separados (Pro e Enterprise) e links de checkout diretos.
+## Como funciona
 
-## Dados da Integracao
+1. **Habilitar Realtime na tabela `organizations`** via migracao SQL (`ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations`).
 
-| Item | Valor |
-|------|-------|
-| Link Checkout Pro (R$ 99) | `https://pay.cakto.com.br/ad3b2o7_776555` |
-| Link Checkout Enterprise (R$ 249) | `https://pay.cakto.com.br/39s38ju_776565` |
-| Secret Webhook Pro | `e10efc28-176c-4e00-9e22-9b47a8f1b9f6` |
-| Secret Webhook Enterprise | `2d8835fd-b251-4112-b3e6-90b2ccab060e` |
+2. **Adicionar um canal Realtime no `useAuth`** (dentro do `AuthProvider`) que escuta eventos `UPDATE` na tabela `organizations`, filtrado pelo `id` da organizacao do usuario logado.
 
-## URLs para configurar na Cakto
+3. Quando o evento chegar:
+   - Comparar o `subscription_plan` anterior com o novo.
+   - Se mudou, atualizar o estado `organization` com os novos dados.
+   - Exibir um `toast.success` com a mensagem apropriada (ex: "Seu plano foi atualizado para Pro!").
 
-Apos a implementacao, configure na Cakto:
+## Detalhes Tecnicos
 
-- **Webhook do produto Pro**: `https://xrzudhylpphnzousilye.supabase.co/functions/v1/cakto-webhook-pro`
-- **Webhook do produto Enterprise**: `https://xrzudhylpphnzousilye.supabase.co/functions/v1/cakto-webhook-enterprise`
+### Migracao SQL
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations;
+```
 
-## Etapas de Implementacao
+### Alteracao em `src/hooks/useAuth.tsx`
+- Importar `toast` de `sonner`.
+- Dentro do `useEffect` principal, apos obter a organizacao, abrir um canal Realtime:
+  ```
+  supabase.channel('org-plan-updates')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'organizations',
+      filter: `id=eq.${orgId}`
+    }, (payload) => { ... })
+    .subscribe()
+  ```
+- No callback, verificar se `subscription_plan` mudou comparando `payload.new` com o estado atual (via `useRef` para evitar stale closure).
+- Atualizar `setOrganization(payload.new)` e disparar `toast.success(...)`.
+- Fazer cleanup do canal no return do `useEffect`.
 
-### 1. Adicionar secrets
-Salvar dois secrets no backend:
-- `CAKTO_WEBHOOK_SECRET_PRO` = `e10efc28-176c-4e00-9e22-9b47a8f1b9f6`
-- `CAKTO_WEBHOOK_SECRET_ENTERPRISE` = `2d8835fd-b251-4112-b3e6-90b2ccab060e`
+### Mapa de nomes de planos para o toast
+- `free` -> "Gratuito"
+- `pro` -> "Pro"
+- `enterprise` -> "Enterprise"
 
-### 2. Criar Edge Function `cakto-webhook-pro`
-- Recebe POST da Cakto quando pagamento Pro e aprovado
-- Valida o secret do header contra `CAKTO_WEBHOOK_SECRET_PRO`
-- Identifica o email do comprador no payload
-- Atualiza `organizations.subscription_plan = 'pro'` e `subscription_status = 'active'` para o usuario correspondente
-- JWT desabilitado (webhook publico)
-
-### 3. Criar Edge Function `cakto-webhook-enterprise`
-- Identica a anterior, mas valida contra `CAKTO_WEBHOOK_SECRET_ENTERPRISE`
-- Atualiza `subscription_plan = 'enterprise'`
-
-### 4. Atualizar `PricingPage.tsx`
-- Remover chamada ao `create-checkout` do Stripe
-- Pro: abrir `https://pay.cakto.com.br/ad3b2o7_776555?email={user.email}` em nova aba
-- Enterprise: abrir `https://pay.cakto.com.br/39s38ju_776565?email={user.email}` em nova aba
-- Simplificar logica de loading
-
-### 5. Atualizar `SettingsTab.tsx`
-- Remover integracao com `customer-portal` do Stripe
-- Botao "Gerenciar assinatura" para planos pagos redireciona para `/planos` (ou abre WhatsApp de suporte)
-- Manter exibicao do plano atual
-
-### 6. Simplificar `useAuth.tsx`
-- Remover funcao `checkSubscription` que chamava `check-subscription`
-- Remover `setInterval` de 60 segundos
-- Manter apenas o carregamento da organizacao
-
-### 7. Deletar Edge Functions do Stripe
-Remover as funcoes que nao serao mais utilizadas:
-- `create-checkout`
-- `check-subscription`
-- `customer-portal`
-
-### 8. Atualizar `supabase/config.toml`
-Adicionar as duas novas funcoes com `verify_jwt = false`.
-
-## Apos Implementacao
-Voce precisara colar as URLs dos webhooks no painel da Cakto:
-- Produto Pro: `https://xrzudhylpphnzousilye.supabase.co/functions/v1/cakto-webhook-pro`
-- Produto Enterprise: `https://xrzudhylpphnzousilye.supabase.co/functions/v1/cakto-webhook-enterprise`
-
+Mensagem: `"Seu plano foi atualizado para {nome}! As novas funcionalidades ja estao disponiveis."`
