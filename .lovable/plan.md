@@ -1,90 +1,72 @@
 
 
-# Mover Chave PIX para o Backend
+# Melhorias para Facilitar a Vida dos Lojistas
 
-## Resumo
+Analisei todo o painel e identifiquei 5 melhorias de alto impacto para o dia a dia dos donos de loja. Escolha as que fazem mais sentido para o seu negocio.
 
-A chave PIX (`pix_key`) hoje e retornada pela query publica `useOrganization` e usada no frontend para gerar QR codes estaticos via `buildPixPayload()`. Embora seja um dado de pagamento compartilhavel por natureza, a chave ficara protegida no backend -- o frontend recebera apenas o payload PIX ja montado, sem acesso a chave bruta.
+---
 
-## Situacao Atual
+## 1. Notificacoes Push de Novos Pedidos
 
-- `pix_key` e consultado via `useOrganization` (query publica, sem autenticacao)
-- O frontend usa `buildPixPayload(pixKey, amount, storeName)` para gerar QR codes
-- Locais que usam a chave no cliente: `PixPaymentScreen`, `TableOrderPage`, `UnitPage`, `printOrder`, `KitchenTab`
-- O dono edita a chave via `StoreProfileTab` (autenticado)
+**Problema**: Hoje o lojista precisa ficar olhando a tela do KDS para saber se chegou pedido novo. O som so toca se a aba estiver aberta.
 
-## Estrategia
+**Solucao**: Usar a API de Web Push Notifications do navegador para enviar alertas mesmo quando o app esta minimizado. Com o PWA ja configurado, basta adicionar um Service Worker listener e pedir permissao ao usuario.
 
-Criar uma Edge Function que recebe `organization_id` e `amount`, busca a `pix_key` internamente via service role, gera o payload PIX no servidor e retorna apenas o payload pronto. O frontend nunca mais recebe a chave bruta.
+**Impacto**: O lojista pode fazer outras coisas e ser notificado no celular/computador quando chega pedido.
 
-## Alteracoes
+---
 
-### 1. Nova Edge Function: `generate-pix-payload`
+## 2. Relatorio Diario Automatico no WhatsApp
 
-Recebe `{ organization_id, amount }`, busca a `pix_key` da tabela `organizations` usando service role, executa a logica de `buildPixPayload` no servidor e retorna `{ payload }`. Nao requer autenticacao (clientes anonimos precisam gerar o QR).
+**Problema**: O lojista nao tem um resumo rapido de como foi o dia sem abrir o painel.
 
-### 2. Remover `pix_key` da query publica `useOrganization.ts`
+**Solucao**: Criar uma edge function agendada (cron) que roda todo dia as 23h, calcula o resumo do dia (total de pedidos, faturamento, ticket medio, itens mais vendidos) e envia uma mensagem formatada para o WhatsApp do lojista.
 
-Retirar `pix_key` do `select(...)` da query publica. A chave deixa de ser retornada para visitantes. O campo `pix_confirmation_mode` permanece (necessario para decidir o fluxo de pagamento).
+**Impacto**: Visao rapida do desempenho sem precisar acessar o sistema.
 
-Adicionar um campo booleano derivado `has_pix_key` para que o frontend saiba se a loja tem PIX configurado, sem expor a chave. Isso sera feito via uma query separada ou um campo computado.
+---
 
-Na pratica, como nao podemos adicionar colunas computadas facilmente, a edge function `generate-pix-payload` retornara erro se nao houver chave -- o frontend tratara esse caso.
+## 3. Pausar Loja Temporariamente (Modo Ferias/Pausa)
 
-### 3. Atualizar `PixPaymentScreen.tsx`
+**Problema**: Se o lojista precisa fechar por algumas horas ou dias (ferias, falta de insumo, emergencia), nao existe um botao simples para pausar os pedidos. Os clientes continuam acessando a pagina e tentando pedir.
 
-Em vez de receber `pixKey` como prop e chamar `buildPixPayload` localmente:
-- Remover a prop `pixKey`
-- Quando `pixConfirmationMode !== "direct"` (modo estatico), chamar a edge function `generate-pix-payload` para obter o payload
-- Usar o payload retornado para renderizar o QR code
+**Solucao**: Adicionar um toggle "Pausar Loja" no dashboard Home que salva um campo `paused` na tabela `organizations`. Na pagina publica (`UnitPage`), exibir um aviso "Estamos fechados temporariamente" quando pausado, bloqueando novos pedidos.
 
-### 4. Atualizar `TableOrderPage.tsx`
+**Impacto**: Controle imediato sem precisar mexer em horario de funcionamento.
 
-Substituir a chamada local `buildPixPayload(org.pix_key, ...)` por uma chamada a edge function. O QR code sera gerado a partir do payload retornado pelo backend.
+---
 
-### 5. Atualizar `UnitPage.tsx`
+## 4. Duplicar Item do Cardapio
 
-Remover a passagem de `pixKey={org.pix_key}` para `PixPaymentScreen`. Passar apenas `orgId`.
+**Problema**: Para criar itens parecidos (ex: X-Burguer, X-Burguer com Bacon), o lojista precisa preencher tudo do zero.
 
-### 6. Atualizar `printOrder.ts` e componentes de cozinha
+**Solucao**: Adicionar um botao "Duplicar" em cada item do cardapio no `MenuTab`. Ao clicar, cria uma copia com o nome "(Copia) Nome do Item" ja preenchida no formulario de edicao.
 
-A funcao `printOrder` hoje recebe `pixKey` e gera o QR localmente. Sera alterada para:
-- Receber `pixPayload?: string` (ja montado) em vez de `pixKey`
-- Quem chama `printOrder` (KitchenTab, KitchenPage, DashboardPage) buscara o payload via edge function quando necessario, ou passara `undefined` para imprimir sem QR PIX
+**Impacto**: Economia de tempo na gestao do cardapio, especialmente para lojas com muitas variacoes.
 
-Alternativa mais simples: como a impressao e uma acao do dono autenticado, o dono pode consultar sua propria `pix_key` via uma query autenticada separada. Mas para manter consistencia, usaremos a edge function.
+---
 
-### 7. Manter `pix_key` acessivel ao dono em `StoreProfileTab`
+## 5. Exportar Historico de Pedidos (CSV/Excel)
 
-O `StoreProfileTab` ja faz query autenticada (`organization` vem do contexto auth). A query em `useAuth.tsx` sera atualizada para incluir `pix_key` -- como e filtrada por `user_id = auth.uid()`, apenas o dono ve sua propria chave.
+**Problema**: O lojista nao consegue baixar os dados de pedidos para fazer controle financeiro externo, prestar contas ao contador ou analisar em planilha.
 
-### 8. Atualizar `supabase/config.toml`
+**Solucao**: Adicionar um botao "Exportar" no `HistoryTab` que gera um arquivo CSV com todos os pedidos filtrados (data, mesa, itens, valor total, status de pagamento).
 
-Adicionar configuracao para a nova edge function com `verify_jwt = false` (clientes anonimos precisam gerar QR).
+**Impacto**: Facilita a contabilidade e o controle financeiro fora do sistema.
 
-## Fluxo Apos a Mudanca
+---
 
-```text
-Cliente abre checkout
-  |
-  v
-Frontend chama edge function generate-pix-payload
-  com { organization_id, amount }
-  |
-  v
-Edge function busca pix_key via service role
-  gera payload EMV/QRCPS
-  retorna { payload } (sem a chave)
-  |
-  v
-Frontend renderiza QR code com o payload
-```
+## Resumo de Prioridade
 
-## O que NAO muda
+| Melhoria | Esforco | Impacto |
+|---|---|---|
+| Pausar Loja | Baixo | Alto |
+| Duplicar Item | Baixo | Medio |
+| Exportar CSV | Baixo | Alto |
+| Notificacoes Push | Medio | Alto |
+| Relatorio WhatsApp | Alto | Medio |
 
-- Tabelas e colunas do banco (conforme solicitado)
-- Fluxo de pagamento via gateway (ja usa edge functions)
-- Edicao da chave PIX pelo dono (StoreProfileTab)
-- RLS policies existentes
-- Navegacao entre paginas
+## Proximos Passos
+
+Escolha quais melhorias voce quer implementar primeiro e eu comeco a construir. Recomendo comecar pela **Pausar Loja** e **Exportar CSV** por serem rapidas e de alto impacto.
 
