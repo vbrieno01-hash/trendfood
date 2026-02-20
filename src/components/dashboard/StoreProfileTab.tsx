@@ -405,14 +405,14 @@ export default function StoreProfileTab({ organization }: { organization: Organi
                 className="text-xs px-3 py-1.5 rounded-full text-white font-semibold"
                 style={{ backgroundColor: form.primary_color }}
               >
-                Enviar sugestão
+                Pedir agora
               </button>
               <button
                 type="button"
                 className="text-xs px-3 py-1.5 rounded-full font-semibold border-2"
                 style={{ color: form.primary_color, borderColor: form.primary_color }}
               >
-                Votar
+                Ver cardápio
               </button>
               <p className="text-xs text-muted-foreground ml-auto">Preview</p>
             </div>

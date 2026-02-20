@@ -78,7 +78,7 @@ const AuthPage = () => {
         name: signupData.businessName,
         slug: signupData.slug,
         emoji: "🍔",
-        description: "Bem-vindo ao nosso mural de sugestões!",
+        description: "Bem-vindo à nossa loja!",
         primary_color: "#f97316",
         whatsapp: signupData.whatsapp || null,
       });
@@ -171,14 +171,14 @@ const AuthPage = () => {
               Transforme o gosto dos seus clientes em lucro
             </h1>
             <p className="text-white/70 text-lg leading-relaxed mb-10">
-              Colete sugestões, receba votos e lance os pratos que já nascem campeões.
+              Gerencie pedidos, cardápio digital e métricas do seu negócio em um só lugar.
             </p>
 
             {/* Bullets */}
             <ul className="space-y-4">
               {[
                 "Sem instalação de aplicativo",
-                "Mural de sugestões em tempo real",
+                "Cardápio digital personalizado",
                 "Painel completo de métricas",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-3">
