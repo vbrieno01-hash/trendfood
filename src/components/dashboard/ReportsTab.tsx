@@ -6,8 +6,9 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  DollarSign, ShoppingCart, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Minus,
+  DollarSign, ShoppingCart, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Minus, Download,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ReportsTabProps {
   orgId: string;
@@ -136,6 +137,59 @@ export default function ReportsTab({ orgId }: ReportsTabProps) {
       .map(([name, data]) => ({ name, ...data }));
   }, [filteredOrders]);
 
+  const periodLabel = PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
+
+  const handleDownloadReport = () => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+
+    const dailyRows = dailyRevenue
+      .map((d) => `<tr><td>${d.date}</td><td>${fmtBRL(d.revenue)}</td></tr>`)
+      .join("");
+
+    const rankingRows = categoryRanking
+      .map((c, i) => `<tr><td>${i + 1}</td><td>${c.name}</td><td>${fmtBRL(c.revenue)}</td><td>${c.qty}</td></tr>`)
+      .join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas</title>
+<style>
+  body{font-family:system-ui,sans-serif;padding:24px;color:#1a1a1a}
+  h1{font-size:20px;margin-bottom:4px}
+  h2{font-size:15px;margin-top:24px;border-bottom:1px solid #ddd;padding-bottom:4px}
+  .sub{color:#666;font-size:13px;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #eee}
+  th{font-weight:600;background:#f9f9f9}
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .kpi{padding:12px;border:1px solid #eee;border-radius:8px}
+  .kpi .label{font-size:12px;color:#666}.kpi .value{font-size:18px;font-weight:700}
+  @media print{body{padding:0}button{display:none}}
+</style></head><body>
+<h1>Relatório de Vendas</h1>
+<p class="sub">Período: ${periodLabel}</p>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="label">Faturamento</div><div class="value">${fmtBRL(kpis.totalRevenue)}</div></div>
+  <div class="kpi"><div class="label">Ticket Médio</div><div class="value">${fmtBRL(kpis.avgTicket)}</div></div>
+  <div class="kpi"><div class="label">Total Pedidos</div><div class="value">${kpis.totalOrders}</div></div>
+  <div class="kpi"><div class="label">Pedidos/dia</div><div class="value">${kpis.avgOrdersPerDay.toFixed(1)}</div></div>
+</div>
+
+<h2>Comparativo Semanal</h2>
+<table><thead><tr><th>Semana Atual</th><th>Semana Anterior</th><th>Variação</th></tr></thead>
+<tbody><tr><td>${fmtBRL(weeklyComparison.thisWeek)}</td><td>${fmtBRL(weeklyComparison.lastWeek)}</td><td>${weeklyComparison.change > 0 ? "+" : ""}${weeklyComparison.change.toFixed(1)}%</td></tr></tbody></table>
+
+${dailyRevenue.length > 0 ? `<h2>Faturamento Diário</h2><table><thead><tr><th>Data</th><th>Receita</th></tr></thead><tbody>${dailyRows}</tbody></table>` : ""}
+
+${categoryRanking.length > 0 ? `<h2>Ranking por Item / Categoria</h2><table><thead><tr><th>#</th><th>Item</th><th>Receita</th><th>Qtd</th></tr></thead><tbody>${rankingRows}</tbody></table>` : ""}
+
+<script>window.onload=function(){window.print()}<\/script>
+</body></html>`;
+
+    w.document.write(html);
+    w.document.close();
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-16 text-muted-foreground animate-pulse">
@@ -154,20 +208,26 @@ export default function ReportsTab({ orgId }: ReportsTabProps) {
             Análise completa do desempenho da sua operação.
           </p>
         </div>
-        <div className="flex gap-1 bg-secondary rounded-lg p-1">
-          {PERIOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setPeriod(opt.key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                period === opt.key
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-secondary rounded-lg p-1">
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setPeriod(opt.key)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  period === opt.key
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" onClick={handleDownloadReport}>
+            <Download className="w-4 h-4 mr-1" />
+            Baixar
+          </Button>
         </div>
       </div>
 
