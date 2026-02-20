@@ -95,9 +95,16 @@ interface Feature {
   title: string;
   description: string;
   status: FeatureStatus;
+  minPlan: "free" | "pro" | "enterprise";
   actionLabel?: string;
   actionHref?: string;
 }
+
+const MIN_PLAN_CONFIG: Record<"free" | "pro" | "enterprise", { label: string; className: string }> = {
+  free: { label: "Todos os planos", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+  pro: { label: "Pro+", className: "bg-primary/15 text-primary" },
+  enterprise: { label: "Enterprise", className: "bg-violet-500/15 text-violet-700 dark:text-violet-400" },
+};
 
 const FEATURES: Feature[] = [
   {
@@ -105,6 +112,7 @@ const FEATURES: Feature[] = [
     title: "Suporte via WhatsApp",
     description: "Atendimento direto pelo WhatsApp para tirar dúvidas e resolver problemas em tempo real.",
     status: "available",
+    minPlan: "free",
     actionLabel: "Abrir suporte",
     actionHref: "https://wa.me/5511999999999?text=Olá%2C%20preciso%20de%20suporte%20com%20o%20TrendFood",
   },
@@ -113,6 +121,7 @@ const FEATURES: Feature[] = [
     title: "Impressora Térmica",
     description: "Impressão automática de pedidos em impressoras térmicas 80mm com QR Code PIX.",
     status: "beta",
+    minPlan: "pro",
     actionLabel: "Ver documentação",
     actionHref: "/docs/impressora-termica",
   },
@@ -121,6 +130,7 @@ const FEATURES: Feature[] = [
     title: "Onboarding Guiado",
     description: "Wizard passo a passo para novas lojas configurarem nome, endereço, horários e primeiro item do cardápio.",
     status: "available",
+    minPlan: "free",
     actionLabel: "Ver no dashboard",
     actionHref: "/dashboard",
   },
@@ -129,6 +139,7 @@ const FEATURES: Feature[] = [
     title: "Controle de Caixa",
     description: "Abertura e fechamento de caixa com saldo inicial, sangrias e relatório do turno.",
     status: "available",
+    minPlan: "pro",
     actionLabel: "Ver no dashboard",
     actionHref: "/dashboard",
   },
@@ -805,6 +816,7 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
 /* ── Feature Card ── */
 function FeatureCard({ feature }: { feature: Feature }) {
   const { label, className } = STATUS_CONFIG[feature.status];
+  const planBadge = MIN_PLAN_CONFIG[feature.minPlan];
   const isActionable = feature.status === "available" || feature.status === "beta";
 
   return (
@@ -813,9 +825,14 @@ function FeatureCard({ feature }: { feature: Feature }) {
         <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shrink-0">
           {feature.icon}
         </div>
-        <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${className}`}>
-          {label}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${planBadge.className}`}>
+            {planBadge.label}
+          </span>
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${className}`}>
+            {label}
+          </span>
+        </div>
       </div>
       <div className="space-y-1 flex-1">
         <p className="text-sm font-semibold text-foreground">{feature.title}</p>
