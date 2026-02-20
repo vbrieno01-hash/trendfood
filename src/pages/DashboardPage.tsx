@@ -13,7 +13,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles,
+  BookOpen, Sparkles, FileBarChart,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -36,9 +36,10 @@ import BestSellersTab from "@/components/dashboard/BestSellersTab";
 import CaixaTab from "@/components/dashboard/CaixaTab";
 import FeaturesTab from "@/components/dashboard/FeaturesTab";
 import GuideTab from "@/components/dashboard/GuideTab";
+import ReportsTab from "@/components/dashboard/ReportsTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -181,6 +182,7 @@ const DashboardPage = () => {
     kitchen: !planLimits.canAccess("kds"),
     waiter: !planLimits.canAccess("waiter"),
     caixa: !planLimits.canAccess("caixa"),
+    reports: !planLimits.canAccess("reports"),
   };
 
   const navItemsTop: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] = [
@@ -190,6 +192,7 @@ const DashboardPage = () => {
     { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
     { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
     { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
+    { key: "reports", icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
   ];
 
   const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] = [
@@ -457,6 +460,9 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." />
             : <CaixaTab orgId={organization.id} />)}
           {activeTab === "features" && <FeaturesTab effectivePlan={planLimits.effectivePlan} />}
+          {activeTab === "reports" && (lockedFeatures.reports
+            ? <UpgradePrompt title="Relatórios Avançados" description="Gráficos de faturamento, ticket médio, horários de pico e comparativos. Disponível nos planos Enterprise e Vitalício." />
+            : <ReportsTab orgId={organization.id} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
