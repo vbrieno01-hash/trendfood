@@ -34,7 +34,7 @@ export const useCoupons = (orgId: string | undefined) => {
       if (!orgId) throw new Error("No org");
       const { data, error } = await supabase
         .from("coupons" as never)
-        .select("*")
+        .select("id, organization_id, code, type, value, min_order, max_uses, uses, active, expires_at, created_at")
         .eq("organization_id", orgId)
         .order("created_at", { ascending: false });
       if (error) throw error;

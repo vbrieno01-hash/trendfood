@@ -44,7 +44,7 @@ export const useTables = (organizationId: string | undefined) => {
       if (!organizationId) throw new Error("No org");
       const { data, error } = await supabase
         .from("tables")
-        .select("*")
+        .select("id, organization_id, number, label")
         .eq("organization_id", organizationId)
         .order("number", { ascending: true });
       if (error) throw error;

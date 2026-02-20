@@ -49,7 +49,7 @@ export const useOrganization = (slug: string | undefined) => {
       if (!slug) throw new Error("No slug");
       const { data, error } = await supabase
         .from("organizations")
-        .select("*")
+        .select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, pix_key, store_address, delivery_config, pix_confirmation_mode")
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;

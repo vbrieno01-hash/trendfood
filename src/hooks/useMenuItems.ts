@@ -42,7 +42,7 @@ export function useMenuItems(orgId: string | undefined) {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("menu_items")
-        .select("*")
+        .select("id, organization_id, name, price, description, category, image_url, available")
         .eq("organization_id", orgId)
         .order("name");
       if (error) throw error;
