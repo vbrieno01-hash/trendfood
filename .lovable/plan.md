@@ -1,20 +1,18 @@
 
 
-# Marca d'agua TrendFood oficial no relatorio
+# Usar a logo oficial (coroa vermelha) como marca d'agua no relatorio
 
-## Problema
+## Resumo
 
-Atualmente a marca d'agua usa a logo da loja do cliente. O correto e usar a logo do **TrendFood** como marca d'agua universal em todos os relatorios, servindo como branding da plataforma para quem ver o documento.
+Salvar a logo oficial do TrendFood (circulo vermelho com coroa) enviada pelo usuario e garantir que ela seja usada como marca d'agua no relatorio de vendas.
 
 ## Mudancas
 
-### `src/components/dashboard/ReportsTab.tsx`
+### 1. Copiar a logo para o projeto
 
-Na funcao `handleDownloadReport()`, alterar a logica da marca d'agua:
+Copiar a imagem enviada (`user-uploads://1771601978143.png`) para `public/logo-trendfood.png`, substituindo o arquivo atual. Assim o codigo existente que ja referencia `/logo-trendfood.png` funcionara automaticamente com a logo oficial correta.
 
-- **Marca d'agua**: Sempre usar a logo do TrendFood (`/logo-trendfood.png`) com URL absoluta via `window.location.origin + "/logo-trendfood.png"`. Nao depende mais de `orgLogo`.
-- **Header da loja**: Continua mostrando a logo da loja (se existir) + nome + emoji + endereco + WhatsApp normalmente. Isso identifica de qual estabelecimento e o relatorio.
-- **Rodape**: Manter "Relatorio gerado via TrendFood" como reforco da marca.
+### 2. Nenhuma alteracao de codigo necessaria
 
-Resultado: toda loja que baixar o relatorio tera a marca d'agua do TrendFood no fundo, independente de ter logo propria ou nao. O cabecalho continua personalizado com os dados da loja.
+O `ReportsTab.tsx` ja usa `window.location.origin + "/logo-trendfood.png"` como marca d'agua. Basta substituir o arquivo da imagem.
 
