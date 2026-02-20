@@ -1,61 +1,49 @@
 
 
-# Teste completo do Multi-unidade
+# Corrigir: Nova unidade deve herdar o plano da org principal
 
-## Situacao atual verificada
+## Problema
 
-Fiz login com o usuario `teste-multiunit@test.com` e confirmei:
-- Dashboard carrega normalmente com "Loja Matriz" no sidebar
-- O OrgSwitcher aparece no topo do sidebar com emoji, nome e slug
-- As abas "Funcionalidades" e "Como Usar" estao visiveis no sidebar
-- O plano atual eh "free" (banner de trial de 7 dias aparece)
+Quando um usuario Enterprise cria uma nova unidade pelo CreateUnitDialog, a nova organizacao eh inserida com `subscription_plan = 'free'` (default da coluna no banco). Isso faz o dashboard mostrar restricoes de plano gratuito e pedir upgrade novamente.
 
-## Passos para testar o fluxo completo
+## Solucao
 
-### Passo 1: Atualizar plano para Enterprise
+Alterar o `CreateUnitDialog.tsx` para copiar o `subscription_plan` da organizacao ativa ao criar a nova unidade. Como so usuarios Enterprise podem criar novas unidades (validado pelo `canAccess("multi_unit")`), a nova unidade sempre herdara o plano Enterprise.
 
-Executar o seguinte UPDATE no banco de dados:
+## Mudanca tecnica
+
+### Arquivo: `src/components/dashboard/CreateUnitDialog.tsx`
+
+1. Adicionar uma nova prop `parentPlan` (string) ao componente
+2. No `handleSave`, incluir `subscription_plan: parentPlan` no objeto de INSERT
 
 ```text
-UPDATE organizations 
-SET subscription_plan = 'enterprise' 
-WHERE id = 'fa7affd1-389b-4c93-b925-507ec39a559e'
+// Antes (linha ~49)
+const { error } = await supabase.from("organizations").insert({
+  name: name.trim(),
+  slug: slug.trim(),
+  user_id: userId,
+  whatsapp: whatsapp.trim() || null,
+});
+
+// Depois
+const { error } = await supabase.from("organizations").insert({
+  name: name.trim(),
+  slug: slug.trim(),
+  user_id: userId,
+  whatsapp: whatsapp.trim() || null,
+  subscription_plan: parentPlan,
+  trial_ends_at: null,
+});
 ```
 
-Isso vai desbloquear a funcionalidade `multi_unit` no `usePlanLimits`.
+### Arquivo: `src/pages/DashboardPage.tsx`
 
-### Passo 2: Recarregar o dashboard
+Passar `parentPlan={organization.subscription_plan}` ao renderizar o `CreateUnitDialog`.
 
-Apos o UPDATE, recarregar a pagina para que o `useAuth` busque os dados atualizados. O banner de trial deve desaparecer e o botao "Nova unidade" deve aparecer no OrgSwitcher.
+## Resultado
 
-### Passo 3: Abrir o OrgSwitcher e clicar "Nova unidade"
-
-- Clicar no seletor de unidade no sidebar
-- Verificar que o botao "Nova unidade" com badge "Enterprise" aparece
-- Clicar nele para abrir o dialog de criacao
-
-### Passo 4: Criar segunda filial
-
-- Preencher nome: "Loja Norte"
-- Verificar que o slug auto-gera "loja-norte"
-- Opcionalmente preencher WhatsApp
-- Clicar "Criar unidade"
-
-### Passo 5: Verificar resultado
-
-- Confirmar que a nova org aparece no OrgSwitcher
-- Trocar entre "Loja Matriz" e "Loja Norte"
-- Verificar que o dashboard muda de contexto (dados separados)
-- Confirmar que cada unidade tem cardapio e pedidos independentes
-
----
-
-## O que vou implementar
-
-Ao aprovar este plano, vou:
-
-1. Fazer o UPDATE do plano para Enterprise no banco
-2. Testar pelo browser todo o fluxo de criacao de nova unidade
-3. Verificar a troca entre unidades no OrgSwitcher
-4. Reportar os resultados completos do teste
+- Nova unidade criada ja nasce com plano Enterprise
+- Sem trial desnecessario (trial_ends_at = null)
+- Dashboard nao pede upgrade ao trocar para a nova unidade
 
