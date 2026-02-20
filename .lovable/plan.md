@@ -1,84 +1,61 @@
 
 
-# Multi-unidade para plano Enterprise
+# Teste completo do Multi-unidade
 
-## Visao geral
+## Situacao atual verificada
 
-Permitir que usuarios Enterprise criem e gerenciem multiplas filiais (organizations) a partir de uma unica conta. Cada filial continua totalmente isolada (cardapio, mesas, pedidos, caixa separados), mas o dono alterna entre elas no mesmo dashboard sem precisar fazer logout.
+Fiz login com o usuario `teste-multiunit@test.com` e confirmei:
+- Dashboard carrega normalmente com "Loja Matriz" no sidebar
+- O OrgSwitcher aparece no topo do sidebar com emoji, nome e slug
+- As abas "Funcionalidades" e "Como Usar" estao visiveis no sidebar
+- O plano atual eh "free" (banner de trial de 7 dias aparece)
 
-## Como vai funcionar
+## Passos para testar o fluxo completo
 
-### Para o lojista
+### Passo 1: Atualizar plano para Enterprise
 
-1. No sidebar do dashboard, aparece um seletor de unidade (dropdown) no lugar do bloco fixo atual com nome/logo da loja
-2. Ao clicar, ve a lista de todas as suas unidades e um botao "Criar nova unidade"
-3. Ao trocar de unidade, todo o dashboard recarrega com os dados daquela filial
-4. Ao criar nova unidade, preenche nome, slug e whatsapp -- funciona igual ao cadastro inicial
+Executar o seguinte UPDATE no banco de dados:
 
-### Para os pedidos
+```text
+UPDATE organizations 
+SET subscription_plan = 'enterprise' 
+WHERE id = 'fa7affd1-389b-4c93-b925-507ec39a559e'
+```
 
-Nada muda -- cada unidade tem seu proprio slug (`/unidade/loja-centro`, `/unidade/loja-norte`), seus proprios QR Codes, seu proprio KDS. Os pedidos sao 100% separados por `organization_id`.
+Isso vai desbloquear a funcionalidade `multi_unit` no `usePlanLimits`.
 
----
+### Passo 2: Recarregar o dashboard
 
-## Mudancas tecnicas
+Apos o UPDATE, recarregar a pagina para que o `useAuth` busque os dados atualizados. O banner de trial deve desaparecer e o botao "Nova unidade" deve aparecer no OrgSwitcher.
 
-### 1. Banco de dados
+### Passo 3: Abrir o OrgSwitcher e clicar "Nova unidade"
 
-**Nenhuma alteracao de schema necessaria.** A tabela `organizations` ja suporta multiplas linhas por `user_id`. O que muda eh so a query no frontend (de `.maybeSingle()` para selecionar multiplas).
+- Clicar no seletor de unidade no sidebar
+- Verificar que o botao "Nova unidade" com badge "Enterprise" aparece
+- Clicar nele para abrir o dialog de criacao
 
-Porem, a politica de RLS de INSERT ja permite `auth.uid() = user_id`, entao o usuario ja pode criar mais de uma org. Basta garantir que o frontend so permita isso para Enterprise.
+### Passo 4: Criar segunda filial
 
-### 2. useAuth.tsx -- Suportar multiplas orgs
+- Preencher nome: "Loja Norte"
+- Verificar que o slug auto-gera "loja-norte"
+- Opcionalmente preencher WhatsApp
+- Clicar "Criar unidade"
 
-- Novo estado: `organizations: Organization[]` (array com todas as orgs do usuario)
-- Novo estado: `activeOrganization: Organization | null` (a org selecionada no momento)
-- `fetchOrganization` passa a buscar todas as orgs do usuario (sem `.maybeSingle()`) e seleciona a primeira como ativa por padrao
-- Novo metodo: `switchOrganization(orgId: string)` para trocar a org ativa
-- O campo `organization` existente continua funcionando como alias de `activeOrganization` para nao quebrar nenhum componente existente
+### Passo 5: Verificar resultado
 
-### 3. DashboardPage.tsx -- Seletor de unidade no sidebar
-
-- Substituir o bloco "Org info" fixo por um componente `OrgSwitcher`
-- `OrgSwitcher` mostra a org ativa com um dropdown (Popover) listando todas as orgs
-- Botao "Criar nova unidade" no final da lista (so aparece para Enterprise)
-- Ao selecionar outra org, chama `switchOrganization()` e reseta a tab para "home"
-
-### 4. Novo componente: OrgSwitcher.tsx
-
-- Componente que recebe `organizations[]`, `activeOrg`, `onSwitch`, `onCreateNew`
-- Mostra logo/emoji + nome da org ativa
-- Dropdown com lista de orgs + botao de criar
-- Badge "Enterprise" no botao de criar
-
-### 5. Novo componente: CreateUnitDialog.tsx
-
-- Dialog/modal com formulario simples: nome, slug (auto-gerado), whatsapp
-- Ao salvar, faz INSERT na tabela organizations com o user_id do usuario logado
-- Valida plano Enterprise antes de permitir
-- Apos criar, chama `refreshOrganization` e muda para a nova unidade
-
-### 6. usePlanLimits.ts -- Nova feature "multi_unit"
-
-Ja existe no codigo! A feature `multi_unit` ja esta mapeada como `false` para free/pro e `true` para enterprise. So precisamos usar `canAccess("multi_unit")` para condicionar a criacao de novas unidades.
-
-### 7. FeaturesTab.tsx -- Atualizar status do Multi-unidade
-
-Mudar o card "Multi-unidade" de `status: "coming_soon"` para `status: "available"`.
+- Confirmar que a nova org aparece no OrgSwitcher
+- Trocar entre "Loja Matriz" e "Loja Norte"
+- Verificar que o dashboard muda de contexto (dados separados)
+- Confirmar que cada unidade tem cardapio e pedidos independentes
 
 ---
 
-## Arquivos afetados
+## O que vou implementar
 
-| Arquivo | Tipo de mudanca |
-|---|---|
-| `src/hooks/useAuth.tsx` | Editar: buscar array de orgs, adicionar switchOrganization |
-| `src/pages/DashboardPage.tsx` | Editar: usar OrgSwitcher no sidebar |
-| `src/components/dashboard/OrgSwitcher.tsx` | Criar: componente seletor de unidade |
-| `src/components/dashboard/CreateUnitDialog.tsx` | Criar: dialog para criar nova filial |
-| `src/components/dashboard/FeaturesTab.tsx` | Editar: mudar multi-unidade para "available" |
+Ao aprovar este plano, vou:
 
-### Sem migracoes de banco de dados
-
-O schema atual ja suporta multiplas orgs por usuario. Nenhuma alteracao necessaria.
+1. Fazer o UPDATE do plano para Enterprise no banco
+2. Testar pelo browser todo o fluxo de criacao de nova unidade
+3. Verificar a troca entre unidades no OrgSwitcher
+4. Reportar os resultados completos do teste
 
