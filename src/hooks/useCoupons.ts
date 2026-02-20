@@ -115,47 +115,25 @@ export const validateCoupon = async (
   code: string,
   cartTotal: number
 ): Promise<{ valid: true; coupon: Coupon } | { valid: false; reason: string }> => {
-  const { data, error } = await supabase
-    .from("coupons" as never)
-    .select("*")
-    .eq("organization_id", orgId)
-    .ilike("code", code.trim())
-    .eq("active", true)
-    .maybeSingle();
+  const { data, error } = await (supabase.rpc as Function)("validate_coupon_by_code", {
+    _org_id: orgId,
+    _code: code.trim(),
+    _cart_total: cartTotal,
+  });
 
   if (error) return { valid: false, reason: "Erro ao validar cupom." };
-  if (!data) return { valid: false, reason: "Cupom não encontrado ou inativo." };
 
-  const coupon = data as Coupon;
+  const result = data as { valid: boolean; reason?: string; coupon?: Coupon };
 
-  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return { valid: false, reason: "Cupom expirado." };
-  }
-  if (coupon.max_uses !== null && coupon.uses >= coupon.max_uses) {
-    return { valid: false, reason: "Limite de usos atingido." };
-  }
-  if (cartTotal < coupon.min_order) {
-    return {
-      valid: false,
-      reason: `Pedido mínimo de R$ ${coupon.min_order.toFixed(2).replace(".", ",")} para este cupom.`,
-    };
+  if (!result.valid) {
+    return { valid: false, reason: result.reason || "Cupom inválido." };
   }
 
-  return { valid: true, coupon };
+  return { valid: true, coupon: result.coupon as Coupon };
 };
 
 export const incrementCouponUses = async (couponId: string) => {
-  // Use RPC-style update via raw query
-  const { data: current } = await supabase
-    .from("coupons" as never)
-    .select("uses")
-    .eq("id", couponId)
-    .single();
-
-  if (!current) return;
-
-  await supabase
-    .from("coupons" as never)
-    .update({ uses: (current as { uses: number }).uses + 1 } as never)
-    .eq("id", couponId);
+  await (supabase.rpc as Function)("increment_coupon_uses", {
+    _coupon_id: couponId,
+  });
 };
