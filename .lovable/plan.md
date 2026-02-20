@@ -1,26 +1,33 @@
 
-
-# Secao "Indique o TrendFood" - compartilhamento simples
+# Adicionar "Indique o TrendFood" na sidebar do dashboard
 
 ## Resumo
 
-Adicionar uma secao simples no SettingsTab para o usuario compartilhar o link do TrendFood com outras pessoas. Sem recompensas, sem rastreamento, sem tabelas novas. Apenas um convite para divulgar a plataforma.
+Adicionar um botao destacado "Indique o TrendFood" na area inferior da sidebar (entre "Ver pagina publica" e "Sair"), com visual chamativo para incentivar o compartilhamento.
 
 ## Mudancas
 
-### 1. Nenhuma alteracao no banco de dados
+### `src/pages/DashboardPage.tsx`
 
-Nao precisa de tabela `referrals`, funcoes SQL, nem nada no backend. E apenas um link de compartilhamento da landing page.
+- Importar o icone `Share2` do lucide-react
+- Adicionar um botao "Indique o TrendFood" na secao "Bottom actions" da sidebar, antes do link "Ver pagina publica"
+- O botao tera estilo destacado (cor primaria/vermelha, com fundo semi-transparente) para se diferenciar dos outros itens
+- Ao clicar, abre o WhatsApp com a mensagem pre-formatada de indicacao (mesmo comportamento do SettingsTab)
+- Opcionalmente, adicionar um pequeno tooltip ou subtexto
 
-### 2. `src/components/dashboard/SettingsTab.tsx`
+### Visual
 
-Adicionar uma nova secao "Indique o TrendFood" entre a secao de Assinatura e a de Alterar Senha:
+O botao ficara posicionado assim na sidebar:
 
-- Icone de compartilhamento (Share2 ou Heart do lucide-react)
-- Texto curto: "Gostou do TrendFood? Compartilhe com outros empreendedores!"
-- Link para copiar: `https://trendfood.lovable.app` (URL publicada do projeto)
-- Botao "Copiar link" que copia para a area de transferencia e mostra toast de confirmacao
-- Botao "Compartilhar via WhatsApp" que abre `https://wa.me/?text=...` com mensagem pre-formatada tipo: "Conhece o TrendFood? Sistema completo pra lanchonete! trendfood.lovable.app"
+```text
+  [Instalar App]          (se disponivel)
+  [Indique o TrendFood]   <-- NOVO, destacado em vermelho/primary
+  [Ver pagina publica]
+  [Sair]
+```
 
-Visual seguindo o mesmo padrao de cards arredondados (`rounded-xl border border-border`) ja usado nas outras secoes da pagina.
+Estilo: fundo `bg-primary/10` com texto `text-primary` e hover `hover:bg-primary/20`, diferenciando dos demais links cinzas.
 
+### Nenhuma alteracao no banco de dados
+
+Apenas mudanca visual na sidebar.
