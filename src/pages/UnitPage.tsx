@@ -1205,7 +1205,6 @@ const UnitPage = () => {
                   amount={grandTotal}
                   orgId={org.id}
                   orgName={org.name}
-                  pixKey={org.pix_key}
                   pixConfirmationMode={org.pix_confirmation_mode}
                   primaryColor={primaryColor}
                   orderId={pixOrderId}

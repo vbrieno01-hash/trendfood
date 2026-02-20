@@ -1,5 +1,4 @@
 import QRCode from "qrcode";
-import { buildPixPayload } from "./pixPayload";
 
 export interface PrintableOrder {
   id: string;
@@ -48,7 +47,7 @@ function parseNotes(notes: string): ParsedNotes {
 export async function printOrder(
   order: PrintableOrder,
   storeName = "Cozinha",
-  pixKey?: string | null
+  pixPayload?: string | null
 ) {
   const win = window.open("", "_blank", "width=400,height=700");
   if (!win) return; // blocked by popup blocker
@@ -118,11 +117,10 @@ export async function printOrder(
     ? `<div class="total">TOTAL: R$ ${total.toFixed(2).replace(".", ",")}</div>`
     : "";
 
-  // Generate PIX QR Code
+  // Generate PIX QR Code from pre-built payload
   let pixHtml = "";
-  if (pixKey && hasTotal) {
+  if (pixPayload && hasTotal) {
     try {
-      const pixPayload = buildPixPayload(pixKey, total, storeName);
       const qrDataUrl = await QRCode.toDataURL(pixPayload, {
         width: 200,
         margin: 1,

@@ -33,7 +33,7 @@ export interface Organization {
   created_at: string;
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
-  pix_key?: string | null;
+  // pix_key removed from public query — use edge function generate-pix-payload
   store_address?: string | null;
   delivery_config?: DeliveryConfig | null;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
@@ -49,7 +49,7 @@ export const useOrganization = (slug: string | undefined) => {
       if (!slug) throw new Error("No slug");
       const { data, error } = await supabase
         .from("organizations")
-        .select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, pix_key, store_address, delivery_config, pix_confirmation_mode")
+        .select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, store_address, delivery_config, pix_confirmation_mode")
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;
