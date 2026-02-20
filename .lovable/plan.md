@@ -1,16 +1,22 @@
 
 
-# Limpar lojas de teste e corrigir dados
+# Teste completo Multi-unidade + Funcionalidade de deletar unidade
 
-## O que aconteceu
+## Contexto
 
-A loja "bebidas" foi criada antes do fix de heranca de plano ser aplicado, entao ela ficou com `subscription_plan = 'free'` e `trial_ends_at` com 7 dias (defaults do banco). O codigo ja esta corrigido -- novas unidades criadas pelo dialog agora herdam o plano Enterprise automaticamente.
+O fluxo de criacao de nova unidade ja esta funcionando com heranca de plano (`CreateUnitDialog.tsx` passa `parentPlan`). Porem, nao existe nenhuma funcionalidade no app para **deletar uma unidade**. O banco ja permite (RLS policy `organizations_delete_own` existe), mas falta a UI e a logica de limpeza de dados filhos.
 
-## Acoes necessarias
+## Acoes no banco de dados
 
-### 1. Atualizar a loja "bebidas" para Enterprise
+### 1. Atualizar "Loja Matriz" para Enterprise (para teste)
 
-Corrigir os dados da loja "bebidas" (pertence ao usuario vendass945@gmail.com, mesma conta do "Burguer do Rei"):
+```text
+UPDATE organizations 
+SET subscription_plan = 'enterprise', trial_ends_at = NULL 
+WHERE id = 'fa7affd1-389b-4c93-b925-507ec39a559e'
+```
+
+### 2. Corrigir "bebidas" para Enterprise
 
 ```text
 UPDATE organizations 
@@ -18,40 +24,50 @@ SET subscription_plan = 'enterprise', trial_ends_at = NULL
 WHERE id = 'e75374b7-edab-4272-bee0-260458a989df'
 ```
 
-Isso remove o banner de trial e desbloqueia todas as funcionalidades Enterprise.
+### 3. Deletar lojas de teste antigas
 
-### 2. Deletar lojas de teste
+Remover dados filhos e depois as organizacoes de teste (Lanchonete Teste, Loja Parse Test, Loja Teste CEP, Loja Trial Teste, Loja Onboarding Test, Lanche do Carlos Teste, Burguer Teste, teste50).
 
-Remover as seguintes organizacoes de teste e todos os dados relacionados (menu_items, orders, tables, cash_sessions, cash_withdrawals, coupons, suggestions, organization_secrets):
+## Mudancas de codigo
 
-| Loja | Email | Motivo |
-|---|---|---|
-| Loja Matriz | teste-multiunit@test.com | Conta de teste |
-| Lanchonete Teste | testeflow2026@test.com | Conta de teste |
-| Loja Parse Test | teste-endereco-parse@test.com | Conta de teste |
-| Loja Teste CEP | teste-cep-flow@test.com | Conta de teste |
-| Loja Trial Teste | testetrial7dias@teste.com | Conta de teste |
-| Loja Onboarding Test | onboarding-test-tf@yopmail.com | Conta de teste |
-| Lanche do Carlos Teste | carlos.teste.trendfood@mailinator.com | Conta de teste |
-| Burguer Teste | teste@trendfood.com | Conta de teste |
-| teste50 | teste50@gmail.com | Conta de teste |
+### 1. Adicionar botao de deletar no OrgSwitcher
 
-A limpeza sera feita deletando primeiro os dados filhos (orders, menu_items, tables, etc.) e depois as organizations.
+**Arquivo: `src/components/dashboard/OrgSwitcher.tsx`**
 
-### 3. Lojas reais preservadas
+- Adicionar prop `onDelete: (orgId: string) => void`
+- Para cada org que NAO seja a org ativa, mostrar um icone de lixeira (Trash2) ao lado
+- Nao permitir deletar a unica org restante (precisa ter pelo menos 1)
+- Nao permitir deletar a org ativa (precisa trocar primeiro)
 
-Estas lojas NAO serao tocadas:
+### 2. Criar funcao de deletar unidade no DashboardPage
 
-| Loja | Email | Plano |
-|---|---|---|
-| Burguer do Rei | vendass945@gmail.com | Enterprise |
-| bebidas | vendass945@gmail.com | Enterprise (apos fix) |
-| mlsviplanches | mlsmilionarios@gmail.com | Enterprise |
-| Ph | ph8762841@gmail.com | Free |
-| Jubileu story | bina.lopes0606@gmail.com | Free |
-| Bobo | bobo@gmail.com | Free |
-| brenotorado | pobrerico248@gmail.com | Free |
+**Arquivo: `src/pages/DashboardPage.tsx`**
 
-## Nenhuma mudanca de codigo
+- Criar handler `handleDeleteUnit(orgId)` que:
+  1. Mostra um AlertDialog de confirmacao ("Tem certeza? Todos os dados dessa unidade serao perdidos")
+  2. Deleta dados filhos na ordem: order_items (via orders), orders, menu_items, tables, cash_withdrawals, cash_sessions, coupons, suggestions, organization_secrets
+  3. Deleta a organizacao
+  4. Chama `refreshOrganization()` para atualizar a lista
+  5. Mostra toast de sucesso
 
-O fix de heranca de plano ja esta aplicado no `CreateUnitDialog.tsx`. Apenas dados no banco precisam ser corrigidos.
+### 3. Criar componente de confirmacao de exclusao
+
+**Arquivo: `src/components/dashboard/DeleteUnitDialog.tsx`**
+
+- Dialog de confirmacao com AlertDialog
+- Mostra o nome da unidade que sera deletada
+- Aviso em vermelho: "Todos os pedidos, cardapio, mesas e dados serao permanentemente excluidos"
+- Botao "Excluir unidade" em vermelho
+- Deleta todos os dados filhos antes de deletar a org
+
+## Teste end-to-end
+
+Apos implementar, testar pelo browser:
+
+1. Login com conta teste-multiunit
+2. Verificar que "Loja Matriz" aparece como Enterprise
+3. Abrir OrgSwitcher, clicar "Nova unidade"
+4. Criar "Loja Norte" - verificar que nasce Enterprise
+5. Trocar entre unidades no switcher
+6. Deletar "Loja Norte" pelo botao de lixeira
+7. Confirmar que foi removida do switcher e do banco
