@@ -1,18 +1,26 @@
 
 
-# Usar a logo oficial (coroa vermelha) como marca d'agua no relatorio
+# Secao "Indique o TrendFood" - compartilhamento simples
 
 ## Resumo
 
-Salvar a logo oficial do TrendFood (circulo vermelho com coroa) enviada pelo usuario e garantir que ela seja usada como marca d'agua no relatorio de vendas.
+Adicionar uma secao simples no SettingsTab para o usuario compartilhar o link do TrendFood com outras pessoas. Sem recompensas, sem rastreamento, sem tabelas novas. Apenas um convite para divulgar a plataforma.
 
 ## Mudancas
 
-### 1. Copiar a logo para o projeto
+### 1. Nenhuma alteracao no banco de dados
 
-Copiar a imagem enviada (`user-uploads://1771601978143.png`) para `public/logo-trendfood.png`, substituindo o arquivo atual. Assim o codigo existente que ja referencia `/logo-trendfood.png` funcionara automaticamente com a logo oficial correta.
+Nao precisa de tabela `referrals`, funcoes SQL, nem nada no backend. E apenas um link de compartilhamento da landing page.
 
-### 2. Nenhuma alteracao de codigo necessaria
+### 2. `src/components/dashboard/SettingsTab.tsx`
 
-O `ReportsTab.tsx` ja usa `window.location.origin + "/logo-trendfood.png"` como marca d'agua. Basta substituir o arquivo da imagem.
+Adicionar uma nova secao "Indique o TrendFood" entre a secao de Assinatura e a de Alterar Senha:
+
+- Icone de compartilhamento (Share2 ou Heart do lucide-react)
+- Texto curto: "Gostou do TrendFood? Compartilhe com outros empreendedores!"
+- Link para copiar: `https://trendfood.lovable.app` (URL publicada do projeto)
+- Botao "Copiar link" que copia para a area de transferencia e mostra toast de confirmacao
+- Botao "Compartilhar via WhatsApp" que abre `https://wa.me/?text=...` com mensagem pre-formatada tipo: "Conhece o TrendFood? Sistema completo pra lanchonete! trendfood.lovable.app"
+
+Visual seguindo o mesmo padrao de cards arredondados (`rounded-xl border border-border`) ja usado nas outras secoes da pagina.
 
