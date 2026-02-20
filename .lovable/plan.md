@@ -1,33 +1,34 @@
 
 
-# Remover funcionalidade de Sugestoes
+# Corrigir busca de CEP (ViaCEP) via proxy
 
-A feature de "Sugestoes" sera completamente removida do projeto. Isso envolve limpar varios arquivos.
+## Problema
+As chamadas ao ViaCEP sao feitas diretamente do navegador do cliente, o que causa erros de CORS em alguns ambientes/dispositivos. O sistema ja tem um fallback (inferir estado pelo prefixo do CEP), mas o ideal e que o preenchimento automatico funcione sempre.
 
-## Arquivos a remover
-- `src/hooks/useSuggestions.ts` -- hook inteiro dedicado a sugestoes
-- `src/components/dashboard/MuralTab.tsx` -- aba do dashboard para gerenciar sugestoes
+## Solucao
+Criar uma funcao backend (edge function) que atua como proxy para o ViaCEP, eliminando o problema de CORS. Depois, atualizar os 3 pontos do codigo que chamam o ViaCEP diretamente.
 
-## Arquivos a editar
+## Etapas
 
-### 1. `src/pages/UnitPage.tsx` (pagina publica)
-- Remover import de `useSuggestions`, `useAddSuggestion`, `useIncrementVote`
-- Remover a query `useSuggestions(org?.id)` e variaveis relacionadas (votedIds, sugName, etc.)
-- Remover a aba "Sugestoes" do `TabsTrigger`
-- Remover todo o `TabsContent value="suggestions"` com o formulario e listagem
-- Remover o Drawer de "Nova Sugestao"
-- Limpar imports nao utilizados (MessageCircle, Lightbulb, etc.)
+### 1. Criar edge function `viacep-proxy`
+- Recebe o CEP no corpo da requisicao (POST)
+- Limpa e valida o formato (8 digitos)
+- Faz a chamada ao ViaCEP do lado do servidor (sem CORS)
+- Retorna os dados do endereco ou erro apropriado
 
-### 2. `src/pages/AuthPage.tsx`
-- Atualizar texto de marketing: trocar "Mural de sugestoes em tempo real" por algo mais relevante (ex: "Cardapio digital personalizado")
-- Atualizar descricao padrao da org de "Bem-vindo ao nosso mural de sugestoes!" para algo como "Bem-vindo a nossa loja!"
+### 2. Atualizar `src/pages/UnitPage.tsx`
+- Trocar a chamada direta `fetch("https://viacep.com.br/...")` por `supabase.functions.invoke("viacep-proxy", { body: { cep } })`
+- Manter o fallback existente (inferir estado pelo CEP) caso a edge function tambem falhe
 
-### 3. `src/components/dashboard/StoreProfileTab.tsx`
-- Remover o botao "Enviar sugestao" do preview da loja
+### 3. Atualizar `src/components/dashboard/StoreProfileTab.tsx`
+- Mesma alteracao: trocar fetch direto pelo invoke da edge function
 
-## Detalhes tecnicos
+### 4. Atualizar `src/components/dashboard/OnboardingWizard.tsx`
+- Mesma alteracao: trocar fetch direto pelo invoke da edge function
 
-- Nenhuma alteracao no banco de dados -- a tabela `suggestions` pode permanecer sem impacto
-- Nenhuma rota nova ou dependencia alterada
-- Apenas remocao de codigo e limpeza de imports
+## Impacto
+- Nenhuma alteracao no banco de dados
+- Nenhuma nova dependencia
+- O fallback por prefixo de CEP continua funcionando como rede de seguranca
+- A busca de CEP passara a funcionar de forma confiavel em qualquer navegador/dispositivo
 
