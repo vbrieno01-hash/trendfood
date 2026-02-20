@@ -1,72 +1,20 @@
 
 
-# Relatório de Vendas Profissional com dados da loja
+# Marca d'agua TrendFood oficial no relatorio
 
-## Resumo
+## Problema
 
-Transformar o relatório de vendas baixável em um documento profissional que inclui: nome da loja, logo como marca d'água transparente no fundo, dados do estabelecimento (WhatsApp, endereço), e layout corporativo.
+Atualmente a marca d'agua usa a logo da loja do cliente. O correto e usar a logo do **TrendFood** como marca d'agua universal em todos os relatorios, servindo como branding da plataforma para quem ver o documento.
 
 ## Mudancas
 
-### 1. `src/components/dashboard/ReportsTab.tsx`
+### `src/components/dashboard/ReportsTab.tsx`
 
-**Alterar a interface de props** para receber o objeto `organization` completo ao invés de apenas `orgId`:
+Na funcao `handleDownloadReport()`, alterar a logica da marca d'agua:
 
-```
-interface ReportsTabProps {
-  orgId: string;
-  orgName: string;
-  orgLogo?: string | null;
-  orgWhatsapp?: string | null;
-  orgAddress?: string | null;
-  orgEmoji: string;
-}
-```
+- **Marca d'agua**: Sempre usar a logo do TrendFood (`/logo-trendfood.png`) com URL absoluta via `window.location.origin + "/logo-trendfood.png"`. Nao depende mais de `orgLogo`.
+- **Header da loja**: Continua mostrando a logo da loja (se existir) + nome + emoji + endereco + WhatsApp normalmente. Isso identifica de qual estabelecimento e o relatorio.
+- **Rodape**: Manter "Relatorio gerado via TrendFood" como reforco da marca.
 
-**Redesenhar o `handleDownloadReport()`** para gerar um HTML profissional com:
+Resultado: toda loja que baixar o relatorio tera a marca d'agua do TrendFood no fundo, independente de ter logo propria ou nao. O cabecalho continua personalizado com os dados da loja.
 
-- **Cabecalho**: Logo da loja (se disponivel) + nome + emoji + endereco + WhatsApp
-- **Marca d'agua**: Logo da loja centralizada no fundo com `opacity: 0.06`, `position: fixed`, cobrindo toda a pagina
-- **Tipografia profissional**: Fonte system-ui com hierarquia clara, cores corporativas
-- **Rodape**: "Relatorio gerado em [data/hora] via TrendFood" + linha de separacao
-- **Layout**: Margens adequadas para impressao A4, bordas sutis nas tabelas, KPIs em grid 2x2
-
-Estrutura do HTML gerado:
-```
-- Marca d'agua (logo em background, opacity 6%, centralizada)
-- Header: [Logo] Nome da Loja (Emoji)
-  - Endereco | WhatsApp
-  - "Relatorio de Vendas - Periodo: X dias"
-  - Data de emissao
-- KPIs em grid 2x2
-- Tabela: Comparativo Semanal
-- Tabela: Faturamento Diario
-- Tabela: Ranking por Item/Categoria
-- Rodape: "Gerado via TrendFood"
-```
-
-### 2. `src/pages/DashboardPage.tsx`
-
-Atualizar a chamada do `ReportsTab` para passar os dados da organizacao:
-
-```tsx
-<ReportsTab
-  orgId={organization.id}
-  orgName={organization.name}
-  orgLogo={organization.logo_url}
-  orgWhatsapp={organization.whatsapp}
-  orgAddress={organization.store_address}
-  orgEmoji={organization.emoji}
-/>
-```
-
-### Detalhes tecnicos
-
-- A logo e inserida como `<img>` com `position: fixed; opacity: 0.06; width: 60%; top: 50%; left: 50%; transform: translate(-50%,-50%)` para funcionar como marca d'agua na impressao
-- Se a loja nao tiver logo, a marca d'agua nao aparece (graceful fallback)
-- O cabecalho usa a logo em tamanho pequeno (48px) ao lado do nome
-- Endereco formatado limpo (remove delimitadores internos se usar formato pipe)
-- WhatsApp formatado com mascara brasileira
-- Data de emissao com `toLocaleString("pt-BR")` completo
-- Mantido o `window.print()` para gerar PDF nativo
-- CSS `@media print` ajustado para margens e quebra de pagina adequadas
