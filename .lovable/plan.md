@@ -1,32 +1,33 @@
 
-# Adicionar dialog de confirmacao antes do checkout
+# Adicionar indicador de plano necessario nos cards de Funcionalidades
 
-## Fluxo completo
+## O que muda
 
-1. **Usuario NAO logado**: Clica em qualquer plano pago -> vai para `/auth` criar conta (sem dialog, comportamento atual)
-2. **Usuario logado**: Clica em "Assinar Pro" ou "Assinar Enterprise" -> abre dialog de confirmacao -> confirma -> abre link do Cakto em nova aba
+Cada card de funcionalidade na aba "Funcionalidades" do painel Admin passa a mostrar qual plano minimo eh necessario para acessar aquela feature. Isso ajuda o admin a visualizar rapidamente o que cada plano desbloqueia.
 
-O dialog so aparece para usuarios autenticados, garantindo que a conta ja existe antes de pagar.
+## Como vai ficar
 
-## O que o dialog mostra
+Cada card tera uma badge adicional indicando o plano minimo:
+- **Todos** (verde) — disponivel em todos os planos, incluindo Free
+- **Pro** (laranja/primary) — disponivel a partir do Pro
+- **Enterprise** (roxo) — exclusivo Enterprise
 
-- Nome do plano (ex: "Pro")
-- Preco (ex: "R$ 99/mes")
-- Lista das features do plano
-- Botao "Continuar para pagamento" (abre o Cakto)
-- Botao "Cancelar"
+Features e seus planos minimos:
+- Suporte via WhatsApp → Todos
+- Impressora Termica → Pro
+- Onboarding Guiado → Todos
+- Controle de Caixa → Pro
+- (futuras features como KDS, Cupons, Garcom → Pro; Multi-unidade → Enterprise)
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/PricingPage.tsx`
+### Arquivo: `src/pages/AdminPage.tsx`
 
-1. Adicionar estado `selectedPlan` que guarda os dados do plano clicado (ou `null` quando o dialog esta fechado)
-2. Alterar `handleSelectPlan` para setar o `selectedPlan` em vez de abrir o link diretamente
-3. Criar funcao `handleConfirmPlan` que executa a logica atual (abrir link do Cakto com email do usuario)
-4. Renderizar um `AlertDialog` controlado pelo estado `selectedPlan`, mostrando nome, preco, features e os botoes de confirmar/cancelar
+1. Adicionar campo `minPlan` na interface `Feature` com valores `"free" | "pro" | "enterprise"`
+2. Atualizar cada item do array `FEATURES` com o `minPlan` correspondente
+3. No componente `FeatureCard`, renderizar uma badge extra ao lado do status mostrando o plano minimo necessario, com cores distintas:
+   - free: badge verde "Todos os planos"
+   - pro: badge primary "Pro+"
+   - enterprise: badge roxa "Enterprise"
 
-Componentes utilizados (ja existem no projeto):
-- `AlertDialog`, `AlertDialogContent`, `AlertDialogHeader`, `AlertDialogTitle`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogAction`, `AlertDialogCancel`
-- Icone `Check` do lucide-react
-
-Nenhuma dependencia nova. Nenhuma alteracao no banco de dados.
+Nenhuma dependencia nova. Nenhuma alteracao no banco de dados. Usa apenas componentes e estilos ja existentes no projeto.
