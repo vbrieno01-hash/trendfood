@@ -1,42 +1,72 @@
 
 
-# Testar features ativas + Adicionar download de relatorio
+# Relatório de Vendas Profissional com dados da loja
 
-## Verificacao das features (imagem)
+## Resumo
 
-Todas as features com checkmark no plano Enterprise estao implementadas e funcionais:
+Transformar o relatório de vendas baixável em um documento profissional que inclui: nome da loja, logo como marca d'água transparente no fundo, dados do estabelecimento (WhatsApp, endereço), e layout corporativo.
 
-1. **Tudo do plano Pro** -- Todas features Pro (KDS, Caixa, Cupons, Mais Vendidos, Garcom) estao implementadas com feature gates no `usePlanLimits.ts`
-2. **Multiplas unidades** -- OrgSwitcher + CreateUnitDialog + DeleteUnitDialog funcionando no Dashboard
-3. **Relatorios avancados** -- ReportsTab com KPIs, graficos diarios, horarios de pico, comparativo semanal e ranking por categoria
-4. **Suporte prioritario** -- Beneficio operacional (nao requer codigo)
-5. **Integracao com delivery** -- Corretamente marcada como "Em breve" com icone de relogio e badge na pagina de planos
-6. **Gerente de conta dedicado** -- Beneficio operacional (nao requer codigo)
+## Mudancas
 
-## Nova funcionalidade: Baixar relatorio
+### 1. `src/components/dashboard/ReportsTab.tsx`
 
-Adicionar um botao "Baixar Relatorio" no header do `ReportsTab` que gera um PDF via `window.print()` (mesmo padrao usado no projeto para impressao de pedidos e fechamento de caixa).
+**Alterar a interface de props** para receber o objeto `organization` completo ao invés de apenas `orgId`:
 
-### Mudancas
+```
+interface ReportsTabProps {
+  orgId: string;
+  orgName: string;
+  orgLogo?: string | null;
+  orgWhatsapp?: string | null;
+  orgAddress?: string | null;
+  orgEmoji: string;
+}
+```
 
-**Arquivo: `src/components/dashboard/ReportsTab.tsx`**
+**Redesenhar o `handleDownloadReport()`** para gerar um HTML profissional com:
 
-- Importar `Download` do lucide-react e `Button` do UI
-- Adicionar uma funcao `handleDownloadReport()` que:
-  - Abre uma nova janela com `window.open()`
-  - Monta um HTML com layout de relatorio contendo:
-    - Cabecalho com nome "Relatorio de Vendas" e periodo selecionado
-    - Tabela de KPIs (Faturamento, Ticket Medio, Total Pedidos, Pedidos/dia)
-    - Tabela de faturamento diario (data + valor)
-    - Tabela de comparativo semanal
-    - Tabela de ranking por item/categoria
-  - Usa `@media print` para formatacao e `window.print()` para gerar o PDF
-- Adicionar o botao `Baixar Relatorio` ao lado do seletor de periodo no header
+- **Cabecalho**: Logo da loja (se disponivel) + nome + emoji + endereco + WhatsApp
+- **Marca d'agua**: Logo da loja centralizada no fundo com `opacity: 0.06`, `position: fixed`, cobrindo toda a pagina
+- **Tipografia profissional**: Fonte system-ui com hierarquia clara, cores corporativas
+- **Rodape**: "Relatorio gerado em [data/hora] via TrendFood" + linha de separacao
+- **Layout**: Margens adequadas para impressao A4, bordas sutis nas tabelas, KPIs em grid 2x2
+
+Estrutura do HTML gerado:
+```
+- Marca d'agua (logo em background, opacity 6%, centralizada)
+- Header: [Logo] Nome da Loja (Emoji)
+  - Endereco | WhatsApp
+  - "Relatorio de Vendas - Periodo: X dias"
+  - Data de emissao
+- KPIs em grid 2x2
+- Tabela: Comparativo Semanal
+- Tabela: Faturamento Diario
+- Tabela: Ranking por Item/Categoria
+- Rodape: "Gerado via TrendFood"
+```
+
+### 2. `src/pages/DashboardPage.tsx`
+
+Atualizar a chamada do `ReportsTab` para passar os dados da organizacao:
+
+```tsx
+<ReportsTab
+  orgId={organization.id}
+  orgName={organization.name}
+  orgLogo={organization.logo_url}
+  orgWhatsapp={organization.whatsapp}
+  orgAddress={organization.store_address}
+  orgEmoji={organization.emoji}
+/>
+```
 
 ### Detalhes tecnicos
 
-- Segue exatamente o padrao de `printOrder.ts` e do fechamento de caixa: `window.open()` + HTML inline + `window.print()`
-- Nao precisa de biblioteca externa para PDF
-- O conteudo sera formatado em tabelas simples para boa renderizacao na impressao
-- Os graficos nao serao incluidos no PDF (nao sao imprimiveis via canvas), mas todos os dados numericos estarao presentes em formato tabular
-
+- A logo e inserida como `<img>` com `position: fixed; opacity: 0.06; width: 60%; top: 50%; left: 50%; transform: translate(-50%,-50%)` para funcionar como marca d'agua na impressao
+- Se a loja nao tiver logo, a marca d'agua nao aparece (graceful fallback)
+- O cabecalho usa a logo em tamanho pequeno (48px) ao lado do nome
+- Endereco formatado limpo (remove delimitadores internos se usar formato pipe)
+- WhatsApp formatado com mascara brasileira
+- Data de emissao com `toLocaleString("pt-BR")` completo
+- Mantido o `window.print()` para gerar PDF nativo
+- CSS `@media print` ajustado para margens e quebra de pagina adequadas
