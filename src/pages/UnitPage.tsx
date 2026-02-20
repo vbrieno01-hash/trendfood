@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  ShoppingCart, ImageOff, Loader2,
+  ShoppingCart, Loader2,
 } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 
@@ -601,7 +601,7 @@ const UnitPage = () => {
                               className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200 ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
                             >
                               {/* Foto quadrada + badge de qty */}
-                              <div className="relative aspect-square w-full bg-secondary flex items-center justify-center overflow-hidden">
+                              <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center overflow-hidden">
                                 {item.image_url ? (
                                   <img
                                     src={item.image_url}
@@ -609,7 +609,7 @@ const UnitPage = () => {
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <ImageOff className="w-5 h-5 text-muted-foreground opacity-30" />
+                                  <UtensilsCrossed className="w-8 h-8 text-orange-300" />
                                 )}
                                 {qty > 0 && (
                                   <span
@@ -1088,7 +1088,7 @@ const UnitPage = () => {
             return (
               <>
                 {/* Foto */}
-                <div className="w-full aspect-video bg-secondary overflow-hidden">
+                <div className="w-full aspect-video bg-gradient-to-br from-amber-50 to-orange-100 overflow-hidden">
                   {selectedItem.image_url ? (
                     <img
                       src={selectedItem.image_url}
@@ -1097,7 +1097,7 @@ const UnitPage = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ImageOff className="w-10 h-10 text-muted-foreground opacity-30" />
+                      <UtensilsCrossed className="w-12 h-12 text-orange-300" />
                     </div>
                   )}
                 </div>
