@@ -55,8 +55,8 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
 
   const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
   const now = new Date();
-  const trialActive = !!trialEndsAt && trialEndsAt > now;
-  const trialExpired = !!trialEndsAt && trialEndsAt <= now;
+  const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
+  const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
   const trialDaysLeft = trialActive
     ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
