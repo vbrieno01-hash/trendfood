@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
-  History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap
+  History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
+  BookOpen, Sparkles,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -30,9 +31,11 @@ import HistoryTab from "@/components/dashboard/HistoryTab";
 import CouponsTab from "@/components/dashboard/CouponsTab";
 import BestSellersTab from "@/components/dashboard/BestSellersTab";
 import CaixaTab from "@/components/dashboard/CaixaTab";
+import FeaturesTab from "@/components/dashboard/FeaturesTab";
+import GuideTab from "@/components/dashboard/GuideTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -191,6 +194,8 @@ const DashboardPage = () => {
   ];
 
   const navItemsBottom: { key: TabKey; icon: React.ReactNode; label: string }[] = [
+    { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
+    { key: "guide", icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
     { key: "profile", icon: <Store className="w-4 h-4" />, label: "Perfil da Loja" },
     { key: "settings", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
   ];
@@ -420,6 +425,8 @@ const DashboardPage = () => {
           {activeTab === "caixa" && (lockedFeatures.caixa
             ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." />
             : <CaixaTab orgId={organization.id} />)}
+          {activeTab === "features" && <FeaturesTab effectivePlan={planLimits.effectivePlan} />}
+          {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
         </main>
