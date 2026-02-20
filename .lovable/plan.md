@@ -1,23 +1,39 @@
 
-# Correção: Horário de Funcionamento resetando ao trocar de aba
 
-## Problema
-O campo `business_hours` não está sendo carregado na query do `useAuth.tsx`. Quando você navega para outra aba e volta, o componente re-monta e recebe `organization.business_hours = undefined`, que cai no valor padrão com `enabled: false`.
+# Correção: Dados do Perfil da Loja sumindo ao trocar de aba
 
-## Solução
-Adicionar `business_hours` na query SELECT do `fetchOrganization` dentro do `useAuth.tsx`.
+## O que aconteceu?
 
-## Detalhes técnicos
-Uma única linha precisa ser alterada no arquivo `src/hooks/useAuth.tsx`:
+Voce NAO quebrou o projeto. O problema e simples: a query que carrega os dados da sua loja no login nao inclui todos os campos necessarios. Quando voce troca de aba e volta, o formulario e recriado usando esses dados incompletos, e tudo aparece vazio.
 
-Na função `fetchOrganization`, a query atual é:
+## Causa raiz
+
+No arquivo `useAuth.tsx`, a query SELECT busca:
 ```
-.select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused")
+id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours
 ```
 
-Será atualizada para incluir `business_hours`:
-```
-.select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours")
-```
+Faltam 3 campos que o formulario do Perfil da Loja usa:
+- `store_address` (endereco da loja)
+- `delivery_config` (configuracao de frete)
+- `pix_confirmation_mode` (modo de confirmacao PIX)
 
-Também será adicionado `business_hours` na interface `Organization` do `useAuth.tsx` para manter a tipagem correta.
+## Solucao
+
+Adicionar os 3 campos ausentes na query do `useAuth.tsx` e na interface `Organization` do mesmo arquivo.
+
+## Detalhes tecnicos
+
+**Arquivo:** `src/hooks/useAuth.tsx`
+
+1. Adicionar na interface `Organization`:
+   - `store_address?: string | null`
+   - `delivery_config?: any`
+   - `pix_confirmation_mode?: string`
+
+2. Atualizar a query `.select()` na funcao `fetchOrganization` para incluir:
+   ```
+   store_address, delivery_config, pix_confirmation_mode
+   ```
+
+Nenhuma alteracao no banco de dados e necessaria — os campos ja existem na tabela `organizations`.
