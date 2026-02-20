@@ -1,33 +1,42 @@
 
-# Marcar "Integração com delivery" como "Em breve" na página de planos
 
-## Problema
+# Testar features ativas + Adicionar download de relatorio
 
-Na pagina `/planos`, o plano Enterprise lista "Integracao com delivery" como feature disponivel (com checkmark verde), mas essa funcionalidade ainda nao foi implementada. Precisa mostrar um indicador visual "Em breve" ao lado.
+## Verificacao das features (imagem)
 
-## Mudancas
+Todas as features com checkmark no plano Enterprise estao implementadas e funcionais:
 
-### 1. `src/pages/PricingPage.tsx`
+1. **Tudo do plano Pro** -- Todas features Pro (KDS, Caixa, Cupons, Mais Vendidos, Garcom) estao implementadas com feature gates no `usePlanLimits.ts`
+2. **Multiplas unidades** -- OrgSwitcher + CreateUnitDialog + DeleteUnitDialog funcionando no Dashboard
+3. **Relatorios avancados** -- ReportsTab com KPIs, graficos diarios, horarios de pico, comparativo semanal e ranking por categoria
+4. **Suporte prioritario** -- Beneficio operacional (nao requer codigo)
+5. **Integracao com delivery** -- Corretamente marcada como "Em breve" com icone de relogio e badge na pagina de planos
+6. **Gerente de conta dedicado** -- Beneficio operacional (nao requer codigo)
 
-Alterar a lista de features do plano Enterprise para usar objetos ao inves de strings simples, permitindo marcar itens como "coming soon":
+## Nova funcionalidade: Baixar relatorio
 
-- Mudar `"Integração com delivery"` para `"Integração com delivery (em breve)"`
+Adicionar um botao "Baixar Relatorio" no header do `ReportsTab` que gera um PDF via `window.print()` (mesmo padrao usado no projeto para impressao de pedidos e fechamento de caixa).
 
-Alternativa mais elegante: usar um sufixo visual. Trocar a string por um formato que o PlanCard reconheca.
+### Mudancas
 
-**Abordagem escolhida (simples e sem quebrar outros componentes):**
-- Na lista de features do Enterprise (linha 80), alterar a string de `"Integração com delivery"` para `"Integração com delivery (em breve)"`
+**Arquivo: `src/components/dashboard/ReportsTab.tsx`**
 
-### 2. `src/components/pricing/PlanCard.tsx`
+- Importar `Download` do lucide-react e `Button` do UI
+- Adicionar uma funcao `handleDownloadReport()` que:
+  - Abre uma nova janela com `window.open()`
+  - Monta um HTML com layout de relatorio contendo:
+    - Cabecalho com nome "Relatorio de Vendas" e periodo selecionado
+    - Tabela de KPIs (Faturamento, Ticket Medio, Total Pedidos, Pedidos/dia)
+    - Tabela de faturamento diario (data + valor)
+    - Tabela de comparativo semanal
+    - Tabela de ranking por item/categoria
+  - Usa `@media print` para formatacao e `window.print()` para gerar o PDF
+- Adicionar o botao `Baixar Relatorio` ao lado do seletor de periodo no header
 
-Atualizar a renderizacao de features para detectar o sufixo `(em breve)` e exibir um badge estilizado:
+### Detalhes tecnicos
 
-- No `map` de features (linhas 70-75), verificar se a string contem `(em breve)`
-- Se sim, remover o sufixo do texto e adicionar um badge `<span>` com estilo `bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full` ao lado
-- O icone de check para itens "em breve" sera trocado por um relogio (`Clock` do lucide) em cor muted
+- Segue exatamente o padrao de `printOrder.ts` e do fechamento de caixa: `window.open()` + HTML inline + `window.print()`
+- Nao precisa de biblioteca externa para PDF
+- O conteudo sera formatado em tabelas simples para boa renderizacao na impressao
+- Os graficos nao serao incluidos no PDF (nao sao imprimiveis via canvas), mas todos os dados numericos estarao presentes em formato tabular
 
-Resultado visual: em vez de `checkmark verde + "Integracao com delivery"`, aparecera `relogio cinza + "Integracao com delivery" + badge "Em breve"`.
-
-### Arquivos afetados
-- `src/pages/PricingPage.tsx` (1 linha)
-- `src/components/pricing/PlanCard.tsx` (logica de renderizacao de features)
