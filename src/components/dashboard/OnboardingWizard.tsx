@@ -87,9 +87,8 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
     if (raw.length !== 8) { toast.error("CEP inválido. Digite 8 dígitos."); return; }
     setLoadingCep(true);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`);
-      const data = await res.json();
-      if (data.erro) { toast.error("CEP não encontrado."); return; }
+      const { data, error: proxyError } = await supabase.functions.invoke("viacep-proxy", { body: { cep: raw } });
+      if (proxyError || data?.error) { toast.error(data?.error || "CEP não encontrado."); return; }
       setStreet(data.logradouro ?? "");
       setNeighborhood(data.bairro ?? "");
       setCity(data.localidade ?? "");

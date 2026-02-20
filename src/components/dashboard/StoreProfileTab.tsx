@@ -222,10 +222,9 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     if (cleaned.length !== 8) return;
     setCepFetching(true);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
-      const data = await res.json();
-      if (data.erro) {
-        toast.error("CEP não encontrado.");
+      const { data, error: proxyError } = await supabase.functions.invoke("viacep-proxy", { body: { cep: cleaned } });
+      if (proxyError || data?.error) {
+        toast.error(data?.error || "CEP não encontrado.");
         return;
       }
       setAddressFields((p) => ({

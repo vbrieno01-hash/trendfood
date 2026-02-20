@@ -1,1 +1,4 @@
 project_id = "xrzudhylpphnzousilye"
+
+[functions.viacep-proxy]
+verify_jwt = false

@@ -22,6 +22,7 @@ import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryFee } from "@/hooks/useDeliveryFee";
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 import { getStateFromCep } from "@/lib/storeAddress";
+import { supabase } from "@/integrations/supabase/client";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 
@@ -227,20 +228,11 @@ const UnitPage = () => {
     setCepError("");
     setCepFetchFailed(false);
 
-    const doFetch = async () => {
-      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
-      return res.json();
-    };
-
     try {
       let data: Record<string, string>;
-      try {
-        data = await doFetch();
-      } catch {
-        // Retry após 1s
-        await new Promise((r) => setTimeout(r, 1000));
-        data = await doFetch();
-      }
+      const { data: proxyData, error: proxyError } = await supabase.functions.invoke("viacep-proxy", { body: { cep: cleaned } });
+      if (proxyError || proxyData?.error) throw new Error("proxy failed");
+      data = proxyData;
       if (data.erro) { setCepError("CEP não encontrado"); return; }
       setCepFetchFailed(false);
       setCustomerAddress((prev) => ({
