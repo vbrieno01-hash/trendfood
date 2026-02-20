@@ -1,28 +1,29 @@
 
-# Trocar texto da indicacao no WhatsApp
+# Mostrar "Instalar App" sempre na sidebar
 
 ## Resumo
 
-Atualizar a mensagem de compartilhamento via WhatsApp nos dois locais onde ela aparece.
+Atualmente o botao "Instalar App" so aparece quando o navegador dispara o evento `beforeinstallprompt` (Chrome/Edge). Para quem usa Safari ou ja instalou, o botao fica invisivel. A ideia e deixar o botao sempre visivel na area inferior da sidebar, e quando o prompt nativo nao estiver disponivel, mostrar instrucoes de como instalar manualmente.
 
 ## Mudancas
 
-### 1. `src/pages/DashboardPage.tsx` (linha 380)
+### `src/pages/DashboardPage.tsx`
 
-Trocar a mensagem de:
-> "Conhece o TrendFood? Sistema completo pra lanchonete, restaurante e delivery! Confira: https://trendfood.lovable.app"
+- Remover a condicao `{installPrompt && !appInstalled && (...)}` que esconde o botao
+- Mostrar o botao "Instalar App" sempre (exceto se ja instalado via `appInstalled`)
+- Quando `installPrompt` estiver disponivel: manter o comportamento atual (prompt nativo)
+- Quando `installPrompt` NAO estiver disponivel: ao clicar, mostrar um toast com instrucoes simples, tipo: "No navegador, toque nos 3 pontinhos (ou botao Compartilhar no iPhone) e selecione 'Instalar app' ou 'Adicionar a tela inicial'."
+- Posicionar o botao antes do "Indique o TrendFood" na ordem da sidebar
 
-Para:
-> "Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app"
+### Ordem final na sidebar
 
-### 2. `src/components/dashboard/SettingsTab.tsx` (linha 163)
+```text
+[Instalar App]           <-- sempre visivel
+[Indique o TrendFood]    <-- destacado
+[Ver pagina publica]
+[Sair]
+```
 
-Mesma troca - de:
-> "Conhece o TrendFood? Sistema completo pra lanchonete! 🍔🚀 https://trendfood.lovable.app"
+### Nenhuma alteracao no banco de dados
 
-Para:
-> "Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app"
-
-### Nenhuma outra alteracao
-
-Apenas o texto da mensagem muda. Nada no banco, estilo ou logica.
+Apenas mudanca visual e logica no frontend.
