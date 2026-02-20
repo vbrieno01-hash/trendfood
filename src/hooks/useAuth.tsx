@@ -30,32 +30,37 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   organization: Organization | null;
+  organizations: Organization[];
   isAdmin: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshOrganization: () => Promise<void>;
   refreshOrganizationForUser: (userId: string) => Promise<void>;
+  switchOrganization: (orgId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   organization: null,
+  organizations: [],
   isAdmin: false,
   loading: true,
   signOut: async () => {},
   refreshOrganization: async () => {},
   refreshOrganizationForUser: async () => {},
+  switchOrganization: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
-  const orgRef = useRef<Organization | null>(null);
+  const orgsRef = useRef<Organization[]>([]);
 
   const PLAN_LABELS: Record<string, string> = {
     free: "Gratuito",
@@ -69,8 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         supabase
           .from("organizations")
           .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours, store_address, delivery_config, pix_confirmation_mode")
-          .eq("user_id", userId)
-          .maybeSingle(),
+          .eq("user_id", userId),
         supabase
           .from("user_roles")
           .select("role")
@@ -79,15 +83,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle(),
       ]);
       if (isMounted.current) {
-        const org = orgData as Organization | null;
-        setOrganization(org);
-        orgRef.current = org;
+        const orgs = (orgData ?? []) as Organization[];
+        setOrganizations(orgs);
+        orgsRef.current = orgs;
+        // Keep current selection if still valid, otherwise pick first
+        setActiveOrgId((prev) => {
+          if (prev && orgs.some((o) => o.id === prev)) return prev;
+          return orgs[0]?.id ?? null;
+        });
         setIsAdmin(!!roleData);
       }
     } catch {
       if (isMounted.current) {
-        setOrganization(null);
-        orgRef.current = null;
+        setOrganizations([]);
+        orgsRef.current = [];
+        setActiveOrgId(null);
         setIsAdmin(false);
       }
     }
@@ -100,6 +110,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshOrganizationForUser = async (userId: string) => {
     await fetchOrganization(userId);
   };
+
+  const switchOrganization = (orgId: string) => {
+    const found = orgsRef.current.find((o) => o.id === orgId);
+    if (found) setActiveOrgId(orgId);
+  };
+
+  // Derive active organization
+  const organization = organizations.find((o) => o.id === activeOrgId) ?? organizations[0] ?? null;
 
   useEffect(() => {
     isMounted.current = true;
@@ -121,7 +139,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
           }, 0);
         } else {
-          setOrganization(null);
+          setOrganizations([]);
+          setActiveOrgId(null);
           setIsAdmin(false);
         }
       }
@@ -146,9 +165,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Realtime: listen for plan updates on the user's organization
+  // Realtime: listen for plan updates on the user's active organization
   useEffect(() => {
-    const orgId = orgRef.current?.id;
+    const orgId = organization?.id;
     if (!orgId) return;
 
     const channel = supabase
@@ -163,13 +182,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
         (payload) => {
           const newData = payload.new as Organization;
-          const prev = orgRef.current;
+          const prev = orgsRef.current.find((o) => o.id === orgId);
           if (prev && newData.subscription_plan !== prev.subscription_plan) {
             const label = PLAN_LABELS[newData.subscription_plan] || newData.subscription_plan;
             toast.success(`Seu plano foi atualizado para ${label}! As novas funcionalidades já estão disponíveis.`);
           }
-          setOrganization(newData);
-          orgRef.current = newData;
+          // Update the org in the array
+          setOrganizations((prev) =>
+            prev.map((o) => (o.id === orgId ? newData : o))
+          );
+          orgsRef.current = orgsRef.current.map((o) => (o.id === orgId ? newData : o));
         }
       )
       .subscribe();
@@ -183,16 +205,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setOrganization(null);
+    setOrganizations([]);
+    setActiveOrgId(null);
     setIsAdmin(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, organization, isAdmin, loading, signOut, refreshOrganization, refreshOrganizationForUser }}>
+    <AuthContext.Provider value={{ user, session, organization, organizations, isAdmin, loading, signOut, refreshOrganization, refreshOrganizationForUser, switchOrganization }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => useContext(AuthContext);
-

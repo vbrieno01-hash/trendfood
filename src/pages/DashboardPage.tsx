@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import OrgSwitcher from "@/components/dashboard/OrgSwitcher";
+import CreateUnitDialog from "@/components/dashboard/CreateUnitDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -40,7 +42,8 @@ type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "s
 const DashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, organization, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization } = useAuth();
+  const { user, organization, organizations, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization, switchOrganization } = useAuth();
+  const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const planLimits = usePlanLimits(organization);
   // Read tab from URL query param, fallback to location.state, then "home"
   const getInitialTab = (): TabKey => {
@@ -239,6 +242,16 @@ const DashboardPage = () => {
           onComplete={async () => { await refreshOrganization(); }}
         />
       )}
+      {user && (
+        <CreateUnitDialog
+          open={createUnitOpen}
+          onOpenChange={setCreateUnitOpen}
+          userId={user.id}
+          onCreated={async () => {
+            await refreshOrganization();
+          }}
+        />
+      )}
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -265,21 +278,18 @@ const DashboardPage = () => {
           </Link>
         </div>
 
-        {/* Org info */}
+        {/* Org switcher */}
         <div className="px-4 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5">
-            {organization.logo_url ? (
-              <img src={organization.logo_url} alt={organization.name} className="w-9 h-9 rounded-lg object-cover ring-1 ring-white/20" />
-            ) : (
-              <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center text-lg border border-primary/30">
-                {organization.emoji}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-white text-sm truncate">{organization.name}</p>
-              <p className="text-white/40 text-xs truncate">/{organization.slug}</p>
-            </div>
-          </div>
+          <OrgSwitcher
+            organizations={organizations}
+            activeOrg={organization}
+            onSwitch={(orgId) => {
+              switchOrganization(orgId);
+              handleTabChange("home");
+            }}
+            onCreateNew={() => setCreateUnitOpen(true)}
+            canCreateNew={planLimits.canAccess("multi_unit")}
+          />
         </div>
 
         {/* Nav */}
