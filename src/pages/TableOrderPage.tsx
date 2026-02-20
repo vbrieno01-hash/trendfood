@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useMenuItems } from "@/hooks/useMenuItems";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
 import type { Coupon } from "@/hooks/useCoupons";
-import { buildPixPayload } from "@/lib/pixPayload";
+import { useGeneratePixPayload } from "@/hooks/useGeneratePixPayload";
 import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +70,16 @@ export default function TableOrderPage() {
     orderId,
     !!autoPixPaymentId && paymentMethod === "pix"
   );
+
+  // Static PIX payload from edge function
+  const { generate: generatePixPayload } = useGeneratePixPayload();
+  const [pixPayloadFromServer, setPixPayloadFromServer] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (success && org && orderTotal > 0 && !paymentMethod) {
+      generatePixPayload(org.id, orderTotal).then((p) => setPixPayloadFromServer(p));
+    }
+  }, [success, org?.id, orderTotal, paymentMethod]);
 
   const tableNum = parseInt(tableNumber || "0", 10);
 
@@ -278,9 +288,7 @@ export default function TableOrderPage() {
 
   // ── Success / Payment screens ──────────────────────────────────────────
   if (success) {
-    const pixPayload = org.pix_key && orderTotal > 0
-      ? buildPixPayload(org.pix_key, orderTotal, org.name)
-      : null;
+    const pixPayload = pixPayloadFromServer;
 
     if (!paymentMethod) {
       return (

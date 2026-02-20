@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
-import { buildPixPayload } from "@/lib/pixPayload";
+import { useGeneratePixPayload } from "@/hooks/useGeneratePixPayload";
 import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation";
 import { CheckCircle2, Copy, Clock, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +10,6 @@ interface PixPaymentScreenProps {
   amount: number;
   orgId: string;
   orgName: string;
-  pixKey: string | null;
   pixConfirmationMode: string;
   primaryColor: string;
   onSuccess: (orderId: string, paid: boolean) => void;
@@ -25,7 +24,6 @@ export default function PixPaymentScreen({
   amount,
   orgId,
   orgName,
-  pixKey,
   pixConfirmationMode,
   primaryColor,
   onSuccess,
@@ -34,6 +32,7 @@ export default function PixPaymentScreen({
 }: PixPaymentScreenProps) {
   const { toast } = useToast();
   const { createCharge, loading: chargeLoading, error: chargeError, data: chargeData } = useCreatePixCharge();
+  const { generate: generatePayload, payload: staticPayload } = useGeneratePixPayload();
 
   const [countdown, setCountdown] = useState(EXPIRY_SECONDS);
   const [expired, setExpired] = useState(false);
@@ -46,6 +45,14 @@ export default function PixPaymentScreen({
   useEffect(() => {
     if (hasGateway && orderId) {
       createCharge(orgId, orderId, amount, `Pedido ${orgName}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
+
+  // Generate static payload via edge function (non-gateway mode)
+  useEffect(() => {
+    if (!hasGateway && orderId) {
+      generatePayload(orgId, amount);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
@@ -81,10 +88,7 @@ export default function PixPaymentScreen({
     }
   }, [paid, orderId, onSuccess]);
 
-  // Static PIX payload (fallback when no gateway)
-  const staticPayload = !hasGateway && pixKey ? buildPixPayload(pixKey, amount, orgName) : null;
-
-  // The payload to display: gateway's copia-e-cola or static
+  // The payload to display: gateway's copia-e-cola or static from edge function
   const pixCopiaECola = chargeData?.pix_copia_e_cola || staticPayload;
   const qrCodeBase64 = chargeData?.qr_code_base64 || null;
 
@@ -139,8 +143,8 @@ export default function PixPaymentScreen({
         <h3 className="text-base font-bold text-foreground">Erro ao gerar cobrança</h3>
         <p className="text-sm text-muted-foreground">{chargeError}</p>
         <p className="text-xs text-muted-foreground">Usando QR Code estático como alternativa.</p>
-        {/* Fallback to static if pixKey exists */}
-        {pixKey && staticPayload ? null : (
+        {/* Fallback to static — edge function will be called */}
+        {!staticPayload && (
           <Button variant="outline" onClick={onCancel}>Voltar</Button>
         )}
       </div>

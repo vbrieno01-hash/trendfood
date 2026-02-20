@@ -47,11 +47,10 @@ interface WaiterTabProps {
   orgId: string;
   whatsapp?: string | null;
   orgName?: string;
-  pixKey?: string | null;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
 }
 
-export default function WaiterTab({ orgId, whatsapp, orgName, pixKey, pixConfirmationMode }: WaiterTabProps) {
+export default function WaiterTab({ orgId, whatsapp, orgName, pixConfirmationMode }: WaiterTabProps) {
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
   const { data: unpaidOrders = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(orgId);
   const { data: awaitingOrders = [], isLoading: loadingAwaiting } = useAwaitingPaymentOrders(orgId);
@@ -270,7 +269,7 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixKey, pixConfirm
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() => printOrder(order, orgName, pixKey)}
+                      onClick={() => printOrder(order, orgName)}
                       title="Imprimir comanda"
                     >
                       <Printer className="w-3.5 h-3.5" />
@@ -379,7 +378,7 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixKey, pixConfirm
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() => printOrder(order, orgName, pixKey)}
+                      onClick={() => printOrder(order, orgName)}
                       title="Imprimir comanda com QR Pix"
                     >
                       <Printer className="w-3.5 h-3.5" />
