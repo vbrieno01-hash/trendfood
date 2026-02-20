@@ -176,7 +176,7 @@ const PricingPage = () => {
               currentPlan={currentPlan === plan.key}
               loading={false}
               onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
-              external={!user ? plan.external : false}
+              external={false}
               ctaLink={!user ? "/auth" : plan.ctaLink}
             />
           ))}
