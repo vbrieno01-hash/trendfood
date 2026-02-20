@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import OrgSwitcher from "@/components/dashboard/OrgSwitcher";
 import CreateUnitDialog from "@/components/dashboard/CreateUnitDialog";
+import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -44,6 +45,7 @@ const DashboardPage = () => {
   const location = useLocation();
   const { user, organization, organizations, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization, switchOrganization } = useAuth();
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
+  const [deleteUnit, setDeleteUnit] = useState<{ id: string; name: string } | null>(null);
   const planLimits = usePlanLimits(organization);
   // Read tab from URL query param, fallback to location.state, then "home"
   const getInitialTab = (): TabKey => {
@@ -243,15 +245,29 @@ const DashboardPage = () => {
         />
       )}
       {user && (
-        <CreateUnitDialog
-          open={createUnitOpen}
-          onOpenChange={setCreateUnitOpen}
-          userId={user.id}
-          parentPlan={organization?.subscription_plan ?? "free"}
-          onCreated={async () => {
-            await refreshOrganization();
-          }}
-        />
+        <>
+          <CreateUnitDialog
+            open={createUnitOpen}
+            onOpenChange={setCreateUnitOpen}
+            userId={user.id}
+            parentPlan={organization?.subscription_plan ?? "free"}
+            onCreated={async () => {
+              await refreshOrganization();
+            }}
+          />
+          {deleteUnit && (
+            <DeleteUnitDialog
+              open={!!deleteUnit}
+              onOpenChange={(open) => { if (!open) setDeleteUnit(null); }}
+              orgId={deleteUnit.id}
+              orgName={deleteUnit.name}
+              onDeleted={async () => {
+                setDeleteUnit(null);
+                await refreshOrganization();
+              }}
+            />
+          )}
+        </>
       )}
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -290,6 +306,10 @@ const DashboardPage = () => {
             }}
             onCreateNew={() => setCreateUnitOpen(true)}
             canCreateNew={planLimits.canAccess("multi_unit")}
+            onDelete={(orgId) => {
+              const org = organizations.find((o) => o.id === orgId);
+              if (org) setDeleteUnit({ id: org.id, name: org.name });
+            }}
           />
         </div>
 
