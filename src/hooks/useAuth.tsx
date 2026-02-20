@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Organization {
   id: string;
@@ -48,6 +49,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
+  const orgRef = useRef<Organization | null>(null);
+
+  const PLAN_LABELS: Record<string, string> = {
+    free: "Gratuito",
+    pro: "Pro",
+    enterprise: "Enterprise",
+  };
 
   const fetchOrganization = async (userId: string) => {
     try {
@@ -65,12 +73,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle(),
       ]);
       if (isMounted.current) {
-        setOrganization(orgData as Organization | null);
+        const org = orgData as Organization | null;
+        setOrganization(org);
+        orgRef.current = org;
         setIsAdmin(!!roleData);
       }
     } catch {
       if (isMounted.current) {
         setOrganization(null);
+        orgRef.current = null;
         setIsAdmin(false);
       }
     }
@@ -128,6 +139,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Realtime: listen for plan updates on the user's organization
+  useEffect(() => {
+    const orgId = orgRef.current?.id;
+    if (!orgId) return;
+
+    const channel = supabase
+      .channel('org-plan-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'organizations',
+          filter: `id=eq.${orgId}`,
+        },
+        (payload) => {
+          const newData = payload.new as Organization;
+          const prev = orgRef.current;
+          if (prev && newData.subscription_plan !== prev.subscription_plan) {
+            const label = PLAN_LABELS[newData.subscription_plan] || newData.subscription_plan;
+            toast.success(`Seu plano foi atualizado para ${label}! As novas funcionalidades já estão disponíveis.`);
+          }
+          setOrganization(newData);
+          orgRef.current = newData;
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organization?.id]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
