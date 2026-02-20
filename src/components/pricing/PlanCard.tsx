@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface PlanCardProps {
@@ -67,12 +67,27 @@ const PlanCard = ({
       </div>
 
       <ul className="space-y-3 flex-1 mb-8">
-        {features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-sm text-foreground">
-            <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-            <span>{f}</span>
-          </li>
-        ))}
+        {features.map((f) => {
+          const isComingSoon = f.includes("(em breve)");
+          const label = isComingSoon ? f.replace(" (em breve)", "") : f;
+          return (
+            <li key={f} className="flex items-start gap-2 text-sm text-foreground">
+              {isComingSoon ? (
+                <Clock className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              ) : (
+                <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+              )}
+              <span className={isComingSoon ? "text-muted-foreground" : ""}>
+                {label}
+              </span>
+              {isComingSoon && (
+                <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                  Em breve
+                </span>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {onSelect ? (

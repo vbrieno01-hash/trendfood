@@ -77,7 +77,7 @@ const plans = [
       "Múltiplas unidades",
       "Relatórios avançados",
       "Suporte prioritário",
-      "Integração com delivery",
+      "Integração com delivery (em breve)",
       "Gerente de conta dedicado",
     ],
     cta: "Assinar Enterprise",
