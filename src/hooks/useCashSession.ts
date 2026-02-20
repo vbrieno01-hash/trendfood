@@ -35,7 +35,7 @@ export function useActiveCashSession(orgId: string) {
     queryFn: async () => {
       const { data, error } = await db
         .from("cash_sessions")
-        .select("*")
+        .select("id, organization_id, opened_at, closed_at, opening_balance, closing_balance, notes, created_at")
         .eq("organization_id", orgId)
         .is("closed_at", null)
         .order("opened_at", { ascending: false })
@@ -56,7 +56,7 @@ export function useCashWithdrawals(sessionId: string | undefined) {
       if (!sessionId) return [] as CashWithdrawal[];
       const { data, error } = await db
         .from("cash_withdrawals")
-        .select("*")
+        .select("id, session_id, organization_id, amount, reason, created_at")
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -73,7 +73,7 @@ export function useCashHistory(orgId: string) {
     queryFn: async () => {
       const { data, error } = await db
         .from("cash_sessions")
-        .select("*")
+        .select("id, organization_id, opened_at, closed_at, opening_balance, closing_balance, notes, created_at")
         .eq("organization_id", orgId)
         .not("closed_at", "is", null)
         .order("opened_at", { ascending: false })

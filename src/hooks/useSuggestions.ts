@@ -22,7 +22,7 @@ export const useSuggestions = (orgId: string | undefined) => {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("suggestions")
-        .select("*")
+        .select("id, organization_id, name, description, status, votes, created_at")
         .eq("organization_id", orgId)
         .order("votes", { ascending: false });
       if (error) throw error;
