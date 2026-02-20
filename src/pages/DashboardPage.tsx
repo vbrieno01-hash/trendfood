@@ -366,9 +366,15 @@ const DashboardPage = () => {
 
         {/* Bottom actions */}
         <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
-          {installPrompt && !appInstalled && (
+          {!appInstalled && (
             <button
-              onClick={handleInstallApp}
+              onClick={() => {
+                if (installPrompt) {
+                  handleInstallApp();
+                } else {
+                  toast("Para instalar o app, toque nos 3 pontinhos do navegador (ou no botão Compartilhar no iPhone) e selecione \"Instalar app\" ou \"Adicionar à tela inicial\".", { duration: 8000 });
+                }
+              }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-primary hover:bg-primary/15 transition-all duration-150"
             >
               <Download className="w-4 h-4" />
