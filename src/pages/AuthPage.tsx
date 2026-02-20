@@ -29,13 +29,16 @@ const AuthPage = () => {
   const [signupData, setSignupData] = useState({
     fullName: "",
     email: "",
+    confirmEmail: "",
     password: "",
+    confirmPassword: "",
     businessName: "",
     slug: "",
     whatsapp: "",
   });
   const [signupLoading, setSignupLoading] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
+  const [showSignupConfirmPwd, setShowSignupConfirmPwd] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [loginLoading, setLoginLoading] = useState(false);
@@ -51,6 +54,14 @@ const AuthPage = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (signupData.email !== signupData.confirmEmail) {
+      toast.error("Os e-mails não coincidem.");
+      return;
+    }
+    if (signupData.password !== signupData.confirmPassword) {
+      toast.error("As senhas não coincidem.");
+      return;
+    }
     if (!signupData.slug.trim()) {
       toast.error("Informe o slug da sua lanchonete.");
       return;
@@ -263,6 +274,20 @@ const AuthPage = () => {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="confirmEmail" className="text-sm font-medium mb-1.5 block">
+                    Confirme seu e-mail
+                  </Label>
+                  <Input
+                    id="confirmEmail"
+                    type="email"
+                    placeholder="joao@email.com"
+                    value={signupData.confirmEmail}
+                    onChange={(e) => setSignupData((p) => ({ ...p, confirmEmail: e.target.value }))}
+                    className="h-11"
+                    required
+                  />
+                </div>
+                <div>
                   <Label htmlFor="signup-pwd" className="text-sm font-medium mb-1.5 block">
                     Senha
                   </Label>
@@ -283,6 +308,30 @@ const AuthPage = () => {
                       onClick={() => setShowSignupPwd((v) => !v)}
                     >
                       {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="signup-confirm-pwd" className="text-sm font-medium mb-1.5 block">
+                    Confirme sua senha
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="signup-confirm-pwd"
+                      type={showSignupConfirmPwd ? "text" : "password"}
+                      placeholder="Repita a senha"
+                      value={signupData.confirmPassword}
+                      onChange={(e) => setSignupData((p) => ({ ...p, confirmPassword: e.target.value }))}
+                      className="h-11 pr-10"
+                      minLength={6}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowSignupConfirmPwd((v) => !v)}
+                    >
+                      {showSignupConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
