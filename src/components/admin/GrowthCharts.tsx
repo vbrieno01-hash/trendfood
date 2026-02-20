@@ -55,6 +55,7 @@ export default function GrowthCharts({ orgs }: GrowthChartsProps) {
       const orgsAtMonth = orgs.filter((o) => new Date(o.created_at) <= monthEnd);
       const pro = orgsAtMonth.filter((o) => o.subscription_plan === "pro").length;
       const enterprise = orgsAtMonth.filter((o) => o.subscription_plan === "enterprise").length;
+      // lifetime excluded from MRR (no recurring revenue)
       const mrr = pro * 99 + enterprise * 249;
       
       return { name: m.label, value: mrr };

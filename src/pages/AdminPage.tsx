@@ -64,6 +64,7 @@ const PLAN_OPTIONS = [
   { value: "free", label: "Grátis" },
   { value: "pro", label: "Pro" },
   { value: "enterprise", label: "Enterprise" },
+  { value: "lifetime", label: "Vitalício" },
 ];
 
 function getAvatarColor(name: string) {
@@ -215,7 +216,8 @@ function AdminContent() {
   }, []);
 
   // ── SaaS KPIs ──
-  const payingOrgs = useMemo(() => orgs.filter((o) => o.subscription_plan !== "free"), [orgs]);
+  const payingOrgs = useMemo(() => orgs.filter((o) => o.subscription_plan !== "free" && o.subscription_plan !== "lifetime"), [orgs]);
+  const _lifetimeCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "lifetime").length, [orgs]);
   const proCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "pro").length, [orgs]);
   const enterpriseCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "enterprise").length, [orgs]);
   const mrr = proCount * 99 + enterpriseCount * 249;
@@ -754,11 +756,12 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
               </Badge>
             )}
             <Badge className={`text-xs px-2 py-0.5 rounded-full border-0 font-medium ${
+              org.subscription_plan === "lifetime" ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" :
               org.subscription_plan === "enterprise" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
               org.subscription_plan === "pro" ? "bg-primary/15 text-primary" :
               "bg-muted text-muted-foreground"
             }`}>
-              {org.subscription_plan === "enterprise" ? "Enterprise" : org.subscription_plan === "pro" ? "Pro" : "Free"}
+              {org.subscription_plan === "lifetime" ? "Vitalício" : org.subscription_plan === "enterprise" ? "Enterprise" : org.subscription_plan === "pro" ? "Pro" : "Free"}
             </Badge>
           </div>
         </div>

@@ -66,6 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     free: "Gratuito",
     pro: "Pro",
     enterprise: "Enterprise",
+    lifetime: "Vitalício",
   };
 
   const fetchOrganization = async (userId: string) => {

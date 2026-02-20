@@ -1,4 +1,4 @@
-type Plan = "free" | "pro" | "enterprise";
+type Plan = "free" | "pro" | "enterprise" | "lifetime";
 
 type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit";
 
@@ -48,6 +48,15 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
     history_full: true,
     multi_unit: true,
   },
+  lifetime: {
+    kds: true,
+    caixa: true,
+    cupons: true,
+    bestsellers: true,
+    waiter: true,
+    history_full: true,
+    multi_unit: true,
+  },
 };
 
 export function usePlanLimits(organization: OrgLike | null | undefined): PlanLimits {
@@ -61,7 +70,7 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
     ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  const effectivePlan: Plan = trialActive ? "pro" : rawPlan;
+  const effectivePlan: Plan = rawPlan === "lifetime" ? "lifetime" : trialActive ? "pro" : rawPlan;
 
   const features = FEATURE_ACCESS[effectivePlan];
 
@@ -70,6 +79,7 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
     effectivePlan,
     menuItemLimit: effectivePlan === "free" ? 20 : null,
     tableLimit: effectivePlan === "free" ? 1 : null,
+
     canAccess: (feature: Feature) => features[feature],
     features,
     trialActive,

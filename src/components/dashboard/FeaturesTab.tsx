@@ -8,7 +8,7 @@ import {
   TableProperties, History,
 } from "lucide-react";
 
-type MinPlan = "free" | "pro" | "enterprise";
+type MinPlan = "free" | "pro" | "enterprise" | "lifetime";
 
 interface FeatureItem {
   icon: React.ReactNode;
@@ -109,6 +109,7 @@ const PLAN_CONFIG: Record<MinPlan, { label: string; className: string }> = {
   free: { label: "Todos", className: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20" },
   pro: { label: "Pro+", className: "bg-primary/15 text-primary border-primary/20" },
   enterprise: { label: "Enterprise", className: "bg-purple-500/15 text-purple-600 border-purple-500/20" },
+  lifetime: { label: "Enterprise", className: "bg-purple-500/15 text-purple-600 border-purple-500/20" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -117,7 +118,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   coming_soon: { label: "Em breve", className: "bg-muted text-muted-foreground border-border" },
 };
 
-const PLAN_RANK: Record<MinPlan, number> = { free: 0, pro: 1, enterprise: 2 };
+const PLAN_RANK: Record<MinPlan, number> = { free: 0, pro: 1, enterprise: 2, lifetime: 2 };
 
 interface FeaturesTabProps {
   effectivePlan: MinPlan;
