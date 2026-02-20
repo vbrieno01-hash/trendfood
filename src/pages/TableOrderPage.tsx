@@ -31,7 +31,7 @@ export default function TableOrderPage() {
   const { slug, tableNumber } = useParams<{ slug: string; tableNumber: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const fromDashboard = location.state?.from === "dashboard";
+  const _fromDashboard = location.state?.from === "dashboard";
 
   const { data: org, isLoading: orgLoading } = useOrganization(slug);
   const { data: items = [], isLoading: itemsLoading } = useMenuItems(org?.id);
@@ -466,7 +466,7 @@ export default function TableOrderPage() {
         <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => fromDashboard ? navigate("/dashboard") : navigate(-1)}
+              onClick={() => navigate(-1)}
               className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors mr-1"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -542,7 +542,7 @@ export default function TableOrderPage() {
       <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => fromDashboard ? navigate("/dashboard") : navigate(-1)}
+            onClick={() => navigate(-1)}
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors mr-1"
           >
             <ArrowLeft className="w-4 h-4" />
