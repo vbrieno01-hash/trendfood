@@ -162,9 +162,8 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       .map((c, i) => `<tr><td>${i + 1}</td><td>${c.name}</td><td>${fmtBRL(c.revenue)}</td><td>${c.qty}</td></tr>`)
       .join("");
 
-    const watermarkHtml = orgLogo
-      ? `<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${orgLogo}" style="width:100%;height:auto" /></div>`
-      : "";
+    const trendfoodLogo = window.location.origin + "/logo-trendfood.png";
+    const watermarkHtml = `<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${trendfoodLogo}" style="width:100%;height:auto" /></div>`;
 
     const headerLogoHtml = orgLogo
       ? `<img src="${orgLogo}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
