@@ -4,9 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend,
 } from "recharts";
-import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2 } from "lucide-react";
 import { subDays, format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Organization {
   id: string;
@@ -16,6 +21,7 @@ interface Organization {
   primary_color: string;
   logo_url: string | null;
   subscription_status?: string;
+  paused?: boolean;
 }
 
 const fmtBRL = (v: number) =>
@@ -24,6 +30,24 @@ const fmtBRL = (v: number) =>
 export default function HomeTab({ organization }: { organization: Organization }) {
   const { data: delivered = [], isLoading: loadingDelivered } = useDeliveredOrders(organization.id);
   const { data: unpaid = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(organization.id);
+  const { refreshOrganization } = useAuth();
+  const [pauseLoading, setPauseLoading] = useState(false);
+
+  const togglePause = async () => {
+    setPauseLoading(true);
+    const newVal = !organization.paused;
+    const { error } = await supabase
+      .from("organizations")
+      .update({ paused: newVal } as any)
+      .eq("id", organization.id);
+    if (error) {
+      toast.error("Erro ao atualizar status da loja");
+    } else {
+      toast.success(newVal ? "Loja pausada! Clientes não podem fazer pedidos." : "Loja reativada! Pedidos liberados.");
+      await refreshOrganization();
+    }
+    setPauseLoading(false);
+  };
 
   const isLoading = loadingDelivered || loadingUnpaid;
 
@@ -155,6 +179,33 @@ export default function HomeTab({ organization }: { organization: Organization }
               : "Período de Teste"}
           </span>
         )}
+      </div>
+
+      {/* ── Pause toggle ─────────────────────────────────── */}
+      <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${organization.paused ? "border-amber-300 bg-amber-50" : "border-border bg-card"}`}>
+        <div className="flex items-center gap-3">
+          {organization.paused ? (
+            <PauseCircle className="w-5 h-5 text-amber-600" />
+          ) : (
+            <PlayCircle className="w-5 h-5 text-green-600" />
+          )}
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {organization.paused ? "Loja Pausada" : "Loja Ativa"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {organization.paused ? "Clientes não podem fazer pedidos" : "Pedidos sendo recebidos normalmente"}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {pauseLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          <Switch
+            checked={!organization.paused}
+            onCheckedChange={togglePause}
+            disabled={pauseLoading}
+          />
+        </div>
       </div>
 
       {/* ── Today revenue hero ────────────────────────────── */}

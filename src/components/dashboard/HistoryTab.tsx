@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { History, Search, Receipt } from "lucide-react";
+import { History, Search, Receipt, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useOrderHistory } from "@/hooks/useOrders";
@@ -76,9 +77,41 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <History className="w-5 h-5 text-primary" />
-        <h2 className="font-bold text-foreground text-xl">Histórico de Pedidos</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <History className="w-5 h-5 text-primary" />
+          <h2 className="font-bold text-foreground text-xl">Histórico de Pedidos</h2>
+        </div>
+        {filtered.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const header = "Data,Mesa/Tipo,Itens,Valor,Status Pagamento,Observações";
+              const rows = filtered.map((order) => {
+                const total = (order.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
+                const items = (order.order_items ?? []).map((i) => `${i.quantity}x ${i.name}`).join("; ");
+                const mesa = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+                const pago = order.paid ? "Pago" : "Não pago";
+                const date = new Date(order.created_at).toLocaleString("pt-BR");
+                const obs = (order.notes || "").replace(/,/g, ";").replace(/\n/g, " ");
+                return `"${date}","${mesa}","${items}","${total.toFixed(2)}","${pago}","${obs}"`;
+              });
+              const csv = [header, ...rows].join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            <Download className="w-4 h-4" />
+            Exportar CSV
+          </Button>
+        )}
       </div>
 
       {restrictTo7Days && (

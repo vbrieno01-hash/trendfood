@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, ImageOff,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, ImageOff, Copy,
 } from "lucide-react";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
@@ -227,14 +227,42 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                     size="icon"
                     className="w-7 h-7 text-muted-foreground hover:text-foreground"
                     onClick={() => openEdit(item)}
+                    title="Editar"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="w-7 h-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      if (limitReached) {
+                        toast({ title: "Limite de itens atingido", description: "Faça upgrade para adicionar mais itens.", variant: "destructive" });
+                        return;
+                      }
+                      setEditItem(null);
+                      setForm({
+                        name: `(Cópia) ${item.name}`,
+                        description: item.description ?? "",
+                        price: item.price,
+                        category: item.category,
+                        available: item.available,
+                        imageFile: null,
+                        image_url: null,
+                      });
+                      setImagePreview(item.image_url);
+                      setModalOpen(true);
+                    }}
+                    title="Duplicar"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="w-7 h-7 text-muted-foreground hover:text-destructive"
                     onClick={() => setDeleteTarget(item)}
+                    title="Remover"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
