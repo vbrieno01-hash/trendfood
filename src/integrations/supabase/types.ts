@@ -326,6 +326,7 @@ export type Database = {
           logo_url: string | null
           name: string
           onboarding_done: boolean
+          paused: boolean
           pix_confirmation_mode: string
           pix_key: string | null
           primary_color: string
@@ -347,6 +348,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           onboarding_done?: boolean
+          paused?: boolean
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
@@ -368,6 +370,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           onboarding_done?: boolean
+          paused?: boolean
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string

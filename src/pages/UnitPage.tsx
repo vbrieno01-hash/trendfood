@@ -210,8 +210,9 @@ const UnitPage = () => {
 
   // Store open/closed status
   const storeStatus = getStoreStatus(org.business_hours);
-  const isClosed = storeStatus !== null && !storeStatus.open;
-  const opensAt = isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
+  const isPaused = !!(org as any).paused;
+  const isClosed = isPaused || (storeStatus !== null && !storeStatus.open);
+  const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
 
   // Cart helpers
   const addToCart = (item: { id: string; name: string; price: number }) => {
@@ -582,10 +583,14 @@ const UnitPage = () => {
             <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
               <span className="text-base leading-none mt-0.5">🔒</span>
               <div>
-                <p className="text-sm font-semibold text-red-600 dark:text-red-400">Loja fechada · pedidos indisponíveis</p>
-                {opensAt && (
+                <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                  {isPaused ? "Loja temporariamente fechada" : "Loja fechada · pedidos indisponíveis"}
+                </p>
+                {isPaused ? (
+                  <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Estamos em pausa. Voltamos em breve!</p>
+                ) : opensAt ? (
                   <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Abre às {opensAt}</p>
-                )}
+                ) : null}
               </div>
             </div>
           )}

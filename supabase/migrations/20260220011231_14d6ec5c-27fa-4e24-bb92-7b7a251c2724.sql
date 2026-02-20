@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN paused boolean NOT NULL DEFAULT false;
