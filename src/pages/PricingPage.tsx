@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,9 +9,19 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import PlanCard from "@/components/pricing/PlanCard";
 import logoIcon from "@/assets/logo-icon.png";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const PLAN_KEYS = {
@@ -103,6 +114,7 @@ const PricingPage = () => {
   const navigate = useNavigate();
   const { user, organization } = useAuth();
   const currentPlan = organization?.subscription_plan || "free";
+  const [selectedPlan, setSelectedPlan] = useState<(typeof plans)[number] | null>(null);
 
   const caktoLinks: Record<string, string> = {
     pro: "https://pay.cakto.com.br/ad3b2o7_776555",
@@ -123,10 +135,17 @@ const PricingPage = () => {
       return;
     }
     if (planKey === "free") return;
-    const url = caktoLinks[planKey];
+    const plan = plans.find((p) => p.key === planKey);
+    if (plan) setSelectedPlan(plan);
+  };
+
+  const handleConfirmPlan = () => {
+    if (!selectedPlan || !user) return;
+    const url = caktoLinks[selectedPlan.key];
     if (url) {
       window.open(`${url}?email=${encodeURIComponent(user.email || "")}`, "_blank");
     }
+    setSelectedPlan(null);
   };
 
   return (
@@ -212,6 +231,38 @@ const PricingPage = () => {
         </div>
         <p>© 2025 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
       </footer>
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl">
+              Confirmar assinatura — {selectedPlan?.name}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p className="text-muted-foreground">
+                  Você está assinando o plano <strong className="text-foreground">{selectedPlan?.name}</strong> por{" "}
+                  <strong className="text-foreground">{selectedPlan?.price}/mês</strong>.
+                </p>
+                <ul className="space-y-2">
+                  {selectedPlan?.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-foreground">
+                      <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPlan}>
+              Continuar para pagamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
