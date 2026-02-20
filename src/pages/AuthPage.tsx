@@ -10,6 +10,19 @@ import { Eye, EyeOff, Loader2, Check } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
 
+const translateAuthError = (msg?: string): string | undefined => {
+  if (!msg) return undefined;
+  const map: Record<string, string> = {
+    "Invalid login credentials": "E-mail ou senha incorretos.",
+    "User already registered": "Este e-mail já está cadastrado.",
+    "Password should be at least 6 characters": "A senha deve ter no mínimo 6 caracteres.",
+    "Unable to validate email address: invalid format": "Formato de e-mail inválido.",
+    "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",
+    "Signup requires a valid password": "Informe uma senha válida.",
+  };
+  return map[msg];
+};
+
 const generateSlug = (name: string) =>
   name
     .toLowerCase()
@@ -109,7 +122,7 @@ const AuthPage = () => {
       navigate("/dashboard", { replace: true });
     } catch (err: unknown) {
       const error = err as { message?: string };
-      toast.error(error.message ?? "Erro ao criar conta.");
+      toast.error(translateAuthError(error.message) ?? error.message ?? "Erro ao criar conta.");
     } finally {
       setSignupLoading(false);
     }
@@ -140,7 +153,7 @@ const AuthPage = () => {
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
-      toast.error(error.message ?? "E-mail ou senha incorretos.");
+      toast.error(translateAuthError(error.message) ?? error.message ?? "E-mail ou senha incorretos.");
     } finally {
       setLoginLoading(false);
     }
