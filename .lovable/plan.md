@@ -1,26 +1,39 @@
 
-# Melhorar placeholder de imagem dos produtos
+# Corrigir botoes de planos na pagina /planos
 
-## O que muda
-Substituir o icone generico `ImageOff` (imagem quebrada) por um icone de comida (`UtensilsCrossed`) com fundo gradiente suave em tons quentes, criando um visual mais agradavel e profissional para produtos sem foto.
+## Problema identificado
+Quando o usuario NAO esta logado, os botoes dos planos se comportam de forma incorreta:
 
-## Locais afetados
+1. **Enterprise ("Assinar Enterprise")**: O botao abre `/auth` em uma **nova aba** do navegador (porque `external=true` gera um `<a target="_blank">`), em vez de navegar normalmente para a pagina de login.
+2. **Pro e Free**: Funcionam corretamente, navegando para `/auth` via `<Link>`.
 
-### 1. Vitrine publica (`src/pages/UnitPage.tsx`)
-- **Grid de produtos (linha ~612)**: Trocar `ImageOff` por `UtensilsCrossed` com fundo gradiente radial em tons de laranja/ambar suave
-- **Modal de detalhe do produto (linha ~1099-1101)**: Mesma melhoria com icone maior
+## Fluxo correto
+O fluxo correto e: **criar conta primeiro, depois pagar**. O webhook da Cakto busca o usuario pelo email no banco de dados e retorna erro 404 se nao encontrar. Portanto:
+- Usuario nao logado clicando em qualquer plano pago deve ir para `/auth` (navegacao normal, sem nova aba)
+- Usuario logado clicando em Pro/Enterprise deve abrir o link de pagamento da Cakto (ja funciona)
 
-### 2. Painel do lojista (`src/components/dashboard/MenuTab.tsx`)
-- **Lista de itens do cardapio (linha ~200)**: Trocar `ImageOff` por `UtensilsCrossed` com mini gradiente suave
+## Correcao
+No arquivo `src/pages/PricingPage.tsx`, na renderizacao do `PlanCard` (linha ~178-180):
 
-## Detalhes tecnicos
+**Antes:**
+```tsx
+onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
+external={!user ? plan.external : false}
+ctaLink={!user ? "/auth" : plan.ctaLink}
+```
 
-Cada placeholder tera:
-- Fundo com gradiente radial suave (tons quentes: amber-50 para orange-100)
-- Icone `UtensilsCrossed` centralizado com cor `text-orange-300` (sutil mas harmonioso)
-- Sem dependencias novas - apenas Tailwind + Lucide (ja importado nos dois arquivos)
+**Depois:**
+```tsx
+onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
+external={false}
+ctaLink={!user ? "/auth" : (plan.external ? plan.ctaLink : plan.ctaLink)}
+```
 
-Tamanhos dos icones:
-- Grid da vitrine: `w-8 h-8` (area quadrada aspect-square)
-- Modal de detalhe: `w-12 h-12` (area maior aspect-video)
-- Lista do dashboard: `w-5 h-5` (thumbnail 14x14)
+A mudanca principal e: quando o usuario NAO esta logado, `external` deve ser **sempre `false`** para que todos os botoes usem `<Link>` (navegacao interna) em vez de `<a target="_blank">`.
+
+Quando o usuario ESTA logado, o Enterprise usa `onSelect` (que chama `handleSelectPlan` e abre o Cakto), entao o `external` tambem pode ser `false` sem impacto.
+
+## Impacto
+- Correcao de 1 linha no arquivo `src/pages/PricingPage.tsx`
+- Nenhuma alteracao no banco de dados ou edge functions
+- O fluxo "criar conta -> pagar" continua garantido
