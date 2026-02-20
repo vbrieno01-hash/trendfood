@@ -13,7 +13,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart,
+  BookOpen, Sparkles, FileBarChart, Share2,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -375,6 +375,16 @@ const DashboardPage = () => {
               Instalar App
             </button>
           )}
+          <button
+            onClick={() => {
+              const msg = encodeURIComponent("Conhece o TrendFood? Sistema completo pra lanchonete, restaurante e delivery! Confira: https://trendfood.lovable.app");
+              window.open(`https://wa.me/?text=${msg}`, "_blank");
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-all duration-150"
+          >
+            <Share2 className="w-4 h-4" />
+            Indique o TrendFood
+          </button>
           <a
             href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
             target="_blank"
