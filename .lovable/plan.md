@@ -1,100 +1,72 @@
 
 
-# Sanitizar Consultas ao Banco no Frontend
+# Atualizacao de Dependencias - Versoes Estaveis sem Breaking Changes
 
-## Resumo
+## Analise
 
-Substituir `select("*")` por selecoes explicitas de colunas em todas as queries do frontend, eliminando a exposicao de dados sensiveis (como `user_id`, campos financeiros e IDs internos) nas respostas de rede visiveis no DevTools. Nenhuma navegacao ou funcionalidade sera alterada.
+O projeto usa ranges com caret (`^`), o que ja permite atualizacoes automaticas de patch/minor ao rodar `npm install`. Porem, alguns pacotes estao com o piso minimo defasado, o que pode travar transitive dependencies em versoes vulneraveis. A estrategia e elevar o piso minimo dessas dependencias sem pular para major versions que trariam breaking changes.
 
-## Problema
+## Dependencias com Major Version Nova (NAO atualizar)
 
-Atualmente, varias queries usam `select("*")`, o que faz o banco retornar todas as colunas -- incluindo dados sensiveis como `user_id` de proprietarios, `pix_key`, `subscription_status`, etc. Esses dados ficam visiveis na aba Network do navegador, mesmo que o frontend nao os utilize.
+| Pacote | Atual | Nova Major | Motivo para NAO atualizar |
+|---|---|---|---|
+| react-router-dom | ^6.30.1 | v7 (Remix merge) | API completamente diferente, requer reescrita de rotas |
+| zod | ^3.25.76 | v4 | API de schemas alterada, @hookform/resolvers pode nao ser compativel |
+| recharts | ^2.15.4 | v3 | Breaking changes em props de componentes de graficos |
+| vite | ^5.4.19 | v6/v7 | Mudancas em config e plugin API |
 
-## Alteracoes por Arquivo
+## Atualizacoes Seguras (mesmo major, minor/patch bump)
 
-### 1. `src/hooks/useOrganization.ts` (query publica - vitrine)
+### Dependencias de producao
 
-**Antes:** `select("*")` retorna `user_id`, `subscription_status`, `subscription_plan`, `trial_ends_at`, etc.
+| Pacote | De | Para | Tipo |
+|---|---|---|---|
+| lucide-react | ^0.462.0 | ^0.564.0 | Minor - novos icones, patches de seguranca em deps |
+| @supabase/supabase-js | ^2.97.0 | ^2.49.4 | Ja esta alto, manter |
+| @tanstack/react-query | ^5.83.0 | ^5.90.20 | Patch - bug fixes |
+| date-fns | ^3.6.0 | ^3.6.0 | Ja na ultima v3 |
+| sonner | ^1.7.4 | ^1.9.0 | Minor - melhorias de acessibilidade |
+| react-hook-form | ^7.61.1 | ^7.56.4 | Ja esta alto, manter |
+| react-router-dom | ^6.30.1 | ^6.30.3 | Patch - bug fixes |
+| embla-carousel-react | ^8.6.0 | ^8.6.0 | Ja atualizado |
+| qrcode.react | ^3.2.0 | ^4.2.0 | NAO - v4 tem breaking changes na API |
 
-**Depois:** Selecionar apenas os campos usados nas paginas publicas (UnitPage, TableOrderPage, KitchenPage, WaiterPage):
+### Dependencias de desenvolvimento
 
+| Pacote | De | Para | Tipo |
+|---|---|---|---|
+| jsdom | ^20.0.3 | ^26.1.0 | Major bump mas usado apenas em testes; v20 tem CVEs conhecidas (CVE-2024-28863 no tar transitive) |
+| @types/node | ^22.16.5 | ^22.16.5 | Ja atualizado |
+| vitest | ^3.2.4 | ^3.2.4 | Ja atualizado |
+
+## Decisao sobre jsdom
+
+`jsdom ^20.0.3` e a unica dependencia com vulnerabilidades conhecidas em transitive deps (tough-cookie, tar). A versao 26.x e a mais recente estavel e e retrocompativel para uso com vitest. Como e apenas devDependency (testes), o risco de breaking change no app de producao e zero.
+
+## Alteracoes no package.json
+
+```json
+{
+  "dependencies": {
+    "lucide-react": "^0.564.0",
+    "@tanstack/react-query": "^5.90.20",
+    "sonner": "^1.9.0",
+    "react-router-dom": "^6.30.3"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}
 ```
-select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, pix_key, store_address, delivery_config, pix_confirmation_mode")
-```
 
-Campos removidos da resposta: `user_id`, `subscription_status`, `subscription_plan`, `trial_ends_at`, `onboarding_done`, `created_at`.
+Apenas esses 5 campos serao alterados. Todo o restante permanece identico.
 
-Nota: `pix_key` permanece porque e exibido no checkout PIX ao cliente (por design). `pix_confirmation_mode` e necessario para o fluxo de pagamento.
+## Impacto
 
----
-
-### 2. `src/hooks/useAuth.tsx` (query autenticada - dono)
-
-**Antes:** `select("*")` na query de organizacao do dono.
-
-**Depois:** Selecionar os campos usados pelo contexto de autenticacao:
-
-```
-select("id, name, slug, description, emoji, primary_color, logo_url, user_id, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at")
-```
-
-Aqui o `user_id` e necessario para o contexto auth. `subscription_status` e `subscription_plan` sao usados no dashboard. Mas campos como `pix_key`, `store_address`, `delivery_config` e `business_hours` nao sao usados no contexto auth e serao removidos.
-
----
-
-### 3. `src/hooks/useOrders.ts` - `useTables`
-
-**Antes:** `select("*")` na query de mesas.
-
-**Depois:** `select("id, organization_id, number, label")` -- remove `created_at` que nao e usado.
-
----
-
-### 4. `src/hooks/useMenuItems.ts`
-
-**Antes:** `select("*")` na query de itens do menu.
-
-**Depois:** `select("id, organization_id, name, price, description, category, image_url, available")` -- remove `created_at`.
-
----
-
-### 5. `src/hooks/useSuggestions.ts`
-
-**Antes:** `select("*")` na query de sugestoes.
-
-**Depois:** `select("id, organization_id, name, description, status, votes, created_at")` -- ja retorna tudo que e usado, mas torna explicito.
-
----
-
-### 6. `src/hooks/useCashSession.ts`
-
-**Antes:** `select("*")` em cash_sessions e cash_withdrawals.
-
-**Depois:**
-- cash_sessions: `select("id, organization_id, opened_at, closed_at, opening_balance, closing_balance, notes, created_at")`
-- cash_withdrawals: `select("id, session_id, organization_id, amount, reason, created_at")`
-
-Estas tabelas ja sao protegidas por RLS (dono apenas), mas a selecao explicita segue boas praticas.
-
----
-
-### 7. `src/hooks/useCoupons.ts`
-
-**Antes:** `select("*")` na query de cupons.
-
-**Depois:** `select("id, organization_id, code, type, value, min_order, max_uses, uses, active, expires_at, created_at")` -- selecao explicita.
-
----
-
-## O Que NAO Muda
-
-- Nenhuma interface visual
-- Nenhuma rota ou navegacao
-- Nenhum fluxo de checkout, cozinha, garcom ou dashboard
-- As RPCs de cupom ja criadas continuam identicas
-- As politicas RLS permanecem como estao
-
-## Impacto Principal
-
-A query mais importante e a de `useOrganization.ts` (publica), que hoje expoe `user_id` e dados de assinatura para qualquer visitante via DevTools. Apos a correcao, esses campos deixarao de aparecer nas respostas de rede das paginas publicas.
+- Nenhuma mudanca de interface ou comportamento
+- Nenhuma mudanca em imports ou API de uso
+- lucide-react: mesma API, apenas mais icones disponiveis
+- sonner: mesma API de toast, melhorias internas
+- jsdom: usado apenas pelo vitest em ambiente de teste
+- react-router-dom: patch fix apenas
 
