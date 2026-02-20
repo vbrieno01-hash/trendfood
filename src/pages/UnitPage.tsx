@@ -1,13 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter,
 } from "@/components/ui/drawer";
@@ -15,29 +11,17 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ChefHat, Heart, ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  MessageCircle, ShoppingCart, ImageOff, Lightbulb, CheckCircle2, Loader2,
+  ArrowLeft, Plus, X, Minus, UtensilsCrossed,
+  ShoppingCart, ImageOff, Loader2,
 } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useSuggestions, useAddSuggestion, useIncrementVote } from "@/hooks/useSuggestions";
+
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryFee } from "@/hooks/useDeliveryFee";
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 import { getStateFromCep } from "@/lib/storeAddress";
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pendente",
-  analyzing: "Analisando",
-  on_menu: "No Cardápio",
-};
-
-const STATUS_CLASS: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  analyzing: "bg-blue-100 text-blue-800 border-blue-200",
-  on_menu: "bg-green-100 text-green-800 border-green-200",
-};
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 
@@ -49,27 +33,9 @@ const UnitPage = () => {
   const navigate = useNavigate();
 
   const { data: org, isLoading: orgLoading, isError } = useOrganization(slug);
-  const { data: suggestions = [], isLoading: suggestionsLoading } = useSuggestions(org?.id);
   const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
 
-  const addMutation = useAddSuggestion(org?.id ?? "");
-  const voteMutation = useIncrementVote(org?.id ?? "");
   const placeOrder = usePlaceOrder();
-
-  // Suggestion form
-  const [showForm, setShowForm] = useState(false);
-  const [sugName, setSugName] = useState("");
-  const [sugDesc, setSugDesc] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const [votedIds, setVotedIds] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem(`voted-${slug}`);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
 
   // Cart state
   const [cart, setCart] = useState<Record<string, CartItem>>({});
@@ -247,26 +213,6 @@ const UnitPage = () => {
   // (deliveryFee and related vars declared above, before early returns)
 
   const grandTotal = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
-
-  // Voting
-  const handleVote = (id: string) => {
-    if (votedIds.has(id) || voteMutation.isPending) return;
-    voteMutation.mutate(id);
-    const newVoted = new Set(votedIds).add(id);
-    setVotedIds(newVoted);
-    localStorage.setItem(`voted-${slug}`, JSON.stringify([...newVoted]));
-  };
-
-  // Suggestion submit
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sugName.trim()) return;
-    await addMutation.mutateAsync({ name: sugName.trim(), description: sugDesc.trim() });
-    setSugName("");
-    setSugDesc("");
-    setSubmitted(true);
-    setTimeout(() => { setSubmitted(false); setShowForm(false); }, 2500);
-  };
 
   // getStateFromCep imported from shared utility
 
@@ -528,7 +474,7 @@ const UnitPage = () => {
     items: menuItems.filter((i) => i.category === cat.value),
   })).filter((g) => g.items.length > 0);
 
-  const availableItems = menuItems.filter((i) => i.available);
+  
 
   return (
     <div className="min-h-screen bg-background">
@@ -596,27 +542,8 @@ const UnitPage = () => {
           )}
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="menu">
-          <TabsList className="w-full mb-5">
-            <TabsTrigger value="menu" className="flex-1 gap-1.5">
-              <UtensilsCrossed className="w-3.5 h-3.5" />
-              Cardápio
-              {!menuLoading && menuItems.length > 0 && (
-                <span className="ml-1 text-xs opacity-60">({availableItems.length})</span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="suggestions" className="flex-1 gap-1.5">
-              <MessageCircle className="w-3.5 h-3.5" />
-              Sugestões
-              {!suggestionsLoading && suggestions.length > 0 && (
-                <span className="ml-1 text-xs opacity-60">({suggestions.length})</span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ── CARDÁPIO TAB ── */}
-          <TabsContent value="menu" className="mt-0">
+        {/* Menu */}
+        <div>
             {menuLoading ? (
               <div className="space-y-4">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -627,8 +554,8 @@ const UnitPage = () => {
               <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center">
                 <UtensilsCrossed className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-30" />
                 <p className="font-semibold text-foreground">Cardápio ainda não publicado</p>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Em breve teremos novidades! Enquanto isso, deixe uma sugestão. 😊
+              <p className="text-muted-foreground text-sm mt-1">
+                  Em breve teremos novidades! 😊
                 </p>
               </div>
             ) : (
@@ -755,88 +682,7 @@ const UnitPage = () => {
                 </div>
               </>
             )}
-          </TabsContent>
-
-          {/* ── SUGESTÕES TAB ── */}
-          <TabsContent value="suggestions" className="mt-0">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-foreground text-base">
-                Sugestões da galera{" "}
-                <span className="text-muted-foreground font-normal text-sm">
-                  ({suggestionsLoading ? "..." : suggestions.length})
-                </span>
-              </h2>
-              <Button
-                size="sm"
-                className="gap-1.5"
-                style={{ backgroundColor: primaryColor }}
-                onClick={() => setShowForm(true)}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Sugerir
-              </Button>
-            </div>
-
-            {suggestionsLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : suggestions.length === 0 ? (
-              <div className="bg-card border border-border rounded-2xl p-8 text-center">
-                <Lightbulb className="w-8 h-8 text-muted-foreground opacity-30 mx-auto mb-2" />
-                <p className="font-semibold text-foreground">Nenhuma sugestão ainda</p>
-                <p className="text-muted-foreground text-sm mt-1">Seja o primeiro a sugerir um item!</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {suggestions.map((s, index) => {
-                  const hasVoted = votedIds.has(s.id);
-                  return (
-                    <Card key={s.id} className="border border-border shadow-sm hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h3 className="font-semibold text-foreground text-sm leading-snug">{s.name}</h3>
-                              <Badge
-                                className={`text-xs shrink-0 border ${STATUS_CLASS[s.status] ?? ""}`}
-                                variant="outline"
-                              >
-                                {STATUS_LABEL[s.status] ?? s.status}
-                              </Badge>
-                            </div>
-                            {s.description && (
-                              <p className="text-muted-foreground text-xs leading-relaxed">{s.description}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex justify-end mt-3">
-                          <button
-                            onClick={() => handleVote(s.id)}
-                            disabled={hasVoted || voteMutation.isPending}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                              hasVoted
-                                ? "bg-red-50 text-red-500 cursor-not-allowed border border-red-100"
-                                : "bg-secondary text-muted-foreground hover:bg-red-50 hover:text-red-500 border border-border hover:border-red-100"
-                            }`}
-                          >
-                            <Heart className={`w-4 h-4 ${hasVoted ? "fill-red-500" : ""}`} />
-                            <span>{s.votes}</span>
-                          </button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+        </div>
       </main>
 
       {/* ── FLOATING CART BAR ── */}
@@ -1241,73 +1087,6 @@ const UnitPage = () => {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
-
-      {/* ── SUGGESTION MODAL ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)} />
-          <div className="relative bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <button
-              onClick={() => setShowForm(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h2 className="font-bold text-foreground text-lg mb-4 flex items-center gap-2">
-              <ChefHat className="w-5 h-5" style={{ color: primaryColor }} />
-              Sugerir novo item
-            </h2>
-
-            {submitted ? (
-              <div className="text-center py-6">
-                <CheckCircle2 className="w-10 h-10 mx-auto mb-3" style={{ color: "#16a34a" }} />
-                <p className="font-semibold text-foreground text-lg">Sugestão enviada!</p>
-                <p className="text-muted-foreground text-sm">Obrigado pela sua ideia.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div>
-                  <Label htmlFor="sug-name" className="text-sm font-medium">
-                    Nome do item <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="sug-name"
-                    placeholder="Ex: Açaí com banana"
-                    value={sugName}
-                    onChange={(e) => setSugName(e.target.value)}
-                    maxLength={100}
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="sug-desc" className="text-sm font-medium">
-                    Descrição <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
-                  </Label>
-                  <Textarea
-                    id="sug-desc"
-                    placeholder="Detalhes sobre o item..."
-                    value={sugDesc}
-                    onChange={(e) => setSugDesc(e.target.value)}
-                    maxLength={300}
-                    rows={3}
-                    className="mt-1 resize-none"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full font-semibold"
-                  style={{ backgroundColor: primaryColor }}
-                  disabled={addMutation.isPending || !sugName.trim()}
-                >
-                  {addMutation.isPending ? "Enviando..." : "Enviar Sugestão"}
-                </Button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── ITEM DETAIL DRAWER ── */}
       <Drawer open={selectedItem !== null} onClose={() => setSelectedItem(null)}>
