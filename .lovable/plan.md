@@ -1,18 +1,55 @@
 
 
-# Melhorar o visual do Cardápio (MenuTab)
+# Redesign Visual da Pagina Publica (UnitPage)
 
-O cardápio atual esta com um layout muito compacto -- thumbnails pequenas (40px), pouco espaçamento e informacoes apertadas. Vamos dar uma "aumentada" geral para ficar mais profissional e agradavel.
+A pagina publica esta com um visual generico e pouco polido. Vamos modernizar sem alterar a logica, apenas o visual.
 
-## Mudancas planejadas no `src/components/dashboard/MenuTab.tsx`:
+## Problemas atuais
 
-1. **Thumbnails maiores**: De 40x40px para 56x56px (w-14 h-14) com bordas arredondadas maiores
-2. **Mais padding nas linhas**: De `px-3 py-2.5` para `px-4 py-3.5` em cada item
-3. **Tipografia maior**: Nome do item de `text-sm` para `text-base`, descricao de `text-xs` para `text-sm`
-4. **Preco mais destacado**: Fonte maior e com cor de destaque
-5. **Header de categoria mais visivel**: Texto um pouco maior com mais espaco entre categorias (`mb-3` e `mt-6`)
-6. **Botoes de acao maiores**: De `w-7 h-7` para `w-8 h-8` com icones ligeiramente maiores
-7. **Largura maxima**: De `max-w-2xl` para `max-w-3xl` para aproveitar melhor o espaco
+- Banner com bordas arredondadas demais e cores pastel fracas
+- Cards do grid com estilo muito basico (borda fina, sem sombra, sem hover refinado)
+- Header de categoria com texto muito pequeno e sem personalidade
+- Botao "Add" dentro do card pequeno demais e sem destaque
+- Badge "Fechado" com estilo generico
+- Falta de hierarquia visual entre elementos
+- Tipografia do nome do produto muito pequena (text-xs)
 
-Nenhuma mudanca de logica ou banco de dados -- apenas ajustes visuais de tamanho e espacamento.
+## Mudancas planejadas
+
+### 1. Header (linha 536-552)
+- Sombra sutil no header sticky em vez de apenas border-b
+- Nome da loja com fonte maior
+
+### 2. Banner (linha 559-597)
+- Estilo mais limpo: fundo branco com borda lateral colorida (accent bar) em vez de fundo pastel
+- Badge de status com design mais sofisticado
+- Remover emoji de cadeado, usar icone Lucide
+
+### 3. Cards de produto (linha 679-749)
+- Sombra sutil (shadow-sm) e hover com elevacao (hover:shadow-md)
+- Bordas mais suaves com rounded-2xl
+- Nome do produto de text-xs para text-sm com font-semibold
+- Preco com mais destaque visual
+- Botao "Add" maior e mais visivel
+- Controles +/- maiores e mais clicaveis
+
+### 4. Header de categoria (linha 669-674)
+- Texto um pouco maior (text-sm) com mais espacamento
+- Linha separadora mais sutil
+
+### 5. Category pills (linha 646-660)
+- Pills com mais padding e bordas mais arredondadas
+- Transicao mais suave
+
+### 6. Geral
+- Espacamento entre secoes mais generoso
+- Background da pagina com tom muito sutil para dar mais profundidade
+
+---
+
+## Detalhes tecnicos
+
+Arquivo alterado: `src/pages/UnitPage.tsx`
+
+Mudancas sao apenas de classes CSS (Tailwind) e nenhuma alteracao de logica, rotas ou banco de dados. O layout grid de 3 colunas e o Drawer de detalhes permanecem iguais.
 
