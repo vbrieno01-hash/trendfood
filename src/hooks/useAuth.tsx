@@ -20,6 +20,7 @@ interface Organization {
   trial_ends_at?: string | null;
   pix_key?: string | null;
   paused?: boolean;
+  business_hours?: any;
 }
 
 interface AuthContextType {
@@ -64,7 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const [{ data: orgData }, { data: roleData }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused")
+          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours")
           .eq("user_id", userId)
           .maybeSingle(),
         supabase
