@@ -1,72 +1,90 @@
 
 
-# Atualizacao de Dependencias - Versoes Estaveis sem Breaking Changes
+# Mover Chave PIX para o Backend
 
-## Analise
+## Resumo
 
-O projeto usa ranges com caret (`^`), o que ja permite atualizacoes automaticas de patch/minor ao rodar `npm install`. Porem, alguns pacotes estao com o piso minimo defasado, o que pode travar transitive dependencies em versoes vulneraveis. A estrategia e elevar o piso minimo dessas dependencias sem pular para major versions que trariam breaking changes.
+A chave PIX (`pix_key`) hoje e retornada pela query publica `useOrganization` e usada no frontend para gerar QR codes estaticos via `buildPixPayload()`. Embora seja um dado de pagamento compartilhavel por natureza, a chave ficara protegida no backend -- o frontend recebera apenas o payload PIX ja montado, sem acesso a chave bruta.
 
-## Dependencias com Major Version Nova (NAO atualizar)
+## Situacao Atual
 
-| Pacote | Atual | Nova Major | Motivo para NAO atualizar |
-|---|---|---|---|
-| react-router-dom | ^6.30.1 | v7 (Remix merge) | API completamente diferente, requer reescrita de rotas |
-| zod | ^3.25.76 | v4 | API de schemas alterada, @hookform/resolvers pode nao ser compativel |
-| recharts | ^2.15.4 | v3 | Breaking changes em props de componentes de graficos |
-| vite | ^5.4.19 | v6/v7 | Mudancas em config e plugin API |
+- `pix_key` e consultado via `useOrganization` (query publica, sem autenticacao)
+- O frontend usa `buildPixPayload(pixKey, amount, storeName)` para gerar QR codes
+- Locais que usam a chave no cliente: `PixPaymentScreen`, `TableOrderPage`, `UnitPage`, `printOrder`, `KitchenTab`
+- O dono edita a chave via `StoreProfileTab` (autenticado)
 
-## Atualizacoes Seguras (mesmo major, minor/patch bump)
+## Estrategia
 
-### Dependencias de producao
+Criar uma Edge Function que recebe `organization_id` e `amount`, busca a `pix_key` internamente via service role, gera o payload PIX no servidor e retorna apenas o payload pronto. O frontend nunca mais recebe a chave bruta.
 
-| Pacote | De | Para | Tipo |
-|---|---|---|---|
-| lucide-react | ^0.462.0 | ^0.564.0 | Minor - novos icones, patches de seguranca em deps |
-| @supabase/supabase-js | ^2.97.0 | ^2.49.4 | Ja esta alto, manter |
-| @tanstack/react-query | ^5.83.0 | ^5.90.20 | Patch - bug fixes |
-| date-fns | ^3.6.0 | ^3.6.0 | Ja na ultima v3 |
-| sonner | ^1.7.4 | ^1.9.0 | Minor - melhorias de acessibilidade |
-| react-hook-form | ^7.61.1 | ^7.56.4 | Ja esta alto, manter |
-| react-router-dom | ^6.30.1 | ^6.30.3 | Patch - bug fixes |
-| embla-carousel-react | ^8.6.0 | ^8.6.0 | Ja atualizado |
-| qrcode.react | ^3.2.0 | ^4.2.0 | NAO - v4 tem breaking changes na API |
+## Alteracoes
 
-### Dependencias de desenvolvimento
+### 1. Nova Edge Function: `generate-pix-payload`
 
-| Pacote | De | Para | Tipo |
-|---|---|---|---|
-| jsdom | ^20.0.3 | ^26.1.0 | Major bump mas usado apenas em testes; v20 tem CVEs conhecidas (CVE-2024-28863 no tar transitive) |
-| @types/node | ^22.16.5 | ^22.16.5 | Ja atualizado |
-| vitest | ^3.2.4 | ^3.2.4 | Ja atualizado |
+Recebe `{ organization_id, amount }`, busca a `pix_key` da tabela `organizations` usando service role, executa a logica de `buildPixPayload` no servidor e retorna `{ payload }`. Nao requer autenticacao (clientes anonimos precisam gerar o QR).
 
-## Decisao sobre jsdom
+### 2. Remover `pix_key` da query publica `useOrganization.ts`
 
-`jsdom ^20.0.3` e a unica dependencia com vulnerabilidades conhecidas em transitive deps (tough-cookie, tar). A versao 26.x e a mais recente estavel e e retrocompativel para uso com vitest. Como e apenas devDependency (testes), o risco de breaking change no app de producao e zero.
+Retirar `pix_key` do `select(...)` da query publica. A chave deixa de ser retornada para visitantes. O campo `pix_confirmation_mode` permanece (necessario para decidir o fluxo de pagamento).
 
-## Alteracoes no package.json
+Adicionar um campo booleano derivado `has_pix_key` para que o frontend saiba se a loja tem PIX configurado, sem expor a chave. Isso sera feito via uma query separada ou um campo computado.
 
-```json
-{
-  "dependencies": {
-    "lucide-react": "^0.564.0",
-    "@tanstack/react-query": "^5.90.20",
-    "sonner": "^1.9.0",
-    "react-router-dom": "^6.30.3"
-  },
-  "devDependencies": {
-    "jsdom": "^26.1.0"
-  }
-}
+Na pratica, como nao podemos adicionar colunas computadas facilmente, a edge function `generate-pix-payload` retornara erro se nao houver chave -- o frontend tratara esse caso.
+
+### 3. Atualizar `PixPaymentScreen.tsx`
+
+Em vez de receber `pixKey` como prop e chamar `buildPixPayload` localmente:
+- Remover a prop `pixKey`
+- Quando `pixConfirmationMode !== "direct"` (modo estatico), chamar a edge function `generate-pix-payload` para obter o payload
+- Usar o payload retornado para renderizar o QR code
+
+### 4. Atualizar `TableOrderPage.tsx`
+
+Substituir a chamada local `buildPixPayload(org.pix_key, ...)` por uma chamada a edge function. O QR code sera gerado a partir do payload retornado pelo backend.
+
+### 5. Atualizar `UnitPage.tsx`
+
+Remover a passagem de `pixKey={org.pix_key}` para `PixPaymentScreen`. Passar apenas `orgId`.
+
+### 6. Atualizar `printOrder.ts` e componentes de cozinha
+
+A funcao `printOrder` hoje recebe `pixKey` e gera o QR localmente. Sera alterada para:
+- Receber `pixPayload?: string` (ja montado) em vez de `pixKey`
+- Quem chama `printOrder` (KitchenTab, KitchenPage, DashboardPage) buscara o payload via edge function quando necessario, ou passara `undefined` para imprimir sem QR PIX
+
+Alternativa mais simples: como a impressao e uma acao do dono autenticado, o dono pode consultar sua propria `pix_key` via uma query autenticada separada. Mas para manter consistencia, usaremos a edge function.
+
+### 7. Manter `pix_key` acessivel ao dono em `StoreProfileTab`
+
+O `StoreProfileTab` ja faz query autenticada (`organization` vem do contexto auth). A query em `useAuth.tsx` sera atualizada para incluir `pix_key` -- como e filtrada por `user_id = auth.uid()`, apenas o dono ve sua propria chave.
+
+### 8. Atualizar `supabase/config.toml`
+
+Adicionar configuracao para a nova edge function com `verify_jwt = false` (clientes anonimos precisam gerar QR).
+
+## Fluxo Apos a Mudanca
+
+```text
+Cliente abre checkout
+  |
+  v
+Frontend chama edge function generate-pix-payload
+  com { organization_id, amount }
+  |
+  v
+Edge function busca pix_key via service role
+  gera payload EMV/QRCPS
+  retorna { payload } (sem a chave)
+  |
+  v
+Frontend renderiza QR code com o payload
 ```
 
-Apenas esses 5 campos serao alterados. Todo o restante permanece identico.
+## O que NAO muda
 
-## Impacto
-
-- Nenhuma mudanca de interface ou comportamento
-- Nenhuma mudanca em imports ou API de uso
-- lucide-react: mesma API, apenas mais icones disponiveis
-- sonner: mesma API de toast, melhorias internas
-- jsdom: usado apenas pelo vitest em ambiente de teste
-- react-router-dom: patch fix apenas
+- Tabelas e colunas do banco (conforme solicitado)
+- Fluxo de pagamento via gateway (ja usa edge functions)
+- Edicao da chave PIX pelo dono (StoreProfileTab)
+- RLS policies existentes
+- Navegacao entre paginas
 
