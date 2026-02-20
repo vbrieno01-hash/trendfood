@@ -1,47 +1,45 @@
 
-# Notificacao em Tempo Real para Atualizacao de Plano
+# Corrigir banner de trial para assinantes pagos
 
-## Objetivo
-Quando o webhook da Cakto atualizar o `subscription_plan` ou `subscription_status` na tabela `organizations`, o dashboard deve detectar a mudanca automaticamente, atualizar o estado local e exibir um toast de confirmacao -- sem recarregar a pagina.
+## Problema
+O banner "Você tem X dias restantes do plano Pro grátis!" aparece mesmo para usuarios que ja pagaram pelo plano Pro ou Enterprise. Isso acontece porque a logica de `trialActive` em `usePlanLimits.ts` verifica apenas se `trial_ends_at` esta no futuro, sem considerar se o usuario ja assinou um plano pago.
 
-## Como funciona
+## Solucao
+Ajustar a logica de `trialActive` para considerar que o trial so esta ativo quando:
+1. `trial_ends_at` ainda nao expirou **E**
+2. O plano atual (`subscription_plan`) ainda e `free`
 
-1. **Habilitar Realtime na tabela `organizations`** via migracao SQL (`ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations`).
-
-2. **Adicionar um canal Realtime no `useAuth`** (dentro do `AuthProvider`) que escuta eventos `UPDATE` na tabela `organizations`, filtrado pelo `id` da organizacao do usuario logado.
-
-3. Quando o evento chegar:
-   - Comparar o `subscription_plan` anterior com o novo.
-   - Se mudou, atualizar o estado `organization` com os novos dados.
-   - Exibir um `toast.success` com a mensagem apropriada (ex: "Seu plano foi atualizado para Pro!").
+Assim, quando o webhook da Cakto atualiza o plano para `pro` ou `enterprise`, o banner some automaticamente.
 
 ## Detalhes Tecnicos
 
-### Migracao SQL
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations;
+### Arquivo: `src/hooks/usePlanLimits.ts`
+Alterar a linha que define `trialActive`:
+
+**Antes:**
+```ts
+const trialActive = !!trialEndsAt && trialEndsAt > now;
 ```
 
-### Alteracao em `src/hooks/useAuth.tsx`
-- Importar `toast` de `sonner`.
-- Dentro do `useEffect` principal, apos obter a organizacao, abrir um canal Realtime:
-  ```
-  supabase.channel('org-plan-updates')
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'organizations',
-      filter: `id=eq.${orgId}`
-    }, (payload) => { ... })
-    .subscribe()
-  ```
-- No callback, verificar se `subscription_plan` mudou comparando `payload.new` com o estado atual (via `useRef` para evitar stale closure).
-- Atualizar `setOrganization(payload.new)` e disparar `toast.success(...)`.
-- Fazer cleanup do canal no return do `useEffect`.
+**Depois:**
+```ts
+const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
+```
 
-### Mapa de nomes de planos para o toast
-- `free` -> "Gratuito"
-- `pro` -> "Pro"
-- `enterprise` -> "Enterprise"
+Da mesma forma, ajustar `trialExpired` para so considerar expirado se o plano ainda for free (ja esta assim no DashboardPage, mas vale garantir na origem):
 
-Mensagem: `"Seu plano foi atualizado para {nome}! As novas funcionalidades ja estao disponiveis."`
+**Antes:**
+```ts
+const trialExpired = !!trialEndsAt && trialEndsAt <= now;
+```
+
+**Depois:**
+```ts
+const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
+```
+
+### Resultado
+- Usuario no trial (plano `free` + `trial_ends_at` no futuro): banner aparece normalmente
+- Usuario que pagou Pro/Enterprise: banner some, independente do valor de `trial_ends_at`
+- Trial expirado + plano free: banner de expiracao aparece
+- Trial expirado + plano pago: nenhum banner aparece
