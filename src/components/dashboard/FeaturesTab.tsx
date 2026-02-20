@@ -103,6 +103,20 @@ const FEATURES: FeatureItem[] = [
     minPlan: "enterprise",
     status: "available",
   },
+  {
+    icon: <BarChart2 className="w-5 h-5" />,
+    title: "Relatórios Avançados",
+    description: "Gráficos de faturamento, ticket médio, horários de pico e comparativos.",
+    minPlan: "enterprise",
+    status: "available",
+  },
+  {
+    icon: <Compass className="w-5 h-5" />,
+    title: "Integração com Delivery",
+    description: "Receba e gerencie pedidos de delivery diretamente pelo painel.",
+    minPlan: "enterprise",
+    status: "coming_soon",
+  },
 ];
 
 const PLAN_CONFIG: Record<MinPlan, { label: string; className: string }> = {

@@ -1,6 +1,6 @@
 type Plan = "free" | "pro" | "enterprise" | "lifetime";
 
-type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit";
+type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports";
 
 interface OrgLike {
   subscription_status?: string;
@@ -22,40 +22,20 @@ interface PlanLimits {
 
 const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
   free: {
-    kds: false,
-    caixa: false,
-    cupons: false,
-    bestsellers: false,
-    waiter: false,
-    history_full: false,
-    multi_unit: false,
+    kds: false, caixa: false, cupons: false, bestsellers: false,
+    waiter: false, history_full: false, multi_unit: false, reports: false,
   },
   pro: {
-    kds: true,
-    caixa: true,
-    cupons: true,
-    bestsellers: true,
-    waiter: true,
-    history_full: true,
-    multi_unit: false,
+    kds: true, caixa: true, cupons: true, bestsellers: true,
+    waiter: true, history_full: true, multi_unit: false, reports: false,
   },
   enterprise: {
-    kds: true,
-    caixa: true,
-    cupons: true,
-    bestsellers: true,
-    waiter: true,
-    history_full: true,
-    multi_unit: true,
+    kds: true, caixa: true, cupons: true, bestsellers: true,
+    waiter: true, history_full: true, multi_unit: true, reports: true,
   },
   lifetime: {
-    kds: true,
-    caixa: true,
-    cupons: true,
-    bestsellers: true,
-    waiter: true,
-    history_full: true,
-    multi_unit: true,
+    kds: true, caixa: true, cupons: true, bestsellers: true,
+    waiter: true, history_full: true, multi_unit: true, reports: true,
   },
 };
 
