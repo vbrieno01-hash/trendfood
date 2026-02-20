@@ -462,7 +462,7 @@ const DashboardPage = () => {
           {activeTab === "features" && <FeaturesTab effectivePlan={planLimits.effectivePlan} />}
           {activeTab === "reports" && (lockedFeatures.reports
             ? <UpgradePrompt title="Relatórios Avançados" description="Gráficos de faturamento, ticket médio, horários de pico e comparativos. Disponível nos planos Enterprise e Vitalício." />
-            : <ReportsTab orgId={organization.id} />)}
+            : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgEmoji={organization.emoji} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}

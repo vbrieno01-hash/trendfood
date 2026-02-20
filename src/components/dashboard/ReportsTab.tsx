@@ -12,6 +12,11 @@ import { Button } from "@/components/ui/button";
 
 interface ReportsTabProps {
   orgId: string;
+  orgName: string;
+  orgLogo?: string | null;
+  orgWhatsapp?: string | null;
+  orgAddress?: string | null;
+  orgEmoji: string;
 }
 
 type Period = "7d" | "30d" | "90d";
@@ -25,7 +30,7 @@ const PERIOD_OPTIONS: { key: Period; label: string }[] = [
   { key: "90d", label: "90 dias" },
 ];
 
-export default function ReportsTab({ orgId }: ReportsTabProps) {
+export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAddress, orgEmoji }: ReportsTabProps) {
   const [period, setPeriod] = useState<Period>("30d");
   const queryPeriod = period === "90d" ? "all" : period;
   const { data: orders = [], isLoading } = useOrderHistory(orgId, queryPeriod);
@@ -143,6 +148,12 @@ export default function ReportsTab({ orgId }: ReportsTabProps) {
     const w = window.open("", "_blank");
     if (!w) return;
 
+    const cleanAddress = orgAddress?.replace(/\|/g, ", ") ?? "";
+    const formattedWhatsapp = orgWhatsapp
+      ? orgWhatsapp.replace(/^55(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3").replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3")
+      : "";
+    const emissionDate = new Date().toLocaleString("pt-BR");
+
     const dailyRows = dailyRevenue
       .map((d) => `<tr><td>${d.date}</td><td>${fmtBRL(d.revenue)}</td></tr>`)
       .join("");
@@ -151,39 +162,78 @@ export default function ReportsTab({ orgId }: ReportsTabProps) {
       .map((c, i) => `<tr><td>${i + 1}</td><td>${c.name}</td><td>${fmtBRL(c.revenue)}</td><td>${c.qty}</td></tr>`)
       .join("");
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas</title>
-<style>
-  body{font-family:system-ui,sans-serif;padding:24px;color:#1a1a1a}
-  h1{font-size:20px;margin-bottom:4px}
-  h2{font-size:15px;margin-top:24px;border-bottom:1px solid #ddd;padding-bottom:4px}
-  .sub{color:#666;font-size:13px;margin-bottom:20px}
-  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
-  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #eee}
-  th{font-weight:600;background:#f9f9f9}
-  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
-  .kpi{padding:12px;border:1px solid #eee;border-radius:8px}
-  .kpi .label{font-size:12px;color:#666}.kpi .value{font-size:18px;font-weight:700}
-  @media print{body{padding:0}button{display:none}}
-</style></head><body>
-<h1>Relatório de Vendas</h1>
-<p class="sub">Período: ${periodLabel}</p>
+    const watermarkHtml = orgLogo
+      ? `<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${orgLogo}" style="width:100%;height:auto" /></div>`
+      : "";
 
-<div class="kpi-grid">
-  <div class="kpi"><div class="label">Faturamento</div><div class="value">${fmtBRL(kpis.totalRevenue)}</div></div>
-  <div class="kpi"><div class="label">Ticket Médio</div><div class="value">${fmtBRL(kpis.avgTicket)}</div></div>
-  <div class="kpi"><div class="label">Total Pedidos</div><div class="value">${kpis.totalOrders}</div></div>
-  <div class="kpi"><div class="label">Pedidos/dia</div><div class="value">${kpis.avgOrdersPerDay.toFixed(1)}</div></div>
+    const headerLogoHtml = orgLogo
+      ? `<img src="${orgLogo}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
+      : "";
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas - ${orgName}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,sans-serif;padding:32px 40px;color:#1a1a1a;position:relative}
+  .header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .header img{flex-shrink:0}
+  .store-name{font-size:22px;font-weight:800;color:#111}
+  .store-emoji{font-size:20px}
+  .store-info{color:#555;font-size:12px;margin-top:2px}
+  .report-title{font-size:16px;font-weight:700;color:#222;margin-top:16px;padding-bottom:6px;border-bottom:2px solid #111}
+  .emission{font-size:11px;color:#888;margin-top:4px;margin-bottom:20px}
+  h2{font-size:14px;font-weight:700;margin-top:28px;margin-bottom:8px;color:#333;text-transform:uppercase;letter-spacing:0.5px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid #e5e5e5}
+  th{font-weight:700;background:#f5f5f5;color:#333;font-size:11px;text-transform:uppercase;letter-spacing:0.3px}
+  tr:last-child td{border-bottom:none}
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+  .kpi{padding:14px 16px;border:1px solid #e0e0e0;border-radius:10px;background:#fafafa}
+  .kpi .label{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px}
+  .kpi .value{font-size:20px;font-weight:800;color:#111}
+  .footer{margin-top:40px;padding-top:12px;border-top:1px solid #ddd;font-size:10px;color:#999;text-align:center}
+  @media print{
+    body{padding:20px 24px}
+    button{display:none}
+    .kpi{break-inside:avoid}
+    table{break-inside:auto}
+    tr{break-inside:avoid}
+  }
+</style></head><body>
+${watermarkHtml}
+
+<div style="position:relative;z-index:1">
+  <div class="header">
+    ${headerLogoHtml}
+    <div>
+      <div class="store-name">${orgEmoji} ${orgName}</div>
+      <div class="store-info">
+        ${cleanAddress ? cleanAddress : ""}${cleanAddress && formattedWhatsapp ? " &nbsp;•&nbsp; " : ""}${formattedWhatsapp ? "WhatsApp: " + formattedWhatsapp : ""}
+      </div>
+    </div>
+  </div>
+
+  <div class="report-title">Relatório de Vendas — ${periodLabel}</div>
+  <div class="emission">Emitido em ${emissionDate}</div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">Faturamento Total</div><div class="value">${fmtBRL(kpis.totalRevenue)}</div></div>
+    <div class="kpi"><div class="label">Ticket Médio</div><div class="value">${fmtBRL(kpis.avgTicket)}</div></div>
+    <div class="kpi"><div class="label">Total de Pedidos</div><div class="value">${kpis.totalOrders}</div></div>
+    <div class="kpi"><div class="label">Média Pedidos/dia</div><div class="value">${kpis.avgOrdersPerDay.toFixed(1)}</div></div>
+  </div>
+
+  <h2>Comparativo Semanal</h2>
+  <table><thead><tr><th>Semana Atual</th><th>Semana Anterior</th><th>Variação</th></tr></thead>
+  <tbody><tr><td>${fmtBRL(weeklyComparison.thisWeek)}</td><td>${fmtBRL(weeklyComparison.lastWeek)}</td><td>${weeklyComparison.change > 0 ? "+" : ""}${weeklyComparison.change.toFixed(1)}%</td></tr></tbody></table>
+
+  ${dailyRevenue.length > 0 ? `<h2>Faturamento Diário</h2><table><thead><tr><th>Data</th><th>Receita</th></tr></thead><tbody>${dailyRows}</tbody></table>` : ""}
+
+  ${categoryRanking.length > 0 ? `<h2>Ranking por Item / Categoria</h2><table><thead><tr><th>#</th><th>Item</th><th>Receita</th><th>Qtd</th></tr></thead><tbody>${rankingRows}</tbody></table>` : ""}
+
+  <div class="footer">Relatório gerado via TrendFood • ${emissionDate}</div>
 </div>
 
-<h2>Comparativo Semanal</h2>
-<table><thead><tr><th>Semana Atual</th><th>Semana Anterior</th><th>Variação</th></tr></thead>
-<tbody><tr><td>${fmtBRL(weeklyComparison.thisWeek)}</td><td>${fmtBRL(weeklyComparison.lastWeek)}</td><td>${weeklyComparison.change > 0 ? "+" : ""}${weeklyComparison.change.toFixed(1)}%</td></tr></tbody></table>
-
-${dailyRevenue.length > 0 ? `<h2>Faturamento Diário</h2><table><thead><tr><th>Data</th><th>Receita</th></tr></thead><tbody>${dailyRows}</tbody></table>` : ""}
-
-${categoryRanking.length > 0 ? `<h2>Ranking por Item / Categoria</h2><table><thead><tr><th>#</th><th>Item</th><th>Receita</th><th>Qtd</th></tr></thead><tbody>${rankingRows}</tbody></table>` : ""}
-
-<script>window.onload=function(){window.print()}<\/script>
+<script>window.onload=function(){window.print()}</script>
 </body></html>`;
 
     w.document.write(html);
