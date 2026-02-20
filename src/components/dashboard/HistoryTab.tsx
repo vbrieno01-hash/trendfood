@@ -11,6 +11,7 @@ interface HistoryTabProps {
 
 type Period = "today" | "7d" | "30d" | "all";
 type PaidFilter = "all" | "paid" | "unpaid";
+type TypeFilter = "all" | "store" | "delivery";
 
 const allPeriodOptions: { key: Period; label: string }[] = [
   { key: "today", label: "Hoje" },
@@ -23,6 +24,12 @@ const paidOptions: { key: PaidFilter; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "paid", label: "Pagos" },
   { key: "unpaid", label: "Não pagos" },
+];
+
+const typeOptions: { key: TypeFilter; label: string }[] = [
+  { key: "all", label: "Todos" },
+  { key: "store", label: "Loja" },
+  { key: "delivery", label: "Entregas" },
 ];
 
 const fmtBRL = (v: number) =>
@@ -44,11 +51,14 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
     : allPeriodOptions;
   const [period, setPeriod] = useState<Period>("7d");
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
 
   const { data: orders = [], isLoading } = useOrderHistory(orgId, period);
 
   const filtered = orders.filter((order) => {
+    if (typeFilter === "store" && order.table_number === 0) return false;
+    if (typeFilter === "delivery" && order.table_number !== 0) return false;
     if (paidFilter === "paid" && !order.paid) return false;
     if (paidFilter === "unpaid" && order.paid) return false;
     if (search.trim()) {
@@ -114,6 +124,23 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
           ))}
         </div>
 
+        {/* Type filter */}
+        <div className="flex gap-1 bg-secondary rounded-lg p-1">
+          {typeOptions.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setTypeFilter(opt.key)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                typeFilter === opt.key
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         {/* Search */}
         <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -128,7 +155,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
 
       {/* Summary */}
       {!isLoading && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-card border border-border rounded-xl px-4 py-3">
             <p className="text-xs text-muted-foreground">Pedidos</p>
             <p className="font-bold text-foreground text-2xl">{filtered.length}</p>
@@ -136,6 +163,14 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
           <div className="bg-card border border-border rounded-xl px-4 py-3">
             <p className="text-xs text-muted-foreground">Receita</p>
             <p className="font-bold text-foreground text-2xl">{fmtBRL(totalRevenue)}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl px-4 py-3">
+            <p className="text-xs text-muted-foreground">🍽️ Loja</p>
+            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number > 0).length}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl px-4 py-3">
+            <p className="text-xs text-muted-foreground">🛵 Entregas</p>
+            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number === 0).length}</p>
           </div>
         </div>
       )}
