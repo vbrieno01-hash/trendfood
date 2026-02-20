@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,9 +22,10 @@ interface OrgSwitcherProps {
   onSwitch: (orgId: string) => void;
   onCreateNew: () => void;
   canCreateNew: boolean;
+  onDelete?: (orgId: string) => void;
 }
 
-export default function OrgSwitcher({ organizations, activeOrg, onSwitch, onCreateNew, canCreateNew }: OrgSwitcherProps) {
+export default function OrgSwitcher({ organizations, activeOrg, onSwitch, onCreateNew, canCreateNew, onDelete }: OrgSwitcherProps) {
   const [open, setOpen] = useState(false);
   const hasMultiple = organizations.length > 1;
 
@@ -72,6 +73,19 @@ export default function OrgSwitcher({ organizations, activeOrg, onSwitch, onCrea
               </div>
               {org.id === activeOrg.id && (
                 <Check className="w-4 h-4 text-primary shrink-0" />
+              )}
+              {org.id !== activeOrg.id && organizations.length > 1 && onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(org.id);
+                    setOpen(false);
+                  }}
+                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  title="Excluir unidade"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               )}
             </button>
           ))}
