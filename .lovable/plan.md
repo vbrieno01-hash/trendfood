@@ -1,33 +1,28 @@
 
-# Adicionar "Indique o TrendFood" na sidebar do dashboard
+# Trocar texto da indicacao no WhatsApp
 
 ## Resumo
 
-Adicionar um botao destacado "Indique o TrendFood" na area inferior da sidebar (entre "Ver pagina publica" e "Sair"), com visual chamativo para incentivar o compartilhamento.
+Atualizar a mensagem de compartilhamento via WhatsApp nos dois locais onde ela aparece.
 
 ## Mudancas
 
-### `src/pages/DashboardPage.tsx`
+### 1. `src/pages/DashboardPage.tsx` (linha 380)
 
-- Importar o icone `Share2` do lucide-react
-- Adicionar um botao "Indique o TrendFood" na secao "Bottom actions" da sidebar, antes do link "Ver pagina publica"
-- O botao tera estilo destacado (cor primaria/vermelha, com fundo semi-transparente) para se diferenciar dos outros itens
-- Ao clicar, abre o WhatsApp com a mensagem pre-formatada de indicacao (mesmo comportamento do SettingsTab)
-- Opcionalmente, adicionar um pequeno tooltip ou subtexto
+Trocar a mensagem de:
+> "Conhece o TrendFood? Sistema completo pra lanchonete, restaurante e delivery! Confira: https://trendfood.lovable.app"
 
-### Visual
+Para:
+> "Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app"
 
-O botao ficara posicionado assim na sidebar:
+### 2. `src/components/dashboard/SettingsTab.tsx` (linha 163)
 
-```text
-  [Instalar App]          (se disponivel)
-  [Indique o TrendFood]   <-- NOVO, destacado em vermelho/primary
-  [Ver pagina publica]
-  [Sair]
-```
+Mesma troca - de:
+> "Conhece o TrendFood? Sistema completo pra lanchonete! 🍔🚀 https://trendfood.lovable.app"
 
-Estilo: fundo `bg-primary/10` com texto `text-primary` e hover `hover:bg-primary/20`, diferenciando dos demais links cinzas.
+Para:
+> "Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app"
 
-### Nenhuma alteracao no banco de dados
+### Nenhuma outra alteracao
 
-Apenas mudanca visual na sidebar.
+Apenas o texto da mensagem muda. Nada no banco, estilo ou logica.
