@@ -1,35 +1,53 @@
 
-
-# Adicionar opcao "Vitalicio" no painel Admin
+# Relatórios Avançados + Delivery "Em Breve"
 
 ## Resumo
 
-Adicionar a opcao "Vitalicio" ao seletor de planos no painel Admin. O plano vitalicio funciona como Enterprise sem cobranca recorrente -- o admin escolhe qual loja recebe esse status.
+Criar uma nova aba **"Relatórios"** no dashboard com graficos e metricas avancadas (Enterprise/Lifetime), e adicionar **"Integracao com Delivery"** como item "Em breve" na aba de Funcionalidades.
+
+---
 
 ## Mudancas
 
-### 1. `src/pages/AdminPage.tsx`
+### 1. Nova feature gate: `reports`
 
-- Adicionar `{ value: "lifetime", label: "Vitalicio" }` ao array `PLAN_OPTIONS` (linha 63-67)
-- No badge de plano do `StoreCard` (linha 756-762), adicionar tratamento para `"lifetime"` com estilo dourado (ex: `bg-yellow-500/15 text-yellow-700`)
-- No calculo de KPIs (linhas 218-221), **nao** contar lojas vitalicio como assinantes pagantes no MRR (ja que nao geram receita recorrente)
-- No `subscriberDetails` (linhas 230-239), excluir lojas vitalicio do calculo de receita ou mostrar valor zero
-- Na tabela de detalhamento de assinantes, se incluir vitalicio, mostrar "Vitalicio" como plano e R$ 0 como valor mensal
+**Arquivo: `src/hooks/usePlanLimits.ts`**
+- Adicionar `"reports"` ao type `Feature`
+- `free.reports: false`, `pro.reports: false`, `enterprise.reports: true`, `lifetime.reports: true`
 
-### 2. `src/hooks/usePlanLimits.ts`
+### 2. Novo componente: `src/components/dashboard/ReportsTab.tsx`
 
-- Adicionar `"lifetime"` ao type `Plan`
-- Adicionar entrada em `FEATURE_ACCESS` para `lifetime` com todas as features liberadas (igual Enterprise)
-- Tratar `effectivePlan`: quando `rawPlan === "lifetime"`, mapear para acesso completo (sem limites de itens/mesas)
+Aba exclusiva Enterprise/Lifetime com os seguintes blocos:
 
-### 3. Impacto no banco de dados
+- **Cards de resumo**: Faturamento total, Ticket medio, Total de pedidos, Pedidos por dia (media)
+- **Grafico de faturamento por periodo**: Selecao de periodo (7d, 30d, 90d), grafico de barras/linha com receita diaria
+- **Horarios de pico**: Grafico de barras mostrando volume de pedidos por hora do dia (0-23h)
+- **Comparativo semanal**: Receita da semana atual vs semana anterior com variacao percentual
+- **Ranking por categoria**: Receita agrupada por categoria de item do cardapio
 
-Nenhuma migracao necessaria -- o campo `subscription_plan` ja e `text` e aceita qualquer valor.
+Dados serao obtidos via `useOrderHistory` com periodo "all" ou "30d", processados no frontend com `useMemo`.
 
-### Detalhes tecnicos
+### 3. Registrar a aba no Dashboard
 
-- O plano vitalicio tera acesso identico ao Enterprise (todas features, sem limites)
-- Ele nao sera contabilizado no MRR nem na receita estimada
-- O badge no card da loja tera cor dourada para diferenciar visualmente
-- Os webhooks Cakto (pro/enterprise) nao sao afetados pois vitalicio so e atribuido manualmente pelo admin
+**Arquivo: `src/pages/DashboardPage.tsx`**
+- Importar `ReportsTab`
+- Adicionar `"reports"` ao type `TabKey`
+- Adicionar item no `navItemsTop`: `{ key: "reports", icon: <BarChart2 />, label: "Relatorios", locked: !planLimits.canAccess("reports") }`
+- Renderizar na area de conteudo: se locked, mostrar `UpgradePrompt`; senao, `<ReportsTab orgId={organization.id} />`
 
+### 4. Adicionar itens na aba Funcionalidades
+
+**Arquivo: `src/components/dashboard/FeaturesTab.tsx`**
+- Adicionar ao array `FEATURES`:
+  - `{ title: "Relatorios Avancados", description: "Graficos de faturamento, ticket medio, horarios de pico e comparativos.", minPlan: "enterprise", status: "available" }`
+  - `{ title: "Integracao com Delivery", description: "Receba e gerencie pedidos de delivery diretamente pelo painel.", minPlan: "enterprise", status: "coming_soon" }`
+
+---
+
+## Detalhes tecnicos
+
+- Nenhuma mudanca no banco de dados -- todos os dados ja existem na tabela `orders` + `order_items`
+- Os graficos usarao `recharts` (ja instalado): `BarChart`, `LineChart`, `ComposedChart`
+- O processamento de horarios de pico usa `new Date(order.created_at).getHours()` para agrupar
+- O ranking por categoria faz join com `menu_items` via `order_items.menu_item_id` (ja disponivel nos dados)
+- Design seguira o padrao existente: cards com glassmorphism, filtros pill, max-w-4xl
