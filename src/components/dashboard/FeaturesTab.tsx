@@ -101,7 +101,7 @@ const FEATURES: FeatureItem[] = [
     title: "Multi-unidade",
     description: "Gerencie várias unidades da sua operação em um só painel.",
     minPlan: "enterprise",
-    status: "coming_soon",
+    status: "available",
   },
 ];
 
