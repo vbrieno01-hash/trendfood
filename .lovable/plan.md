@@ -1,34 +1,26 @@
 
+# Melhorar placeholder de imagem dos produtos
 
-# Corrigir busca de CEP (ViaCEP) via proxy
+## O que muda
+Substituir o icone generico `ImageOff` (imagem quebrada) por um icone de comida (`UtensilsCrossed`) com fundo gradiente suave em tons quentes, criando um visual mais agradavel e profissional para produtos sem foto.
 
-## Problema
-As chamadas ao ViaCEP sao feitas diretamente do navegador do cliente, o que causa erros de CORS em alguns ambientes/dispositivos. O sistema ja tem um fallback (inferir estado pelo prefixo do CEP), mas o ideal e que o preenchimento automatico funcione sempre.
+## Locais afetados
 
-## Solucao
-Criar uma funcao backend (edge function) que atua como proxy para o ViaCEP, eliminando o problema de CORS. Depois, atualizar os 3 pontos do codigo que chamam o ViaCEP diretamente.
+### 1. Vitrine publica (`src/pages/UnitPage.tsx`)
+- **Grid de produtos (linha ~612)**: Trocar `ImageOff` por `UtensilsCrossed` com fundo gradiente radial em tons de laranja/ambar suave
+- **Modal de detalhe do produto (linha ~1099-1101)**: Mesma melhoria com icone maior
 
-## Etapas
+### 2. Painel do lojista (`src/components/dashboard/MenuTab.tsx`)
+- **Lista de itens do cardapio (linha ~200)**: Trocar `ImageOff` por `UtensilsCrossed` com mini gradiente suave
 
-### 1. Criar edge function `viacep-proxy`
-- Recebe o CEP no corpo da requisicao (POST)
-- Limpa e valida o formato (8 digitos)
-- Faz a chamada ao ViaCEP do lado do servidor (sem CORS)
-- Retorna os dados do endereco ou erro apropriado
+## Detalhes tecnicos
 
-### 2. Atualizar `src/pages/UnitPage.tsx`
-- Trocar a chamada direta `fetch("https://viacep.com.br/...")` por `supabase.functions.invoke("viacep-proxy", { body: { cep } })`
-- Manter o fallback existente (inferir estado pelo CEP) caso a edge function tambem falhe
+Cada placeholder tera:
+- Fundo com gradiente radial suave (tons quentes: amber-50 para orange-100)
+- Icone `UtensilsCrossed` centralizado com cor `text-orange-300` (sutil mas harmonioso)
+- Sem dependencias novas - apenas Tailwind + Lucide (ja importado nos dois arquivos)
 
-### 3. Atualizar `src/components/dashboard/StoreProfileTab.tsx`
-- Mesma alteracao: trocar fetch direto pelo invoke da edge function
-
-### 4. Atualizar `src/components/dashboard/OnboardingWizard.tsx`
-- Mesma alteracao: trocar fetch direto pelo invoke da edge function
-
-## Impacto
-- Nenhuma alteracao no banco de dados
-- Nenhuma nova dependencia
-- O fallback por prefixo de CEP continua funcionando como rede de seguranca
-- A busca de CEP passara a funcionar de forma confiavel em qualquer navegador/dispositivo
-
+Tamanhos dos icones:
+- Grid da vitrine: `w-8 h-8` (area quadrada aspect-square)
+- Modal de detalhe: `w-12 h-12` (area maior aspect-video)
+- Lista do dashboard: `w-5 h-5` (thumbnail 14x14)
