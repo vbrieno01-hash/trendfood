@@ -12,6 +12,12 @@ export function parseAddressFromNotes(notes: string | null | undefined): string 
   return match ? match[1].trim() : "Endereço não informado";
 }
 
+export function parsePhoneFromNotes(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  const match = notes.match(/TEL:([^|]+)/);
+  return match ? match[1].trim().replace(/\D/g, "") : null;
+}
+
 async function tryGeocode(query: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;

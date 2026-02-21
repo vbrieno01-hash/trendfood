@@ -147,12 +147,21 @@ export function useMyDeliveries(courierId: string | null) {
 export function useAcceptDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ deliveryId, courierId }: { deliveryId: string; courierId: string }) => {
+    mutationFn: async ({ deliveryId, courierId, orderId }: { deliveryId: string; courierId: string; orderId: string }) => {
       const { error } = await supabase
         .from("deliveries" as any)
         .update({ courier_id: courierId, status: "em_rota", accepted_at: new Date().toISOString() } as any)
         .eq("id", deliveryId);
       if (error) throw error;
+
+      // Fetch order notes to extract customer phone
+      const { data: order } = await supabase
+        .from("orders")
+        .select("notes")
+        .eq("id", orderId)
+        .single();
+
+      return { notes: order?.notes ?? null };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
