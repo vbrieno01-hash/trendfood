@@ -1,22 +1,20 @@
 
 
-# Adicionar barra de pesquisa na pagina publica
+# Barra de pesquisa fixa (sticky) na página pública
 
 ## Resumo
-Adicionar um campo de busca (com icone de lupa) logo acima da barra de categorias na pagina publica da loja, permitindo que o cliente filtre os itens do cardapio em tempo real pelo nome ou descricao.
+Tornar a barra de pesquisa "grudenta" (sticky) no topo da página, para que ela acompanhe o cliente conforme ele rola o cardápio.
 
 ## Como vai funcionar
-- Um campo de texto com icone de lupa aparece entre o banner e a barra de categorias
-- O cliente digita e os itens sao filtrados instantaneamente (pelo nome e descricao)
-- Quando ha texto na busca, a barra de categorias e os agrupamentos continuam visiveis, mas mostram apenas os itens que correspondem a pesquisa
-- Categorias sem resultados ficam ocultas automaticamente
-- Um botao "X" dentro do campo limpa a busca
+- Quando o cliente rolar a página para baixo, a barra de pesquisa ficará fixa no topo da tela
+- Ela terá um fundo sólido com sombra sutil para se destacar do conteúdo por trás
+- O campo continua funcionando igual: filtra itens em tempo real e tem o botão X para limpar
 
-## Mudancas tecnicas
+## Mudanças técnicas
 
 ### Arquivo: `src/pages/UnitPage.tsx`
-1. Importar `Search` de `lucide-react`
-2. Adicionar estado `searchQuery` (string)
-3. Inserir o campo de busca (Input com icone de lupa) entre o banner e a barra de categorias
-4. Filtrar `menuItems` pelo `searchQuery` antes de gerar o `groupedMenu` — comparando nome e descricao em lowercase
-5. O campo tera placeholder "Buscar no cardapio..." e estilo compacto com bordas arredondadas
+1. Mover a barra de pesquisa para fora do `<main>` e colocá-la logo após o `<header>`, envolvida em um container sticky
+2. Aplicar `sticky top-[57px] z-30` (abaixo do header fixo) com fundo sólido (`bg-background`) e padding horizontal
+3. Adicionar uma sombra sutil (`shadow-sm`) quando fixada para separação visual
+4. Manter o `max-w-2xl mx-auto` para alinhar com o conteúdo principal
+
