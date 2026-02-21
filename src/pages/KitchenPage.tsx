@@ -117,13 +117,14 @@ export default function KitchenPage() {
   // Print pending orders once their items are loaded
   useEffect(() => {
     if (pendingPrintIds.current.size === 0) return;
+    const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        printOrder(order, org?.name);
+        printOrder(order, org?.name, undefined, pw);
       }
     });
-  }, [orders, org?.name]);
+  }, [orders, org?.name, org]);
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
@@ -221,7 +222,10 @@ export default function KitchenPage() {
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         title="Imprimir pedido"
-                        onClick={() => printOrder(order, org?.name)}
+                        onClick={() => {
+                          const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
+                          printOrder(order, org?.name, undefined, pw);
+                        }}
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </Button>

@@ -330,6 +330,7 @@ export type Database = {
           pix_confirmation_mode: string
           pix_key: string | null
           primary_color: string
+          printer_width: string
           slug: string
           store_address: string | null
           subscription_plan: string
@@ -352,6 +353,7 @@ export type Database = {
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
+          printer_width?: string
           slug: string
           store_address?: string | null
           subscription_plan?: string
@@ -374,6 +376,7 @@ export type Database = {
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
+          printer_width?: string
           slug?: string
           store_address?: string | null
           subscription_plan?: string

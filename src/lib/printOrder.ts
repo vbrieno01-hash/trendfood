@@ -47,8 +47,10 @@ function parseNotes(notes: string): ParsedNotes {
 export async function printOrder(
   order: PrintableOrder,
   storeName = "Cozinha",
-  pixPayload?: string | null
+  pixPayload?: string | null,
+  printerWidth: '58mm' | '80mm' = '58mm'
 ) {
+  const is58 = printerWidth === '58mm';
   const win = window.open("", "_blank", "width=400,height=700");
   if (!win) return; // blocked by popup blocker
 
@@ -122,7 +124,7 @@ export async function printOrder(
   if (pixPayload && hasTotal) {
     try {
       const qrDataUrl = await QRCode.toDataURL(pixPayload, {
-        width: 200,
+        width: is58 ? 150 : 200,
         margin: 1,
         errorCorrectionLevel: "M",
       });
@@ -146,9 +148,9 @@ export async function printOrder(
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 14px;
-      width: 80mm;
-      padding: 6mm 4mm;
+      font-size: ${is58 ? '12px' : '14px'};
+      width: ${is58 ? '58mm' : '80mm'};
+      padding: ${is58 ? '4mm 2mm' : '6mm 4mm'};
       color: #000;
     }
     .header {
@@ -156,7 +158,7 @@ export async function printOrder(
       margin-bottom: 8px;
     }
     .store-name {
-      font-size: 16px;
+      font-size: ${is58 ? '14px' : '16px'};
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 1px;
@@ -172,7 +174,7 @@ export async function printOrder(
       margin-bottom: 2px;
     }
     .mesa {
-      font-size: 22px;
+      font-size: ${is58 ? '18px' : '22px'};
       font-weight: bold;
     }
     .time {
@@ -206,7 +208,7 @@ export async function printOrder(
       border-radius: 2px;
     }
     .total {
-      font-size: 16px;
+      font-size: ${is58 ? '14px' : '16px'};
       font-weight: bold;
       text-align: right;
       margin: 6px 0 2px;
@@ -217,8 +219,8 @@ export async function printOrder(
       padding: 6px 0;
     }
     .qr-img {
-      width: 160px;
-      height: 160px;
+      width: ${is58 ? '120px' : '160px'};
+      height: ${is58 ? '120px' : '160px'};
       display: block;
       margin: 0 auto 4px;
     }
@@ -258,8 +260,8 @@ export async function printOrder(
       color: #555;
     }
     @media print {
-      body { width: 80mm; }
-      @page { margin: 0; size: 80mm auto; }
+      body { width: ${is58 ? '58mm' : '80mm'}; }
+      @page { margin: 0; size: ${is58 ? '58mm' : '80mm'} auto; }
     }
   </style>
 </head>
