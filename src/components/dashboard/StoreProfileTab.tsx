@@ -50,7 +50,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 export default function StoreProfileTab({ organization }: { organization: Organization }) {
-  const { refreshOrganization } = useAuth();
+  const { refreshOrganization, user, organizations } = useAuth();
   const [deliveryConfig, setDeliveryConfig] = useState<DeliveryConfig>({
     ...DEFAULT_DELIVERY_CONFIG,
     ...(organization.delivery_config ?? undefined),
@@ -109,24 +109,39 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   const PUBLIC_BASE_URL = "https://trendfood.lovable.app";
   const publicUrl = `${PUBLIC_BASE_URL}/unidade/${form.slug}`;
 
+  // Helper: update shared fields across ALL user orgs (except current which is updated separately)
+  const updateAllOrgs = async (sharedFields: Record<string, any>) => {
+    if (!user) return;
+    const otherOrgIds = organizations.filter((o) => o.id !== organization.id).map((o) => o.id);
+    if (otherOrgIds.length === 0) return;
+    await supabase
+      .from("organizations")
+      .update(sharedFields)
+      .in("id", otherOrgIds);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const sharedFields = {
+        emoji: form.emoji,
+        primary_color: form.primary_color,
+        whatsapp: form.whatsapp || null,
+        pix_key: form.pix_key || null,
+        pix_confirmation_mode: form.pix_confirmation_mode,
+        business_hours: businessHours as unknown as never,
+        store_address: buildStoreAddress(addressFields) || null,
+        delivery_config: deliveryConfig as unknown as never,
+      };
+
       const { error } = await supabase
         .from("organizations")
         .update({
           name: form.name,
           description: form.description || null,
-          emoji: form.emoji,
           slug: form.slug,
-          primary_color: form.primary_color,
-          whatsapp: form.whatsapp || null,
-          pix_key: form.pix_key || null,
-          pix_confirmation_mode: form.pix_confirmation_mode,
-          business_hours: businessHours as unknown as never,
-          store_address: buildStoreAddress(addressFields) || null,
-          delivery_config: deliveryConfig as unknown as never,
+          ...sharedFields,
         })
         .eq("id", organization.id);
 
@@ -138,6 +153,9 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         }
         return;
       }
+
+      // Replicate shared fields to all other orgs
+      await updateAllOrgs(sharedFields);
 
       // Save gateway secrets if automatic mode
       if (form.pix_confirmation_mode === "automatic" && gatewayProvider && gatewayToken) {
@@ -192,6 +210,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
       const url = data.publicUrl + `?t=${Date.now()}`;
       setLogoUrl(url);
       await supabase.from("organizations").update({ logo_url: url }).eq("id", organization.id);
+      await updateAllOrgs({ logo_url: url });
       await refreshOrganization();
       toast.success("Logo atualizado!");
     } catch {
@@ -206,6 +225,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     setLogoRemoving(true);
     try {
       await supabase.from("organizations").update({ logo_url: null }).eq("id", organization.id);
+      await updateAllOrgs({ logo_url: null });
       setLogoUrl(null);
       await refreshOrganization();
       toast.success("Logo removido.");
@@ -233,6 +253,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
       const url = data.publicUrl + `?t=${Date.now()}`;
       setBannerUrl(url);
       await supabase.from("organizations").update({ banner_url: url } as any).eq("id", organization.id);
+      await updateAllOrgs({ banner_url: url });
       await refreshOrganization();
       toast.success("Banner atualizado!");
     } catch {
@@ -247,6 +268,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     setBannerRemoving(true);
     try {
       await supabase.from("organizations").update({ banner_url: null } as any).eq("id", organization.id);
+      await updateAllOrgs({ banner_url: null });
       setBannerUrl(null);
       await refreshOrganization();
       toast.success("Banner removido.");

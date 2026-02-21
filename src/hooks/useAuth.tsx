@@ -24,6 +24,8 @@ interface Organization {
   store_address?: string | null;
   delivery_config?: any;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
+  banner_url?: string | null;
+  printer_width?: '58mm' | '80mm';
 }
 
 interface AuthContextType {
@@ -74,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const [{ data: orgData }, { data: roleData }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours, store_address, delivery_config, pix_confirmation_mode")
+          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours, store_address, delivery_config, pix_confirmation_mode, banner_url, printer_width")
           .eq("user_id", userId),
         supabase
           .from("user_roles")
