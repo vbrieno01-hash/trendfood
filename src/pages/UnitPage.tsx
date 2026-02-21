@@ -275,9 +275,9 @@ const UnitPage = () => {
     }
     if (!valid) return;
 
-    // If PIX selected and not coming from PixPaymentScreen callback, show PIX screen
-    if (effectivePayment === "PIX" && !overridePayment) {
-      // First create the order, then show PIX screen
+    // PIX Automático: show QR Code screen for gateway payment before sending order
+    // PIX Direto/Manual: treat like cash — order goes straight to WhatsApp, customer pays on delivery
+    if (effectivePayment === "PIX" && !overridePayment && org?.pix_confirmation_mode === "automatic") {
       if (org?.id) {
         const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
           ? `FRETE:${fmt(deliveryFee)}`
@@ -309,7 +309,7 @@ const UnitPage = () => {
               price: i.price,
               quantity: i.qty,
             })),
-            initialStatus: org.pix_confirmation_mode === "direct" ? "awaiting_payment" : "awaiting_payment",
+            initialStatus: "awaiting_payment",
             paymentMethod: "pix",
             paid: false,
           },
