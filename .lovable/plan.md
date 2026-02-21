@@ -1,70 +1,56 @@
 
-# Suporte a impressora termica Bluetooth 58mm
 
-## Contexto
+# Adicionar seção Bluetooth na documentação da impressora térmica
 
-A impressora do cliente e uma termica portatil Bluetooth de 58mm (tipo "MobilePrinter"). O sistema atual ja funciona com `window.print()` em Android + Chrome e em PC com Bluetooth pareado. Porem o layout do recibo esta otimizado para 80mm, o que pode causar corte ou quebra de texto em impressoras de 58mm.
+## Resumo
 
-## O que mudar
+A página de documentação `/docs/impressora-termica` já existe e é bem completa para impressoras USB/rede de 80mm. O plano é expandir essa mesma página para incluir uma nova seção dedicada a impressoras Bluetooth (58mm portáteis), com instruções de pareamento por plataforma e troubleshooting específico.
 
-### 1. Ajustar layout do recibo para 58mm
+## Mudanças no arquivo `src/pages/DocsTerminalPage.tsx`
 
-**Arquivo: `src/lib/printOrder.ts`**
+### 1. Atualizar o título/hero
 
-O CSS do recibo esta fixo em `width: 80mm`. Ajustar para detectar ou usar 58mm como padrao (mais comum em portateis Bluetooth):
+Mudar de "Impressora Térmica 80mm" para "Impressora Térmica" (genérico), e ajustar a descrição para mencionar suporte a 58mm e 80mm, USB, rede e Bluetooth.
 
-- Mudar `body { width: 80mm }` para `body { width: 58mm }`
-- Reduzir `font-size` base de 14px para 12px
-- Reduzir `.store-name` de 16px para 14px
-- Reduzir `.mesa` de 22px para 18px
-- Reduzir `.total` de 16px para 14px
-- Reduzir `.qr-img` de 160px para 120px
-- Ajustar `@page { size: 58mm auto }`
-- Reduzir padding de `6mm 4mm` para `4mm 2mm`
+### 2. Nova seção: "Conectar impressora Bluetooth (58mm)"
 
-### 2. Adicionar configuracao de largura da impressora no painel do lojista
+Inserir após a seção "Passo a passo de configuração" (seção 3) uma nova seção com:
 
-**Arquivo: `src/components/dashboard/SettingsTab.tsx`** (ou onde ficam configs da loja)
+- Explicação de que impressoras Bluetooth 58mm funcionam no Android (Chrome) e no Windows, mas nao no iOS (Safari)
+- Passo a passo com os componentes StepBadge já existentes:
+  1. Parear a impressora no celular/PC (Configurações > Bluetooth > buscar "MobilePrinter" ou nome similar, PIN comum: 0000 ou 1234)
+  2. No dashboard, ir em Configurações e selecionar "58mm (portátil)" na largura da impressora
+  3. Abrir a tela da Cozinha no Chrome, clicar em imprimir um pedido, e selecionar a impressora Bluetooth no diálogo
+  4. Testar com um pedido real
 
-Adicionar um seletor simples na area de configuracoes:
-- Opcoes: "58mm (portatil)" e "80mm (balcao)"
-- Salvar na coluna da tabela `organizations` (nova coluna `printer_width` tipo text, default `58mm`)
+- Sub-seção com cards por plataforma (mesmo estilo dos cards Windows/macOS/Linux já existentes):
+  - Android: Configurações > Bluetooth > Parear > Chrome seleciona automaticamente
+  - Windows: Configurações > Bluetooth > Adicionar dispositivo > Aparece em Dispositivos e Impressoras
+  - iOS: Card com aviso de incompatibilidade (AirPrint nao suporta impressoras genéricas Bluetooth)
 
-**Arquivo: `src/lib/printOrder.ts`**
-- Receber parametro `printerWidth` (58 ou 80) na funcao `printOrder`
-- Aplicar CSS condicional baseado no valor
+### 3. Atualizar seção de Requisitos
 
-### 3. Passar configuracao para a funcao de impressao
+Adicionar um quarto card na grid de requisitos:
+- Titulo: "Bluetooth (58mm)"
+- Itens: Impressora térmica 58mm Bluetooth, Android ou Windows, Chrome (recomendado), Papel 58mm
 
-**Arquivo: `src/pages/KitchenPage.tsx`**
-- Buscar `printer_width` da organizacao
-- Passar para `printOrder(order, org?.name, pixPayload, printerWidth)`
+### 4. Novos TroubleCards na seção de problemas
 
-## Secao tecnica
+Adicionar 2 cards de troubleshooting Bluetooth:
+- "Impressora Bluetooth não aparece no pareamento" → Solução: verificar se está ligada e em modo pareamento, tentar PIN 0000 ou 1234
+- "Impressão Bluetooth sai cortada ou com layout errado" → Solução: verificar se a largura está configurada como 58mm nas Configurações do dashboard
 
-### Migracao de banco de dados
+### 5. Atualizar seção de impressoras recomendadas
 
-```sql
-ALTER TABLE organizations ADD COLUMN printer_width text NOT NULL DEFAULT '58mm';
-```
+Adicionar 2 modelos Bluetooth 58mm na lista:
+- Mini impressora térmica 58mm Bluetooth (genérica) — ~R$80-150
+- Leopardo A8 58mm Bluetooth — ~R$100-200
 
-### `src/lib/printOrder.ts`
+### 6. Atualizar o GuideTab
 
-Adicionar parametro `printerWidth: '58mm' | '80mm' = '58mm'` na funcao `printOrder`. Usar variaveis CSS condicionais:
+No arquivo `src/components/dashboard/GuideTab.tsx`, na seção "Configurações" (id: "settings"), adicionar um step mencionando a configuração da largura da impressora (58mm ou 80mm).
 
-```text
-58mm: body width 58mm, font 12px, mesa 18px, total 14px, qr 120px, padding 4mm 2mm
-80mm: body width 80mm, font 14px, mesa 22px, total 16px, qr 160px, padding 6mm 4mm
-```
+## Nenhuma mudança no banco de dados
 
-### `src/components/dashboard/SettingsTab.tsx`
+Todas as alterações são apenas de interface/documentação.
 
-Adicionar Select com label "Largura da impressora" com duas opcoes. Salvar via update na tabela organizations.
-
-### `src/pages/KitchenPage.tsx`
-
-Ler `org?.printer_width` e passar para `printOrder`. Default `58mm` se nao configurado.
-
-### Pagina de documentacao (`/docs/impressora-termica`)
-
-Atualizar instrucoes para mencionar compatibilidade com impressoras Bluetooth 58mm e como parear no Android.
