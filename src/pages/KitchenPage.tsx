@@ -72,7 +72,7 @@ export default function KitchenPage() {
       {
         onSuccess: () => {
           if (status === "ready" && order && order.table_number === 0) {
-            createDeliveryForOrder(order, org?.id ?? "", org?.store_address);
+            createDeliveryForOrder(order, org?.id ?? "", org?.store_address, org?.courier_config);
           }
         },
         onSettled: () => {

@@ -2,8 +2,12 @@ import { useState, useEffect, useRef } from "react";
 
 interface GeoCoord { lat: number; lon: number }
 
-const COURIER_BASE_FEE = 3.0;
-const COURIER_PER_KM = 2.5;
+export interface CourierConfig {
+  base_fee: number;
+  per_km: number;
+}
+
+export const DEFAULT_COURIER_CONFIG: CourierConfig = { base_fee: 3.0, per_km: 2.5 };
 
 async function tryGeocode(query: string): Promise<GeoCoord | null> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
@@ -47,8 +51,9 @@ async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number>
   return data.routes[0].distance / 1000;
 }
 
-export function calculateCourierFee(distanceKm: number): number {
-  return COURIER_BASE_FEE + distanceKm * COURIER_PER_KM;
+export function calculateCourierFee(distanceKm: number, config?: CourierConfig): number {
+  const { base_fee, per_km } = config ?? DEFAULT_COURIER_CONFIG;
+  return base_fee + distanceKm * per_km;
 }
 
 export interface DeliveryDistanceResult {

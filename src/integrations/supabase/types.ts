@@ -421,6 +421,7 @@ export type Database = {
         Row: {
           banner_url: string | null
           business_hours: Json | null
+          courier_config: Json | null
           created_at: string
           delivery_config: Json | null
           description: string | null
@@ -445,6 +446,7 @@ export type Database = {
         Insert: {
           banner_url?: string | null
           business_hours?: Json | null
+          courier_config?: Json | null
           created_at?: string
           delivery_config?: Json | null
           description?: string | null
@@ -469,6 +471,7 @@ export type Database = {
         Update: {
           banner_url?: string | null
           business_hours?: Json | null
+          courier_config?: Json | null
           created_at?: string
           delivery_config?: Json | null
           description?: string | null
