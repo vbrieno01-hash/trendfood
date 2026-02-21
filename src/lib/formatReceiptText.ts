@@ -32,25 +32,42 @@ function parseNotes(notes: string): ParsedNotes {
   };
 }
 
+const MAX_COLS = 32;
+
 function center(text: string, _cols: number): string {
   return "##CENTER##" + text;
 }
 
-function divider(cols: number): string {
-  return "-".repeat(cols);
+function divider(): string {
+  return "-".repeat(MAX_COLS);
+}
+
+/** Wrap a string into multiple lines of at most maxCols visible characters, breaking at spaces when possible. */
+function wrapLine(text: string, maxCols: number = MAX_COLS): string[] {
+  if (text.length <= maxCols) return [text];
+  const result: string[] = [];
+  let remaining = text;
+  while (remaining.length > maxCols) {
+    let breakAt = remaining.lastIndexOf(" ", maxCols);
+    if (breakAt <= 0) breakAt = maxCols; // no space found, hard break
+    result.push(remaining.slice(0, breakAt));
+    remaining = remaining.slice(breakAt).trimStart();
+  }
+  if (remaining.length > 0) result.push(remaining);
+  return result;
 }
 
 export function formatReceiptText(
   order: PrintableOrder,
   storeName = "Cozinha",
-  printerWidth: "58mm" | "80mm" = "58mm"
+  _printerWidth: "58mm" | "80mm" = "58mm"
 ): string {
-  const cols = printerWidth === "58mm" ? 32 : 48;
+  const cols = MAX_COLS;
   const lines: string[] = [];
 
   // Header
   lines.push(center(storeName.toUpperCase(), cols));
-  lines.push(divider(cols));
+  lines.push(divider());
 
   // Location
   const parsed = order.notes ? parseNotes(order.notes) : null;
@@ -71,7 +88,7 @@ export function formatReceiptText(
   });
 
   lines.push(`##BOLD##${locationLabel}  ${date} ${time}`);
-  lines.push(divider(cols));
+  lines.push(divider());
 
   // Items
   const items = order.order_items ?? [];
@@ -85,16 +102,28 @@ export function formatReceiptText(
       ? `${item.name} - ${item.customer_name}`
       : item.name;
 
-    // Format: qty  name  price (right-aligned)
     const left = `${qty} ${nameStr}`;
-    const gap = Math.max(1, cols - left.length - price.length);
-    lines.push(left + " ".repeat(gap) + price);
+    if (price === "") {
+      // No price — just wrap the name
+      lines.push(...wrapLine(left, cols));
+    } else {
+      const fullLine = left + " " + price;
+      if (fullLine.length <= cols) {
+        // Fits in one line — right-align price
+        const gap = cols - left.length - price.length;
+        lines.push(left + " ".repeat(Math.max(1, gap)) + price);
+      } else {
+        // Split: name on first line(s), price right-aligned on next
+        lines.push(...wrapLine(left, cols));
+        lines.push(" ".repeat(cols - price.length) + price);
+      }
+    }
   }
 
   // Notes
   if (parsed?.raw) {
     lines.push("");
-    lines.push(`Obs: ${parsed.raw}`);
+    lines.push(...wrapLine(`Obs: ${parsed.raw}`, cols));
   }
 
   // Total
@@ -104,24 +133,31 @@ export function formatReceiptText(
   );
 
   if (total > 0) {
-    lines.push(divider(cols));
+    lines.push(divider());
     const totalStr = `TOTAL: R$ ${total.toFixed(2).replace(".", ",")}`;
     lines.push("##BOLD##" + " ".repeat(Math.max(0, cols - totalStr.length)) + totalStr);
   }
 
   // Customer info
   if (parsed && !parsed.raw) {
-    lines.push(divider(cols));
-    if (parsed.name) lines.push(`Nome: ${parsed.name}`);
-    if (parsed.phone) lines.push(`Tel: ${parsed.phone}`);
-    if (parsed.address) lines.push(`End.: ${parsed.address}`);
-    if (parsed.frete) lines.push(`Frete: ${parsed.frete}`);
-    if (parsed.payment) lines.push(`Pgto: ${parsed.payment}`);
-    if (parsed.doc) lines.push(`CPF/CNPJ: ${parsed.doc}`);
-    if (parsed.obs) lines.push(`Obs: ${parsed.obs}`);
+    lines.push(divider());
+    const fields: [string, string | undefined][] = [
+      ["Nome: ", parsed.name],
+      ["Tel: ", parsed.phone],
+      ["End.: ", parsed.address],
+      ["Frete: ", parsed.frete],
+      ["Pgto: ", parsed.payment],
+      ["CPF/CNPJ: ", parsed.doc],
+      ["Obs: ", parsed.obs],
+    ];
+    for (const [label, value] of fields) {
+      if (value) {
+        lines.push(...wrapLine(`${label}${value}`, cols));
+      }
+    }
   }
 
-  lines.push(divider(cols));
+  lines.push(divider());
   lines.push(center("* novo pedido - kds *", cols));
 
   return lines.join("\n");
