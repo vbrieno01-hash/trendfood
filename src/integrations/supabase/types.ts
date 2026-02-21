@@ -317,6 +317,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          banner_url: string | null
           business_hours: Json | null
           created_at: string
           delivery_config: Json | null
@@ -340,6 +341,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          banner_url?: string | null
           business_hours?: Json | null
           created_at?: string
           delivery_config?: Json | null
@@ -363,6 +365,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          banner_url?: string | null
           business_hours?: Json | null
           created_at?: string
           delivery_config?: Json | null

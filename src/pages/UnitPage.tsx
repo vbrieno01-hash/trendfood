@@ -501,6 +501,18 @@ const UnitPage = () => {
         </div>
       </header>
 
+      {/* Banner */}
+      {org.banner_url && (
+        <div className="max-w-2xl mx-auto px-4 pt-3">
+          <img
+            src={org.banner_url}
+            alt="Banner"
+            className="w-full rounded-2xl object-cover"
+            style={{ maxHeight: 180 }}
+          />
+        </div>
+      )}
+
       {/* Sticky search bar */}
       {!menuLoading && menuItems.length > 0 && (
         <div className="sticky top-[57px] z-30 bg-background shadow-sm">
