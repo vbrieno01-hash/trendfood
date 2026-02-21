@@ -1,23 +1,26 @@
 
-# Corrigir logica invertida do modo PIX no checkout
 
-## Problema
+# Simplificar PIX no pedido online: pagar na entrega quando nao tem gateway
 
-No arquivo `src/components/checkout/PixPaymentScreen.tsx`, linha 42, a variavel `hasGateway` esta configurada como `pixConfirmationMode === "direct"`, mas o modo "Direto" significa que o pedido vai direto pra cozinha e o PIX e apenas informativo (QR Code estatico). O gateway so deve ser usado no modo "Automatico" (`automatic`).
+## Resumo
 
-Isso causa o erro "Erro ao gerar cobranca" para qualquer loja que esteja no modo "Direto", porque o sistema tenta chamar a Edge Function `verify-pix-payment` sem ter credenciais de gateway configuradas.
+Manter as 3 opcoes no painel do lojista (Direto, Manual, Automatico), mas no checkout online (UnitPage), so mostrar a tela de QR Code PIX quando o modo for "Automatico" (gateway configurado). Nos modos "Direto" e "Manual", o PIX funciona como dinheiro/cartao: o pedido vai direto pro WhatsApp e o cliente paga quando o motoboy chegar.
 
-## Mudanca
+## O que muda para o cliente final
 
-### `src/components/checkout/PixPaymentScreen.tsx`
+- **Modo Automatico**: Continua igual -- QR Code aparece, pagamento confirmado automaticamente antes de enviar o pedido
+- **Modo Direto ou Manual**: Quando o cliente escolhe PIX, o pedido e enviado normalmente pelo WhatsApp com "PGTO: PIX". Sem tela de QR Code. O pagamento acontece na entrega
 
-- **Linha 42**: Trocar `pixConfirmationMode === "direct"` por `pixConfirmationMode === "automatic"`
+## Mudancas tecnicas
 
-Isso faz com que:
-- **Direto**: Gera QR Code estatico via `generate-pix-payload`, pedido vai direto pra cozinha
-- **Manual**: Gera QR Code estatico, mostra botao "Ja paguei", lojista confirma manualmente
-- **Automatico (API)**: Cria cobranca via gateway (`verify-pix-payment`), faz polling do status (`check-pix-status`)
+### `src/pages/UnitPage.tsx`
 
-### Nenhuma alteracao no banco de dados
+1. **Linhas 278-324** -- Condicional do PIX no checkout:
+   - Adicionar verificacao: so entrar no fluxo do PixPaymentScreen se `org.pix_confirmation_mode === "automatic"`
+   - Se o modo for "direct" ou "manual", nao criar pedido com `awaiting_payment` nem mostrar a tela PIX. Deixar o fluxo seguir normalmente (igual Dinheiro/Cartao), enviando pelo WhatsApp com `PGTO:PIX`
 
-Apenas correcao de uma condicional no frontend.
+2. **Linha 312** -- Status inicial do pedido:
+   - Atualmente esta `awaiting_payment` para todos os modos (codigo redundante). Sera removido pois so o modo automatico cria pedido nesse ponto
+
+Nenhuma alteracao no banco de dados nem nas Edge Functions. Apenas logica condicional no frontend.
+
