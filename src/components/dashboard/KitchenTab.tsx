@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
+import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -43,9 +44,10 @@ const NOTIF_KEY = "kds_notifications";
 interface KitchenTabProps {
   orgId: string;
   orgName?: string;
+  storeAddress?: string | null;
 }
 
-export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
+export default function KitchenTab({ orgId, orgName, storeAddress }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -98,12 +100,18 @@ export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
     localStorage.setItem(NOTIF_KEY, String(val));
   };
 
-  const handleUpdateStatus = (id: string, status: Order["status"]) => {
+  const handleUpdateStatus = (id: string, status: Order["status"], order?: Order) => {
     if (loadingIds.has(id)) return;
     setLoadingIds((prev) => new Set(prev).add(id));
     updateStatus.mutate(
       { id, status },
       {
+        onSuccess: () => {
+          // Auto-create delivery when marking a delivery order as ready
+          if (status === "ready" && order && order.table_number === 0) {
+            createDeliveryForOrder(order, orgId, storeAddress);
+          }
+        },
         onSettled: () => {
           setTimeout(() => {
             setLoadingIds((prev) => {
@@ -316,7 +324,7 @@ export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
                       size="sm"
                       className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
                       disabled={isOrderLoading}
-                      onClick={() => handleUpdateStatus(order.id, "preparing")}
+                      onClick={() => handleUpdateStatus(order.id, "preparing", order)}
                     >
                       {isOrderLoading ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -329,7 +337,7 @@ export default function KitchenTab({ orgId, orgName }: KitchenTabProps) {
                     size="sm"
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                     disabled={isOrderLoading}
-                    onClick={() => handleUpdateStatus(order.id, "ready")}
+                    onClick={() => handleUpdateStatus(order.id, "ready", order)}
                   >
                     {isOrderLoading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
