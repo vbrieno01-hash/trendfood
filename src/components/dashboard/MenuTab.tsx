@@ -18,11 +18,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown,
 } from "lucide-react";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
-  CATEGORIES, MenuItem, MenuItemInput,
+  CATEGORIES, MenuItem, MenuItemInput, SortOrder,
 } from "@/hooks/useMenuItems";
 
 interface Organization {
@@ -41,8 +41,11 @@ const EMPTY_FORM: MenuItemInput = {
   image_url: null,
 };
 
+const SORT_KEY = "menu_sort_order";
+
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
-  const { data: items = [], isLoading } = useMenuItems(organization.id);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
+  const { data: items = [], isLoading } = useMenuItems(organization.id, sortOrder);
   const addMutation = useAddMenuItem(organization.id);
   const updateMutation = useUpdateMenuItem(organization.id);
   const deleteMutation = useDeleteMenuItem(organization.id);
@@ -144,10 +147,26 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
             {isLoading ? "…" : `${totalItems} ${totalItems === 1 ? "item" : "itens"}${menuItemLimit != null ? ` / ${menuItemLimit}` : ""} · ${totalCategories} ${totalCategories === 1 ? "categoria" : "categorias"}`}
           </p>
         </div>
-        <Button onClick={openCreate} size="sm" className="gap-1.5 h-9" disabled={limitReached}>
-          <Plus className="w-4 h-4" />
-          Novo item
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-9 text-muted-foreground"
+            onClick={() => {
+              const next = sortOrder === "newest" ? "oldest" : "newest";
+              setSortOrder(next);
+              localStorage.setItem(SORT_KEY, next);
+            }}
+            title={sortOrder === "newest" ? "Recentes primeiro" : "Antigos primeiro"}
+          >
+            <ArrowUpDown className="w-4 h-4" />
+            <span className="hidden sm:inline text-xs">{sortOrder === "newest" ? "Recentes primeiro" : "Antigos primeiro"}</span>
+          </Button>
+          <Button onClick={openCreate} size="sm" className="gap-1.5 h-9" disabled={limitReached}>
+            <Plus className="w-4 h-4" />
+            Novo item
+          </Button>
+        </div>
       </div>
 
       {/* Loading */}
