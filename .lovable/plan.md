@@ -1,32 +1,22 @@
 
-# Adicionar banner na página pública (acima da barra de pesquisa)
+
+# Adicionar link "Impressora Térmica" na sidebar do dashboard
 
 ## Resumo
-Permitir que o dono da loja faça upload de uma imagem de banner que será exibida na vitrine pública, entre o header e a barra de pesquisa sticky. O banner será gerenciado no painel (aba Perfil da Loja).
+Adicionar um link para a documentacao da impressora termica (`/docs/impressora-termica`) na secao inferior da sidebar do dashboard, junto com os outros links como "Ver pagina publica", "Instalar App", etc.
 
 ## Como vai funcionar
-- Na página pública, uma imagem de banner aparece logo abaixo do header e acima da barra de pesquisa
-- O banner ocupa a largura total do conteúdo, com cantos arredondados e proporção paisagem (16:9 ou similar)
-- Se não houver banner configurado, nada é exibido (sem espaço vazio)
-- No dashboard (Perfil da Loja), o dono pode fazer upload ou remover o banner
+- Um novo link com icone de impressora aparece na secao de acoes no rodape da sidebar
+- Posicionado entre "Ver pagina publica" e "Sair" (ou logo antes de "Ver pagina publica")
+- Ao clicar, abre a pagina `/docs/impressora-termica` em nova aba
+- Estilo discreto, igual ao "Ver pagina publica" (`text-white/50 hover:bg-white/10`)
 
-## Mudanças técnicas
+## Mudancas tecnicas
 
-### 1. Banco de dados
-- Adicionar coluna `banner_url` (text, nullable) na tabela `organizations`
+### Arquivo: `src/pages/DashboardPage.tsx`
+1. Adicionar `Printer` na importacao do `lucide-react` (linha 12-17)
+2. Adicionar um `<a>` com `href="/docs/impressora-termica"` e `target="_blank"` na secao "Bottom actions" (por volta da linha 394), antes do link "Ver pagina publica"
+   - Icone: `Printer`
+   - Texto: "Impressora Termica" (ou "Config. Impressora")
+   - Classes iguais ao link "Ver pagina publica": `text-white/50 hover:bg-white/10`
 
-### 2. `src/components/dashboard/StoreProfileTab.tsx`
-- Adicionar campo de upload de banner (similar ao upload de logo já existente)
-- Ao selecionar imagem, fazer upload para o storage bucket `menu-images` (ou criar bucket `banners`) no caminho `banners/{org_id}.{ext}`
-- Salvar a URL pública no campo `banner_url` da organização
-- Botão para remover o banner
-
-### 3. `src/pages/UnitPage.tsx`
-- Entre o `</header>` e a barra de pesquisa sticky, renderizar a imagem do banner se `org.banner_url` existir
-- Estilo: `max-w-2xl mx-auto px-4 pt-3` com imagem `rounded-2xl w-full object-cover` e altura máxima (~180px)
-
-### 4. `src/hooks/useOrganization.ts`
-- Incluir `banner_url` no select da query (se não estiver usando `*`)
-
-### 5. Tipos
-- Adicionar `banner_url` na interface `Organization` do `StoreProfileTab` e onde mais for necessário
