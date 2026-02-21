@@ -25,6 +25,7 @@ export interface MenuItemInput {
 }
 
 export const CATEGORIES = [
+  { value: "Promoção do dia", emoji: "🔥" },
   { value: "Hambúrgueres", emoji: "🍔" },
   { value: "Bebidas", emoji: "🥤" },
   { value: "Porções", emoji: "🍟" },
