@@ -501,6 +501,31 @@ const UnitPage = () => {
         </div>
       </header>
 
+      {/* Sticky search bar */}
+      {!menuLoading && menuItems.length > 0 && (
+        <div className="sticky top-[57px] z-30 bg-background shadow-sm">
+          <div className="max-w-2xl mx-auto px-4 py-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar no cardápio..."
+                className="pl-9 pr-9 h-10 rounded-full bg-card border-border text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mesa banner removed — UnitPage is now public-only (no table context) */}
 
       <main className="max-w-2xl mx-auto px-4 pb-32 pt-4">
@@ -545,27 +570,6 @@ const UnitPage = () => {
             </div>
           )}
         </div>
-
-        {/* Search bar */}
-        {!menuLoading && menuItems.length > 0 && (
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar no cardápio..."
-              className="pl-9 pr-9 h-10 rounded-full bg-card border-border text-sm"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Menu */}
         <div>
