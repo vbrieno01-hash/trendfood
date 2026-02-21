@@ -45,9 +45,10 @@ interface KitchenTabProps {
   orgId: string;
   orgName?: string;
   storeAddress?: string | null;
+  courierConfig?: { base_fee: number; per_km: number } | null;
 }
 
-export default function KitchenTab({ orgId, orgName, storeAddress }: KitchenTabProps) {
+export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -109,7 +110,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress }: KitchenTabP
         onSuccess: () => {
           // Auto-create delivery when marking a delivery order as ready
           if (status === "ready" && order && order.table_number === 0) {
-            createDeliveryForOrder(order, orgId, storeAddress);
+            createDeliveryForOrder(order, orgId, storeAddress, courierConfig);
           }
         },
         onSettled: () => {

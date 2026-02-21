@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/hooks/useOrders";
-import { calculateCourierFee } from "@/hooks/useDeliveryDistance";
+import { calculateCourierFee, CourierConfig } from "@/hooks/useDeliveryDistance";
 
 /**
  * Extract customer address from the pipe-separated notes field.
@@ -56,7 +56,8 @@ async function getRouteDistanceKm(from: { lat: number; lon: number }, to: { lat:
 export async function createDeliveryForOrder(
   order: Order,
   organizationId: string,
-  storeAddress: string | null | undefined
+  storeAddress: string | null | undefined,
+  courierConfig?: CourierConfig | null
 ): Promise<void> {
   // Check for duplicate
   const { data: existing } = await supabase
@@ -88,14 +89,15 @@ export async function createDeliveryForOrder(
 
   // Background: calculate distance and update
   if (storeAddress && customerAddress !== "Endereço não informado") {
-    calculateAndUpdateDelivery(delivery.id, storeAddress, customerAddress);
+    calculateAndUpdateDelivery(delivery.id, storeAddress, customerAddress, courierConfig ?? undefined);
   }
 }
 
 async function calculateAndUpdateDelivery(
   deliveryId: string,
   storeAddress: string,
-  customerAddress: string
+  customerAddress: string,
+  courierConfig?: CourierConfig
 ): Promise<void> {
   try {
     const storeCoord = await geocode(storeAddress);
@@ -107,7 +109,7 @@ async function calculateAndUpdateDelivery(
     const km = await getRouteDistanceKm(storeCoord, customerCoord);
     if (km === null) return;
 
-    const fee = calculateCourierFee(km);
+    const fee = calculateCourierFee(km, courierConfig);
 
     await supabase
       .from("deliveries")

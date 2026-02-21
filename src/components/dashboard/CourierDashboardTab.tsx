@@ -1,7 +1,14 @@
+import { useState, useEffect } from "react";
 import { useOrgDeliveries, useOrgCouriers } from "@/hooks/useCourier";
+import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bike, MapPin, Clock, CheckCircle2, Navigation, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { Bike, MapPin, Clock, CheckCircle2, Navigation, Users, Settings, Save, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { DEFAULT_COURIER_CONFIG, type CourierConfig } from "@/hooks/useDeliveryDistance";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30" },
@@ -12,11 +19,38 @@ const statusMap: Record<string, { label: string; color: string }> = {
 interface Props {
   orgId: string;
   orgSlug: string;
+  courierConfig?: CourierConfig | null;
 }
 
-const CourierDashboardTab = ({ orgId, orgSlug }: Props) => {
+const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
   const { data: deliveries = [], isLoading } = useOrgDeliveries(orgId);
   const { data: couriers = [] } = useOrgCouriers(orgId);
+  const qc = useQueryClient();
+
+  const [baseFee, setBaseFee] = useState(courierConfig?.base_fee ?? DEFAULT_COURIER_CONFIG.base_fee);
+  const [perKm, setPerKm] = useState(courierConfig?.per_km ?? DEFAULT_COURIER_CONFIG.per_km);
+
+  useEffect(() => {
+    if (courierConfig) {
+      setBaseFee(courierConfig.base_fee);
+      setPerKm(courierConfig.per_km);
+    }
+  }, [courierConfig]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ courier_config: { base_fee: baseFee, per_km: perKm } } as any)
+        .eq("id", orgId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["organization"] });
+      toast.success("Configurações do motoboy salvas!");
+    },
+    onError: () => toast.error("Erro ao salvar configurações"),
+  });
 
   const courierMap = new Map(couriers.map((c) => [c.id, c]));
 
@@ -36,6 +70,30 @@ const CourierDashboardTab = ({ orgId, orgSlug }: Props) => {
           Acompanhe entregas em tempo real e gerencie seus motoboys.
         </p>
       </div>
+
+      {/* Configuração de taxas */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Settings className="w-4 h-4 text-muted-foreground" />
+            <p className="text-sm font-semibold">Taxa do motoboy</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Taxa base (por corrida)</label>
+              <CurrencyInput value={baseFee} onChange={setBaseFee} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Valor por km rodado</label>
+              <CurrencyInput value={perKm} onChange={setPerKm} />
+            </div>
+          </div>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="sm" className="mt-3">
+            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Salvar
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Link para motoboys */}
       <Card>
