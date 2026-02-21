@@ -39,7 +39,7 @@ export default function PixPaymentScreen({
   const [copied, setCopied] = useState(false);
   const [manualConfirmed, setManualConfirmed] = useState(false);
 
-  const hasGateway = pixConfirmationMode === "direct";
+  const hasGateway = pixConfirmationMode === "automatic";
 
   // Try to create charge via gateway
   useEffect(() => {
