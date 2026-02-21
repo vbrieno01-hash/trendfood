@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Flame, Printer } from "lucide-react";
-import { printOrder } from "@/lib/printOrder";
+import { printOrderByMode } from "@/lib/printOrder";
 import { toast } from "sonner";
 
 const playBell = () => {
@@ -46,9 +46,12 @@ interface KitchenTabProps {
   orgName?: string;
   storeAddress?: string | null;
   courierConfig?: { base_fee: number; per_km: number } | null;
+  printMode?: 'browser' | 'desktop' | 'bluetooth';
+  printerWidth?: '58mm' | '80mm';
+  btDevice?: BluetoothDevice | null;
 }
 
-export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig }: KitchenTabProps) {
+export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -171,7 +174,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        printOrder(order, orgName);
+        printOrderByMode(order, orgName, printMode, orgId, btDevice, undefined, printerWidth);
       }
     });
   }, [orders, orgName]);
@@ -284,7 +287,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       title="Imprimir pedido"
-                      onClick={() => printOrder(order, orgName)}
+                      onClick={() => printOrderByMode(order, orgName, printMode, orgId, btDevice, undefined, printerWidth)}
                     >
                       <Printer className="w-3.5 h-3.5" />
                     </Button>
