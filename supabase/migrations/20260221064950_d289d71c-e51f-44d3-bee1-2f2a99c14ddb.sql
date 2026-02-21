@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN banner_url text;

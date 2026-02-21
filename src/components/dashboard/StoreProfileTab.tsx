@@ -27,6 +27,7 @@ interface Organization {
   store_address?: string | null;
   delivery_config?: DeliveryConfig | null;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
+  banner_url?: string | null;
 }
 
 
@@ -76,12 +77,16 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoRemoving, setLogoRemoving] = useState(false);
   const [logoUrl, setLogoUrl] = useState(organization.logo_url);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerRemoving, setBannerRemoving] = useState(false);
+  const [bannerUrl, setBannerUrl] = useState(organization.banner_url ?? null);
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [gatewayProvider, setGatewayProvider] = useState("");
   const [gatewayToken, setGatewayToken] = useState("");
   const [secretsLoading, setSecretsLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const bannerFileRef = useRef<HTMLInputElement>(null);
 
   // Load existing gateway secrets
   useEffect(() => {
@@ -211,6 +216,47 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     }
   };
 
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 2MB.");
+      return;
+    }
+    setBannerUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `banners/${organization.id}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("menu-images").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+      const url = data.publicUrl + `?t=${Date.now()}`;
+      setBannerUrl(url);
+      await supabase.from("organizations").update({ banner_url: url } as any).eq("id", organization.id);
+      await refreshOrganization();
+      toast.success("Banner atualizado!");
+    } catch {
+      toast.error("Erro ao fazer upload do banner.");
+    } finally {
+      setBannerUploading(false);
+      if (bannerFileRef.current) bannerFileRef.current.value = "";
+    }
+  };
+
+  const handleRemoveBanner = async () => {
+    setBannerRemoving(true);
+    try {
+      await supabase.from("organizations").update({ banner_url: null } as any).eq("id", organization.id);
+      setBannerUrl(null);
+      await refreshOrganization();
+      toast.success("Banner removido.");
+    } catch {
+      toast.error("Erro ao remover banner.");
+    } finally {
+      setBannerRemoving(false);
+    }
+  };
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicUrl);
     setCopied(true);
@@ -296,6 +342,48 @@ export default function StoreProfileTab({ organization }: { organization: Organi
               <p className="text-xs text-muted-foreground">JPG, PNG ou WebP. Máx 2MB.</p>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
             </div>
+          </div>
+        </div>
+
+        {/* Banner */}
+        <div className="mb-5">
+          <Label className="text-sm font-medium mb-2 block">Banner</Label>
+          <div className="space-y-2">
+            {bannerUrl ? (
+              <img src={bannerUrl} alt="Banner" className="w-full rounded-xl object-cover" style={{ maxHeight: 160 }} />
+            ) : (
+              <div className="w-full h-24 rounded-xl border-2 border-dashed border-border bg-secondary/50 flex items-center justify-center text-muted-foreground text-sm">
+                Nenhum banner
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => bannerFileRef.current?.click()}
+                disabled={bannerUploading}
+                className="gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                {bannerUploading ? "Enviando..." : bannerUrl ? "Trocar banner" : "Adicionar banner"}
+              </Button>
+              {bannerUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveBanner}
+                  disabled={bannerRemoving}
+                  className="gap-1.5 text-muted-foreground hover:text-destructive"
+                >
+                  {bannerRemoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                  Remover
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Imagem paisagem recomendada (1200×400). Máx 2MB.</p>
+            <input ref={bannerFileRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
           </div>
         </div>
 
