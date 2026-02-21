@@ -8,8 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Flame, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
-import { formatReceiptText } from "@/lib/formatReceiptText";
-import { enqueuePrint } from "@/lib/printQueue";
 import { toast } from "sonner";
 
 const playBell = () => {
@@ -176,9 +174,6 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        // Always enqueue to fila_impressao for the external print robot
-        const text = formatReceiptText(order, orgName, printerWidth);
-        enqueuePrint(orgId, order.id, text).catch(() => {});
         printOrderByMode(order, orgName, printMode, orgId, btDevice, undefined, printerWidth);
       }
     });
