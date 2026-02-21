@@ -13,7 +13,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart, Share2, Printer,
+  BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -37,9 +37,10 @@ import CaixaTab from "@/components/dashboard/CaixaTab";
 import FeaturesTab from "@/components/dashboard/FeaturesTab";
 import GuideTab from "@/components/dashboard/GuideTab";
 import ReportsTab from "@/components/dashboard/ReportsTab";
+import CourierDashboardTab from "@/components/dashboard/CourierDashboardTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -199,6 +200,7 @@ const DashboardPage = () => {
     { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
     { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Painel do Garçom", locked: lockedFeatures.waiter },
     { key: "caixa", icon: <Wallet className="w-4 h-4" />, label: "Caixa", locked: lockedFeatures.caixa },
+    { key: "courier", icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
   ];
 
   const navItemsBottom: { key: TabKey; icon: React.ReactNode; label: string }[] = [
@@ -491,6 +493,7 @@ const DashboardPage = () => {
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
+          {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} />}
         </main>
       </div>
     </div>
