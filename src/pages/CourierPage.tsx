@@ -90,9 +90,16 @@ const CourierPage = () => {
 
   // Registration form
   if (!courierId || (!courierLoading && !courier)) {
+    const PLATE_REGEX = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
+
     const handleRegister = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!orgId) return;
+      const upperPlate = plate.trim().toUpperCase();
+      if (!PLATE_REGEX.test(upperPlate)) {
+        toast.error("Placa inválida. Use o formato ABC1D23 (7 caracteres).");
+        return;
+      }
       try {
         await registerMutation.mutateAsync({
           organization_id: orgId,
@@ -128,7 +135,8 @@ const CourierPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="plate">Placa da moto</Label>
-                <Input id="plate" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="ABC1D23" required />
+                <Input id="plate" value={plate} onChange={(e) => setPlate(e.target.value.replace(/[^A-Za-z0-9]/g, ""))} placeholder="ABC1D23" maxLength={7} required />
+                <p className="text-xs text-muted-foreground">Formato: ABC1D23 (7 caracteres)</p>
               </div>
               <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
                 {registerMutation.isPending ? "Cadastrando..." : "Cadastrar"}
