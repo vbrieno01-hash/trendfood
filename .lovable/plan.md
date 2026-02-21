@@ -1,48 +1,70 @@
 
+# Suporte a impressora termica Bluetooth 58mm
 
-# Remover bloqueio de entrega para lojas sem endereco
+## Contexto
 
-## Situacao atual
+A impressora do cliente e uma termica portatil Bluetooth de 58mm (tipo "MobilePrinter"). O sistema atual ja funciona com `window.print()` em Android + Chrome e em PC com Bluetooth pareado. Porem o layout do recibo esta otimizado para 80mm, o que pode causar corte ou quebra de texto em impressoras de 58mm.
 
-- **Rei do Burguer**: endereco configurado corretamente, frete calcula normalmente com os fallbacks de geocodificacao ja implementados. Nenhuma mudanca necessaria aqui.
-- **Lojas sem endereco** (Esporte Fino, Loja Matriz, brenotorado): estao com entrega bloqueada (aviso amarelo + toast de erro + botao desabilitado). Isso impede vendas desnecessariamente.
+## O que mudar
 
-## O que muda
+### 1. Ajustar layout do recibo para 58mm
 
-Remover o bloqueio para que lojas sem endereco permitam pedidos de entrega normalmente, com frete aparecendo como "A combinar via WhatsApp".
+**Arquivo: `src/lib/printOrder.ts`**
 
-## Mudancas no arquivo `src/pages/UnitPage.tsx`
+O CSS do recibo esta fixo em `width: 80mm`. Ajustar para detectar ou usar 58mm como padrao (mais comum em portateis Bluetooth):
 
-### 1. Remover bloqueio na validacao (linhas 268-271)
+- Mudar `body { width: 80mm }` para `body { width: 58mm }`
+- Reduzir `font-size` base de 14px para 12px
+- Reduzir `.store-name` de 16px para 14px
+- Reduzir `.mesa` de 22px para 18px
+- Reduzir `.total` de 16px para 14px
+- Reduzir `.qr-img` de 160px para 120px
+- Ajustar `@page { size: 58mm auto }`
+- Reduzir padding de `6mm 4mm` para `4mm 2mm`
 
-Tirar o bloco que impede o envio do pedido quando `noStoreAddress` e true:
+### 2. Adicionar configuracao de largura da impressora no painel do lojista
 
-```text
-ANTES:
-if (noStoreAddress) {
-  toast.error("Esta loja ainda não aceita entregas...");
-  valid = false;
-}
+**Arquivo: `src/components/dashboard/SettingsTab.tsx`** (ou onde ficam configs da loja)
 
-DEPOIS:
-(bloco removido — pedido segue normalmente)
+Adicionar um seletor simples na area de configuracoes:
+- Opcoes: "58mm (portatil)" e "80mm (balcao)"
+- Salvar na coluna da tabela `organizations` (nova coluna `printer_width` tipo text, default `58mm`)
+
+**Arquivo: `src/lib/printOrder.ts`**
+- Receber parametro `printerWidth` (58 ou 80) na funcao `printOrder`
+- Aplicar CSS condicional baseado no valor
+
+### 3. Passar configuracao para a funcao de impressao
+
+**Arquivo: `src/pages/KitchenPage.tsx`**
+- Buscar `printer_width` da organizacao
+- Passar para `printOrder(order, org?.name, pixPayload, printerWidth)`
+
+## Secao tecnica
+
+### Migracao de banco de dados
+
+```sql
+ALTER TABLE organizations ADD COLUMN printer_width text NOT NULL DEFAULT '58mm';
 ```
 
-### 2. Remover aviso bloqueante na UI (linhas 766-772)
+### `src/lib/printOrder.ts`
 
-Substituir o bloco amarelo "Entrega indisponivel" por uma linha simples igual ao visual de quando o geocoder falha:
+Adicionar parametro `printerWidth: '58mm' | '80mm' = '58mm'` na funcao `printOrder`. Usar variaveis CSS condicionais:
 
 ```text
-ANTES: bloco amarelo com "Entrega indisponivel — loja sem endereco configurado"
-
-DEPOIS: linha normal mostrando "A combinar via WhatsApp" (mesmo visual da linha 787)
+58mm: body width 58mm, font 12px, mesa 18px, total 14px, qr 120px, padding 4mm 2mm
+80mm: body width 80mm, font 14px, mesa 22px, total 16px, qr 160px, padding 6mm 4mm
 ```
 
-### O que continua funcionando
+### `src/components/dashboard/SettingsTab.tsx`
 
-- Loja COM endereco: frete calculado automaticamente (Rei do Burguer OK)
-- Loja SEM endereco: frete aparece como "A combinar via WhatsApp", pedido vai pro WhatsApp normalmente
-- Alerta no painel do lojista (StoreProfileTab) continua como lembrete para configurar endereco
-- Fallback por cidade no geocoder continua melhorando a taxa de acerto
-- Nenhuma alteracao no banco de dados
+Adicionar Select com label "Largura da impressora" com duas opcoes. Salvar via update na tabela organizations.
 
+### `src/pages/KitchenPage.tsx`
+
+Ler `org?.printer_width` e passar para `printOrder`. Default `58mm` se nao configurado.
+
+### Pagina de documentacao (`/docs/impressora-termica`)
+
+Atualizar instrucoes para mencionar compatibilidade com impressoras Bluetooth 58mm e como parear no Android.
