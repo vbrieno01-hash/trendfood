@@ -167,6 +167,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     steps: [
       'Acesse "Configurações" no menu.',
       "Configure sua chave Pix para receber pagamentos.",
+      "Selecione a largura da impressora (58mm portátil ou 80mm padrão).",
       "Personalize a cor primária da sua loja.",
       "Ajuste preferências de notificações e modo de confirmação de pagamento.",
     ],
