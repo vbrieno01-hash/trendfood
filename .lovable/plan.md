@@ -1,24 +1,22 @@
 
-# Enfileirar impressao automaticamente ao criar pedido
+# Remover enqueuePrint duplicado da Cozinha
 
 ## Resumo
 
-Alterar a funcao `usePlaceOrder` em `src/hooks/useOrders.ts` para que, apos inserir o pedido e seus itens com sucesso, chame `enqueuePrint` da `src/lib/printQueue.ts` para inserir uma linha na tabela `fila_impressao` com status `pendente`.
+Remover as chamadas duplicadas de `enqueuePrint` nos dois componentes de cozinha, mantendo apenas a do `usePlaceOrder` (que ja enfileira ao criar o pedido). A impressao local (browser/bluetooth) continua funcionando normalmente nesses componentes.
 
-## Alteracao
+## Alteracoes
 
-### Arquivo: `src/hooks/useOrders.ts`
+### 1. `src/components/dashboard/KitchenTab.tsx`
+- Linha 179-181: Remover as 2 linhas do comentario e da chamada `enqueuePrint`
+- Remover o import de `enqueuePrint` (linha 12) e `formatReceiptText` (linha 11), caso nao sejam usados em outro lugar do arquivo
+- Manter `printOrderByMode` (impressao local na tela da cozinha)
 
-1. Importar `enqueuePrint` de `@/lib/printQueue` e `formatReceiptText` de `@/lib/formatReceiptText`
-2. Na `mutationFn` de `usePlaceOrder`, apos inserir os `order_items` (linha 188-189), adicionar um bloco que:
-   - Monta um objeto `PrintableOrder` com os dados do pedido recem-criado e seus itens
-   - Gera o texto formatado via `formatReceiptText`
-   - Chama `enqueuePrint(organizationId, order.id, textoFormatado)`
-   - Envolve em try/catch para nao bloquear o fluxo principal caso a fila falhe (apenas loga o erro no console)
+### 2. `src/pages/KitchenPage.tsx`
+- Linha 133-135: Remover as 2 linhas do comentario e da chamada `enqueuePrint`
+- Remover o import de `enqueuePrint` (linha 14) e `formatReceiptText` (linha 13), caso nao sejam usados em outro lugar do arquivo
+- Manter `printOrderByMode` (impressao local na tela da cozinha)
 
-### Detalhes tecnicos
+### Resultado
 
-- O `enqueuePrint` ja existe e insere na tabela `fila_impressao` com `organization_id`, `order_id`, `conteudo_txt` e `status: "pendente"`
-- O `formatReceiptText` ja formata o recibo em texto plano (32 colunas) compativel com impressoras termicas
-- A chamada sera feita com `try/catch` isolado para que uma falha na fila de impressao nao impeca o pedido de ser criado
-- Nenhuma alteracao de banco de dados e necessaria -- a tabela `fila_impressao` ja existe com a estrutura correta
+Cada pedido gerara **uma unica entrada** na `fila_impressao`, criada no momento do pedido pelo `usePlaceOrder`. As telas de cozinha continuam imprimindo localmente via `printOrderByMode` sem duplicar na fila.
