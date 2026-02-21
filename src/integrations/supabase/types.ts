@@ -249,6 +249,51 @@ export type Database = {
           },
         ]
       }
+      fila_impressao: {
+        Row: {
+          conteudo_txt: string
+          created_at: string
+          id: string
+          order_id: string | null
+          organization_id: string
+          printed_at: string | null
+          status: string
+        }
+        Insert: {
+          conteudo_txt: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          organization_id: string
+          printed_at?: string | null
+          status?: string
+        }
+        Update: {
+          conteudo_txt?: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          organization_id?: string
+          printed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fila_impressao_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_items: {
         Row: {
           available: boolean
@@ -434,6 +479,7 @@ export type Database = {
           pix_confirmation_mode: string
           pix_key: string | null
           primary_color: string
+          print_mode: string
           printer_width: string
           slug: string
           store_address: string | null
@@ -459,6 +505,7 @@ export type Database = {
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
+          print_mode?: string
           printer_width?: string
           slug: string
           store_address?: string | null
@@ -484,6 +531,7 @@ export type Database = {
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
+          print_mode?: string
           printer_width?: string
           slug?: string
           store_address?: string | null

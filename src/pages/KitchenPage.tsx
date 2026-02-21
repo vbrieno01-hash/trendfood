@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Printer } from "lucide-react";
-import { printOrder } from "@/lib/printOrder";
+import { printOrderByMode } from "@/lib/printOrder";
 
 // Web Audio API bell sound (no external dependency)
 const playBell = () => {
@@ -124,10 +124,11 @@ export default function KitchenPage() {
   useEffect(() => {
     if (pendingPrintIds.current.size === 0) return;
     const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
+    const pm = (org as any)?.print_mode ?? 'browser';
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        printOrder(order, org?.name, undefined, pw);
+        printOrderByMode(order, org?.name, pm, org?.id ?? '', null, undefined, pw);
       }
     });
   }, [orders, org?.name, org]);
@@ -230,7 +231,8 @@ export default function KitchenPage() {
                         title="Imprimir pedido"
                         onClick={() => {
                           const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
-                          printOrder(order, org?.name, undefined, pw);
+                          const pm = (org as any)?.print_mode ?? 'browser';
+                          printOrderByMode(order, org?.name, pm, org?.id ?? '', null, undefined, pw);
                         }}
                       >
                         <Printer className="w-3.5 h-3.5" />

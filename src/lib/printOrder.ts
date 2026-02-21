@@ -1,4 +1,8 @@
 import QRCode from "qrcode";
+import { formatReceiptText } from "./formatReceiptText";
+import { enqueuePrint } from "./printQueue";
+import { sendToBluetoothPrinter } from "./bluetoothPrinter";
+import { toast } from "sonner";
 
 export interface PrintableOrder {
   id: string;
@@ -293,4 +297,52 @@ export async function printOrder(
     win.print();
     win.close();
   }, 500);
+}
+
+// ─── Multi-mode print dispatcher ──────────────────────────────────────────────
+
+export async function printOrderByMode(
+  order: PrintableOrder,
+  storeName: string | undefined,
+  printMode: 'browser' | 'desktop' | 'bluetooth',
+  orgId: string,
+  btDevice: BluetoothDevice | null,
+  pixPayload?: string | null,
+  printerWidth: '58mm' | '80mm' = '58mm'
+) {
+  if (printMode === "browser") {
+    return printOrder(order, storeName, pixPayload, printerWidth);
+  }
+
+  const text = formatReceiptText(order, storeName, printerWidth);
+
+  if (printMode === "desktop") {
+    try {
+      await enqueuePrint(orgId, order.id, text);
+      toast.success("Pedido enviado para impressão");
+    } catch {
+      toast.error("Erro ao enviar para fila de impressão");
+    }
+    return;
+  }
+
+  if (printMode === "bluetooth") {
+    if (btDevice) {
+      const success = await sendToBluetoothPrinter(btDevice, text);
+      if (success) {
+        toast.success("Impresso via Bluetooth");
+        return;
+      }
+      toast.warning("Bluetooth falhou, salvando na fila...");
+    } else {
+      toast.warning("Nenhuma impressora Bluetooth pareada, salvando na fila...");
+    }
+    // Fallback to queue
+    try {
+      await enqueuePrint(orgId, order.id, text);
+      toast.info("Pedido salvo na fila de impressão");
+    } catch {
+      toast.error("Erro ao salvar na fila de impressão");
+    }
+  }
 }

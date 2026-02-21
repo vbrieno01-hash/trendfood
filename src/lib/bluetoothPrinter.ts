@@ -1,0 +1,159 @@
+// Web Bluetooth API for ESC/POS thermal printers
+
+const PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
+
+// Common alternative UUIDs for different printer brands
+const ALT_SERVICE_UUIDS = [
+  PRINTER_SERVICE_UUID,
+  "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+  "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+];
+
+const STORED_DEVICE_KEY = "bt_printer_device_id";
+
+let cachedServer: BluetoothRemoteGATTServer | null = null;
+let cachedCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
+
+export function isBluetoothSupported(): boolean {
+  return typeof navigator !== "undefined" && "bluetooth" in navigator;
+}
+
+export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null> {
+  if (!isBluetoothSupported()) return null;
+
+  try {
+    const device = await (navigator as any).bluetooth.requestDevice({
+      filters: ALT_SERVICE_UUIDS.map((uuid) => ({ services: [uuid] })),
+      optionalServices: ALT_SERVICE_UUIDS,
+    });
+
+    if (device.id) {
+      localStorage.setItem(STORED_DEVICE_KEY, device.id);
+    }
+
+    return device;
+  } catch (err) {
+    console.warn("Bluetooth pairing cancelled or failed:", err);
+    return null;
+  }
+}
+
+async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemoteGATTCharacteristic | null> {
+  if (!device.gatt) return null;
+
+  const server = await device.gatt.connect();
+  cachedServer = server;
+
+  for (const serviceUuid of ALT_SERVICE_UUIDS) {
+    try {
+      const service = await server.getPrimaryService(serviceUuid);
+      const characteristics = await service.getCharacteristics();
+      const writable = characteristics.find(
+        (c) => c.properties.write || c.properties.writeWithoutResponse
+      );
+      if (writable) {
+        cachedCharacteristic = writable;
+        return writable;
+      }
+    } catch {
+      // Try next service UUID
+    }
+  }
+
+  return null;
+}
+
+export async function sendToBluetoothPrinter(
+  device: BluetoothDevice,
+  text: string
+): Promise<boolean> {
+  try {
+    let characteristic = cachedCharacteristic;
+
+    if (!characteristic || !cachedServer?.connected) {
+      characteristic = await connectToDevice(device);
+    }
+
+    if (!characteristic) {
+      throw new Error("No writable characteristic found");
+    }
+
+    const encoder = new TextEncoder();
+
+    const ESC_INIT = new Uint8Array([0x1b, 0x40]);
+    const ESC_CENTER = new Uint8Array([0x1b, 0x61, 0x01]);
+    const ESC_LEFT = new Uint8Array([0x1b, 0x61, 0x00]);
+    const ESC_BOLD_ON = new Uint8Array([0x1b, 0x45, 0x01]);
+    const ESC_BOLD_OFF = new Uint8Array([0x1b, 0x45, 0x00]);
+    const ESC_CUT = new Uint8Array([0x1d, 0x56, 0x01]);
+    const NEWLINE = encoder.encode("\n");
+
+    const chunks: Uint8Array[] = [];
+    chunks.push(ESC_INIT);
+
+    const lines = text.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("##CENTER##")) {
+        chunks.push(ESC_CENTER);
+        chunks.push(encoder.encode(line.replace("##CENTER##", "")));
+        chunks.push(NEWLINE);
+        chunks.push(ESC_LEFT);
+      } else if (line.startsWith("##BOLD##")) {
+        chunks.push(ESC_BOLD_ON);
+        chunks.push(encoder.encode(line.replace("##BOLD##", "")));
+        chunks.push(NEWLINE);
+        chunks.push(ESC_BOLD_OFF);
+      } else {
+        chunks.push(encoder.encode(line));
+        chunks.push(NEWLINE);
+      }
+    }
+
+    chunks.push(encoder.encode("\n\n\n"));
+    chunks.push(ESC_CUT);
+
+    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < combined.length; i += CHUNK_SIZE) {
+      const slice = combined.slice(i, i + CHUNK_SIZE);
+      if (characteristic.properties.writeWithoutResponse) {
+        await characteristic.writeValueWithoutResponse(slice);
+      } else {
+        await characteristic.writeValue(slice);
+      }
+      await new Promise((r) => setTimeout(r, 30));
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Bluetooth print failed:", err);
+    cachedCharacteristic = null;
+    cachedServer = null;
+    return false;
+  }
+}
+
+export function disconnectPrinter(device: BluetoothDevice): void {
+  try {
+    device.gatt?.disconnect();
+  } catch {
+    // Ignore disconnect errors
+  }
+  cachedServer = null;
+  cachedCharacteristic = null;
+}
+
+export function getStoredDeviceId(): string | null {
+  return localStorage.getItem(STORED_DEVICE_KEY);
+}
+
+export function clearStoredDevice(): void {
+  localStorage.removeItem(STORED_DEVICE_KEY);
+}

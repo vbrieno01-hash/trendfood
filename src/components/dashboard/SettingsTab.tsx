@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { isBluetoothSupported, requestBluetoothPrinter, disconnectPrinter } from "@/lib/bluetoothPrinter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,13 @@ export default function SettingsTab() {
     (organization as any)?.printer_width || "58mm"
   );
   const [printerLoading, setPrinterLoading] = useState(false);
+  const [printMode, setPrintMode] = useState<string>(
+    (organization as any)?.print_mode || "browser"
+  );
+  const [printModeLoading, setPrintModeLoading] = useState(false);
+  const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
+  const [btConnected, setBtConnected] = useState(false);
+  const btSupported = isBluetoothSupported();
 
   const currentPlan = organization?.subscription_plan || "free";
   const isFree = currentPlan === "free";
@@ -94,6 +102,45 @@ export default function SettingsTab() {
       toast.error("Erro ao excluir conta.");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handlePrintModeChange = async (value: string) => {
+    if (!organization?.id) return;
+    setPrintMode(value);
+    setPrintModeLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ print_mode: value } as any)
+        .eq("id", organization.id);
+      if (error) throw error;
+      toast.success("Modo de impressão atualizado!");
+    } catch {
+      toast.error("Erro ao salvar configuração.");
+    } finally {
+      setPrintModeLoading(false);
+    }
+  };
+
+  const handlePairBluetooth = async () => {
+    const device = await requestBluetoothPrinter();
+    if (device) {
+      setBtDevice(device);
+      setBtConnected(true);
+      toast.success(`Impressora "${device.name || "Bluetooth"}" pareada!`);
+      device.addEventListener("gattserverdisconnected", () => {
+        setBtConnected(false);
+      });
+    }
+  };
+
+  const handleDisconnectBluetooth = () => {
+    if (btDevice) {
+      disconnectPrinter(btDevice);
+      setBtDevice(null);
+      setBtConnected(false);
+      toast.info("Impressora desconectada.");
     }
   };
 
@@ -201,7 +248,71 @@ export default function SettingsTab() {
           <Printer className="w-3.5 h-3.5 text-muted-foreground" />
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Impressora</p>
         </div>
-        <div className="px-4 py-4 space-y-3">
+        <div className="px-4 py-4 space-y-4">
+          {/* Print mode */}
+          <div>
+            <Label htmlFor="print-mode" className="text-sm font-medium">Modo de impressão</Label>
+            <Select value={printMode} onValueChange={handlePrintModeChange} disabled={printModeLoading}>
+              <SelectTrigger id="print-mode" className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="browser">🖥️ Navegador (padrão)</SelectItem>
+                <SelectItem value="desktop">💻 Desktop (Script externo)</SelectItem>
+                {btSupported && (
+                  <SelectItem value="bluetooth">📱 Mobile (Bluetooth)</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {printMode === "browser" && "Os pedidos abrem uma janela de impressão no navegador."}
+              {printMode === "desktop" && "Os pedidos são salvos na fila e um script externo captura e imprime."}
+              {printMode === "bluetooth" && "Os pedidos são enviados diretamente para a impressora Bluetooth pareada."}
+            </p>
+          </div>
+
+          {/* Bluetooth pairing */}
+          {printMode === "bluetooth" && (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Impressora Bluetooth</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  btConnected
+                    ? "bg-green-100 text-green-700 border border-green-200"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {btConnected ? `✓ ${btDevice?.name || "Conectada"}` : "Desconectada"}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handlePairBluetooth}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  {btConnected ? "Trocar impressora" : "Parear impressora"}
+                </Button>
+                {btConnected && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDisconnectBluetooth}
+                  >
+                    Desconectar
+                  </Button>
+                )}
+              </div>
+              {!btSupported && (
+                <p className="text-xs text-destructive">
+                  Seu navegador não suporta Web Bluetooth. Use Chrome no Android ou Desktop.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Printer width */}
           <div>
             <Label htmlFor="printer-width" className="text-sm font-medium">Largura da impressora</Label>
             <Select value={printerWidth} onValueChange={handlePrinterWidthChange} disabled={printerLoading}>
