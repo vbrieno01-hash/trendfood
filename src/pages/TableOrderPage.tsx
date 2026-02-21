@@ -75,11 +75,14 @@ export default function TableOrderPage() {
   const { generate: generatePixPayload } = useGeneratePixPayload();
   const [pixPayloadFromServer, setPixPayloadFromServer] = useState<string | null>(null);
 
+  const pixMode = org?.pix_confirmation_mode ?? "direct";
+
   useEffect(() => {
-    if (success && org && orderTotal > 0 && !paymentMethod) {
+    // Only generate static PIX payload for manual mode (direct mode skips QR entirely)
+    if (success && org && orderTotal > 0 && !paymentMethod && pixMode === "manual") {
       generatePixPayload(org.id, orderTotal).then((p) => setPixPayloadFromServer(p));
     }
-  }, [success, org?.id, orderTotal, paymentMethod]);
+  }, [success, org?.id, orderTotal, paymentMethod, pixMode]);
 
   const tableNum = parseInt(tableNumber || "0", 10);
 
@@ -212,7 +215,7 @@ export default function TableOrderPage() {
     }
 
     const pixMode = org.pix_confirmation_mode ?? "direct";
-    const needsPaymentFirst = pixMode === "automatic" || pixMode === "manual";
+    const needsPaymentFirst = pixMode === "automatic";
     const initialStatus = needsPaymentFirst ? "awaiting_payment" : "pending";
 
     const order = await placeOrder.mutateAsync({
@@ -252,10 +255,11 @@ export default function TableOrderPage() {
   const handleSelectPayment = async (method: "pix" | "card") => {
     setPaymentMethod(method);
     if (orderId) {
-      const pixMode = org?.pix_confirmation_mode ?? "direct";
-      const isAutomatic = method === "pix" && pixMode === "automatic";
+      const currentPixMode = org?.pix_confirmation_mode ?? "direct";
+      const isAutomatic = method === "pix" && currentPixMode === "automatic";
 
-      if (method === "card") {
+      if (method === "card" || (method === "pix" && currentPixMode === "direct")) {
+        // Direct PIX or card: treat as "pay at table/counter", send to kitchen immediately
         await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
       } else {
         await supabase.from("orders").update({ payment_method: method } as never).eq("id", orderId);
@@ -303,12 +307,12 @@ export default function TableOrderPage() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleSelectPayment("pix")}
-                disabled={!pixPayload}
+                disabled={pixMode === "manual" && !pixPayload}
                 className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <QrCode className="w-10 h-10 text-green-600" />
                 <span className="font-bold text-sm text-foreground">Pagar com PIX</span>
-                <span className="text-xs text-muted-foreground">Pague agora</span>
+                <span className="text-xs text-muted-foreground">{pixMode === "direct" ? "Pague na hora" : "Pague agora"}</span>
               </button>
               <button
                 onClick={() => handleSelectPayment("card")}
@@ -328,8 +332,28 @@ export default function TableOrderPage() {
     }
 
     if (paymentMethod === "pix") {
-      const pixMode = org.pix_confirmation_mode ?? "direct";
-      const isAutomatic = pixMode === "automatic";
+      const currentPixMode = org.pix_confirmation_mode ?? "direct";
+      const isAutomatic = currentPixMode === "automatic";
+
+      // Direct mode: PIX is "pay at table", show simple confirmation like card
+      if (currentPixMode === "direct") {
+        return (
+          <div className="min-h-screen bg-background flex items-center justify-center p-4">
+            <div className="text-center space-y-4 max-w-sm w-full">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+              <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
+              <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+                <QrCode className="w-12 h-12 text-green-500 mx-auto" />
+                <p className="font-bold text-foreground text-lg">Pagamento via PIX</p>
+                <p className="text-sm text-muted-foreground">Pague na hora com PIX. Seu pedido já foi para a cozinha! 🍽️</p>
+              </div>
+              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
+                Fazer outro pedido nesta mesa
+              </Button>
+            </div>
+          </div>
+        );
+      }
 
       if (isAutomatic) {
         if (autoPixLoading) {

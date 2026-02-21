@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
-import { useGeneratePixPayload } from "@/hooks/useGeneratePixPayload";
 import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation";
 import { CheckCircle2, Copy, Clock, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -32,12 +31,10 @@ export default function PixPaymentScreen({
 }: PixPaymentScreenProps) {
   const { toast } = useToast();
   const { createCharge, loading: chargeLoading, error: chargeError, data: chargeData } = useCreatePixCharge();
-  const { generate: generatePayload, payload: staticPayload } = useGeneratePixPayload();
 
   const [countdown, setCountdown] = useState(EXPIRY_SECONDS);
   const [expired, setExpired] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [manualConfirmed, setManualConfirmed] = useState(false);
 
   const hasGateway = pixConfirmationMode === "automatic";
 
@@ -49,17 +46,11 @@ export default function PixPaymentScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
-  // Generate static payload via edge function (non-gateway mode)
-  useEffect(() => {
-    if (!hasGateway && orderId) {
-      generatePayload(orgId, amount);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  // Static payload generation removed — this component is now only used in "automatic" mode
 
   // Countdown timer
   useEffect(() => {
-    if (expired || manualConfirmed) return;
+    if (expired) return;
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -71,7 +62,7 @@ export default function PixPaymentScreen({
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [expired, manualConfirmed]);
+  }, [expired]);
 
   // Poll for payment status (gateway mode only)
   const { paid } = useCheckPixStatus(
@@ -88,8 +79,8 @@ export default function PixPaymentScreen({
     }
   }, [paid, orderId, onSuccess]);
 
-  // The payload to display: gateway's copia-e-cola or static from edge function
-  const pixCopiaECola = chargeData?.pix_copia_e_cola || staticPayload;
+  // The payload to display from gateway
+  const pixCopiaECola = chargeData?.pix_copia_e_cola || null;
   const qrCodeBase64 = chargeData?.qr_code_base64 || null;
 
   const handleCopy = useCallback(() => {
@@ -100,11 +91,6 @@ export default function PixPaymentScreen({
       setTimeout(() => setCopied(false), 3000);
     });
   }, [pixCopiaECola, toast]);
-
-  const handleManualConfirm = () => {
-    setManualConfirmed(true);
-    onSuccess(orderId, false); // paid=false, awaiting manual confirmation
-  };
 
   const fmt = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -135,18 +121,14 @@ export default function PixPaymentScreen({
     );
   }
 
-  // Gateway error
+  // Gateway error — no fallback, show error and back button
   if (hasGateway && chargeError && !chargeData) {
     return (
       <div className="flex flex-col items-center gap-4 py-8 px-4 text-center">
         <AlertCircle className="w-10 h-10 text-destructive" />
         <h3 className="text-base font-bold text-foreground">Erro ao gerar cobrança</h3>
         <p className="text-sm text-muted-foreground">{chargeError}</p>
-        <p className="text-xs text-muted-foreground">Usando QR Code estático como alternativa.</p>
-        {/* Fallback to static — edge function will be called */}
-        {!staticPayload && (
-          <Button variant="outline" onClick={onCancel}>Voltar</Button>
-        )}
+        <Button variant="outline" onClick={onCancel}>Voltar</Button>
       </div>
     );
   }
@@ -216,21 +198,11 @@ export default function PixPaymentScreen({
         </div>
       )}
 
-      {/* Status indicator */}
-      {hasGateway && chargeData ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Aguardando pagamento...
-        </div>
-      ) : (
-        <Button
-          className="w-full font-semibold"
-          style={{ backgroundColor: primaryColor }}
-          onClick={handleManualConfirm}
-        >
-          ✅ Já paguei
-        </Button>
-      )}
+      {/* Status indicator — automatic mode only */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        Aguardando pagamento...
+      </div>
 
       <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
         Cancelar
