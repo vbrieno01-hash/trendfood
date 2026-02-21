@@ -14,7 +14,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle, Printer } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle, Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
@@ -328,6 +328,54 @@ export default function SettingsTab() {
               Escolha a largura do papel da sua impressora térmica.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Print setup */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Configuração de Impressão</p>
+        </div>
+        <div className="px-4 py-4 space-y-3">
+          <div>
+            <Label className="text-sm font-medium">ID da Loja</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                readOnly
+                value={organization?.id || ""}
+                className="text-sm flex-1 font-mono"
+                onFocus={(e) => e.target.select()}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                onClick={() => {
+                  if (organization?.id) {
+                    navigator.clipboard.writeText(organization.id);
+                    toast.success("ID copiado!");
+                  }
+                }}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2"
+            asChild
+          >
+            <a href="https://trendfood.lovable.app/trendfood.exe" download>
+              <Download className="w-4 h-4" />
+              Baixar trendfood.exe
+            </a>
+          </Button>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Baixe o programa, abra-o e digite o ID acima para ativar a impressão automática.
+          </p>
         </div>
       </div>
 
