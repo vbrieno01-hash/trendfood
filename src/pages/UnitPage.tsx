@@ -79,13 +79,13 @@ const UnitPage = () => {
     customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"
   ].map((p) => p.trim()).filter(Boolean).join(", ");
 
-  // Address for geocoding: as soon as CEP + city are available, triggers calculation immediately.
-  // Number is optional for the initial estimate — added when available for extra precision.
-  // Falls back to textual address (without complement) if CEP is missing.
+  // Address for geocoding: uses CEP/street level only (no house number) for reliable Nominatim results.
+  // The number is intentionally excluded — it often causes geocoding failures.
+  // Falls back to textual address (without number/complement) if CEP is missing.
   const fullCustomerAddress = customerAddress.cep && customerAddress.city
-    ? [customerAddress.cep, customerAddress.number, customerAddress.city, customerAddress.state, "Brasil"]
+    ? [customerAddress.cep, customerAddress.city, customerAddress.state, "Brasil"]
         .filter(Boolean).join(", ")
-    : [customerAddress.street, customerAddress.number, customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"]
+    : [customerAddress.street, customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"]
         .map((p) => p.trim()).filter(Boolean).join(", ");
 
   // Delivery fee — must be before any early returns (Rules of Hooks)
