@@ -147,6 +147,108 @@ export type Database = {
           },
         ]
       }
+      couriers: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          phone: string
+          plate: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          phone: string
+          plate: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          phone?: string
+          plate?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "couriers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deliveries: {
+        Row: {
+          accepted_at: string | null
+          courier_id: string | null
+          created_at: string
+          customer_address: string
+          delivered_at: string | null
+          distance_km: number | null
+          fee: number | null
+          id: string
+          order_id: string
+          organization_id: string
+          status: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          courier_id?: string | null
+          created_at?: string
+          customer_address: string
+          delivered_at?: string | null
+          distance_km?: number | null
+          fee?: number | null
+          id?: string
+          order_id: string
+          organization_id: string
+          status?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          courier_id?: string | null
+          created_at?: string
+          customer_address?: string
+          delivered_at?: string | null
+          distance_km?: number | null
+          fee?: number | null
+          id?: string
+          order_id?: string
+          organization_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_items: {
         Row: {
           available: boolean
