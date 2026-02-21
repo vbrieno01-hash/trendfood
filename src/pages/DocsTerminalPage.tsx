@@ -21,6 +21,9 @@ import {
   QrCode,
   Zap,
   Type,
+  Bluetooth,
+  Smartphone,
+  Ban,
 } from "lucide-react";
 
 // ── Receipt preview component ──────────────────────────────────────────────────
@@ -188,12 +191,13 @@ export default function DocsTerminalPage() {
         {/* Hero */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-2xl font-bold text-foreground">Impressora Térmica 80mm</h2>
+            <h2 className="text-2xl font-bold text-foreground">Impressora Térmica</h2>
             <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-0 text-xs">Beta</Badge>
           </div>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Guia completo para configurar a impressão automática de pedidos diretamente da cozinha (KDS),
-            com recibos formatados para 80mm e QR Code PIX gerado automaticamente.
+            Guia completo para configurar a impressão automática de pedidos diretamente da cozinha (KDS).
+            Suporte a impressoras de <strong className="text-foreground">80mm</strong> (USB/rede) e{" "}
+            <strong className="text-foreground">58mm</strong> (Bluetooth portátil), com QR Code PIX gerado automaticamente.
           </p>
         </div>
 
@@ -230,10 +234,10 @@ export default function DocsTerminalPage() {
 
         {/* Seção 2 — Requisitos */}
         <Section title="Requisitos" icon={<CheckCircle2 className="w-5 h-5" />}>
-          <div className="grid sm:grid-cols-3 gap-4 text-sm">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div className="rounded-xl border border-border bg-background p-4 space-y-2">
               <div className="flex items-center gap-2 text-foreground font-semibold">
-                <Printer className="w-4 h-4 text-primary" /> Hardware
+                <Printer className="w-4 h-4 text-primary" /> Hardware (80mm)
               </div>
               <ul className="space-y-1 text-muted-foreground text-xs">
                 <li>• Impressora térmica 80mm</li>
@@ -262,6 +266,17 @@ export default function DocsTerminalPage() {
                 <li>• Microsoft Edge</li>
                 <li>• Firefox (funcional)</li>
                 <li>• Qualquer browser moderno</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-4 space-y-2">
+              <div className="flex items-center gap-2 text-foreground font-semibold">
+                <Bluetooth className="w-4 h-4 text-primary" /> Bluetooth (58mm)
+              </div>
+              <ul className="space-y-1 text-muted-foreground text-xs">
+                <li>• Impressora térmica 58mm Bluetooth</li>
+                <li>• Android ou Windows</li>
+                <li>• Chrome (recomendado)</li>
+                <li>• Papel 58mm</li>
               </ul>
             </div>
           </div>
@@ -393,6 +408,104 @@ export default function DocsTerminalPage() {
           </div>
         </Section>
 
+        {/* Seção 3.5 — Bluetooth */}
+        <Section title="Conectar impressora Bluetooth (58mm)" icon={<Bluetooth className="w-5 h-5" />}>
+          <div className="space-y-5">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Impressoras portáteis Bluetooth de 58mm funcionam no{" "}
+              <strong className="text-foreground">Android (Chrome)</strong> e no{" "}
+              <strong className="text-foreground">Windows</strong>.
+              No iOS (Safari), impressoras Bluetooth genéricas <strong className="text-foreground">não são suportadas</strong> devido à limitação do AirPrint.
+            </p>
+
+            {/* Passo a passo Bluetooth */}
+            <div className="flex gap-4">
+              <StepBadge n={1} />
+              <div className="space-y-1 flex-1">
+                <p className="font-semibold text-sm text-foreground">Parear a impressora no celular ou PC</p>
+                <p className="text-sm text-muted-foreground">
+                  Vá em <strong className="text-foreground">Configurações → Bluetooth</strong> do seu dispositivo,
+                  busque por "MobilePrinter" ou nome similar e conecte.
+                  PIN comum: <code className="bg-muted rounded px-1.5 py-0.5 text-xs font-mono">0000</code> ou{" "}
+                  <code className="bg-muted rounded px-1.5 py-0.5 text-xs font-mono">1234</code>.
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex gap-4">
+              <StepBadge n={2} />
+              <div className="space-y-1 flex-1">
+                <p className="font-semibold text-sm text-foreground">Configure a largura no dashboard</p>
+                <p className="text-sm text-muted-foreground">
+                  No dashboard, acesse <strong className="text-foreground">Configurações → Largura da impressora</strong> e
+                  selecione <code className="bg-muted rounded px-1.5 py-0.5 text-xs font-mono">58mm (portátil)</code>.
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex gap-4">
+              <StepBadge n={3} />
+              <div className="space-y-1 flex-1">
+                <p className="font-semibold text-sm text-foreground">Imprima pela tela da Cozinha</p>
+                <p className="text-sm text-muted-foreground">
+                  Abra a tela da <strong className="text-foreground">Cozinha</strong> no Chrome, clique em imprimir
+                  um pedido e selecione a impressora Bluetooth no diálogo de impressão.
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex gap-4">
+              <StepBadge n={4} />
+              <div className="space-y-1 flex-1">
+                <p className="font-semibold text-sm text-foreground flex items-center gap-2">
+                  <TestTube2 className="w-4 h-4 text-primary" />
+                  Teste com um pedido real
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Faça um pedido de teste e confirme que o recibo sai com layout de 58mm, sem cortes.
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Cards por plataforma */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground">Instruções por plataforma:</p>
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs space-y-1">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5" /> Android
+                  </p>
+                  <p className="text-muted-foreground">
+                    Configurações → Bluetooth → Parear dispositivo → No Chrome, a impressora aparece automaticamente no diálogo de impressão.
+                  </p>
+                </div>
+                <div className="rounded-lg bg-muted/50 border border-border p-3 text-xs space-y-1">
+                  <p className="font-semibold text-foreground">🪟 Windows</p>
+                  <p className="text-muted-foreground">
+                    Configurações → Bluetooth → Adicionar dispositivo → A impressora aparece em Dispositivos e Impressoras do sistema.
+                  </p>
+                </div>
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs space-y-1">
+                  <p className="font-semibold text-destructive flex items-center gap-1.5">
+                    <Ban className="w-3.5 h-3.5" /> iOS (não suportado)
+                  </p>
+                  <p className="text-muted-foreground">
+                    O AirPrint do iOS não suporta impressoras térmicas Bluetooth genéricas. Use Android ou Windows.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+
         {/* Seção 4 — Exemplo de Recibo */}
         <Section title="Exemplo de recibo impresso" icon={<Printer className="w-5 h-5" />}>
           <div className="space-y-4">
@@ -437,6 +550,16 @@ export default function DocsTerminalPage() {
               problem="Impressora em rede não é detectada"
               solution="Certifique-se de que o driver está instalado no computador e a impressora aparece em Dispositivos e Impressoras do sistema operacional. A impressão é feita pelo sistema operacional, não diretamente pela rede."
             />
+            <TroubleCard
+              icon={<Bluetooth className="w-4 h-4" />}
+              problem="Impressora Bluetooth não aparece no pareamento"
+              solution="Verifique se a impressora está ligada e em modo de pareamento (luz piscando). Tente os PINs 0000 ou 1234. Reinicie o Bluetooth do dispositivo e tente novamente."
+            />
+            <TroubleCard
+              icon={<Bluetooth className="w-4 h-4" />}
+              problem="Impressão Bluetooth sai cortada ou com layout errado"
+              solution='Verifique se a largura da impressora está configurada como "58mm (portátil)" nas Configurações do dashboard. Se estiver em 80mm, o layout será maior que o papel.'
+            />
           </div>
         </Section>
 
@@ -467,12 +590,22 @@ export default function DocsTerminalPage() {
                 model="USB + Bluetooth | Compacta"
                 price="~R$ 350 – R$ 500"
               />
+              <PrinterCard
+                name="Mini 58mm Bluetooth (genérica)"
+                model="Bluetooth | Portátil 58mm"
+                price="~R$ 80 – R$ 150"
+              />
+              <PrinterCard
+                name="Leopardo A8 58mm"
+                model="Bluetooth | Portátil 58mm"
+                price="~R$ 100 – R$ 200"
+              />
             </div>
             <Alert>
               <Info className="h-4 w-4" />
               <AlertTitle>Compatibilidade</AlertTitle>
               <AlertDescription className="text-xs">
-                Qualquer impressora térmica 80mm que apareça como dispositivo no sistema operacional é
+                Qualquer impressora térmica (80mm ou 58mm) que apareça como dispositivo no sistema operacional é
                 compatível — o sistema usa o diálogo de impressão nativo do navegador.
               </AlertDescription>
             </Alert>
