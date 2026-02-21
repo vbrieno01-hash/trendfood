@@ -1,150 +1,43 @@
 
 
-# Sistema de Fila de Impressao Multi-Loja
+# Formatar conteudo_txt com maximo de 32 caracteres por linha
 
 ## Resumo
 
-Criar um sistema de impressao profissional com dois modos: **Desktop (Script)** onde pedidos ficam numa fila no banco aguardando captura por script externo, e **Mobile (Bluetooth)** onde o lojista conecta sua impressora termica via Web Bluetooth API diretamente do celular/PWA.
+Ajustar `formatReceiptText` para que **todas as linhas** do texto gerado tenham no maximo 32 caracteres visíveis (excluindo marcadores como `##BOLD##` e `##CENTER##`). Isso garante compatibilidade universal com impressoras termicas de 58mm e 80mm de qualquer marca.
 
-## O que muda para o usuario
+## Problemas atuais
 
-Na aba **Configuracoes** do dashboard, aparece uma nova secao "Modo de Impressao" com duas opcoes:
-- **Desktop (Script)**: pedidos sao salvos na fila e um script externo (polling) busca e imprime. O lojista ve um aviso "Pedido enviado para a cozinha".
-- **Mobile (Bluetooth)**: o lojista pareia a impressora Bluetooth pelo navegador e os pedidos sao enviados diretamente via ESC/POS.
+1. Quando `printerWidth` e `80mm`, o sistema gera linhas com ate 48 caracteres -- ultrapassa o limite
+2. Nomes de itens longos ou enderecos de clientes podem gerar linhas maiores que 32 caracteres sem quebra
+3. O divisor (`---`) usa `cols` variavel, podendo ter 48 tracos
 
-Na aba **Cozinha (KDS)**, quando o auto-print esta ativo ou o lojista clica em imprimir, o sistema usa o modo configurado ao inves de sempre abrir `window.print()`.
+## Alteracoes
 
-## Detalhes tecnicos
+### Arquivo: `src/lib/formatReceiptText.ts`
 
-### 1. Migracao: tabela `fila_impressao`
+1. **Fixar `cols = 32` sempre** -- remover a logica que diferencia 58mm/80mm. O parametro `printerWidth` pode ser mantido na assinatura para compatibilidade, mas o numero de colunas sera sempre 32.
 
-```text
-CREATE TABLE public.fila_impressao (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid NOT NULL,
-  order_id uuid,
-  conteudo_txt text NOT NULL,
-  status text NOT NULL DEFAULT 'pendente',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  printed_at timestamptz
-);
+2. **Adicionar funcao `wrapLine(text, maxCols)`** -- quebra qualquer string que ultrapasse 32 caracteres em multiplas linhas, quebrando preferencialmente em espacos. Retorna um array de strings.
 
-ALTER TABLE public.fila_impressao ENABLE ROW LEVEL SECURITY;
-```
+3. **Ajustar formatacao de itens** -- quando `qty + nome + preco` exceder 32 caracteres:
+   - Primeira linha: `qty nome` (truncado/quebrado em 32 chars)
+   - Segunda linha: preco alinhado a direita
+   - Isso garante que o preco nunca seja cortado
 
-Politicas RLS -- apenas o dono da loja ve/atualiza seus proprios registros:
+4. **Aplicar `wrapLine` nos campos de cliente** -- endereco, nome e observacoes podem ser longos e devem ser quebrados respeitando o limite de 32 colunas.
 
-- **SELECT**: `auth.uid() = (SELECT user_id FROM organizations WHERE id = fila_impressao.organization_id)`
-- **INSERT**: mesma logica (owner only)
-- **UPDATE**: mesma logica (owner only, para marcar como impresso)
-- **DELETE**: mesma logica (owner only)
+5. **Ajustar linha do TOTAL com ##BOLD##** -- garantir que o texto visivel (sem o marcador) tenha no maximo 32 caracteres. Atualmente o padding com espacos conta a partir de `cols` mas ignora o tamanho do marcador.
 
-Habilitar realtime para polling em tempo real:
-```text
-ALTER PUBLICATION supabase_realtime ADD TABLE public.fila_impressao;
-```
+### Arquivo: `src/lib/bluetoothPrinter.ts`
 
-### 2. Migracao: coluna `print_mode` na tabela `organizations`
+Nenhuma alteracao necessaria -- o processamento dos marcadores `##CENTER##` e `##BOLD##` ja esta correto e independe do numero de colunas.
 
-```text
-ALTER TABLE public.organizations
-ADD COLUMN print_mode text NOT NULL DEFAULT 'browser';
-```
+### Arquivo: `src/lib/printQueue.ts`
 
-Valores possiveis: `'browser'` (atual, window.print), `'desktop'` (fila no banco), `'bluetooth'` (Web Bluetooth).
+Nenhuma alteracao -- o texto ja e salvo como texto simples (sem HTML) na tabela `fila_impressao`.
 
-### 3. Novo arquivo: `src/lib/bluetoothPrinter.ts`
+## Resultado esperado
 
-Gerencia a conexao Web Bluetooth com impressoras termicas ESC/POS:
-
-- `requestBluetoothPrinter()` -- abre o dialogo de pareamento do navegador, filtrando por servicos de impressora serial
-- `sendToBluetoothPrinter(device, text)` -- converte texto formatado 58mm em comandos ESC/POS basicos (texto, corte) e envia via GATT characteristic
-- `disconnectPrinter(device)` -- desconecta limpo
-- Armazena o `device.id` no localStorage para reconexao automatica
-
-Formato ESC/POS simplificado:
-- Inicializacao: `\x1B\x40`
-- Texto centralizado: `\x1B\x61\x01`
-- Negrito on/off: `\x1B\x45\x01` / `\x1B\x45\x00`
-- Corte parcial: `\x1D\x56\x01`
-
-### 4. Novo arquivo: `src/lib/printQueue.ts`
-
-Funcoes para interagir com a fila de impressao:
-
-- `enqueuePrint(orgId, orderId, contentText)` -- insere na `fila_impressao` com status `pendente`
-- `markAsPrinted(printId)` -- atualiza status para `impresso` e seta `printed_at`
-- `usePrintQueue(orgId)` -- hook que retorna pedidos pendentes com realtime subscription (para o script desktop monitorar)
-
-### 5. Novo arquivo: `src/lib/formatReceiptText.ts`
-
-Converte um pedido em texto puro formatado para 58mm (32 colunas) ou 80mm (48 colunas):
-
-- Reutiliza a logica de parsing de `printOrder.ts` (parseNotes, itens, total)
-- Retorna string pura (sem HTML) para uso no Bluetooth e na fila de texto
-- Formato: nome da loja centralizado, divisor, mesa/entrega, itens com quantidade, total, dados do cliente
-
-### 6. Alteracao: `src/lib/printOrder.ts`
-
-Adicionar funcao `printOrderByMode(order, storeName, printMode, orgId, pixPayload, printerWidth)`:
-
-- Se `printMode === 'browser'`: chama o `printOrder()` atual (window.open + window.print)
-- Se `printMode === 'desktop'`: chama `formatReceiptText()` + `enqueuePrint()`, mostra toast "Pedido enviado para impressao"
-- Se `printMode === 'bluetooth'`: chama `formatReceiptText()` + `sendToBluetoothPrinter()`, com fallback para `enqueuePrint()` se o Bluetooth falhar
-
-### 7. Alteracao: `src/components/dashboard/KitchenTab.tsx`
-
-- Receber nova prop `printMode` (vinda da org)
-- No auto-print e no botao manual, usar `printOrderByMode()` ao inves de `printOrder()` direto
-
-### 8. Alteracao: `src/pages/KitchenPage.tsx`
-
-- Buscar `print_mode` da organizacao (ja vem no useOrganization)
-- Passar para `printOrderByMode()`
-
-### 9. Alteracao: `src/hooks/useOrganization.ts`
-
-- Adicionar `print_mode` na interface `Organization` e no select da query
-
-### 10. Alteracao: `src/hooks/useAuth.tsx`
-
-- Adicionar `print_mode` no select da query de organizacao autenticada
-
-### 11. Alteracao: `src/components/dashboard/SettingsTab.tsx`
-
-Adicionar secao "Modo de Impressao" com:
-
-- **Select** com 3 opcoes: Navegador (padrao), Desktop (Script), Mobile (Bluetooth)
-- Quando selecionar **Bluetooth**: mostrar botao "Parear Impressora" que chama `requestBluetoothPrinter()`
-- Status de conexao Bluetooth (conectado/desconectado)
-- Salva `print_mode` na organizacao via update no banco
-
-### 12. Seguranca
-
-- RLS garante isolamento total: cada lojista so ve sua propria fila
-- A fila usa `organization_id` vinculado ao `user_id` do dono
-- Nenhum acesso publico a tabela `fila_impressao`
-- Web Bluetooth e local ao dispositivo -- cada celular pareia sua propria impressora
-
-### Fluxo Desktop (Script)
-
-1. Pedido chega na cozinha
-2. Sistema formata o recibo em texto puro
-3. Insere na tabela `fila_impressao` com status `pendente`
-4. Toast: "Pedido enviado para a cozinha"
-5. Script externo faz polling (ou usa realtime) na tabela, imprime, e marca como `impresso`
-
-### Fluxo Mobile (Bluetooth)
-
-1. Lojista pareia a impressora nas Configuracoes (uma vez)
-2. Pedido chega na cozinha
-3. Sistema formata em ESC/POS e envia direto via Web Bluetooth
-4. Se falhar, cai no fallback (salva na fila)
-
-### Compatibilidade Web Bluetooth
-
-- Chrome Android: suportado
-- Chrome Desktop (Windows/Linux/macOS): suportado
-- Safari iOS: **nao suportado** -- mostra aviso orientando a usar AirPrint ou modo Desktop
-- O sistema detecta `navigator.bluetooth` e esconde a opcao quando indisponivel
+Todo `conteudo_txt` salvo na tabela `fila_impressao` tera no maximo 32 caracteres por linha, garantindo impressao limpa em qualquer impressora termica sem corte ou overflow.
 
