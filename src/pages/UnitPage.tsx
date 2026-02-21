@@ -23,7 +23,7 @@ import { useDeliveryFee } from "@/hooks/useDeliveryFee";
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 import { getStateFromCep } from "@/lib/storeAddress";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 
@@ -266,10 +266,7 @@ const UnitPage = () => {
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
     if (!effectivePayment) { setPaymentError(true); valid = false; } else setPaymentError(false);
     if (orderType === "Entrega") {
-      if (noStoreAddress) {
-        toast.error("Esta loja ainda não aceita entregas com frete automático. Escolha Retirada.");
-        valid = false;
-      } else if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
+      if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
         setAddressError(true); valid = false;
       } else {
         setAddressError(false);
@@ -763,37 +760,30 @@ const UnitPage = () => {
                     <span className="text-green-600 font-medium">Grátis</span>
                   </div>
                 ) : orderType === "Entrega" ? (
-                  noStoreAddress ? (
-                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg p-3 text-center">
-                      <p className="text-amber-800 dark:text-amber-400 text-xs font-medium">
-                        ⚠️ Entrega indisponível — loja sem endereço configurado.
-                      </p>
-                      <p className="text-amber-700 dark:text-amber-500 text-xs mt-0.5">Escolha "Retirada no local" ou entre em contato pelo WhatsApp.</p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        🛵 Frete
-                        {distanceKm != null && (
-                          <span className="text-xs">({distanceKm.toFixed(1)} km)</span>
-                        )}
-                      </span>
-                      {feeLoading ? (
-                        <span className="flex items-center gap-1">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          Calculando...
-                        </span>
-                      ) : feeError ? (
-                        <span className="text-xs text-muted-foreground italic">A combinar via WhatsApp</span>
-                      ) : freeShipping ? (
-                        <span className="text-green-600 font-medium">Grátis</span>
-                      ) : fullCustomerAddress.length >= 8 ? (
-                        <span className="font-medium text-foreground">{fmt(deliveryFee)}</span>
-                      ) : (
-                        <span className="text-xs italic">Digite seu endereço</span>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      🛵 Frete
+                      {distanceKm != null && (
+                        <span className="text-xs">({distanceKm.toFixed(1)} km)</span>
                       )}
-                    </div>
-                  )
+                    </span>
+                    {noStoreAddress ? (
+                      <span className="text-xs text-muted-foreground italic">A combinar via WhatsApp</span>
+                    ) : feeLoading ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Calculando...
+                      </span>
+                    ) : feeError ? (
+                      <span className="text-xs text-muted-foreground italic">A combinar via WhatsApp</span>
+                    ) : freeShipping ? (
+                      <span className="text-green-600 font-medium">Grátis</span>
+                    ) : fullCustomerAddress.length >= 8 ? (
+                      <span className="font-medium text-foreground">{fmt(deliveryFee)}</span>
+                    ) : (
+                      <span className="text-xs italic">Digite seu endereço</span>
+                    )}
+                  </div>
                 ) : null}
                 <div className="flex items-center justify-between pt-1 font-bold text-foreground border-t border-border/50">
                   <span>Total</span>
