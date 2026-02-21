@@ -1,29 +1,23 @@
 
-# Mostrar "Instalar App" sempre na sidebar
+# Corrigir logica invertida do modo PIX no checkout
 
-## Resumo
+## Problema
 
-Atualmente o botao "Instalar App" so aparece quando o navegador dispara o evento `beforeinstallprompt` (Chrome/Edge). Para quem usa Safari ou ja instalou, o botao fica invisivel. A ideia e deixar o botao sempre visivel na area inferior da sidebar, e quando o prompt nativo nao estiver disponivel, mostrar instrucoes de como instalar manualmente.
+No arquivo `src/components/checkout/PixPaymentScreen.tsx`, linha 42, a variavel `hasGateway` esta configurada como `pixConfirmationMode === "direct"`, mas o modo "Direto" significa que o pedido vai direto pra cozinha e o PIX e apenas informativo (QR Code estatico). O gateway so deve ser usado no modo "Automatico" (`automatic`).
 
-## Mudancas
+Isso causa o erro "Erro ao gerar cobranca" para qualquer loja que esteja no modo "Direto", porque o sistema tenta chamar a Edge Function `verify-pix-payment` sem ter credenciais de gateway configuradas.
 
-### `src/pages/DashboardPage.tsx`
+## Mudanca
 
-- Remover a condicao `{installPrompt && !appInstalled && (...)}` que esconde o botao
-- Mostrar o botao "Instalar App" sempre (exceto se ja instalado via `appInstalled`)
-- Quando `installPrompt` estiver disponivel: manter o comportamento atual (prompt nativo)
-- Quando `installPrompt` NAO estiver disponivel: ao clicar, mostrar um toast com instrucoes simples, tipo: "No navegador, toque nos 3 pontinhos (ou botao Compartilhar no iPhone) e selecione 'Instalar app' ou 'Adicionar a tela inicial'."
-- Posicionar o botao antes do "Indique o TrendFood" na ordem da sidebar
+### `src/components/checkout/PixPaymentScreen.tsx`
 
-### Ordem final na sidebar
+- **Linha 42**: Trocar `pixConfirmationMode === "direct"` por `pixConfirmationMode === "automatic"`
 
-```text
-[Instalar App]           <-- sempre visivel
-[Indique o TrendFood]    <-- destacado
-[Ver pagina publica]
-[Sair]
-```
+Isso faz com que:
+- **Direto**: Gera QR Code estatico via `generate-pix-payload`, pedido vai direto pra cozinha
+- **Manual**: Gera QR Code estatico, mostra botao "Ja paguei", lojista confirma manualmente
+- **Automatico (API)**: Cria cobranca via gateway (`verify-pix-payment`), faz polling do status (`check-pix-status`)
 
 ### Nenhuma alteracao no banco de dados
 
-Apenas mudanca visual e logica no frontend.
+Apenas correcao de uma condicional no frontend.
