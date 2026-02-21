@@ -1,20 +1,24 @@
 
-
-# Adicionar aviso "Use este ID no seu programa de impressão TrendFood"
+# Enfileirar impressao automaticamente ao criar pedido
 
 ## Resumo
 
-A secao "Configuracao de Impressao" ja existe no `SettingsTab.tsx` com o ID da loja, botao de copiar e botao de download. A unica alteracao necessaria e adicionar um aviso em destaque com o texto solicitado.
+Alterar a funcao `usePlaceOrder` em `src/hooks/useOrders.ts` para que, apos inserir o pedido e seus itens com sucesso, chame `enqueuePrint` da `src/lib/printQueue.ts` para inserir uma linha na tabela `fila_impressao` com status `pendente`.
 
 ## Alteracao
 
-### Arquivo: `src/components/dashboard/SettingsTab.tsx`
+### Arquivo: `src/hooks/useOrders.ts`
 
-Na secao "Configuracao de Impressao" (ja existente), adicionar um bloco de destaque (fundo amarelo/amber claro) logo abaixo do campo de ID, com o texto:
+1. Importar `enqueuePrint` de `@/lib/printQueue` e `formatReceiptText` de `@/lib/formatReceiptText`
+2. Na `mutationFn` de `usePlaceOrder`, apos inserir os `order_items` (linha 188-189), adicionar um bloco que:
+   - Monta um objeto `PrintableOrder` com os dados do pedido recem-criado e seus itens
+   - Gera o texto formatado via `formatReceiptText`
+   - Chama `enqueuePrint(organizationId, order.id, textoFormatado)`
+   - Envolve em try/catch para nao bloquear o fluxo principal caso a fila falhe (apenas loga o erro no console)
 
-**"Use este ID no seu programa de impressao TrendFood"**
+### Detalhes tecnicos
 
-Isso ficara entre o campo de ID com botao de copiar e o botao de download, usando um estilo de callout (`bg-amber-50 border border-amber-200 rounded-lg p-3`) para chamar atencao do lojista.
-
-A instrucao existente ("Baixe o programa, abra-o e digite o ID acima...") permanece inalterada abaixo do botao de download.
-
+- O `enqueuePrint` ja existe e insere na tabela `fila_impressao` com `organization_id`, `order_id`, `conteudo_txt` e `status: "pendente"`
+- O `formatReceiptText` ja formata o recibo em texto plano (32 colunas) compativel com impressoras termicas
+- A chamada sera feita com `try/catch` isolado para que uma falha na fila de impressao nao impeca o pedido de ser criado
+- Nenhuma alteracao de banco de dados e necessaria -- a tabela `fila_impressao` ja existe com a estrutura correta
