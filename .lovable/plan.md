@@ -1,56 +1,53 @@
 
+# Corrigir frete "A combinar" ao digitar número da casa
 
-# Adicionar seção Bluetooth na documentação da impressora térmica
+## Problema
 
-## Resumo
+Quando o cliente preenche o número da casa no checkout, o endereço enviado ao geocoder (Nominatim) inclui o número, por exemplo:
+`"12345-678, 123, Cidade, Estado, Brasil"`
 
-A página de documentação `/docs/impressora-termica` já existe e é bem completa para impressoras USB/rede de 80mm. O plano é expandir essa mesma página para incluir uma nova seção dedicada a impressoras Bluetooth (58mm portáteis), com instruções de pareamento por plataforma e troubleshooting específico.
+O Nominatim frequentemente não consegue resolver endereços com números residenciais no meio da query, especialmente quando o CEP não está indexado. Isso causa falha na geocodificação e o frete exibe "A combinar".
 
-## Mudanças no arquivo `src/pages/DocsTerminalPage.tsx`
+Sem o número, a query fica `"12345-678, Cidade, Estado, Brasil"` e funciona normalmente.
 
-### 1. Atualizar o título/hero
+## Causa raiz
 
-Mudar de "Impressora Térmica 80mm" para "Impressora Térmica" (genérico), e ajustar a descrição para mencionar suporte a 58mm e 80mm, USB, rede e Bluetooth.
+No arquivo `src/pages/UnitPage.tsx`, linha 85-87, o `fullCustomerAddress` (usado para geocodificação) inclui `customerAddress.number`:
 
-### 2. Nova seção: "Conectar impressora Bluetooth (58mm)"
+```text
+[customerAddress.cep, customerAddress.number, customerAddress.city, customerAddress.state, "Brasil"]
+```
 
-Inserir após a seção "Passo a passo de configuração" (seção 3) uma nova seção com:
+## Solucao
 
-- Explicação de que impressoras Bluetooth 58mm funcionam no Android (Chrome) e no Windows, mas nao no iOS (Safari)
-- Passo a passo com os componentes StepBadge já existentes:
-  1. Parear a impressora no celular/PC (Configurações > Bluetooth > buscar "MobilePrinter" ou nome similar, PIN comum: 0000 ou 1234)
-  2. No dashboard, ir em Configurações e selecionar "58mm (portátil)" na largura da impressora
-  3. Abrir a tela da Cozinha no Chrome, clicar em imprimir um pedido, e selecionar a impressora Bluetooth no diálogo
-  4. Testar com um pedido real
+Remover `customerAddress.number` da construcao do `fullCustomerAddress` usado para geocodificacao. A precisao a nivel de CEP/rua e mais que suficiente para calcular a faixa de distancia do frete.
 
-- Sub-seção com cards por plataforma (mesmo estilo dos cards Windows/macOS/Linux já existentes):
-  - Android: Configurações > Bluetooth > Parear > Chrome seleciona automaticamente
-  - Windows: Configurações > Bluetooth > Adicionar dispositivo > Aparece em Dispositivos e Impressoras
-  - iOS: Card com aviso de incompatibilidade (AirPrint nao suporta impressoras genéricas Bluetooth)
+### Arquivo: `src/pages/UnitPage.tsx`
 
-### 3. Atualizar seção de Requisitos
+Alterar a construcao do `fullCustomerAddress` (linhas 85-89) para nao incluir o numero da casa em nenhum dos dois caminhos (com CEP ou sem CEP):
 
-Adicionar um quarto card na grid de requisitos:
-- Titulo: "Bluetooth (58mm)"
-- Itens: Impressora térmica 58mm Bluetooth, Android ou Windows, Chrome (recomendado), Papel 58mm
+**De:**
+```text
+const fullCustomerAddress = customerAddress.cep && customerAddress.city
+    ? [customerAddress.cep, customerAddress.number, customerAddress.city, customerAddress.state, "Brasil"]
+        .filter(Boolean).join(", ")
+    : [customerAddress.street, customerAddress.number, customerAddress.neighborhood, ...]
+```
 
-### 4. Novos TroubleCards na seção de problemas
+**Para:**
+```text
+const fullCustomerAddress = customerAddress.cep && customerAddress.city
+    ? [customerAddress.cep, customerAddress.city, customerAddress.state, "Brasil"]
+        .filter(Boolean).join(", ")
+    : [customerAddress.street, customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"]
+        .map((p) => p.trim()).filter(Boolean).join(", ");
+```
 
-Adicionar 2 cards de troubleshooting Bluetooth:
-- "Impressora Bluetooth não aparece no pareamento" → Solução: verificar se está ligada e em modo pareamento, tentar PIN 0000 ou 1234
-- "Impressão Bluetooth sai cortada ou com layout errado" → Solução: verificar se a largura está configurada como 58mm nas Configurações do dashboard
+O numero continua sendo usado normalmente no `fullCustomerAddressDisplay` (linha 77-80) para exibicao no WhatsApp, pedido e comprovante — apenas a query de geocodificacao muda.
 
-### 5. Atualizar seção de impressoras recomendadas
+## Impacto
 
-Adicionar 2 modelos Bluetooth 58mm na lista:
-- Mini impressora térmica 58mm Bluetooth (genérica) — ~R$80-150
-- Leopardo A8 58mm Bluetooth — ~R$100-200
-
-### 6. Atualizar o GuideTab
-
-No arquivo `src/components/dashboard/GuideTab.tsx`, na seção "Configurações" (id: "settings"), adicionar um step mencionando a configuração da largura da impressora (58mm ou 80mm).
-
-## Nenhuma mudança no banco de dados
-
-Todas as alterações são apenas de interface/documentação.
-
+- Nenhuma mudanca no banco de dados
+- Nenhuma mudanca visual para o cliente
+- O endereco completo (com numero e complemento) continua sendo enviado no pedido, WhatsApp e impressao
+- Apenas a query interna de geocodificacao fica mais limpa e confiavel
