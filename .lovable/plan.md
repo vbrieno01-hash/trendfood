@@ -1,28 +1,22 @@
 
-# Ordenação do cardápio: mais recente em cima ou embaixo
+
+# Adicionar barra de pesquisa na pagina publica
 
 ## Resumo
-Adicionar um botão/toggle no cabeçalho do cardápio para o usuário escolher a ordem de exibição dos itens dentro de cada categoria: **mais recentes primeiro** (de cima pra baixo) ou **mais antigos primeiro** (de baixo pra cima). A preferência será salva localmente no navegador.
+Adicionar um campo de busca (com icone de lupa) logo acima da barra de categorias na pagina publica da loja, permitindo que o cliente filtre os itens do cardapio em tempo real pelo nome ou descricao.
 
 ## Como vai funcionar
-- Um botão discreto ao lado do botão "Novo item" com ícone de seta (ArrowUpDown) permite alternar entre:
-  - **Mais recentes primeiro** - itens adicionados por último aparecem no topo de cada categoria
-  - **Mais antigos primeiro** - itens adicionados primeiro aparecem no topo (comportamento atual por nome)
-- A escolha fica salva no `localStorage` para persistir entre sessões
-- A ordenação se aplica dentro de cada categoria (a ordem das categorias continua a mesma)
+- Um campo de texto com icone de lupa aparece entre o banner e a barra de categorias
+- O cliente digita e os itens sao filtrados instantaneamente (pelo nome e descricao)
+- Quando ha texto na busca, a barra de categorias e os agrupamentos continuam visiveis, mas mostram apenas os itens que correspondem a pesquisa
+- Categorias sem resultados ficam ocultas automaticamente
+- Um botao "X" dentro do campo limpa a busca
 
-## Mudanças técnicas
+## Mudancas tecnicas
 
-### 1. `src/hooks/useMenuItems.ts`
-- Adicionar parâmetro `sortOrder` ao hook `useMenuItems` com valores `"newest"` ou `"oldest"`
-- Alterar a ordenação secundária (dentro de cada categoria) de `name.localeCompare` para usar `created_at`:
-  - `"newest"`: itens mais recentes primeiro (`created_at` decrescente)
-  - `"oldest"`: itens mais antigos primeiro (`created_at` crescente)
-- Incluir `sortOrder` na `queryKey` para reagir a mudanças
-
-### 2. `src/components/dashboard/MenuTab.tsx`
-- Adicionar estado `sortOrder` com valor inicial lido do `localStorage`
-- Adicionar um botão com ícone `ArrowUpDown` ou `ArrowDownUp` no cabeçalho, ao lado do "Novo item"
-- Ao clicar, alterna entre `"newest"` e `"oldest"` e salva no `localStorage`
-- Passar `sortOrder` para o hook `useMenuItems`
-- Texto descritivo pequeno indicando a ordem atual (ex: "Recentes primeiro" ou "Antigos primeiro")
+### Arquivo: `src/pages/UnitPage.tsx`
+1. Importar `Search` de `lucide-react`
+2. Adicionar estado `searchQuery` (string)
+3. Inserir o campo de busca (Input com icone de lupa) entre o banner e a barra de categorias
+4. Filtrar `menuItems` pelo `searchQuery` antes de gerar o `groupedMenu` — comparando nome e descricao em lowercase
+5. O campo tera placeholder "Buscar no cardapio..." e estilo compacto com bordas arredondadas
