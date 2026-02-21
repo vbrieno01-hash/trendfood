@@ -1,32 +1,30 @@
 
-# Adicionar categoria "Promoção do dia" como primeira do cardápio
+# Campo de preço com formato monetário brasileiro (R$ XX,XX)
 
-## Resumo
+## Problema
+O campo de preço atual usa `<Input type="number">`, que exibe um campo numérico padrão sem formatação monetária. O usuário precisa digitar o preço sem ter uma vírgula fixa separando reais e centavos, o que causa confusão.
 
-Adicionar a categoria "Promoção do dia" como a primeira opção na lista de categorias do cardápio, para que o dono do restaurante possa destacar itens em promoção no topo.
+## Solução
+Criar um componente `CurrencyInput` que:
+- Exibe o valor sempre formatado como moeda brasileira (ex: `12,90`)
+- Ao digitar, aceita apenas números e posiciona automaticamente os centavos (as duas últimas casas são sempre centavos)
+- Internamente converte para número decimal (float) para salvar no banco normalmente
 
-## Mudança
+### Comportamento do input
+- O usuário digita apenas números (sem ponto, sem vírgula)
+- O componente formata automaticamente: digitar `1290` exibe `12,90`, digitar `500` exibe `5,00`
+- Prefixo visual "R$" ao lado do campo
 
-### Arquivo: `src/hooks/useMenuItems.ts`
+## Mudanças técnicas
 
-Inserir `{ value: "Promoção do dia", emoji: "🔥" }` como primeiro item do array `CATEGORIES`:
+### 1. Novo componente: `src/components/ui/currency-input.tsx`
+- Componente controlado que recebe `value` (number em reais, ex: 12.90) e `onChange` (callback com number)
+- Internamente armazena o valor em centavos como inteiro
+- Formata a exibição com vírgula fixa (ex: `12,90`)
+- Aceita apenas dígitos no `onKeyDown`/`onChange`
+- Exibe prefixo "R$" dentro do campo
 
-```text
-export const CATEGORIES = [
-  { value: "Promoção do dia", emoji: "🔥" },   // NOVO - primeira posição
-  { value: "Hambúrgueres", emoji: "🍔" },
-  { value: "Bebidas", emoji: "🥤" },
-  { value: "Porções", emoji: "🍟" },
-  { value: "Sobremesas", emoji: "🍰" },
-  { value: "Combos", emoji: "🎁" },
-  { value: "Outros", emoji: "🍽️" },
-];
-```
-
-Como o `CATEGORY_ORDER` é gerado automaticamente a partir do `CATEGORIES`, a ordenação no dashboard e na vitrine publica ja vai refletir a nova posição sem nenhuma outra mudança.
-
-## Impacto
-
-- A nova categoria aparece no seletor ao criar/editar itens do cardápio
-- Itens marcados como "Promoção do dia" aparecem no topo da lista no dashboard e na loja publica
-- Nenhuma mudança no banco de dados necessária (a categoria é salva como texto no campo `category`)
+### 2. Alterar: `src/components/dashboard/MenuTab.tsx`
+- Substituir o `<Input type="number">` do preço pelo novo `<CurrencyInput>`
+- Remover os atributos `step`, `min`, `type="number"` do campo de preço
+- Manter a mesma interface de `form.price` (valor em reais como float)
