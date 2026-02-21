@@ -1,67 +1,48 @@
 
 
-# Corrigir calculo de frete: lojas novas e falhas de geocodificacao
+# Remover bloqueio de entrega para lojas sem endereco
 
-## Problema
+## Situacao atual
 
-O "Rei do Burguer" tem endereco configurado (`11540215, Caminho Santa Marta, 55, Casa, Vila Esperanca, Cubatao, SP, Brasil`), mas o frete nao calculou para algum cliente. Isso acontece por dois motivos possiveis:
+- **Rei do Burguer**: endereco configurado corretamente, frete calcula normalmente com os fallbacks de geocodificacao ja implementados. Nenhuma mudanca necessaria aqui.
+- **Lojas sem endereco** (Esporte Fino, Loja Matriz, brenotorado): estao com entrega bloqueada (aviso amarelo + toast de erro + botao desabilitado). Isso impede vendas desnecessariamente.
 
-1. **Nominatim instavel**: o servico gratuito de geocodificacao tem rate-limiting e pode retornar vazio quando sobrecarregado
-2. **Endereco do cliente nao reconhecido**: se o CEP do cliente nao for encontrado no Nominatim, a geocodificacao falha silenciosamente e o frete aparece como "A combinar via WhatsApp" com valor R$0
+## O que muda
 
-Alem disso, existem **3 lojas sem endereco configurado** (Esporte Fino, Loja Matriz, brenotorado) que nunca vao calcular frete.
+Remover o bloqueio para que lojas sem endereco permitam pedidos de entrega normalmente, com frete aparecendo como "A combinar via WhatsApp".
 
-## Solucao em 3 partes
+## Mudancas no arquivo `src/pages/UnitPage.tsx`
 
-### 1. Alerta no painel do lojista quando falta endereco
+### 1. Remover bloqueio na validacao (linhas 268-271)
 
-**Arquivo: `src/components/dashboard/StoreProfileTab.tsx`**
-
-Adicionar um banner de alerta visivel (amarelo) no topo da secao de endereco quando `store_address` estiver vazio:
-- Texto: "Configure o endereco da sua loja para ativar o calculo automatico de frete nas entregas"
-- Usar componente `Alert` com icone `AlertTriangle`
-
-### 2. Bloquear entrega no checkout quando loja nao tem endereco
-
-**Arquivo: `src/pages/UnitPage.tsx`**
-
-- Quando `noStoreAddress` for `true` e o cliente selecionar "Entrega":
-  - Mostrar aviso claro em amarelo: "Esta loja ainda nao aceita entregas com frete automatico. Escolha Retirada ou entre em contato pelo WhatsApp"
-  - Desabilitar o botao de enviar pedido para tipo "Entrega"
-- Na funcao `handleSendWhatsApp`: adicionar validacao que bloqueia envio se `orderType === "Entrega" && noStoreAddress`
-
-### 3. Melhorar resiliencia do geocoder com fallback por cidade
-
-**Arquivo: `src/hooks/useDeliveryFee.ts`**
-
-Quando o endereco do cliente falha na geocodificacao completa, adicionar um fallback extra:
-- Tentar geocodificar apenas `cidade, estado, Brasil` (garante pelo menos uma estimativa aproximada de distancia)
-- Se ate o fallback por cidade falhar, ai sim retornar "A combinar"
-- Isso cobre casos onde o CEP do cliente nao e reconhecido no Nominatim, mas a cidade sim
-
-A funcao `geocode` (usada para o endereco do cliente) ganhara um fallback adicional:
+Tirar o bloco que impede o envio do pedido quando `noStoreAddress` e true:
 
 ```text
-Tentativa 1: CEP, Brasil
-Tentativa 2: query completa (cep, numero, cidade, estado, Brasil)  
-Tentativa 3: query + ", Brasil" (se nao tinha)
-Tentativa 4 (NOVA): cidade, estado, Brasil  <-- fallback por cidade
+ANTES:
+if (noStoreAddress) {
+  toast.error("Esta loja ainda não aceita entregas...");
+  valid = false;
+}
+
+DEPOIS:
+(bloco removido — pedido segue normalmente)
 ```
 
-## Secao tecnica
+### 2. Remover aviso bloqueante na UI (linhas 766-772)
 
-### `src/components/dashboard/StoreProfileTab.tsx`
-- Importar `Alert, AlertTitle, AlertDescription` de `@/components/ui/alert`
-- Importar `AlertTriangle` de `lucide-react`
-- Adicionar bloco condicional antes da secao de campos de endereco: se `!storeAddress`, renderizar Alert amarelo
+Substituir o bloco amarelo "Entrega indisponivel" por uma linha simples igual ao visual de quando o geocoder falha:
 
-### `src/pages/UnitPage.tsx`
-- Linhas 267-275 (validacao de endereco): adicionar check `if (noStoreAddress) { toast error; return; }`
-- Linhas 756-786 (secao de frete): quando `noStoreAddress`, mostrar alerta mais visivel em vez da linha discreta atual
-- Linhas 795-800 (seletor de tipo): desabilitar ou avisar quando "Entrega" e selecionado com `noStoreAddress`
+```text
+ANTES: bloco amarelo com "Entrega indisponivel — loja sem endereco configurado"
 
-### `src/hooks/useDeliveryFee.ts`
-- Funcao `geocode` (linhas 83-97): adicionar fallback final que extrai cidade e estado da query e tenta geocodificar so eles
-- Extrair cidade/estado dos ultimos segmentos da string (antes de "Brasil")
+DEPOIS: linha normal mostrando "A combinar via WhatsApp" (mesmo visual da linha 787)
+```
 
-### Nenhuma alteracao no banco de dados
+### O que continua funcionando
+
+- Loja COM endereco: frete calculado automaticamente (Rei do Burguer OK)
+- Loja SEM endereco: frete aparece como "A combinar via WhatsApp", pedido vai pro WhatsApp normalmente
+- Alerta no painel do lojista (StoreProfileTab) continua como lembrete para configurar endereco
+- Fallback por cidade no geocoder continua melhorando a taxa de acerto
+- Nenhuma alteracao no banco de dados
+
