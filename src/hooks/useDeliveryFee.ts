@@ -92,7 +92,23 @@ async function geocode(query: string): Promise<GeoCoord | null> {
   if (result) return result;
   // Fallback com Brasil
   if (!query.toLowerCase().includes("brasil")) {
-    return tryGeocodeWithRetry(`${query}, Brasil`);
+    const r2 = await tryGeocodeWithRetry(`${query}, Brasil`);
+    if (r2) return r2;
+  }
+  // Fallback por cidade + estado: extrai os últimos segmentos antes de "Brasil"
+  const cleanParts = parts.filter(Boolean);
+  const lastPart = cleanParts[cleanParts.length - 1]?.toLowerCase();
+  const partsWithoutBrasil = lastPart === "brasil"
+    ? cleanParts.slice(0, -1)
+    : cleanParts;
+  // cidade = penúltimo, estado = último
+  if (partsWithoutBrasil.length >= 2) {
+    const state = partsWithoutBrasil[partsWithoutBrasil.length - 1];
+    const city = partsWithoutBrasil[partsWithoutBrasil.length - 2];
+    if (city && state) {
+      const r3 = await tryGeocodeWithRetry(`${city}, ${state}, Brasil`);
+      if (r3) return r3;
+    }
   }
   return null;
 }

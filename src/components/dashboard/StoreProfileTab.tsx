@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Loader2, Copy, Check, X, Search, Eye, EyeOff } from "lucide-react";
+import { Camera, Loader2, Copy, Check, X, Search, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
 import { BusinessHours } from "@/hooks/useOrganization";
 import { DeliveryConfig, DEFAULT_DELIVERY_CONFIG } from "@/hooks/useDeliveryFee";
@@ -676,6 +677,17 @@ export default function StoreProfileTab({ organization }: { organization: Organi
       {/* ── SEÇÃO 5: Entrega e Frete ──────────────────────────────── */}
       <div>
         <SectionHeader>Entrega e Frete</SectionHeader>
+
+        {/* Alerta quando endereço não configurado */}
+        {!addressFields.cep && !addressFields.street && (
+          <Alert className="mb-4 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800 dark:text-amber-400">Endereço não configurado</AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-500">
+              Configure o endereço da sua loja para ativar o cálculo automático de frete nas entregas.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* CEP + auto-fill */}
         <div className="mb-4">
