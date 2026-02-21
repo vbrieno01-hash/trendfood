@@ -13,7 +13,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart, Share2,
+  BookOpen, Sparkles, FileBarChart, Share2, Printer,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -391,6 +391,15 @@ const DashboardPage = () => {
             <Share2 className="w-4 h-4" />
             Indique o TrendFood
           </button>
+          <a
+            href="/docs/impressora-termica"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-all duration-150"
+          >
+            <Printer className="w-4 h-4" />
+            Impressora Térmica
+          </a>
           <a
             href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
             target="_blank"
