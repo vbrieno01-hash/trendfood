@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -343,16 +344,12 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
             {/* Price */}
             <div>
               <Label htmlFor="item-price" className="text-sm font-medium">
-                Preço (R$) <span className="text-destructive">*</span>
+                Preço <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <CurrencyInput
                 id="item-price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.price || ""}
-                onChange={(e) => setForm((p) => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
-                placeholder="25.90"
+                value={form.price}
+                onChange={(v) => setForm((p) => ({ ...p, price: v }))}
                 className="mt-1"
                 required
               />
