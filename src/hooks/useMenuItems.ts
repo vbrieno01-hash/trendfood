@@ -36,23 +36,25 @@ export const CATEGORIES = [
 
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.value);
 
-export function useMenuItems(orgId: string | undefined) {
+export type SortOrder = "newest" | "oldest";
+
+export function useMenuItems(orgId: string | undefined, sortOrder: SortOrder = "newest") {
   return useQuery({
-    queryKey: ["menu_items", orgId],
+    queryKey: ["menu_items", orgId, sortOrder],
     queryFn: async () => {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("menu_items")
-        .select("id, organization_id, name, price, description, category, image_url, available")
+        .select("id, organization_id, name, price, description, category, image_url, available, created_at")
         .eq("organization_id", orgId)
-        .order("name");
+        .order("created_at", { ascending: sortOrder === "oldest" });
       if (error) throw error;
-      // Sort by category order, then by name
       return (data as MenuItem[]).sort((a, b) => {
         const ai = CATEGORY_ORDER.indexOf(a.category);
         const bi = CATEGORY_ORDER.indexOf(b.category);
         if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-        return a.name.localeCompare(b.name);
+        const dir = sortOrder === "newest" ? -1 : 1;
+        return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       });
     },
     enabled: !!orgId,
