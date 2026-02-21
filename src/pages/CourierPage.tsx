@@ -19,6 +19,7 @@ import {
   useCompleteDelivery,
   type Delivery,
 } from "@/hooks/useCourier";
+import { parsePhoneFromNotes } from "@/hooks/useCreateDelivery";
 
 const CourierPage = () => {
   const [searchParams] = useSearchParams();
@@ -159,8 +160,21 @@ const CourierPage = () => {
   const handleAccept = async (delivery: Delivery) => {
     if (!courierId) return;
     try {
-      await acceptMutation.mutateAsync({ deliveryId: delivery.id, courierId });
+      const result = await acceptMutation.mutateAsync({
+        deliveryId: delivery.id,
+        courierId,
+        orderId: delivery.order_id,
+      });
       toast.success("Entrega aceita! Boa corrida 🏍️");
+
+      // Open WhatsApp to notify customer
+      const phone = parsePhoneFromNotes(result.notes);
+      if (phone) {
+        const msg = encodeURIComponent(
+          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!`
+        );
+        window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank");
+      }
     } catch {
       toast.error("Erro ao aceitar entrega.");
     }
