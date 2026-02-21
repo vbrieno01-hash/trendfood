@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
+import { formatReceiptText } from "@/lib/formatReceiptText";
+import { enqueuePrint } from "@/lib/printQueue";
 
 // Web Audio API bell sound (no external dependency)
 const playBell = () => {
@@ -128,6 +130,9 @@ export default function KitchenPage() {
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
+        // Always enqueue to fila_impressao for the external print robot
+        const text = formatReceiptText(order, org?.name, pw);
+        enqueuePrint(org?.id ?? '', order.id, text).catch(() => {});
         printOrderByMode(order, org?.name, pm, org?.id ?? '', null, undefined, pw);
       }
     });
