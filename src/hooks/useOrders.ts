@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { enqueuePrint } from "@/lib/printQueue";
+import { formatReceiptText } from "@/lib/formatReceiptText";
+import type { PrintableOrder } from "@/lib/printOrder";
 
 export interface OrderItem {
   id: string;
@@ -187,6 +190,27 @@ export const usePlaceOrder = () => {
       }));
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
       if (itemsError) throw itemsError;
+
+      // Enfileirar impressão automaticamente
+      try {
+        const printableOrder: PrintableOrder = {
+          id: order.id,
+          table_number: tableNumber,
+          created_at: order.created_at,
+          notes: notes || null,
+          order_items: items.map((i, idx) => ({
+            id: `tmp-${idx}`,
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            customer_name: i.customer_name || null,
+          })),
+        };
+        const text = formatReceiptText(printableOrder);
+        await enqueuePrint(organizationId, order.id, text);
+      } catch (err) {
+        console.error("Falha ao enfileirar impressão:", err);
+      }
 
       return order;
     },
