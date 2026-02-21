@@ -1,59 +1,49 @@
 
-# Notificacao ao cliente quando o motoboy aceitar a entrega
+
+# Configuracao de taxa do motoboy por loja
 
 ## Resumo
+Adicionar campos de configuracao no painel de Motoboys do dashboard para que o dono da loja personalize a **taxa base** e o **valor por km** do motoboy. Atualmente esses valores sao fixos no codigo (R$ 3,00 base + R$ 2,50/km). Com essa mudanca, cada loja tera seus proprios valores.
 
-O fluxo atual ja exige que o motoboy aceite a entrega manualmente -- a entrega fica com status "pendente" ate ele clicar em "Aceitar Entrega". Nao vai sozinho. Isso esta correto.
+## O que muda para o usuario
 
-O que vamos adicionar: quando o motoboy aceitar a entrega, o sistema vai abrir automaticamente uma mensagem no WhatsApp para o cliente avisando que o pedido esta a caminho.
+No painel "Motoboys & Entregas" do dashboard, aparecera uma secao de configuracao com dois campos:
+- **Taxa base** (padrao R$ 3,00) - valor fixo pago ao motoboy por corrida
+- **Valor por km** (padrao R$ 2,50) - valor adicional por quilometro rodado
 
-## Como funciona hoje
+O dono salva e todas as proximas entregas usam esses valores.
 
-1. Cozinha marca pedido como "Pronto" -> cria registro na tabela `deliveries` com status `pendente`
-2. Motoboy ve a entrega no painel e clica "Aceitar Entrega" -> status muda para `em_rota`
-3. Motoboy clica "Marcar como Entregue" -> status muda para `entregue`
+## Detalhes tecnicos
 
-O motoboy TEM que aceitar. Nada e automatico.
-
-## O que muda
-
-### Arquivo: `src/pages/CourierPage.tsx`
-
-Quando o motoboy clicar em "Aceitar Entrega" (funcao `handleAccept`), apos a mutacao ter sucesso:
-
-1. Extrair o telefone do cliente das notas do pedido (campo `TEL:` no formato pipe-separated)
-2. Buscar o nome da loja (ja disponivel em `orgName`)
-3. Abrir o WhatsApp com uma mensagem pre-pronta tipo:
-
-> "Ola! Seu pedido da [Nome da Loja] saiu para entrega! Aguarde em seu endereco que ja estamos a caminho. Obrigado!"
-
-### Arquivo: `src/hooks/useCourier.ts`
-
-Atualizar o `useAcceptDelivery` para tambem buscar os dados do pedido (notes) ao aceitar, retornando o telefone do cliente para que a pagina possa abrir o WhatsApp.
-
-### Arquivo: `src/hooks/useCreateDelivery.ts`
-
-Adicionar uma funcao `parsePhoneFromNotes(notes)` para extrair o telefone do campo `TEL:` das notas, similar ao `parseAddressFromNotes` que ja existe.
-
-### Logica de extracao do telefone
-
-O campo `notes` do pedido tem o formato:
+### 1. Migracao no banco de dados
+Adicionar coluna `courier_config` (jsonb) na tabela `organizations` com valor padrao:
 ```text
-TIPO:Entrega|CLIENTE:Joao|TEL:11999999999|END.:Rua X, 123|PGTO:PIX
+{"base_fee": 3.0, "per_km": 2.5}
 ```
 
-Regex: `/TEL:([^|]+)/` -> extrai "11999999999"
+### 2. Arquivo: `src/hooks/useDeliveryDistance.ts`
+- Exportar interface `CourierConfig` com campos `base_fee` e `per_km`
+- Exportar constante `DEFAULT_COURIER_CONFIG`
+- Alterar `calculateCourierFee` para aceitar um segundo parametro opcional `config?: CourierConfig`
+- Usar os valores do config ao inves das constantes fixas
 
-### Fluxo completo apos a mudanca
+### 3. Arquivo: `src/hooks/useCreateDelivery.ts`
+- Alterar `createDeliveryForOrder` para receber `courierConfig` opcional
+- Passar o config para `calculateCourierFee` ao calcular o fee da entrega
 
-1. Motoboy clica "Aceitar Entrega"
-2. Sistema atualiza status para `em_rota` no banco
-3. Sistema busca as notas do pedido original para pegar o telefone
-4. Abre o WhatsApp com a mensagem pre-pronta para o cliente
-5. Motoboy envia a mensagem (ou edita antes de enviar)
+### 4. Arquivo: `src/components/dashboard/CourierDashboardTab.tsx`
+- Adicionar secao de configuracao com dois inputs `CurrencyInput` (taxa base e valor/km)
+- Buscar e salvar o `courier_config` da organizacao via mutation no Supabase
+- Receber `orgId` (ja recebe) para fazer o update
 
-### Detalhes tecnicos
+### 5. Arquivos que chamam `createDeliveryForOrder`
+- `src/components/dashboard/KitchenTab.tsx` e `src/pages/KitchenPage.tsx`: passar o `courier_config` da organizacao para que o calculo use os valores personalizados
 
-- A busca do pedido e feita via `orders` table usando o `order_id` da delivery
-- Se o telefone nao for encontrado nas notas, o WhatsApp nao abre (apenas mostra o toast de sucesso normal)
-- O WhatsApp abre via `window.open("https://wa.me/55{telefone}?text=...")` -- mesmo padrao ja usado no projeto
+### 6. Arquivo: `src/hooks/useOrganization.ts`
+- Adicionar `courier_config` na interface `Organization` e no select da query
+
+### Fluxo
+1. Dono da loja abre aba "Motoboys" no dashboard
+2. Ve os campos "Taxa base" e "Valor por km" com os valores atuais
+3. Edita os valores e clica "Salvar"
+4. Proximas entregas criadas pela cozinha usam os novos valores para calcular o fee do motoboy
