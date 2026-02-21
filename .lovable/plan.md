@@ -1,48 +1,59 @@
 
-# Criacao automatica de entregas ao marcar "Pronto"
+# Notificacao ao cliente quando o motoboy aceitar a entrega
 
 ## Resumo
-Quando a cozinha marcar um pedido de delivery (table_number = 0) como "Pronto", o sistema vai automaticamente criar um registro na tabela `deliveries` com o endereco do cliente (extraido das notas do pedido) e calcular a distancia/valor da corrida.
 
-## Como vai funcionar
+O fluxo atual ja exige que o motoboy aceite a entrega manualmente -- a entrega fica com status "pendente" ate ele clicar em "Aceitar Entrega". Nao vai sozinho. Isso esta correto.
 
-1. A cozinha clica em "Marcar como Pronto" em um pedido de entrega
-2. O sistema detecta que e um pedido delivery (table_number === 0)
-3. Extrai o endereco do campo `notes` do pedido (formato `END.:Rua X, 123, Cidade, Estado`)
-4. Insere um registro na tabela `deliveries` com status "pendente"
-5. O calculo de distancia e feito em background -- a entrega aparece imediatamente para o motoboy
-6. O motoboy ve a entrega no painel `/motoboy` com o endereco e valor estimado
+O que vamos adicionar: quando o motoboy aceitar a entrega, o sistema vai abrir automaticamente uma mensagem no WhatsApp para o cliente avisando que o pedido esta a caminho.
 
-## Detalhes tecnicos
+## Como funciona hoje
 
-### Novo hook: `src/hooks/useCreateDelivery.ts`
-- Funcao `parseAddressFromNotes(notes: string)`: extrai o endereco do campo notes usando regex para encontrar `END.:...`
-- Hook `useCreateDeliveryOnReady()`: mutation que cria o registro na tabela deliveries
-- Calcula distancia/fee usando as funcoes de geocodificacao ja existentes (Nominatim + OSRM)
-- Se o calculo falhar, a entrega e criada mesmo assim com `distance_km = null` e `fee = null` (motoboy pode aceitar e combinar valor)
+1. Cozinha marca pedido como "Pronto" -> cria registro na tabela `deliveries` com status `pendente`
+2. Motoboy ve a entrega no painel e clica "Aceitar Entrega" -> status muda para `em_rota`
+3. Motoboy clica "Marcar como Entregue" -> status muda para `entregue`
 
-### Arquivos a modificar
+O motoboy TEM que aceitar. Nada e automatico.
 
-1. **`src/components/dashboard/KitchenTab.tsx`** (painel KDS no dashboard)
-   - No `handleUpdateStatus`, quando `status === "ready"` e `order.table_number === 0`:
-     - Extrair endereco das notas
-     - Chamar insert na tabela `deliveries`
-     - Disparar calculo de distancia em background
+## O que muda
 
-2. **`src/pages/KitchenPage.tsx`** (tela fullscreen da cozinha)
-   - Mesma logica do KitchenTab
+### Arquivo: `src/pages/CourierPage.tsx`
 
-### Logica de extracao do endereco
-O campo `notes` armazena dados no formato pipe-separated:
+Quando o motoboy clicar em "Aceitar Entrega" (funcao `handleAccept`), apos a mutacao ter sucesso:
+
+1. Extrair o telefone do cliente das notas do pedido (campo `TEL:` no formato pipe-separated)
+2. Buscar o nome da loja (ja disponivel em `orgName`)
+3. Abrir o WhatsApp com uma mensagem pre-pronta tipo:
+
+> "Ola! Seu pedido da [Nome da Loja] saiu para entrega! Aguarde em seu endereco que ja estamos a caminho. Obrigado!"
+
+### Arquivo: `src/hooks/useCourier.ts`
+
+Atualizar o `useAcceptDelivery` para tambem buscar os dados do pedido (notes) ao aceitar, retornando o telefone do cliente para que a pagina possa abrir o WhatsApp.
+
+### Arquivo: `src/hooks/useCreateDelivery.ts`
+
+Adicionar uma funcao `parsePhoneFromNotes(notes)` para extrair o telefone do campo `TEL:` das notas, similar ao `parseAddressFromNotes` que ja existe.
+
+### Logica de extracao do telefone
+
+O campo `notes` do pedido tem o formato:
 ```text
-TIPO:Entrega|CLIENTE:Joao|TEL:11999|END.:Rua X, 123, Bairro, Cidade, SP, Brasil|FRETE:R$ 8,00|PGTO:PIX
+TIPO:Entrega|CLIENTE:Joao|TEL:11999999999|END.:Rua X, 123|PGTO:PIX
 ```
-A funcao extrai a parte apos `END.:` ate o proximo `|` ou fim da string.
 
-### Protecao contra duplicatas
-Antes de criar a entrega, verifica se ja existe um registro em `deliveries` para aquele `order_id`. Se existir, nao cria outro.
+Regex: `/TEL:([^|]+)/` -> extrai "11999999999"
 
-### Fluxo de fallback
-- Se o endereco nao for encontrado nas notas, a entrega e criada com `customer_address = "Endereco nao informado"`
-- Se o calculo de distancia falhar, `distance_km` e `fee` ficam como `null`
-- Em ambos os casos a entrega aparece normalmente para o motoboy
+### Fluxo completo apos a mudanca
+
+1. Motoboy clica "Aceitar Entrega"
+2. Sistema atualiza status para `em_rota` no banco
+3. Sistema busca as notas do pedido original para pegar o telefone
+4. Abre o WhatsApp com a mensagem pre-pronta para o cliente
+5. Motoboy envia a mensagem (ou edita antes de enviar)
+
+### Detalhes tecnicos
+
+- A busca do pedido e feita via `orders` table usando o `order_id` da delivery
+- Se o telefone nao for encontrado nas notas, o WhatsApp nao abre (apenas mostra o toast de sucesso normal)
+- O WhatsApp abre via `window.open("https://wa.me/55{telefone}?text=...")` -- mesmo padrao ja usado no projeto
