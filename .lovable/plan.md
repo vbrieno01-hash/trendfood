@@ -1,20 +1,32 @@
 
-
-# Barra de pesquisa fixa (sticky) na página pública
+# Adicionar banner na página pública (acima da barra de pesquisa)
 
 ## Resumo
-Tornar a barra de pesquisa "grudenta" (sticky) no topo da página, para que ela acompanhe o cliente conforme ele rola o cardápio.
+Permitir que o dono da loja faça upload de uma imagem de banner que será exibida na vitrine pública, entre o header e a barra de pesquisa sticky. O banner será gerenciado no painel (aba Perfil da Loja).
 
 ## Como vai funcionar
-- Quando o cliente rolar a página para baixo, a barra de pesquisa ficará fixa no topo da tela
-- Ela terá um fundo sólido com sombra sutil para se destacar do conteúdo por trás
-- O campo continua funcionando igual: filtra itens em tempo real e tem o botão X para limpar
+- Na página pública, uma imagem de banner aparece logo abaixo do header e acima da barra de pesquisa
+- O banner ocupa a largura total do conteúdo, com cantos arredondados e proporção paisagem (16:9 ou similar)
+- Se não houver banner configurado, nada é exibido (sem espaço vazio)
+- No dashboard (Perfil da Loja), o dono pode fazer upload ou remover o banner
 
 ## Mudanças técnicas
 
-### Arquivo: `src/pages/UnitPage.tsx`
-1. Mover a barra de pesquisa para fora do `<main>` e colocá-la logo após o `<header>`, envolvida em um container sticky
-2. Aplicar `sticky top-[57px] z-30` (abaixo do header fixo) com fundo sólido (`bg-background`) e padding horizontal
-3. Adicionar uma sombra sutil (`shadow-sm`) quando fixada para separação visual
-4. Manter o `max-w-2xl mx-auto` para alinhar com o conteúdo principal
+### 1. Banco de dados
+- Adicionar coluna `banner_url` (text, nullable) na tabela `organizations`
 
+### 2. `src/components/dashboard/StoreProfileTab.tsx`
+- Adicionar campo de upload de banner (similar ao upload de logo já existente)
+- Ao selecionar imagem, fazer upload para o storage bucket `menu-images` (ou criar bucket `banners`) no caminho `banners/{org_id}.{ext}`
+- Salvar a URL pública no campo `banner_url` da organização
+- Botão para remover o banner
+
+### 3. `src/pages/UnitPage.tsx`
+- Entre o `</header>` e a barra de pesquisa sticky, renderizar a imagem do banner se `org.banner_url` existir
+- Estilo: `max-w-2xl mx-auto px-4 pt-3` com imagem `rounded-2xl w-full object-cover` e altura máxima (~180px)
+
+### 4. `src/hooks/useOrganization.ts`
+- Incluir `banner_url` no select da query (se não estiver usando `*`)
+
+### 5. Tipos
+- Adicionar `banner_url` na interface `Organization` do `StoreProfileTab` e onde mais for necessário
