@@ -1,0 +1,1 @@
+ALTER TABLE organizations ADD COLUMN printer_width text NOT NULL DEFAULT '58mm';

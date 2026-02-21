@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
@@ -20,6 +23,10 @@ export default function SettingsTab() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [printerWidth, setPrinterWidth] = useState<string>(
+    (organization as any)?.printer_width || "58mm"
+  );
+  const [printerLoading, setPrinterLoading] = useState(false);
 
   const currentPlan = organization?.subscription_plan || "free";
   const isFree = currentPlan === "free";
@@ -56,6 +63,24 @@ export default function SettingsTab() {
       toast.error(error.message ?? "Erro ao alterar senha.");
     } finally {
       setPwdLoading(false);
+    }
+  };
+
+  const handlePrinterWidthChange = async (value: string) => {
+    if (!organization?.id) return;
+    setPrinterWidth(value);
+    setPrinterLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ printer_width: value } as any)
+        .eq("id", organization.id);
+      if (error) throw error;
+      toast.success("Largura da impressora atualizada!");
+    } catch {
+      toast.error("Erro ao salvar configuração.");
+    } finally {
+      setPrinterLoading(false);
     }
   };
 
@@ -170,7 +195,31 @@ export default function SettingsTab() {
         </div>
       </div>
 
-      {/* Change password */}
+      {/* Printer width */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Impressora</p>
+        </div>
+        <div className="px-4 py-4 space-y-3">
+          <div>
+            <Label htmlFor="printer-width" className="text-sm font-medium">Largura da impressora</Label>
+            <Select value={printerWidth} onValueChange={handlePrinterWidthChange} disabled={printerLoading}>
+              <SelectTrigger id="printer-width" className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="58mm">58mm (portátil / Bluetooth)</SelectItem>
+                <SelectItem value="80mm">80mm (balcão)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Escolha a largura do papel da sua impressora térmica.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
           <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
