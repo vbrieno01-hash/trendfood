@@ -112,14 +112,14 @@ export default function KitchenTab({
     );
   };
 
-  // Realtime: only UPDATE to refresh UI (INSERT handled by DashboardPage)
+  // Realtime: listen for all order changes (INSERT + UPDATE + DELETE)
   useEffect(() => {
     if (!orgId) return;
     const channel = supabase
-      .channel(`kitchen-tab-update-${orgId}`)
+      .channel(`kitchen-tab-${orgId}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
+        { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
         () => {
           qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
         }
