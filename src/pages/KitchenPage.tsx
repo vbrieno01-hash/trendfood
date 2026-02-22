@@ -10,6 +10,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
+import { buildPixPayload } from "@/lib/pixPayload";
+
+const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
+  (order.order_items ?? []).reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
+
+const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: number }> }, pixKey?: string | null, storeName?: string) => {
+  if (!pixKey) return undefined;
+  const total = calcOrderTotal(order);
+  if (total <= 0) return undefined;
+  return buildPixPayload(pixKey, total, storeName ?? "LOJA");
+};
 
 // Web Audio API bell sound (no external dependency)
 const playBell = () => {
@@ -46,6 +57,14 @@ export default function KitchenPage() {
   const [searchParams] = useSearchParams();
   const orgSlug = searchParams.get("org");
   const { data: org } = useOrganization(orgSlug || undefined);
+  // Fetch pix_key for the org owner (KDS standalone needs it for QR on receipts)
+  const [pixKey, setPixKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (!org?.id) return;
+    supabase.from("organizations").select("pix_key").eq("id", org.id).maybeSingle().then(({ data }) => {
+      setPixKey((data as any)?.pix_key ?? null);
+    });
+  }, [org?.id]);
   const { data: orders = [], isLoading } = useOrders(org?.id, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(org?.id ?? "", ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -128,7 +147,7 @@ export default function KitchenPage() {
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        printOrderByMode(order, org?.name, pm, org?.id ?? '', null, undefined, pw);
+        printOrderByMode(order, org?.name, pm, org?.id ?? '', null, getPixPayload(order, pixKey, org?.name), pw);
       }
     });
   }, [orders, org?.name, org]);
@@ -230,9 +249,9 @@ export default function KitchenPage() {
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         title="Imprimir pedido"
                         onClick={() => {
-                          const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
+          const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
                           const pm = (org as any)?.print_mode ?? 'browser';
-                          printOrderByMode(order, org?.name, pm, org?.id ?? '', null, undefined, pw);
+                          printOrderByMode(order, org?.name, pm, org?.id ?? '', null, getPixPayload(order, pixKey, org?.name), pw);
                         }}
                       >
                         <Printer className="w-3.5 h-3.5" />

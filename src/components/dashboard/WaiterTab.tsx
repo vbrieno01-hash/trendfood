@@ -4,6 +4,7 @@ import type { Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode } from "lucide-react";
 import { printOrder } from "@/lib/printOrder";
+import { buildPixPayload } from "@/lib/pixPayload";
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -48,9 +49,10 @@ interface WaiterTabProps {
   whatsapp?: string | null;
   orgName?: string;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
+  pixKey?: string | null;
 }
 
-export default function WaiterTab({ orgId, whatsapp, orgName, pixConfirmationMode }: WaiterTabProps) {
+export default function WaiterTab({ orgId, whatsapp, orgName, pixConfirmationMode, pixKey }: WaiterTabProps) {
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
   const { data: unpaidOrders = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(orgId);
   const { data: awaitingOrders = [], isLoading: loadingAwaiting } = useAwaitingPaymentOrders(orgId);
@@ -269,7 +271,11 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixConfirmationMod
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() => printOrder(order, orgName)}
+                      onClick={() => {
+                        const total = calcTotal(order);
+                        const pix = pixKey && total > 0 ? buildPixPayload(pixKey, total, orgName ?? "LOJA") : undefined;
+                        printOrder(order, orgName, pix);
+                      }}
                       title="Imprimir comanda"
                     >
                       <Printer className="w-3.5 h-3.5" />
@@ -378,7 +384,11 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixConfirmationMod
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() => printOrder(order, orgName)}
+                      onClick={() => {
+                        const total = calcTotal(order);
+                        const pix = pixKey && total > 0 ? buildPixPayload(pixKey, total, orgName ?? "LOJA") : undefined;
+                        printOrder(order, orgName, pix);
+                      }}
                       title="Imprimir comanda com QR Pix"
                     >
                       <Printer className="w-3.5 h-3.5" />
