@@ -30,6 +30,12 @@ export function isBluetoothSupported(): boolean {
   return typeof navigator !== "undefined" && "bluetooth" in navigator;
 }
 
+export function getBluetoothStatus(): "supported" | "brave-disabled" | "unsupported" {
+  if (isBluetoothSupported()) return "supported";
+  if ((navigator as any).brave) return "brave-disabled";
+  return "unsupported";
+}
+
 export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null> {
   if (!isBluetoothSupported()) return null;
 

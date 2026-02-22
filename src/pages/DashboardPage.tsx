@@ -22,7 +22,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -226,8 +226,17 @@ const DashboardPage = () => {
   };
 
   const handlePairBluetooth = async () => {
-    if (!isBluetoothSupported()) {
-      toast.error("Bluetooth não disponível neste navegador. Abra trendfood.lovable.app diretamente no Google Chrome.");
+    const btStatus = getBluetoothStatus();
+    if (btStatus !== "supported") {
+      toast.error(
+        btStatus === "brave-disabled" ? "Bluetooth desativado no Brave" : "Bluetooth não disponível",
+        {
+          description: btStatus === "brave-disabled"
+            ? "Ative em brave://flags/#enable-web-bluetooth e recarregue a página."
+            : "Seu navegador não suporta Web Bluetooth. Use Chrome, Edge ou Opera.",
+          duration: 8000,
+        }
+      );
       return;
     }
     try {
