@@ -146,6 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setOrganizations([]);
           setActiveOrgId(null);
           setIsAdmin(false);
+          setLoading(false);
         }
       }
     );
@@ -163,9 +164,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted.current) setLoading(false);
+    }, 5000);
+
     return () => {
       isMounted.current = false;
       subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
     };
   }, []);
 
