@@ -416,7 +416,7 @@ export default function SettingsTab() {
             className="h-9 gap-2"
             asChild
           >
-            <a href="https://trendfood.lovable.app/trendfood.exe" download>
+            <a href="https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.exe" download>
               <Download className="w-4 h-4" />
               Baixar trendfood.exe
             </a>
