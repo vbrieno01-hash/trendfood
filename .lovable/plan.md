@@ -1,81 +1,62 @@
 
 
-# Corrigir impressao automatica para todos os tipos de pedido
+# Corrigir travamento do Chrome ao recarregar com impressora offline
 
-## Problema identificado
+## Problema raiz
 
-O callback do Realtime (que escuta novos pedidos e dispara a impressao automatica) captura valores **desatualizados** das variaveis do React. O `useEffect` que cria o listener tem apenas `[orgId, qc]` como dependencias, entao:
-
-- `btDevice` e sempre `null` no callback (era null quando o effect montou)
-- `printMode`, `orgName`, `printerWidth`, `pixKey` sao todos valores antigos
-- Se dois pedidos chegam em sequencia rapida, o segundo e descartado porque `isPrintingRef` ainda esta `true`
-
-Isso explica por que pedidos de entrega (e potencialmente outros) nao imprimem automaticamente.
+A funcao `reconnectStoredPrinterInternal` chama `await (device).watchAdvertisements()` (linha 272). Essa chamada da Web Bluetooth API pode **travar a thread principal do Chrome** quando o adaptador Bluetooth esta em estado inconsistente ou a impressora esta desligada. O `withTimeout` global de 15s nao ajuda porque o travamento acontece **dentro** da chamada sincrona do navegador, antes mesmo do event loop processar o timeout.
 
 ## Solucao
 
-### 1. `src/pages/DashboardPage.tsx` — Usar refs para valores do callback
+Remover completamente o bloco `watchAdvertisements` da funcao `reconnectStoredPrinterInternal`. Ir direto para `connectToDevice(device)` que ja possui timeout interno de 10s via `withTimeout` no GATT connect. Isso e seguro porque:
 
-Criar refs para todas as variaveis usadas dentro do callback Realtime, garantindo que o callback sempre use os valores mais recentes sem precisar re-criar o listener:
+- `connectToDevice` ja tenta conectar ao GATT com timeout de 10s
+- Se a impressora estiver desligada, o GATT connect falha normalmente sem travar o navegador
+- `watchAdvertisements` era apenas uma otimizacao para detectar se a impressora esta por perto, mas causa mais problemas do que resolve
 
-```typescript
-// Refs para valores usados no callback Realtime
-const printModeRef = useRef(printMode);
-const orgNameRef = useRef(orgName);
-const printerWidthRef = useRef(printerWidth);
-const pixKeyRef = useRef(pixKey);
-const btDeviceRef = useRef(btDevice);
+Tambem reduzir o timeout global de 15s para 12s (suficiente para o GATT connect de 10s + margem).
 
-useEffect(() => { printModeRef.current = printMode; }, [printMode]);
-useEffect(() => { orgNameRef.current = orgName; }, [orgName]);
-useEffect(() => { printerWidthRef.current = printerWidth; }, [printerWidth]);
-useEffect(() => { pixKeyRef.current = pixKey; }, [pixKey]);
-useEffect(() => { btDeviceRef.current = btDevice; }, [btDevice]);
-```
+## Alteracoes
 
-### 2. Callback Realtime — Usar refs em vez de variaveis diretas
+### `src/lib/bluetoothPrinter.ts`
 
-No callback de auto-print, trocar todas as referencias diretas pelos `.current` das refs:
+Na funcao `reconnectStoredPrinterInternal`, remover todo o bloco de `watchAdvertisements` (linhas 269-289) e manter apenas a chamada direta a `connectToDevice`:
 
 ```typescript
-await printOrderByMode(
-  fullOrder,
-  orgNameRef.current,
-  printModeRef.current,
-  orgId!,
-  btDeviceRef.current,
-  getPixPayload(fullOrder),
-  printerWidthRef.current
-);
-```
-
-### 3. Remover serializacao de `isPrintingRef`
-
-Em vez de bloquear impressoes simultaneas com `isPrintingRef`, enfileirar os pedidos. Se chegar um segundo pedido enquanto o primeiro imprime, ele nao sera descartado:
-
-```typescript
-// Trocar bloqueio por fila sequencial
-const printQueue = useRef<Array<() => Promise<void>>>([]);
-const isProcessing = useRef(false);
-
-const processQueue = async () => {
-  if (isProcessing.current) return;
-  isProcessing.current = true;
-  while (printQueue.current.length > 0) {
-    const job = printQueue.current.shift()!;
-    try { await job(); } catch (err) {
-      console.error("[Dashboard] Auto-print failed:", err);
+async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
+  try {
+    const bt = navigator as any;
+    if (typeof bt.bluetooth?.getDevices !== "function") {
+      console.log("[BT] getDevices() not supported in this browser");
+      return null;
     }
+
+    const devices: BluetoothDevice[] = await bt.bluetooth.getDevices();
+    const device = devices.find((d) => d.id === storedId);
+    if (!device) {
+      console.log("[BT] Stored device not found among authorized devices");
+      return null;
+    }
+
+    // Conectar direto ao GATT (connectToDevice ja tem timeout interno de 10s)
+    // NAO usar watchAdvertisements — pode travar o Chrome completamente
+    const char = await connectToDevice(device);
+    if (char) {
+      console.log("[BT] Auto-reconnected to", device.name || device.id);
+      return device;
+    }
+
+    return null;
+  } catch (err) {
+    console.warn("[BT] Auto-reconnect internal error:", err);
+    return null;
   }
-  isProcessing.current = false;
-};
+}
 ```
 
-### 4. `getPixPayload` tambem precisa de ref
-
-A funcao `getPixPayload` usa `pixKey` do escopo externo. Atualizar para usar `pixKeyRef.current`.
+Tambem alterar o timeout global de 15000 para 12000.
 
 ## Arquivos alterados
 
-- `src/pages/DashboardPage.tsx` — refs para valores do callback + fila de impressao
+- `src/lib/bluetoothPrinter.ts` — remover `watchAdvertisements`, reduzir timeout global
 
