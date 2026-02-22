@@ -519,7 +519,7 @@ const DashboardPage = () => {
             : <BestSellersTab orgId={organization.id} />)}
           {activeTab === "kitchen" && (lockedFeatures.kitchen
             ? <UpgradePrompt title="Painel da Cozinha (KDS)" description="Gerencie pedidos em tempo real com o KDS. Disponível nos planos Pro e Enterprise." />
-            : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} />)}
+            : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} onPairBluetooth={handlePairBluetooth} btConnected={btConnected} btSupported={btSupported} />)}
           {activeTab === "waiter" && (lockedFeatures.waiter
             ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." />
             : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"} pixKey={(organization as any).pix_key} />)}
