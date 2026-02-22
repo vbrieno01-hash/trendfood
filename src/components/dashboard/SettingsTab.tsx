@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { isBluetoothSupported, requestBluetoothPrinter, disconnectPrinter } from "@/lib/bluetoothPrinter";
+import { enqueuePrint } from "@/lib/printQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,7 @@ export default function SettingsTab() {
   const [printModeLoading, setPrintModeLoading] = useState(false);
   const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
   const [btConnected, setBtConnected] = useState(false);
+  const [testPrintLoading, setTestPrintLoading] = useState(false);
   const btSupported = isBluetoothSupported();
 
   const currentPlan = organization?.subscription_plan || "free";
@@ -141,6 +143,31 @@ export default function SettingsTab() {
       setBtDevice(null);
       setBtConnected(false);
       toast.info("Impressora desconectada.");
+    }
+  };
+
+  const handleTestPrint = async () => {
+    if (!organization?.id) return;
+    setTestPrintLoading(true);
+    try {
+      const now = new Date().toLocaleString("pt-BR");
+      const content = [
+        "##CENTER## TESTE DE IMPRESSAO",
+        "##CENTER## ==================",
+        `##CENTER## ${organization.name || "TrendFood"}`,
+        `##CENTER## ${now}`,
+        "",
+        "Tudo certo! Sua impressora",
+        "esta configurada corretamente.",
+        "",
+        "##CENTER## ==================",
+      ].join("\n");
+      await enqueuePrint(organization.id, null, content);
+      toast.success("Teste enviado para a fila de impressão!");
+    } catch {
+      toast.error("Erro ao enviar teste de impressão.");
+    } finally {
+      setTestPrintLoading(false);
     }
   };
 
@@ -368,6 +395,15 @@ export default function SettingsTab() {
               Use este ID no seu programa de impressão TrendFood
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2"
+            disabled={testPrintLoading}
+            onClick={handleTestPrint}
+          >
+            {testPrintLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Printer className="w-4 h-4" /> Testar Impressora</>}
+          </Button>
           <Button
             variant="outline"
             size="sm"
