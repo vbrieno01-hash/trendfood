@@ -158,7 +158,7 @@ export function formatReceiptText(
   }
 
   lines.push(divider());
-  lines.push(center(storeName.toUpperCase(), cols));
+  lines.push(center("* " + storeName.toUpperCase() + " *", cols));
 
   return lines.join("\n");
 }
