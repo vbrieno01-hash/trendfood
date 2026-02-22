@@ -1,39 +1,19 @@
 
 
-# Remover acentos do cupom impresso
+# Corrigir link do motoboy usando dominio de producao
 
 ## Problema
-Impressoras termicas nao suportam caracteres acentuados (a, e, c, o, etc.), causando distorcao no texto impresso. Exemplo: "Cartao de Credito" sai ilegivel.
+O link de cadastro de motoboys usa `window.location.origin`, que na preview gera a URL `https://4930409c-...lovableproject.com/motoboy?org=julia`. Esse dominio exige login na plataforma Lovable, impedindo o acesso do motoboy.
+
+Os outros links do sistema (mesas, loja publica, compartilhamento) ja usam a URL fixa de producao `https://trendfood.lovable.app`, mas o link do motoboy ficou usando `window.location.origin`.
 
 ## Solucao
-Adicionar uma funcao `stripDiacritics` que converte caracteres acentuados para seus equivalentes sem acento, usando `String.normalize("NFD")` + regex. Aplicar essa funcao no texto final do cupom.
+Trocar `window.location.origin` pela constante de producao no `CourierDashboardTab.tsx`.
 
-## Alteracoes
+## Alteracao
 
-| Arquivo | O que muda |
-|---------|-----------|
-| `src/lib/formatReceiptText.ts` | Adicionar funcao `stripDiacritics` e aplicar no retorno de `formatReceiptText` (linha 163) |
+| Arquivo | Linha | De | Para |
+|---------|-------|----|------|
+| `src/components/dashboard/CourierDashboardTab.tsx` | 136 | `` `${window.location.origin}/motoboy?org=${orgSlug}` `` | `` `https://trendfood.lovable.app/motoboy?org=${orgSlug}` `` |
 
-### Detalhes tecnicos
-
-Nova funcao:
-```typescript
-function stripDiacritics(text: string): string {
-  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-```
-
-Linha 163 muda de:
-```typescript
-return lines.join("\n");
-```
-Para:
-```typescript
-return stripDiacritics(lines.join("\n"));
-```
-
-Isso cobre todos os textos do cupom: nomes de itens, forma de pagamento ("Cartao de Credito"), observacoes, endereco, nome do cliente, etc.
-
-O modo navegador (`printOrder.ts`) nao precisa dessa mudanca porque o HTML renderiza acentos normalmente no browser.
-
-1 arquivo, 2 linhas de codigo.
+1 linha, 1 arquivo.
