@@ -32,6 +32,10 @@ function parseNotes(notes: string): ParsedNotes {
   };
 }
 
+function stripDiacritics(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 const MAX_COLS = 32;
 
 function center(text: string, _cols: number): string {
@@ -160,7 +164,7 @@ export function formatReceiptText(
   lines.push(divider());
   lines.push(center("* " + storeName.toUpperCase() + " *", cols));
 
-  return lines.join("\n");
+  return stripDiacritics(lines.join("\n"));
 }
 
 /** Remove ##CENTER## and ##BOLD## markers for printers that don't support them (e.g. desktop). */
