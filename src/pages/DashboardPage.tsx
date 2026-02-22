@@ -84,31 +84,48 @@ const DashboardPage = () => {
     () => localStorage.getItem(NOTIF_KEY_DASH) === "true"
   );
 
-  const autoPrintRef = useRef(autoPrint);
-  const notificationsRef = useRef(notificationsEnabled);
-  const knownIds = useRef<Set<string>>(new Set());
-  // pendingPrintIds removed — printing now happens directly in Realtime callback
-  const isPrintingRef = useRef(false);
-
-  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
-  useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
-
-  const toggleAutoPrint = (val: boolean) => {
-    setAutoPrint(val);
-    localStorage.setItem(AUTO_PRINT_KEY, String(val));
-  };
-  const toggleNotifications = (val: boolean) => {
-    setNotificationsEnabled(val);
-    localStorage.setItem(NOTIF_KEY_DASH, String(val));
-  };
-
   const orgId = organization?.id;
   const orgName = organization?.name;
   const printMode = (organization as any)?.print_mode ?? "browser";
   const printerWidth = (organization as any)?.printer_width ?? "58mm";
   const pixKey = (organization as any)?.pix_key;
-  const storeAddress = organization?.store_address;
-  const courierConfig = (organization as any)?.courier_config;
+  const _storeAddress = organization?.store_address;
+  const _courierConfig = (organization as any)?.courier_config;
+
+  const autoPrintRef = useRef(autoPrint);
+  const notificationsRef = useRef(notificationsEnabled);
+  const knownIds = useRef<Set<string>>(new Set());
+
+  // Refs for values used inside Realtime callback (avoids stale closures)
+  const printModeRef = useRef(printMode);
+  const orgNameRef = useRef(orgName);
+  const printerWidthRef = useRef(printerWidth);
+  const pixKeyRef = useRef(pixKey);
+  const btDeviceRef = useRef(btDevice);
+
+  // Print queue instead of isPrintingRef lock
+  const printQueue = useRef<Array<() => Promise<void>>>([]);
+  const isProcessingQueue = useRef(false);
+
+  const processQueue = async () => {
+    if (isProcessingQueue.current) return;
+    isProcessingQueue.current = true;
+    while (printQueue.current.length > 0) {
+      const job = printQueue.current.shift()!;
+      try { await job(); } catch (err) {
+        console.error("[Dashboard] Auto-print failed:", err);
+      }
+    }
+    isProcessingQueue.current = false;
+  };
+
+  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+  useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
+  useEffect(() => { printModeRef.current = printMode; }, [printMode]);
+  useEffect(() => { orgNameRef.current = orgName; }, [orgName]);
+  useEffect(() => { printerWidthRef.current = printerWidth; }, [printerWidth]);
+  useEffect(() => { pixKeyRef.current = pixKey; }, [pixKey]);
+  useEffect(() => { btDeviceRef.current = btDevice; }, [btDevice]);
 
   // Fetch orders at dashboard level for auto-print
   const { data: dashOrders = [] } = useOrders(orgId, ["pending", "preparing"]);
@@ -137,10 +154,11 @@ const DashboardPage = () => {
     (order.order_items ?? []).reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
 
   const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: number }> }) => {
-    if (!pixKey) return undefined;
+    const key = pixKeyRef.current;
+    if (!key) return undefined;
     const total = calcOrderTotal(order);
     if (total <= 0) return undefined;
-    return buildPixPayload(pixKey, total, orgName ?? "LOJA");
+    return buildPixPayload(key, total, orgNameRef.current ?? "LOJA");
   };
 
   // Realtime: listen for new orders globally — print directly in callback
@@ -168,24 +186,25 @@ const DashboardPage = () => {
 
           qc.invalidateQueries({ queryKey: ["orders", orgId] });
 
-          // Auto-print: fetch items directly and print (works even in background tabs)
-          if (autoPrintRef.current && !isPrintingRef.current) {
-            isPrintingRef.current = true;
-            Promise.resolve(
-              supabase
+          // Auto-print: enqueue job so no order is ever dropped
+          if (autoPrintRef.current) {
+            printQueue.current.push(async () => {
+              const { data: items } = await supabase
                 .from("order_items")
                 .select("id, name, quantity, price, customer_name")
-                .eq("order_id", order.id)
-            ).then(async ({ data: items }) => {
-                const fullOrder = { ...order, order_items: items ?? [] };
-                try {
-                  await printOrderByMode(fullOrder, orgName, printMode, orgId!, btDevice, getPixPayload(fullOrder), printerWidth);
-                } catch (err) {
-                  console.error("[Dashboard] Auto-print failed:", err);
-                }
-                isPrintingRef.current = false;
-              })
-              .catch(() => { isPrintingRef.current = false; });
+                .eq("order_id", order.id);
+              const fullOrder = { ...order, order_items: items ?? [] };
+              await printOrderByMode(
+                fullOrder,
+                orgNameRef.current,
+                printModeRef.current,
+                orgId!,
+                btDeviceRef.current,
+                getPixPayload(fullOrder),
+                printerWidthRef.current
+              );
+            });
+            processQueue();
           }
         }
       )
@@ -452,6 +471,14 @@ const DashboardPage = () => {
     navigate(`/dashboard?tab=${key}`, { replace: false });
   };
 
+  const toggleAutoPrint = (val: boolean) => {
+    setAutoPrint(val);
+    localStorage.setItem(AUTO_PRINT_KEY, String(val));
+  };
+  const toggleNotifications = (val: boolean) => {
+    setNotificationsEnabled(val);
+    localStorage.setItem(NOTIF_KEY_DASH, String(val));
+  };
 
   const handleInstallApp = async () => {
     if (!installPrompt) return;
