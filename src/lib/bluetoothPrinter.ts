@@ -243,7 +243,7 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
   if (!storedId) return null;
 
   // Global timeout to prevent browser freeze when printer is off/out of range
-  return withTimeout(reconnectStoredPrinterInternal(storedId), 6000, "reconnectStoredPrinter")
+  return withTimeout(reconnectStoredPrinterInternal(storedId), 15000, "reconnectStoredPrinter")
     .catch((err) => {
       console.warn("[BT] Auto-reconnect timed out or failed:", err);
       return null;
@@ -273,8 +273,8 @@ async function reconnectStoredPrinterInternal(storedId: string): Promise<Bluetoo
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => {
             device.removeEventListener("advertisementreceived", onAdv);
-            reject(new Error("watchAdvertisements timeout (4s)"));
-          }, 4000);
+          reject(new Error("watchAdvertisements timeout (2s)"));
+        }, 2000);
           const onAdv = () => {
             clearTimeout(timeout);
             device.removeEventListener("advertisementreceived", onAdv);
