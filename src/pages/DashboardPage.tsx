@@ -22,7 +22,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getStoredDeviceId } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -298,13 +298,41 @@ const DashboardPage = () => {
     if (btDevice) return; // already connected
     if (!isBluetoothSupported()) return;
     let cancelled = false;
+
+    const onConnected = (device: BluetoothDevice) => {
+      if (cancelled) return;
+      setBtDevice(device);
+      setBtConnected(true);
+      toast.success("Impressora reconectada automaticamente");
+      attachDisconnectHandler(device);
+    };
+
     reconnectStoredPrinter()
-      .then((device) => {
-        if (cancelled || !device) return;
-        setBtDevice(device);
-        setBtConnected(true);
-        toast.success("Impressora reconectada automaticamente");
-        attachDisconnectHandler(device);
+      .then(async (device) => {
+        if (cancelled) return;
+        if (device) {
+          onConnected(device);
+          return;
+        }
+        // Fallback: retry with backoff if immediate reconnect failed
+        const storedId = getStoredDeviceId();
+        if (!storedId) return;
+        try {
+          const bt = navigator as any;
+          if (typeof bt.bluetooth?.getDevices !== "function") return;
+          const devices: BluetoothDevice[] = await bt.bluetooth.getDevices();
+          const target = devices.find((d: BluetoothDevice) => d.id === storedId);
+          if (!target || cancelled) return;
+          console.log("[BT] Starting backoff retry...");
+          autoReconnect(
+            target,
+            (d) => { if (!cancelled) onConnected(d); },
+            () => { if (!cancelled) console.log("[BT] All backoff retries exhausted"); },
+            3
+          );
+        } catch (err) {
+          console.warn("[BT] Backoff fallback error:", err);
+        }
       })
       .catch((err) => {
         console.warn("[BT] Auto-reconnect failed on mount:", err);
