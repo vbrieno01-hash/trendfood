@@ -333,7 +333,9 @@ export async function printOrderByMode(
         toast.success("Impresso via Bluetooth");
         return;
       }
-      toast.warning("Bluetooth falhou, salvando na fila...");
+      toast.warning("Bluetooth falhou, salvando na fila...", {
+        description: "Verifique se a impressora está ligada e próxima.",
+      });
     } else {
       toast.warning("Nenhuma impressora Bluetooth pareada, salvando na fila...");
     }
