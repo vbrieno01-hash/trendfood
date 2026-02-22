@@ -1,65 +1,48 @@
 
-# Efeito Sonoro para Entregas + Campo PIX no Painel do Motoboy
+# Atualizar Paineis Standalone (Cozinha e Garcom)
 
-## 1. Efeito sonoro quando chega nova entrega
+Os paineis standalone (`/cozinha` e `/garcom`) estao desatualizados em relacao as abas do dashboard. Vamos sincroniza-los.
 
-Adicionar um listener realtime no `CourierPage` que toca um som de notificacao quando uma nova entrega pendente aparece na tabela `deliveries`. O som sera similar ao usado na cozinha (Web Audio API), mas com um tom diferente para diferenciar.
+## Problema
 
-O som sera tocado apenas para entregas novas (INSERT) com status "pendente", evitando tocar em updates.
+As versoes standalone sao usadas em dispositivos dedicados (tablet na cozinha, celular do garcom), mas faltam funcionalidades que ja existem nas abas do dashboard.
 
-### Alteracoes
-- `src/pages/CourierPage.tsx`: Adicionar funcao `playDeliveryBell()` usando Web Audio API e um `useEffect` com channel realtime que escuta INSERTs na tabela `deliveries` filtrado por `organization_id` e toca o som.
+### Cozinha (`KitchenPage.tsx`) -- faltam:
+- Toggle de notificacoes push (para avisar mesmo com tela apagada)
+- Badge do metodo de pagamento (PIX / Cartao) no card do pedido
+- Nome do cliente (`customer_name`) nos itens do pedido
 
-## 2. Campo de chave PIX na aba "Resumo"
+### Garcom (`WaiterPage.tsx`) -- faltam muitas coisas:
+- Secao "Aguardando Pagamento" (contas em aberto para cobrar)
+- Secao "Aguardando PIX" (modo manual -- confirmar antes de enviar pra cozinha)
+- Botao de imprimir comanda
+- Envio de conta por WhatsApp
+- Exibicao de totais e precos
+- Badge do metodo de pagamento
 
-Adicionar um campo editavel na aba "Resumo" do painel do motoboy onde ele pode cadastrar/editar sua chave PIX (CPF, telefone, e-mail ou aleatoria). O campo salva automaticamente ao clicar em "Salvar".
+## Solucao
 
-### Alteracoes
-- `src/pages/CourierPage.tsx`: Na aba "stats" (Resumo), adicionar um card com Input para a chave PIX e botao "Salvar" que faz update na tabela `couriers`.
+Atualizar ambos os arquivos para terem paridade com as versoes das abas do dashboard.
+
+## Alteracoes
+
+| Arquivo | O que muda |
+|---------|-----------|
+| `src/pages/KitchenPage.tsx` | Adicionar toggle de notificacoes push (mesmo codigo do KitchenTab), badge de metodo de pagamento nos cards, e exibicao de `customer_name` nos itens |
+| `src/pages/WaiterPage.tsx` | Reescrever para ter paridade com WaiterTab: adicionar secao "Aguardando PIX", secao "Aguardando Pagamento", botao imprimir, envio WhatsApp, exibicao de totais, badge de pagamento. Buscar tambem o `whatsapp`, `pix_confirmation_mode` e `pix_key` da organizacao |
 
 ## Detalhes tecnicos
 
-### Efeito sonoro
-```typescript
-const playDeliveryBell = () => {
-  try {
-    const ctx = new AudioContext();
-    // Dois bips curtos ascendentes
-    [0, 0.25].forEach((t, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = i === 0 ? 660 : 880;
-      gain.gain.setValueAtTime(0.4, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.3);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.3);
-    });
-  } catch {}
-};
-```
+### KitchenPage.tsx
+- Adicionar estado `notificationsEnabled` e `notifPermission` com toggle `Switch`
+- Usar refs (`notificationsRef`) para evitar reiniciar o channel realtime
+- No callback de INSERT, adicionar `new Notification(...)` quando ativado
+- Nos cards: exibir `(order as any).payment_method` como badge e `(item as any).customer_name` nos itens
 
-Novo `useEffect` para o som:
-```typescript
-useEffect(() => {
-  if (!orgId) return;
-  const channel = supabase
-    .channel(`courier-bell-${orgId}`)
-    .on("postgres_changes", {
-      event: "INSERT", schema: "public", table: "deliveries",
-      filter: `organization_id=eq.${orgId}`
-    }, () => { playDeliveryBell(); })
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [orgId]);
-```
-
-### Campo PIX na aba Resumo
-Estado local `pixKey` inicializado com `courier?.pix_key`. Card com Input e botao que faz:
-```typescript
-await supabase.from("couriers").update({ pix_key: pixKey }).eq("id", courierId);
-```
-
-A politica RLS `couriers_update_public` ja permite essa operacao.
+### WaiterPage.tsx
+- Importar hooks `useDeliveredUnpaidOrders`, `useMarkAsPaid`, `useAwaitingPaymentOrders`, `useConfirmPixPayment` de `useOrders`
+- Buscar dados da org (`whatsapp`, `pix_confirmation_mode`, `pix_key`) via query a `organizations`
+- Adicionar funcao `buildWhatsAppMessage` para gerar link do WhatsApp com a conta
+- Adicionar `printOrder` com payload PIX
+- Renderizar as 3 secoes: Aguardando PIX (se modo manual), Prontos para Entrega, Aguardando Pagamento
+- Manter layout e estilo identico ao `WaiterTab.tsx`
