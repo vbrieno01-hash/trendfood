@@ -7,6 +7,8 @@ const ALT_SERVICE_UUIDS = [
   PRINTER_SERVICE_UUID,
   "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+  "0000ff00-0000-1000-8000-00805f9b34fb",
+  "0000fee7-0000-1000-8000-00805f9b34fb",
 ];
 
 const STORED_DEVICE_KEY = "bt_printer_device_id";
@@ -32,12 +34,24 @@ export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null>
   if (!isBluetoothSupported()) return null;
 
   try {
-    const device = await (navigator as any).bluetooth.requestDevice({
-      filters: ALT_SERVICE_UUIDS.map((uuid) => ({ services: [uuid] })),
-      optionalServices: ALT_SERVICE_UUIDS,
-    });
+    let device: BluetoothDevice | null = null;
 
-    if (device.id) {
+    // First try with known service filters (better UX — shows only printers)
+    try {
+      device = await (navigator as any).bluetooth.requestDevice({
+        filters: ALT_SERVICE_UUIDS.map((uuid) => ({ services: [uuid] })),
+        optionalServices: ALT_SERVICE_UUIDS,
+      });
+    } catch (filterErr) {
+      console.warn("[BT] Filtered request failed, trying acceptAllDevices:", filterErr);
+      // Fallback: accept any BT device (works with generic/proprietary UUIDs)
+      device = await (navigator as any).bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ALT_SERVICE_UUIDS,
+      });
+    }
+
+    if (device?.id) {
       localStorage.setItem(STORED_DEVICE_KEY, device.id);
     }
 
@@ -57,9 +71,10 @@ async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemote
 
   isConnecting = true;
   try {
-    const server = await withTimeout(device.gatt.connect(), 8000, "GATT connect");
+    const server = await withTimeout(device.gatt.connect(), 10000, "GATT connect");
     cachedServer = server;
 
+    // 1. Try known service UUIDs first (fast path)
     for (const serviceUuid of ALT_SERVICE_UUIDS) {
       try {
         const service = await withTimeout(server.getPrimaryService(serviceUuid), 3000, `getPrimaryService(${serviceUuid})`);
@@ -69,11 +84,35 @@ async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemote
         );
         if (writable) {
           cachedCharacteristic = writable;
+          console.log("[BT] Found writable characteristic via known UUID:", serviceUuid);
           return writable;
         }
       } catch {
         // Try next service UUID
       }
+    }
+
+    // 2. Fallback: discover ALL services dynamically (generic printers)
+    try {
+      console.log("[BT] Known UUIDs failed, discovering all services...");
+      const services = await withTimeout(server.getPrimaryServices(), 5000, "getPrimaryServices()");
+      for (const service of services) {
+        try {
+          const characteristics = await withTimeout(service.getCharacteristics(), 3000, "getCharacteristics(dynamic)");
+          const writable = characteristics.find(
+            (c) => c.properties.write || c.properties.writeWithoutResponse
+          );
+          if (writable) {
+            cachedCharacteristic = writable;
+            console.log("[BT] Found writable characteristic via dynamic discovery, service:", service.uuid);
+            return writable;
+          }
+        } catch {
+          // Try next service
+        }
+      }
+    } catch (discoverErr) {
+      console.warn("[BT] Dynamic service discovery failed:", discoverErr);
     }
 
     return null;
