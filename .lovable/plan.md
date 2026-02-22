@@ -1,40 +1,64 @@
 
 
-# Diagnostico e Correcao: Botao "Testar Impressora" para Lojas Novas
+# Diagnostico e Correcao: Insert falhando para lojas novas
 
-## Problema identificado
+## Analise das politicas RLS
 
-A politica de RLS na tabela `fila_impressao` esta correta (INSERT vinculado a `auth.uid() = organizations.user_id`). O problema real e que o bloco `catch` no `handleTestPrint` engole o erro sem registrar no console, impossibilitando o diagnostico.
+Verifiquei as politicas da tabela `fila_impressao` diretamente no banco. Todas sao **PERMISSIVE** e a politica de INSERT usa:
+
+```sql
+WITH CHECK (auth.uid() = (
+  SELECT organizations.user_id FROM organizations
+  WHERE organizations.id = fila_impressao.organization_id
+))
+```
+
+Isso esta correto -- se o usuario esta logado e e dono da organizacao, o INSERT deve funcionar. **A RLS nao precisa ser desabilitada.**
+
+## Causa provavel
+
+O problema mais provavel e que o objeto `organization` esta `null` no momento do clique (por exemplo, se a organizacao ainda nao foi carregada ou se houve erro na consulta inicial). O codigo atual faz `if (!organization?.id) return;` -- ou seja, **falha silenciosamente** sem nenhum feedback.
 
 ## O que sera feito
 
-### 1. Adicionar logging detalhado no botao de teste
+### 1. Feedback visual direto no botao/toast (SettingsTab.tsx)
 
-No arquivo `src/components/dashboard/SettingsTab.tsx`, alterar o `handleTestPrint` para:
-- Logar o `organization.id` antes de tentar inserir
-- Logar o erro completo retornado pelo banco no `catch`
+- Quando `organization` for `null`, mostrar um toast de erro explicito em vez de retornar silenciosamente
+- Exibir a mensagem de erro do banco diretamente no toast (nao apenas no console)
+- Manter os `console.error` ja adicionados para debug avancado
 
-### 2. Adicionar logging na funcao `enqueuePrint`
+### 2. Validacao preventiva
 
-No arquivo `src/lib/printQueue.ts`, ja existe um `console.error` mas ele nao mostra o `orgId` enviado. Sera adicionado o ID na mensagem para facilitar o rastreio.
+- Adicionar verificacao se `organization?.id` existe antes do INSERT, com mensagem clara: "Organizacao nao encontrada. Tente recarregar a pagina."
 
 ### Secao tecnica
 
-**Arquivo: `src/components/dashboard/SettingsTab.tsx`** -- bloco catch do `handleTestPrint`:
+**Arquivo: `src/components/dashboard/SettingsTab.tsx`** -- funcao `handleTestPrint`:
 
 ```typescript
-} catch (err) {
-  console.error("Erro ao testar impressora:", err);
-  console.error("organization.id usado:", organization?.id);
-  toast.error("Erro ao enviar teste de impressão. Veja o console para detalhes.");
-}
+const handleTestPrint = async () => {
+  if (!organization?.id) {
+    toast.error("Organização não encontrada. Recarregue a página e tente novamente.");
+    return;
+  }
+  setTestPrintLoading(true);
+  try {
+    // ... conteudo existente ...
+    await enqueuePrint(organization.id, null, content);
+    toast.success("Teste enviado para a fila de impressão!");
+  } catch (err: any) {
+    console.error("Erro ao testar impressora:", err);
+    console.error("organization.id usado:", organization?.id);
+    const msg = err?.message || "Erro desconhecido";
+    toast.error(`Falha ao enviar teste: ${msg}`);
+  } finally {
+    setTestPrintLoading(false);
+  }
+};
 ```
 
-**Arquivo: `src/lib/printQueue.ts`** -- funcao `enqueuePrint`:
-
-```typescript
-console.error("Failed to enqueue print job for org:", orgId, error);
-```
-
-Essas mudancas permitirao ver no console do navegador exatamente qual erro o banco retorna (ex: "new row violates row-level security policy") e confirmar que o `organization_id` correto esta sendo enviado.
+Isso vai permitir identificar exatamente o que esta falhando:
+- Se o toast diz "Organizacao nao encontrada" --> problema no carregamento da sessao/org
+- Se o toast diz "new row violates row-level security" --> problema de RLS (improvavel pela analise acima)
+- Se o toast diz outro erro --> problema de conexao ou schema
 
