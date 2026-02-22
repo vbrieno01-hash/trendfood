@@ -13,6 +13,16 @@ const STORED_DEVICE_KEY = "bt_printer_device_id";
 
 let cachedServer: BluetoothRemoteGATTServer | null = null;
 let cachedCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
+let isConnecting = false;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms)
+    ),
+  ]);
+}
 
 export function isBluetoothSupported(): boolean {
   return typeof navigator !== "undefined" && "bluetooth" in navigator;
@@ -40,27 +50,41 @@ export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null>
 
 async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemoteGATTCharacteristic | null> {
   if (!device.gatt) return null;
-
-  const server = await device.gatt.connect();
-  cachedServer = server;
-
-  for (const serviceUuid of ALT_SERVICE_UUIDS) {
-    try {
-      const service = await server.getPrimaryService(serviceUuid);
-      const characteristics = await service.getCharacteristics();
-      const writable = characteristics.find(
-        (c) => c.properties.write || c.properties.writeWithoutResponse
-      );
-      if (writable) {
-        cachedCharacteristic = writable;
-        return writable;
-      }
-    } catch {
-      // Try next service UUID
-    }
+  if (isConnecting) {
+    console.warn("[BT] Connection already in progress, skipping");
+    return null;
   }
 
-  return null;
+  isConnecting = true;
+  try {
+    const server = await withTimeout(device.gatt.connect(), 5000, "GATT connect");
+    cachedServer = server;
+
+    for (const serviceUuid of ALT_SERVICE_UUIDS) {
+      try {
+        const service = await withTimeout(server.getPrimaryService(serviceUuid), 3000, `getPrimaryService(${serviceUuid})`);
+        const characteristics = await withTimeout(service.getCharacteristics(), 3000, "getCharacteristics");
+        const writable = characteristics.find(
+          (c) => c.properties.write || c.properties.writeWithoutResponse
+        );
+        if (writable) {
+          cachedCharacteristic = writable;
+          return writable;
+        }
+      } catch {
+        // Try next service UUID
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.error("[BT] Connection failed (timeout or error):", err);
+    cachedServer = null;
+    cachedCharacteristic = null;
+    return null;
+  } finally {
+    isConnecting = false;
+  }
 }
 
 export async function sendToBluetoothPrinter(

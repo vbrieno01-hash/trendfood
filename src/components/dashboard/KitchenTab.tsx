@@ -82,6 +82,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
 
   const knownIds = useRef<Set<string>>(new Set());
   const pendingPrintIds = useRef<Set<string>>(new Set());
+  const isPrintingRef = useRef(false);
   const [, forceRender] = useState(0);
 
   // Stable refs so the Realtime channel never needs to restart when toggles change
@@ -183,12 +184,25 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
   // Print pending orders once their items are loaded
   useEffect(() => {
     if (pendingPrintIds.current.size === 0) return;
-    orders.forEach((order) => {
-      if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
+    if (isPrintingRef.current) return;
+
+    const toPrint = orders.filter(
+      (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
+    );
+    if (toPrint.length === 0) return;
+
+    isPrintingRef.current = true;
+    (async () => {
+      for (const order of toPrint) {
         pendingPrintIds.current.delete(order.id);
-        printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
+        try {
+          await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
+        } catch (err) {
+          console.error("[KDS] Auto-print failed:", err);
+        }
       }
-    });
+      isPrintingRef.current = false;
+    })();
   }, [orders, orgName]);
 
   // Mark existing orders as known when first loaded
