@@ -243,7 +243,7 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
   if (!storedId) return null;
 
   // Global timeout to prevent browser freeze when printer is off/out of range
-  return withTimeout(reconnectStoredPrinterInternal(storedId), 15000, "reconnectStoredPrinter")
+  return withTimeout(reconnectStoredPrinterInternal(storedId), 12000, "reconnectStoredPrinter")
     .catch((err) => {
       console.warn("[BT] Auto-reconnect timed out or failed:", err);
       return null;
@@ -265,30 +265,8 @@ async function reconnectStoredPrinterInternal(storedId: string): Promise<Bluetoo
       return null;
     }
 
-    // Try watchAdvertisements if available, but never block on failure
-    if (typeof (device as any).watchAdvertisements === "function") {
-      try {
-        console.log("[BT] Watching advertisements for", device.name || device.id);
-        await (device as any).watchAdvertisements();
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            device.removeEventListener("advertisementreceived", onAdv);
-          reject(new Error("watchAdvertisements timeout (2s)"));
-        }, 2000);
-          const onAdv = () => {
-            clearTimeout(timeout);
-            device.removeEventListener("advertisementreceived", onAdv);
-            resolve();
-          };
-          device.addEventListener("advertisementreceived", onAdv);
-        });
-        console.log("[BT] Advertisement received, proceeding with connect");
-      } catch (watchErr) {
-        console.warn("[BT] watchAdvertisements failed, trying direct GATT connect:", watchErr);
-        // Fall through to try direct connect instead of giving up
-      }
-    }
-
+    // Conectar direto ao GATT (connectToDevice já tem timeout interno de 10s)
+    // NÃO usar watchAdvertisements — pode travar o Chrome completamente
     const char = await connectToDevice(device);
     if (char) {
       console.log("[BT] Auto-reconnected to", device.name || device.id);
