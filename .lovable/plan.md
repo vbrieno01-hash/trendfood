@@ -1,69 +1,33 @@
 
 
-# Melhorar tela inicial do motoboy - Login por telefone
+# Paginacao nas listas da aba Motoboys
 
-## Problema atual
-Quando o motoboy acessa `/motoboy` sem o parametro `?org=` na URL e sem dados salvos no celular, ele ve uma tela pedindo o "identificador da loja" (slug). Motoboys nao sabem o que e isso e ficam travados.
+## Problema
+A aba de motoboys fica muito longa com muitas entregas e motoboys, obrigando o usuario a rolar infinitamente.
 
 ## Solucao
-Transformar a tela de fallback (sem slug) em uma tela de login por telefone. O motoboy digita apenas o telefone e o sistema busca o cadastro dele em todas as organizacoes automaticamente. Se encontrar, faz login e redireciona. Se nao encontrar, ai sim mostra a opcao de digitar o identificador da loja (para novos cadastros).
+Adicionar botoes "Ver mais" / "Ver menos" (estilo balao) em cada lista, mostrando apenas os primeiros itens e expandindo sob demanda. Isso se aplica a 3 listas:
 
-## Fluxo novo
+1. **Entregas ativas** - mostrar no maximo 3, com botao "Ver mais X entregas"
+2. **Concluidas / Canceladas** - mostrar no maximo 3, com botao "Ver mais X entregas"
+3. **Motoboys cadastrados** - mostrar no maximo 5, com botao "Ver mais X motoboys"
 
-```text
-Motoboy abre /motoboy (sem ?org=)
-          |
-     Tem courier_id no localStorage?
-     /                \
-   Sim                Nao
-    |                  |
-  Auto-recover     Tela: "Entre com seu telefone"
-  (ja funciona)        |
-                   Busca telefone em todas as orgs
-                   /                \
-                Achou             Nao achou
-                  |                  |
-           Salva courier_id     Mostra: "Nenhum cadastro encontrado.
-           + org slug            Peca o link da loja ao seu gerente."
-           Redireciona           + campo manual de slug (como fallback)
-```
+## Como vai funcionar
+
+- Cada lista exibe um limite inicial (3 ou 5 itens)
+- Se houver mais itens, aparece um botao estilizado abaixo da lista: "Ver mais X itens"
+- Ao clicar, expande para mostrar todos
+- Quando expandido, mostra botao "Ver menos" para recolher
+- Visual do botao: arredondado, com icone ChevronDown/ChevronUp, estilo outline discreto (semelhante ao balao da imagem de referencia)
 
 ## Alteracao tecnica
 
-### Arquivo: `src/pages/CourierPage.tsx`
+### Arquivo: `src/components/dashboard/CourierDashboardTab.tsx`
 
-Substituir o bloco de fallback (linhas 242-278) que mostra o input de slug por uma nova tela com:
+- Adicionar 3 estados: `showAllActive`, `showAllCompleted`, `showAllCouriers` (todos iniciam `false`)
+- Para cada lista, fazer slice no array antes de renderizar (ex: `activeDeliveries.slice(0, showAllActive ? undefined : 3)`)
+- Abaixo de cada lista, renderizar o botao "Ver mais / Ver menos" condicionalmente quando `array.length > limite`
+- Componente do botao reutilizado inline, com icones `ChevronDown` / `ChevronUp` (ja importados)
 
-1. **Campo de telefone** como entrada principal com botao "Entrar"
-2. **Busca global**: ao submeter, faz query em `couriers` filtrando por `phone` (normalizado) e `active = true`, sem filtrar por `organization_id`
-3. **Se encontrar**: salva o `courier_id` no localStorage, busca o slug da organizacao, salva e redireciona para `/motoboy?org=SLUG`
-4. **Se nao encontrar**: exibe mensagem amigavel "Nenhum cadastro encontrado com esse telefone" e mostra um link/botao secundario "Tenho o link da loja" que expande o campo de slug manual (mantendo o fallback atual como opcao secundaria)
+Nenhum arquivo novo, nenhuma migracao necessaria.
 
-### Detalhes da busca global por telefone
-
-```text
-SELECT * FROM couriers WHERE active = true
--> filtrar no client-side pelo phone normalizado (remover nao-digitos)
--> pegar o primeiro resultado
--> buscar organizations.slug pelo organization_id do courier encontrado
-```
-
-Isso reutiliza a mesma logica de normalizacao de telefone que ja existe no hook `useLoginCourier`, mas sem precisar de `organization_id`.
-
-### Layout da nova tela
-
-- Icone de moto (Bike) no topo
-- Titulo: "Painel do Motoboy"
-- Subtitulo: "Entre com seu telefone cadastrado"
-- Input de telefone
-- Botao "Entrar"
-- Se erro: mensagem + link "Tenho o link da loja" que mostra o campo de slug
-- Botao "Nao tenho cadastro? Peca o link ao seu gerente"
-
-### Resumo de arquivos
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/CourierPage.tsx` | Substituir bloco de fallback (sem slug) por tela de login por telefone com busca global |
-
-Nenhuma migracao ou tabela nova necessaria.
