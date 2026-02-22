@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut } from "lucide-react";
+import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut, Key, Save } from "lucide-react";
 import {
   getSavedCourierId,
   clearCourierId,
@@ -54,6 +54,24 @@ function usePwaInstall() {
   return { canInstall: !!prompt || isIos, install };
 }
 
+function playDeliveryBell() {
+  try {
+    const ctx = new AudioContext();
+    [0, 0.25].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = i === 0 ? 660 : 880;
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.3);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.3);
+    });
+  } catch {}
+}
+
 function openGoogleMaps(address: string) {
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, "_blank");
 }
@@ -71,6 +89,8 @@ const CourierPage = () => {
   const [phone, setPhone] = useState("");
   const [plate, setPlate] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [pixKey, setPixKey] = useState("");
+  const [savingPix, setSavingPix] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
   const [loginPhone, setLoginPhone] = useState("");
   const [manualSlug, setManualSlug] = useState("");
@@ -176,6 +196,33 @@ const CourierPage = () => {
         }
       });
   }, [orgSlug]);
+
+  // Init pixKey from courier data
+  useEffect(() => {
+    if (courier?.pix_key) setPixKey(courier.pix_key);
+  }, [courier?.pix_key]);
+
+  // Realtime sound for new deliveries
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel(`courier-bell-${orgId}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "deliveries",
+        filter: `organization_id=eq.${orgId}`
+      }, () => { playDeliveryBell(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [orgId]);
+
+  const handleSavePix = async () => {
+    if (!courierId) return;
+    setSavingPix(true);
+    const { error } = await supabase.from("couriers").update({ pix_key: pixKey.trim() || null }).eq("id", courierId);
+    setSavingPix(false);
+    if (error) { toast.error("Erro ao salvar chave PIX."); }
+    else { toast.success("Chave PIX salva! ✅"); }
+  };
 
 
   if (!orgSlug) {
@@ -542,6 +589,24 @@ const CourierPage = () => {
                 </CardContent>
               </Card>
             </div>
+
+            <Card className="mt-3">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-medium">Chave PIX</p>
+                </div>
+                <p className="text-xs text-muted-foreground">CPF, telefone, e-mail ou chave aleatória para receber pagamentos.</p>
+                <Input
+                  value={pixKey}
+                  onChange={(e) => setPixKey(e.target.value)}
+                  placeholder="Sua chave PIX"
+                />
+                <Button onClick={handleSavePix} disabled={savingPix} className="w-full gap-2" variant="outline">
+                  <Save className="w-4 h-4" /> {savingPix ? "Salvando..." : "Salvar"}
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
