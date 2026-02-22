@@ -1,54 +1,47 @@
 
 
-# PIX de cada Motoboy - Pagamento pelo Patrao
+# PIX Individual por Motoboy - QR Code Inteligente
 
 ## Resumo
-Cada motoboy cadastra sua chave PIX no painel dele. Quando o dono clica em "Pagar tudo", o sistema gera um QR Code PIX com o valor exato, o dono paga pelo banco e confirma a baixa.
+O dono clica em um motoboy especifico, o QR Code PIX abre so para aquele motoboy. Quando o pagamento e confirmado (baixa manual), o QR some automaticamente em tempo real. Apenas um QR aberto por vez.
 
 ## Alteracoes
 
 | Arquivo | O que muda |
 |---------|-----------|
-| **Migracao SQL** | Adicionar coluna `pix_key` (text, nullable) na tabela `couriers` |
-| `src/pages/CourierPage.tsx` | Na aba "Resumo", campo para o motoboy cadastrar/editar sua chave PIX com botao salvar |
-| `src/components/dashboard/CourierDashboardTab.tsx` | No dialogo "Pagar tudo", mostrar QR Code PIX do motoboy com valor, e botao "Copia e Cola" antes de confirmar pagamento |
-| `src/hooks/useCourier.ts` | Novo hook `useUpdateCourierPixKey` para salvar a chave PIX do motoboy. Adicionar `pix_key` ao type `Courier` |
+| **Migracao SQL** | Adicionar coluna `pix_key` (text, nullable) na tabela `couriers`. Adicionar politica `couriers_update_public` para o motoboy poder salvar sua chave PIX. |
+| `src/hooks/useCourier.ts` | Adicionar `pix_key` ao type `Courier`. Criar hook `useUpdateCourierPixKey`. |
+| `src/pages/CourierPage.tsx` | Na aba "Resumo", adicionar card para o motoboy cadastrar/editar sua chave PIX. |
+| `src/components/dashboard/CourierDashboardTab.tsx` | Substituir o AlertDialog de "Pagar tudo" por um sistema de expansao individual: clicar no motoboy expande o card mostrando QR Code PIX + botao "Copiar Pix Copia e Cola" + botao "Confirmar Pagamento". Apenas um card expandido por vez. Quando o pagamento e confirmado, o card fecha automaticamente via realtime (unpaidTotal volta a 0). Se o motoboy nao tem chave PIX, mostra aviso. |
 
-## Fluxo
+## Fluxo do dono
 
-1. **Motoboy** abre aba "Resumo" no painel dele
-2. Digita sua chave PIX (CPF, telefone, e-mail ou chave aleatoria) e salva
-3. **Dono** abre aba Motoboys no dashboard, ve o debito pendente
-4. Clica "Pagar tudo" - dialogo mostra QR Code PIX com o valor exato
-5. Dono escaneia o QR no app do banco, paga, e clica "Confirmar Pagamento"
-6. Entregas sao marcadas como pagas em tempo real
+1. Ve lista de motoboys com debito pendente
+2. Clica no card de UM motoboy - o card expande mostrando QR Code PIX
+3. Escaneia o QR no app do banco
+4. Clica "Confirmar Pagamento" para dar a baixa
+5. O card fecha automaticamente (unpaidTotal = 0, QR some)
+6. Se quiser pagar outro, clica no proximo motoboy
 
 ## Detalhes tecnicos
 
-### Migracao
+### Migracao SQL
 ```sql
 ALTER TABLE public.couriers ADD COLUMN pix_key text;
-```
 
-Politica de UPDATE ja existe restrita ao dono da org. Porem o motoboy precisa atualizar o proprio `pix_key`. Adicionar politica de UPDATE para o proprio motoboy nao e possivel pois couriers nao tem auth. Solucao: adicionar uma politica publica de UPDATE restrita apenas a coluna nao-sensivel, ou fazer o update via a politica publica existente (couriers ja tem `insert_public`). Como a tabela ja tem `select_public` e `insert_public`, vamos adicionar `update_public` com restricao para permitir o motoboy editar seus dados.
-
-Na verdade, a tabela `couriers` nao tem RLS de update publico. Precisamos adicionar uma politica permissiva de UPDATE publica para que o motoboy (sem auth) possa atualizar sua chave PIX.
-
-```sql
 CREATE POLICY "couriers_update_public" ON public.couriers
-FOR UPDATE USING (true) WITH CHECK (true);
+  FOR UPDATE USING (true) WITH CHECK (true);
 ```
 
-### Geracao do QR Code PIX
-Usar a funcao `buildPixPayload` de `src/lib/pixPayload.ts` diretamente no frontend (nao precisa de edge function, pois a chave PIX e do motoboy, nao e segredo da loja). Renderizar com `qrcode.react` que ja esta instalado.
+### Estado de expansao no dashboard
+Usar `useState<string | null>(null)` para guardar o ID do motoboy cujo card esta expandido. Clicar em outro motoboy fecha o anterior e abre o novo. Quando `unpaidTotal` do motoboy expandido chega a 0 (via realtime), o estado limpa automaticamente com `useEffect`.
 
-### Painel do Motoboy - campo PIX
-Na aba "Resumo", adicionar um card com Input para a chave PIX e botao "Salvar". O motoboy faz update direto na tabela `couriers` com seu ID.
+### QR Code PIX
+Usar `buildPixPayload` de `src/lib/pixPayload.ts` com a `pix_key` do motoboy, o valor total e o nome do motoboy. Renderizar com `QRCodeSVG` do `qrcode.react`. Botao para copiar o payload (Pix Copia e Cola).
 
-### Dialogo de pagamento do dono
-Substituir o dialogo simples por um que:
-1. Verifica se o motoboy tem `pix_key` cadastrada
-2. Se sim: gera o payload PIX com `buildPixPayload(courier.pix_key, valor, "MOTOBOY")`, renderiza QR Code e botao "Copiar Pix Copia e Cola"
-3. Se nao: mostra aviso "Motoboy nao cadastrou chave PIX"
-4. Botao "Confirmar Pagamento" no final para dar a baixa
+### Painel do motoboy - campo PIX
+Card com Input + botao "Salvar" na aba Resumo. Hook `useUpdateCourierPixKey` faz UPDATE direto na tabela `couriers` pelo ID do motoboy.
+
+### Sem chave PIX
+Se o motoboy nao cadastrou chave PIX, o card expandido mostra aviso amarelo "Motoboy nao cadastrou chave PIX" mas ainda permite confirmar pagamento manualmente.
 
