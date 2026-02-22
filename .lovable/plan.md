@@ -1,48 +1,64 @@
 
 
-# PWA separada para o Motoboy
+# Estatisticas do Motoboy + Controle de Pagamento
 
-## Problema
-Quando o motoboy instala o app pelo botao "Instalar", ele instala o TrendFood completo (site principal, landing page, dashboard). O motoboy precisa de um app independente, so com o painel dele.
+## O que sera feito
 
-## Solucao
-Criar um manifesto PWA separado exclusivo para a rota `/motoboy`. Quando o motoboy acessar essa pagina, o app troca automaticamente o manifesto para um com nome, icone e `start_url` proprios. Assim, ao instalar, ele recebe um app chamado "Motoboy TrendFood" que abre direto no painel dele.
+### 1. Nova coluna no banco de dados
+Adicionar `courier_paid` (boolean, default false) na tabela `deliveries` para rastrear se o dono ja pagou o motoboy por aquela entrega.
 
-## O que muda
+### 2. Painel do Motoboy (`CourierPage.tsx`) - Nova aba "Resumo"
+Adicionar uma terceira aba no painel do motoboy com:
+- Total de entregas realizadas (todas, nao so do dia)
+- Total faturado (soma de fees de entregas concluidas)
+- Total a receber (entregas concluidas onde `courier_paid = false`)
+- Total ja recebido (entregas concluidas onde `courier_paid = true`)
+- Dados atualizados em tempo real via Realtime ja configurado
 
-| Arquivo | Alteracao |
+### 3. Dashboard do Dono (`CourierDashboardTab.tsx`) - Dividas por motoboy
+Na secao "Motoboys cadastrados", cada card do motoboy passa a mostrar:
+- Quantidade de entregas pendentes de pagamento
+- Valor total devido
+- Botao "Pagar tudo" que marca todas as entregas daquele motoboy como `courier_paid = true`
+
+Tudo em tempo real (ja tem Realtime configurado para deliveries).
+
+## Alteracoes
+
+| Arquivo | O que muda |
 |---------|-----------|
-| `public/manifest-courier.json` | **Novo.** Manifesto PWA exclusivo do motoboy com `start_url: "/motoboy"`, nome "Motoboy TrendFood" e icones dedicados. |
-| `src/pages/CourierPage.tsx` | Adicionar `useEffect` que troca o `<link rel="manifest">` no `<head>` para apontar ao manifesto do motoboy. Tambem atualiza `theme-color` e titulo da pagina. |
+| **Migracao SQL** | Adicionar coluna `courier_paid` boolean default false na tabela `deliveries`. Politica de UPDATE publica ja existe. |
+| `src/hooks/useCourier.ts` | Novo hook `useCourierStats` que busca todas as entregas concluidas de um motoboy com totais. Novo hook `usePayCourier` para marcar entregas como pagas. |
+| `src/pages/CourierPage.tsx` | Adicionar aba "Resumo" com cards de estatisticas (total entregas, faturado, a receber, recebido). |
+| `src/components/dashboard/CourierDashboardTab.tsx` | Na lista de motoboys, mostrar debito pendente por motoboy e botao "Pagar tudo". |
 
 ## Detalhes tecnicos
 
-### Manifesto separado (`public/manifest-courier.json`)
-```json
-{
-  "name": "Motoboy TrendFood",
-  "short_name": "Motoboy",
-  "description": "Painel de entregas para motoboys",
-  "theme_color": "#f97316",
-  "background_color": "#ffffff",
-  "display": "standalone",
-  "start_url": "/motoboy",
-  "scope": "/motoboy",
-  "icons": [
-    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-  ]
-}
+### Migracao
+```sql
+ALTER TABLE public.deliveries
+ADD COLUMN courier_paid boolean NOT NULL DEFAULT false;
 ```
 
-O `start_url` garante que ao abrir o app instalado, ele vai direto para `/motoboy` (sem o parametro `?org=`). O `scope` limita a navegacao ao contexto do motoboy.
+### Hook `useCourierStats`
+Busca todas as entregas com `status = 'entregue'` e `courier_id = X`, retorna:
+- `totalDeliveries`: contagem
+- `totalEarned`: soma de fees
+- `totalPending`: soma de fees onde `courier_paid = false`
+- `totalPaid`: soma de fees onde `courier_paid = true`
 
-### Troca dinamica do manifesto (em `CourierPage.tsx`)
-Ao montar a pagina, um `useEffect` vai:
-1. Trocar (ou criar) o `<link rel="manifest">` apontando para `/manifest-courier.json`
-2. Atualizar o `<title>` para "Motoboy TrendFood"
-3. Restaurar o manifesto original ao sair da pagina
+Usa Realtime ja existente para atualizacao automatica.
 
-### Persistencia do slug da org
-Como o `start_url` nao tera `?org=`, o slug da organizacao sera salvo no `localStorage` junto com o courier ID. Assim, ao reabrir o app instalado, o motoboy entra direto no painel da loja dele sem precisar do parametro na URL.
+### Hook `usePayCourier`
+Mutation que faz UPDATE em deliveries SET `courier_paid = true` WHERE `courier_id = X` AND `courier_paid = false` AND `status = 'entregue'`.
+
+### Aba "Resumo" no painel do motoboy
+Terceira aba nas Tabs existentes com 4 cards:
+- Entregas realizadas (icone CheckCircle2)
+- Total faturado (icone DollarSign)  
+- A receber (icone Clock, destaque amarelo)
+- Ja recebido (icone CheckCircle2, destaque verde)
+
+### Dividas no dashboard do dono
+Para cada motoboy cadastrado, calcula a soma de fees das entregas com `courier_paid = false`. Exibe valor e botao de confirmacao com AlertDialog.
 
