@@ -1,23 +1,15 @@
 
+# Ajustar cor da seção CTA final
 
-# Trocar foto de fundo da Hero Section
+## Problema
+A seção "Pare de pagar comissão. Comece hoje." usa um fundo vermelho escuro sólido que não combina com o novo tema visual de comércio/restaurante com tons quentes da Hero Section.
 
-## Objetivo
-Substituir a foto atual do hamburguer por uma imagem relacionada a comercio/negocio de alimentacao - algo que mostre o ambiente de trabalho de um estabelecimento food service.
+## Solução
+Trocar o gradiente vermelho escuro por um gradiente escuro com tons quentes (cinza chumbo / marrom escuro), alinhado com a identidade visual de comércio de alimentação. Isso cria coerência com a Hero Section.
 
-## Mudanca
+## Mudança
 
-### Arquivo: `src/pages/Index.tsx`
-- Trocar a URL da imagem de fundo (linha 149) de hamburguer artesanal para uma foto que represente comercio de alimentacao
-- Opcoes de imagem do Unsplash:
-  - Balcao de lanchonete/restaurante movimentado
-  - Cozinha comercial em operacao
-  - Entregador com sacola de delivery
-- Sugestao principal: foto de um balcao de food truck ou lanchonete com movimento, tons quentes e ambiente comercial
-- URL sugerida: `https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80` (restaurante/bar ambiente comercial com iluminacao quente)
-- Manter o overlay escuro e todo o resto igual
-
-### Detalhes tecnicos
-- Apenas 1 linha alterada: o atributo `src` da tag `<img>` na Hero Section
-- Ajustar o `alt` para refletir a nova imagem
-
+### Arquivo: `src/pages/Index.tsx` (linha ~337)
+- Trocar o `style` do background da seção CTA de `linear-gradient(135deg, #7a0c0c 0%, hsl(0 84% 32%) 100%)` para um gradiente escuro com tons quentes, como `linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)`
+- Manter os textos brancos e botões como estão
+- Resultado: seção escura e elegante que combina com o tema de comércio/restaurante
