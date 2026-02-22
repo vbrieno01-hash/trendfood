@@ -1,66 +1,34 @@
 
 
-# Corrigir reconexao automatica Bluetooth ao recarregar pagina
+# Corrigir erro "Nao esta respondendo" causado pela reconexao Bluetooth
 
-## Problema raiz
+## Problema
 
-O `reconnectStoredPrinter()` chama `getDevices()` e tenta `device.gatt.connect()` imediatamente. Porem, o Chrome exige que o dispositivo esteja "visivel" antes de conectar. Para isso, e necessario chamar `device.watchAdvertisements()` e aguardar o evento `advertisementreceived` antes de tentar o GATT connect. Sem isso, a conexao falha silenciosamente.
+Quando a pagina carrega, `reconnectStoredPrinter()` e chamada e pode travar por ate 18 segundos (8s watchAdvertisements + 10s GATT connect) se a impressora estiver desligada ou fora de alcance. O Chrome interpreta essa espera longa como "pagina nao respondendo".
+
+Alem disso, se `watchAdvertisements` falha (timeout), o codigo ainda tenta `connectToDevice()` que adiciona mais 10 segundos de espera.
 
 ## Solucao
 
-### `src/lib/bluetoothPrinter.ts` — Usar watchAdvertisements antes de conectar
+### 1. `src/lib/bluetoothPrinter.ts` — Nao tentar connectToDevice se watchAdvertisements falhou
 
-Modificar `reconnectStoredPrinter()` para:
+Se `watchAdvertisements` deu timeout (impressora desligada/longe), nao faz sentido tentar o GATT connect. Retornar `null` imediatamente nesse caso.
 
-1. Obter o device via `getDevices()`
-2. Chamar `device.watchAdvertisements()` (se disponivel)
-3. Aguardar o evento `advertisementreceived` (com timeout de 8 segundos)
-4. Somente entao chamar `connectToDevice(device)`
-5. Se `watchAdvertisements` nao estiver disponivel no browser, tentar o connect direto como fallback
+Mudanca:
+- Adicionar flag `advertisementFailed = false`
+- Se o catch de `watchAdvertisements` for acionado por timeout, setar `advertisementFailed = true`
+- Se `advertisementFailed`, pular o `connectToDevice` e retornar `null`
 
-```text
-getDevices() -> encontra device
-   |
-   v
-device.watchAdvertisements()
-   |
-   v
-Aguarda "advertisementreceived" (max 8s)
-   |
-   v
-connectToDevice(device) -> GATT connect + discover services
-   |
-   v
-Retorna device conectado
-```
+### 2. `src/pages/DashboardPage.tsx` — Nao travar se reconexao falhar silenciosamente
 
-### Codigo da mudanca principal (reconnectStoredPrinter)
+Adicionar `.catch(() => null)` na chamada de `reconnectStoredPrinter()` para garantir que erros nao propagados nao causem problemas.
 
-```typescript
-// Dentro de reconnectStoredPrinter, apos encontrar o device:
-if (typeof device.watchAdvertisements === "function") {
-  await device.watchAdvertisements();
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      device.removeEventListener("advertisementreceived", onAdv);
-      reject(new Error("watchAdvertisements timeout"));
-    }, 8000);
-    const onAdv = () => {
-      clearTimeout(timeout);
-      device.removeEventListener("advertisementreceived", onAdv);
-      resolve();
-    };
-    device.addEventListener("advertisementreceived", onAdv);
-  });
-}
-// Agora sim conectar
-const char = await connectToDevice(device);
-```
+### 3. Reduzir timeout do watchAdvertisements de 8s para 5s
 
-### Fallback para browsers sem watchAdvertisements
+8 segundos e muito tempo para esperar em background. 5 segundos e suficiente para detectar uma impressora que esta ligada e proxima.
 
-Se `watchAdvertisements` nao existir, tenta o connect direto (comportamento atual) — nao quebra nada.
+## Resumo das alteracoes
 
-## Arquivo alterado
-- `src/lib/bluetoothPrinter.ts` — modificar `reconnectStoredPrinter()` para usar `watchAdvertisements` antes do GATT connect
+- `src/lib/bluetoothPrinter.ts`: Pular connectToDevice quando watchAdvertisements falha por timeout; reduzir timeout para 5s
+- `src/pages/DashboardPage.tsx`: Adicionar catch na promise de reconexao
 
