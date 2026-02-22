@@ -1,21 +1,43 @@
 
-# Corrigir scroll ao navegar entre paginas
 
-## Problema
-Ao clicar em links (como "Termos de Uso" ou "Politica de Privacidade"), a pagina abre na posicao de scroll anterior em vez de comecar do topo. Isso acontece porque o React Router nao faz scroll automatico para o topo ao trocar de rota.
+# Configurar Bluetooth na Cozinha - Compartilhar dispositivo pareado
+
+## Problema atual
+O estado `btDevice` (impressora Bluetooth pareada) vive apenas dentro do `SettingsTab`. O `KitchenTab` recebe `btDevice` como prop, mas o `DashboardPage` nunca passa esse valor -- ele fica `undefined`. Resultado: mesmo com a impressora pareada, a cozinha nao consegue imprimir via Bluetooth.
 
 ## Solucao
-Criar um componente `ScrollToTop` que detecta mudancas de rota e rola a pagina para o topo automaticamente.
+Levantar o estado do dispositivo Bluetooth para o `DashboardPage`, compartilhando entre `SettingsTab` e `KitchenTab`.
 
 ## Mudancas
 
-### Novo arquivo: `src/components/ScrollToTop.tsx`
-- Componente que usa `useLocation` e `useNavigationType` do React Router
-- Ao detectar navegacao para frente (nao botao "voltar"), rola a janela para o topo
-- Nao renderiza nada visualmente (retorna `null`)
+### 1. `src/pages/DashboardPage.tsx`
+- Importar `requestBluetoothPrinter`, `disconnectPrinter`, `isBluetoothSupported` de `bluetoothPrinter.ts`
+- Criar estado `btDevice` e `btConnected` no nivel do DashboardPage
+- Criar handlers `handlePairBluetooth` e `handleDisconnectBluetooth`
+- Passar `btDevice`, `btConnected`, handlers e `isBluetoothSupported` como props para `SettingsTab`
+- Passar `btDevice` para `KitchenTab` (ja aceita essa prop)
 
-### Arquivo modificado: `src/App.tsx`
-- Importar o `ScrollToTop`
-- Adicionar `<ScrollToTop />` logo apos o `<BrowserRouter>`, antes das `<Routes>`
+### 2. `src/components/dashboard/SettingsTab.tsx`
+- Remover estado local de `btDevice` e `btConnected`
+- Receber via props: `btDevice`, `btConnected`, `onPairBluetooth`, `onDisconnectBluetooth`, `btSupported`
+- Manter toda a UI identica, apenas usando props em vez de estado local
 
-Isso corrige o problema para todas as rotas do app de uma vez.
+### 3. `src/components/dashboard/KitchenTab.tsx`
+- Nenhuma mudanca necessaria (ja aceita `btDevice` como prop)
+
+## Resultado
+Ao parear a impressora Bluetooth nas Configuracoes, o dispositivo fica disponivel automaticamente para a Cozinha (KDS). A impressao automatica e manual funcionara via Bluetooth em ambas as telas.
+
+## Detalhes tecnicos
+
+```text
+DashboardPage (btDevice state)
+  |
+  |-- SettingsTab (recebe btDevice + handlers via props)
+  |
+  |-- KitchenTab (recebe btDevice via prop - ja implementado)
+```
+
+- O estado `btDevice` fica no `DashboardPage` para sobreviver a troca de abas
+- O listener `gattserverdisconnected` e registrado no DashboardPage
+- Nenhuma mudanca no banco de dados e necessaria
