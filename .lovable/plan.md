@@ -1,36 +1,40 @@
 
-# Botao "Testar Impressora" no Dashboard
+
+# Diagnostico e Correcao: Botao "Testar Impressora" para Lojas Novas
+
+## Problema identificado
+
+A politica de RLS na tabela `fila_impressao` esta correta (INSERT vinculado a `auth.uid() = organizations.user_id`). O problema real e que o bloco `catch` no `handleTestPrint` engole o erro sem registrar no console, impossibilitando o diagnostico.
 
 ## O que sera feito
 
-Adicionar um botao **"Testar Impressora"** na secao de Configuracao de Impressao do `SettingsTab.tsx`. Ao clicar, o sistema insere um registro ficticio na tabela `fila_impressao` usando a funcao `enqueuePrint` ja existente, permitindo ao lojista validar que o robo desktop esta funcionando.
+### 1. Adicionar logging detalhado no botao de teste
 
-## Detalhes da implementacao
+No arquivo `src/components/dashboard/SettingsTab.tsx`, alterar o `handleTestPrint` para:
+- Logar o `organization.id` antes de tentar inserir
+- Logar o erro completo retornado pelo banco no `catch`
 
-### Arquivo: `src/components/dashboard/SettingsTab.tsx`
+### 2. Adicionar logging na funcao `enqueuePrint`
 
-1. Importar a funcao `enqueuePrint` de `@/lib/printQueue`
-2. Adicionar estado `testPrintLoading` para controlar o botao
-3. Criar funcao `handleTestPrint` que:
-   - Gera um conteudo de teste formatado (data/hora atual, nome da loja, mensagem de teste)
-   - Chama `enqueuePrint(organization.id, null, conteudo)` com `order_id` nulo (pois e ficticio)
-   - Exibe toast de sucesso ou erro
-4. Inserir o botao na secao "Configuracao de Impressao" (onde ja esta o ID da loja e o download do .exe), logo antes do link de download
+No arquivo `src/lib/printQueue.ts`, ja existe um `console.error` mas ele nao mostra o `orgId` enviado. Sera adicionado o ID na mensagem para facilitar o rastreio.
 
-### Conteudo do pedido de teste
+### Secao tecnica
 
-```text
-##CENTER## TESTE DE IMPRESSAO
-##CENTER## ==================
-##CENTER## TrendFood
-##CENTER## [data e hora atual]
+**Arquivo: `src/components/dashboard/SettingsTab.tsx`** -- bloco catch do `handleTestPrint`:
 
-Tudo certo! Sua impressora
-esta configurada corretamente.
-
-##CENTER## ==================
+```typescript
+} catch (err) {
+  console.error("Erro ao testar impressora:", err);
+  console.error("organization.id usado:", organization?.id);
+  toast.error("Erro ao enviar teste de impressão. Veja o console para detalhes.");
+}
 ```
 
-### Posicao na UI
+**Arquivo: `src/lib/printQueue.ts`** -- funcao `enqueuePrint`:
 
-O botao ficara na secao "Configuracao de Impressao", entre o aviso amarelo ("Use este ID...") e o botao de download do .exe, seguindo o mesmo estilo visual (`variant="outline"`, `size="sm"`).
+```typescript
+console.error("Failed to enqueue print job for org:", orgId, error);
+```
+
+Essas mudancas permitirao ver no console do navegador exatamente qual erro o banco retorna (ex: "new row violates row-level security policy") e confirmar que o `organization_id` correto esta sendo enviado.
+
