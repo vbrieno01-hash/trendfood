@@ -1,50 +1,21 @@
 
-# Criar páginas de Termos de Uso e Política de Privacidade
+# Corrigir scroll ao navegar entre paginas
 
-## O que será feito
+## Problema
+Ao clicar em links (como "Termos de Uso" ou "Politica de Privacidade"), a pagina abre na posicao de scroll anterior em vez de comecar do topo. Isso acontece porque o React Router nao faz scroll automatico para o topo ao trocar de rota.
 
-Criar duas páginas completas com conteúdo jurídico genérico adaptado para um SaaS de alimentação (TrendFood), e atualizar os links no footer.
+## Solucao
+Criar um componente `ScrollToTop` que detecta mudancas de rota e rola a pagina para o topo automaticamente.
 
-## Páginas
+## Mudancas
 
-### 1. Termos de Uso (`/termos`)
-Conteúdo cobrindo:
-- Aceitação dos termos
-- Descrição do serviço (plataforma de gestão para food service)
-- Cadastro e responsabilidades do usuário
-- Planos e pagamentos
-- Propriedade intelectual
-- Limitação de responsabilidade
-- Rescisão e cancelamento
-- Alterações nos termos
-- Foro e legislação aplicável (Brasil)
+### Novo arquivo: `src/components/ScrollToTop.tsx`
+- Componente que usa `useLocation` e `useNavigationType` do React Router
+- Ao detectar navegacao para frente (nao botao "voltar"), rola a janela para o topo
+- Nao renderiza nada visualmente (retorna `null`)
 
-### 2. Política de Privacidade (`/privacidade`)
-Conteúdo cobrindo:
-- Dados coletados (cadastro, uso da plataforma, cookies)
-- Finalidade do tratamento (LGPD)
-- Compartilhamento com terceiros
-- Armazenamento e segurança
-- Direitos do titular (acesso, correção, exclusão)
-- Cookies e tecnologias similares
-- Contato do encarregado (DPO)
-- Alterações na política
+### Arquivo modificado: `src/App.tsx`
+- Importar o `ScrollToTop`
+- Adicionar `<ScrollToTop />` logo apos o `<BrowserRouter>`, antes das `<Routes>`
 
-## Arquivos
-
-### Novos arquivos
-- `src/pages/TermsPage.tsx` - Página de Termos de Uso
-- `src/pages/PrivacyPage.tsx` - Página de Política de Privacidade
-
-Ambas com layout limpo: header com logo + botão voltar, conteúdo em prosa com títulos e parágrafos, e footer simples. Estilo consistente com o resto do site.
-
-### Arquivos modificados
-- `src/App.tsx` - Adicionar rotas `/termos` e `/privacidade`
-- `src/pages/Index.tsx` - Trocar os `href="#"` do footer por `Link to="/termos"` e `Link to="/privacidade"`
-
-## Detalhes técnicos
-- Páginas puramente estáticas (sem banco de dados)
-- Usar `Link` do react-router-dom para navegação
-- Importar logo da TrendFood no header de cada página
-- Conteúdo em português brasileiro, tom profissional
-- Data de vigência: fevereiro de 2025
+Isso corrige o problema para todas as rotas do app de uma vez.
