@@ -6,6 +6,8 @@ import {
   useClearDeliveryHistory,
   useCompleteDelivery,
   useCancelDelivery,
+  useOrgDeliveriesUnpaid,
+  usePayCourier,
   type DateRange,
 } from "@/hooks/useCourier";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Bike, MapPin, Clock, CheckCircle2, Navigation, Users, Settings, Save,
-  Loader2, CalendarIcon, Trash2, XCircle, MessageCircle,
+  Loader2, CalendarIcon, Trash2, XCircle, MessageCircle, DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth } from "date-fns";
@@ -86,6 +88,9 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
   const clearMutation = useClearDeliveryHistory();
   const completeMutation = useCompleteDelivery();
   const cancelMutation = useCancelDelivery();
+  const payMutation = usePayCourier();
+
+  const { data: unpaidDeliveries = [] } = useOrgDeliveriesUnpaid(orgId);
 
   const [baseFee, setBaseFee] = useState(courierConfig?.base_fee ?? DEFAULT_COURIER_CONFIG.base_fee);
   const [perKm, setPerKm] = useState(courierConfig?.per_km ?? DEFAULT_COURIER_CONFIG.per_km);
@@ -428,24 +433,64 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
         <div>
           <h3 className="font-semibold text-sm mb-3">Motoboys cadastrados</h3>
           <div className="space-y-2">
-            {couriers.map((c) => (
-              <Card key={c.id}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                    <Bike className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{c.phone} · {c.plate}</p>
-                    {c.whatsapp && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MessageCircle className="w-3 h-3" /> {c.whatsapp}
-                      </p>
+            {couriers.map((c) => {
+              const unpaid = unpaidDeliveries.filter((d) => d.courier_id === c.id);
+              const unpaidTotal = unpaid.reduce((sum, d) => sum + (d.fee ?? 0), 0);
+              return (
+                <Card key={c.id}>
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                      <Bike className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{c.phone} · {c.plate}</p>
+                      {c.whatsapp && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MessageCircle className="w-3 h-3" /> {c.whatsapp}
+                        </p>
+                      )}
+                      {unpaidTotal > 0 && (
+                        <p className="text-xs mt-1 flex items-center gap-1">
+                          <DollarSign className="w-3 h-3 text-yellow-500" />
+                          <span className="text-yellow-600 font-semibold">
+                            {unpaid.length} entrega{unpaid.length > 1 ? "s" : ""} · R$ {unpaidTotal.toFixed(2)} a pagar
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                    {unpaidTotal > 0 && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="outline" className="shrink-0 gap-1 text-xs border-green-500/30 text-green-600 hover:bg-green-500/10">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Pagar tudo
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Pagar {c.name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Marcar {unpaid.length} entrega{unpaid.length > 1 ? "s" : ""} como paga{unpaid.length > 1 ? "s" : ""}. Total: <strong>R$ {unpaidTotal.toFixed(2)}</strong>. Essa ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                              payMutation.mutate({ courierId: c.id, organizationId: orgId }, {
+                                onSuccess: () => toast.success(`Pagamento de R$ ${unpaidTotal.toFixed(2)} registrado para ${c.name}!`),
+                                onError: () => toast.error("Erro ao registrar pagamento."),
+                              });
+                            }}>
+                              Confirmar Pagamento
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
