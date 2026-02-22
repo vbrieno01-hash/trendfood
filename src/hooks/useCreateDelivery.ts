@@ -70,7 +70,8 @@ export async function createDeliveryForOrder(
 
   const customerAddress = parseAddressFromNotes(order.notes);
 
-  // Insert immediately with null distance/fee
+  // Insert with base fee as fallback (geocoding may fail)
+  const baseFee = courierConfig?.base_fee ?? 3.0;
   const { data: delivery, error } = await supabase
     .from("deliveries")
     .insert({
@@ -78,6 +79,7 @@ export async function createDeliveryForOrder(
       organization_id: organizationId,
       customer_address: customerAddress,
       status: "pendente",
+      fee: baseFee,
     })
     .select("id")
     .single();
