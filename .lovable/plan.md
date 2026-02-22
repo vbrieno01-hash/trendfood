@@ -1,65 +1,56 @@
 
-# Implementar Sistema de Ponto para Motoboys
 
-A tabela `courier_shifts` ainda nao foi criada no banco de dados. Vou criar tudo de uma vez.
+# Relatorio de Motoboys para o Dono da Loja
 
-## Passo 1 -- Criar tabela `courier_shifts`
+## O que o dono vai poder ver
 
-Migracao SQL para criar a tabela com RLS e Realtime:
+Uma nova secao "Relatorio de Motoboys" dentro da aba Motoboys do dashboard, com:
 
-```text
-courier_shifts
-- id (uuid PK)
-- courier_id (uuid NOT NULL)
-- organization_id (uuid NOT NULL)
-- started_at (timestamptz NOT NULL DEFAULT now())
-- ended_at (timestamptz NULL)
-- created_at (timestamptz NOT NULL DEFAULT now())
-```
+### KPIs principais
+- **Total de entregas** no periodo
+- **Total pago** a motoboys (R$)
+- **Distancia total** percorrida (km)
+- **Tempo total trabalhado** (soma dos turnos)
 
-Politicas RLS: SELECT/INSERT/UPDATE publicos (mesmo padrao das tabelas de motoboy). DELETE restrito ao dono da organizacao.
+### Ranking de motoboys
+- Tabela ordenada por numero de entregas, mostrando: nome, entregas feitas, km rodados, valor ganho, horas trabalhadas
+- Barra de progresso visual por motoboy
 
-Realtime habilitado para atualizar o dashboard do dono em tempo real.
+### Grafico de entregas por dia
+- BarChart (mesmo estilo do ReportsTab de vendas) mostrando entregas/dia no periodo
 
-## Passo 2 -- Hooks em `src/hooks/useCourier.ts`
+### Grafico de horarios de pico de entrega
+- Distribuicao por hora do dia
 
-Adicionar 5 hooks novos no final do arquivo:
+### Exportar relatorio
+- Botao para baixar como imagem PNG ou PDF (mesmo padrao do ReportsTab)
 
-| Hook | Funcao |
-|------|--------|
-| `useActiveShift(courierId)` | Retorna turno ativo (ended_at IS NULL) |
-| `useStartShift()` | Mutation para criar novo turno |
-| `useEndShift()` | Mutation para setar ended_at = now() |
-| `useOrgActiveShifts(orgId)` | Todos os turnos ativos da org (quem esta online) |
-| `useOrgShiftHistory(orgId, date)` | Historico de turnos por data |
+## Periodo
+- Filtro de 7d / 30d / 90d (mesmo padrao do ReportsTab de vendas)
 
-Cada hook usa `as any` para contornar a tipagem auto-gerada (mesmo padrao usado nas outras queries de `couriers` e `deliveries`).
+## Alteracoes tecnicas
 
-Realtime subscription no `useOrgActiveShifts` para invalidar cache quando um turno muda.
+### 1. Novo componente `src/components/dashboard/CourierReportSection.tsx`
 
-## Passo 3 -- `src/pages/CourierPage.tsx`
+Componente isolado que recebe `orgId`, `orgName`, `orgEmoji` e renderiza todo o relatorio. Usa os hooks existentes:
+- `useOrgCouriers(orgId)` -- lista de motoboys
+- `useOrgDeliveries(orgId, dateRange)` -- entregas no periodo (reutilizado com dateRange calculado pelo periodo)
+- `useOrgShiftHistory(orgId, dateRange)` -- turnos no periodo
 
-Alteracoes na tela do motoboy:
+Nao precisa de nova tabela nem migracao -- tudo ja existe no banco.
 
-- Importar `useActiveShift`, `useStartShift`, `useEndShift`
-- Adicionar botao grande "Iniciar Turno" / "Encerrar Turno" logo abaixo do header
-- Quando turno ativo: badge verde "Online ha X min" com timer atualizado a cada 60s
-- Bloquear botao "Aceitar" se nao tiver turno ativo, com toast explicativo
+### 2. Integracao no `CourierDashboardTab.tsx`
 
-## Passo 4 -- `src/components/dashboard/CourierDashboardTab.tsx`
+Adicionar o `CourierReportSection` no final da pagina, abaixo da listagem de motoboys cadastrados. Separado por um titulo "Relatorio de Motoboys".
 
-Alteracoes no dashboard do dono:
+### 3. Exportacao
 
-- Importar `useOrgActiveShifts` e `useOrgShiftHistory`
-- No card de cada motoboy: bolinha verde/vermelha indicando se esta online
-- Quando online: exibir "Entrou as HH:MM" e "Ha Xh trabalhando"
-- Na secao expandida do card: lista de turnos do dia selecionado (check-in / check-out)
+Seguir o mesmo padrao do `ReportsTab`: gerar HTML com `buildReportHtml()`, exportar via `html2canvas` (PNG) ou `window.print()` (PDF). Incluir watermark TrendFood e dados da loja no cabecalho.
 
-## Resumo das mudancas
+## Resumo de arquivos
 
-| Arquivo | Tipo de alteracao |
-|---------|-------------------|
-| Migracao SQL | Criar tabela + RLS + Realtime |
-| `src/hooks/useCourier.ts` | Adicionar 5 hooks + interface CourierShift |
-| `src/pages/CourierPage.tsx` | Botao turno + badge online + bloqueio aceitar |
-| `src/components/dashboard/CourierDashboardTab.tsx` | Status online + historico turnos |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/components/dashboard/CourierReportSection.tsx` | Novo componente com KPIs, ranking, graficos e export |
+| `src/components/dashboard/CourierDashboardTab.tsx` | Importar e renderizar o CourierReportSection no final |
+
