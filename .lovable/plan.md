@@ -1,32 +1,81 @@
 
 
-# Aviso inteligente quando Web Bluetooth nao esta disponivel
+# Corrigir travamento do app apos conexao Bluetooth
 
 ## Problema
-O usuario tenta parear a impressora Bluetooth dentro do preview do Lovable (iframe), onde a API Web Bluetooth esta bloqueada. O erro silencioso confunde o usuario, que pensa ser problema de driver.
+Apos parear a impressora Bluetooth, o app trava com "Nao esta respondendo" depois de alguns segundos. Isso ocorre porque as operacoes de Web Bluetooth (conexao GATT e busca de servicos) podem travar sem timeout, e a impressao automatica na Cozinha pode disparar tentativas repetidas.
 
-## Solucao
-Adicionar deteccao inteligente no fluxo de pareamento: quando o Web Bluetooth nao estiver disponivel, mostrar um toast claro orientando o usuario a abrir a URL publicada no Chrome.
+## Causa raiz
+1. `device.gatt.connect()` e `getPrimaryService()` nao possuem timeout -- podem ficar pendentes indefinidamente
+2. Se a impressora nao suporta os UUIDs de servico esperados, a iteracao nos 3 UUIDs pode travar
+3. Impressao automatica (KDS) pode disparar multiplas chamadas simultaneas ao Bluetooth
 
 ## Mudancas
 
-### 1. `src/pages/DashboardPage.tsx` - Melhorar `handlePairBluetooth`
-- Antes de chamar `requestBluetoothPrinter()`, verificar `isBluetoothSupported()`
-- Se nao suportado, mostrar toast com mensagem clara:
-  - "Bluetooth nao disponivel neste navegador. Abra trendfood.lovable.app diretamente no Google Chrome."
-- Retornar sem tentar parear
+### 1. `src/lib/bluetoothPrinter.ts` - Adicionar timeouts e protecao
 
-### 2. `src/components/dashboard/SettingsTab.tsx` - Aviso visual na secao Bluetooth
-- Quando `btSupported` for `false`, exibir um alerta inline na secao de impressora Bluetooth com:
-  - Icone de aviso
-  - Texto: "Web Bluetooth nao esta disponivel. Abra este site pela URL publicada no Google Chrome."
-  - Desabilitar o botao "Parear impressora"
+- Criar funcao auxiliar `withTimeout(promise, ms)` que rejeita a Promise apos X milissegundos
+- Aplicar timeout de 5 segundos em `device.gatt.connect()`
+- Aplicar timeout de 3 segundos em cada `getPrimaryService()`
+- Adicionar flag `isConnecting` para evitar tentativas simultaneas de conexao (mutex simples)
+- No `sendToBluetoothPrinter`, se ja estiver conectando, retornar `false` imediatamente
 
-## Resultado
-O usuario recebe orientacao clara e imediata sobre o que fazer, em vez de um erro silencioso no console. Quando abrir pela URL publicada no Chrome, tudo funcionara normalmente.
+### 2. `src/lib/bluetoothPrinter.ts` - Melhorar tratamento de erros
+
+- Envolver todo o `connectToDevice` em try/catch para capturar erros de timeout
+- Limpar `cachedServer` e `cachedCharacteristic` em caso de timeout
+- Log claro no console quando o timeout ocorrer
+
+### 3. `src/components/dashboard/KitchenTab.tsx` - Proteger impressao automatica
+
+- No `useEffect` de auto-print (linha 184), adicionar verificacao: se ja existe uma impressao Bluetooth em andamento, nao disparar outra
+- Usar um `ref` (`isPrintingRef`) para controlar concorrencia
+- Se o Bluetooth falhar, nao tentar novamente automaticamente (so salvar na fila)
 
 ## Detalhes tecnicos
-- `isBluetoothSupported()` ja existe em `bluetoothPrinter.ts` e verifica `navigator.bluetooth`
-- No iframe do Lovable, `navigator.bluetooth` existe mas esta desabilitado, entao o erro so aparece ao chamar `requestDevice()`
-- Solucao: fazer um try/catch mais explicito no `handlePairBluetooth` e tratar o erro `NotFoundError` com mensagem "Web Bluetooth API globally disabled"
-- O toast usara `sonner` (ja instalado no projeto)
+
+A funcao `withTimeout` sera simples:
+
+```text
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms)
+    ),
+  ]);
+}
+```
+
+A flag `isConnecting` sera um `let` no escopo do modulo (assim como `cachedServer` ja e):
+
+```text
+let isConnecting = false;
+
+async function connectToDevice(device) {
+  if (isConnecting) return null;
+  isConnecting = true;
+  try {
+    const server = await withTimeout(device.gatt.connect(), 5000, "GATT connect");
+    // ... buscar servicos com timeout
+  } finally {
+    isConnecting = false;
+  }
+}
+```
+
+No KitchenTab, o ref de controle evita que dois prints Bluetooth rodem ao mesmo tempo:
+
+```text
+const isPrintingRef = useRef(false);
+
+// No useEffect de auto-print:
+if (isPrintingRef.current) return; // ja imprimindo
+isPrintingRef.current = true;
+await printOrderByMode(...);
+isPrintingRef.current = false;
+```
+
+## Resultado
+O app nao travara mais ao conectar a impressora Bluetooth. Operacoes que demoram mais de 5 segundos serao canceladas automaticamente, e o usuario recebera um aviso claro. A impressao automatica nao disparara multiplas tentativas simultaneas.
+
