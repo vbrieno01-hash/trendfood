@@ -2,13 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 
-// Types (tables not in generated types yet, use manual typing)
 export interface Courier {
   id: string;
   organization_id: string;
   name: string;
   phone: string;
   plate: string;
+  whatsapp?: string;
   active: boolean;
   created_at: string;
 }
@@ -58,7 +58,7 @@ export function useMyCourier() {
 export function useRegisterCourier() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { organization_id: string; name: string; phone: string; plate: string }) => {
+    mutationFn: async (input: { organization_id: string; name: string; phone: string; plate: string; whatsapp?: string }) => {
       const { data, error } = await supabase
         .from("couriers" as any)
         .insert(input as any)
@@ -78,7 +78,6 @@ export function useRegisterCourier() {
 export function useAvailableDeliveries(organizationId: string | undefined) {
   const queryClient = useQueryClient();
 
-  // Realtime subscription
   useEffect(() => {
     if (!organizationId) return;
     const channel = supabase
@@ -154,7 +153,6 @@ export function useAcceptDelivery() {
         .eq("id", deliveryId);
       if (error) throw error;
 
-      // Fetch order notes to extract customer phone
       const { data: order } = await supabase
         .from("orders")
         .select("notes")
@@ -185,7 +183,14 @@ export function useCompleteDelivery() {
   });
 }
 
-export function useOrgDeliveries(organizationId: string | undefined) {
+// ── New hooks ──
+
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+export function useOrgDeliveries(organizationId: string | undefined, dateRange?: DateRange) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -196,7 +201,7 @@ export function useOrgDeliveries(organizationId: string | undefined) {
         "postgres_changes",
         { event: "*", schema: "public", table: "deliveries", filter: `organization_id=eq.${organizationId}` },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["deliveries", organizationId, "all"] });
+          queryClient.invalidateQueries({ queryKey: ["deliveries", organizationId] });
         }
       )
       .subscribe();
@@ -204,18 +209,72 @@ export function useOrgDeliveries(organizationId: string | undefined) {
   }, [organizationId, queryClient]);
 
   return useQuery({
-    queryKey: ["deliveries", organizationId, "all"],
+    queryKey: ["deliveries", organizationId, "filtered", dateRange?.from, dateRange?.to],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("deliveries" as any)
         .select("*")
-        .eq("organization_id", organizationId!)
-        .order("created_at", { ascending: false })
-        .limit(50);
+        .eq("organization_id", organizationId!);
+
+      if (dateRange) {
+        query = query.gte("created_at", dateRange.from).lt("created_at", dateRange.to);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
       if (error) throw error;
       return (data ?? []) as unknown as Delivery[];
     },
     enabled: !!organizationId,
+  });
+}
+
+export function useDeleteDelivery() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (deliveryId: string) => {
+      const { error } = await supabase
+        .from("deliveries" as any)
+        .delete()
+        .eq("id", deliveryId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+    },
+  });
+}
+
+export function useClearDeliveryHistory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orgId, before }: { orgId: string; before: string }) => {
+      const { error } = await supabase
+        .from("deliveries" as any)
+        .delete()
+        .eq("organization_id", orgId)
+        .in("status", ["entregue", "cancelada"])
+        .lt("created_at", before);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+    },
+  });
+}
+
+export function useCancelDelivery() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (deliveryId: string) => {
+      const { error } = await supabase
+        .from("deliveries" as any)
+        .update({ status: "cancelada" } as any)
+        .eq("id", deliveryId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+    },
   });
 }
 
