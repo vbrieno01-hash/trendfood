@@ -277,9 +277,7 @@ export default function SettingsTab({ btDevice, btConnected, onPairBluetooth, on
               <SelectContent>
                 <SelectItem value="browser">🖥️ Navegador (padrão)</SelectItem>
                 <SelectItem value="desktop">💻 Desktop (Script externo)</SelectItem>
-                {btSupported && (
-                  <SelectItem value="bluetooth">📱 Mobile (Bluetooth)</SelectItem>
-                )}
+                <SelectItem value="bluetooth">📱 Mobile (Bluetooth)</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1.5">
@@ -310,7 +308,10 @@ export default function SettingsTab({ btDevice, btConnected, onPairBluetooth, on
                       Web Bluetooth não está disponível
                     </p>
                     <p className="text-xs text-amber-700 mt-1">
-                      Abra <strong>trendfood.lovable.app</strong> diretamente no Google Chrome para parear sua impressora.
+                      {(navigator as any).brave
+                        ? <>Ative o Web Bluetooth em <strong>brave://flags/#enable-web-bluetooth</strong> e recarregue a página.</>
+                        : <>Use <strong>Google Chrome</strong>, <strong>Microsoft Edge</strong> ou <strong>Opera</strong> para parear impressoras Bluetooth.</>
+                      }
                     </p>
                   </div>
                 </div>
@@ -322,10 +323,16 @@ export default function SettingsTab({ btDevice, btConnected, onPairBluetooth, on
                   className="gap-2"
                   onClick={() => {
                     if (!btSupported) {
-                      toast.error("Bluetooth não disponível neste navegador", {
-                        description: "Abra trendfood.lovable.app diretamente no Google Chrome.",
-                        duration: 6000,
-                      });
+                      const isBrave = !!(navigator as any).brave;
+                      toast.error(
+                        isBrave ? "Bluetooth desativado no Brave" : "Bluetooth não disponível",
+                        {
+                          description: isBrave
+                            ? "Ative em brave://flags/#enable-web-bluetooth e recarregue a página."
+                            : "Seu navegador não suporta Web Bluetooth. Use Chrome, Edge ou Opera.",
+                          duration: 8000,
+                        }
+                      );
                       return;
                     }
                     onPairBluetooth();

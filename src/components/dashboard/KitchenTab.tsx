@@ -187,10 +187,16 @@ export default function KitchenTab({
               className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""} ${!btSupported ? "opacity-50" : ""}`}
               onClick={() => {
                 if (!btSupported) {
-                  toast.error("Bluetooth não disponível neste navegador", {
-                    description: "Abra trendfood.lovable.app diretamente no Google Chrome.",
-                    duration: 6000,
-                  });
+                  const isBrave = !!(navigator as any).brave;
+                  toast.error(
+                    isBrave ? "Bluetooth desativado no Brave" : "Bluetooth não disponível",
+                    {
+                      description: isBrave
+                        ? "Ative em brave://flags/#enable-web-bluetooth e recarregue a página."
+                        : "Seu navegador não suporta Web Bluetooth. Use Chrome, Edge ou Opera.",
+                      duration: 8000,
+                    }
+                  );
                   return;
                 }
                 onPairBluetooth?.();
