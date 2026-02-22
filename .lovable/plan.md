@@ -1,31 +1,47 @@
 
+# Melhorias: Impressao e WhatsApp
 
-# Atualizar link de download do trendfood.exe
+## 1. Corrigir marcadores na impressao desktop
 
-## Resumo
-Trocar o link de download do `trendfood.exe` para apontar para o GitHub Releases do repositorio `vbrieno01-hash/trendfood`.
+O texto do cupom usa marcadores `##CENTER##` e `##BOLD##` que funcionam na impressora Bluetooth, mas aparecem como texto literal no modo desktop (trendfood.exe).
 
-## Alteracao
+**Arquivo**: `src/lib/formatReceiptText.ts`
+- Exportar nova funcao `stripFormatMarkers(text)` que remove `##CENTER##` e `##BOLD##` do texto
 
-**Arquivo:** `src/components/dashboard/SettingsTab.tsx` (linha 419)
+**Arquivo**: `src/lib/printOrder.ts` (linha 321)
+- No modo `desktop`: aplicar `stripFormatMarkers()` no texto antes de enviar para `enqueuePrint`
+- Bluetooth continua recebendo os marcadores normalmente
 
-Trocar:
+## 2. Mensagem WhatsApp com link do site
+
+Quando o motoboy aceita a corrida, a mensagem enviada ao cliente incluira o link do site no final com um texto mais adequado (ja que o cliente ja fez o pedido).
+
+**Arquivo**: `src/pages/CourierPage.tsx` (linha 216)
+
+De:
 ```
-https://trendfood.lovable.app/trendfood.exe
+Ola! Seu pedido da *Loja* saiu para entrega!
+Aguarde em seu endereco que ja estamos a caminho.
+Obrigado!
 ```
 
-Por:
+Para:
 ```
-https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.exe
+Ola! Seu pedido da *Loja* saiu para entrega!
+Aguarde em seu endereco que ja estamos a caminho.
+Obrigado!
+
+Equipe *Loja* | trendfood.lovable.app
 ```
 
-Este link sempre aponta automaticamente para a versao mais recente do release.
+O link aparece de forma natural como assinatura da equipe, sem pedir para "fazer pedido" (ja que o cliente ja pediu).
 
-## Tecnico
+---
+
+## Resumo tecnico
 
 | Arquivo | Linha | Alteracao |
 |---------|-------|-----------|
-| `src/components/dashboard/SettingsTab.tsx` | 419 | Atualizar href do botao de download |
-
-Apenas 1 arquivo precisa ser alterado. Nenhum outro local no codigo referencia o `trendfood.exe`.
-
+| `src/lib/formatReceiptText.ts` | Final | Exportar `stripFormatMarkers()` |
+| `src/lib/printOrder.ts` | 321 | Limpar marcadores no modo desktop |
+| `src/pages/CourierPage.tsx` | 216 | Adicionar assinatura com link |
