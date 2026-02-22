@@ -1,117 +1,78 @@
 
 
-# Corrigir impressao automatica Bluetooth -- auto-print nunca executa
+# Melhorar reconexao automatica Bluetooth no carregamento
 
-## Problema raiz
+## Problema
 
-O callback Realtime de auto-print (linha 174 do DashboardPage) faz um `return` antecipado se o `order.id` ja existe em `knownIds`. Essa mesma `knownIds` e populada automaticamente pelo `useEffect` da linha 238 que roda sempre que `dashOrders` atualiza. Quando um INSERT chega, o hook `useOrders` tambem recebe o evento Realtime e invalida o cache, causando refetch. Se o React processa esse refetch e atualiza `dashOrders` antes do callback `dashboard-autoprint` executar, o `knownIds` ja contem o ID do pedido novo, e o auto-print e silenciosamente pulado -- sem bell, sem notificacao, sem impressao.
+A reconexao automatica depende de `watchAdvertisements()` para tornar o dispositivo visivel ao Chrome antes de tentar conectar via GATT. Mas essa API tem limitacoes:
+- Nem todos os navegadores/versoes suportam
+- A impressora precisa estar ativamente anunciando no momento exato (janela de 4 segundos)
+- Se a impressora demorar para anunciar ou o browser nao captar, a conexao falha silenciosamente
 
-Alem disso, nao existe nenhum `console.log` no fluxo de auto-print, tornando impossivel diagnosticar o problema em producao.
+Depois disso, o backoff retry tenta `connectToDevice` mais 3 vezes (1s, 2s, 4s), mas tambem depende do dispositivo estar visivel.
 
 ## Solucao
 
-1. Separar a logica de deduplicacao: usar um `autoPrintedIds` ref exclusivo para auto-print, independente de `knownIds`
-2. Mover o enfileiramento de impressao para ANTES do check de `knownIds` (ou usar check proprio)
-3. Adicionar logs de diagnostico em pontos criticos do fluxo
+Duas mudancas na estrategia de reconexao:
 
-## Alteracoes
+### 1. Tentar conexao GATT direta primeiro (sem esperar advertisement)
 
-### `src/pages/DashboardPage.tsx`
+Muitos dispositivos Bluetooth permitem reconexao direta via `device.gatt.connect()` sem precisar de `watchAdvertisements`. Adicionar um "fast path" que tenta conectar diretamente antes de recorrer ao `watchAdvertisements`.
 
-#### 1. Novo ref para deduplicar impressoes (apos linha 97)
+### 2. Aumentar retentativas e timeouts
 
-Adicionar:
+- `waitForAdvertisement`: aumentar de 4s para 6s
+- Backoff retry: aumentar de 3 para 5 tentativas (1s, 2s, 4s, 8s, 16s)
+- Timeout global de `reconnectStoredPrinter`: aumentar de 12s para 20s
+
+## Alteracoes tecnicas
+
+### `src/lib/bluetoothPrinter.ts`
+
+**reconnectStoredPrinterInternal** -- adicionar tentativa direta antes de watchAdvertisements:
+
 ```typescript
-const autoPrintedIds = useRef<Set<string>>(new Set());
-```
+async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
+  const bt = navigator as any;
+  if (typeof bt.bluetooth?.getDevices !== "function") return null;
 
-#### 2. Reestruturar o callback Realtime (linhas 172-228)
+  const devices = await bt.bluetooth.getDevices();
+  const device = devices.find((d) => d.id === storedId);
+  if (!device) return null;
 
-Separar o auto-print do guard de knownIds:
+  // Fast path: tentar GATT connect direto (funciona em muitos dispositivos)
+  try {
+    console.log("[BT] Tentando conexao direta...");
+    const char = await connectToDevice(device);
+    if (char) {
+      console.log("[BT] Conexao direta OK:", device.name || device.id);
+      return device;
+    }
+  } catch { /* continua para watchAdvertisements */ }
 
-```typescript
-(payload) => {
-  const order = payload.new as Order;
+  // Slow path: watchAdvertisements + retry
+  await waitForAdvertisement(device, 6000);
+  const char = await connectToDevice(device);
+  if (char) return device;
 
-  // Auto-print: verifica com seu proprio set de deduplicacao
-  if (autoPrintRef.current && !autoPrintedIds.current.has(order.id)) {
-    autoPrintedIds.current.add(order.id);
-    console.log("[AutoPrint] Novo pedido detectado:", order.id, "mesa:", order.table_number);
-
-    printQueue.current.push(async () => {
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("id, name, quantity, price, customer_name")
-        .eq("order_id", order.id);
-      const fullOrder = { ...order, order_items: items ?? [] };
-
-      // Reconexao sob demanda
-      if (!btDeviceRef.current && getStoredDeviceId()) {
-        try {
-          const reconnected = await reconnectStoredPrinter();
-          if (reconnected) {
-            setBtDevice(reconnected);
-            setBtConnected(true);
-            btDeviceRef.current = reconnected;
-            attachDisconnectHandler(reconnected);
-            console.log("[AutoPrint] Bluetooth reconnected on-demand");
-          }
-        } catch {
-          console.warn("[AutoPrint] On-demand BT reconnect failed");
-        }
-      }
-
-      const effectiveMode = (btDeviceRef.current || getStoredDeviceId())
-        ? 'bluetooth' as const
-        : printModeRef.current;
-
-      console.log("[AutoPrint] Imprimindo pedido", order.id, "modo:", effectiveMode, "btDevice:", !!btDeviceRef.current);
-
-      await printOrderByMode(
-        fullOrder,
-        orgNameRef.current,
-        effectiveMode,
-        orgId!,
-        btDeviceRef.current,
-        getPixPayload(fullOrder),
-        printerWidthRef.current
-      );
-    });
-    processQueue();
-  }
-
-  // Bell + notificacao: usa knownIds para nao repetir
-  if (knownIds.current.has(order.id)) return;
-  knownIds.current.add(order.id);
-
-  playBell();
-
-  if (notificationsRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
-    const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
-    new Notification(`Novo pedido! ${tableLabel}`, {
-      icon: "/pwa-192.png",
-      badge: "/pwa-192.png",
-    });
-  }
-
-  qc.invalidateQueries({ queryKey: ["orders", orgId] });
+  return null;
 }
 ```
 
-A mudanca chave: o auto-print agora roda ANTES do check de `knownIds` e usa seu proprio set `autoPrintedIds` para deduplicacao. Isso garante que mesmo se `knownIds` ja tiver o ID (por causa de race com refetch), a impressao ainda acontece.
+**reconnectStoredPrinter** -- aumentar timeout global para 20s
 
-#### 3. Popular autoPrintedIds com pedidos existentes (na useEffect da linha 238)
+**waitForAdvertisement** -- timeout padrao para 6s
+
+### `src/pages/DashboardPage.tsx`
+
+**Backoff retry** -- aumentar para 5 tentativas:
 
 ```typescript
-useEffect(() => {
-  dashOrders.forEach((o) => {
-    knownIds.current.add(o.id);
-    autoPrintedIds.current.add(o.id); // Nao reimprimir pedidos ja carregados
-  });
-}, [dashOrders]);
+autoReconnect(target, onConnected, onFailed, 5);
 ```
 
 ## Arquivos alterados
 
-- `src/pages/DashboardPage.tsx` -- separar auto-print do guard de knownIds + adicionar logs de diagnostico
+- `src/lib/bluetoothPrinter.ts` -- fast path direto + timeouts maiores
+- `src/pages/DashboardPage.tsx` -- mais tentativas de backoff
 
