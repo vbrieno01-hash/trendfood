@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { ArrowRight, TrendingDown, ShieldCheck, Calculator } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -16,7 +13,6 @@ const SavingsCalculator = () => {
 
   const lossMin = revenue * 0.12;
   const lossMax = revenue * 0.27;
-  const lossPercent = Math.round((lossMax / revenue) * 100) || 0;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "");
@@ -26,34 +22,28 @@ const SavingsCalculator = () => {
   const display = revenue.toLocaleString("pt-BR");
 
   return (
-    <section className="relative py-16 px-4 overflow-hidden">
-      {/* Dark premium background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(20,14%,6%)] via-[hsl(20,14%,10%)] to-[hsl(0,84%,12%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(0,84%,52%,0.08),transparent_60%)]" />
+    <section className="relative py-24 px-4">
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] to-[#111]" />
 
       <div className="relative max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <Badge className="mb-5 bg-white/10 text-white/80 border-white/10 backdrop-blur-sm">
-            <Calculator className="w-3 h-3 mr-1" />
-            Calculadora de economia
-          </Badge>
-          <h2 className="text-2xl md:text-4xl font-extrabold text-white mb-3 tracking-tight">
-            Quanto você <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-500">perde</span> por mês?
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-5xl font-semibold text-white mb-4 tracking-tight">
+            Quanto você <span className="text-red-500">perde</span> por mês?
           </h2>
-          <p className="text-white/60 text-lg max-w-md mx-auto">
+          <p className="text-white/40 text-base">
             Veja quanto do seu faturamento vai direto pro marketplace
           </p>
         </div>
 
-        {/* Calculator Card - glass morphism */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 md:p-8 shadow-2xl">
+        {/* Card */}
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 md:p-12">
           {/* Input */}
-          <label htmlFor="revenue" className="block text-sm font-medium text-white/70 mb-2 tracking-wide uppercase">
+          <label htmlFor="revenue" className="block text-xs font-medium text-white/30 mb-6 tracking-widest uppercase">
             Faturamento mensal no iFood
           </label>
-          <div className="relative mb-4">
-            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl font-bold text-white/40 select-none">
+          <div className="relative mb-2">
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-medium text-white/20 select-none">
               R$
             </span>
             <input
@@ -62,30 +52,33 @@ const SavingsCalculator = () => {
               inputMode="numeric"
               value={display}
               onChange={handleChange}
-              className="w-full h-14 rounded-2xl border border-white/10 bg-white/[0.06] pl-14 pr-5 text-2xl font-extrabold text-white placeholder:text-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all"
+              className="w-full bg-transparent border-b border-white/10 pl-12 pb-3 text-3xl font-medium text-white placeholder:text-white/10 focus-visible:outline-none focus-visible:border-white/30 transition-colors"
             />
           </div>
 
           {/* Slider */}
-          <Slider
-            value={[revenue]}
-            onValueChange={([v]) => setRevenue(v)}
+          <input
+            type="range"
             min={1000}
             max={100000}
             step={1000}
-            className="mb-5 [&_[data-radix-slider-track]]:bg-white/10 [&_[data-radix-slider-range]]:bg-gradient-to-r [&_[data-radix-slider-range]]:from-primary [&_[data-radix-slider-range]]:to-red-400 [&_[data-radix-slider-thumb]]:border-primary [&_[data-radix-slider-thumb]]:bg-white"
+            value={revenue}
+            onChange={(e) => setRevenue(Number(e.target.value))}
+            className="w-full h-[2px] mt-6 mb-8 appearance-none bg-white/[0.08] rounded-none cursor-pointer
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer
+              [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
           />
 
           {/* Preset chips */}
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-3 mb-12">
             {PRESETS.map((v) => (
               <button
                 key={v}
                 onClick={() => setRevenue(v)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                className={`px-4 py-1.5 rounded-full text-sm transition-colors ${
                   revenue === v
-                    ? "bg-primary text-white shadow-lg shadow-primary/30"
-                    : "bg-white/[0.06] text-white/60 hover:bg-white/10 hover:text-white border border-white/10"
+                    ? "bg-white/10 text-white"
+                    : "text-white/30 hover:text-white/60"
                 }`}
               >
                 {formatBRL(v)}
@@ -93,71 +86,50 @@ const SavingsCalculator = () => {
             ))}
           </div>
 
-          {/* Loss block */}
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] backdrop-blur-sm p-5 mb-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-                <TrendingDown className="w-4 h-4 text-red-400" />
-              </div>
-              <p className="text-sm font-medium text-white/60">Você perde para o marketplace</p>
-            </div>
+          {/* Divider */}
+          <div className="border-t border-white/[0.06]" />
 
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="text-2xl md:text-3xl font-extrabold text-red-400 tabular-nums transition-all duration-300">
+          {/* Loss block */}
+          <div className="py-8">
+            <p className="text-xs font-medium text-white/30 tracking-widest uppercase mb-4">
+              Você perde para o marketplace
+            </p>
+            <div className="flex items-baseline gap-3 mb-2">
+              <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
                 {formatBRL(lossMin)}
               </span>
-              <span className="text-white/40 text-lg font-medium">a</span>
-              <span className="text-2xl md:text-3xl font-extrabold text-red-400 tabular-nums transition-all duration-300">
+              <span className="text-white/20 text-lg">a</span>
+              <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
                 {formatBRL(lossMax)}
               </span>
-              <span className="text-white/30 text-sm">/mês</span>
+              <span className="text-white/20 text-sm">/mês</span>
             </div>
-
-            {/* Progress bar */}
-            <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500 ease-out"
-                style={{ width: `${Math.min(lossPercent, 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between mt-2">
-              <span className="text-xs text-white/30">12% de taxa</span>
-              <span className="text-xs text-red-400/80 font-semibold">até {lossPercent}% do seu faturamento</span>
-            </div>
+            <p className="text-sm text-white/25">12% a 27% de taxa sobre vendas</p>
           </div>
 
-          {/* TrendFood savings block */}
-          <div className="relative rounded-2xl p-[1px] bg-gradient-to-r from-green-500 via-emerald-400 to-yellow-400 mb-6">
-            <div className="rounded-2xl bg-[hsl(20,14%,8%)] p-5 text-center">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4 text-green-400" />
-                </div>
-                <p className="text-sm font-medium text-white/70">Com o TrendFood</p>
-              </div>
-              <p className="text-2xl md:text-3xl font-extrabold mb-2">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-300 to-yellow-300">
-                  {formatBRL(revenue)} fica com você
-                </span>
-              </p>
-              <Badge className="bg-green-500/10 text-green-400 border-green-500/20 text-sm font-bold">
-                0% de comissão sobre vendas
-              </Badge>
-            </div>
+          {/* Divider */}
+          <div className="border-t border-white/[0.06]" />
+
+          {/* TrendFood block */}
+          <div className="py-8">
+            <p className="text-xs font-medium text-white/30 tracking-widest uppercase mb-4">
+              Com o TrendFood
+            </p>
+            <p className="text-3xl md:text-4xl font-semibold text-emerald-400 tabular-nums mb-2">
+              {formatBRL(revenue)} <span className="text-white/40 text-lg font-normal">fica com você</span>
+            </p>
+            <p className="text-sm text-emerald-400/60">0% de comissão sobre vendas</p>
           </div>
 
           {/* CTA */}
-          <div className="text-center">
-            <Button
-              size="lg"
-              className="bg-white text-primary hover:bg-white/90 text-base font-bold gap-2 shadow-xl shadow-white/10 h-12 px-8"
-              asChild
+          <div className="pt-4">
+            <Link
+              to="/auth"
+              className="inline-flex items-center justify-center gap-2 bg-white text-black rounded-lg h-12 px-8 text-base font-medium hover:bg-white/90 transition-colors w-full md:w-auto"
             >
-              <Link to="/auth">
-                Começar Grátis
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
+              Começar Grátis
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </div>
