@@ -1,37 +1,43 @@
 
-# Botao de parear impressora Bluetooth na aba Cozinha
+
+# Atualizar KitchenPage.tsx com botao Bluetooth e protecoes
 
 ## Problema
-Atualmente, para parear a impressora Bluetooth, o usuario precisa ir ate a aba "Configuracoes". Na aba "Cozinha" nao existe nenhum botao para parear, o que e inconveniente pois e la que a impressao automatica acontece.
+O `KitchenPage.tsx` (pagina standalone da cozinha acessada via `/kitchen?org=slug`) nao recebeu as mesmas atualizacoes que o `KitchenTab.tsx` dentro do Dashboard. Falta:
+1. Botao de parear impressora Bluetooth
+2. Protecao de impressao concorrente (isPrintingRef)
 
-## Solucao
-Adicionar um botao compacto de pareamento Bluetooth diretamente no cabecalho da aba Cozinha, ao lado dos toggles existentes ("Notificacoes" e "Imprimir automatico").
+## Mudancas
 
-## O que sera feito
+### `src/pages/KitchenPage.tsx`
+- Importar `requestBluetoothPrinter`, `isBluetoothSupported` de `bluetoothPrinter.ts`
+- Adicionar estados: `btDevice`, `btConnected`, `btSupported`
+- Criar funcao `handlePairBluetooth` com deteccao de suporte e try/catch (mesmo padrao do DashboardPage)
+- Adicionar botao de pareamento no header, ao lado do toggle "Imprimir automatico" (visivel apenas quando `print_mode === "bluetooth"`)
+- Adicionar `isPrintingRef` para evitar impressoes Bluetooth concorrentes no useEffect de auto-print
+- Passar `btDevice` para as chamadas de `printOrderByMode` (atualmente passa `null`)
 
-### 1. KitchenTab - Novas props e botao
-- Adicionar props: `onPairBluetooth`, `btConnected`, `btSupported`
-- Exibir um botao compacto no cabecalho (ao lado do toggle "Imprimir automatico") **somente quando o modo de impressao for "bluetooth"**
-- O botao mostrara o status: "Parear impressora" ou o nome do dispositivo conectado (ex: "Conectada")
-- Se `btSupported` for `false`, o botao ficara desabilitado
+### Detalhes tecnicos
 
-### 2. DashboardPage - Passar novas props
-- Passar `onPairBluetooth`, `btConnected` e `btSupported` para o componente `KitchenTab`
-
-## Detalhes tecnicos
-
-No cabecalho do KitchenTab, junto aos controles existentes, sera adicionado (quando `printMode === "bluetooth"`):
+No header, junto aos controles existentes:
 
 ```text
-<Button variant="outline" size="sm" onClick={onPairBluetooth} disabled={!btSupported}>
-  <Printer icon />
-  {btConnected ? "Conectada" : "Parear impressora"}
-</Button>
+{printMode === "bluetooth" && (
+  <Button variant="outline" size="sm" onClick={handlePairBluetooth} disabled={!btSupported}>
+    <Printer />
+    {btConnected ? "Conectada" : "Parear impressora"}
+  </Button>
+)}
 ```
 
-As novas props na interface `KitchenTabProps`:
-- `onPairBluetooth?: () => void`
-- `btConnected?: boolean`
-- `btSupported?: boolean`
+No useEffect de auto-print, envolver com `isPrintingRef`:
 
-No `DashboardPage`, basta passar as mesmas funcoes e estados que ja sao passados para o `SettingsTab`.
+```text
+if (isPrintingRef.current) return;
+isPrintingRef.current = true;
+// ... loop de impressao
+isPrintingRef.current = false;
+```
+
+Na chamada de `printOrderByMode`, trocar `null` por `btDevice` para que a impressao Bluetooth funcione de fato.
+
