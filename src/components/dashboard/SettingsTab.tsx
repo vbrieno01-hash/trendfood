@@ -155,15 +155,15 @@ export default function SettingsTab() {
     try {
       const now = new Date().toLocaleString("pt-BR");
       const content = [
-        "##CENTER## TESTE DE IMPRESSAO",
-        "##CENTER## ==================",
-        `##CENTER## ${organization.name || "TrendFood"}`,
-        `##CENTER## ${now}`,
+        "   TESTE DE IMPRESSAO",
+        "================================",
+        `   ${organization.name || "TrendFood"}`,
+        `   ${now}`,
         "",
         "Tudo certo! Sua impressora",
         "esta configurada corretamente.",
         "",
-        "##CENTER## ==================",
+        "================================",
       ].join("\n");
       await enqueuePrint(organization.id, null, content);
       toast.success("Teste enviado para a fila de impressão!");

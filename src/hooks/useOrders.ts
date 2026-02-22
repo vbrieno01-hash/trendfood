@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { enqueuePrint } from "@/lib/printQueue";
-import { formatReceiptText } from "@/lib/formatReceiptText";
+import { formatReceiptText, stripFormatMarkers } from "@/lib/formatReceiptText";
 import type { PrintableOrder } from "@/lib/printOrder";
 
 export interface OrderItem {
@@ -206,7 +206,7 @@ export const usePlaceOrder = () => {
             customer_name: i.customer_name || null,
           })),
         };
-        const text = formatReceiptText(printableOrder);
+        const text = stripFormatMarkers(formatReceiptText(printableOrder));
         await enqueuePrint(organizationId, order.id, text);
       } catch (err) {
         console.error("Falha ao enfileirar impressão:", err);
