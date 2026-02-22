@@ -95,6 +95,7 @@ const DashboardPage = () => {
   const autoPrintRef = useRef(autoPrint);
   const notificationsRef = useRef(notificationsEnabled);
   const knownIds = useRef<Set<string>>(new Set());
+  const autoPrintedIds = useRef<Set<string>>(new Set());
 
   // Refs for values used inside Realtime callback (avoids stale closures)
   const printModeRef = useRef(printMode);
@@ -171,23 +172,12 @@ const DashboardPage = () => {
         { event: "INSERT", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
         (payload) => {
           const order = payload.new as Order;
-          if (knownIds.current.has(order.id)) return;
-          knownIds.current.add(order.id);
 
-          playBell();
+          // Auto-print: usa set proprio para deduplicacao (independente de knownIds)
+          if (autoPrintRef.current && !autoPrintedIds.current.has(order.id)) {
+            autoPrintedIds.current.add(order.id);
+            console.log("[AutoPrint] Novo pedido detectado:", order.id, "mesa:", order.table_number);
 
-          if (notificationsRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
-            const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
-            new Notification(`🔔 Novo pedido! ${tableLabel}`, {
-              icon: "/pwa-192.png",
-              badge: "/pwa-192.png",
-            });
-          }
-
-          qc.invalidateQueries({ queryKey: ["orders", orgId] });
-
-          // Auto-print: enqueue job so no order is ever dropped
-          if (autoPrintRef.current) {
             printQueue.current.push(async () => {
               const { data: items } = await supabase
                 .from("order_items")
@@ -195,7 +185,7 @@ const DashboardPage = () => {
                 .eq("order_id", order.id);
               const fullOrder = { ...order, order_items: items ?? [] };
 
-              // Se não tem device mas tem ID salvo, tentar reconectar sob demanda
+              // Reconexao sob demanda
               if (!btDeviceRef.current && getStoredDeviceId()) {
                 try {
                   const reconnected = await reconnectStoredPrinter();
@@ -214,6 +204,9 @@ const DashboardPage = () => {
               const effectiveMode = (btDeviceRef.current || getStoredDeviceId())
                 ? 'bluetooth' as const
                 : printModeRef.current;
+
+              console.log("[AutoPrint] Imprimindo pedido", order.id, "modo:", effectiveMode, "btDevice:", !!btDeviceRef.current);
+
               await printOrderByMode(
                 fullOrder,
                 orgNameRef.current,
@@ -226,6 +219,22 @@ const DashboardPage = () => {
             });
             processQueue();
           }
+
+          // Bell + notificacao: usa knownIds para nao repetir
+          if (knownIds.current.has(order.id)) return;
+          knownIds.current.add(order.id);
+
+          playBell();
+
+          if (notificationsRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
+            const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+            new Notification(`🔔 Novo pedido! ${tableLabel}`, {
+              icon: "/pwa-192.png",
+              badge: "/pwa-192.png",
+            });
+          }
+
+          qc.invalidateQueries({ queryKey: ["orders", orgId] });
         }
       )
       .subscribe();
@@ -236,7 +245,10 @@ const DashboardPage = () => {
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
-    dashOrders.forEach((o) => knownIds.current.add(o.id));
+    dashOrders.forEach((o) => {
+      knownIds.current.add(o.id);
+      autoPrintedIds.current.add(o.id);
+    });
   }, [dashOrders]);
   // Stable disconnect handler ref to allow proper removeEventListener
   const disconnectHandlerRef = useRef<(() => void) | null>(null);
