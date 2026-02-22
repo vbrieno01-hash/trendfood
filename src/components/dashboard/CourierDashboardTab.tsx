@@ -24,13 +24,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Bike, MapPin, Clock, CheckCircle2, Navigation, Users, Settings, Save,
-  Loader2, CalendarIcon, Trash2, XCircle, MessageCircle, DollarSign,
+  Loader2, CalendarIcon, Trash2, XCircle, MessageCircle, DollarSign, Copy, ChevronDown, ChevronUp, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, startOfDay, endOfDay, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DEFAULT_COURIER_CONFIG, type CourierConfig } from "@/hooks/useDeliveryDistance";
+import { QRCodeSVG } from "qrcode.react";
+import { buildPixPayload } from "@/lib/pixPayload";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30" },
@@ -74,6 +76,7 @@ function useOrderTotals(orderIds: string[]) {
 }
 
 const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
+  const [expandedCourierId, setExpandedCourierId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateRange = useDateRange(selectedDate);
 
@@ -103,6 +106,16 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
       setDailyRate(courierConfig.daily_rate ?? 0);
     }
   }, [courierConfig]);
+
+  // Auto-close expanded card when unpaidTotal reaches 0
+  useEffect(() => {
+    if (!expandedCourierId) return;
+    const unpaid = unpaidDeliveries.filter((d) => d.courier_id === expandedCourierId);
+    const unpaidTotal = unpaid.reduce((sum, d) => sum + (d.fee ?? 0), 0);
+    if (unpaidTotal <= 0) {
+      setExpandedCourierId(null);
+    }
+  }, [expandedCourierId, unpaidDeliveries]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -442,56 +455,87 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
             {couriers.map((c) => {
               const unpaid = unpaidDeliveries.filter((d) => d.courier_id === c.id);
               const unpaidTotal = unpaid.reduce((sum, d) => sum + (d.fee ?? 0), 0);
+              const isExpanded = expandedCourierId === c.id;
+              const pixPayload = c.pix_key && unpaidTotal > 0 ? buildPixPayload(c.pix_key, unpaidTotal, c.name) : null;
               return (
                 <Card key={c.id}>
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                      <Bike className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.phone} · {c.plate}</p>
-                      {c.whatsapp && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MessageCircle className="w-3 h-3" /> {c.whatsapp}
-                        </p>
-                      )}
+                  <CardContent className="p-3">
+                    <div
+                      className={cn("flex items-center gap-3", unpaidTotal > 0 && "cursor-pointer")}
+                      onClick={() => unpaidTotal > 0 && setExpandedCourierId(isExpanded ? null : c.id)}
+                    >
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                        <Bike className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">{c.phone} · {c.plate}</p>
+                        {c.whatsapp && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <MessageCircle className="w-3 h-3" /> {c.whatsapp}
+                          </p>
+                        )}
+                        {unpaidTotal > 0 && (
+                          <p className="text-xs mt-1 flex items-center gap-1">
+                            <DollarSign className="w-3 h-3 text-yellow-500" />
+                            <span className="text-yellow-600 font-semibold">
+                              {unpaid.length} entrega{unpaid.length > 1 ? "s" : ""} · R$ {unpaidTotal.toFixed(2)} a pagar
+                            </span>
+                          </p>
+                        )}
+                      </div>
                       {unpaidTotal > 0 && (
-                        <p className="text-xs mt-1 flex items-center gap-1">
-                          <DollarSign className="w-3 h-3 text-yellow-500" />
-                          <span className="text-yellow-600 font-semibold">
-                            {unpaid.length} entrega{unpaid.length > 1 ? "s" : ""} · R$ {unpaidTotal.toFixed(2)} a pagar
-                          </span>
-                        </p>
+                        <div className="shrink-0">
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                        </div>
                       )}
                     </div>
-                    {unpaidTotal > 0 && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="shrink-0 gap-1 text-xs border-green-500/30 text-green-600 hover:bg-green-500/10">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Pagar tudo
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Pagar {c.name}?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Marcar {unpaid.length} entrega{unpaid.length > 1 ? "s" : ""} como paga{unpaid.length > 1 ? "s" : ""}. Total: <strong>R$ {unpaidTotal.toFixed(2)}</strong>. Essa ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => {
-                              payMutation.mutate({ courierId: c.id, organizationId: orgId }, {
-                                onSuccess: () => toast.success(`Pagamento de R$ ${unpaidTotal.toFixed(2)} registrado para ${c.name}!`),
-                                onError: () => toast.error("Erro ao registrar pagamento."),
-                              });
-                            }}>
-                              Confirmar Pagamento
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+
+                    {/* Expanded PIX payment section */}
+                    {isExpanded && unpaidTotal > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border space-y-4">
+                        {pixPayload ? (
+                          <div className="flex flex-col items-center gap-3">
+                            <p className="text-sm font-medium text-center">QR Code PIX — R$ {unpaidTotal.toFixed(2)}</p>
+                            <div className="bg-white p-3 rounded-lg">
+                              <QRCodeSVG value={pixPayload} size={200} />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(pixPayload);
+                                toast.success("Pix Copia e Cola copiado!");
+                              }}
+                            >
+                              <Copy className="w-4 h-4" />
+                              Copiar Pix Copia e Cola
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 bg-yellow-500/10 text-yellow-700 rounded-lg p-3 text-sm">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            Motoboy não cadastrou chave PIX
+                          </div>
+                        )}
+
+                        <Button
+                          className="w-full gap-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            payMutation.mutate({ courierId: c.id, organizationId: orgId }, {
+                              onSuccess: () => toast.success(`Pagamento de R$ ${unpaidTotal.toFixed(2)} registrado para ${c.name}!`),
+                              onError: () => toast.error("Erro ao registrar pagamento."),
+                            });
+                          }}
+                          disabled={payMutation.isPending}
+                        >
+                          {payMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                          Confirmar Pagamento
+                        </Button>
+                      </div>
                     )}
                   </CardContent>
                 </Card>

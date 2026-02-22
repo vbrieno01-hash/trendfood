@@ -155,6 +155,7 @@ export type Database = {
           name: string
           organization_id: string
           phone: string
+          pix_key: string | null
           plate: string
           whatsapp: string | null
         }
@@ -165,6 +166,7 @@ export type Database = {
           name: string
           organization_id: string
           phone: string
+          pix_key?: string | null
           plate: string
           whatsapp?: string | null
         }
@@ -175,6 +177,7 @@ export type Database = {
           name?: string
           organization_id?: string
           phone?: string
+          pix_key?: string | null
           plate?: string
           whatsapp?: string | null
         }
