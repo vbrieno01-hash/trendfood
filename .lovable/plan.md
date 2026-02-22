@@ -1,43 +1,47 @@
 
 
-# Atualizar KitchenPage.tsx com botao Bluetooth e protecoes
+# Sincronizar KitchenPage.tsx com KitchenTab.tsx (Bluetooth + isPrintingRef)
 
 ## Problema
-O `KitchenPage.tsx` (pagina standalone da cozinha acessada via `/kitchen?org=slug`) nao recebeu as mesmas atualizacoes que o `KitchenTab.tsx` dentro do Dashboard. Falta:
+O `KitchenPage.tsx` (pagina standalone `/cozinha?org=slug`) esta defasado. Faltam 3 coisas que ja existem no `KitchenTab.tsx`:
+
 1. Botao de parear impressora Bluetooth
-2. Protecao de impressao concorrente (isPrintingRef)
+2. Protecao de impressao concorrente (`isPrintingRef`)
+3. Passagem do `btDevice` real (hoje passa `null`)
 
-## Mudancas
+## Mudancas no `src/pages/KitchenPage.tsx`
 
-### `src/pages/KitchenPage.tsx`
-- Importar `requestBluetoothPrinter`, `isBluetoothSupported` de `bluetoothPrinter.ts`
-- Adicionar estados: `btDevice`, `btConnected`, `btSupported`
-- Criar funcao `handlePairBluetooth` com deteccao de suporte e try/catch (mesmo padrao do DashboardPage)
-- Adicionar botao de pareamento no header, ao lado do toggle "Imprimir automatico" (visivel apenas quando `print_mode === "bluetooth"`)
-- Adicionar `isPrintingRef` para evitar impressoes Bluetooth concorrentes no useEffect de auto-print
-- Passar `btDevice` para as chamadas de `printOrderByMode` (atualmente passa `null`)
+### 1. Importar funcoes Bluetooth
+Adicionar imports de `isBluetoothSupported` e `requestBluetoothPrinter` do modulo `bluetoothPrinter.ts`.
 
-### Detalhes tecnicos
+### 2. Adicionar estados e logica Bluetooth
+- `btDevice` (BluetoothDevice | null)
+- `btConnected` (derivado de `btDevice?.gatt?.connected`)
+- `btSupported` (detectado uma vez via `isBluetoothSupported()`)
+- `handlePairBluetooth` com try/catch e toast de erro (mesmo padrao do DashboardPage)
 
-No header, junto aos controles existentes:
+### 3. Extrair `printMode` e `printerWidth` como variaveis reutilizaveis
+Hoje estao duplicados inline em 2 lugares. Serao calculados uma vez no corpo do componente.
 
-```text
-{printMode === "bluetooth" && (
-  <Button variant="outline" size="sm" onClick={handlePairBluetooth} disabled={!btSupported}>
-    <Printer />
-    {btConnected ? "Conectada" : "Parear impressora"}
-  </Button>
-)}
-```
+### 4. Adicionar botao Bluetooth no header
+Ao lado do toggle "Imprimir automatico", quando `printMode === "bluetooth"`, mostrar botao com status verde quando conectado.
 
-No useEffect de auto-print, envolver com `isPrintingRef`:
+### 5. Adicionar `isPrintingRef` no auto-print
+O `useEffect` de impressao pendente (linha 184) sera protegido com `isPrintingRef` e loop `async/await` sequencial — identico ao KitchenTab.
 
-```text
-if (isPrintingRef.current) return;
-isPrintingRef.current = true;
-// ... loop de impressao
-isPrintingRef.current = false;
-```
+### 6. Passar `btDevice` real em todas as chamadas
+Trocar os 2 `null` por `btDevice`:
+- Impressao automatica (useEffect)
+- Botao manual de imprimir (cada card)
 
-Na chamada de `printOrderByMode`, trocar `null` por `btDevice` para que a impressao Bluetooth funcione de fato.
+## Resumo das diferencas que serao corrigidas
 
+| Recurso | KitchenTab | KitchenPage (antes) | KitchenPage (depois) |
+|---|---|---|---|
+| Botao Bluetooth | Sim | Nao | Sim |
+| isPrintingRef | Sim | Nao | Sim |
+| btDevice real | Sim | null | Sim |
+| printMode/width reutilizavel | Via props | Inline duplicado | Variavel unica |
+
+## Regra permanente
+A partir de agora, qualquer mudanca feita em KitchenTab.tsx sera obrigatoriamente replicada no KitchenPage.tsx e vice-versa.
