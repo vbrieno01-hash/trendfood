@@ -1,47 +1,32 @@
 
 
-# PIX Individual por Motoboy - QR Code Inteligente
+# Adicionar Diaria na Taxa do Motoboy
 
 ## Resumo
-O dono clica em um motoboy especifico, o QR Code PIX abre so para aquele motoboy. Quando o pagamento e confirmado (baixa manual), o QR some automaticamente em tempo real. Apenas um QR aberto por vez.
+Adicionar um terceiro campo "Diaria" no card de configuracao de taxa do motoboy, para estabelecimentos que pagam um valor fixo por dia ao inves de (ou alem de) por corrida.
 
 ## Alteracoes
 
 | Arquivo | O que muda |
 |---------|-----------|
-| **Migracao SQL** | Adicionar coluna `pix_key` (text, nullable) na tabela `couriers`. Adicionar politica `couriers_update_public` para o motoboy poder salvar sua chave PIX. |
-| `src/hooks/useCourier.ts` | Adicionar `pix_key` ao type `Courier`. Criar hook `useUpdateCourierPixKey`. |
-| `src/pages/CourierPage.tsx` | Na aba "Resumo", adicionar card para o motoboy cadastrar/editar sua chave PIX. |
-| `src/components/dashboard/CourierDashboardTab.tsx` | Substituir o AlertDialog de "Pagar tudo" por um sistema de expansao individual: clicar no motoboy expande o card mostrando QR Code PIX + botao "Copiar Pix Copia e Cola" + botao "Confirmar Pagamento". Apenas um card expandido por vez. Quando o pagamento e confirmado, o card fecha automaticamente via realtime (unpaidTotal volta a 0). Se o motoboy nao tem chave PIX, mostra aviso. |
-
-## Fluxo do dono
-
-1. Ve lista de motoboys com debito pendente
-2. Clica no card de UM motoboy - o card expande mostrando QR Code PIX
-3. Escaneia o QR no app do banco
-4. Clica "Confirmar Pagamento" para dar a baixa
-5. O card fecha automaticamente (unpaidTotal = 0, QR some)
-6. Se quiser pagar outro, clica no proximo motoboy
+| `src/hooks/useDeliveryDistance.ts` | Adicionar `daily_rate` (opcional) ao type `CourierConfig` e ao `DEFAULT_COURIER_CONFIG` (default 0) |
+| `src/components/dashboard/CourierDashboardTab.tsx` | Adicionar terceiro campo "Diaria" no card de taxa, com `CurrencyInput`. Salvar `daily_rate` junto com `base_fee` e `per_km` no `courier_config`. Mudar grid de 2 colunas para 3 colunas (responsivo). |
 
 ## Detalhes tecnicos
 
-### Migracao SQL
-```sql
-ALTER TABLE public.couriers ADD COLUMN pix_key text;
-
-CREATE POLICY "couriers_update_public" ON public.couriers
-  FOR UPDATE USING (true) WITH CHECK (true);
+### CourierConfig
+```typescript
+export interface CourierConfig {
+  base_fee: number;
+  per_km: number;
+  daily_rate?: number;
+}
+export const DEFAULT_COURIER_CONFIG: CourierConfig = { base_fee: 3.0, per_km: 2.5, daily_rate: 0 };
 ```
 
-### Estado de expansao no dashboard
-Usar `useState<string | null>(null)` para guardar o ID do motoboy cujo card esta expandido. Clicar em outro motoboy fecha o anterior e abre o novo. Quando `unpaidTotal` do motoboy expandido chega a 0 (via realtime), o estado limpa automaticamente com `useEffect`.
+### Card de configuracao
+O grid muda de `grid-cols-2` para `grid-cols-3` (desktop) e `grid-cols-1 sm:grid-cols-3` (mobile). O terceiro campo tera label "Diaria (por dia)" com `CurrencyInput`. O valor e salvo no campo `courier_config` da organizacao junto com os outros dois.
 
-### QR Code PIX
-Usar `buildPixPayload` de `src/lib/pixPayload.ts` com a `pix_key` do motoboy, o valor total e o nome do motoboy. Renderizar com `QRCodeSVG` do `qrcode.react`. Botao para copiar o payload (Pix Copia e Cola).
-
-### Painel do motoboy - campo PIX
-Card com Input + botao "Salvar" na aba Resumo. Hook `useUpdateCourierPixKey` faz UPDATE direto na tabela `couriers` pelo ID do motoboy.
-
-### Sem chave PIX
-Se o motoboy nao cadastrou chave PIX, o card expandido mostra aviso amarelo "Motoboy nao cadastrou chave PIX" mas ainda permite confirmar pagamento manualmente.
+### Nenhuma migracao necessaria
+O campo `courier_config` ja e `jsonb`, entao basta adicionar a chave `daily_rate` ao objeto. Valores existentes sem essa chave serao tratados como 0.
 
