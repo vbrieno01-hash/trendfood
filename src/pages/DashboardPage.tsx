@@ -22,7 +22,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -202,8 +202,14 @@ const DashboardPage = () => {
   useEffect(() => {
     dashOrders.forEach((o) => knownIds.current.add(o.id));
   }, [dashOrders]);
-  // Reusable disconnect handler with auto-reconnect
+  // Stable disconnect handler ref to allow proper removeEventListener
+  const disconnectHandlerRef = useRef<(() => void) | null>(null);
+
   const attachDisconnectHandler = (device: BluetoothDevice) => {
+    // Remove previous listener if exists
+    if (disconnectHandlerRef.current) {
+      device.removeEventListener("gattserverdisconnected", disconnectHandlerRef.current);
+    }
     const handler = () => {
       console.log("[BT] gattserverdisconnected event — starting auto-reconnect");
       setBtConnected(false);
@@ -218,8 +224,7 @@ const DashboardPage = () => {
         }
       );
     };
-    // Remove previous listener to avoid duplicates
-    device.removeEventListener("gattserverdisconnected", handler);
+    disconnectHandlerRef.current = handler;
     device.addEventListener("gattserverdisconnected", handler);
   };
 
@@ -232,8 +237,16 @@ const DashboardPage = () => {
       const device = await requestBluetoothPrinter();
       if (device) {
         setBtDevice(device);
-        setBtConnected(true);
-        toast.success(`Impressora "${device.name || "Bluetooth"}" pareada!`);
+        // Actually connect GATT so printer is ready
+        toast.info("Conectando à impressora...");
+        const char = await connectToDevice(device);
+        if (char) {
+          setBtConnected(true);
+          toast.success(`Impressora "${device.name || "Bluetooth"}" conectada!`);
+        } else {
+          setBtConnected(false);
+          toast.warning(`Impressora pareada mas não conectou. Ela conectará automaticamente ao imprimir.`);
+        }
         attachDisconnectHandler(device);
       }
     } catch (err: any) {

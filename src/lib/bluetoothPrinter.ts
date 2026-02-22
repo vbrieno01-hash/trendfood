@@ -52,7 +52,7 @@ export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null>
   }
 }
 
-async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemoteGATTCharacteristic | null> {
+export async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemoteGATTCharacteristic | null> {
   if (!device.gatt) return null;
   if (isConnecting) {
     console.warn("[BT] Connection already in progress, skipping");
