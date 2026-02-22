@@ -18,6 +18,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -61,6 +62,32 @@ const DashboardPage = () => {
   const retryRef = useRef(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [appInstalled, setAppInstalled] = useState(false);
+
+  // Bluetooth state lifted from SettingsTab
+  const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
+  const [btConnected, setBtConnected] = useState(false);
+  const btSupported = isBluetoothSupported();
+
+  const handlePairBluetooth = async () => {
+    const device = await requestBluetoothPrinter();
+    if (device) {
+      setBtDevice(device);
+      setBtConnected(true);
+      toast.success(`Impressora "${device.name || "Bluetooth"}" pareada!`);
+      device.addEventListener("gattserverdisconnected", () => {
+        setBtConnected(false);
+      });
+    }
+  };
+
+  const handleDisconnectBluetooth = () => {
+    if (btDevice) {
+      disconnectPrinter(btDevice);
+      setBtDevice(null);
+      setBtConnected(false);
+      toast.info("Impressora desconectada.");
+    }
+  };
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -479,7 +506,7 @@ const DashboardPage = () => {
             : <BestSellersTab orgId={organization.id} />)}
           {activeTab === "kitchen" && (lockedFeatures.kitchen
             ? <UpgradePrompt title="Painel da Cozinha (KDS)" description="Gerencie pedidos em tempo real com o KDS. Disponível nos planos Pro e Enterprise." />
-            : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} />)}
+            : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} />)}
           {activeTab === "waiter" && (lockedFeatures.waiter
             ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." />
             : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"} pixKey={(organization as any).pix_key} />)}
@@ -492,7 +519,7 @@ const DashboardPage = () => {
             : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgEmoji={organization.emoji} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
-          {activeTab === "settings" && <SettingsTab />}
+          {activeTab === "settings" && <SettingsTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
         </main>
       </div>
