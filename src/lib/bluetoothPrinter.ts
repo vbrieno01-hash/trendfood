@@ -243,14 +243,14 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
   if (!storedId) return null;
 
   // Global timeout to prevent browser freeze when printer is off/out of range
-  return withTimeout(reconnectStoredPrinterInternal(storedId), 12000, "reconnectStoredPrinter")
+  return withTimeout(reconnectStoredPrinterInternal(storedId), 20000, "reconnectStoredPrinter")
     .catch((err) => {
       console.warn("[BT] Auto-reconnect timed out or failed:", err);
       return null;
     });
 }
 
-async function waitForAdvertisement(device: BluetoothDevice, timeoutMs = 4000): Promise<void> {
+async function waitForAdvertisement(device: BluetoothDevice, timeoutMs = 6000): Promise<void> {
   if (typeof (device as any).watchAdvertisements !== "function") {
     console.log("[BT] watchAdvertisements not supported, skipping");
     return;
@@ -296,12 +296,24 @@ async function reconnectStoredPrinterInternal(storedId: string): Promise<Bluetoo
       return null;
     }
 
-    // Tornar dispositivo visível ao Chrome via watchAdvertisements (timeout 4s)
-    await waitForAdvertisement(device, 4000);
+    // Fast path: tentar GATT connect direto (funciona em muitos dispositivos)
+    try {
+      console.log("[BT] Tentando conexao direta...");
+      const char = await connectToDevice(device);
+      if (char) {
+        console.log("[BT] Conexao direta OK:", device.name || device.id);
+        return device;
+      }
+    } catch {
+      console.log("[BT] Conexao direta falhou, tentando watchAdvertisements...");
+    }
+
+    // Slow path: watchAdvertisements + retry
+    await waitForAdvertisement(device, 6000);
 
     const char = await connectToDevice(device);
     if (char) {
-      console.log("[BT] Auto-reconnected to", device.name || device.id);
+      console.log("[BT] Auto-reconnected via advertisement to", device.name || device.id);
       return device;
     }
 
