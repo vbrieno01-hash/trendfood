@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink } from "lucide-react";
+import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut } from "lucide-react";
 import {
   getSavedCourierId,
+  clearCourierId,
   useMyCourier,
   useRegisterCourier,
   useAvailableDeliveries,
@@ -213,7 +214,7 @@ const CourierPage = () => {
       const phone = parsePhoneFromNotes(result.notes);
       if (phone) {
         const msg = encodeURIComponent(
-          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | trendfood.lovable.app`
+          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | trendfood.lovable.app/unidade/${orgSlug}`
         );
         window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank");
       }
@@ -278,7 +279,7 @@ const CourierPage = () => {
             <Bike className="w-5 h-5 text-primary" />
             <span className="font-bold text-sm">{orgName}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {canInstall && (
               <Button variant="ghost" size="sm" onClick={install} className="gap-1 text-xs">
                 <Download className="w-3.5 h-3.5" /> Instalar
@@ -288,6 +289,9 @@ const CourierPage = () => {
               <p className="text-xs text-muted-foreground">{courier?.name}</p>
               <p className="text-xs font-mono text-muted-foreground">{courier?.plate}</p>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => { clearCourierId(); window.location.reload(); }} className="gap-1 text-xs text-muted-foreground">
+              <LogOut className="w-3.5 h-3.5" /> Sair
+            </Button>
           </div>
         </div>
       </header>

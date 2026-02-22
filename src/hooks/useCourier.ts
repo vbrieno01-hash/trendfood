@@ -37,6 +37,10 @@ export function saveCourierId(id: string) {
   localStorage.setItem(COURIER_ID_KEY, id);
 }
 
+export function clearCourierId() {
+  localStorage.removeItem(COURIER_ID_KEY);
+}
+
 export function useMyCourier() {
   const courierId = getSavedCourierId();
   return useQuery({
