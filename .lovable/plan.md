@@ -1,43 +1,32 @@
 
 
-# Configurar Bluetooth na Cozinha - Compartilhar dispositivo pareado
+# Aviso inteligente quando Web Bluetooth nao esta disponivel
 
-## Problema atual
-O estado `btDevice` (impressora Bluetooth pareada) vive apenas dentro do `SettingsTab`. O `KitchenTab` recebe `btDevice` como prop, mas o `DashboardPage` nunca passa esse valor -- ele fica `undefined`. Resultado: mesmo com a impressora pareada, a cozinha nao consegue imprimir via Bluetooth.
+## Problema
+O usuario tenta parear a impressora Bluetooth dentro do preview do Lovable (iframe), onde a API Web Bluetooth esta bloqueada. O erro silencioso confunde o usuario, que pensa ser problema de driver.
 
 ## Solucao
-Levantar o estado do dispositivo Bluetooth para o `DashboardPage`, compartilhando entre `SettingsTab` e `KitchenTab`.
+Adicionar deteccao inteligente no fluxo de pareamento: quando o Web Bluetooth nao estiver disponivel, mostrar um toast claro orientando o usuario a abrir a URL publicada no Chrome.
 
 ## Mudancas
 
-### 1. `src/pages/DashboardPage.tsx`
-- Importar `requestBluetoothPrinter`, `disconnectPrinter`, `isBluetoothSupported` de `bluetoothPrinter.ts`
-- Criar estado `btDevice` e `btConnected` no nivel do DashboardPage
-- Criar handlers `handlePairBluetooth` e `handleDisconnectBluetooth`
-- Passar `btDevice`, `btConnected`, handlers e `isBluetoothSupported` como props para `SettingsTab`
-- Passar `btDevice` para `KitchenTab` (ja aceita essa prop)
+### 1. `src/pages/DashboardPage.tsx` - Melhorar `handlePairBluetooth`
+- Antes de chamar `requestBluetoothPrinter()`, verificar `isBluetoothSupported()`
+- Se nao suportado, mostrar toast com mensagem clara:
+  - "Bluetooth nao disponivel neste navegador. Abra trendfood.lovable.app diretamente no Google Chrome."
+- Retornar sem tentar parear
 
-### 2. `src/components/dashboard/SettingsTab.tsx`
-- Remover estado local de `btDevice` e `btConnected`
-- Receber via props: `btDevice`, `btConnected`, `onPairBluetooth`, `onDisconnectBluetooth`, `btSupported`
-- Manter toda a UI identica, apenas usando props em vez de estado local
-
-### 3. `src/components/dashboard/KitchenTab.tsx`
-- Nenhuma mudanca necessaria (ja aceita `btDevice` como prop)
+### 2. `src/components/dashboard/SettingsTab.tsx` - Aviso visual na secao Bluetooth
+- Quando `btSupported` for `false`, exibir um alerta inline na secao de impressora Bluetooth com:
+  - Icone de aviso
+  - Texto: "Web Bluetooth nao esta disponivel. Abra este site pela URL publicada no Google Chrome."
+  - Desabilitar o botao "Parear impressora"
 
 ## Resultado
-Ao parear a impressora Bluetooth nas Configuracoes, o dispositivo fica disponivel automaticamente para a Cozinha (KDS). A impressao automatica e manual funcionara via Bluetooth em ambas as telas.
+O usuario recebe orientacao clara e imediata sobre o que fazer, em vez de um erro silencioso no console. Quando abrir pela URL publicada no Chrome, tudo funcionara normalmente.
 
 ## Detalhes tecnicos
-
-```text
-DashboardPage (btDevice state)
-  |
-  |-- SettingsTab (recebe btDevice + handlers via props)
-  |
-  |-- KitchenTab (recebe btDevice via prop - ja implementado)
-```
-
-- O estado `btDevice` fica no `DashboardPage` para sobreviver a troca de abas
-- O listener `gattserverdisconnected` e registrado no DashboardPage
-- Nenhuma mudanca no banco de dados e necessaria
+- `isBluetoothSupported()` ja existe em `bluetoothPrinter.ts` e verifica `navigator.bluetooth`
+- No iframe do Lovable, `navigator.bluetooth` existe mas esta desabilitado, entao o erro so aparece ao chamar `requestDevice()`
+- Solucao: fazer um try/catch mais explicito no `handlePairBluetooth` e tratar o erro `NotFoundError` com mensagem "Web Bluetooth API globally disabled"
+- O toast usara `sonner` (ja instalado no projeto)
