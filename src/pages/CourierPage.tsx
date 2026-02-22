@@ -12,6 +12,8 @@ import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Dow
 import {
   getSavedCourierId,
   clearCourierId,
+  getSavedOrgSlug,
+  saveOrgSlug,
   useMyCourier,
   useRegisterCourier,
   useLoginCourier,
@@ -57,7 +59,8 @@ function openGoogleMaps(address: string) {
 
 const CourierPage = () => {
   const [searchParams] = useSearchParams();
-  const orgSlug = searchParams.get("org") || "";
+  const orgSlugParam = searchParams.get("org") || "";
+  const orgSlug = orgSlugParam || getSavedOrgSlug() || "";
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [notFound, setNotFound] = useState(false);
@@ -80,7 +83,35 @@ const CourierPage = () => {
   const completeMutation = useCompleteDelivery();
   const { canInstall, install } = usePwaInstall();
 
-  // Fetch org by slug
+  // Swap PWA manifest for courier-specific one
+  useEffect(() => {
+    const originalTitle = document.title;
+    document.title = "Motoboy TrendFood";
+
+    let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
+    const originalHref = manifestLink?.getAttribute("href") || "";
+
+    if (manifestLink) {
+      manifestLink.setAttribute("href", "/manifest-courier.json");
+    } else {
+      manifestLink = document.createElement("link");
+      manifestLink.rel = "manifest";
+      manifestLink.href = "/manifest-courier.json";
+      document.head.appendChild(manifestLink);
+    }
+
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    const originalTheme = themeMeta?.getAttribute("content") || "";
+    if (themeMeta) themeMeta.setAttribute("content", "#f97316");
+
+    return () => {
+      document.title = originalTitle;
+      if (manifestLink) manifestLink.setAttribute("href", originalHref);
+      if (themeMeta) themeMeta.setAttribute("content", originalTheme);
+    };
+  }, []);
+
+  // Fetch org by slug and persist it
   useEffect(() => {
     if (!orgSlug) return;
     supabase
@@ -94,6 +125,7 @@ const CourierPage = () => {
         } else {
           setOrgId(data.id);
           setOrgName(data.name);
+          saveOrgSlug(orgSlug);
         }
       });
   }, [orgSlug]);

@@ -28,6 +28,7 @@ export interface Delivery {
 }
 
 const COURIER_ID_KEY = "trendfood_courier_id";
+const COURIER_ORG_SLUG_KEY = "trendfood_courier_org_slug";
 
 export function getSavedCourierId(): string | null {
   return localStorage.getItem(COURIER_ID_KEY);
@@ -39,6 +40,15 @@ export function saveCourierId(id: string) {
 
 export function clearCourierId() {
   localStorage.removeItem(COURIER_ID_KEY);
+  localStorage.removeItem(COURIER_ORG_SLUG_KEY);
+}
+
+export function getSavedOrgSlug(): string | null {
+  return localStorage.getItem(COURIER_ORG_SLUG_KEY);
+}
+
+export function saveOrgSlug(slug: string) {
+  localStorage.setItem(COURIER_ORG_SLUG_KEY, slug);
 }
 
 export function useMyCourier() {
