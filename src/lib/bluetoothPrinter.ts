@@ -250,6 +250,37 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
     });
 }
 
+async function waitForAdvertisement(device: BluetoothDevice, timeoutMs = 4000): Promise<void> {
+  if (typeof (device as any).watchAdvertisements !== "function") {
+    console.log("[BT] watchAdvertisements not supported, skipping");
+    return;
+  }
+
+  return new Promise<void>((resolve) => {
+    let resolved = false;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
+      try { (device as any).unwatchAdvertisements?.(); } catch { /* ignore */ }
+      device.removeEventListener("advertisementreceived", onAd);
+      resolve();
+    };
+
+    const onAd = () => {
+      console.log("[BT] Advertisement received — device visible");
+      done();
+    };
+
+    device.addEventListener("advertisementreceived", onAd);
+
+    (device as any).watchAdvertisements({ signal: AbortSignal.timeout?.(timeoutMs) })
+      .catch(() => { /* timeout or error — proceed anyway */ });
+
+    // Fallback timeout in case AbortSignal.timeout is not supported
+    setTimeout(done, timeoutMs);
+  });
+}
+
 async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
   try {
     const bt = navigator as any;
@@ -265,8 +296,9 @@ async function reconnectStoredPrinterInternal(storedId: string): Promise<Bluetoo
       return null;
     }
 
-    // Conectar direto ao GATT (connectToDevice já tem timeout interno de 10s)
-    // NÃO usar watchAdvertisements — pode travar o Chrome completamente
+    // Tornar dispositivo visível ao Chrome via watchAdvertisements (timeout 4s)
+    await waitForAdvertisement(device, 4000);
+
     const char = await connectToDevice(device);
     if (char) {
       console.log("[BT] Auto-reconnected to", device.name || device.id);
