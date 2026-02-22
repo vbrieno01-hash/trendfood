@@ -15,6 +15,8 @@ import AdminPage from "./pages/AdminPage";
 import DocsTerminalPage from "./pages/DocsTerminalPage";
 import PricingPage from "./pages/PricingPage";
 import CourierPage from "./pages/CourierPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -51,6 +53,8 @@ const App = () => (
             <Route path="/planos" element={<PricingPage />} />
             <Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
             <Route path="/motoboy" element={<CourierPage />} />
+            <Route path="/termos" element={<TermsPage />} />
+            <Route path="/privacidade" element={<PrivacyPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
