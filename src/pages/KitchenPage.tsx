@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
+import { isBluetoothSupported, requestBluetoothPrinter } from "@/lib/bluetoothPrinter";
 import { toast } from "sonner";
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -82,8 +83,37 @@ export default function KitchenPage() {
     () => (typeof Notification !== "undefined" ? Notification.permission : "default")
   );
 
+  // Bluetooth state
+  const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
+  const btConnected = btDevice?.gatt?.connected ?? false;
+  const [btSupported] = useState(() => isBluetoothSupported());
+
+  const handlePairBluetooth = async () => {
+    if (!btSupported) {
+      toast.error("Bluetooth não disponível", {
+        description: "Abra trendfood.lovable.app no Google Chrome.",
+      });
+      return;
+    }
+    try {
+      const device = await requestBluetoothPrinter();
+      if (device) setBtDevice(device);
+    } catch (err: any) {
+      if (err?.message?.includes("globally disabled")) {
+        toast.error("Bluetooth bloqueado neste navegador", {
+          description: "Abra a URL publicada diretamente no Google Chrome.",
+        });
+      }
+    }
+  };
+
+  // Derived print settings
+  const printMode = (org as any)?.print_mode ?? "browser";
+  const printerWidth = org?.printer_width === "80mm" ? "80mm" : "58mm";
+
   const knownIds = useRef<Set<string>>(new Set());
   const pendingPrintIds = useRef<Set<string>>(new Set());
+  const isPrintingRef = useRef(false);
   const [, forceRender] = useState(0);
 
   // Stable refs so the Realtime channel never needs to restart when toggles change
@@ -180,18 +210,27 @@ export default function KitchenPage() {
     return () => { supabase.removeChannel(channel); };
   }, [org?.id, qc]); // stable — no autoPrint/notificationsEnabled deps needed
 
-  // Print pending orders once their items are loaded
+  // Print pending orders once their items are loaded (with concurrency guard)
   useEffect(() => {
-    if (pendingPrintIds.current.size === 0) return;
-    const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
-    const pm = (org as any)?.print_mode ?? 'browser';
-    orders.forEach((order) => {
-      if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
+    if (pendingPrintIds.current.size === 0 || isPrintingRef.current) return;
+    const toPrint = orders.filter(
+      (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
+    );
+    if (toPrint.length === 0) return;
+
+    isPrintingRef.current = true;
+    (async () => {
+      for (const order of toPrint) {
         pendingPrintIds.current.delete(order.id);
-        printOrderByMode(order, org?.name, pm, org?.id ?? '', null, getPixPayload(order, pixKey, org?.name), pw);
+        try {
+          await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
+        } catch (err) {
+          console.error("[KDS] Auto-print failed:", err);
+        }
       }
-    });
-  }, [orders, org?.name, org]);
+      isPrintingRef.current = false;
+    })();
+  }, [orders, org?.name, org, btDevice, printMode, printerWidth, pixKey]);
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
@@ -262,6 +301,19 @@ export default function KitchenPage() {
                 onCheckedChange={toggleAutoPrint}
               />
             </div>
+            {/* Bluetooth pairing button */}
+            {printMode === "bluetooth" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""}`}
+                onClick={handlePairBluetooth}
+                disabled={!btSupported}
+              >
+                <Printer className="w-3.5 h-3.5" />
+                {btConnected ? "✓ Conectada" : "Parear impressora"}
+              </Button>
+            )}
             <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               ao vivo
@@ -318,9 +370,7 @@ export default function KitchenPage() {
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         title="Imprimir pedido"
                         onClick={() => {
-                          const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
-                          const pm = (org as any)?.print_mode ?? 'browser';
-                          printOrderByMode(order, org?.name, pm, org?.id ?? '', null, getPixPayload(order, pixKey, org?.name), pw);
+                          printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
                         }}
                       >
                         <Printer className="w-3.5 h-3.5" />
