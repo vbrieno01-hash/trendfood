@@ -286,7 +286,7 @@ export async function printOrder(
   ${pixHtml}
   ${customerHtml}
   <div class="divider"></div>
-  <div class="footer">★ novo pedido — kds ★</div>
+  <div class="footer">${storeName.toUpperCase()}</div>
 </body>
 </html>`;
 
