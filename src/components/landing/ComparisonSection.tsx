@@ -64,7 +64,7 @@ const ComparisonSection = () => {
           <div className="grid grid-cols-[1fr_1.2fr_1.3fr] bg-muted/60">
             <div className="p-4 font-semibold text-muted-foreground text-sm" />
             <div className="p-4 text-center font-bold text-destructive text-sm border-l border-border">
-              Marketplaces (iFood, etc)
+              Marketplaces
             </div>
             <div className="p-4 text-center font-bold text-primary text-sm border-l border-border">
               TrendFood
