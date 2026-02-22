@@ -42,7 +42,7 @@ const problems = [
     alt: "Taxas de marketplace",
     title: "Pagando até 27% de comissão",
     description:
-      "Cada venda no iFood, desconto pesado. Final do mês, o lucro sumiu em taxas que você nem vê.",
+      "Cada venda no marketplace, desconto pesado. Final do mês, o lucro sumiu em taxas que você nem vê.",
   },
 ];
 
