@@ -1,55 +1,46 @@
 
-# Adicionar tela de Login para Motoboys
+# Corrigir login do motoboy - normalizar telefone
 
 ## Problema
-Quando o motoboy limpa o cache do celular, troca de aparelho ou aperta "Sair", ele perde o acesso. A unica forma de entrar novamente e preencher o formulario de cadastro completo de novo. Falta um botao "Ja tenho cadastro" com login simplificado.
+O login busca o telefone com comparacao exata (`eq`), mas o telefone salvo no banco tem mascara: `(83) 99824-4382`. Se o motoboy digitar `83998244382` ou `(83)99824-4382`, nao encontra.
 
 ## Solucao
-Adicionar uma opcao de login por telefone na tela de cadastro do motoboy. O fluxo fica assim:
+Normalizar o telefone (remover tudo que nao e numero) antes de comparar. Como o telefone salvo no banco ja tem mascara, vamos usar duas estrategias:
 
-- Tela padrao: formulario de cadastro (como ja esta)
-- Novo link abaixo do botao "Cadastrar": "Ja tenho cadastro? Entrar"
-- Ao clicar, troca para um formulario simples com apenas **Telefone** 
-- O sistema busca o motoboy pelo telefone + organizacao
-- Se encontrar, salva o ID no localStorage e entra
-- Se nao encontrar, mostra erro "Nenhum cadastro encontrado com esse telefone"
-- Link para voltar ao cadastro: "Nao tem cadastro? Cadastrar"
+1. Tentar busca exata primeiro (caso o motoboy digite exatamente como cadastrou)
+2. Se nao encontrar, buscar todos os motoboys da org e comparar os telefones normalizados (somente digitos)
 
 ## Alteracoes
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/CourierPage.tsx` | Adicionar estado `isLogin` para alternar entre cadastro e login. Criar formulario de login por telefone. Adicionar links para alternar entre os dois modos. |
-| `src/hooks/useCourier.ts` | Criar hook `useLoginCourier` que busca motoboy por telefone + org_id e salva o ID no localStorage. |
+| `src/hooks/useCourier.ts` | Alterar `useLoginCourier` para normalizar telefone antes de comparar. Buscar motoboys da org e comparar somente digitos. |
 
 ## Detalhes tecnicos
 
-### Hook `useLoginCourier` (em `useCourier.ts`)
+### Funcao auxiliar de normalizacao
 ```typescript
-export function useLoginCourier() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { organization_id: string; phone: string }) => {
-      const { data, error } = await supabase
-        .from("couriers")
-        .select("*")
-        .eq("organization_id", input.organization_id)
-        .eq("phone", input.phone)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) throw new Error("NOT_FOUND");
-      const courier = data as unknown as Courier;
-      saveCourierId(courier.id);
-      return courier;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["courier"] });
-    },
-  });
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
 }
 ```
 
-### Tela de login (em `CourierPage.tsx`)
-- Novo estado: `const [isLogin, setIsLogin] = useState(false)`
-- Quando `isLogin === true`, mostra formulario simples com campo de telefone e botao "Entrar"
-- Links para alternar entre modos na parte inferior do formulario
+### Hook `useLoginCourier` atualizado
+Em vez de `eq("phone", input.phone)`, buscar todos os couriers ativos da org e filtrar pelo telefone normalizado:
+
+```typescript
+const normalized = normalizePhone(input.phone);
+const { data, error } = await supabase
+  .from("couriers")
+  .select("*")
+  .eq("organization_id", input.organization_id)
+  .eq("active", true);
+
+if (error) throw error;
+const match = (data ?? []).find(
+  (c) => normalizePhone(c.phone) === normalized
+);
+if (!match) throw new Error("NOT_FOUND");
+```
+
+Isso garante que independente de como o motoboy digitar o telefone (com ou sem mascara), o login funciona.
