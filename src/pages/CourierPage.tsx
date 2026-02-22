@@ -134,6 +134,30 @@ const CourierPage = () => {
     };
   }, [orgSlug]);
 
+  // Auto-recover org slug from courier's organization when missing
+  useEffect(() => {
+    if (orgSlug || !courierId) return;
+    supabase
+      .from("couriers")
+      .select("organization_id")
+      .eq("id", courierId)
+      .single()
+      .then(({ data: courierData }) => {
+        if (!courierData) return;
+        supabase
+          .from("organizations")
+          .select("slug")
+          .eq("id", courierData.organization_id)
+          .single()
+          .then(({ data: orgData }) => {
+            if (orgData?.slug) {
+              saveOrgSlug(orgData.slug);
+              window.location.href = `/motoboy?org=${encodeURIComponent(orgData.slug)}`;
+            }
+          });
+      });
+  }, [orgSlug, courierId]);
+
   // Fetch org by slug and persist it
   useEffect(() => {
     if (!orgSlug) return;
