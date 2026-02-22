@@ -147,7 +147,10 @@ export default function SettingsTab() {
   };
 
   const handleTestPrint = async () => {
-    if (!organization?.id) return;
+    if (!organization?.id) {
+      toast.error("Organização não encontrada. Recarregue a página e tente novamente.");
+      return;
+    }
     setTestPrintLoading(true);
     try {
       const now = new Date().toLocaleString("pt-BR");
@@ -164,10 +167,11 @@ export default function SettingsTab() {
       ].join("\n");
       await enqueuePrint(organization.id, null, content);
       toast.success("Teste enviado para a fila de impressão!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao testar impressora:", err);
       console.error("organization.id usado:", organization?.id);
-      toast.error("Erro ao enviar teste de impressão. Veja o console para detalhes.");
+      const msg = err?.message || "Erro desconhecido";
+      toast.error(`Falha ao enviar teste: ${msg}`);
     } finally {
       setTestPrintLoading(false);
     }
