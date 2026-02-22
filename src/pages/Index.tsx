@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
+import ComparisonSection from "@/components/landing/ComparisonSection";
+import SavingsCalculator from "@/components/landing/SavingsCalculator";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   BarChart3,
@@ -17,6 +19,7 @@ import {
   Tag,
   Printer,
   BarChart2,
+  Bike,
 } from "lucide-react";
 
 const problems = [
@@ -36,10 +39,10 @@ const problems = [
   },
   {
     image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80",
-    alt: "Planilha de controle financeiro",
-    title: "Sem controle do que vende",
+    alt: "Taxas de marketplace",
+    title: "Pagando até 27% de comissão",
     description:
-      "Fim do mês sem saber qual produto vendeu mais, qual dia faturou menos, quanto entrou no caixa. Decisões no escuro.",
+      "Cada venda no iFood, desconto pesado. Final do mês, o lucro sumiu em taxas que você nem vê.",
   },
 ];
 
@@ -120,15 +123,19 @@ const features = [
     title: "Impressora Térmica",
     description: "Impressão automática 80mm com QR Code PIX no recibo do cliente.",
   },
+  {
+    icon: <Bike className="w-5 h-5" />,
+    title: "Gestão de Motoboys",
+    description: "Cadastre motoboys, atribua entregas, acompanhe em tempo real e controle pagamentos.",
+  },
 ];
 
-
 const proofBadges = [
-  "Catálogo Digital",
-  "Pedido por QR Code",
-  "Atendimento em Tempo Real",
-  "Sem app para instalar",
+  "0% comissão",
+  "Motoboys próprios",
+  "Impressão térmica",
   "PIX integrado",
+  "Sem app para baixar",
 ];
 
 const Index = () => {
@@ -136,13 +143,11 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden min-h-screen flex flex-col">
-        {/* Background photo */}
         <img
           src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&q=80"
           alt="Restaurante movimentado com mesas e clientes"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
-        {/* Overlay */}
         <div
           className="absolute inset-0"
           style={{ background: "linear-gradient(135deg, rgba(26,5,5,0.93) 0%, rgba(45,10,10,0.89) 40%, rgba(26,5,5,0.96) 100%)" }}
@@ -171,18 +176,17 @@ const Index = () => {
           <div className="max-w-5xl mx-auto px-4 py-20 text-center w-full">
             <Badge className="mb-6 bg-primary/20 text-red-300 border-primary/30 hover:bg-primary/20">
               <Zap className="w-3 h-3 mr-1" />
-              Sistema completo para qualquer negócio
+              Zero taxas sobre vendas
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight tracking-tight">
-              Gerencie seu negócio{" "}
-              <span className="text-primary">inteiro.</span>
+              Zero taxas. Zero comissão.
               <br />
-              Do pedido ao caixa.
+              <span className="text-primary">Seu negócio, seu lucro.</span>
             </h1>
 
             <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-4 leading-relaxed">
-              Catálogo digital, pedidos por QR Code, atendimento integrado, controle de caixa e relatórios — tudo em um só lugar, sem papel e sem app para instalar.
+              Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.
             </p>
             <p className="text-sm md:text-base text-white/50 max-w-xl mx-auto mb-10 leading-relaxed">
               Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.
@@ -197,7 +201,6 @@ const Index = () => {
               </Button>
             </div>
 
-            {/* Social proof chips */}
             <div className="mt-12 flex flex-wrap gap-2 justify-center">
               {proofBadges.map((b) => (
                 <span
@@ -233,11 +236,7 @@ const Index = () => {
                 className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:border-primary/30 hover:shadow-md transition-all"
               >
                 <div className="h-44 overflow-hidden">
-                  <img
-                    src={p.image}
-                    alt={p.alt}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={p.image} alt={p.alt} className="w-full h-full object-cover" />
                 </div>
                 <div className="p-6">
                   <h3 className="font-bold text-foreground text-lg mb-2">{p.title}</h3>
@@ -253,6 +252,12 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Comparison Section */}
+      <ComparisonSection />
+
+      {/* Savings Calculator */}
+      <SavingsCalculator />
 
       {/* How it works */}
       <section className="bg-secondary/40 border-y border-border/60 py-20 px-4">
@@ -323,10 +328,10 @@ const Index = () => {
       <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #7a0c0c 0%, hsl(0 84% 32%) 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
-            Seu negócio mais organizado a partir de hoje
+            Pare de pagar comissão. Comece hoje.
           </h2>
           <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
-            Sem papel, sem confusão, sem app para baixar. Cadastre-se grátis e configure em minutos.
+            Mesmo sistema, zero taxa. Configure em minutos e veja a diferença no seu caixa.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
