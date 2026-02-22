@@ -22,7 +22,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -202,6 +202,27 @@ const DashboardPage = () => {
   useEffect(() => {
     dashOrders.forEach((o) => knownIds.current.add(o.id));
   }, [dashOrders]);
+  // Reusable disconnect handler with auto-reconnect
+  const attachDisconnectHandler = (device: BluetoothDevice) => {
+    const handler = () => {
+      console.log("[BT] gattserverdisconnected event — starting auto-reconnect");
+      setBtConnected(false);
+      autoReconnect(
+        device,
+        () => {
+          setBtConnected(true);
+          toast.success("Impressora reconectada automaticamente");
+        },
+        () => {
+          toast.error("Impressora desconectou. Verifique se está ligada e tente parear novamente.");
+        }
+      );
+    };
+    // Remove previous listener to avoid duplicates
+    device.removeEventListener("gattserverdisconnected", handler);
+    device.addEventListener("gattserverdisconnected", handler);
+  };
+
   const handlePairBluetooth = async () => {
     if (!isBluetoothSupported()) {
       toast.error("Bluetooth não disponível neste navegador. Abra trendfood.lovable.app diretamente no Google Chrome.");
@@ -213,9 +234,7 @@ const DashboardPage = () => {
         setBtDevice(device);
         setBtConnected(true);
         toast.success(`Impressora "${device.name || "Bluetooth"}" pareada!`);
-        device.addEventListener("gattserverdisconnected", () => {
-          setBtConnected(false);
-        });
+        attachDisconnectHandler(device);
       }
     } catch (err: any) {
       const msg = err?.message || "";
@@ -246,9 +265,7 @@ const DashboardPage = () => {
       setBtDevice(device);
       setBtConnected(true);
       toast.success("Impressora reconectada automaticamente");
-      device.addEventListener("gattserverdisconnected", () => {
-        setBtConnected(false);
-      });
+      attachDisconnectHandler(device);
     });
     return () => { cancelled = true; };
   }, [organization]); // eslint-disable-line react-hooks/exhaustive-deps

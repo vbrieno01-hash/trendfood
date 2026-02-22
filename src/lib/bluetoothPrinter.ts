@@ -166,6 +166,14 @@ export async function sendToBluetoothPrinter(
     try {
       let characteristic = cachedCharacteristic;
 
+      // Explicit check: if GATT disconnected, force reconnect before sending
+      if (!device.gatt?.connected) {
+        console.log("[BT] Device disconnected before print, reconnecting...");
+        cachedCharacteristic = null;
+        cachedServer = null;
+        characteristic = null;
+      }
+
       if (!characteristic || !cachedServer?.connected) {
         characteristic = await connectToDevice(device);
       }
@@ -253,4 +261,35 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
     console.warn("[BT] Auto-reconnect failed:", err);
     return null;
   }
+}
+
+/**
+ * Attempt to auto-reconnect a device with exponential backoff.
+ * Tries up to `maxRetries` times with increasing delays (1s, 2s, 4s).
+ * Calls onConnected(device) on success, onFailed() after all attempts fail.
+ */
+export async function autoReconnect(
+  device: BluetoothDevice,
+  onConnected: (device: BluetoothDevice) => void,
+  onFailed: () => void,
+  maxRetries = 3
+): Promise<void> {
+  for (let i = 0; i < maxRetries; i++) {
+    const delay = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+    console.log(`[BT] Reconnect attempt ${i + 1}/${maxRetries} in ${delay}ms...`);
+    await new Promise((r) => setTimeout(r, delay));
+
+    try {
+      const char = await connectToDevice(device);
+      if (char) {
+        console.log("[BT] Reconnected successfully on attempt", i + 1);
+        onConnected(device);
+        return;
+      }
+    } catch (err) {
+      console.warn(`[BT] Reconnect attempt ${i + 1} failed:`, err);
+    }
+  }
+  console.warn("[BT] All reconnect attempts exhausted");
+  onFailed();
 }
