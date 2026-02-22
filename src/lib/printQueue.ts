@@ -13,7 +13,7 @@ export async function enqueuePrint(
   } as any);
 
   if (error) {
-    console.error("Failed to enqueue print job:", error);
+    console.error("Failed to enqueue print job for org:", orgId, error);
     throw error;
   }
 }
