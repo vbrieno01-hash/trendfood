@@ -1,57 +1,60 @@
 
-# Corrigir impressao automatica via Bluetooth
+
+# Corrigir Realtime na aba Cozinha (KitchenTab)
 
 ## Problema
 
-O `print_mode` no banco de dados esta como `'browser'`. Quando chega um pedido novo pelo Realtime, o auto-print chama `printOrderByMode` com modo `'browser'`, que tenta abrir um popup (`window.open`) -- e o navegador bloqueia porque nao veio de um clique do usuario.
-
-Mesmo tendo uma impressora Bluetooth pareada e conectada, o sistema ignora ela porque so olha o modo do banco.
+O `KitchenTab.tsx` tem uma subscription Realtime que escuta **apenas UPDATE** na tabela `orders` (linha 115). Novos pedidos (INSERT) dependem do canal separado no `DashboardPage` para invalidar o cache. Com 3 canais simultaneos escutando a mesma tabela (`useOrders`, `DashboardPage`, `KitchenTab`), ha chance de conflito ou perda de eventos, fazendo com que a tela da cozinha nao atualize ao vivo.
 
 ## Solucao
 
-No callback de auto-print do `DashboardPage.tsx`, verificar se tem um dispositivo Bluetooth conectado (`btDeviceRef.current` nao e nulo). Se tiver, usar modo `'bluetooth'` independente do que esta no banco. Isso e logico porque o usuario pareou ativamente a impressora -- entao quer usar ela.
+Mudar o canal do `KitchenTab` para escutar **todos** os eventos (`INSERT`, `UPDATE`, `DELETE`) em vez de apenas `UPDATE`. Isso torna a aba auto-suficiente -- nao depende mais do canal do DashboardPage para atualizar a lista de pedidos.
 
-## Alteracao
+## Detalhe tecnico
 
-### `src/pages/DashboardPage.tsx` (linhas 189-207)
+### `src/components/dashboard/KitchenTab.tsx` (linhas 115-128)
 
-No bloco de auto-print, antes de chamar `printOrderByMode`, calcular o modo efetivo:
+Trocar `event: "UPDATE"` por `event: "*"` na subscription Realtime:
 
+**Antes:**
 ```typescript
-// Auto-print: enqueue job so no order is ever dropped
-if (autoPrintRef.current) {
-  printQueue.current.push(async () => {
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("id, name, quantity, price, customer_name")
-      .eq("order_id", order.id);
-    const fullOrder = { ...order, order_items: items ?? [] };
-
-    // Se tem impressora Bluetooth pareada, usar bluetooth
-    // independente do print_mode do banco (que pode ser 'browser')
-    const effectiveMode = btDeviceRef.current
-      ? 'bluetooth'
-      : printModeRef.current;
-
-    await printOrderByMode(
-      fullOrder,
-      orgNameRef.current,
-      effectiveMode,
-      orgId!,
-      btDeviceRef.current,
-      getPixPayload(fullOrder),
-      printerWidthRef.current
-    );
-  });
-  processQueue();
-}
+// Realtime: only UPDATE to refresh UI (INSERT handled by DashboardPage)
+useEffect(() => {
+  if (!orgId) return;
+  const channel = supabase
+    .channel(`kitchen-tab-update-${orgId}`)
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
+      () => {
+        qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
+      }
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [orgId, qc]);
 ```
 
-Isso garante:
-- Se tem Bluetooth pareado: imprime via Bluetooth (sempre)
-- Se nao tem Bluetooth e modo e 'desktop': enfileira na fila (robo imprime)
-- Se nao tem Bluetooth e modo e 'browser': tenta popup (pode ser bloqueado, mas e o comportamento esperado para quem nao tem outra opcao)
+**Depois:**
+```typescript
+// Realtime: listen for all order changes (INSERT + UPDATE + DELETE)
+useEffect(() => {
+  if (!orgId) return;
+  const channel = supabase
+    .channel(`kitchen-tab-${orgId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
+      () => {
+        qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
+      }
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [orgId, qc]);
+```
 
 ## Arquivo alterado
 
-- `src/pages/DashboardPage.tsx` -- calcular modo efetivo com prioridade para Bluetooth
+- `src/components/dashboard/KitchenTab.tsx` -- escutar todos os eventos Realtime, nao apenas UPDATE
+
