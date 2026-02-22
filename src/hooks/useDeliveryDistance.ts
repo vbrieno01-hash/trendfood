@@ -5,9 +5,10 @@ interface GeoCoord { lat: number; lon: number }
 export interface CourierConfig {
   base_fee: number;
   per_km: number;
+  daily_rate?: number;
 }
 
-export const DEFAULT_COURIER_CONFIG: CourierConfig = { base_fee: 3.0, per_km: 2.5 };
+export const DEFAULT_COURIER_CONFIG: CourierConfig = { base_fee: 3.0, per_km: 2.5, daily_rate: 0 };
 
 async function tryGeocode(query: string): Promise<GeoCoord | null> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
