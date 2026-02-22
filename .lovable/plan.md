@@ -1,73 +1,52 @@
 
 
-# Corrigir travamento ao recarregar pagina sem impressora pareada
+# Corrigir auto-reconexao Bluetooth que nao conecta
 
 ## Problema
 
-Quando a pagina recarrega e existe um `bt_printer_device_id` salvo no localStorage (de um pareamento anterior), o sistema tenta reconectar automaticamente chamando `reconnectStoredPrinter()`. Essa funcao usa `watchAdvertisements()` para esperar o dispositivo ficar visivel antes de conectar. Quando a impressora esta desligada ou fora de alcance, `watchAdvertisements()` pode travar o navegador completamente (bug conhecido da API Web Bluetooth no Chrome).
+Ha um conflito de timeouts que impede a reconexao automatica:
+
+1. `watchAdvertisements` espera ate 4 segundos
+2. Se falhar, tenta `connectToDevice` que precisa de ate 10 segundos
+3. Mas o timeout global e de apenas 6 segundos -- mata a conexao antes de completar
+4. No `DashboardPage`, o `.catch` chama `clearStoredDevice()`, apagando o ID salvo -- na proxima recarga, o sistema nem tenta reconectar
 
 ## Solucao
 
-### 1. `src/lib/bluetoothPrinter.ts` — Tornar reconnect seguro
+### 1. `src/lib/bluetoothPrinter.ts`
 
-- Envolver toda a logica de `reconnectStoredPrinter()` com um timeout global de 6 segundos — se nao reconectar nesse tempo, retorna `null` silenciosamente
-- Tratar qualquer erro de `watchAdvertisements` de forma que nunca bloqueie a thread principal
-- Se `watchAdvertisements` nao estiver disponivel, tentar conectar direto ao GATT (com timeout) em vez de desistir
+- Reduzir timeout do `watchAdvertisements` de 4s para 2s (deixar mais tempo para o GATT connect)
+- Aumentar o timeout global de 6s para 15s (tempo suficiente para watchAdv 2s + GATT connect 10s)
 
-### 2. `src/pages/DashboardPage.tsx` — Proteger o useEffect de auto-reconnect
+### 2. `src/pages/DashboardPage.tsx`
 
-- Adicionar try-catch robusto ao redor da chamada `reconnectStoredPrinter()`
-- Se falhar, limpar o device ID armazenado para evitar travamento em recarregamentos futuros
-- Log de aviso para facilitar debug
+- Remover `clearStoredDevice()` do `.catch` -- nao deve apagar o pareamento salvo so porque uma tentativa falhou (a impressora pode estar desligada agora mas ligada na proxima vez)
+- Manter apenas o `console.warn` para debug
 
 ## Detalhes tecnicos
 
-### `reconnectStoredPrinter` — timeout global
+### bluetoothPrinter.ts
 
 ```typescript
-export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> {
-  if (!isBluetoothSupported()) return null;
-  const storedId = getStoredDeviceId();
-  if (!storedId) return null;
+// watchAdvertisements: 4s -> 2s
+setTimeout(() => {
+  reject(new Error("watchAdvertisements timeout (2s)"));
+}, 2000);
 
-  // Timeout global para evitar travamento do navegador
-  return withTimeout(reconnectStoredPrinterInternal(storedId), 6000, "reconnectStoredPrinter")
-    .catch(() => {
-      console.warn("[BT] Auto-reconnect timed out or failed");
-      return null;
-    });
-}
-
-async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
-  // ... logica atual movida para ca ...
-}
+// Global timeout: 6s -> 15s
+return withTimeout(reconnectStoredPrinterInternal(storedId), 15000, "reconnectStoredPrinter")
 ```
 
-### `DashboardPage.tsx` — useEffect defensivo
+### DashboardPage.tsx
 
 ```typescript
-useEffect(() => {
-  if (btDevice) return;
-  if (!isBluetoothSupported()) return;
-  let cancelled = false;
-  reconnectStoredPrinter()
-    .then((device) => {
-      if (cancelled || !device) return;
-      setBtDevice(device);
-      setBtConnected(true);
-      toast.success("Impressora reconectada automaticamente");
-      attachDisconnectHandler(device);
-    })
-    .catch((err) => {
-      console.warn("[BT] Auto-reconnect failed on mount:", err);
-      // Limpar device armazenado para evitar travamento em futuros reloads
-      clearStoredDevice();
-    });
-  return () => { cancelled = true; };
-}, [organization]);
+.catch((err) => {
+  console.warn("[BT] Auto-reconnect failed on mount:", err);
+  // NAO limpar o device -- pode funcionar no proximo reload
+});
 ```
 
 ## Arquivos alterados
-- `src/lib/bluetoothPrinter.ts` — timeout global no `reconnectStoredPrinter`, refatorar logica interna
-- `src/pages/DashboardPage.tsx` — catch defensivo no useEffect + limpar device se falhar
+- `src/lib/bluetoothPrinter.ts` -- ajustar timeouts
+- `src/pages/DashboardPage.tsx` -- remover clearStoredDevice do catch
 
