@@ -201,19 +201,26 @@ export function useCompleteDelivery() {
   });
 }
 
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
 export function useLoginCourier() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { organization_id: string; phone: string }) => {
+      const normalized = normalizePhone(input.phone);
       const { data, error } = await supabase
         .from("couriers" as any)
         .select("*")
         .eq("organization_id", input.organization_id)
-        .eq("phone", input.phone)
-        .maybeSingle();
+        .eq("active", true);
       if (error) throw error;
-      if (!data) throw new Error("NOT_FOUND");
-      const courier = data as unknown as Courier;
+      const match = (data ?? []).find(
+        (c: any) => normalizePhone(c.phone) === normalized
+      );
+      if (!match) throw new Error("NOT_FOUND");
+      const courier = match as unknown as Courier;
       saveCourierId(courier.id);
       return courier;
     },
