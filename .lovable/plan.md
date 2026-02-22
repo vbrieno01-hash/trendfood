@@ -1,64 +1,65 @@
 
+# Efeito Sonoro para Entregas + Campo PIX no Painel do Motoboy
 
-# Remover tela desnecessaria e recuperar slug automaticamente
+## 1. Efeito sonoro quando chega nova entrega
 
-## Problema
-Quando o motoboy abre o PWA sem o parametro `?org=SLUG` na URL, aparece uma tela pedindo para digitar o identificador da loja. Isso e desnecessario porque o motoboy ja esta cadastrado e tem o `courier_id` salvo no localStorage -- basta buscar a organizacao dele no banco.
+Adicionar um listener realtime no `CourierPage` que toca um som de notificacao quando uma nova entrega pendente aparece na tabela `deliveries`. O som sera similar ao usado na cozinha (Web Audio API), mas com um tom diferente para diferenciar.
 
-## Solucao
-Quando nao ha slug na URL nem no localStorage, mas ha um `courier_id` salvo, buscar o slug da organizacao do motoboy automaticamente pelo banco de dados, salvar no localStorage e prosseguir normalmente.
+O som sera tocado apenas para entregas novas (INSERT) com status "pendente", evitando tocar em updates.
 
-A tela de fallback com input manual so aparecera se o motoboy nunca se cadastrou (sem `courier_id` no localStorage).
+### Alteracoes
+- `src/pages/CourierPage.tsx`: Adicionar funcao `playDeliveryBell()` usando Web Audio API e um `useEffect` com channel realtime que escuta INSERTs na tabela `deliveries` filtrado por `organization_id` e toca o som.
 
-## Alteracoes
+## 2. Campo de chave PIX na aba "Resumo"
 
-| Arquivo | O que muda |
-|---------|-----------|
-| `src/pages/CourierPage.tsx` | Adicionar um `useEffect` que, quando `orgSlug` esta vazio mas `courierId` existe, busca o courier no banco, pega o `organization_id`, busca o slug da organizacao e salva no localStorage. Apos isso, redireciona automaticamente com `window.location.href`. |
+Adicionar um campo editavel na aba "Resumo" do painel do motoboy onde ele pode cadastrar/editar sua chave PIX (CPF, telefone, e-mail ou aleatoria). O campo salva automaticamente ao clicar em "Salvar".
 
-## Fluxo
-
-```text
-PWA abre sem ?org=SLUG
-       |
-       v
-getSavedOrgSlug() retorna algo?
-   SIM --> usa o slug normalmente
-   NAO --> courier_id existe no localStorage?
-             SIM --> busca courier -> org -> slug no banco
-                     salva slug no localStorage
-                     redireciona para /motoboy?org=SLUG
-             NAO --> mostra tela de input manual (fallback)
-```
+### Alteracoes
+- `src/pages/CourierPage.tsx`: Na aba "stats" (Resumo), adicionar um card com Input para a chave PIX e botao "Salvar" que faz update na tabela `couriers`.
 
 ## Detalhes tecnicos
 
-Novo `useEffect` no `CourierPage`:
-
+### Efeito sonoro
 ```typescript
-useEffect(() => {
-  if (orgSlug || !courierId) return;
-  // Buscar org slug a partir do courier cadastrado
-  supabase
-    .from("couriers")
-    .select("organization_id")
-    .eq("id", courierId)
-    .single()
-    .then(({ data: courierData }) => {
-      if (!courierData) return;
-      supabase
-        .from("organizations")
-        .select("slug")
-        .eq("id", courierData.organization_id)
-        .single()
-        .then(({ data: orgData }) => {
-          if (orgData?.slug) {
-            saveOrgSlug(orgData.slug);
-            window.location.href = `/motoboy?org=${encodeURIComponent(orgData.slug)}`;
-          }
-        });
+const playDeliveryBell = () => {
+  try {
+    const ctx = new AudioContext();
+    // Dois bips curtos ascendentes
+    [0, 0.25].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = i === 0 ? 660 : 880;
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.3);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.3);
     });
-}, [orgSlug, courierId]);
+  } catch {}
+};
 ```
 
-A tela de input manual continua existindo como ultimo recurso, mas na grande maioria dos casos o motoboy sera redirecionado automaticamente.
+Novo `useEffect` para o som:
+```typescript
+useEffect(() => {
+  if (!orgId) return;
+  const channel = supabase
+    .channel(`courier-bell-${orgId}`)
+    .on("postgres_changes", {
+      event: "INSERT", schema: "public", table: "deliveries",
+      filter: `organization_id=eq.${orgId}`
+    }, () => { playDeliveryBell(); })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [orgId]);
+```
+
+### Campo PIX na aba Resumo
+Estado local `pixKey` inicializado com `courier?.pix_key`. Card com Input e botao que faz:
+```typescript
+await supabase.from("couriers").update({ pix_key: pixKey }).eq("id", courierId);
+```
+
+A politica RLS `couriers_update_public` ja permite essa operacao.
