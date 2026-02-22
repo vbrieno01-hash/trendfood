@@ -18,7 +18,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -101,6 +101,23 @@ const DashboardPage = () => {
       toast.info("Impressora desconectada.");
     }
   };
+
+  // Auto-reconnect to previously paired Bluetooth printer on mount
+  useEffect(() => {
+    const printMode = (organization as any)?.print_mode ?? "browser";
+    if (printMode !== "bluetooth" || btDevice) return;
+    let cancelled = false;
+    reconnectStoredPrinter().then((device) => {
+      if (cancelled || !device) return;
+      setBtDevice(device);
+      setBtConnected(true);
+      toast.success("Impressora reconectada automaticamente");
+      device.addEventListener("gattserverdisconnected", () => {
+        setBtConnected(false);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [organization]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handler = (e: Event) => {

@@ -227,3 +227,40 @@ export function getStoredDeviceId(): string | null {
 export function clearStoredDevice(): void {
   localStorage.removeItem(STORED_DEVICE_KEY);
 }
+
+/**
+ * Attempt to reconnect to a previously paired printer without user gesture.
+ * Uses navigator.bluetooth.getDevices() (Chrome 85+).
+ * Returns the device if reconnection succeeds, null otherwise (silent fail).
+ */
+export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> {
+  if (!isBluetoothSupported()) return null;
+  const storedId = getStoredDeviceId();
+  if (!storedId) return null;
+
+  try {
+    const bt = navigator as any;
+    if (typeof bt.bluetooth?.getDevices !== "function") {
+      console.log("[BT] getDevices() not supported in this browser");
+      return null;
+    }
+
+    const devices: BluetoothDevice[] = await bt.bluetooth.getDevices();
+    const device = devices.find((d) => d.id === storedId);
+    if (!device) {
+      console.log("[BT] Stored device not found among authorized devices");
+      return null;
+    }
+
+    const char = await connectToDevice(device);
+    if (char) {
+      console.log("[BT] Auto-reconnected to", device.name || device.id);
+      return device;
+    }
+
+    return null;
+  } catch (err) {
+    console.warn("[BT] Auto-reconnect failed:", err);
+    return null;
+  }
+}

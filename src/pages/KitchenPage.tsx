@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
-import { isBluetoothSupported, requestBluetoothPrinter } from "@/lib/bluetoothPrinter";
+import { isBluetoothSupported, requestBluetoothPrinter, reconnectStoredPrinter } from "@/lib/bluetoothPrinter";
 import { toast } from "sonner";
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -106,6 +106,19 @@ export default function KitchenPage() {
       }
     }
   };
+
+  // Auto-reconnect to previously paired Bluetooth printer on mount
+  const effectPrintMode = (org as any)?.print_mode ?? "browser";
+  useEffect(() => {
+    if (effectPrintMode !== "bluetooth" || btDevice) return;
+    let cancelled = false;
+    reconnectStoredPrinter().then((device) => {
+      if (cancelled || !device) return;
+      setBtDevice(device);
+      toast.success("Impressora reconectada automaticamente");
+    });
+    return () => { cancelled = true; };
+  }, [effectPrintMode, btDevice]);
 
   // Derived print settings
   const printMode = (org as any)?.print_mode ?? "browser";
