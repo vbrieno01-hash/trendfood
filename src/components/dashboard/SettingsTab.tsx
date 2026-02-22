@@ -164,8 +164,10 @@ export default function SettingsTab() {
       ].join("\n");
       await enqueuePrint(organization.id, null, content);
       toast.success("Teste enviado para a fila de impressão!");
-    } catch {
-      toast.error("Erro ao enviar teste de impressão.");
+    } catch (err) {
+      console.error("Erro ao testar impressora:", err);
+      console.error("organization.id usado:", organization?.id);
+      toast.error("Erro ao enviar teste de impressão. Veja o console para detalhes.");
     } finally {
       setTestPrintLoading(false);
     }
