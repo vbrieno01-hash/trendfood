@@ -1,70 +1,33 @@
 
 
-## Criar Edge Function para o Robo de Impressao
+# Corrigir impressao automatica para pedidos de clientes
 
-### Problema
-O robo Python (`trendfood.py`) precisa da `service_role` key para acessar a tabela `fila_impressao`, o que causa problemas de configuracao e seguranca. Vamos criar uma funcao backend que o robo chama por HTTP simples, usando um token secreto proprio.
+## Problema
+A tabela `fila_impressao` so permite INSERT por usuarios autenticados (dono da loja). Quando um cliente nao-autenticado faz um pedido pela vitrine publica, o pedido e criado com sucesso (tabela `orders` aceita INSERT publico), mas o registro na fila de impressao falha silenciosamente por causa do RLS restritivo. O `usePlaceOrder` tem um try/catch que engole o erro sem avisar.
 
-### Arquitetura
+## Solucao
+Adicionar uma politica de INSERT publico na tabela `fila_impressao`, similar ao que ja existe nas tabelas `orders` e `order_items`.
 
-O robo deixa de acessar o banco diretamente e passa a chamar duas rotas HTTP:
+## Etapas
 
-1. **GET** `/printer-queue?org_id=UUID` - Busca pedidos pendentes
-2. **POST** `/printer-queue` com body `{ "id": "UUID" }` - Marca como impresso
+### 1. Migracão de banco de dados
+Criar uma nova politica RLS na tabela `fila_impressao` que permita INSERT publico:
 
-A autenticacao sera feita por um token secreto (`PRINTER_ROBOT_TOKEN`) enviado no header `Authorization: Bearer <token>`. Esse token sera gerado e armazenado como secret no backend.
-
-### Implementacao
-
-#### 1. Criar secret `PRINTER_ROBOT_TOKEN`
-- Gerar um token aleatorio seguro
-- Armazena-lo como secret do projeto
-- O robo Python usara esse mesmo token no header
-
-#### 2. Criar Edge Function `printer-queue`
-- Arquivo: `supabase/functions/printer-queue/index.ts`
-- Config: `verify_jwt = false` (usa token proprio)
-- **GET**: Usa `SUPABASE_SERVICE_ROLE_KEY` internamente para buscar registros com `status = 'pendente'` filtrados por `organization_id`
-- **POST**: Marca o registro como `impresso` com `printed_at`
-- Valida o `PRINTER_ROBOT_TOKEN` no header antes de processar
-
-#### 3. Novo `trendfood.py`
-- Remove `supabase-py` e `CHAVE_MESTRA`
-- Usa apenas `requests` (HTTP puro)
-- Chama a Edge Function com o token no header
-- Mesmo loop de polling a cada 5 segundos
-- Configuracao simplificada: apenas URL da funcao + token
-
-### Detalhes Tecnicos
-
-**Edge Function (pseudo-codigo):**
-```text
-GET /printer-queue?org_id=XXX
-  -> Valida Bearer token
-  -> SELECT * FROM fila_impressao WHERE organization_id = org_id AND status = 'pendente'
-  -> Retorna JSON
-
-POST /printer-queue  { id: "XXX" }
-  -> Valida Bearer token
-  -> UPDATE fila_impressao SET status = 'impresso', printed_at = now() WHERE id = XXX
-  -> Retorna OK
+```sql
+CREATE POLICY "fila_impressao_insert_public"
+  ON public.fila_impressao
+  FOR INSERT
+  WITH CHECK (true);
 ```
 
-**Python (pseudo-codigo):**
-```text
-URL = "https://<project>.supabase.co/functions/v1/printer-queue"
-TOKEN = "<token configurado>"
-headers = { "Authorization": f"Bearer {TOKEN}" }
+Isso segue o mesmo padrao ja usado em `orders` (`orders_insert_public`) e `order_items` (`order_items_insert_public`).
 
-loop:
-  GET URL?org_id=ID_LOJA -> lista pedidos
-  para cada pedido: imprimir + POST URL { id: pedido.id }
-  sleep 5
-```
+### 2. Nenhuma alteracao de codigo necessaria
+O codigo em `usePlaceOrder` ja chama `enqueuePrint()` corretamente. O problema e exclusivamente a politica de segurança do banco. Uma vez corrigida, os pedidos de clientes nao-autenticados tambem gerarao registros na fila de impressao automaticamente.
 
-### Vantagens
-- O robo nao precisa mais da `service_role` key
-- Token dedicado, facil de revogar/trocar
-- Menos dependencias no Python (sem `supabase-py`)
-- Seguro: a funcao backend acessa o banco internamente com permissoes controladas
+## Seguranca
+- A politica existente de SELECT/UPDATE/DELETE permanece restrita ao dono da organizacao
+- O INSERT publico so permite criar novos registros, nao ler ou modificar existentes
+- O robo de impressao usa `service_role` key via Edge Function, entao nao e afetado pelo RLS
+- Este padrao e identico ao usado nas tabelas `orders` e `order_items`
 
