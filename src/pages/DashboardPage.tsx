@@ -326,13 +326,14 @@ const DashboardPage = () => {
   };
 
   // Auto-reconnect to previously paired Bluetooth printer on mount/reload
+  const btReconnectAttempted = useRef(false);
   useEffect(() => {
     if (btDevice) return; // already connected
     if (!isBluetoothSupported()) return;
-    let cancelled = false;
+    if (btReconnectAttempted.current) return;
+    btReconnectAttempted.current = true;
 
     const onConnected = (device: BluetoothDevice) => {
-      if (cancelled) return;
       setBtDevice(device);
       setBtConnected(true);
       toast.success("Impressora reconectada automaticamente");
@@ -341,7 +342,6 @@ const DashboardPage = () => {
 
     reconnectStoredPrinter()
       .then(async (device) => {
-        if (cancelled) return;
         if (device) {
           onConnected(device);
           return;
@@ -354,14 +354,9 @@ const DashboardPage = () => {
           if (typeof bt.bluetooth?.getDevices !== "function") return;
           const devices: BluetoothDevice[] = await bt.bluetooth.getDevices();
           const target = devices.find((d: BluetoothDevice) => d.id === storedId);
-          if (!target || cancelled) return;
+          if (!target) return;
           console.log("[BT] Starting backoff retry...");
-          autoReconnect(
-            target,
-            (d) => { if (!cancelled) onConnected(d); },
-            () => { if (!cancelled) console.log("[BT] All backoff retries exhausted"); },
-            5
-          );
+          autoReconnect(target, onConnected, () => console.log("[BT] All backoff retries exhausted"), 5);
         } catch (err) {
           console.warn("[BT] Backoff fallback error:", err);
         }
@@ -369,8 +364,7 @@ const DashboardPage = () => {
       .catch((err) => {
         console.warn("[BT] Auto-reconnect failed on mount:", err);
       });
-    return () => { cancelled = true; };
-  }, [organization]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handler = (e: Event) => {
