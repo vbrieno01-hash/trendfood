@@ -133,7 +133,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
 
   const totalSummary = useMemo(() => summary.reduce((acc, s) => ({ count: acc.count + s.count, km: acc.km + s.km, fee: acc.fee + s.fee }), { count: 0, km: 0, fee: 0 }), [summary]);
 
-  const courierLink = `${window.location.origin}/motoboy?org=${orgSlug}`;
+  const courierLink = `https://trendfood.lovable.app/motoboy?org=${orgSlug}`;
 
   const quickDates = [
     { label: "Hoje", fn: () => new Date() },
