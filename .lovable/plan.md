@@ -1,36 +1,64 @@
 
 
-# Corrigir PWA do Motoboy Perdendo o Slug da Organizacao
+# Remover tela desnecessaria e recuperar slug automaticamente
 
 ## Problema
-Quando o motoboy instala o PWA e abre o app, ele ve a tela "Acesse com o link fornecido pela loja" porque:
-1. O `start_url` do manifest e `/motoboy` sem o parametro `?org=SLUG`
-2. O `getSavedOrgSlug()` pode nao encontrar o slug no localStorage
+Quando o motoboy abre o PWA sem o parametro `?org=SLUG` na URL, aparece uma tela pedindo para digitar o identificador da loja. Isso e desnecessario porque o motoboy ja esta cadastrado e tem o `courier_id` salvo no localStorage -- basta buscar a organizacao dele no banco.
 
 ## Solucao
-Duas mudanças:
+Quando nao ha slug na URL nem no localStorage, mas ha um `courier_id` salvo, buscar o slug da organizacao do motoboy automaticamente pelo banco de dados, salvar no localStorage e prosseguir normalmente.
 
-### 1. Gerar o manifest dinamicamente com o slug salvo
-Em vez de usar um manifest estatico, o `CourierPage` vai atualizar o `start_url` do manifest para incluir o `?org=SLUG` quando o slug estiver disponivel. Isso garante que ao instalar o PWA, o `start_url` ja tera o slug correto.
-
-### 2. Tela de fallback com campo para digitar o slug
-Quando nao ha slug (nem na URL, nem no localStorage), em vez de apenas mostrar uma mensagem generica, mostrar um campo onde o motoboy pode digitar o slug da loja ou colar o link completo. Isso permite recuperar o acesso sem precisar pedir o link de novo.
+A tela de fallback com input manual so aparecera se o motoboy nunca se cadastrou (sem `courier_id` no localStorage).
 
 ## Alteracoes
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/pages/CourierPage.tsx` | 1. No useEffect do manifest, setar `start_url` para `/motoboy?org=${orgSlug}` quando o slug estiver disponivel. 2. Na tela de "sem slug", adicionar um Input para o motoboy digitar/colar o slug e um botao para acessar. |
+| `src/pages/CourierPage.tsx` | Adicionar um `useEffect` que, quando `orgSlug` esta vazio mas `courierId` existe, busca o courier no banco, pega o `organization_id`, busca o slug da organizacao e salva no localStorage. Apos isso, redireciona automaticamente com `window.location.href`. |
+
+## Fluxo
+
+```text
+PWA abre sem ?org=SLUG
+       |
+       v
+getSavedOrgSlug() retorna algo?
+   SIM --> usa o slug normalmente
+   NAO --> courier_id existe no localStorage?
+             SIM --> busca courier -> org -> slug no banco
+                     salva slug no localStorage
+                     redireciona para /motoboy?org=SLUG
+             NAO --> mostra tela de input manual (fallback)
+```
 
 ## Detalhes tecnicos
 
-### Manifest dinamico (dentro do useEffect existente)
-Quando o slug esta disponivel, criar um blob URL com o manifest atualizado contendo `start_url: /motoboy?org=SLUG` e aplicar como href do link manifest. Isso garante que a instalacao do PWA salve a URL correta.
+Novo `useEffect` no `CourierPage`:
 
-### Tela de fallback
-Substituir a mensagem estatica por um formulario simples:
-- Input com placeholder "Ex: minha-loja"
-- Botao "Acessar"
-- Ao submeter, redireciona para `/motoboy?org=VALOR_DIGITADO`
-- Texto explicativo: "Digite o identificador da loja ou cole o link completo"
+```typescript
+useEffect(() => {
+  if (orgSlug || !courierId) return;
+  // Buscar org slug a partir do courier cadastrado
+  supabase
+    .from("couriers")
+    .select("organization_id")
+    .eq("id", courierId)
+    .single()
+    .then(({ data: courierData }) => {
+      if (!courierData) return;
+      supabase
+        .from("organizations")
+        .select("slug")
+        .eq("id", courierData.organization_id)
+        .single()
+        .then(({ data: orgData }) => {
+          if (orgData?.slug) {
+            saveOrgSlug(orgData.slug);
+            window.location.href = `/motoboy?org=${encodeURIComponent(orgData.slug)}`;
+          }
+        });
+    });
+}, [orgSlug, courierId]);
+```
 
+A tela de input manual continua existindo como ultimo recurso, mas na grande maioria dos casos o motoboy sera redirecionado automaticamente.
