@@ -194,10 +194,15 @@ const DashboardPage = () => {
                 .select("id, name, quantity, price, customer_name")
                 .eq("order_id", order.id);
               const fullOrder = { ...order, order_items: items ?? [] };
+              // Se tem impressora Bluetooth pareada, usar bluetooth
+              // independente do print_mode do banco (que pode ser 'browser')
+              const effectiveMode = btDeviceRef.current
+                ? 'bluetooth' as const
+                : printModeRef.current;
               await printOrderByMode(
                 fullOrder,
                 orgNameRef.current,
-                printModeRef.current,
+                effectiveMode,
                 orgId!,
                 btDeviceRef.current,
                 getPixPayload(fullOrder),
