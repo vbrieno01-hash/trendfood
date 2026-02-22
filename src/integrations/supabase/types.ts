@@ -192,6 +192,7 @@ export type Database = {
         Row: {
           accepted_at: string | null
           courier_id: string | null
+          courier_paid: boolean
           created_at: string
           customer_address: string
           delivered_at: string | null
@@ -205,6 +206,7 @@ export type Database = {
         Insert: {
           accepted_at?: string | null
           courier_id?: string | null
+          courier_paid?: boolean
           created_at?: string
           customer_address: string
           delivered_at?: string | null
@@ -218,6 +220,7 @@ export type Database = {
         Update: {
           accepted_at?: string | null
           courier_id?: string | null
+          courier_paid?: boolean
           created_at?: string
           customer_address?: string
           delivered_at?: string | null

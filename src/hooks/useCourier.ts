@@ -351,3 +351,111 @@ export function useOrgCouriers(organizationId: string | undefined) {
     enabled: !!organizationId,
   });
 }
+
+// ── Courier Stats & Payment hooks ──
+
+export interface CourierStats {
+  totalDeliveries: number;
+  totalEarned: number;
+  totalPending: number;
+  totalPaid: number;
+}
+
+export function useCourierStats(courierId: string | null) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!courierId) return;
+    const channel = supabase
+      .channel(`courier-stats-${courierId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries", filter: `courier_id=eq.${courierId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["courier-stats", courierId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [courierId, queryClient]);
+
+  return useQuery({
+    queryKey: ["courier-stats", courierId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deliveries" as any)
+        .select("fee, courier_paid")
+        .eq("courier_id", courierId!)
+        .eq("status", "entregue");
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as { fee: number | null; courier_paid: boolean }[];
+      const stats: CourierStats = { totalDeliveries: rows.length, totalEarned: 0, totalPending: 0, totalPaid: 0 };
+      for (const r of rows) {
+        const fee = r.fee ?? 0;
+        stats.totalEarned += fee;
+        if (r.courier_paid) {
+          stats.totalPaid += fee;
+        } else {
+          stats.totalPending += fee;
+        }
+      }
+      return stats;
+    },
+    enabled: !!courierId,
+  });
+}
+
+export function useOrgDeliveriesUnpaid(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const channel = supabase
+      .channel(`org-unpaid-${organizationId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "deliveries", filter: `organization_id=eq.${organizationId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["deliveries-unpaid", organizationId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [organizationId, queryClient]);
+
+  return useQuery({
+    queryKey: ["deliveries-unpaid", organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deliveries" as any)
+        .select("courier_id, fee, courier_paid")
+        .eq("organization_id", organizationId!)
+        .eq("status", "entregue")
+        .eq("courier_paid", false);
+      if (error) throw error;
+      return (data ?? []) as unknown as { courier_id: string | null; fee: number | null; courier_paid: boolean }[];
+    },
+    enabled: !!organizationId,
+  });
+}
+
+export function usePayCourier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ courierId, organizationId }: { courierId: string; organizationId: string }) => {
+      const { error } = await supabase
+        .from("deliveries" as any)
+        .update({ courier_paid: true } as any)
+        .eq("courier_id", courierId)
+        .eq("organization_id", organizationId)
+        .eq("status", "entregue")
+        .eq("courier_paid", false);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["deliveries-unpaid"] });
+      queryClient.invalidateQueries({ queryKey: ["courier-stats"] });
+    },
+  });
+}

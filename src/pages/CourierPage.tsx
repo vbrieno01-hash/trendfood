@@ -21,6 +21,7 @@ import {
   useMyDeliveries,
   useAcceptDelivery,
   useCompleteDelivery,
+  useCourierStats,
   type Delivery,
 } from "@/hooks/useCourier";
 import { parsePhoneFromNotes } from "@/hooks/useCreateDelivery";
@@ -81,6 +82,7 @@ const CourierPage = () => {
   const { data: myDeliveries = [] } = useMyDeliveries(courierId);
   const acceptMutation = useAcceptDelivery();
   const completeMutation = useCompleteDelivery();
+  const { data: stats } = useCourierStats(courierId);
   const { canInstall, install } = usePwaInstall();
 
   // Swap PWA manifest for courier-specific one
@@ -391,12 +393,15 @@ const CourierPage = () => {
 
       <div className="max-w-lg mx-auto p-4">
         <Tabs defaultValue="available" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="available" className="gap-1.5">
-              <Package className="w-3.5 h-3.5" /> Disponíveis ({available.length})
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="available" className="gap-1.5 text-xs">
+              <Package className="w-3.5 h-3.5" /> Disponíveis
             </TabsTrigger>
-            <TabsTrigger value="mine" className="gap-1.5">
-              <Navigation className="w-3.5 h-3.5" /> Minhas ({myDeliveries.length})
+            <TabsTrigger value="mine" className="gap-1.5 text-xs">
+              <Navigation className="w-3.5 h-3.5" /> Minhas
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-1.5 text-xs">
+              <DollarSign className="w-3.5 h-3.5" /> Resumo
             </TabsTrigger>
           </TabsList>
 
@@ -436,6 +441,39 @@ const CourierPage = () => {
                 } />
               ))
             )}
+          </TabsContent>
+
+          <TabsContent value="stats" className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <CheckCircle2 className="w-5 h-5 text-primary mx-auto mb-1" />
+                  <p className="text-2xl font-bold">{stats?.totalDeliveries ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Entregas realizadas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <DollarSign className="w-5 h-5 text-primary mx-auto mb-1" />
+                  <p className="text-2xl font-bold">R$ {(stats?.totalEarned ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Total faturado</p>
+                </CardContent>
+              </Card>
+              <Card className="border-yellow-500/30">
+                <CardContent className="p-4 text-center">
+                  <Clock className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
+                  <p className="text-2xl font-bold text-yellow-600">R$ {(stats?.totalPending ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">A receber</p>
+                </CardContent>
+              </Card>
+              <Card className="border-green-500/30">
+                <CardContent className="p-4 text-center">
+                  <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-1" />
+                  <p className="text-2xl font-bold text-green-600">R$ {(stats?.totalPaid ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Já recebido</p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
