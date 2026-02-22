@@ -460,3 +460,123 @@ export function usePayCourier() {
     },
   });
 }
+
+// ── Courier Shift hooks ──
+
+export interface CourierShift {
+  id: string;
+  courier_id: string;
+  organization_id: string;
+  started_at: string;
+  ended_at: string | null;
+  created_at: string;
+}
+
+export function useActiveShift(courierId: string | null) {
+  return useQuery({
+    queryKey: ["courier-shift", courierId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("courier_shifts" as any)
+        .select("*")
+        .eq("courier_id", courierId!)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as CourierShift | null;
+    },
+    enabled: !!courierId,
+  });
+}
+
+export function useStartShift() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ courierId, organizationId }: { courierId: string; organizationId: string }) => {
+      const { data, error } = await supabase
+        .from("courier_shifts" as any)
+        .insert({ courier_id: courierId, organization_id: organizationId } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as CourierShift;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courier-shift"] });
+      queryClient.invalidateQueries({ queryKey: ["org-active-shifts"] });
+    },
+  });
+}
+
+export function useEndShift() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (shiftId: string) => {
+      const { error } = await supabase
+        .from("courier_shifts" as any)
+        .update({ ended_at: new Date().toISOString() } as any)
+        .eq("id", shiftId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courier-shift"] });
+      queryClient.invalidateQueries({ queryKey: ["org-active-shifts"] });
+    },
+  });
+}
+
+export function useOrgActiveShifts(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const channel = supabase
+      .channel(`org-shifts-${organizationId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "courier_shifts", filter: `organization_id=eq.${organizationId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["org-active-shifts", organizationId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [organizationId, queryClient]);
+
+  return useQuery({
+    queryKey: ["org-active-shifts", organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("courier_shifts" as any)
+        .select("*")
+        .eq("organization_id", organizationId!)
+        .is("ended_at", null);
+      if (error) throw error;
+      return (data ?? []) as unknown as CourierShift[];
+    },
+    enabled: !!organizationId,
+  });
+}
+
+export function useOrgShiftHistory(organizationId: string | undefined, dateRange?: DateRange) {
+  return useQuery({
+    queryKey: ["org-shift-history", organizationId, dateRange?.from, dateRange?.to],
+    queryFn: async () => {
+      let query = supabase
+        .from("courier_shifts" as any)
+        .select("*")
+        .eq("organization_id", organizationId!);
+
+      if (dateRange) {
+        query = query.gte("started_at", dateRange.from).lt("started_at", dateRange.to);
+      }
+
+      const { data, error } = await query.order("started_at", { ascending: false }).limit(200);
+      if (error) throw error;
+      return (data ?? []) as unknown as CourierShift[];
+    },
+    enabled: !!organizationId,
+  });
+}

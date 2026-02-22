@@ -22,6 +22,9 @@ import {
   useAcceptDelivery,
   useCompleteDelivery,
   useCourierStats,
+  useActiveShift,
+  useStartShift,
+  useEndShift,
   type Delivery,
 } from "@/hooks/useCourier";
 import { parsePhoneFromNotes } from "@/hooks/useCreateDelivery";
@@ -104,7 +107,18 @@ const CourierPage = () => {
   const acceptMutation = useAcceptDelivery();
   const completeMutation = useCompleteDelivery();
   const { data: stats } = useCourierStats(courierId);
+  const { data: activeShift } = useActiveShift(courierId);
+  const startShiftMutation = useStartShift();
+  const endShiftMutation = useEndShift();
   const { canInstall, install } = usePwaInstall();
+
+  // Timer for "Online há X min"
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!activeShift) return;
+    const interval = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, [activeShift]);
 
   // Swap PWA manifest for courier-specific one (dynamic start_url with slug)
   useEffect(() => {
@@ -413,6 +427,10 @@ const CourierPage = () => {
 
   const handleAccept = async (delivery: Delivery) => {
     if (!courierId) return;
+    if (!activeShift) {
+      toast.error("Inicie seu turno antes de aceitar entregas.");
+      return;
+    }
     try {
       const result = await acceptMutation.mutateAsync({
         deliveryId: delivery.id,
@@ -506,7 +524,52 @@ const CourierPage = () => {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto p-4">
+      <div className="max-w-lg mx-auto p-4 space-y-4">
+        {/* Shift control */}
+        <Card className={activeShift ? "border-green-500/40 bg-green-500/5" : ""}>
+          <CardContent className="p-4">
+            {activeShift ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                  </span>
+                  <span className="text-sm font-medium text-green-700">
+                    Online há {Math.max(1, Math.floor((now - new Date(activeShift.started_at).getTime()) / 60_000))} min
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-500/30 text-red-600 hover:bg-red-500/10"
+                  onClick={() => endShiftMutation.mutate(activeShift.id, {
+                    onSuccess: () => toast.success("Turno encerrado!"),
+                    onError: () => toast.error("Erro ao encerrar turno."),
+                  })}
+                  disabled={endShiftMutation.isPending}
+                >
+                  <Clock className="w-4 h-4 mr-1" /> Encerrar Turno
+                </Button>
+              </div>
+            ) : (
+              <Button
+                className="w-full gap-2"
+                onClick={() => {
+                  if (!courierId || !orgId) return;
+                  startShiftMutation.mutate({ courierId, organizationId: orgId }, {
+                    onSuccess: () => toast.success("Turno iniciado! Boa jornada 🏍️"),
+                    onError: () => toast.error("Erro ao iniciar turno."),
+                  });
+                }}
+                disabled={startShiftMutation.isPending}
+              >
+                <Clock className="w-4 h-4" /> Iniciar Turno
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="available" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="available" className="gap-1.5 text-xs">
@@ -532,8 +595,8 @@ const CourierPage = () => {
             ) : (
               available.map((d) => (
                 <DeliveryCard key={d.id} d={d} actions={
-                  <Button onClick={() => handleAccept(d)} className="w-full" disabled={acceptMutation.isPending}>
-                    <Bike className="w-4 h-4 mr-2" /> Aceitar Entrega
+                  <Button onClick={() => handleAccept(d)} className="w-full" disabled={acceptMutation.isPending || !activeShift}>
+                    <Bike className="w-4 h-4 mr-2" /> {activeShift ? "Aceitar Entrega" : "Inicie o turno para aceitar"}
                   </Button>
                 } />
               ))
