@@ -51,6 +51,9 @@ interface KitchenTabProps {
   printerWidth?: '58mm' | '80mm';
   btDevice?: BluetoothDevice | null;
   pixKey?: string | null;
+  onPairBluetooth?: () => void;
+  btConnected?: boolean;
+  btSupported?: boolean;
 }
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -63,7 +66,7 @@ const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: 
   return buildPixPayload(pixKey, total, storeName ?? "LOJA");
 };
 
-export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null, pixKey }: KitchenTabProps) {
+export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null, pixKey, onPairBluetooth, btConnected, btSupported }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -261,6 +264,19 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
               onCheckedChange={toggleAutoPrint}
             />
           </div>
+          {/* Bluetooth pairing button — only when printMode is bluetooth */}
+          {printMode === "bluetooth" && onPairBluetooth && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""}`}
+              onClick={onPairBluetooth}
+              disabled={!btSupported}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              {btConnected ? "✓ Conectada" : "Parear impressora"}
+            </Button>
+          )}
           <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             ao vivo
