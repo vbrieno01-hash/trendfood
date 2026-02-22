@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
@@ -11,35 +11,12 @@ import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
 import { toast } from "sonner";
 
-const playBell = () => {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const times = [0, 0.3, 0.6];
-    times.forEach((t) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime + t);
-      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + t + 0.4);
-      gain.gain.setValueAtTime(0.5, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.5);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.5);
-    });
-  } catch {
-    // Audio not available
-  }
-};
-
 const isNew = (createdAt: string) =>
   Date.now() - new Date(createdAt).getTime() < 30_000;
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-const AUTO_PRINT_KEY = "kds_auto_print";
 const NOTIF_KEY = "kds_notifications";
 
 interface KitchenTabProps {
@@ -54,6 +31,12 @@ interface KitchenTabProps {
   onPairBluetooth?: () => void;
   btConnected?: boolean;
   btSupported?: boolean;
+  // Auto-print state controlled by DashboardPage
+  autoPrint: boolean;
+  onToggleAutoPrint: (val: boolean) => void;
+  // Notifications state controlled by DashboardPage
+  notificationsEnabled: boolean;
+  onToggleNotifications: (val: boolean) => void;
 }
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -66,41 +49,27 @@ const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: 
   return buildPixPayload(pixKey, total, storeName ?? "LOJA");
 };
 
-export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null, pixKey, onPairBluetooth, btConnected, btSupported }: KitchenTabProps) {
+export default function KitchenTab({
+  orgId, orgName, storeAddress, courierConfig,
+  printMode = 'browser', printerWidth = '58mm', btDevice = null, pixKey,
+  onPairBluetooth, btConnected, btSupported,
+  autoPrint, onToggleAutoPrint,
+  notificationsEnabled, onToggleNotifications,
+}: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-  const [autoPrint, setAutoPrint] = useState<boolean>(
-    () => localStorage.getItem(AUTO_PRINT_KEY) !== "false"
-  );
-  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
-    () => localStorage.getItem(NOTIF_KEY) === "true"
-  );
+
   // Track browser permission state for badge display
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     () => (typeof Notification !== "undefined" ? Notification.permission : "default")
   );
 
-  const knownIds = useRef<Set<string>>(new Set());
-  const pendingPrintIds = useRef<Set<string>>(new Set());
-  const isPrintingRef = useRef(false);
   const [, forceRender] = useState(0);
 
-  // Stable refs so the Realtime channel never needs to restart when toggles change
-  const autoPrintRef = useRef(autoPrint);
-  const notificationsRef = useRef(notificationsEnabled);
-
-  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
-  useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
-
-  const toggleAutoPrint = (val: boolean) => {
-    setAutoPrint(val);
-    localStorage.setItem(AUTO_PRINT_KEY, String(val));
-  };
-
-  const toggleNotifications = async (val: boolean) => {
+  const handleToggleNotifications = async (val: boolean) => {
     if (val) {
       const permission = await Notification.requestPermission();
       setNotifPermission(permission);
@@ -116,8 +85,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
         return;
       }
     }
-    setNotificationsEnabled(val);
-    localStorage.setItem(NOTIF_KEY, String(val));
+    onToggleNotifications(val);
   };
 
   const handleUpdateStatus = (id: string, status: Order["status"], order?: Order) => {
@@ -127,7 +95,6 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
       { id, status },
       {
         onSuccess: () => {
-          // Auto-create delivery when marking a delivery order as ready
           if (status === "ready" && order && order.table_number === 0) {
             createDeliveryForOrder(order, orgId, storeAddress, courierConfig);
           }
@@ -145,34 +112,11 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
     );
   };
 
-  // Realtime: stable channel — uses refs to avoid restarting on toggle changes
+  // Realtime: only UPDATE to refresh UI (INSERT handled by DashboardPage)
   useEffect(() => {
     if (!orgId) return;
     const channel = supabase
-      .channel(`kitchen-tab-${orgId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
-        (payload) => {
-          const order = payload.new as Order;
-          if (!knownIds.current.has(order.id)) {
-            knownIds.current.add(order.id);
-            playBell();
-            if (autoPrintRef.current) {
-              pendingPrintIds.current.add(order.id);
-            }
-            // Web Push Notification — uses ref, no channel restart needed
-            if (notificationsRef.current && Notification.permission === "granted") {
-              const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
-              new Notification(`🔔 Novo pedido! ${tableLabel}`, {
-                icon: "/pwa-192.png",
-                badge: "/pwa-192.png",
-              });
-            }
-            qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
-          }
-        }
-      )
+      .channel(`kitchen-tab-update-${orgId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
@@ -182,36 +126,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc]); // stable — no autoPrint/notificationsEnabled deps needed
-
-  // Print pending orders once their items are loaded
-  useEffect(() => {
-    if (pendingPrintIds.current.size === 0) return;
-    if (isPrintingRef.current) return;
-
-    const toPrint = orders.filter(
-      (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
-    );
-    if (toPrint.length === 0) return;
-
-    isPrintingRef.current = true;
-    (async () => {
-      for (const order of toPrint) {
-        pendingPrintIds.current.delete(order.id);
-        try {
-          await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
-        } catch (err) {
-          console.error("[KDS] Auto-print failed:", err);
-        }
-      }
-      isPrintingRef.current = false;
-    })();
-  }, [orders, orgName]);
-
-  // Mark existing orders as known when first loaded
-  useEffect(() => {
-    orders.forEach((o) => knownIds.current.add(o.id));
-  }, [orders]);
+  }, [orgId, qc]);
 
   // Re-render every 5s to refresh "NOVO!" badge countdown
   useEffect(() => {
@@ -239,7 +154,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
             <Switch
               id="notif-tab"
               checked={notificationsEnabled}
-              onCheckedChange={toggleNotifications}
+              onCheckedChange={handleToggleNotifications}
             />
             {notificationsEnabled && notifPermission === "granted" && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
@@ -261,10 +176,10 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
             <Switch
               id="auto-print-tab"
               checked={autoPrint}
-              onCheckedChange={toggleAutoPrint}
+              onCheckedChange={onToggleAutoPrint}
             />
           </div>
-          {/* Bluetooth pairing button — only when printMode is bluetooth */}
+          {/* Bluetooth pairing button */}
           {printMode === "bluetooth" && onPairBluetooth && (
             <Button
               variant="outline"
