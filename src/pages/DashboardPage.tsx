@@ -493,7 +493,7 @@ const DashboardPage = () => {
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
           {activeTab === "settings" && <SettingsTab />}
-          {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} courierConfig={(organization as any).courier_config} />}
+          {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
         </main>
       </div>
     </div>

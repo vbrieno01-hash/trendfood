@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { DEFAULT_COURIER_CONFIG, type CourierConfig } from "@/hooks/useDeliveryDistance";
 import { QRCodeSVG } from "qrcode.react";
 import { buildPixPayload } from "@/lib/pixPayload";
+import CourierReportSection from "./CourierReportSection";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30" },
@@ -47,6 +48,11 @@ const statusMap: Record<string, { label: string; color: string }> = {
 interface Props {
   orgId: string;
   orgSlug: string;
+  orgName?: string;
+  orgEmoji?: string;
+  orgLogo?: string | null;
+  orgWhatsapp?: string | null;
+  orgAddress?: string | null;
   courierConfig?: CourierConfig | null;
 }
 
@@ -78,7 +84,7 @@ function useOrderTotals(orderIds: string[]) {
   });
 }
 
-const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
+const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWhatsapp, orgAddress, courierConfig }: Props) => {
   const [expandedCourierId, setExpandedCourierId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateRange = useDateRange(selectedDate);
@@ -603,6 +609,17 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
           </div>
         </div>
       )}
+      {/* Relatório de Motoboys */}
+      <div className="border-t border-border pt-6 mt-6">
+        <CourierReportSection
+          orgId={orgId}
+          orgName={orgName || "Minha Loja"}
+          orgEmoji={orgEmoji || "🍽️"}
+          orgLogo={orgLogo}
+          orgWhatsapp={orgWhatsapp}
+          orgAddress={orgAddress}
+        />
+      </div>
     </div>
   );
 };
