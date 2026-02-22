@@ -1,44 +1,44 @@
 
-# Melhorias no Painel do Motoboy
+# Corrigir marcadores ## e caracteres especiais na impressao
 
-## Problemas identificados
+## Problema
+Os marcadores `##CENTER##` e `##BOLD##` estao aparecendo como texto literal nos cupons impressos. Alem disso, caracteres especiais como `★` e `📱` saem "bugados" em impressoras termicas que so suportam ASCII basico.
 
-1. **Link do WhatsApp**: A mensagem enviada ao cliente inclui `trendfood.lovable.app`, que leva para a pagina de cadastro da plataforma (para donos de loja), nao para o cardapio do cliente. O link correto deve ser o da unidade: `trendfood.lovable.app/unidade/SLUG`
-2. **Sem opcao de logout**: O motoboy nao consegue sair da conta (trocar de motoboy ou limpar sessao)
-3. **Botao Instalar**: Ja existe o botao de instalar PWA no header, mas so aparece quando o navegador oferece. Vamos manter e garantir visibilidade
+## Locais com problema
 
-## Alteracoes
-
-### 1. Corrigir link do WhatsApp (CourierPage.tsx, linha 216)
-
-Trocar `trendfood.lovable.app` por `trendfood.lovable.app/unidade/SLUG` para que o cliente acesse o cardapio da loja correta, nao a pagina de cadastro.
-
-De:
+### 1. `useOrders.ts` (linha 210) - Fila automatica de pedidos
+O texto formatado e enfileirado SEM remover os marcadores:
 ```
-Equipe *Loja* | trendfood.lovable.app
+const text = formatReceiptText(printableOrder);
+await enqueuePrint(organizationId, order.id, text);  // COM ##CENTER##
 ```
+**Correcao**: Aplicar `stripFormatMarkers(text)` antes de enfileirar.
 
-Para:
+### 2. `printOrder.ts` (linha 342) - Fallback do Bluetooth
+Quando o Bluetooth falha, o texto e salvo na fila COM marcadores:
 ```
-Equipe *Loja* | trendfood.lovable.app/unidade/slug-da-loja
+await enqueuePrint(orgId, order.id, text);  // COM ##CENTER##
 ```
+**Correcao**: Aplicar `stripFormatMarkers(text)`.
 
-### 2. Adicionar botao "Sair" no header (CourierPage.tsx)
+### 3. `SettingsTab.tsx` (linhas 158-167) - Teste de impressao
+O teste de impressao envia `##CENTER##` literalmente:
+```
+"##CENTER## TESTE DE IMPRESSAO"
+```
+**Correcao**: Remover os marcadores do texto de teste (texto simples sem marcadores).
 
-Adicionar um botao "Sair" ao lado do nome do motoboy no header. Ao clicar:
-- Remove o `courier_id` do localStorage
-- Recarrega a pagina (volta para tela de cadastro/login)
+### 4. Caracteres especiais no `formatReceiptText.ts`
+O rodape usa `*` que e seguro, mas o `center()` e `##BOLD##` ja estao tratados. Verificar que nenhum emoji ou caractere especial (★, 📱) esta no texto da fila.
+- `formatReceiptText.ts` linha 161: usa `* novo pedido - kds *` (seguro, sem caracteres especiais)
+- `printOrder.ts` linha 289: `★ novo pedido — kds ★` (so modo browser/HTML, nao afeta fila)
 
-### 3. Garantir botao "Instalar App" visivel
+## Resumo das alteracoes
 
-O botao PWA ja existe no header. Nenhuma alteracao necessaria, ja funciona.
+| Arquivo | Linha | Alteracao |
+|---------|-------|-----------|
+| `src/hooks/useOrders.ts` | 209-210 | Importar e aplicar `stripFormatMarkers` antes de `enqueuePrint` |
+| `src/lib/printOrder.ts` | 342 | Aplicar `stripFormatMarkers(text)` no fallback Bluetooth |
+| `src/components/dashboard/SettingsTab.tsx` | 157-167 | Remover `##CENTER##` do texto de teste |
 
----
-
-## Detalhes tecnicos
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/CourierPage.tsx` (linha 216) | Trocar link de `trendfood.lovable.app` para `trendfood.lovable.app/unidade/${orgSlug}` |
-| `src/pages/CourierPage.tsx` (header, ~linha 281) | Adicionar botao "Sair" que limpa localStorage e recarrega |
-| `src/hooks/useCourier.ts` | Exportar funcao `clearCourierId()` para remover do localStorage |
+3 arquivos, alteracoes pequenas e pontuais.
