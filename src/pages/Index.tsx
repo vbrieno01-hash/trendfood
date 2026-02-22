@@ -335,7 +335,7 @@ const Index = () => {
       </section>
 
       {/* CTA final */}
-      <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #7a0c0c 0%, hsl(0 84% 32%) 100%)" }}>
+      <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
             Pare de pagar comissão. Comece hoje.
