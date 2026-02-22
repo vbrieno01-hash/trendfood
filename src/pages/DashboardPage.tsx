@@ -194,8 +194,23 @@ const DashboardPage = () => {
                 .select("id, name, quantity, price, customer_name")
                 .eq("order_id", order.id);
               const fullOrder = { ...order, order_items: items ?? [] };
-              // Se tem impressora Bluetooth pareada, usar bluetooth
-              // independente do print_mode do banco (que pode ser 'browser')
+
+              // Se não tem device mas tem ID salvo, tentar reconectar sob demanda
+              if (!btDeviceRef.current && getStoredDeviceId()) {
+                try {
+                  const reconnected = await reconnectStoredPrinter();
+                  if (reconnected) {
+                    setBtDevice(reconnected);
+                    setBtConnected(true);
+                    btDeviceRef.current = reconnected;
+                    attachDisconnectHandler(reconnected);
+                    console.log("[AutoPrint] Bluetooth reconnected on-demand");
+                  }
+                } catch {
+                  console.warn("[AutoPrint] On-demand BT reconnect failed");
+                }
+              }
+
               const effectiveMode = btDeviceRef.current
                 ? 'bluetooth' as const
                 : printModeRef.current;
