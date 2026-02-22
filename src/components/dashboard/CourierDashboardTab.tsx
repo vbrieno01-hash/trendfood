@@ -94,11 +94,13 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
 
   const [baseFee, setBaseFee] = useState(courierConfig?.base_fee ?? DEFAULT_COURIER_CONFIG.base_fee);
   const [perKm, setPerKm] = useState(courierConfig?.per_km ?? DEFAULT_COURIER_CONFIG.per_km);
+  const [dailyRate, setDailyRate] = useState(courierConfig?.daily_rate ?? DEFAULT_COURIER_CONFIG.daily_rate ?? 0);
 
   useEffect(() => {
     if (courierConfig) {
       setBaseFee(courierConfig.base_fee);
       setPerKm(courierConfig.per_km);
+      setDailyRate(courierConfig.daily_rate ?? 0);
     }
   }, [courierConfig]);
 
@@ -106,7 +108,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
     mutationFn: async () => {
       const { error } = await supabase
         .from("organizations")
-        .update({ courier_config: { base_fee: baseFee, per_km: perKm } } as any)
+        .update({ courier_config: { base_fee: baseFee, per_km: perKm, daily_rate: dailyRate } } as any)
         .eq("id", orgId);
       if (error) throw error;
     },
@@ -218,7 +220,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
             <Settings className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm font-semibold">Taxa do motoboy</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Taxa base (por corrida)</label>
               <CurrencyInput value={baseFee} onChange={setBaseFee} />
@@ -226,6 +228,10 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Valor por km rodado</label>
               <CurrencyInput value={perKm} onChange={setPerKm} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Diária (por dia)</label>
+              <CurrencyInput value={dailyRate} onChange={setDailyRate} />
             </div>
           </div>
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="sm" className="mt-3">
