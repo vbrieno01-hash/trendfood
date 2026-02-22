@@ -1,18 +1,39 @@
 
-# Adicionar estrelas no rodape do cupom
 
-Colocar asteriscos (`*`) em volta do nome da loja no rodape, sem usar caracteres especiais como `★`.
+# Remover acentos do cupom impresso
+
+## Problema
+Impressoras termicas nao suportam caracteres acentuados (a, e, c, o, etc.), causando distorcao no texto impresso. Exemplo: "Cartao de Credito" sai ilegivel.
+
+## Solucao
+Adicionar uma funcao `stripDiacritics` que converte caracteres acentuados para seus equivalentes sem acento, usando `String.normalize("NFD")` + regex. Aplicar essa funcao no texto final do cupom.
 
 ## Alteracoes
 
-| Arquivo | Linha | De | Para |
-|---------|-------|----|------|
-| `src/lib/formatReceiptText.ts` | 161 | `storeName.toUpperCase()` | `"* " + storeName.toUpperCase() + " *"` |
-| `src/lib/printOrder.ts` | 289 | `${storeName.toUpperCase()}` | `* ${storeName.toUpperCase()} *` |
+| Arquivo | O que muda |
+|---------|-----------|
+| `src/lib/formatReceiptText.ts` | Adicionar funcao `stripDiacritics` e aplicar no retorno de `formatReceiptText` (linha 163) |
 
-Resultado no cupom:
-```
-* TRENDFOOD *
+### Detalhes tecnicos
+
+Nova funcao:
+```typescript
+function stripDiacritics(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 ```
 
-2 linhas, 2 arquivos.
+Linha 163 muda de:
+```typescript
+return lines.join("\n");
+```
+Para:
+```typescript
+return stripDiacritics(lines.join("\n"));
+```
+
+Isso cobre todos os textos do cupom: nomes de itens, forma de pagamento ("Cartao de Credito"), observacoes, endereco, nome do cliente, etc.
+
+O modo navegador (`printOrder.ts`) nao precisa dessa mudanca porque o HTML renderiza acentos normalmente no browser.
+
+1 arquivo, 2 linhas de codigo.
