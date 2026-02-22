@@ -14,7 +14,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle, Printer, Download } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle, Printer, Download, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 interface SettingsTabProps {
@@ -302,12 +302,26 @@ export default function SettingsTab({ btDevice, btConnected, onPairBluetooth, on
                   {btConnected ? `✓ ${btDevice?.name || "Conectada"}` : "Desconectada"}
                 </span>
               </div>
+              {!btSupported && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm text-amber-800 font-medium">
+                      Web Bluetooth não está disponível
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Abra <strong>trendfood.lovable.app</strong> diretamente no Google Chrome para parear sua impressora.
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   className="gap-2"
                   onClick={onPairBluetooth}
+                  disabled={!btSupported}
                 >
                   <Printer className="w-3.5 h-3.5" />
                   {btConnected ? "Trocar impressora" : "Parear impressora"}
@@ -322,11 +336,6 @@ export default function SettingsTab({ btDevice, btConnected, onPairBluetooth, on
                   </Button>
                 )}
               </div>
-              {!btSupported && (
-                <p className="text-xs text-destructive">
-                  Seu navegador não suporta Web Bluetooth. Use Chrome no Android ou Desktop.
-                </p>
-              )}
             </div>
           )}
 
