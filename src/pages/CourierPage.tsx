@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut, Key, Save } from "lucide-react";
+import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut, Key, Save, Phone } from "lucide-react";
 import {
   getSavedCourierId,
+  saveCourierId,
   clearCourierId,
   getSavedOrgSlug,
   saveOrgSlug,
@@ -97,6 +98,10 @@ const CourierPage = () => {
   const [isLogin, setIsLogin] = useState(false);
   const [loginPhone, setLoginPhone] = useState("");
   const [manualSlug, setManualSlug] = useState("");
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
+  const [showSlugFallback, setShowSlugFallback] = useState(false);
 
   const courierId = getSavedCourierId();
   const { data: courier, isLoading: courierLoading } = useMyCourier();
@@ -240,13 +245,55 @@ const CourierPage = () => {
 
 
   if (!orgSlug) {
+    const normalizePhone = (p: string) => p.replace(/\D/g, "");
+
+    const handlePhoneLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const normalized = normalizePhone(phoneSearch);
+      if (normalized.length < 8) {
+        toast.error("Digite um telefone válido.");
+        return;
+      }
+      setSearching(true);
+      setPhoneError(false);
+      try {
+        const { data, error } = await supabase
+          .from("couriers")
+          .select("*")
+          .eq("active", true);
+        if (error) throw error;
+        const match = (data ?? []).find(
+          (c: any) => normalizePhone(c.phone) === normalized
+        );
+        if (!match) {
+          setPhoneError(true);
+          setSearching(false);
+          return;
+        }
+        // Found courier, now get org slug
+        const { data: orgData } = await supabase
+          .from("organizations")
+          .select("slug")
+          .eq("id", match.organization_id)
+          .single();
+        if (orgData?.slug) {
+          saveCourierId(match.id);
+          saveOrgSlug(orgData.slug);
+          window.location.href = `/motoboy?org=${encodeURIComponent(orgData.slug)}`;
+        } else {
+          setPhoneError(true);
+        }
+      } catch {
+        toast.error("Erro ao buscar. Tente novamente.");
+      }
+      setSearching(false);
+    };
+
     const handleManualAccess = (e: React.FormEvent) => {
       e.preventDefault();
       let value = manualSlug.trim();
-      // Extract slug from full URL if pasted
       const match = value.match(/[?&]org=([^&]+)/);
       if (match) value = match[1];
-      // Remove leading slashes or paths
       value = value.replace(/^.*\//, "");
       if (!value) return;
       window.location.href = `/motoboy?org=${encodeURIComponent(value)}`;
@@ -255,22 +302,70 @@ const CourierPage = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-sm w-full text-center">
-          <CardContent className="pt-8 pb-6">
-            <Bike className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h1 className="text-lg font-bold mb-2">Painel do Motoboy</h1>
-            <p className="text-sm text-muted-foreground mb-4">
-              Digite o identificador da loja ou cole o link completo
-            </p>
-            <form onSubmit={handleManualAccess} className="space-y-3">
-              <Input
-                value={manualSlug}
-                onChange={(e) => setManualSlug(e.target.value)}
-                placeholder="Ex: minha-loja"
-              />
-              <Button type="submit" className="w-full" disabled={!manualSlug.trim()}>
-                Acessar
+          <CardContent className="pt-8 pb-6 space-y-5">
+            <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+              <Bike className="w-7 h-7 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold">Painel do Motoboy</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Entre com seu telefone cadastrado
+              </p>
+            </div>
+            <form onSubmit={handlePhoneLogin} className="space-y-3 text-left">
+              <div className="space-y-2">
+                <Label htmlFor="phoneSearch">Telefone</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="phoneSearch"
+                    value={phoneSearch}
+                    onChange={(e) => { setPhoneSearch(e.target.value); setPhoneError(false); }}
+                    placeholder="(11) 99999-9999"
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={searching}>
+                {searching ? "Buscando..." : "Entrar"}
               </Button>
             </form>
+
+            {phoneError && (
+              <div className="space-y-3">
+                <p className="text-sm text-destructive">
+                  Nenhum cadastro encontrado com esse telefone.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Peça o link de acesso ao seu gerente.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowSlugFallback(true)}
+                  className="text-xs text-primary font-medium hover:underline"
+                >
+                  Já tenho o link da loja
+                </button>
+              </div>
+            )}
+
+            {showSlugFallback && (
+              <form onSubmit={handleManualAccess} className="space-y-3 text-left border-t pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="manualSlug">Identificador ou link da loja</Label>
+                  <Input
+                    id="manualSlug"
+                    value={manualSlug}
+                    onChange={(e) => setManualSlug(e.target.value)}
+                    placeholder="Ex: minha-loja"
+                  />
+                </div>
+                <Button type="submit" variant="outline" className="w-full" disabled={!manualSlug.trim()}>
+                  Acessar
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>
