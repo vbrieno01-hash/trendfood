@@ -8,7 +8,10 @@ import {
   useCancelDelivery,
   useOrgDeliveriesUnpaid,
   usePayCourier,
+  useOrgActiveShifts,
+  useOrgShiftHistory,
   type DateRange,
+  type CourierShift,
 } from "@/hooks/useCourier";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -94,6 +97,24 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
   const payMutation = usePayCourier();
 
   const { data: unpaidDeliveries = [] } = useOrgDeliveriesUnpaid(orgId);
+  const { data: activeShifts = [] } = useOrgActiveShifts(orgId);
+  const { data: shiftHistory = [] } = useOrgShiftHistory(orgId, dateRange);
+
+  const activeShiftMap = useMemo(() => {
+    const map = new Map<string, CourierShift>();
+    for (const s of activeShifts) map.set(s.courier_id, s);
+    return map;
+  }, [activeShifts]);
+
+  const shiftsByCourier = useMemo(() => {
+    const map = new Map<string, CourierShift[]>();
+    for (const s of shiftHistory) {
+      const arr = map.get(s.courier_id) || [];
+      arr.push(s);
+      map.set(s.courier_id, arr);
+    }
+    return map;
+  }, [shiftHistory]);
 
   const [baseFee, setBaseFee] = useState(courierConfig?.base_fee ?? DEFAULT_COURIER_CONFIG.base_fee);
   const [perKm, setPerKm] = useState(courierConfig?.per_km ?? DEFAULT_COURIER_CONFIG.per_km);
@@ -464,12 +485,27 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
                       className={cn("flex items-center gap-3", unpaidTotal > 0 && "cursor-pointer")}
                       onClick={() => unpaidTotal > 0 && setExpandedCourierId(isExpanded ? null : c.id)}
                     >
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0 relative">
                         <Bike className="w-4 h-4 text-primary" />
+                        <span className={cn(
+                          "absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card",
+                          activeShiftMap.has(c.id) ? "bg-green-500" : "bg-red-400"
+                        )} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{c.name}</p>
                         <p className="text-xs text-muted-foreground">{c.phone} · {c.plate}</p>
+                        {activeShiftMap.has(c.id) && (() => {
+                          const shift = activeShiftMap.get(c.id)!;
+                          const mins = Math.floor((Date.now() - new Date(shift.started_at).getTime()) / 60_000);
+                          const hrs = Math.floor(mins / 60);
+                          const startTime = new Date(shift.started_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                          return (
+                            <p className="text-xs text-green-600 mt-0.5">
+                              🟢 Entrou às {startTime} · Há {hrs > 0 ? `${hrs}h${mins % 60 > 0 ? `${mins % 60}min` : ""}` : `${mins}min`} trabalhando
+                            </p>
+                          );
+                        })()}
                         {c.whatsapp && (
                           <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                             <MessageCircle className="w-3 h-3" /> {c.whatsapp}
@@ -535,6 +571,29 @@ const CourierDashboardTab = ({ orgId, orgSlug, courierConfig }: Props) => {
                           {payMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                           Confirmar Pagamento
                         </Button>
+
+                        {/* Shift history for this courier */}
+                        {(shiftsByCourier.get(c.id) || []).length > 0 && (
+                          <div className="pt-3 border-t border-border">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Turnos do dia</p>
+                            <div className="space-y-1">
+                              {(shiftsByCourier.get(c.id) || []).map((s) => (
+                                <div key={s.id} className="flex items-center justify-between text-xs">
+                                  <span>
+                                    {new Date(s.started_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                                    {" → "}
+                                    {s.ended_at ? new Date(s.ended_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "em andamento"}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {s.ended_at
+                                      ? `${Math.floor((new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 3_600_000)}h${Math.floor(((new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) % 3_600_000) / 60_000)}min`
+                                      : "ativo"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>

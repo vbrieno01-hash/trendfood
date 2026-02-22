@@ -147,6 +147,33 @@ export type Database = {
           },
         ]
       }
+      courier_shifts: {
+        Row: {
+          courier_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          organization_id: string
+          started_at: string
+        }
+        Insert: {
+          courier_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          organization_id: string
+          started_at?: string
+        }
+        Update: {
+          courier_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          organization_id?: string
+          started_at?: string
+        }
+        Relationships: []
+      }
       couriers: {
         Row: {
           active: boolean
