@@ -1,85 +1,61 @@
 
 
-# Evolucao do Modulo de Motoboys e Entregas
+# Corrigir Duplicatas e Melhorar Autenticacao
 
-## 1. Banco de Dados
+## Problema Encontrado
 
-### 1.1 Novo campo `whatsapp` na tabela `couriers`
-- Adicionar coluna `whatsapp text` (nullable) na tabela `couriers`
+- **Auth (usuarios)**: Sem duplicatas no momento. O Supabase ja impede emails duplicados nativamente, mas o codigo nao trata o erro de forma amigavel.
+- **Motoboys (couriers)**: 3 registros duplicados para o mesmo telefone `(83) 99824-4382`. O formulario de cadastro nao verifica se o telefone/placa ja existe antes de inserir.
 
-### 1.2 Novo status `cancelada` nas entregas
-- Nenhuma alteracao de schema necessaria -- o campo `status` ja e `text` livre. Basta usar o valor `"cancelada"` no codigo.
+## Alteracoes Planejadas
 
-## 2. Dashboard do Lojista (`CourierDashboardTab.tsx`)
+### 1. Banco de Dados
 
-### 2.1 Filtro por data
-- Adicionar um seletor de data (DatePicker usando Popover + Calendar) no topo
-- Por padrao, filtrar entregas do dia atual (comparando `created_at` com a data selecionada)
-- Adicionar botoes rapidos: "Hoje", "Ontem", "Semana", "Mes"
-- Atualizar o hook `useOrgDeliveries` para aceitar um parametro de intervalo de datas e filtrar com `.gte()` / `.lt()` no Supabase
+**1.1 Constraint de unicidade na tabela `couriers`**
+- Adicionar constraint UNIQUE em `(organization_id, phone)` para impedir duplicatas a nivel de banco
+- Isso garante que um mesmo telefone nao pode ser cadastrado duas vezes na mesma organizacao
 
-### 2.2 Excluir entrega e Limpar Historico
-- Botao de lixeira em cada card de entrega (com confirmacao via AlertDialog)
-- Botao "Limpar Historico" que deleta entregas com status `entregue` ou `cancelada` anteriores a data selecionada
-- Criar hook `useDeleteDelivery` e `useClearDeliveryHistory` em `useCourier.ts`
+**1.2 Limpeza dos duplicados existentes**
+- Remover os 2 registros duplicados, mantendo apenas o mais recente (id `6d81ebe7`)
+- Atualizar entregas vinculadas aos IDs antigos para o ID correto
 
-### 2.3 Card "Resumo do Dia"
-- Card que agrupa entregas do dia filtrado por motoboy
-- Para cada motoboy: total de entregas, soma dos KM, soma das taxas (fee)
-- Linha de total geral no final
+### 2. Cadastro do Motoboy (`useCourier.ts` - `useRegisterCourier`)
 
-### 2.4 Status Concluida/Cancelada nos cards
-- Adicionar `cancelada` ao `statusMap` com cor vermelha
-- Botoes de acao no card de entrega ativa: "Concluir" (muda para `entregue`) e "Cancelar" (muda para `cancelada`)
-- Cards com fundo colorido sutil conforme status
+- Antes de inserir, consultar se ja existe um courier com o mesmo `phone` na `organization_id`
+- Se existir: salvar o ID no localStorage e retornar o courier existente (comportamento de "login")
+- Se nao existir: criar normalmente
+- Exibir mensagem diferente: "Bem-vindo de volta!" vs "Cadastro realizado!"
 
-### 2.5 WhatsApp no cadastro de motoboys
-- Exibir campo WhatsApp na lista de motoboys cadastrados
+### 3. Pagina do Motoboy (`CourierPage.tsx`)
 
-### 2.6 Lucro liquido
-- Buscar o valor total do pedido (soma de `order_items.price * quantity`) e exibir ao lado do fee do motoboy
-- Mostrar: "Pedido: R$ X | Motoboy: R$ Y | Lucro: R$ Z"
+- Ajustar o `handleRegister` para tratar o retorno do upsert
+- Mostrar toast adequado conforme o courier seja novo ou existente
 
-## 3. Painel do Motoboy (`CourierPage.tsx`)
+### 4. Tela de Auth do Lojista (`AuthPage.tsx`)
 
-### 3.1 Botao "Abrir no Google Maps"
-- Em cada card de entrega (disponivel e em rota), adicionar botao que abre `https://www.google.com/maps/search/?api=1&query=ENDERECO`
+- No `handleSignup`, tratar o erro `User already registered` de forma mais clara
+- Sugerir ao usuario que use a aba "Entrar" caso o email ja esteja cadastrado
+- O Supabase Auth ja impede duplicatas nativamente (retorna erro 422), entao o foco e na mensagem
 
-### 3.2 PWA para o motoboy
-- O PWA ja esta configurado globalmente no `vite.config.ts`. A rota `/motoboy` ja e coberta pelo service worker
-- Adicionar um botao "Instalar App" no header do painel do motoboy que usa o evento `beforeinstallprompt` (mesmo padrao ja usado no dashboard)
-- Para iOS, mostrar instrucoes via toast
+### 5. Redirecionamento pos-login
 
-### 3.3 WhatsApp no cadastro
-- Adicionar campo "WhatsApp" no formulario de registro do motoboy
+- O redirecionamento ja funciona corretamente:
+  - Admin vai para `/admin`
+  - Lojista vai para `/dashboard`
+  - Motoboy usa o painel publico `/motoboy` (sem auth, baseado em localStorage)
+- Nenhuma alteracao necessaria aqui
 
-## 4. Hook `useCourier.ts`
+## Resumo dos arquivos
 
-### 4.1 `useOrgDeliveries` com filtro de data
-- Receber parametro `dateRange: { from: string; to: string }` opcional
-- Aplicar `.gte("created_at", from).lt("created_at", to)` quando fornecido
-- Query key incluira o range para cache correto
-
-### 4.2 Novos hooks
-- `useDeleteDelivery(orgId)`: deleta uma entrega por ID
-- `useClearDeliveryHistory(orgId)`: deleta entregas com status `entregue`/`cancelada` antes de uma data
-- `useCancelDelivery()`: atualiza status para `cancelada`
-- Atualizar interface `Courier` para incluir `whatsapp?: string`
-
-## 5. Resumo dos arquivos alterados
-
-| Arquivo | Tipo de alteracao |
-|---------|-------------------|
-| `src/hooks/useCourier.ts` | Adicionar filtro de data, novos hooks, campo whatsapp no tipo |
-| `src/components/dashboard/CourierDashboardTab.tsx` | Filtro de data, resumo do dia, excluir, limpar, status, lucro |
-| `src/pages/CourierPage.tsx` | Google Maps, PWA install, campo WhatsApp no cadastro |
-| Migracao SQL | Adicionar coluna `whatsapp` em `couriers` |
+| Arquivo | Alteracao |
+|---------|-----------|
+| Migracao SQL | Limpar duplicados + adicionar UNIQUE constraint |
+| `src/hooks/useCourier.ts` | Logica de upsert no `useRegisterCourier` |
+| `src/pages/CourierPage.tsx` | Toast diferenciado para login vs cadastro |
+| `src/pages/AuthPage.tsx` | Melhorar mensagem de erro para email ja existente |
 
 ## Detalhes tecnicos
 
-- O DatePicker usara os componentes Shadcn existentes (Popover + Calendar) com `pointer-events-auto`
-- O filtro padrao sera "hoje" usando `startOfDay` / `endOfDay` do `date-fns`
-- O botao de instalar PWA reutilizara o padrao de `beforeinstallprompt` ja presente no projeto
-- A exclusao de entregas respeita a RLS existente (apenas o owner da org pode deletar)
-- O lucro sera calculado no frontend fazendo uma query adicional aos `order_items` do pedido vinculado
-
+- A constraint UNIQUE sera `UNIQUE(organization_id, phone)` para permitir que o mesmo motoboy atue em organizacoes diferentes
+- A limpeza sera feita via INSERT tool (operacao de dados, nao schema)
+- O upsert no frontend fara um SELECT antes do INSERT para decidir o fluxo
