@@ -1,51 +1,50 @@
 
+# Criar páginas de Termos de Uso e Política de Privacidade
 
-# Melhorar o Footer da Landing Page
+## O que será feito
 
-## O que adicionar
+Criar duas páginas completas com conteúdo jurídico genérico adaptado para um SaaS de alimentação (TrendFood), e atualizar os links no footer.
 
-### 1. Layout em colunas
-Organizar o footer em 3-4 colunas com informacoes uteis:
+## Páginas
 
-- **Coluna 1 - Marca**: Logo, descricao curta da TrendFood ("Sistema completo para seu negocio de alimentacao") e redes sociais (icones do Instagram, WhatsApp)
-- **Coluna 2 - Produto**: Links para Funcionalidades, Planos, Como Funciona (ancoras para secoes da propria landing)
-- **Coluna 3 - Suporte**: Links para Termos de Uso, Politica de Privacidade, Contato/WhatsApp
-- **Coluna 4 - Contato**: Email de contato, link do WhatsApp com icone
+### 1. Termos de Uso (`/termos`)
+Conteúdo cobrindo:
+- Aceitação dos termos
+- Descrição do serviço (plataforma de gestão para food service)
+- Cadastro e responsabilidades do usuário
+- Planos e pagamentos
+- Propriedade intelectual
+- Limitação de responsabilidade
+- Rescisão e cancelamento
+- Alterações nos termos
+- Foro e legislação aplicável (Brasil)
 
-### 2. Linha de redes sociais
-Icones clicaveis para Instagram e WhatsApp (os mais relevantes para comercio de alimentacao no Brasil)
+### 2. Política de Privacidade (`/privacidade`)
+Conteúdo cobrindo:
+- Dados coletados (cadastro, uso da plataforma, cookies)
+- Finalidade do tratamento (LGPD)
+- Compartilhamento com terceiros
+- Armazenamento e segurança
+- Direitos do titular (acesso, correção, exclusão)
+- Cookies e tecnologias similares
+- Contato do encarregado (DPO)
+- Alterações na política
 
-### 3. Linha de copyright
-Manter o copyright atual na parte de baixo, separado por uma borda sutil
+## Arquivos
 
-### 4. Visual
-- Fundo escuro (`bg-muted/50` ou similar) para dar contraste com o restante
-- Tipografia menor e cores suaves (`text-muted-foreground`)
-- Responsivo: colunas em grid no desktop, empilhado no mobile
+### Novos arquivos
+- `src/pages/TermsPage.tsx` - Página de Termos de Uso
+- `src/pages/PrivacyPage.tsx` - Página de Política de Privacidade
 
-## Detalhes Tecnicos
+Ambas com layout limpo: header com logo + botão voltar, conteúdo em prosa com títulos e parágrafos, e footer simples. Estilo consistente com o resto do site.
 
-### Arquivo modificado
-- `src/pages/Index.tsx` - substituir o bloco `<footer>` atual (ultimas ~7 linhas antes do fechamento do componente)
+### Arquivos modificados
+- `src/App.tsx` - Adicionar rotas `/termos` e `/privacidade`
+- `src/pages/Index.tsx` - Trocar os `href="#"` do footer por `Link to="/termos"` e `Link to="/privacidade"`
 
-### Estrutura do novo footer
-```text
-+--------------------------------------------------+
-|  Logo + Descricao   |  Produto    |  Suporte      |
-|  TrendFood           |  Funcional. |  Termos       |
-|  "Sistema completo   |  Planos     |  Privacidade  |
-|   para alimentacao"  |  Como Func. |  WhatsApp     |
-|  [Insta] [WhatsApp]  |             |               |
-+--------------------------------------------------+
-|     (c) 2025 TrendFood. Feito com amor...         |
-+--------------------------------------------------+
-```
-
-### Links internos (ancoras)
-- Os links de "Funcionalidades", "Como Funciona" podem ser ancoras scroll-to-section ou links para `/planos`
-- WhatsApp abre link externo `https://wa.me/NUMERO`
-- Termos e Privacidade podem ser placeholders por enquanto (`#`)
-
-### Componentes usados
-- Icones do `lucide-react` (Instagram, MessageCircle para WhatsApp)
-- Grid responsivo com Tailwind (`grid grid-cols-1 md:grid-cols-3`)
+## Detalhes técnicos
+- Páginas puramente estáticas (sem banco de dados)
+- Usar `Link` do react-router-dom para navegação
+- Importar logo da TrendFood no header de cada página
+- Conteúdo em português brasileiro, tom profissional
+- Data de vigência: fevereiro de 2025
