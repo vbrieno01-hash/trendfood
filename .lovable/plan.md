@@ -1,74 +1,43 @@
 
 
-# Corrigir impressao automatica Bluetooth - reconexao sob demanda
+# Corrigir fallback da impressao Bluetooth automatica
 
-## Problema
+## Problema raiz
 
-Quando chega um pedido via Realtime, o auto-print verifica `btDeviceRef.current`. Se o auto-reconnect falhou (comum com Bluetooth), o ref e `null` e o sistema cai no modo `'browser'`, que e bloqueado pelo navegador.
+A reconexao sob demanda (`reconnectStoredPrinter`) frequentemente falha porque depende de `watchAdvertisements` (nem todos os navegadores suportam) e da impressora estar visivel no momento exato. Quando falha, `btDeviceRef.current` continua null e o sistema cai no modo `'browser'`, que tenta abrir um popup -- bloqueado pelo navegador em callbacks de fundo.
 
-O auto-reconnect pode falhar por varias razoes: impressora desligada no momento do reload, `watchAdvertisements` nao suportado, timeout. Quando isso acontece, a impressao automatica fica travada ate o usuario parear manualmente de novo.
+O modo `'bluetooth'` em `printOrderByMode` ja tem um fallback inteligente: se o device e null ou a impressao falha, ele salva o pedido na fila de impressao (`fila_impressao`). Mas esse fallback so e usado quando o `effectiveMode` e `'bluetooth'`.
 
 ## Solucao
 
-Adicionar reconexao sob demanda no bloco de auto-print: se `btDeviceRef.current` e null mas existe um device salvo no localStorage, tentar reconectar antes de imprimir.
+Mudar a logica do `effectiveMode`: se existe um device ID salvo no localStorage (usuario ja pareou antes), usar `'bluetooth'` como modo -- mesmo que a reconexao tenha falhado. Isso garante que o pedido vai para a fila de impressao em vez de tentar um popup bloqueado.
 
 ## Alteracao
 
-### `src/pages/DashboardPage.tsx` (bloco auto-print, linhas 189-213)
+### `src/pages/DashboardPage.tsx` (linhas 214-216)
 
-No callback de auto-print, antes de calcular `effectiveMode`:
+Trocar a logica do effectiveMode:
 
+**Antes:**
 ```typescript
-// Auto-print: enqueue job so no order is ever dropped
-if (autoPrintRef.current) {
-  printQueue.current.push(async () => {
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("id, name, quantity, price, customer_name")
-      .eq("order_id", order.id);
-    const fullOrder = { ...order, order_items: items ?? [] };
-
-    // Se nao tem device mas tem ID salvo, tentar reconectar sob demanda
-    if (!btDeviceRef.current && getStoredDeviceId()) {
-      try {
-        const reconnected = await reconnectStoredPrinter();
-        if (reconnected) {
-          setBtDevice(reconnected);
-          setBtConnected(true);
-          btDeviceRef.current = reconnected; // Atualiza ref imediatamente
-          attachDisconnectHandler(reconnected);
-          console.log("[AutoPrint] Bluetooth reconnected on-demand");
-        }
-      } catch {
-        console.warn("[AutoPrint] On-demand BT reconnect failed");
-      }
-    }
-
-    const effectiveMode = btDeviceRef.current
-      ? 'bluetooth' as const
-      : printModeRef.current;
-
-    await printOrderByMode(
-      fullOrder,
-      orgNameRef.current,
-      effectiveMode,
-      orgId!,
-      btDeviceRef.current,
-      getPixPayload(fullOrder),
-      printerWidthRef.current
-    );
-  });
-  processQueue();
-}
+const effectiveMode = btDeviceRef.current
+  ? 'bluetooth' as const
+  : printModeRef.current;
 ```
 
-Isso garante que:
-- Se o auto-reconnect do mount funcionou: imprime direto via Bluetooth (ja funciona)
-- Se o auto-reconnect do mount falhou mas a impressora agora esta ligada: tenta reconectar no momento do pedido
-- Se a reconexao sob demanda tambem falha: cai no modo do banco (browser/desktop) como fallback
-- A reconexao so e tentada uma vez por job (nao trava a fila)
+**Depois:**
+```typescript
+const effectiveMode = (btDeviceRef.current || getStoredDeviceId())
+  ? 'bluetooth' as const
+  : printModeRef.current;
+```
+
+Isso cobre tres cenarios:
+- Bluetooth conectado: imprime direto via BT
+- Bluetooth pareado mas desconectado: `printOrderByMode` tenta imprimir, falha, e salva na fila
+- Sem Bluetooth: usa o modo do banco (browser/desktop)
 
 ## Arquivo alterado
 
-- `src/pages/DashboardPage.tsx` -- reconexao Bluetooth sob demanda no auto-print
+- `src/pages/DashboardPage.tsx` -- effectiveMode usa bluetooth quando tem device salvo
 
