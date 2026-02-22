@@ -73,6 +73,7 @@ const CourierPage = () => {
   const [whatsapp, setWhatsapp] = useState("");
   const [isLogin, setIsLogin] = useState(false);
   const [loginPhone, setLoginPhone] = useState("");
+  const [manualSlug, setManualSlug] = useState("");
 
   const courierId = getSavedCourierId();
   const { data: courier, isLoading: courierLoading } = useMyCourier();
@@ -85,20 +86,39 @@ const CourierPage = () => {
   const { data: stats } = useCourierStats(courierId);
   const { canInstall, install } = usePwaInstall();
 
-  // Swap PWA manifest for courier-specific one
+  // Swap PWA manifest for courier-specific one (dynamic start_url with slug)
   useEffect(() => {
     const originalTitle = document.title;
     document.title = "Motoboy TrendFood";
 
     let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
     const originalHref = manifestLink?.getAttribute("href") || "";
+    let blobUrl: string | null = null;
+
+    const manifestData = {
+      name: "Motoboy TrendFood",
+      short_name: "Motoboy",
+      description: "Painel de entregas para motoboys",
+      theme_color: "#f97316",
+      background_color: "#ffffff",
+      display: "standalone",
+      start_url: orgSlug ? `/motoboy?org=${orgSlug}` : "/motoboy",
+      scope: "/motoboy",
+      icons: [
+        { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
+        { src: "/pwa-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+      ],
+    };
+
+    const blob = new Blob([JSON.stringify(manifestData)], { type: "application/json" });
+    blobUrl = URL.createObjectURL(blob);
 
     if (manifestLink) {
-      manifestLink.setAttribute("href", "/manifest-courier.json");
+      manifestLink.setAttribute("href", blobUrl);
     } else {
       manifestLink = document.createElement("link");
       manifestLink.rel = "manifest";
-      manifestLink.href = "/manifest-courier.json";
+      manifestLink.href = blobUrl;
       document.head.appendChild(manifestLink);
     }
 
@@ -110,8 +130,9 @@ const CourierPage = () => {
       document.title = originalTitle;
       if (manifestLink) manifestLink.setAttribute("href", originalHref);
       if (themeMeta) themeMeta.setAttribute("content", originalTheme);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, []);
+  }, [orgSlug]);
 
   // Fetch org by slug and persist it
   useEffect(() => {
@@ -132,16 +153,39 @@ const CourierPage = () => {
       });
   }, [orgSlug]);
 
+
   if (!orgSlug) {
+    const handleManualAccess = (e: React.FormEvent) => {
+      e.preventDefault();
+      let value = manualSlug.trim();
+      // Extract slug from full URL if pasted
+      const match = value.match(/[?&]org=([^&]+)/);
+      if (match) value = match[1];
+      // Remove leading slashes or paths
+      value = value.replace(/^.*\//, "");
+      if (!value) return;
+      window.location.href = `/motoboy?org=${encodeURIComponent(value)}`;
+    };
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-sm w-full text-center">
           <CardContent className="pt-8 pb-6">
             <Bike className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h1 className="text-lg font-bold mb-2">Painel do Motoboy</h1>
-            <p className="text-sm text-muted-foreground">
-              Acesse com o link fornecido pela loja: <code>/motoboy?org=SLUG</code>
+            <p className="text-sm text-muted-foreground mb-4">
+              Digite o identificador da loja ou cole o link completo
             </p>
+            <form onSubmit={handleManualAccess} className="space-y-3">
+              <Input
+                value={manualSlug}
+                onChange={(e) => setManualSlug(e.target.value)}
+                placeholder="Ex: minha-loja"
+              />
+              <Button type="submit" className="w-full" disabled={!manualSlug.trim()}>
+                Acessar
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
