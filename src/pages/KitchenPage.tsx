@@ -112,7 +112,7 @@ export default function KitchenPage() {
   useEffect(() => {
     if (effectPrintMode !== "bluetooth" || btDevice) return;
     let cancelled = false;
-    reconnectStoredPrinter().then((device) => {
+    reconnectStoredPrinter().catch(() => null).then((device) => {
       if (cancelled || !device) return;
       setBtDevice(device);
       toast.success("Impressora reconectada automaticamente");

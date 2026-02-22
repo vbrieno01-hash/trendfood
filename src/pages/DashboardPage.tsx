@@ -273,7 +273,7 @@ const DashboardPage = () => {
     if (btDevice) return; // already connected
     if (!isBluetoothSupported()) return;
     let cancelled = false;
-    reconnectStoredPrinter().then((device) => {
+    reconnectStoredPrinter().catch(() => null).then((device) => {
       if (cancelled || !device) return;
       setBtDevice(device);
       setBtConnected(true);
