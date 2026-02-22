@@ -1,64 +1,70 @@
 
 
-# Diagnostico e Correcao: Insert falhando para lojas novas
+## Criar Edge Function para o Robo de Impressao
 
-## Analise das politicas RLS
+### Problema
+O robo Python (`trendfood.py`) precisa da `service_role` key para acessar a tabela `fila_impressao`, o que causa problemas de configuracao e seguranca. Vamos criar uma funcao backend que o robo chama por HTTP simples, usando um token secreto proprio.
 
-Verifiquei as politicas da tabela `fila_impressao` diretamente no banco. Todas sao **PERMISSIVE** e a politica de INSERT usa:
+### Arquitetura
 
-```sql
-WITH CHECK (auth.uid() = (
-  SELECT organizations.user_id FROM organizations
-  WHERE organizations.id = fila_impressao.organization_id
-))
+O robo deixa de acessar o banco diretamente e passa a chamar duas rotas HTTP:
+
+1. **GET** `/printer-queue?org_id=UUID` - Busca pedidos pendentes
+2. **POST** `/printer-queue` com body `{ "id": "UUID" }` - Marca como impresso
+
+A autenticacao sera feita por um token secreto (`PRINTER_ROBOT_TOKEN`) enviado no header `Authorization: Bearer <token>`. Esse token sera gerado e armazenado como secret no backend.
+
+### Implementacao
+
+#### 1. Criar secret `PRINTER_ROBOT_TOKEN`
+- Gerar um token aleatorio seguro
+- Armazena-lo como secret do projeto
+- O robo Python usara esse mesmo token no header
+
+#### 2. Criar Edge Function `printer-queue`
+- Arquivo: `supabase/functions/printer-queue/index.ts`
+- Config: `verify_jwt = false` (usa token proprio)
+- **GET**: Usa `SUPABASE_SERVICE_ROLE_KEY` internamente para buscar registros com `status = 'pendente'` filtrados por `organization_id`
+- **POST**: Marca o registro como `impresso` com `printed_at`
+- Valida o `PRINTER_ROBOT_TOKEN` no header antes de processar
+
+#### 3. Novo `trendfood.py`
+- Remove `supabase-py` e `CHAVE_MESTRA`
+- Usa apenas `requests` (HTTP puro)
+- Chama a Edge Function com o token no header
+- Mesmo loop de polling a cada 5 segundos
+- Configuracao simplificada: apenas URL da funcao + token
+
+### Detalhes Tecnicos
+
+**Edge Function (pseudo-codigo):**
+```text
+GET /printer-queue?org_id=XXX
+  -> Valida Bearer token
+  -> SELECT * FROM fila_impressao WHERE organization_id = org_id AND status = 'pendente'
+  -> Retorna JSON
+
+POST /printer-queue  { id: "XXX" }
+  -> Valida Bearer token
+  -> UPDATE fila_impressao SET status = 'impresso', printed_at = now() WHERE id = XXX
+  -> Retorna OK
 ```
 
-Isso esta correto -- se o usuario esta logado e e dono da organizacao, o INSERT deve funcionar. **A RLS nao precisa ser desabilitada.**
+**Python (pseudo-codigo):**
+```text
+URL = "https://<project>.supabase.co/functions/v1/printer-queue"
+TOKEN = "<token configurado>"
+headers = { "Authorization": f"Bearer {TOKEN}" }
 
-## Causa provavel
-
-O problema mais provavel e que o objeto `organization` esta `null` no momento do clique (por exemplo, se a organizacao ainda nao foi carregada ou se houve erro na consulta inicial). O codigo atual faz `if (!organization?.id) return;` -- ou seja, **falha silenciosamente** sem nenhum feedback.
-
-## O que sera feito
-
-### 1. Feedback visual direto no botao/toast (SettingsTab.tsx)
-
-- Quando `organization` for `null`, mostrar um toast de erro explicito em vez de retornar silenciosamente
-- Exibir a mensagem de erro do banco diretamente no toast (nao apenas no console)
-- Manter os `console.error` ja adicionados para debug avancado
-
-### 2. Validacao preventiva
-
-- Adicionar verificacao se `organization?.id` existe antes do INSERT, com mensagem clara: "Organizacao nao encontrada. Tente recarregar a pagina."
-
-### Secao tecnica
-
-**Arquivo: `src/components/dashboard/SettingsTab.tsx`** -- funcao `handleTestPrint`:
-
-```typescript
-const handleTestPrint = async () => {
-  if (!organization?.id) {
-    toast.error("Organização não encontrada. Recarregue a página e tente novamente.");
-    return;
-  }
-  setTestPrintLoading(true);
-  try {
-    // ... conteudo existente ...
-    await enqueuePrint(organization.id, null, content);
-    toast.success("Teste enviado para a fila de impressão!");
-  } catch (err: any) {
-    console.error("Erro ao testar impressora:", err);
-    console.error("organization.id usado:", organization?.id);
-    const msg = err?.message || "Erro desconhecido";
-    toast.error(`Falha ao enviar teste: ${msg}`);
-  } finally {
-    setTestPrintLoading(false);
-  }
-};
+loop:
+  GET URL?org_id=ID_LOJA -> lista pedidos
+  para cada pedido: imprimir + POST URL { id: pedido.id }
+  sleep 5
 ```
 
-Isso vai permitir identificar exatamente o que esta falhando:
-- Se o toast diz "Organizacao nao encontrada" --> problema no carregamento da sessao/org
-- Se o toast diz "new row violates row-level security" --> problema de RLS (improvavel pela analise acima)
-- Se o toast diz outro erro --> problema de conexao ou schema
+### Vantagens
+- O robo nao precisa mais da `service_role` key
+- Token dedicado, facil de revogar/trocar
+- Menos dependencias no Python (sem `supabase-py`)
+- Seguro: a funcao backend acessa o banco internamente com permissoes controladas
 
