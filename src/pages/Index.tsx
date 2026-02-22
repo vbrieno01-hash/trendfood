@@ -20,6 +20,8 @@ import {
   Printer,
   BarChart2,
   Bike,
+  Instagram,
+  MessageCircle,
 } from "lucide-react";
 
 const problems = [
@@ -368,12 +370,65 @@ const Index = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/60 py-8 px-4 text-center text-muted-foreground text-sm bg-background">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <img src={logoIcon} alt="TrendFood" className="w-6 h-6 rounded-md object-contain" />
-          <span className="font-semibold text-foreground">TrendFood</span>
+      <footer className="border-t border-border/60 bg-muted/50 pt-14 pb-8 px-4">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
+          {/* Brand */}
+          <div className="md:col-span-1">
+            <div className="flex items-center gap-2.5 mb-3">
+              <img src={logoIcon} alt="TrendFood" className="w-7 h-7 rounded-md object-contain" />
+              <span className="font-bold text-foreground text-lg tracking-tight">TrendFood</span>
+            </div>
+            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+              Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão.
+            </p>
+            <div className="flex items-center gap-3">
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                <Instagram className="w-5 h-5" />
+              </a>
+              <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                <MessageCircle className="w-5 h-5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Produto */}
+          <div>
+            <h4 className="font-semibold text-foreground text-sm mb-3">Produto</h4>
+            <ul className="space-y-2 text-sm">
+              <li><a href="#funcionalidades" className="text-muted-foreground hover:text-foreground transition-colors">Funcionalidades</a></li>
+              <li><Link to="/planos" className="text-muted-foreground hover:text-foreground transition-colors">Planos</Link></li>
+              <li><a href="#como-funciona" className="text-muted-foreground hover:text-foreground transition-colors">Como Funciona</a></li>
+            </ul>
+          </div>
+
+          {/* Suporte */}
+          <div>
+            <h4 className="font-semibold text-foreground text-sm mb-3">Suporte</h4>
+            <ul className="space-y-2 text-sm">
+              <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Termos de Uso</a></li>
+              <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Política de Privacidade</a></li>
+              <li><a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
+            </ul>
+          </div>
+
+          {/* Contato */}
+          <div>
+            <h4 className="font-semibold text-foreground text-sm mb-3">Contato</h4>
+            <ul className="space-y-2 text-sm">
+              <li><a href="mailto:contato@trendfood.com.br" className="text-muted-foreground hover:text-foreground transition-colors">contato@trendfood.com.br</a></li>
+              <li>
+                <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <MessageCircle className="w-4 h-4" />
+                  Fale conosco
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
-        <p>© 2025 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
+
+        <div className="max-w-5xl mx-auto border-t border-border/60 pt-6 text-center text-muted-foreground text-sm">
+          <p>© 2025 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
+        </div>
       </footer>
     </div>
   );
