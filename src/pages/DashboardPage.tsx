@@ -69,14 +69,27 @@ const DashboardPage = () => {
   const btSupported = isBluetoothSupported();
 
   const handlePairBluetooth = async () => {
-    const device = await requestBluetoothPrinter();
-    if (device) {
-      setBtDevice(device);
-      setBtConnected(true);
-      toast.success(`Impressora "${device.name || "Bluetooth"}" pareada!`);
-      device.addEventListener("gattserverdisconnected", () => {
-        setBtConnected(false);
-      });
+    if (!isBluetoothSupported()) {
+      toast.error("Bluetooth não disponível neste navegador. Abra trendfood.lovable.app diretamente no Google Chrome.");
+      return;
+    }
+    try {
+      const device = await requestBluetoothPrinter();
+      if (device) {
+        setBtDevice(device);
+        setBtConnected(true);
+        toast.success(`Impressora "${device.name || "Bluetooth"}" pareada!`);
+        device.addEventListener("gattserverdisconnected", () => {
+          setBtConnected(false);
+        });
+      }
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("globally disabled") || msg.includes("Web Bluetooth")) {
+        toast.error("Web Bluetooth está bloqueado neste contexto. Abra trendfood.lovable.app diretamente no Google Chrome.");
+      } else {
+        toast.error("Falha ao parear impressora. Verifique se o Bluetooth está ativado.");
+      }
     }
   };
 
