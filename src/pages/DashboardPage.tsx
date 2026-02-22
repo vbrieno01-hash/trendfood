@@ -188,29 +188,23 @@ const DashboardPage = () => {
 
           // Auto-print: enqueue job so no order is ever dropped
           if (autoPrintRef.current) {
-            const mode = printModeRef.current;
-            // Modo browser usa popup que é bloqueado em callbacks automáticos.
-            // A fila desktop (fila_impressao) já foi preenchida pelo hook de criação do pedido,
-            // então o robô de impressão consome e imprime. Não precisamos fazer nada aqui.
-            if (mode !== 'browser') {
-              printQueue.current.push(async () => {
-                const { data: items } = await supabase
-                  .from("order_items")
-                  .select("id, name, quantity, price, customer_name")
-                  .eq("order_id", order.id);
-                const fullOrder = { ...order, order_items: items ?? [] };
-                await printOrderByMode(
-                  fullOrder,
-                  orgNameRef.current,
-                  mode,
-                  orgId!,
-                  btDeviceRef.current,
-                  getPixPayload(fullOrder),
-                  printerWidthRef.current
-                );
-              });
-              processQueue();
-            }
+            printQueue.current.push(async () => {
+              const { data: items } = await supabase
+                .from("order_items")
+                .select("id, name, quantity, price, customer_name")
+                .eq("order_id", order.id);
+              const fullOrder = { ...order, order_items: items ?? [] };
+              await printOrderByMode(
+                fullOrder,
+                orgNameRef.current,
+                printModeRef.current,
+                orgId!,
+                btDeviceRef.current,
+                getPixPayload(fullOrder),
+                printerWidthRef.current
+              );
+            });
+            processQueue();
           }
         }
       )
