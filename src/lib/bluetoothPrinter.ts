@@ -57,7 +57,7 @@ async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemote
 
   isConnecting = true;
   try {
-    const server = await withTimeout(device.gatt.connect(), 5000, "GATT connect");
+    const server = await withTimeout(device.gatt.connect(), 8000, "GATT connect");
     cachedServer = server;
 
     for (const serviceUuid of ALT_SERVICE_UUIDS) {
@@ -91,77 +91,84 @@ export async function sendToBluetoothPrinter(
   device: BluetoothDevice,
   text: string
 ): Promise<boolean> {
-  try {
-    let characteristic = cachedCharacteristic;
+  const encoder = new TextEncoder();
 
-    if (!characteristic || !cachedServer?.connected) {
-      characteristic = await connectToDevice(device);
+  const ESC_INIT = new Uint8Array([0x1b, 0x40]);
+  const ESC_CENTER = new Uint8Array([0x1b, 0x61, 0x01]);
+  const ESC_LEFT = new Uint8Array([0x1b, 0x61, 0x00]);
+  const ESC_BOLD_ON = new Uint8Array([0x1b, 0x45, 0x01]);
+  const ESC_BOLD_OFF = new Uint8Array([0x1b, 0x45, 0x00]);
+  const ESC_CUT = new Uint8Array([0x1d, 0x56, 0x01]);
+  const NEWLINE = encoder.encode("\n");
+
+  const chunks: Uint8Array[] = [];
+  chunks.push(ESC_INIT);
+
+  const lines = text.split("\n");
+  for (const line of lines) {
+    if (line.startsWith("##CENTER##")) {
+      chunks.push(ESC_CENTER);
+      chunks.push(encoder.encode(line.replace("##CENTER##", "")));
+      chunks.push(NEWLINE);
+      chunks.push(ESC_LEFT);
+    } else if (line.startsWith("##BOLD##")) {
+      chunks.push(ESC_BOLD_ON);
+      chunks.push(encoder.encode(line.replace("##BOLD##", "")));
+      chunks.push(NEWLINE);
+      chunks.push(ESC_BOLD_OFF);
+    } else {
+      chunks.push(encoder.encode(line));
+      chunks.push(NEWLINE);
     }
-
-    if (!characteristic) {
-      throw new Error("No writable characteristic found");
-    }
-
-    const encoder = new TextEncoder();
-
-    const ESC_INIT = new Uint8Array([0x1b, 0x40]);
-    const ESC_CENTER = new Uint8Array([0x1b, 0x61, 0x01]);
-    const ESC_LEFT = new Uint8Array([0x1b, 0x61, 0x00]);
-    const ESC_BOLD_ON = new Uint8Array([0x1b, 0x45, 0x01]);
-    const ESC_BOLD_OFF = new Uint8Array([0x1b, 0x45, 0x00]);
-    const ESC_CUT = new Uint8Array([0x1d, 0x56, 0x01]);
-    const NEWLINE = encoder.encode("\n");
-
-    const chunks: Uint8Array[] = [];
-    chunks.push(ESC_INIT);
-
-    const lines = text.split("\n");
-    for (const line of lines) {
-      if (line.startsWith("##CENTER##")) {
-        chunks.push(ESC_CENTER);
-        chunks.push(encoder.encode(line.replace("##CENTER##", "")));
-        chunks.push(NEWLINE);
-        chunks.push(ESC_LEFT);
-      } else if (line.startsWith("##BOLD##")) {
-        chunks.push(ESC_BOLD_ON);
-        chunks.push(encoder.encode(line.replace("##BOLD##", "")));
-        chunks.push(NEWLINE);
-        chunks.push(ESC_BOLD_OFF);
-      } else {
-        chunks.push(encoder.encode(line));
-        chunks.push(NEWLINE);
-      }
-    }
-
-    chunks.push(encoder.encode("\n\n\n"));
-    chunks.push(ESC_CUT);
-
-    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    const CHUNK_SIZE = 100;
-    for (let i = 0; i < combined.length; i += CHUNK_SIZE) {
-      const slice = combined.slice(i, i + CHUNK_SIZE);
-      if (characteristic.properties.writeWithoutResponse) {
-        await characteristic.writeValueWithoutResponse(slice);
-      } else {
-        await characteristic.writeValue(slice);
-      }
-      await new Promise((r) => setTimeout(r, 30));
-    }
-
-    return true;
-  } catch (err) {
-    console.error("Bluetooth print failed:", err);
-    cachedCharacteristic = null;
-    cachedServer = null;
-    return false;
   }
+
+  chunks.push(encoder.encode("\n\n\n"));
+  chunks.push(ESC_CUT);
+
+  const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      let characteristic = cachedCharacteristic;
+
+      if (!characteristic || !cachedServer?.connected) {
+        characteristic = await connectToDevice(device);
+      }
+
+      if (!characteristic) {
+        throw new Error("No writable characteristic found");
+      }
+
+      const CHUNK_SIZE = 100;
+      for (let i = 0; i < combined.length; i += CHUNK_SIZE) {
+        const slice = combined.slice(i, i + CHUNK_SIZE);
+        if (characteristic.properties.writeWithoutResponse) {
+          await characteristic.writeValueWithoutResponse(slice);
+        } else {
+          await characteristic.writeValue(slice);
+        }
+        await new Promise((r) => setTimeout(r, 30));
+      }
+
+      return true;
+    } catch (err) {
+      console.error(`[BT] Attempt ${attempt + 1} failed:`, err);
+      cachedCharacteristic = null;
+      cachedServer = null;
+      if (attempt === 0) {
+        console.log("[BT] Retry attempt...");
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+  }
+
+  return false;
 }
 
 export function disconnectPrinter(device: BluetoothDevice): void {
