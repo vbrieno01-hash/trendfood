@@ -339,7 +339,7 @@ export async function printOrderByMode(
     }
     // Fallback to queue
     try {
-      await enqueuePrint(orgId, order.id, text);
+      await enqueuePrint(orgId, order.id, stripFormatMarkers(text));
       toast.info("Pedido salvo na fila de impressão");
     } catch {
       toast.error("Erro ao salvar na fila de impressão");
