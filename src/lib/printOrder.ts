@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { formatReceiptText } from "./formatReceiptText";
+import { formatReceiptText, stripFormatMarkers } from "./formatReceiptText";
 import { enqueuePrint } from "./printQueue";
 import { sendToBluetoothPrinter } from "./bluetoothPrinter";
 import { toast } from "sonner";
@@ -318,7 +318,7 @@ export async function printOrderByMode(
 
   if (printMode === "desktop") {
     try {
-      await enqueuePrint(orgId, order.id, text);
+      await enqueuePrint(orgId, order.id, stripFormatMarkers(text));
       toast.success("Pedido enviado para impressão");
     } catch {
       toast.error("Erro ao enviar para fila de impressão");
