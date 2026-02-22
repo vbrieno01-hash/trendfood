@@ -136,14 +136,18 @@ const CourierPage = () => {
         return;
       }
       try {
-        await registerMutation.mutateAsync({
+        const result = await registerMutation.mutateAsync({
           organization_id: orgId,
           name: name.trim(),
           phone: phone.trim(),
           plate: upperPlate,
           whatsapp: whatsapp.trim() || undefined,
         });
-        toast.success("Cadastro realizado com sucesso!");
+        if (result.isExisting) {
+          toast.success("Bem-vindo de volta! 🏍️");
+        } else {
+          toast.success("Cadastro realizado com sucesso!");
+        }
       } catch {
         toast.error("Erro ao cadastrar. Tente novamente.");
       }
