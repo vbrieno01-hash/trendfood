@@ -87,6 +87,9 @@ function useOrderTotals(orderIds: string[]) {
 const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWhatsapp, orgAddress, courierConfig }: Props) => {
   const [expandedCourierId, setExpandedCourierId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showAllActive, setShowAllActive] = useState(false);
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [showAllCouriers, setShowAllCouriers] = useState(false);
   const dateRange = useDateRange(selectedDate);
 
   const { data: deliveries = [], isLoading } = useOrgDeliveries(orgId, dateRange);
@@ -348,7 +351,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
           <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma entrega ativa no momento.</p>
         ) : (
           <div className="space-y-2">
-            {activeDeliveries.map((d) => {
+            {activeDeliveries.slice(0, showAllActive ? undefined : 3).map((d) => {
               const s = statusMap[d.status] ?? statusMap.pendente;
               const courierName = d.courier_id ? courierMap.get(d.courier_id)?.name : null;
               const orderTotal = orderTotals[d.order_id];
@@ -413,6 +416,15 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
                 </Card>
               );
             })}
+            {activeDeliveries.length > 3 && (
+              <button
+                onClick={() => setShowAllActive(!showAllActive)}
+                className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground py-2 px-4 rounded-full border border-border hover:border-foreground/20 transition-colors mx-auto"
+              >
+                {showAllActive ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showAllActive ? "Ver menos" : `Ver mais ${activeDeliveries.length - 3} entregas`}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -422,7 +434,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
         <div>
           <h3 className="font-semibold text-sm mb-3">Concluídas / Canceladas</h3>
           <div className="space-y-2">
-            {completedDeliveries.map((d) => {
+            {completedDeliveries.slice(0, showAllCompleted ? undefined : 3).map((d) => {
               const s = statusMap[d.status] ?? statusMap.entregue;
               const courierName = d.courier_id ? courierMap.get(d.courier_id)?.name : null;
               const orderTotal = orderTotals[d.order_id];
@@ -470,6 +482,15 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
                 </Card>
               );
             })}
+            {completedDeliveries.length > 3 && (
+              <button
+                onClick={() => setShowAllCompleted(!showAllCompleted)}
+                className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground py-2 px-4 rounded-full border border-border hover:border-foreground/20 transition-colors mx-auto"
+              >
+                {showAllCompleted ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showAllCompleted ? "Ver menos" : `Ver mais ${completedDeliveries.length - 3} entregas`}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -479,7 +500,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
         <div>
           <h3 className="font-semibold text-sm mb-3">Motoboys cadastrados</h3>
           <div className="space-y-2">
-            {couriers.map((c) => {
+            {couriers.slice(0, showAllCouriers ? undefined : 5).map((c) => {
               const unpaid = unpaidDeliveries.filter((d) => d.courier_id === c.id);
               const unpaidTotal = unpaid.reduce((sum, d) => sum + (d.fee ?? 0), 0);
               const isExpanded = expandedCourierId === c.id;
@@ -606,6 +627,15 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
                 </Card>
               );
             })}
+            {couriers.length > 5 && (
+              <button
+                onClick={() => setShowAllCouriers(!showAllCouriers)}
+                className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground py-2 px-4 rounded-full border border-border hover:border-foreground/20 transition-colors mx-auto"
+              >
+                {showAllCouriers ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showAllCouriers ? "Ver menos" : `Ver mais ${couriers.length - 5} motoboys`}
+              </button>
+            )}
           </div>
         </div>
       )}
