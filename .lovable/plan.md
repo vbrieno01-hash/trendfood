@@ -1,42 +1,57 @@
 
-# Corrigir reconexão automática do Bluetooth
+# Corrigir impressao automatica via Bluetooth
 
 ## Problema
 
-Após recarregar a página, o Bluetooth não reconecta sozinho. A função `reconnectStoredPrinterInternal` tenta conectar direto ao GATT sem antes chamar `watchAdvertisements()`. O Chrome exige essa etapa para "redescobrir" dispositivos previamente pareados após um reload — sem ela, o `connectToDevice` falha silenciosamente porque o dispositivo não está visível para o browser.
+O `print_mode` no banco de dados esta como `'browser'`. Quando chega um pedido novo pelo Realtime, o auto-print chama `printOrderByMode` com modo `'browser'`, que tenta abrir um popup (`window.open`) -- e o navegador bloqueia porque nao veio de um clique do usuario.
 
-O código atual tem um comentário dizendo "NÃO usar watchAdvertisements — pode travar o Chrome", mas esse travamento só acontece se não houver timeout. Com um timeout curto (3-5 segundos), funciona perfeitamente.
+Mesmo tendo uma impressora Bluetooth pareada e conectada, o sistema ignora ela porque so olha o modo do banco.
 
-## Solução
+## Solucao
 
-### 1. `src/lib/bluetoothPrinter.ts` — Adicionar `watchAdvertisements` com timeout
+No callback de auto-print do `DashboardPage.tsx`, verificar se tem um dispositivo Bluetooth conectado (`btDeviceRef.current` nao e nulo). Se tiver, usar modo `'bluetooth'` independente do que esta no banco. Isso e logico porque o usuario pareou ativamente a impressora -- entao quer usar ela.
 
-Na função `reconnectStoredPrinterInternal`, antes de chamar `connectToDevice`, usar `watchAdvertisements()` com timeout de 4 segundos para tornar o dispositivo visível ao Chrome:
+## Alteracao
 
-```text
-Fluxo atual (falha):
-  getDevices() -> find device -> connectToDevice() -> FAIL (device not visible)
+### `src/pages/DashboardPage.tsx` (linhas 189-207)
 
-Fluxo corrigido:
-  getDevices() -> find device -> watchAdvertisements(timeout 4s) -> connectToDevice() -> OK
+No bloco de auto-print, antes de chamar `printOrderByMode`, calcular o modo efetivo:
+
+```typescript
+// Auto-print: enqueue job so no order is ever dropped
+if (autoPrintRef.current) {
+  printQueue.current.push(async () => {
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("id, name, quantity, price, customer_name")
+      .eq("order_id", order.id);
+    const fullOrder = { ...order, order_items: items ?? [] };
+
+    // Se tem impressora Bluetooth pareada, usar bluetooth
+    // independente do print_mode do banco (que pode ser 'browser')
+    const effectiveMode = btDeviceRef.current
+      ? 'bluetooth'
+      : printModeRef.current;
+
+    await printOrderByMode(
+      fullOrder,
+      orgNameRef.current,
+      effectiveMode,
+      orgId!,
+      btDeviceRef.current,
+      getPixPayload(fullOrder),
+      printerWidthRef.current
+    );
+  });
+  processQueue();
+}
 ```
 
-Detalhes:
-- Chamar `device.watchAdvertisements()` e aguardar o evento `advertisementreceived` (ou timeout de 4s)
-- Parar o watcher com `device.unwatchAdvertisements?.()` após sucesso ou timeout
-- Se o timeout estourar mas o dispositivo foi encontrado via `getDevices()`, tentar `connectToDevice` mesmo assim (funciona em alguns dispositivos)
-- Manter o timeout global de 12s em `reconnectStoredPrinter` como safety net
+Isso garante:
+- Se tem Bluetooth pareado: imprime via Bluetooth (sempre)
+- Se nao tem Bluetooth e modo e 'desktop': enfileira na fila (robo imprime)
+- Se nao tem Bluetooth e modo e 'browser': tenta popup (pode ser bloqueado, mas e o comportamento esperado para quem nao tem outra opcao)
 
-### 2. `src/pages/DashboardPage.tsx` — Adicionar retry com backoff
+## Arquivo alterado
 
-O `useEffect` de auto-reconnect (linha 297) atualmente tenta uma única vez. Se a impressora ainda está ligando quando o Dashboard carrega, a tentativa falha e não tenta mais.
-
-Alterar para usar a função `autoReconnect` existente (que já tem backoff exponencial de 1s, 2s, 4s) como fallback quando `reconnectStoredPrinter` falha:
-
-- Se `reconnectStoredPrinter()` retorna `null`, buscar o device via `getDevices()` e chamar `autoReconnect(device, onConnected, onFailed)`
-- Isso dá 3 tentativas extras com delays crescentes, cobrindo o cenário de impressora ligando devagar
-
-## Arquivos alterados
-
-- `src/lib/bluetoothPrinter.ts` — watchAdvertisements com timeout na reconexão
-- `src/pages/DashboardPage.tsx` — retry com backoff no useEffect de auto-reconnect
+- `src/pages/DashboardPage.tsx` -- calcular modo efetivo com prioridade para Bluetooth
