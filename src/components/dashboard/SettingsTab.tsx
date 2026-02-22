@@ -2,7 +2,6 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { isBluetoothSupported, requestBluetoothPrinter, disconnectPrinter } from "@/lib/bluetoothPrinter";
 import { enqueuePrint } from "@/lib/printQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,15 @@ import {
 import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle, Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 
-export default function SettingsTab() {
+interface SettingsTabProps {
+  btDevice: BluetoothDevice | null;
+  btConnected: boolean;
+  onPairBluetooth: () => void;
+  onDisconnectBluetooth: () => void;
+  btSupported: boolean;
+}
+
+export default function SettingsTab({ btDevice, btConnected, onPairBluetooth, onDisconnectBluetooth, btSupported }: SettingsTabProps) {
   const { user, organization, signOut } = useAuth();
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
@@ -33,10 +40,7 @@ export default function SettingsTab() {
     (organization as any)?.print_mode || "browser"
   );
   const [printModeLoading, setPrintModeLoading] = useState(false);
-  const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
-  const [btConnected, setBtConnected] = useState(false);
   const [testPrintLoading, setTestPrintLoading] = useState(false);
-  const btSupported = isBluetoothSupported();
 
   const currentPlan = organization?.subscription_plan || "free";
   const isFree = currentPlan === "free";
@@ -125,26 +129,7 @@ export default function SettingsTab() {
     }
   };
 
-  const handlePairBluetooth = async () => {
-    const device = await requestBluetoothPrinter();
-    if (device) {
-      setBtDevice(device);
-      setBtConnected(true);
-      toast.success(`Impressora "${device.name || "Bluetooth"}" pareada!`);
-      device.addEventListener("gattserverdisconnected", () => {
-        setBtConnected(false);
-      });
-    }
-  };
-
-  const handleDisconnectBluetooth = () => {
-    if (btDevice) {
-      disconnectPrinter(btDevice);
-      setBtDevice(null);
-      setBtConnected(false);
-      toast.info("Impressora desconectada.");
-    }
-  };
+  // Bluetooth handlers now come from props (onPairBluetooth, onDisconnectBluetooth)
 
   const handleTestPrint = async () => {
     if (!organization?.id) {
@@ -322,7 +307,7 @@ export default function SettingsTab() {
                   variant="outline"
                   size="sm"
                   className="gap-2"
-                  onClick={handlePairBluetooth}
+                  onClick={onPairBluetooth}
                 >
                   <Printer className="w-3.5 h-3.5" />
                   {btConnected ? "Trocar impressora" : "Parear impressora"}
@@ -331,7 +316,7 @@ export default function SettingsTab() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleDisconnectBluetooth}
+                    onClick={onDisconnectBluetooth}
                   >
                     Desconectar
                   </Button>
