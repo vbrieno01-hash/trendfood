@@ -268,10 +268,10 @@ const DashboardPage = () => {
     }
   };
 
-  // Auto-reconnect to previously paired Bluetooth printer on mount
+  // Auto-reconnect to previously paired Bluetooth printer on mount/reload
   useEffect(() => {
-    const printMode = (organization as any)?.print_mode ?? "browser";
-    if (printMode !== "bluetooth" || btDevice) return;
+    if (btDevice) return; // already connected
+    if (!isBluetoothSupported()) return;
     let cancelled = false;
     reconnectStoredPrinter().then((device) => {
       if (cancelled || !device) return;
