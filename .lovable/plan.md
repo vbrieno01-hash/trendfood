@@ -1,54 +1,50 @@
 
 
-# Redesign Premium da Hero Section
+# Hero Section - Tema Delivery de Lanches e Hamburgueria
 
 ## Objetivo
-Transformar a Hero Section atual (fundo estático escuro e genérico) em algo moderno, premium e de alta conversao, mantendo todos os textos originais.
+Transformar a Hero Section para focar 100% em delivery de lanches e hamburgueria, com visual apetitoso e profissional.
 
-## Mudancas Planejadas
+## Mudancas no arquivo `src/pages/Index.tsx`
 
-### 1. Fundo Dinamico com Video
-- Substituir a imagem estatica do Unsplash por um video em loop (camera lenta, desfocado) de ambiente de restaurante premium
-- Usar um video gratuito do Pexels/Coverr como fallback (tag `<video>` com autoplay, muted, loop)
-- Sobreposicao escura com gradiente sofisticado (preto/cinza chumbo com toques de vermelho/ambar)
-- Efeito glassmorphism sutil no container do conteudo
+### 1. Fundo com imagem de hamburguer
+- Remover o video de fundo atual
+- Substituir por uma foto profissional de hamburguer artesanal do Unsplash (alta qualidade, tons quentes, profundidade de campo)
+- Imagem estatica com `object-cover` para preencher toda a area
 
-### 2. Tipografia e Hierarquia
-- Titulo "Zero taxas. Zero comissao." em branco puro
-- "Seu negocio, seu lucro." com gradiente vermelho-para-laranja quente (via `bg-gradient-to-r` + `bg-clip-text`)
-- Subtitulo com tamanho ligeiramente maior, line-height mais generoso e cor cinza clara (`text-white/80`)
-- Texto secundario com melhor espacamento
+### 2. Overlay com gradiente escuro
+- Gradiente linear da esquerda para a direita (mais escuro na esquerda onde fica o texto, mais transparente na direita para revelar o hamburguer)
+- Tons escuros com leve toque quente (marrom/ambar escuro) para combinar com a tematica de lanches
 
-### 3. Botao CTA Premium
-- Botao maior com gradiente vermelho moderno (`bg-gradient-to-r from-red-600 to-orange-500`)
-- Cantos mais arredondados (`rounded-full`)
-- Sombra projetada vibrante para efeito "flutuante"
-- Hover com brilho e escala sutil
+### 3. Botao CTA laranja vibrante
+- Trocar o gradiente vermelho atual por um laranja vibrante estilo iFood/Burger King
+- Gradiente `from-orange-500 to-orange-600` com sombra laranja projetada
+- Hover com escala sutil e brilho
 
-### 4. Chips Minimalistas
-- Remover bordas e fundo marrom dos "proof badges"
-- Novo estilo: fundo preto translucido (`bg-black/30`), sem borda, backdrop-blur
-- Texto branco/cinza claro, aspecto leve e informativo
+### 4. Pills de destaque
+- Manter fundo preto translucido (`bg-black/40`)
+- Adicionar borda fina branca (`border border-white/20`)
+- Texto branco/cinza claro
 
-### 5. Header Limpo
-- Mais espacamento e transparencia
-- Botao "Entrar" com contorno sutil e mais elegante
-- Efeito glassmorphism na barra de navegacao (`backdrop-blur-md bg-white/5`)
+### 5. Textos e tipografia
+- Manter todos os textos originais sem alteracao
+- Manter o gradiente vermelho-laranja no "Seu negocio, seu lucro."
+- Fonte sans-serif robusta (ja em uso com a configuracao atual)
 
 ## Detalhes Tecnicos
 
 ### Arquivo modificado
-- `src/pages/Index.tsx` - Hero Section (linhas ~107-175)
+- `src/pages/Index.tsx` - apenas a Hero Section (secao com tag `<video>` e conteudo hero)
 
-### Abordagem
-- Video de fundo usando tag HTML `<video>` com source de video gratuito (Pexels)
-- Gradientes CSS via classes Tailwind customizadas e inline styles
-- Efeito glassmorphism com `backdrop-blur` do Tailwind
-- Animacoes sutis de hover nos botoes
-- Sem novas dependencias necessarias
+### Mudancas especificas
+1. Remover a tag `<video>` e substituir por uma tag `<img>` com foto de hamburguer do Unsplash
+2. Ajustar o overlay div para usar gradiente linear da esquerda para direita
+3. Alterar classes do botao CTA de `from-red-600 to-orange-500` para `from-orange-500 to-orange-600`
+4. Ajustar shadow do botao para tom laranja
+5. Adicionar `border border-white/20` nos proof badges
 
-### Video de fundo
-- Usar um video curto de restaurante premium (ex: Pexels free stock video)
-- Fallback para cor solida caso o video nao carregue
-- `poster` com imagem atual como fallback visual
+### Imagem de fundo
+- Usar foto do Unsplash de hamburguer artesanal com tons quentes e profundidade de campo
+- URL exemplo: `https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1920&q=80` (hamburguer artesanal close-up)
+- Poster/fallback com cor solida escura caso a imagem nao carregue
 
