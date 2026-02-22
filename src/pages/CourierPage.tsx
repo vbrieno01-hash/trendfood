@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation } from "lucide-react";
+import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink } from "lucide-react";
 import {
   getSavedCourierId,
   useMyCourier,
@@ -21,6 +21,38 @@ import {
 } from "@/hooks/useCourier";
 import { parsePhoneFromNotes } from "@/hooks/useCreateDelivery";
 
+function usePwaInstall() {
+  const [prompt, setPrompt] = useState<any>(null);
+  const [isIos, setIsIos] = useState(false);
+
+  useEffect(() => {
+    const ua = window.navigator.userAgent.toLowerCase();
+    setIsIos(/iphone|ipad|ipod/.test(ua) && !(window as any).MSStream);
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const install = async () => {
+    if (prompt) {
+      prompt.prompt();
+      setPrompt(null);
+    } else if (isIos) {
+      toast.info("Para instalar: toque no botão Compartilhar (⬆️) e depois em 'Adicionar à Tela de Início'.", { duration: 6000 });
+    }
+  };
+
+  return { canInstall: !!prompt || isIos, install };
+}
+
+function openGoogleMaps(address: string) {
+  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, "_blank");
+}
+
 const CourierPage = () => {
   const [searchParams] = useSearchParams();
   const orgSlug = searchParams.get("org") || "";
@@ -32,6 +64,7 @@ const CourierPage = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [plate, setPlate] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
 
   const courierId = getSavedCourierId();
   const { data: courier, isLoading: courierLoading } = useMyCourier();
@@ -40,6 +73,7 @@ const CourierPage = () => {
   const { data: myDeliveries = [] } = useMyDeliveries(courierId);
   const acceptMutation = useAcceptDelivery();
   const completeMutation = useCompleteDelivery();
+  const { canInstall, install } = usePwaInstall();
 
   // Fetch org by slug
   useEffect(() => {
@@ -106,7 +140,8 @@ const CourierPage = () => {
           organization_id: orgId,
           name: name.trim(),
           phone: phone.trim(),
-          plate: plate.trim().toUpperCase(),
+          plate: upperPlate,
+          whatsapp: whatsapp.trim() || undefined,
         });
         toast.success("Cadastro realizado com sucesso!");
       } catch {
@@ -133,6 +168,10 @@ const CourierPage = () => {
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
                 <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp">WhatsApp</Label>
+                <Input id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(11) 99999-9999" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="plate">Placa da moto</Label>
@@ -167,7 +206,6 @@ const CourierPage = () => {
       });
       toast.success("Entrega aceita! Boa corrida 🏍️");
 
-      // Open WhatsApp to notify customer
       const phone = parsePhoneFromNotes(result.notes);
       if (phone) {
         const msg = encodeURIComponent(
@@ -189,6 +227,44 @@ const CourierPage = () => {
     }
   };
 
+  const DeliveryCard = ({ d, actions }: { d: Delivery; actions: React.ReactNode }) => (
+    <Card key={d.id} className="overflow-hidden">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Pedido</p>
+            <p className="font-mono text-sm font-medium">#{d.order_id.slice(0, 8)}</p>
+          </div>
+          <Badge className={d.status === "em_rota" ? "bg-blue-500/15 text-blue-600 border-blue-500/30" : undefined} variant={d.status === "pendente" ? "secondary" : "default"}>
+            {d.status === "em_rota" ? "Em rota" : "Pendente"}
+          </Badge>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-sm">{d.customer_address}</p>
+        </div>
+
+        <div className="flex items-center gap-4 text-sm">
+          {d.distance_km != null && (
+            <span className="text-muted-foreground">📏 {d.distance_km.toFixed(1)} km</span>
+          )}
+          {d.fee != null && (
+            <span className="font-semibold text-primary flex items-center gap-1">
+              <DollarSign className="w-3.5 h-3.5" /> R$ {d.fee.toFixed(2)}
+            </span>
+          )}
+        </div>
+
+        <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => openGoogleMaps(d.customer_address)}>
+          <ExternalLink className="w-3.5 h-3.5" /> Abrir no Google Maps
+        </Button>
+
+        {actions}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -198,9 +274,16 @@ const CourierPage = () => {
             <Bike className="w-5 h-5 text-primary" />
             <span className="font-bold text-sm">{orgName}</span>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">{courier?.name}</p>
-            <p className="text-xs font-mono text-muted-foreground">{courier?.plate}</p>
+          <div className="flex items-center gap-3">
+            {canInstall && (
+              <Button variant="ghost" size="sm" onClick={install} className="gap-1 text-xs">
+                <Download className="w-3.5 h-3.5" /> Instalar
+              </Button>
+            )}
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">{courier?.name}</p>
+              <p className="text-xs font-mono text-muted-foreground">{courier?.plate}</p>
+            </div>
           </div>
         </div>
       </header>
@@ -209,12 +292,10 @@ const CourierPage = () => {
         <Tabs defaultValue="available" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="available" className="gap-1.5">
-              <Package className="w-3.5 h-3.5" />
-              Disponíveis ({available.length})
+              <Package className="w-3.5 h-3.5" /> Disponíveis ({available.length})
             </TabsTrigger>
             <TabsTrigger value="mine" className="gap-1.5">
-              <Navigation className="w-3.5 h-3.5" />
-              Minhas ({myDeliveries.length})
+              <Navigation className="w-3.5 h-3.5" /> Minhas ({myDeliveries.length})
             </TabsTrigger>
           </TabsList>
 
@@ -229,45 +310,11 @@ const CourierPage = () => {
               </div>
             ) : (
               available.map((d) => (
-                <Card key={d.id} className="overflow-hidden">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Pedido</p>
-                        <p className="font-mono text-sm font-medium">#{d.order_id.slice(0, 8)}</p>
-                      </div>
-                      <Badge variant="secondary">Pendente</Badge>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <p className="text-sm">{d.customer_address}</p>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm">
-                      {d.distance_km != null && (
-                        <span className="text-muted-foreground">
-                          📏 {d.distance_km.toFixed(1)} km
-                        </span>
-                      )}
-                      {d.fee != null && (
-                        <span className="font-semibold text-primary flex items-center gap-1">
-                          <DollarSign className="w-3.5 h-3.5" />
-                          R$ {d.fee.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-
-                    <Button
-                      onClick={() => handleAccept(d)}
-                      className="w-full"
-                      disabled={acceptMutation.isPending}
-                    >
-                      <Bike className="w-4 h-4 mr-2" />
-                      Aceitar Entrega
-                    </Button>
-                  </CardContent>
-                </Card>
+                <DeliveryCard key={d.id} d={d} actions={
+                  <Button onClick={() => handleAccept(d)} className="w-full" disabled={acceptMutation.isPending}>
+                    <Bike className="w-4 h-4 mr-2" /> Aceitar Entrega
+                  </Button>
+                } />
               ))
             )}
           </TabsContent>
@@ -280,40 +327,12 @@ const CourierPage = () => {
               </div>
             ) : (
               myDeliveries.map((d) => (
-                <Card key={d.id} className="overflow-hidden">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Pedido</p>
-                        <p className="font-mono text-sm font-medium">#{d.order_id.slice(0, 8)}</p>
-                      </div>
-                      <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30">Em rota</Badge>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <p className="text-sm">{d.customer_address}</p>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm">
-                      {d.fee != null && (
-                        <span className="font-semibold text-primary">
-                          R$ {d.fee.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-
-                    <Button
-                      onClick={() => handleComplete(d.id)}
-                      variant="outline"
-                      className="w-full border-green-500/30 text-green-600 hover:bg-green-500/10"
-                      disabled={completeMutation.isPending}
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Marcar como Entregue
-                    </Button>
-                  </CardContent>
-                </Card>
+                <DeliveryCard key={d.id} d={d} actions={
+                  <Button onClick={() => handleComplete(d.id)} variant="outline"
+                    className="w-full border-green-500/30 text-green-600 hover:bg-green-500/10" disabled={completeMutation.isPending}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Entregue
+                  </Button>
+                } />
               ))
             )}
           </TabsContent>

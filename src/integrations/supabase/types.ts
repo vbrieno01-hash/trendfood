@@ -156,6 +156,7 @@ export type Database = {
           organization_id: string
           phone: string
           plate: string
+          whatsapp: string | null
         }
         Insert: {
           active?: boolean
@@ -165,6 +166,7 @@ export type Database = {
           organization_id: string
           phone: string
           plate: string
+          whatsapp?: string | null
         }
         Update: {
           active?: boolean
@@ -174,6 +176,7 @@ export type Database = {
           organization_id?: string
           phone?: string
           plate?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
