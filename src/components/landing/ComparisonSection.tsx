@@ -59,9 +59,9 @@ const ComparisonSection = () => {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
-          {/* Header */}
-          <div className="grid grid-cols-3 bg-muted/60">
+        {/* Desktop table (md+) */}
+        <div className="hidden md:block rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="grid grid-cols-[1fr_1.2fr_1.3fr] bg-muted/60">
             <div className="p-4 font-semibold text-muted-foreground text-sm" />
             <div className="p-4 text-center font-bold text-destructive text-sm border-l border-border">
               Marketplaces (iFood, etc)
@@ -70,12 +70,10 @@ const ComparisonSection = () => {
               TrendFood
             </div>
           </div>
-
-          {/* Rows */}
           {rows.map((row, i) => (
             <div
               key={row.label}
-              className={`grid grid-cols-3 ${i < rows.length - 1 ? "border-b border-border" : ""}`}
+              className={`grid grid-cols-[1fr_1.2fr_1.3fr] ${i < rows.length - 1 ? "border-b border-border" : ""}`}
             >
               <div className="p-4 font-medium text-foreground text-sm flex items-center">
                 {row.label}
@@ -96,6 +94,38 @@ const ComparisonSection = () => {
                     {row.trendfoodBadge}
                   </Badge>
                 )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile cards (<md) */}
+        <div className="md:hidden space-y-3">
+          {rows.map((row) => (
+            <div key={row.label} className="rounded-xl border border-border overflow-hidden shadow-sm">
+              <div className="p-3 bg-muted/60 font-semibold text-foreground text-sm">
+                {row.label}
+              </div>
+              <div className="grid grid-cols-2">
+                <div className="p-3 bg-destructive/5 flex flex-col items-center gap-1">
+                  <span className="text-xs font-bold text-destructive">Marketplaces</span>
+                  <X className="w-4 h-4 text-destructive shrink-0" />
+                  <span className="text-xs text-muted-foreground text-center leading-tight">
+                    {row.marketplace}
+                  </span>
+                </div>
+                <div className="p-3 bg-green-500/5 border-l border-border flex flex-col items-center gap-1">
+                  <span className="text-xs font-bold text-primary">TrendFood</span>
+                  <Check className="w-4 h-4 text-green-600 shrink-0" />
+                  <span className="text-xs text-foreground font-medium text-center leading-tight">
+                    {row.trendfood}
+                  </span>
+                  {row.trendfoodBadge && (
+                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200 mt-1">
+                      {row.trendfoodBadge}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
           ))}
