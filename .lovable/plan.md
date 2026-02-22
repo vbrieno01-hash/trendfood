@@ -1,33 +1,38 @@
 
 
-# Corrigir impressao automatica para pedidos de clientes
+# Hospedar trendfood.exe no GitHub Releases
 
-## Problema
-A tabela `fila_impressao` so permite INSERT por usuarios autenticados (dono da loja). Quando um cliente nao-autenticado faz um pedido pela vitrine publica, o pedido e criado com sucesso (tabela `orders` aceita INSERT publico), mas o registro na fila de impressao falha silenciosamente por causa do RLS restritivo. O `usePlaceOrder` tem um try/catch que engole o erro sem avisar.
+## Resumo
+Atualizar o link de download do `trendfood.exe` no dashboard para apontar para o GitHub Releases, onde o arquivo binario sera hospedado de forma confiavel e versionada.
 
-## Solucao
-Adicionar uma politica de INSERT publico na tabela `fila_impressao`, similar ao que ja existe nas tabelas `orders` e `order_items`.
+## Passo 1: Configurar o GitHub Release (voce faz manualmente)
 
-## Etapas
+1. Conecte o projeto ao GitHub (se ainda nao estiver): va em Settings > GitHub > Connect
+2. No repositorio do GitHub, va em **Releases** > **Create a new release**
+3. Crie uma tag (ex: `v1.0.0`), titulo "TrendFood Printer v1.0.0"
+4. Arraste o arquivo `trendfood.exe` na area de upload
+5. Clique em **Publish release**
+6. Copie o link direto do arquivo (formato: `https://github.com/SEU-USUARIO/SEU-REPO/releases/latest/download/trendfood.exe`)
 
-### 1. Migracão de banco de dados
-Criar uma nova politica RLS na tabela `fila_impressao` que permita INSERT publico:
+Usando `/releases/latest/download/` o link sempre aponta para a versao mais recente automaticamente.
 
-```sql
-CREATE POLICY "fila_impressao_insert_public"
-  ON public.fila_impressao
-  FOR INSERT
-  WITH CHECK (true);
+## Passo 2: Atualizar o link no codigo (eu faco)
+
+No arquivo `src/components/dashboard/SettingsTab.tsx`, trocar o link atual:
+
+```
+https://trendfood.lovable.app/trendfood.exe
 ```
 
-Isso segue o mesmo padrao ja usado em `orders` (`orders_insert_public`) e `order_items` (`order_items_insert_public`).
+Pelo link do GitHub Releases. Como ainda nao temos o link exato (depende do nome do usuario/repo no GitHub), vou usar um placeholder que voce me confirma depois, ou posso usar o formato generico com `/releases/latest/download/trendfood.exe`.
 
-### 2. Nenhuma alteracao de codigo necessaria
-O codigo em `usePlaceOrder` ja chama `enqueuePrint()` corretamente. O problema e exclusivamente a politica de segurança do banco. Uma vez corrigida, os pedidos de clientes nao-autenticados tambem gerarao registros na fila de impressao automaticamente.
+## Passo 3: Tambem atualizar na landing page (se houver)
 
-## Seguranca
-- A politica existente de SELECT/UPDATE/DELETE permanece restrita ao dono da organizacao
-- O INSERT publico so permite criar novos registros, nao ler ou modificar existentes
-- O robo de impressao usa `service_role` key via Edge Function, entao nao e afetado pelo RLS
-- Este padrao e identico ao usado nas tabelas `orders` e `order_items`
+Verificar se existe algum outro lugar no codigo com o mesmo link e atualizar tambem.
+
+## Tecnico
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/components/dashboard/SettingsTab.tsx` | Trocar href do botao de download para URL do GitHub Releases |
 
