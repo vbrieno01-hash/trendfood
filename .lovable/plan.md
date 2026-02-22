@@ -1,17 +1,19 @@
 
 
-# Remover menção ao "iFood" da calculadora
+# Remover todas as menções ao "iFood" do projeto
 
 ## Problema
-O texto "FATURAMENTO MENSAL NO IFOOD" menciona uma marca registrada, o que pode causar problemas de direitos autorais.
+Ainda existem 2 menções ao "iFood" em outros arquivos, o que pode causar problemas de direitos autorais.
 
-## Solução
+## Alterações
 
-### Arquivo: `src/components/landing/SavingsCalculator.tsx`
+### 1. `src/pages/Index.tsx` (linha 45)
+- **Antes:** "Cada venda no iFood, desconto pesado..."
+- **Depois:** "Cada venda no marketplace, desconto pesado..."
 
-1. Trocar o label "Faturamento mensal no iFood" por "Faturamento mensal em marketplaces"
-2. Trocar o subtítulo "Veja quanto do seu faturamento vai direto pro marketplace" - manter como está (já está genérico)
-3. Verificar se há outras menções ao "iFood" no componente e substituir
+### 2. `src/components/landing/ComparisonSection.tsx` (linha 67)
+- **Antes:** "Marketplaces (iFood, etc)"
+- **Depois:** "Marketplaces"
 
-Mudança simples de texto, sem alteração visual.
+Duas mudanças simples de texto, sem alteração visual.
 
