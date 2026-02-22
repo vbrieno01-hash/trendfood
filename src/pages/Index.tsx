@@ -143,26 +143,18 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden min-h-screen flex flex-col">
-        {/* Video Background */}
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&q=80"
-          className="absolute inset-0 w-full h-full object-cover object-center scale-105 blur-[2px]"
-        >
-          <source
-            src="https://videos.pexels.com/video-files/3195394/3195394-uhd_2560_1440_25fps.mp4"
-            type="video/mp4"
-          />
-        </video>
-        {/* Dark overlay with subtle warm tones */}
+        {/* Burger Background */}
+        <img
+          src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1920&q=80"
+          alt="Hambúrguer artesanal"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+        {/* Dark overlay — darker on left for text readability */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(160deg, rgba(10,10,10,0.92) 0%, rgba(20,8,8,0.88) 50%, rgba(10,10,10,0.95) 100%)",
+              "linear-gradient(to right, rgba(10,8,6,0.93) 0%, rgba(15,10,5,0.82) 45%, rgba(10,8,6,0.55) 100%)",
           }}
         />
 
@@ -212,7 +204,7 @@ const Index = () => {
             <div className="flex justify-center">
               <Link
                 to="/auth"
-                className="inline-flex items-center gap-2.5 bg-gradient-to-r from-red-600 to-orange-500 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(220,38,38,0.45)] hover:shadow-[0_12px_40px_rgba(220,38,38,0.55)] hover:scale-[1.03] transition-all duration-300"
+                className="inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.6)] hover:scale-[1.03] transition-all duration-300"
               >
                 Começar Grátis
                 <ArrowRight className="w-5 h-5" />
@@ -223,7 +215,7 @@ const Index = () => {
               {proofBadges.map((b) => (
                 <span
                   key={b}
-                  className="px-4 py-2 rounded-full bg-black/30 backdrop-blur-sm text-white/70 text-sm font-medium"
+                  className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium"
                 >
                   {b}
                 </span>
