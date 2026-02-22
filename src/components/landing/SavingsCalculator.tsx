@@ -40,7 +40,7 @@ const SavingsCalculator = () => {
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 md:p-12">
           {/* Input */}
           <label htmlFor="revenue" className="block text-xs font-medium text-white/30 mb-6 tracking-widest uppercase">
-            Faturamento mensal no iFood
+            Faturamento mensal em marketplaces
           </label>
           <div className="relative mb-2">
             <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-medium text-white/20 select-none">
