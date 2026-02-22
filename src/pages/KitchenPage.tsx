@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
+import { toast } from "sonner";
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
   (order.order_items ?? []).reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
@@ -22,7 +23,6 @@ const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: 
   return buildPixPayload(pixKey, total, storeName ?? "LOJA");
 };
 
-// Web Audio API bell sound (no external dependency)
 const playBell = () => {
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -52,12 +52,13 @@ const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 const AUTO_PRINT_KEY = "kds_auto_print";
+const NOTIF_KEY = "kds_notifications";
 
 export default function KitchenPage() {
   const [searchParams] = useSearchParams();
   const orgSlug = searchParams.get("org");
   const { data: org } = useOrganization(orgSlug || undefined);
-  // Fetch pix_key for the org owner (KDS standalone needs it for QR on receipts)
+
   const [pixKey, setPixKey] = useState<string | null>(null);
   useEffect(() => {
     if (!org?.id) return;
@@ -65,6 +66,7 @@ export default function KitchenPage() {
       setPixKey((data as any)?.pix_key ?? null);
     });
   }, [org?.id]);
+
   const { data: orders = [], isLoading } = useOrders(org?.id, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(org?.id ?? "", ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -73,14 +75,46 @@ export default function KitchenPage() {
   const [autoPrint, setAutoPrint] = useState<boolean>(
     () => localStorage.getItem(AUTO_PRINT_KEY) !== "false"
   );
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
+    () => localStorage.getItem(NOTIF_KEY) === "true"
+  );
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    () => (typeof Notification !== "undefined" ? Notification.permission : "default")
+  );
 
   const knownIds = useRef<Set<string>>(new Set());
   const pendingPrintIds = useRef<Set<string>>(new Set());
   const [, forceRender] = useState(0);
 
+  // Stable refs so the Realtime channel never needs to restart when toggles change
+  const autoPrintRef = useRef(autoPrint);
+  const notificationsRef = useRef(notificationsEnabled);
+  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+  useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
+
   const toggleAutoPrint = (val: boolean) => {
     setAutoPrint(val);
     localStorage.setItem(AUTO_PRINT_KEY, String(val));
+  };
+
+  const toggleNotifications = async (val: boolean) => {
+    if (val) {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+      if (permission === "denied") {
+        toast.error("Notificações bloqueadas pelo navegador", {
+          description: "Clique no cadeado na barra de endereço e permita notificações para este site.",
+          duration: 8000,
+        });
+        return;
+      }
+      if (permission !== "granted") {
+        toast.warning("Permissão de notificação não concedida.");
+        return;
+      }
+    }
+    setNotificationsEnabled(val);
+    localStorage.setItem(NOTIF_KEY, String(val));
   };
 
   const handleUpdateStatus = (id: string, status: Order["status"], order?: Order) => {
@@ -107,7 +141,7 @@ export default function KitchenPage() {
     );
   };
 
-  // Realtime: bell on new orders + visual update on status changes
+  // Realtime: stable channel — uses refs to avoid restarting on toggle changes
   useEffect(() => {
     if (!org?.id) return;
     const channel = supabase
@@ -120,9 +154,16 @@ export default function KitchenPage() {
           if (!knownIds.current.has(order.id)) {
             knownIds.current.add(order.id);
             playBell();
-            // Queue for auto-print after items load
-            if (autoPrint) {
+            if (autoPrintRef.current) {
               pendingPrintIds.current.add(order.id);
+            }
+            // Web Push Notification
+            if (notificationsRef.current && Notification.permission === "granted") {
+              const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+              new Notification(`🔔 Novo pedido! ${tableLabel}`, {
+                icon: "/pwa-192.png",
+                badge: "/pwa-192.png",
+              });
             }
             qc.invalidateQueries({ queryKey: ["orders", org.id, ["pending", "preparing"]] });
           }
@@ -137,7 +178,7 @@ export default function KitchenPage() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [org?.id, qc, autoPrint]);
+  }, [org?.id, qc]); // stable — no autoPrint/notificationsEnabled deps needed
 
   // Print pending orders once their items are loaded
   useEffect(() => {
@@ -187,7 +228,28 @@ export default function KitchenPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Push notifications toggle */}
+            <div className="flex items-center gap-2">
+              <Label htmlFor="notif-standalone" className="text-xs text-muted-foreground cursor-pointer select-none">
+                🔔 Notificações
+              </Label>
+              <Switch
+                id="notif-standalone"
+                checked={notificationsEnabled}
+                onCheckedChange={toggleNotifications}
+              />
+              {notificationsEnabled && notifPermission === "granted" && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+                  Ativo
+                </span>
+              )}
+              {notifPermission === "denied" && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                  Bloqueado
+                </span>
+              )}
+            </div>
             {/* Auto-print toggle */}
             <div className="flex items-center gap-2">
               <Printer className="w-4 h-4 text-muted-foreground" />
@@ -239,6 +301,13 @@ export default function KitchenPage() {
                           </span>
                         )}
                         <span className="font-bold text-foreground text-lg">{order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}</span>
+                        {(order as any).payment_method && (order as any).payment_method !== "pending" && (
+                          <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
+                            (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                     </div>
@@ -249,7 +318,7 @@ export default function KitchenPage() {
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         title="Imprimir pedido"
                         onClick={() => {
-          const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
+                          const pw = org?.printer_width === '80mm' ? '80mm' : '58mm';
                           const pm = (org as any)?.print_mode ?? 'browser';
                           printOrderByMode(order, org?.name, pm, org?.id ?? '', null, getPixPayload(order, pixKey, org?.name), pw);
                         }}
@@ -273,7 +342,10 @@ export default function KitchenPage() {
                         <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {item.quantity}×
                         </span>
-                        {item.name}
+                        <span>{item.name}</span>
+                        {(item as any).customer_name && (
+                          <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
+                        )}
                       </li>
                     ))}
                   </ul>
