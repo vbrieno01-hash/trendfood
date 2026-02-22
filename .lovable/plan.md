@@ -1,33 +1,89 @@
 
 
-# Paginacao nas listas da aba Motoboys
+# Renovar a Landing Page - Posicionamento competitivo
 
-## Problema
-A aba de motoboys fica muito longa com muitas entregas e motoboys, obrigando o usuario a rolar infinitamente.
+## Objetivo
+Reposicionar a landing page para destacar as vantagens competitivas do TrendFood frente a plataformas como iFood: zero taxas, preco acessivel, controle total, entregas com motoboys proprios, impressao termica, e menos stress operacional.
 
-## Solucao
-Adicionar botoes "Ver mais" / "Ver menos" (estilo balao) em cada lista, mostrando apenas os primeiros itens e expandindo sob demanda. Isso se aplica a 3 listas:
+## Alteracoes no arquivo `src/pages/Index.tsx`
 
-1. **Entregas ativas** - mostrar no maximo 3, com botao "Ver mais X entregas"
-2. **Concluidas / Canceladas** - mostrar no maximo 3, com botao "Ver mais X entregas"
-3. **Motoboys cadastrados** - mostrar no maximo 5, com botao "Ver mais X motoboys"
+### 1. Hero Section - Mensagem mais agressiva e competitiva
 
-## Como vai funcionar
+**Antes**: "Gerencie seu negocio inteiro. Do pedido ao caixa."
+**Depois**: "Zero taxas. Zero comissao. Seu negocio, seu lucro." com subtitulo reforando que nao precisa pagar 27% pra ninguem.
 
-- Cada lista exibe um limite inicial (3 ou 5 itens)
-- Se houver mais itens, aparece um botao estilizado abaixo da lista: "Ver mais X itens"
-- Ao clicar, expande para mostrar todos
-- Quando expandido, mostra botao "Ver menos" para recolher
-- Visual do botao: arredondado, com icone ChevronDown/ChevronUp, estilo outline discreto (semelhante ao balao da imagem de referencia)
+- Badge: "Zero taxas sobre vendas"
+- Subtitulo: explicar que diferente de marketplaces, aqui o dinheiro fica todo com o lojista
+- Atualizar os proofBadges para incluir: "0% comissao", "Motoboys proprios", "Impressao termica", "PIX integrado", "Sem app para baixar"
 
-## Alteracao tecnica
+### 2. Nova secao: "TrendFood vs Marketplaces" (entre Problem e How it Works)
 
-### Arquivo: `src/components/dashboard/CourierDashboardTab.tsx`
+Uma secao visual de comparacao lado a lado com 2 colunas:
 
-- Adicionar 3 estados: `showAllActive`, `showAllCompleted`, `showAllCouriers` (todos iniciam `false`)
-- Para cada lista, fazer slice no array antes de renderizar (ex: `activeDeliveries.slice(0, showAllActive ? undefined : 3)`)
-- Abaixo de cada lista, renderizar o botao "Ver mais / Ver menos" condicionalmente quando `array.length > limite`
-- Componente do botao reutilizado inline, com icones `ChevronDown` / `ChevronUp` (ja importados)
+| | Marketplaces (iFood, etc) | TrendFood |
+|---|---|---|
+| Comissao por venda | 12% a 27% | 0% |
+| Dados dos clientes | Ficam com a plataforma | Sao seus |
+| Cardapio | Padronizado | Personalizado |
+| Delivery | Motoboy da plataforma (caro) | Seus motoboys, suas regras |
+| Impressao de pedidos | Nao tem | Impressora termica integrada |
+| Controle de caixa | Nao tem | Completo com abertura/fechamento |
+| Custo mensal | Comissao variavel | A partir de R$ 0/mes |
 
-Nenhum arquivo novo, nenhuma migracao necessaria.
+Estilo visual: tabela com fundo vermelho claro nos itens negativos do marketplace, e verde nos itens positivos do TrendFood, com icones de X e Check.
 
+### 3. Nova secao: "Calculadora de economia" (apos comparacao)
+
+Uma mini calculadora interativa onde o lojista digita quanto fatura por mes e ve quanto economizaria saindo do iFood:
+- Input: "Quanto voce fatura por mes no iFood?"
+- Resultado: "Voce perde ate R$ X,XXX por mes em comissoes. Com o TrendFood, esse dinheiro fica com voce."
+- Slider ou input com valor padrao de R$ 10.000
+- Calculo: valor * 0.27 (taxa maxima) e valor * 0.12 (taxa minima)
+- Visual impactante com o valor em destaque vermelho
+
+### 4. Atualizar features para incluir Motoboys
+
+Adicionar um novo card na lista de features:
+- Icone: Bike
+- Titulo: "Gestao de Motoboys"
+- Descricao: "Cadastre motoboys, atribua entregas, acompanhe em tempo real e controle pagamentos."
+
+### 5. Atualizar secao de problemas
+
+Trocar o terceiro problema de "Sem controle do que vende" para algo sobre taxas de marketplace:
+- Titulo: "Pagando ate 27% de comissao"
+- Descricao: "Cada venda no iFood, desconto pesado. Final do mes, o lucro sumiu em taxas que voce nem ve."
+- Imagem: manter foto de planilha/financeiro
+
+### 6. CTA final mais agressivo
+
+Atualizar o texto do CTA final:
+- Titulo: "Pare de pagar comissao. Comece hoje."
+- Subtitulo: "Mesmo sistema, zero taxa. Configure em minutos e veja a diferenca no seu caixa."
+
+### 7. Componente da calculadora
+
+Criar um novo componente `src/components/landing/SavingsCalculator.tsx`:
+- Input controlado com formatacao de moeda (R$)
+- Estado local para o valor digitado
+- Calculo em tempo real mostrando economia minima (12%) e maxima (27%)
+- Visual com card destacado, numeros grandes em vermelho/verde
+- Botao CTA "Comecar Gratis" abaixo do resultado
+
+### 8. Componente da comparacao
+
+Criar `src/components/landing/ComparisonSection.tsx`:
+- Tabela responsiva com 2 colunas (Marketplace vs TrendFood)
+- Icones Check (verde) e X (vermelho) em cada linha
+- Badge "Gratis" ou "Incluso" nos itens do TrendFood
+- Design limpo e profissional com bordas arredondadas
+
+## Resumo de arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/Index.tsx` | Atualizar hero, problemas, features, CTA, adicionar novas secoes |
+| `src/components/landing/ComparisonSection.tsx` | Criar - secao comparativa |
+| `src/components/landing/SavingsCalculator.tsx` | Criar - calculadora de economia |
+
+Nenhuma migracao ou alteracao de banco necessaria.
