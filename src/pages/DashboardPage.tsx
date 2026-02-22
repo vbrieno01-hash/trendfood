@@ -211,7 +211,7 @@ const DashboardPage = () => {
                 }
               }
 
-              const effectiveMode = btDeviceRef.current
+              const effectiveMode = (btDeviceRef.current || getStoredDeviceId())
                 ? 'bluetooth' as const
                 : printModeRef.current;
               await printOrderByMode(
