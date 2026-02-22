@@ -1,44 +1,45 @@
 
-# Corrigir marcadores ## e caracteres especiais na impressao
+# Trocar rodape do cupom para nome da loja
 
-## Problema
-Os marcadores `##CENTER##` e `##BOLD##` estao aparecendo como texto literal nos cupons impressos. Alem disso, caracteres especiais como `★` e `📱` saem "bugados" em impressoras termicas que so suportam ASCII basico.
+## O que muda
 
-## Locais com problema
+O rodape "* novo pedido - kds *" sera substituido pelo nome da loja (ex: "NOME DA LOJA") em todos os modos de impressao. Caracteres especiais como `★` e `—` serao removidos.
 
-### 1. `useOrders.ts` (linha 210) - Fila automatica de pedidos
-O texto formatado e enfileirado SEM remover os marcadores:
+## Alteracoes
+
+### 1. `src/lib/formatReceiptText.ts` (linha 161)
+Rodape do modo desktop/Bluetooth.
+
+De:
 ```
-const text = formatReceiptText(printableOrder);
-await enqueuePrint(organizationId, order.id, text);  // COM ##CENTER##
+center("* novo pedido - kds *", cols)
 ```
-**Correcao**: Aplicar `stripFormatMarkers(text)` antes de enfileirar.
-
-### 2. `printOrder.ts` (linha 342) - Fallback do Bluetooth
-Quando o Bluetooth falha, o texto e salvo na fila COM marcadores:
+Para:
 ```
-await enqueuePrint(orgId, order.id, text);  // COM ##CENTER##
+center(storeName.toUpperCase(), cols)
 ```
-**Correcao**: Aplicar `stripFormatMarkers(text)`.
+O `storeName` ja e recebido como parametro da funcao.
 
-### 3. `SettingsTab.tsx` (linhas 158-167) - Teste de impressao
-O teste de impressao envia `##CENTER##` literalmente:
+### 2. `src/lib/printOrder.ts` (linha 289)
+Rodape do modo navegador (HTML).
+
+De:
+```html
+<div class="footer">★ novo pedido — kds ★</div>
 ```
-"##CENTER## TESTE DE IMPRESSAO"
+Para:
+```html
+<div class="footer">${storeName.toUpperCase()}</div>
 ```
-**Correcao**: Remover os marcadores do texto de teste (texto simples sem marcadores).
+O `storeName` ja esta disponivel nessa funcao.
 
-### 4. Caracteres especiais no `formatReceiptText.ts`
-O rodape usa `*` que e seguro, mas o `center()` e `##BOLD##` ja estao tratados. Verificar que nenhum emoji ou caractere especial (★, 📱) esta no texto da fila.
-- `formatReceiptText.ts` linha 161: usa `* novo pedido - kds *` (seguro, sem caracteres especiais)
-- `printOrder.ts` linha 289: `★ novo pedido — kds ★` (so modo browser/HTML, nao afeta fila)
+---
 
-## Resumo das alteracoes
+## Resumo
 
-| Arquivo | Linha | Alteracao |
-|---------|-------|-----------|
-| `src/hooks/useOrders.ts` | 209-210 | Importar e aplicar `stripFormatMarkers` antes de `enqueuePrint` |
-| `src/lib/printOrder.ts` | 342 | Aplicar `stripFormatMarkers(text)` no fallback Bluetooth |
-| `src/components/dashboard/SettingsTab.tsx` | 157-167 | Remover `##CENTER##` do texto de teste |
+| Arquivo | Linha | De | Para |
+|---------|-------|----|------|
+| `formatReceiptText.ts` | 161 | `* novo pedido - kds *` | Nome da loja |
+| `printOrder.ts` | 289 | `★ novo pedido — kds ★` | Nome da loja |
 
-3 arquivos, alteracoes pequenas e pontuais.
+2 linhas alteradas, sem caracteres especiais.
