@@ -1,52 +1,81 @@
 
 
-# Corrigir auto-reconexao Bluetooth que nao conecta
+# Corrigir impressao automatica para todos os tipos de pedido
 
-## Problema
+## Problema identificado
 
-Ha um conflito de timeouts que impede a reconexao automatica:
+O callback do Realtime (que escuta novos pedidos e dispara a impressao automatica) captura valores **desatualizados** das variaveis do React. O `useEffect` que cria o listener tem apenas `[orgId, qc]` como dependencias, entao:
 
-1. `watchAdvertisements` espera ate 4 segundos
-2. Se falhar, tenta `connectToDevice` que precisa de ate 10 segundos
-3. Mas o timeout global e de apenas 6 segundos -- mata a conexao antes de completar
-4. No `DashboardPage`, o `.catch` chama `clearStoredDevice()`, apagando o ID salvo -- na proxima recarga, o sistema nem tenta reconectar
+- `btDevice` e sempre `null` no callback (era null quando o effect montou)
+- `printMode`, `orgName`, `printerWidth`, `pixKey` sao todos valores antigos
+- Se dois pedidos chegam em sequencia rapida, o segundo e descartado porque `isPrintingRef` ainda esta `true`
+
+Isso explica por que pedidos de entrega (e potencialmente outros) nao imprimem automaticamente.
 
 ## Solucao
 
-### 1. `src/lib/bluetoothPrinter.ts`
+### 1. `src/pages/DashboardPage.tsx` — Usar refs para valores do callback
 
-- Reduzir timeout do `watchAdvertisements` de 4s para 2s (deixar mais tempo para o GATT connect)
-- Aumentar o timeout global de 6s para 15s (tempo suficiente para watchAdv 2s + GATT connect 10s)
-
-### 2. `src/pages/DashboardPage.tsx`
-
-- Remover `clearStoredDevice()` do `.catch` -- nao deve apagar o pareamento salvo so porque uma tentativa falhou (a impressora pode estar desligada agora mas ligada na proxima vez)
-- Manter apenas o `console.warn` para debug
-
-## Detalhes tecnicos
-
-### bluetoothPrinter.ts
+Criar refs para todas as variaveis usadas dentro do callback Realtime, garantindo que o callback sempre use os valores mais recentes sem precisar re-criar o listener:
 
 ```typescript
-// watchAdvertisements: 4s -> 2s
-setTimeout(() => {
-  reject(new Error("watchAdvertisements timeout (2s)"));
-}, 2000);
+// Refs para valores usados no callback Realtime
+const printModeRef = useRef(printMode);
+const orgNameRef = useRef(orgName);
+const printerWidthRef = useRef(printerWidth);
+const pixKeyRef = useRef(pixKey);
+const btDeviceRef = useRef(btDevice);
 
-// Global timeout: 6s -> 15s
-return withTimeout(reconnectStoredPrinterInternal(storedId), 15000, "reconnectStoredPrinter")
+useEffect(() => { printModeRef.current = printMode; }, [printMode]);
+useEffect(() => { orgNameRef.current = orgName; }, [orgName]);
+useEffect(() => { printerWidthRef.current = printerWidth; }, [printerWidth]);
+useEffect(() => { pixKeyRef.current = pixKey; }, [pixKey]);
+useEffect(() => { btDeviceRef.current = btDevice; }, [btDevice]);
 ```
 
-### DashboardPage.tsx
+### 2. Callback Realtime — Usar refs em vez de variaveis diretas
+
+No callback de auto-print, trocar todas as referencias diretas pelos `.current` das refs:
 
 ```typescript
-.catch((err) => {
-  console.warn("[BT] Auto-reconnect failed on mount:", err);
-  // NAO limpar o device -- pode funcionar no proximo reload
-});
+await printOrderByMode(
+  fullOrder,
+  orgNameRef.current,
+  printModeRef.current,
+  orgId!,
+  btDeviceRef.current,
+  getPixPayload(fullOrder),
+  printerWidthRef.current
+);
 ```
+
+### 3. Remover serializacao de `isPrintingRef`
+
+Em vez de bloquear impressoes simultaneas com `isPrintingRef`, enfileirar os pedidos. Se chegar um segundo pedido enquanto o primeiro imprime, ele nao sera descartado:
+
+```typescript
+// Trocar bloqueio por fila sequencial
+const printQueue = useRef<Array<() => Promise<void>>>([]);
+const isProcessing = useRef(false);
+
+const processQueue = async () => {
+  if (isProcessing.current) return;
+  isProcessing.current = true;
+  while (printQueue.current.length > 0) {
+    const job = printQueue.current.shift()!;
+    try { await job(); } catch (err) {
+      console.error("[Dashboard] Auto-print failed:", err);
+    }
+  }
+  isProcessing.current = false;
+};
+```
+
+### 4. `getPixPayload` tambem precisa de ref
+
+A funcao `getPixPayload` usa `pixKey` do escopo externo. Atualizar para usar `pixKeyRef.current`.
 
 ## Arquivos alterados
-- `src/lib/bluetoothPrinter.ts` -- ajustar timeouts
-- `src/pages/DashboardPage.tsx` -- remover clearStoredDevice do catch
+
+- `src/pages/DashboardPage.tsx` — refs para valores do callback + fila de impressao
 
