@@ -1,106 +1,65 @@
 
+# Implementar Sistema de Ponto para Motoboys
 
-# Sistema de Ponto para Motoboys (Check-in / Check-out)
+A tabela `courier_shifts` ainda nao foi criada no banco de dados. Vou criar tudo de uma vez.
 
-## Problema
+## Passo 1 -- Criar tabela `courier_shifts`
 
-Atualmente nao ha como saber se um motoboy realmente foi trabalhar. O dono pode acabar pagando alguem que ficou em casa.
+Migracao SQL para criar a tabela com RLS e Realtime:
 
-## Solucao
-
-Criar um sistema de "bater ponto" onde o motoboy marca quando comecou e quando terminou o turno. O dono ve no dashboard quem esta online e o historico de turnos.
-
-## Como funciona
-
-**Para o motoboy** (tela `/motoboy`):
-- Botao grande "Iniciar Turno" / "Encerrar Turno" na tela principal
-- Quando online, aparece um indicador verde com o tempo decorrido
-- So pode aceitar entregas se estiver com turno ativo
-
-**Para o dono** (aba Motoboys no dashboard):
-- Indicador de quem esta online agora (bolinha verde/vermelha)
-- No card de cada motoboy: horario de entrada, tempo trabalhado no dia
-- Historico de turnos por data (filtro por dia)
-
-## Alteracoes
-
-### 1. Nova tabela `courier_shifts`
-
-| Coluna | Tipo | Descricao |
-|--------|------|-----------|
-| id | uuid PK | |
-| courier_id | uuid FK | Referencia ao motoboy |
-| organization_id | uuid | Organizacao |
-| started_at | timestamptz | Hora do check-in |
-| ended_at | timestamptz (null) | Hora do check-out (null = ainda trabalhando) |
-| created_at | timestamptz | |
-
-RLS: SELECT publico, INSERT publico, UPDATE publico (mesmo padrao das outras tabelas de motoboy).
-
-Realtime habilitado para atualizacao em tempo real no dashboard do dono.
-
-### 2. Hooks novos em `src/hooks/useCourier.ts`
-
-- `useActiveShift(courierId)` -- retorna turno ativo (ended_at IS NULL)
-- `useStartShift()` -- mutation para criar turno
-- `useEndShift()` -- mutation para setar ended_at
-- `useOrgActiveShifts(orgId)` -- todos os turnos ativos da org (quem esta online)
-- `useOrgShiftHistory(orgId, date)` -- historico de turnos por data
-
-### 3. `src/pages/CourierPage.tsx`
-
-- Botao "Iniciar Turno" / "Encerrar Turno" no topo, abaixo do header
-- Quando turno ativo: badge verde "Online ha X min", timer atualizado a cada minuto
-- Bloquear aceitar entregas se nao tiver turno ativo (botao desabilitado com tooltip)
-
-### 4. `src/components/dashboard/CourierDashboardTab.tsx`
-
-- No card de cada motoboy: bolinha verde se tem turno ativo, vermelha se nao
-- Exibir "Entrou as HH:MM" e "Ha X horas trabalhando" quando online
-- Secao de historico de turnos no card expandido (lista de check-in/check-out do dia selecionado)
-
-## Detalhes tecnicos
-
-### Migracao SQL
-
-```sql
-CREATE TABLE public.courier_shifts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  courier_id uuid NOT NULL,
-  organization_id uuid NOT NULL,
-  started_at timestamptz NOT NULL DEFAULT now(),
-  ended_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.courier_shifts ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "courier_shifts_select_public" ON public.courier_shifts
-  FOR SELECT USING (true);
-CREATE POLICY "courier_shifts_insert_public" ON public.courier_shifts
-  FOR INSERT WITH CHECK (true);
-CREATE POLICY "courier_shifts_update_public" ON public.courier_shifts
-  FOR UPDATE USING (true);
-CREATE POLICY "courier_shifts_delete_owner" ON public.courier_shifts
-  FOR DELETE USING (
-    auth.uid() = (SELECT user_id FROM organizations WHERE id = courier_shifts.organization_id)
-  );
-
-ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_shifts;
+```text
+courier_shifts
+- id (uuid PK)
+- courier_id (uuid NOT NULL)
+- organization_id (uuid NOT NULL)
+- started_at (timestamptz NOT NULL DEFAULT now())
+- ended_at (timestamptz NULL)
+- created_at (timestamptz NOT NULL DEFAULT now())
 ```
 
-### Timer no CourierPage
+Politicas RLS: SELECT/INSERT/UPDATE publicos (mesmo padrao das tabelas de motoboy). DELETE restrito ao dono da organizacao.
 
-```typescript
-// Atualiza a cada 60s para mostrar "Online ha X min"
-const [now, setNow] = useState(Date.now());
-useEffect(() => {
-  const interval = setInterval(() => setNow(Date.now()), 60_000);
-  return () => clearInterval(interval);
-}, []);
-```
+Realtime habilitado para atualizar o dashboard do dono em tempo real.
 
-### Bloqueio de aceitar entrega sem turno
+## Passo 2 -- Hooks em `src/hooks/useCourier.ts`
 
-No botao "Aceitar", verificar se `activeShift` existe. Se nao, mostrar toast "Inicie seu turno antes de aceitar entregas".
+Adicionar 5 hooks novos no final do arquivo:
 
+| Hook | Funcao |
+|------|--------|
+| `useActiveShift(courierId)` | Retorna turno ativo (ended_at IS NULL) |
+| `useStartShift()` | Mutation para criar novo turno |
+| `useEndShift()` | Mutation para setar ended_at = now() |
+| `useOrgActiveShifts(orgId)` | Todos os turnos ativos da org (quem esta online) |
+| `useOrgShiftHistory(orgId, date)` | Historico de turnos por data |
+
+Cada hook usa `as any` para contornar a tipagem auto-gerada (mesmo padrao usado nas outras queries de `couriers` e `deliveries`).
+
+Realtime subscription no `useOrgActiveShifts` para invalidar cache quando um turno muda.
+
+## Passo 3 -- `src/pages/CourierPage.tsx`
+
+Alteracoes na tela do motoboy:
+
+- Importar `useActiveShift`, `useStartShift`, `useEndShift`
+- Adicionar botao grande "Iniciar Turno" / "Encerrar Turno" logo abaixo do header
+- Quando turno ativo: badge verde "Online ha X min" com timer atualizado a cada 60s
+- Bloquear botao "Aceitar" se nao tiver turno ativo, com toast explicativo
+
+## Passo 4 -- `src/components/dashboard/CourierDashboardTab.tsx`
+
+Alteracoes no dashboard do dono:
+
+- Importar `useOrgActiveShifts` e `useOrgShiftHistory`
+- No card de cada motoboy: bolinha verde/vermelha indicando se esta online
+- Quando online: exibir "Entrou as HH:MM" e "Ha Xh trabalhando"
+- Na secao expandida do card: lista de turnos do dia selecionado (check-in / check-out)
+
+## Resumo das mudancas
+
+| Arquivo | Tipo de alteracao |
+|---------|-------------------|
+| Migracao SQL | Criar tabela + RLS + Realtime |
+| `src/hooks/useCourier.ts` | Adicionar 5 hooks + interface CourierShift |
+| `src/pages/CourierPage.tsx` | Botao turno + badge online + bloqueio aceitar |
+| `src/components/dashboard/CourierDashboardTab.tsx` | Status online + historico turnos |
