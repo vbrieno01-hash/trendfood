@@ -143,28 +143,41 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden min-h-screen flex flex-col">
-        <img
-          src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&q=80"
-          alt="Restaurante movimentado com mesas e clientes"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
+        {/* Video Background */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&q=80"
+          className="absolute inset-0 w-full h-full object-cover object-center scale-105 blur-[2px]"
+        >
+          <source
+            src="https://videos.pexels.com/video-files/3195394/3195394-uhd_2560_1440_25fps.mp4"
+            type="video/mp4"
+          />
+        </video>
+        {/* Dark overlay with subtle warm tones */}
         <div
           className="absolute inset-0"
-          style={{ background: "linear-gradient(135deg, rgba(26,5,5,0.93) 0%, rgba(45,10,10,0.89) 40%, rgba(26,5,5,0.96) 100%)" }}
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(10,10,10,0.92) 0%, rgba(20,8,8,0.88) 50%, rgba(10,10,10,0.95) 100%)",
+          }}
         />
 
-        {/* Header */}
-        <header className="relative z-10 border-b border-white/10">
-          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        {/* Header — glassmorphism */}
+        <header className="relative z-10 border-b border-white/[0.06]">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
+            <div className="flex items-center gap-2.5">
               <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
-              <span className="font-bold text-white text-lg">TrendFood</span>
+              <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10" asChild>
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/[0.06] transition-all" asChild>
                 <Link to="/planos">Ver planos</Link>
               </Button>
-              <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent" asChild>
+              <Button size="sm" className="border border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent backdrop-blur-sm rounded-full px-5 transition-all" asChild>
                 <Link to="/auth">Entrar</Link>
               </Button>
             </div>
@@ -173,39 +186,44 @@ const Index = () => {
 
         {/* Hero content */}
         <div className="relative z-10 flex-1 flex items-center">
-          <div className="max-w-5xl mx-auto px-4 py-20 text-center w-full">
-            <Badge className="mb-6 bg-primary/20 text-red-300 border-primary/30 hover:bg-primary/20">
-              <Zap className="w-3 h-3 mr-1" />
+          <div className="max-w-5xl mx-auto px-4 py-24 text-center w-full">
+            <Badge className="mb-8 bg-white/[0.08] text-white/80 border-white/[0.1] hover:bg-white/[0.12] backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
+              <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
               Zero taxas sobre vendas
             </Badge>
 
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-tight tracking-tight">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
               Zero taxas. Zero comissão.
               <br />
-              <span className="text-primary">Seu negócio, seu lucro.</span>
+              <span
+                className="bg-gradient-to-r from-red-500 via-red-400 to-orange-400 bg-clip-text text-transparent"
+              >
+                Seu negócio, seu lucro.
+              </span>
             </h1>
 
-            <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-4 leading-relaxed">
+            <p className="text-lg md:text-xl text-white/75 max-w-2xl mx-auto mb-4 leading-[1.8]">
               Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.
             </p>
-            <p className="text-sm md:text-base text-white/50 max-w-xl mx-auto mb-10 leading-relaxed">
+            <p className="text-sm md:text-base text-white/45 max-w-xl mx-auto mb-12 leading-relaxed">
               Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.
             </p>
 
             <div className="flex justify-center">
-              <Button size="lg" className="text-base font-bold gap-2 shadow-lg shadow-primary/40" asChild>
-                <Link to="/auth">
-                  Começar Grátis
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </Button>
+              <Link
+                to="/auth"
+                className="inline-flex items-center gap-2.5 bg-gradient-to-r from-red-600 to-orange-500 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(220,38,38,0.45)] hover:shadow-[0_12px_40px_rgba(220,38,38,0.55)] hover:scale-[1.03] transition-all duration-300"
+              >
+                Começar Grátis
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </div>
 
-            <div className="mt-12 flex flex-wrap gap-2 justify-center">
+            <div className="mt-14 flex flex-wrap gap-2.5 justify-center">
               {proofBadges.map((b) => (
                 <span
                   key={b}
-                  className="px-3 py-1.5 rounded-full bg-white/10 text-white/70 text-sm font-medium border border-white/10"
+                  className="px-4 py-2 rounded-full bg-black/30 backdrop-blur-sm text-white/70 text-sm font-medium"
                 >
                   {b}
                 </span>
