@@ -1,35 +1,52 @@
 
 
-# QR Code PIX no Pagamento do Motoboy
+# Corrigir App Travado nos Skeletons Apos Instalacao PWA
 
 ## Problema
-O diálogo de "Pagar tudo" mostra apenas texto de confirmação, sem o QR Code PIX do motoboy. A funcionalidade de QR Code foi planejada mas nunca implementada.
+Apos instalar o app como PWA, a tela fica travada nos skeletons de carregamento. O motivo e que o refresh token da sessao ficou invalido ("Refresh Token Not Found") e o estado `loading` nunca e definido como `false`, impedindo o redirecionamento para a tela de login.
 
-## Alterações
+## Causa raiz
+No `useAuth.tsx`, o `onAuthStateChange` pode disparar antes do `getSession`, e quando o refresh token e invalido, o fluxo entre os dois callbacks pode deixar `loading` travado como `true`. O `onAuthStateChange` seta `setLoading(true)` no `SIGNED_IN` mas se o token e invalido, o evento pode nao disparar, e o `getSession` pode retornar `null` enquanto o `onAuthStateChange` ainda esta processando.
+
+## Solucao
+Adicionar um timeout de seguranca (safety timeout) no `useAuth.tsx`: se apos 5 segundos o `loading` ainda estiver `true`, forcar `setLoading(false)`. Isso garante que o app nunca fique travado nos skeletons indefinidamente.
+
+Alem disso, garantir que no `onAuthStateChange`, quando o evento for `SIGNED_OUT` ou `TOKEN_REFRESHED` com falha, o `loading` seja explicitamente definido como `false`.
+
+## Alteracoes
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/hooks/useCourier.ts` | Adicionar `pix_key?: string` ao interface `Courier` |
-| `src/components/dashboard/CourierDashboardTab.tsx` | Substituir o `AlertDialog` simples por um card expansível: ao clicar no motoboy, expande mostrando QR Code PIX (gerado com `buildPixPayload`), botão "Copiar Pix Copia e Cola", e botão "Confirmar Pagamento". Se o motoboy não tem `pix_key`, mostra aviso amarelo mas permite confirmar mesmo assim. Auto-fecha quando `unpaidTotal` chega a 0. |
+| `src/hooks/useAuth.tsx` | Adicionar safety timeout de 5s para forcar `setLoading(false)`. Garantir que `setLoading(false)` e chamado no bloco `else` do `onAuthStateChange` (quando `newSession` e null). |
 
-## Detalhes técnicos
+## Detalhes tecnicos
 
-### Interface Courier
-Adicionar `pix_key?: string | null` ao type existente.
+### Safety timeout
+```typescript
+// Dentro do useEffect principal, apos getSession:
+const safetyTimeout = setTimeout(() => {
+  if (isMounted.current && loading) {
+    setLoading(false);
+  }
+}, 5000);
 
-### Card expansível (substituindo AlertDialog)
-- Estado `expandedCourierId: string | null` controla qual motoboy está expandido
-- Clicar no card do motoboy com débito expande/colapsa
-- Apenas um card expandido por vez
-- Quando expandido, mostra:
-  - QR Code gerado via `buildPixPayload(courier.pix_key, unpaidTotal, courier.name)` usando `QRCodeSVG`
-  - Botão "Copiar Pix Copia e Cola" com o payload
-  - Botão "Confirmar Pagamento" (mesmo comportamento atual do `payMutation`)
-  - Se `pix_key` ausente: aviso amarelo "Motoboy não cadastrou chave PIX"
-- `useEffect` que auto-fecha o card quando `unpaidTotal` do motoboy expandido chega a 0
+// No cleanup:
+return () => {
+  isMounted.current = false;
+  subscription.unsubscribe();
+  clearTimeout(safetyTimeout);
+};
+```
 
-### Imports adicionais
-- `import { QRCodeSVG } from "qrcode.react"` (já instalado)
-- `import { buildPixPayload } from "@/lib/pixPayload"` (já existe)
-- `import { Copy } from "lucide-react"` para o botão de copiar
+### onAuthStateChange - bloco else
+```typescript
+} else {
+  setOrganizations([]);
+  setActiveOrgId(null);
+  setIsAdmin(false);
+  setLoading(false); // <-- adicionar esta linha
+}
+```
+
+Isso garante que quando nao ha sessao valida (refresh token invalido), o loading termina e o usuario e redirecionado para a tela de login automaticamente.
 
