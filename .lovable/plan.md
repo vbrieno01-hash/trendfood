@@ -1,61 +1,73 @@
 
 
-# Suportar Web Bluetooth em mais navegadores (incluindo Brave)
+# Corrigir travamento ao recarregar pagina sem impressora pareada
 
-## Contexto
+## Problema
 
-O Web Bluetooth funciona nativamente no Chrome, Edge e Opera. O Brave **tem suporte**, mas desativa por padrão. Firefox e Safari **nao suportam**.
+Quando a pagina recarrega e existe um `bt_printer_device_id` salvo no localStorage (de um pareamento anterior), o sistema tenta reconectar automaticamente chamando `reconnectStoredPrinter()`. Essa funcao usa `watchAdvertisements()` para esperar o dispositivo ficar visivel antes de conectar. Quando a impressora esta desligada ou fora de alcance, `watchAdvertisements()` pode travar o navegador completamente (bug conhecido da API Web Bluetooth no Chrome).
 
-As mensagens atuais dizem "Abra no Google Chrome", o que e incorreto -- e preciso orientar corretamente cada caso.
+## Solucao
 
-## Mudancas
+### 1. `src/lib/bluetoothPrinter.ts` — Tornar reconnect seguro
 
-### 1. `src/lib/bluetoothPrinter.ts` — Detectar Brave especificamente
+- Envolver toda a logica de `reconnectStoredPrinter()` com um timeout global de 6 segundos — se nao reconectar nesse tempo, retorna `null` silenciosamente
+- Tratar qualquer erro de `watchAdvertisements` de forma que nunca bloqueie a thread principal
+- Se `watchAdvertisements` nao estiver disponivel, tentar conectar direto ao GATT (com timeout) em vez de desistir
 
-Criar uma funcao auxiliar `getBrowserBluetoothStatus()` que retorna:
-- `"supported"` — API disponivel
-- `"brave"` — Brave detectado (via `navigator.brave`) mas BT desativado
-- `"unsupported"` — navegador sem suporte
+### 2. `src/pages/DashboardPage.tsx` — Proteger o useEffect de auto-reconnect
+
+- Adicionar try-catch robusto ao redor da chamada `reconnectStoredPrinter()`
+- Se falhar, limpar o device ID armazenado para evitar travamento em recarregamentos futuros
+- Log de aviso para facilitar debug
+
+## Detalhes tecnicos
+
+### `reconnectStoredPrinter` — timeout global
 
 ```typescript
-export function getBluetoothStatus(): "supported" | "brave-disabled" | "unsupported" {
-  if (isBluetoothSupported()) return "supported";
-  if ((navigator as any).brave) return "brave-disabled";
-  return "unsupported";
+export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> {
+  if (!isBluetoothSupported()) return null;
+  const storedId = getStoredDeviceId();
+  if (!storedId) return null;
+
+  // Timeout global para evitar travamento do navegador
+  return withTimeout(reconnectStoredPrinterInternal(storedId), 6000, "reconnectStoredPrinter")
+    .catch(() => {
+      console.warn("[BT] Auto-reconnect timed out or failed");
+      return null;
+    });
+}
+
+async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
+  // ... logica atual movida para ca ...
 }
 ```
 
-### 2. `src/components/dashboard/KitchenTab.tsx` — Toast especifico por navegador
+### `DashboardPage.tsx` — useEffect defensivo
 
-No `onClick` do botao de parear, usar `getBluetoothStatus()` para mostrar mensagens diferentes:
-- **Brave**: "Ative o Web Bluetooth em brave://flags/#enable-web-bluetooth e recarregue a pagina."
-- **Outros**: "Use o Google Chrome, Microsoft Edge ou Opera para parear impressoras Bluetooth."
-
-### 3. `src/components/dashboard/SettingsTab.tsx` — Mesma logica
-
-- Atualizar o aviso amarelo (AlertTriangle) para mostrar instrucoes especificas para Brave
-- Atualizar o toast do botao "Parear impressora"
-- **Sempre mostrar** a opcao "Bluetooth" no select de modo de impressao (remover o `{btSupported && ...}`) para que o usuario saiba que existe, mesmo que precise ajustar o navegador
-
-### 4. `src/pages/KitchenPage.tsx` — Mesma logica
-
-- Atualizar o `handlePairBluetooth` com as mensagens especificas por navegador
-
-### 5. `src/pages/DashboardPage.tsx` — Atualizar toast de erro
-
-- Atualizar a mensagem no `handlePairBluetooth` para usar as instrucoes por navegador
-
-## Mensagens finais
-
-**Brave detectado:**
-> "Bluetooth desativado no Brave. Ative em brave://flags/#enable-web-bluetooth e recarregue a pagina."
-
-**Outro navegador sem suporte:**
-> "Seu navegador nao suporta Web Bluetooth. Use Chrome, Edge ou Opera."
+```typescript
+useEffect(() => {
+  if (btDevice) return;
+  if (!isBluetoothSupported()) return;
+  let cancelled = false;
+  reconnectStoredPrinter()
+    .then((device) => {
+      if (cancelled || !device) return;
+      setBtDevice(device);
+      setBtConnected(true);
+      toast.success("Impressora reconectada automaticamente");
+      attachDisconnectHandler(device);
+    })
+    .catch((err) => {
+      console.warn("[BT] Auto-reconnect failed on mount:", err);
+      // Limpar device armazenado para evitar travamento em futuros reloads
+      clearStoredDevice();
+    });
+  return () => { cancelled = true; };
+}, [organization]);
+```
 
 ## Arquivos alterados
-- `src/lib/bluetoothPrinter.ts` — nova funcao `getBluetoothStatus()`
-- `src/components/dashboard/KitchenTab.tsx` — toast por navegador
-- `src/components/dashboard/SettingsTab.tsx` — aviso e select atualizados
-- `src/pages/KitchenPage.tsx` — toast por navegador
-- `src/pages/DashboardPage.tsx` — toast por navegador
+- `src/lib/bluetoothPrinter.ts` — timeout global no `reconnectStoredPrinter`, refatorar logica interna
+- `src/pages/DashboardPage.tsx` — catch defensivo no useEffect + limpar device se falhar
+
