@@ -360,7 +360,7 @@ const DashboardPage = () => {
             target,
             (d) => { if (!cancelled) onConnected(d); },
             () => { if (!cancelled) console.log("[BT] All backoff retries exhausted"); },
-            3
+            5
           );
         } catch (err) {
           console.warn("[BT] Backoff fallback error:", err);
