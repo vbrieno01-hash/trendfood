@@ -58,7 +58,21 @@ export function useMyCourier() {
 export function useRegisterCourier() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { organization_id: string; name: string; phone: string; plate: string; whatsapp?: string }) => {
+    mutationFn: async (input: { organization_id: string; name: string; phone: string; plate: string; whatsapp?: string }): Promise<{ courier: Courier; isExisting: boolean }> => {
+      // Check if courier already exists for this org + phone
+      const { data: existing } = await supabase
+        .from("couriers" as any)
+        .select("*")
+        .eq("organization_id", input.organization_id)
+        .eq("phone", input.phone)
+        .maybeSingle();
+
+      if (existing) {
+        const courier = existing as unknown as Courier;
+        saveCourierId(courier.id);
+        return { courier, isExisting: true };
+      }
+
       const { data, error } = await supabase
         .from("couriers" as any)
         .insert(input as any)
@@ -67,7 +81,7 @@ export function useRegisterCourier() {
       if (error) throw error;
       const courier = data as unknown as Courier;
       saveCourierId(courier.id);
-      return courier;
+      return { courier, isExisting: false };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courier"] });

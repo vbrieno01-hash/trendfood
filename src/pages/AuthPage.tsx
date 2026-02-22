@@ -14,7 +14,7 @@ const translateAuthError = (msg?: string): string | undefined => {
   if (!msg) return undefined;
   const map: Record<string, string> = {
     "Invalid login credentials": "E-mail ou senha incorretos.",
-    "User already registered": "Este e-mail já está cadastrado.",
+    "User already registered": "Este e-mail já está cadastrado. Use a aba \"Entrar\" para fazer login.",
     "Password should be at least 6 characters": "A senha deve ter no mínimo 6 caracteres.",
     "Unable to validate email address: invalid format": "Formato de e-mail inválido.",
     "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",

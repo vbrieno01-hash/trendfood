@@ -1,0 +1,1 @@
+ALTER TABLE public.couriers ADD CONSTRAINT couriers_org_phone_unique UNIQUE (organization_id, phone);
