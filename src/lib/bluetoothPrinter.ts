@@ -34,22 +34,12 @@ export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null>
   if (!isBluetoothSupported()) return null;
 
   try {
-    let device: BluetoothDevice | null = null;
-
-    // First try with known service filters (better UX — shows only printers)
-    try {
-      device = await (navigator as any).bluetooth.requestDevice({
-        filters: ALT_SERVICE_UUIDS.map((uuid) => ({ services: [uuid] })),
-        optionalServices: ALT_SERVICE_UUIDS,
-      });
-    } catch (filterErr) {
-      console.warn("[BT] Filtered request failed, trying acceptAllDevices:", filterErr);
-      // Fallback: accept any BT device (works with generic/proprietary UUIDs)
-      device = await (navigator as any).bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ALT_SERVICE_UUIDS,
-      });
-    }
+    // Usar acceptAllDevices diretamente — impressoras genéricas
+    // não anunciam UUIDs padrão, então filtros não funcionam.
+    const device = await (navigator as any).bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ALT_SERVICE_UUIDS,
+    });
 
     if (device?.id) {
       localStorage.setItem(STORED_DEVICE_KEY, device.id);
