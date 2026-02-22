@@ -6,6 +6,10 @@ import CreateUnitDialog from "@/components/dashboard/CreateUnitDialog";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { useOrders, Order } from "@/hooks/useOrders";
+import { printOrderByMode } from "@/lib/printOrder";
+import { buildPixPayload } from "@/lib/pixPayload";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,6 +72,136 @@ const DashboardPage = () => {
   const [btConnected, setBtConnected] = useState(false);
   const btSupported = isBluetoothSupported();
 
+  // ── Global auto-print + notifications (always mounted) ──
+  const AUTO_PRINT_KEY = "kds_auto_print";
+  const NOTIF_KEY_DASH = "kds_notifications";
+  const qc = useQueryClient();
+
+  const [autoPrint, setAutoPrint] = useState<boolean>(
+    () => localStorage.getItem(AUTO_PRINT_KEY) !== "false"
+  );
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
+    () => localStorage.getItem(NOTIF_KEY_DASH) === "true"
+  );
+
+  const autoPrintRef = useRef(autoPrint);
+  const notificationsRef = useRef(notificationsEnabled);
+  const knownIds = useRef<Set<string>>(new Set());
+  const pendingPrintIds = useRef<Set<string>>(new Set());
+  const isPrintingRef = useRef(false);
+
+  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+  useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
+
+  const toggleAutoPrint = (val: boolean) => {
+    setAutoPrint(val);
+    localStorage.setItem(AUTO_PRINT_KEY, String(val));
+  };
+  const toggleNotifications = (val: boolean) => {
+    setNotificationsEnabled(val);
+    localStorage.setItem(NOTIF_KEY_DASH, String(val));
+  };
+
+  const orgId = organization?.id;
+  const orgName = organization?.name;
+  const printMode = (organization as any)?.print_mode ?? "browser";
+  const printerWidth = (organization as any)?.printer_width ?? "58mm";
+  const pixKey = (organization as any)?.pix_key;
+  const storeAddress = organization?.store_address;
+  const courierConfig = (organization as any)?.courier_config;
+
+  // Fetch orders at dashboard level for auto-print
+  const { data: dashOrders = [] } = useOrders(orgId, ["pending", "preparing"]);
+
+  // playBell
+  const playBell = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      [0, 0.3, 0.6].forEach((t) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime + t);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + t + 0.4);
+        gain.gain.setValueAtTime(0.5, ctx.currentTime + t);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.5);
+        osc.start(ctx.currentTime + t);
+        osc.stop(ctx.currentTime + t + 0.5);
+      });
+    } catch { /* audio not available */ }
+  };
+
+  const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
+    (order.order_items ?? []).reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
+
+  const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: number }> }) => {
+    if (!pixKey) return undefined;
+    const total = calcOrderTotal(order);
+    if (total <= 0) return undefined;
+    return buildPixPayload(pixKey, total, orgName ?? "LOJA");
+  };
+
+  // Realtime: listen for new orders globally
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel(`dashboard-autoprint-${orgId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
+        (payload) => {
+          const order = payload.new as Order;
+          if (!knownIds.current.has(order.id)) {
+            knownIds.current.add(order.id);
+            playBell();
+            if (autoPrintRef.current) {
+              pendingPrintIds.current.add(order.id);
+            }
+            if (notificationsRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
+              const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+              new Notification(`🔔 Novo pedido! ${tableLabel}`, {
+                icon: "/pwa-192.png",
+                badge: "/pwa-192.png",
+              });
+            }
+            qc.invalidateQueries({ queryKey: ["orders", orgId] });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [orgId, qc]);
+
+  // Print pending orders once items are loaded
+  useEffect(() => {
+    if (pendingPrintIds.current.size === 0) return;
+    if (isPrintingRef.current) return;
+
+    const toPrint = dashOrders.filter(
+      (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
+    );
+    if (toPrint.length === 0) return;
+
+    isPrintingRef.current = true;
+    (async () => {
+      for (const order of toPrint) {
+        pendingPrintIds.current.delete(order.id);
+        try {
+          await printOrderByMode(order, orgName, printMode, orgId!, btDevice, getPixPayload(order), printerWidth);
+        } catch (err) {
+          console.error("[Dashboard] Auto-print failed:", err);
+        }
+      }
+      isPrintingRef.current = false;
+    })();
+  }, [dashOrders, orgName]);
+
+  // Mark existing orders as known when first loaded
+  useEffect(() => {
+    dashOrders.forEach((o) => knownIds.current.add(o.id));
+  }, [dashOrders]);
   const handlePairBluetooth = async () => {
     if (!isBluetoothSupported()) {
       toast.error("Bluetooth não disponível neste navegador. Abra trendfood.lovable.app diretamente no Google Chrome.");
@@ -536,7 +670,7 @@ const DashboardPage = () => {
             : <BestSellersTab orgId={organization.id} />)}
           {activeTab === "kitchen" && (lockedFeatures.kitchen
             ? <UpgradePrompt title="Painel da Cozinha (KDS)" description="Gerencie pedidos em tempo real com o KDS. Disponível nos planos Pro e Enterprise." />
-            : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} onPairBluetooth={handlePairBluetooth} btConnected={btConnected} btSupported={btSupported} />)}
+            : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} onPairBluetooth={handlePairBluetooth} btConnected={btConnected} btSupported={btSupported} autoPrint={autoPrint} onToggleAutoPrint={toggleAutoPrint} notificationsEnabled={notificationsEnabled} onToggleNotifications={toggleNotifications} />)}
           {activeTab === "waiter" && (lockedFeatures.waiter
             ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." />
             : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"} pixKey={(organization as any).pix_key} />)}
