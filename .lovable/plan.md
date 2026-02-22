@@ -1,60 +1,74 @@
 
 
-# Corrigir Realtime na aba Cozinha (KitchenTab)
+# Corrigir impressao automatica Bluetooth - reconexao sob demanda
 
 ## Problema
 
-O `KitchenTab.tsx` tem uma subscription Realtime que escuta **apenas UPDATE** na tabela `orders` (linha 115). Novos pedidos (INSERT) dependem do canal separado no `DashboardPage` para invalidar o cache. Com 3 canais simultaneos escutando a mesma tabela (`useOrders`, `DashboardPage`, `KitchenTab`), ha chance de conflito ou perda de eventos, fazendo com que a tela da cozinha nao atualize ao vivo.
+Quando chega um pedido via Realtime, o auto-print verifica `btDeviceRef.current`. Se o auto-reconnect falhou (comum com Bluetooth), o ref e `null` e o sistema cai no modo `'browser'`, que e bloqueado pelo navegador.
+
+O auto-reconnect pode falhar por varias razoes: impressora desligada no momento do reload, `watchAdvertisements` nao suportado, timeout. Quando isso acontece, a impressao automatica fica travada ate o usuario parear manualmente de novo.
 
 ## Solucao
 
-Mudar o canal do `KitchenTab` para escutar **todos** os eventos (`INSERT`, `UPDATE`, `DELETE`) em vez de apenas `UPDATE`. Isso torna a aba auto-suficiente -- nao depende mais do canal do DashboardPage para atualizar a lista de pedidos.
+Adicionar reconexao sob demanda no bloco de auto-print: se `btDeviceRef.current` e null mas existe um device salvo no localStorage, tentar reconectar antes de imprimir.
 
-## Detalhe tecnico
+## Alteracao
 
-### `src/components/dashboard/KitchenTab.tsx` (linhas 115-128)
+### `src/pages/DashboardPage.tsx` (bloco auto-print, linhas 189-213)
 
-Trocar `event: "UPDATE"` por `event: "*"` na subscription Realtime:
+No callback de auto-print, antes de calcular `effectiveMode`:
 
-**Antes:**
 ```typescript
-// Realtime: only UPDATE to refresh UI (INSERT handled by DashboardPage)
-useEffect(() => {
-  if (!orgId) return;
-  const channel = supabase
-    .channel(`kitchen-tab-update-${orgId}`)
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
-      () => {
-        qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
+// Auto-print: enqueue job so no order is ever dropped
+if (autoPrintRef.current) {
+  printQueue.current.push(async () => {
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("id, name, quantity, price, customer_name")
+      .eq("order_id", order.id);
+    const fullOrder = { ...order, order_items: items ?? [] };
+
+    // Se nao tem device mas tem ID salvo, tentar reconectar sob demanda
+    if (!btDeviceRef.current && getStoredDeviceId()) {
+      try {
+        const reconnected = await reconnectStoredPrinter();
+        if (reconnected) {
+          setBtDevice(reconnected);
+          setBtConnected(true);
+          btDeviceRef.current = reconnected; // Atualiza ref imediatamente
+          attachDisconnectHandler(reconnected);
+          console.log("[AutoPrint] Bluetooth reconnected on-demand");
+        }
+      } catch {
+        console.warn("[AutoPrint] On-demand BT reconnect failed");
       }
-    )
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [orgId, qc]);
+    }
+
+    const effectiveMode = btDeviceRef.current
+      ? 'bluetooth' as const
+      : printModeRef.current;
+
+    await printOrderByMode(
+      fullOrder,
+      orgNameRef.current,
+      effectiveMode,
+      orgId!,
+      btDeviceRef.current,
+      getPixPayload(fullOrder),
+      printerWidthRef.current
+    );
+  });
+  processQueue();
+}
 ```
 
-**Depois:**
-```typescript
-// Realtime: listen for all order changes (INSERT + UPDATE + DELETE)
-useEffect(() => {
-  if (!orgId) return;
-  const channel = supabase
-    .channel(`kitchen-tab-${orgId}`)
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
-      () => {
-        qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
-      }
-    )
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [orgId, qc]);
-```
+Isso garante que:
+- Se o auto-reconnect do mount funcionou: imprime direto via Bluetooth (ja funciona)
+- Se o auto-reconnect do mount falhou mas a impressora agora esta ligada: tenta reconectar no momento do pedido
+- Se a reconexao sob demanda tambem falha: cai no modo do banco (browser/desktop) como fallback
+- A reconexao so e tentada uma vez por job (nao trava a fila)
 
 ## Arquivo alterado
 
-- `src/components/dashboard/KitchenTab.tsx` -- escutar todos os eventos Realtime, nao apenas UPDATE
+- `src/pages/DashboardPage.tsx` -- reconexao Bluetooth sob demanda no auto-print
 
