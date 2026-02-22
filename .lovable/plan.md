@@ -1,78 +1,60 @@
 
 
-# Melhorar reconexao automatica Bluetooth no carregamento
+# Corrigir reconexao Bluetooth cancelada por mudanca de estado
 
 ## Problema
 
-A reconexao automatica depende de `watchAdvertisements()` para tornar o dispositivo visivel ao Chrome antes de tentar conectar via GATT. Mas essa API tem limitacoes:
-- Nem todos os navegadores/versoes suportam
-- A impressora precisa estar ativamente anunciando no momento exato (janela de 4 segundos)
-- Se a impressora demorar para anunciar ou o browser nao captar, a conexao falha silenciosamente
+O `useEffect` de reconexao Bluetooth (linha 329) depende de `[organization]`. Quando a pagina carrega:
 
-Depois disso, o backoff retry tenta `connectToDevice` mais 3 vezes (1s, 2s, 4s), mas tambem depende do dispositivo estar visivel.
+1. `organization` comeca como `undefined` -- o effect roda e inicia `reconnectStoredPrinter()` (pode levar ate 20s)
+2. A organizacao carrega e `organization` muda para o objeto real
+3. O cleanup do primeiro effect roda (`cancelled = true`), cancelando o callback de sucesso
+4. O effect roda de novo, mas o `isConnecting` guard dentro de `connectToDevice` ainda pode estar `true` da tentativa anterior, fazendo a segunda tentativa falhar silenciosamente
+
+Resultado: a reconexao nunca completa.
 
 ## Solucao
 
-Duas mudancas na estrategia de reconexao:
+Remover `organization` da lista de dependencias do effect de reconexao. Esse effect so precisa rodar uma vez no mount -- ele nao depende de nenhum dado da organizacao. Usar um ref para garantir que roda apenas uma vez.
 
-### 1. Tentar conexao GATT direta primeiro (sem esperar advertisement)
-
-Muitos dispositivos Bluetooth permitem reconexao direta via `device.gatt.connect()` sem precisar de `watchAdvertisements`. Adicionar um "fast path" que tenta conectar diretamente antes de recorrer ao `watchAdvertisements`.
-
-### 2. Aumentar retentativas e timeouts
-
-- `waitForAdvertisement`: aumentar de 4s para 6s
-- Backoff retry: aumentar de 3 para 5 tentativas (1s, 2s, 4s, 8s, 16s)
-- Timeout global de `reconnectStoredPrinter`: aumentar de 12s para 20s
-
-## Alteracoes tecnicas
-
-### `src/lib/bluetoothPrinter.ts`
-
-**reconnectStoredPrinterInternal** -- adicionar tentativa direta antes de watchAdvertisements:
-
-```typescript
-async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
-  const bt = navigator as any;
-  if (typeof bt.bluetooth?.getDevices !== "function") return null;
-
-  const devices = await bt.bluetooth.getDevices();
-  const device = devices.find((d) => d.id === storedId);
-  if (!device) return null;
-
-  // Fast path: tentar GATT connect direto (funciona em muitos dispositivos)
-  try {
-    console.log("[BT] Tentando conexao direta...");
-    const char = await connectToDevice(device);
-    if (char) {
-      console.log("[BT] Conexao direta OK:", device.name || device.id);
-      return device;
-    }
-  } catch { /* continua para watchAdvertisements */ }
-
-  // Slow path: watchAdvertisements + retry
-  await waitForAdvertisement(device, 6000);
-  const char = await connectToDevice(device);
-  if (char) return device;
-
-  return null;
-}
-```
-
-**reconnectStoredPrinter** -- aumentar timeout global para 20s
-
-**waitForAdvertisement** -- timeout padrao para 6s
+## Alteracao
 
 ### `src/pages/DashboardPage.tsx`
 
-**Backoff retry** -- aumentar para 5 tentativas:
+Trocar a dependencia do useEffect de `[organization]` para `[]` (rodar apenas no mount) e adicionar um guard ref para evitar execucao dupla:
 
 ```typescript
-autoReconnect(target, onConnected, onFailed, 5);
+const btReconnectAttempted = useRef(false);
+
+useEffect(() => {
+  if (btDevice) return;
+  if (!isBluetoothSupported()) return;
+  if (btReconnectAttempted.current) return;
+  btReconnectAttempted.current = true;
+
+  const onConnected = (device: BluetoothDevice) => {
+    setBtDevice(device);
+    setBtConnected(true);
+    toast.success("Impressora reconectada automaticamente");
+    attachDisconnectHandler(device);
+  };
+
+  reconnectStoredPrinter()
+    .then(async (device) => {
+      if (device) {
+        onConnected(device);
+        return;
+      }
+      // backoff retry (igual ao atual)
+      ...
+    })
+    .catch(...);
+}, []); // sem dependencia de organization
 ```
 
-## Arquivos alterados
+Isso elimina o problema de cancelamento e garante que a reconexao rode do inicio ao fim sem interrupcao.
 
-- `src/lib/bluetoothPrinter.ts` -- fast path direto + timeouts maiores
-- `src/pages/DashboardPage.tsx` -- mais tentativas de backoff
+## Arquivo alterado
+
+- `src/pages/DashboardPage.tsx` -- dependencia do effect + guard ref
 
