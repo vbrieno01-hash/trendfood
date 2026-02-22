@@ -1,46 +1,48 @@
 
-# Corrigir login do motoboy - normalizar telefone
+
+# PWA separada para o Motoboy
 
 ## Problema
-O login busca o telefone com comparacao exata (`eq`), mas o telefone salvo no banco tem mascara: `(83) 99824-4382`. Se o motoboy digitar `83998244382` ou `(83)99824-4382`, nao encontra.
+Quando o motoboy instala o app pelo botao "Instalar", ele instala o TrendFood completo (site principal, landing page, dashboard). O motoboy precisa de um app independente, so com o painel dele.
 
 ## Solucao
-Normalizar o telefone (remover tudo que nao e numero) antes de comparar. Como o telefone salvo no banco ja tem mascara, vamos usar duas estrategias:
+Criar um manifesto PWA separado exclusivo para a rota `/motoboy`. Quando o motoboy acessar essa pagina, o app troca automaticamente o manifesto para um com nome, icone e `start_url` proprios. Assim, ao instalar, ele recebe um app chamado "Motoboy TrendFood" que abre direto no painel dele.
 
-1. Tentar busca exata primeiro (caso o motoboy digite exatamente como cadastrou)
-2. Se nao encontrar, buscar todos os motoboys da org e comparar os telefones normalizados (somente digitos)
+## O que muda
 
-## Alteracoes
-
-| Arquivo | O que muda |
+| Arquivo | Alteracao |
 |---------|-----------|
-| `src/hooks/useCourier.ts` | Alterar `useLoginCourier` para normalizar telefone antes de comparar. Buscar motoboys da org e comparar somente digitos. |
+| `public/manifest-courier.json` | **Novo.** Manifesto PWA exclusivo do motoboy com `start_url: "/motoboy"`, nome "Motoboy TrendFood" e icones dedicados. |
+| `src/pages/CourierPage.tsx` | Adicionar `useEffect` que troca o `<link rel="manifest">` no `<head>` para apontar ao manifesto do motoboy. Tambem atualiza `theme-color` e titulo da pagina. |
 
 ## Detalhes tecnicos
 
-### Funcao auxiliar de normalizacao
-```typescript
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
+### Manifesto separado (`public/manifest-courier.json`)
+```json
+{
+  "name": "Motoboy TrendFood",
+  "short_name": "Motoboy",
+  "description": "Painel de entregas para motoboys",
+  "theme_color": "#f97316",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/motoboy",
+  "scope": "/motoboy",
+  "icons": [
+    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
 }
 ```
 
-### Hook `useLoginCourier` atualizado
-Em vez de `eq("phone", input.phone)`, buscar todos os couriers ativos da org e filtrar pelo telefone normalizado:
+O `start_url` garante que ao abrir o app instalado, ele vai direto para `/motoboy` (sem o parametro `?org=`). O `scope` limita a navegacao ao contexto do motoboy.
 
-```typescript
-const normalized = normalizePhone(input.phone);
-const { data, error } = await supabase
-  .from("couriers")
-  .select("*")
-  .eq("organization_id", input.organization_id)
-  .eq("active", true);
+### Troca dinamica do manifesto (em `CourierPage.tsx`)
+Ao montar a pagina, um `useEffect` vai:
+1. Trocar (ou criar) o `<link rel="manifest">` apontando para `/manifest-courier.json`
+2. Atualizar o `<title>` para "Motoboy TrendFood"
+3. Restaurar o manifesto original ao sair da pagina
 
-if (error) throw error;
-const match = (data ?? []).find(
-  (c) => normalizePhone(c.phone) === normalized
-);
-if (!match) throw new Error("NOT_FOUND");
-```
+### Persistencia do slug da org
+Como o `start_url` nao tera `?org=`, o slug da organizacao sera salvo no `localStorage` junto com o courier ID. Assim, ao reabrir o app instalado, o motoboy entra direto no painel da loja dele sem precisar do parametro na URL.
 
-Isso garante que independente de como o motoboy digitar o telefone (com ou sem mascara), o login funciona.
