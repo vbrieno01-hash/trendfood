@@ -250,6 +250,29 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
       return null;
     }
 
+    // Wait for device to be "visible" before GATT connect
+    if (typeof (device as any).watchAdvertisements === "function") {
+      try {
+        console.log("[BT] Watching advertisements for", device.name || device.id);
+        await (device as any).watchAdvertisements();
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            device.removeEventListener("advertisementreceived", onAdv);
+            reject(new Error("watchAdvertisements timeout (8s)"));
+          }, 8000);
+          const onAdv = () => {
+            clearTimeout(timeout);
+            device.removeEventListener("advertisementreceived", onAdv);
+            resolve();
+          };
+          device.addEventListener("advertisementreceived", onAdv);
+        });
+        console.log("[BT] Advertisement received, proceeding with connect");
+      } catch (watchErr) {
+        console.warn("[BT] watchAdvertisements failed, trying direct connect:", watchErr);
+      }
+    }
+
     const char = await connectToDevice(device);
     if (char) {
       console.log("[BT] Auto-reconnected to", device.name || device.id);
