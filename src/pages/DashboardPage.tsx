@@ -87,7 +87,7 @@ const DashboardPage = () => {
   const autoPrintRef = useRef(autoPrint);
   const notificationsRef = useRef(notificationsEnabled);
   const knownIds = useRef<Set<string>>(new Set());
-  const pendingPrintIds = useRef<Set<string>>(new Set());
+  // pendingPrintIds removed — printing now happens directly in Realtime callback
   const isPrintingRef = useRef(false);
 
   useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
@@ -143,7 +143,7 @@ const DashboardPage = () => {
     return buildPixPayload(pixKey, total, orgName ?? "LOJA");
   };
 
-  // Realtime: listen for new orders globally
+  // Realtime: listen for new orders globally — print directly in callback
   useEffect(() => {
     if (!orgId) return;
     const channel = supabase
@@ -153,20 +153,39 @@ const DashboardPage = () => {
         { event: "INSERT", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
         (payload) => {
           const order = payload.new as Order;
-          if (!knownIds.current.has(order.id)) {
-            knownIds.current.add(order.id);
-            playBell();
-            if (autoPrintRef.current) {
-              pendingPrintIds.current.add(order.id);
-            }
-            if (notificationsRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
-              const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
-              new Notification(`🔔 Novo pedido! ${tableLabel}`, {
-                icon: "/pwa-192.png",
-                badge: "/pwa-192.png",
-              });
-            }
-            qc.invalidateQueries({ queryKey: ["orders", orgId] });
+          if (knownIds.current.has(order.id)) return;
+          knownIds.current.add(order.id);
+
+          playBell();
+
+          if (notificationsRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
+            const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+            new Notification(`🔔 Novo pedido! ${tableLabel}`, {
+              icon: "/pwa-192.png",
+              badge: "/pwa-192.png",
+            });
+          }
+
+          qc.invalidateQueries({ queryKey: ["orders", orgId] });
+
+          // Auto-print: fetch items directly and print (works even in background tabs)
+          if (autoPrintRef.current && !isPrintingRef.current) {
+            isPrintingRef.current = true;
+            Promise.resolve(
+              supabase
+                .from("order_items")
+                .select("id, name, quantity, price, customer_name")
+                .eq("order_id", order.id)
+            ).then(async ({ data: items }) => {
+                const fullOrder = { ...order, order_items: items ?? [] };
+                try {
+                  await printOrderByMode(fullOrder, orgName, printMode, orgId!, btDevice, getPixPayload(fullOrder), printerWidth);
+                } catch (err) {
+                  console.error("[Dashboard] Auto-print failed:", err);
+                }
+                isPrintingRef.current = false;
+              })
+              .catch(() => { isPrintingRef.current = false; });
           }
         }
       )
@@ -174,29 +193,7 @@ const DashboardPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, [orgId, qc]);
 
-  // Print pending orders once items are loaded
-  useEffect(() => {
-    if (pendingPrintIds.current.size === 0) return;
-    if (isPrintingRef.current) return;
-
-    const toPrint = dashOrders.filter(
-      (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
-    );
-    if (toPrint.length === 0) return;
-
-    isPrintingRef.current = true;
-    (async () => {
-      for (const order of toPrint) {
-        pendingPrintIds.current.delete(order.id);
-        try {
-          await printOrderByMode(order, orgName, printMode, orgId!, btDevice, getPixPayload(order), printerWidth);
-        } catch (err) {
-          console.error("[Dashboard] Auto-print failed:", err);
-        }
-      }
-      isPrintingRef.current = false;
-    })();
-  }, [dashOrders, orgName]);
+  // (Auto-print useEffect removed — printing now happens directly in Realtime callback above)
 
   // Mark existing orders as known when first loaded
   useEffect(() => {
