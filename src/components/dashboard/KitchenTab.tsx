@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Flame, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
+import { buildPixPayload } from "@/lib/pixPayload";
 import { toast } from "sonner";
 
 const playBell = () => {
@@ -49,9 +50,20 @@ interface KitchenTabProps {
   printMode?: 'browser' | 'desktop' | 'bluetooth';
   printerWidth?: '58mm' | '80mm';
   btDevice?: BluetoothDevice | null;
+  pixKey?: string | null;
 }
 
-export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null }: KitchenTabProps) {
+const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
+  (order.order_items ?? []).reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
+
+const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: number }> }, pixKey?: string | null, storeName?: string) => {
+  if (!pixKey) return undefined;
+  const total = calcOrderTotal(order);
+  if (total <= 0) return undefined;
+  return buildPixPayload(pixKey, total, storeName ?? "LOJA");
+};
+
+export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null, pixKey }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
   const qc = useQueryClient();
@@ -174,7 +186,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
     orders.forEach((order) => {
       if (pendingPrintIds.current.has(order.id) && (order.order_items?.length ?? 0) > 0) {
         pendingPrintIds.current.delete(order.id);
-        printOrderByMode(order, orgName, printMode, orgId, btDevice, undefined, printerWidth);
+        printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
       }
     });
   }, [orders, orgName]);
@@ -287,7 +299,7 @@ export default function KitchenTab({ orgId, orgName, storeAddress, courierConfig
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       title="Imprimir pedido"
-                      onClick={() => printOrderByMode(order, orgName, printMode, orgId, btDevice, undefined, printerWidth)}
+                      onClick={() => printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth)}
                     >
                       <Printer className="w-3.5 h-3.5" />
                     </Button>
