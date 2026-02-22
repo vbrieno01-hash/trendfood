@@ -184,9 +184,17 @@ export default function KitchenTab({
             <Button
               variant="outline"
               size="sm"
-              className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""}`}
-              onClick={onPairBluetooth}
-              disabled={!btSupported}
+              className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""} ${!btSupported ? "opacity-50" : ""}`}
+              onClick={() => {
+                if (!btSupported) {
+                  toast.error("Bluetooth não disponível neste navegador", {
+                    description: "Abra trendfood.lovable.app diretamente no Google Chrome.",
+                    duration: 6000,
+                  });
+                  return;
+                }
+                onPairBluetooth?.();
+              }}
             >
               <Printer className="w-3.5 h-3.5" />
               {btConnected ? "✓ Conectada" : "Parear impressora"}

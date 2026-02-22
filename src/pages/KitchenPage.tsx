@@ -319,9 +319,8 @@ export default function KitchenPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""}`}
+                className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""} ${!btSupported ? "opacity-50" : ""}`}
                 onClick={handlePairBluetooth}
-                disabled={!btSupported}
               >
                 <Printer className="w-3.5 h-3.5" />
                 {btConnected ? "✓ Conectada" : "Parear impressora"}

@@ -320,8 +320,16 @@ export default function SettingsTab({ btDevice, btConnected, onPairBluetooth, on
                   variant="outline"
                   size="sm"
                   className="gap-2"
-                  onClick={onPairBluetooth}
-                  disabled={!btSupported}
+                  onClick={() => {
+                    if (!btSupported) {
+                      toast.error("Bluetooth não disponível neste navegador", {
+                        description: "Abra trendfood.lovable.app diretamente no Google Chrome.",
+                        duration: 6000,
+                      });
+                      return;
+                    }
+                    onPairBluetooth();
+                  }}
                 >
                   <Printer className="w-3.5 h-3.5" />
                   {btConnected ? "Trocar impressora" : "Parear impressora"}
