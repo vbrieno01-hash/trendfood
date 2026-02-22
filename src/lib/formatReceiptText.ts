@@ -162,3 +162,8 @@ export function formatReceiptText(
 
   return lines.join("\n");
 }
+
+/** Remove ##CENTER## and ##BOLD## markers for printers that don't support them (e.g. desktop). */
+export function stripFormatMarkers(text: string): string {
+  return text.replace(/##CENTER##/g, "").replace(/##BOLD##/g, "");
+}
