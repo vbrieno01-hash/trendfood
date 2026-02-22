@@ -22,7 +22,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, clearStoredDevice } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -279,13 +279,19 @@ const DashboardPage = () => {
     if (btDevice) return; // already connected
     if (!isBluetoothSupported()) return;
     let cancelled = false;
-    reconnectStoredPrinter().catch(() => null).then((device) => {
-      if (cancelled || !device) return;
-      setBtDevice(device);
-      setBtConnected(true);
-      toast.success("Impressora reconectada automaticamente");
-      attachDisconnectHandler(device);
-    });
+    reconnectStoredPrinter()
+      .then((device) => {
+        if (cancelled || !device) return;
+        setBtDevice(device);
+        setBtConnected(true);
+        toast.success("Impressora reconectada automaticamente");
+        attachDisconnectHandler(device);
+      })
+      .catch((err) => {
+        console.warn("[BT] Auto-reconnect failed on mount:", err);
+        // Clear stored device to prevent freeze on future reloads
+        clearStoredDevice();
+      });
     return () => { cancelled = true; };
   }, [organization]); // eslint-disable-line react-hooks/exhaustive-deps
 

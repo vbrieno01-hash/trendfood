@@ -242,6 +242,15 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
   const storedId = getStoredDeviceId();
   if (!storedId) return null;
 
+  // Global timeout to prevent browser freeze when printer is off/out of range
+  return withTimeout(reconnectStoredPrinterInternal(storedId), 6000, "reconnectStoredPrinter")
+    .catch((err) => {
+      console.warn("[BT] Auto-reconnect timed out or failed:", err);
+      return null;
+    });
+}
+
+async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
   try {
     const bt = navigator as any;
     if (typeof bt.bluetooth?.getDevices !== "function") {
@@ -256,8 +265,7 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
       return null;
     }
 
-    // Wait for device to be "visible" before GATT connect
-    let advertisementFailed = false;
+    // Try watchAdvertisements if available, but never block on failure
     if (typeof (device as any).watchAdvertisements === "function") {
       try {
         console.log("[BT] Watching advertisements for", device.name || device.id);
@@ -265,8 +273,8 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => {
             device.removeEventListener("advertisementreceived", onAdv);
-            reject(new Error("watchAdvertisements timeout (5s)"));
-          }, 5000);
+            reject(new Error("watchAdvertisements timeout (4s)"));
+          }, 4000);
           const onAdv = () => {
             clearTimeout(timeout);
             device.removeEventListener("advertisementreceived", onAdv);
@@ -276,14 +284,9 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
         });
         console.log("[BT] Advertisement received, proceeding with connect");
       } catch (watchErr) {
-        console.warn("[BT] watchAdvertisements failed, skipping connect:", watchErr);
-        advertisementFailed = true;
+        console.warn("[BT] watchAdvertisements failed, trying direct GATT connect:", watchErr);
+        // Fall through to try direct connect instead of giving up
       }
-    }
-
-    if (advertisementFailed) {
-      console.log("[BT] Skipping connectToDevice — printer not visible");
-      return null;
     }
 
     const char = await connectToDevice(device);
@@ -294,7 +297,7 @@ export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> 
 
     return null;
   } catch (err) {
-    console.warn("[BT] Auto-reconnect failed:", err);
+    console.warn("[BT] Auto-reconnect internal error:", err);
     return null;
   }
 }
