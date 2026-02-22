@@ -1,62 +1,54 @@
 
+# Corrigir impressao automatica no modo "browser"
 
-# Corrigir travamento do Chrome ao recarregar com impressora offline
+## Problema
 
-## Problema raiz
+O `print_mode` da organizacao esta configurado como `browser`. Nesse modo, `printOrder()` chama `window.open()` para abrir uma janela popup com o recibo. Porem, quando essa chamada vem do callback Realtime (auto-print), o navegador **bloqueia o popup** silenciosamente porque nao e resultado de um clique direto do usuario.
 
-A funcao `reconnectStoredPrinterInternal` chama `await (device).watchAdvertisements()` (linha 272). Essa chamada da Web Bluetooth API pode **travar a thread principal do Chrome** quando o adaptador Bluetooth esta em estado inconsistente ou a impressora esta desligada. O `withTimeout` global de 15s nao ajuda porque o travamento acontece **dentro** da chamada sincrona do navegador, antes mesmo do event loop processar o timeout.
+O pedido de entrega foi inserido corretamente na `fila_impressao` pelo hook de criacao do pedido, e o robo externo marcou como `impresso`. Mas a impressao fisica via Dashboard nao aconteceu porque o popup foi bloqueado.
 
 ## Solucao
 
-Remover completamente o bloco `watchAdvertisements` da funcao `reconnectStoredPrinterInternal`. Ir direto para `connectToDevice(device)` que ja possui timeout interno de 10s via `withTimeout` no GATT connect. Isso e seguro porque:
+No callback Realtime de auto-print dentro do `DashboardPage.tsx`, quando o modo for `browser`, nao tentar abrir popup. Em vez disso, usar a fila desktop (`enqueuePrint`) como canal de impressao automatica. Isso garante que:
 
-- `connectToDevice` ja tenta conectar ao GATT com timeout de 10s
-- Se a impressora estiver desligada, o GATT connect falha normalmente sem travar o navegador
-- `watchAdvertisements` era apenas uma otimizacao para detectar se a impressora esta por perto, mas causa mais problemas do que resolve
+- Pedidos de entrega, mesa, retirada - todos sao enfileirados automaticamente
+- O robo de impressao desktop consome a fila e imprime fisicamente
+- Nenhum pedido e perdido por popup bloqueado
 
-Tambem reduzir o timeout global de 15s para 12s (suficiente para o GATT connect de 10s + margem).
+Se o modo for `bluetooth` ou `desktop`, o comportamento continua igual (ja funciona).
 
 ## Alteracoes
 
-### `src/lib/bluetoothPrinter.ts`
+### `src/pages/DashboardPage.tsx`
 
-Na funcao `reconnectStoredPrinterInternal`, remover todo o bloco de `watchAdvertisements` (linhas 269-289) e manter apenas a chamada direta a `connectToDevice`:
+No callback Realtime (linhas ~189-207), alterar a logica de auto-print:
 
-```typescript
-async function reconnectStoredPrinterInternal(storedId: string): Promise<BluetoothDevice | null> {
-  try {
-    const bt = navigator as any;
-    if (typeof bt.bluetooth?.getDevices !== "function") {
-      console.log("[BT] getDevices() not supported in this browser");
-      return null;
-    }
+```
+// ANTES (falha silenciosamente no modo browser):
+await printOrderByMode(fullOrder, orgNameRef.current, printModeRef.current, orgId!, btDeviceRef.current, ...);
 
-    const devices: BluetoothDevice[] = await bt.bluetooth.getDevices();
-    const device = devices.find((d) => d.id === storedId);
-    if (!device) {
-      console.log("[BT] Stored device not found among authorized devices");
-      return null;
-    }
-
-    // Conectar direto ao GATT (connectToDevice ja tem timeout interno de 10s)
-    // NAO usar watchAdvertisements — pode travar o Chrome completamente
-    const char = await connectToDevice(device);
-    if (char) {
-      console.log("[BT] Auto-reconnected to", device.name || device.id);
-      return device;
-    }
-
-    return null;
-  } catch (err) {
-    console.warn("[BT] Auto-reconnect internal error:", err);
-    return null;
-  }
+// DEPOIS:
+const mode = printModeRef.current;
+if (mode === 'browser') {
+  // Modo browser usa popup que e bloqueado em callbacks automaticos.
+  // Enfileirar na fila desktop como fallback seguro.
+  const text = formatReceiptText(fullOrder, orgNameRef.current, printerWidthRef.current);
+  await enqueuePrint(orgId!, fullOrder.id, stripFormatMarkers(text));
+} else {
+  // Bluetooth e desktop funcionam normalmente sem popup
+  await printOrderByMode(fullOrder, orgNameRef.current, mode, orgId!, btDeviceRef.current, getPixPayload(fullOrder), printerWidthRef.current);
 }
 ```
 
-Tambem alterar o timeout global de 15000 para 12000.
+Isso requer importar `formatReceiptText`, `stripFormatMarkers` de `@/lib/formatReceiptText` e `enqueuePrint` de `@/lib/printQueue`.
+
+### Resultado
+
+- **Modo browser**: auto-print enfileira na fila desktop (robo imprime)
+- **Modo desktop**: ja enfileira na fila (sem mudanca)
+- **Modo bluetooth**: envia via BLE (sem mudanca)
+- Botoes manuais de "Imprimir" continuam funcionando normalmente com popup
 
 ## Arquivos alterados
 
-- `src/lib/bluetoothPrinter.ts` — remover `watchAdvertisements`, reduzir timeout global
-
+- `src/pages/DashboardPage.tsx` — fallback para fila no modo browser + novos imports
