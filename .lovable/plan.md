@@ -1,47 +1,61 @@
 
 
-# Corrigir botao "Parear impressora" que nao responde ao clique
+# Suportar Web Bluetooth em mais navegadores (incluindo Brave)
 
-## Problema
+## Contexto
 
-O botao "Parear impressora" usa `disabled={!btSupported}`. Dentro do iframe de preview do Lovable (e em navegadores sem Web Bluetooth), `isBluetoothSupported()` retorna `false`, deixando o botao desabilitado. Porem, visualmente ele parece normal -- o usuario clica e nada acontece, sem feedback.
+O Web Bluetooth funciona nativamente no Chrome, Edge e Opera. O Brave **tem suporte**, mas desativa por padrão. Firefox e Safari **nao suportam**.
 
-## Solucao
+As mensagens atuais dizem "Abra no Google Chrome", o que e incorreto -- e preciso orientar corretamente cada caso.
 
-### 1. `src/components/dashboard/KitchenTab.tsx`
+## Mudancas
 
-- Remover o `disabled` do botao para que o click handler sempre execute
-- No `onClick`, verificar se `btSupported` e `false` e mostrar um toast orientando o usuario a abrir a URL publicada diretamente no Google Chrome
-- Se `btSupported` for `true`, chamar `onPairBluetooth()` normalmente
-- Adicionar estilo visual (opacidade reduzida) quando `btSupported` e `false`
+### 1. `src/lib/bluetoothPrinter.ts` — Detectar Brave especificamente
 
-### 2. `src/components/dashboard/SettingsTab.tsx`
-
-- Aplicar a mesma logica: remover `disabled` e adicionar handler com toast de orientacao quando Bluetooth nao esta disponivel
-
-### 3. `src/pages/KitchenPage.tsx`
-
-- Aplicar a mesma logica na pagina standalone da cozinha (paridade entre as interfaces)
-
-## Detalhes tecnicos
+Criar uma funcao auxiliar `getBrowserBluetoothStatus()` que retorna:
+- `"supported"` — API disponivel
+- `"brave"` — Brave detectado (via `navigator.brave`) mas BT desativado
+- `"unsupported"` — navegador sem suporte
 
 ```typescript
-// Em vez de disabled={!btSupported}, usar:
-onClick={() => {
-  if (!btSupported) {
-    toast.error("Bluetooth nao disponivel neste navegador", {
-      description: "Abra trendfood.lovable.app diretamente no Google Chrome.",
-      duration: 6000,
-    });
-    return;
-  }
-  onPairBluetooth?.();
-}}
-className={`... ${!btSupported ? "opacity-50" : ""}`}
+export function getBluetoothStatus(): "supported" | "brave-disabled" | "unsupported" {
+  if (isBluetoothSupported()) return "supported";
+  if ((navigator as any).brave) return "brave-disabled";
+  return "unsupported";
+}
 ```
 
-## Arquivos alterados
-- `src/components/dashboard/KitchenTab.tsx`
-- `src/components/dashboard/SettingsTab.tsx`
-- `src/pages/KitchenPage.tsx`
+### 2. `src/components/dashboard/KitchenTab.tsx` — Toast especifico por navegador
 
+No `onClick` do botao de parear, usar `getBluetoothStatus()` para mostrar mensagens diferentes:
+- **Brave**: "Ative o Web Bluetooth em brave://flags/#enable-web-bluetooth e recarregue a pagina."
+- **Outros**: "Use o Google Chrome, Microsoft Edge ou Opera para parear impressoras Bluetooth."
+
+### 3. `src/components/dashboard/SettingsTab.tsx` — Mesma logica
+
+- Atualizar o aviso amarelo (AlertTriangle) para mostrar instrucoes especificas para Brave
+- Atualizar o toast do botao "Parear impressora"
+- **Sempre mostrar** a opcao "Bluetooth" no select de modo de impressao (remover o `{btSupported && ...}`) para que o usuario saiba que existe, mesmo que precise ajustar o navegador
+
+### 4. `src/pages/KitchenPage.tsx` — Mesma logica
+
+- Atualizar o `handlePairBluetooth` com as mensagens especificas por navegador
+
+### 5. `src/pages/DashboardPage.tsx` — Atualizar toast de erro
+
+- Atualizar a mensagem no `handlePairBluetooth` para usar as instrucoes por navegador
+
+## Mensagens finais
+
+**Brave detectado:**
+> "Bluetooth desativado no Brave. Ative em brave://flags/#enable-web-bluetooth e recarregue a pagina."
+
+**Outro navegador sem suporte:**
+> "Seu navegador nao suporta Web Bluetooth. Use Chrome, Edge ou Opera."
+
+## Arquivos alterados
+- `src/lib/bluetoothPrinter.ts` — nova funcao `getBluetoothStatus()`
+- `src/components/dashboard/KitchenTab.tsx` — toast por navegador
+- `src/components/dashboard/SettingsTab.tsx` — aviso e select atualizados
+- `src/pages/KitchenPage.tsx` — toast por navegador
+- `src/pages/DashboardPage.tsx` — toast por navegador
