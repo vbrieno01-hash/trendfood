@@ -26,19 +26,19 @@ const SavingsCalculator = () => {
   const display = revenue.toLocaleString("pt-BR");
 
   return (
-    <section className="relative py-24 px-4 overflow-hidden">
+    <section className="relative py-16 px-4 overflow-hidden">
       {/* Dark premium background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[hsl(20,14%,6%)] via-[hsl(20,14%,10%)] to-[hsl(0,84%,12%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(0,84%,52%,0.08),transparent_60%)]" />
 
       <div className="relative max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <Badge className="mb-5 bg-white/10 text-white/80 border-white/10 backdrop-blur-sm">
             <Calculator className="w-3 h-3 mr-1" />
             Calculadora de economia
           </Badge>
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+          <h2 className="text-2xl md:text-4xl font-extrabold text-white mb-3 tracking-tight">
             Quanto você <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-red-500">perde</span> por mês?
           </h2>
           <p className="text-white/60 text-lg max-w-md mx-auto">
@@ -47,7 +47,7 @@ const SavingsCalculator = () => {
         </div>
 
         {/* Calculator Card - glass morphism */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6 md:p-10 shadow-2xl">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 md:p-8 shadow-2xl">
           {/* Input */}
           <label htmlFor="revenue" className="block text-sm font-medium text-white/70 mb-2 tracking-wide uppercase">
             Faturamento mensal no iFood
@@ -62,7 +62,7 @@ const SavingsCalculator = () => {
               inputMode="numeric"
               value={display}
               onChange={handleChange}
-              className="w-full h-16 rounded-2xl border border-white/10 bg-white/[0.06] pl-14 pr-5 text-3xl font-extrabold text-white placeholder:text-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all"
+              className="w-full h-14 rounded-2xl border border-white/10 bg-white/[0.06] pl-14 pr-5 text-2xl font-extrabold text-white placeholder:text-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all"
             />
           </div>
 
@@ -77,7 +77,7 @@ const SavingsCalculator = () => {
           />
 
           {/* Preset chips */}
-          <div className="flex flex-wrap gap-2 mb-10">
+          <div className="flex flex-wrap gap-2 mb-6">
             {PRESETS.map((v) => (
               <button
                 key={v}
@@ -94,27 +94,27 @@ const SavingsCalculator = () => {
           </div>
 
           {/* Loss block */}
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] backdrop-blur-sm p-6 mb-5">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] backdrop-blur-sm p-5 mb-5">
+            <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
                 <TrendingDown className="w-4 h-4 text-red-400" />
               </div>
               <p className="text-sm font-medium text-white/60">Você perde para o marketplace</p>
             </div>
 
-            <div className="flex items-baseline gap-2 mb-4">
-              <span className="text-3xl md:text-4xl font-extrabold text-red-400 tabular-nums transition-all duration-300">
+            <div className="flex items-baseline gap-2 mb-3">
+              <span className="text-2xl md:text-3xl font-extrabold text-red-400 tabular-nums transition-all duration-300">
                 {formatBRL(lossMin)}
               </span>
               <span className="text-white/40 text-lg font-medium">a</span>
-              <span className="text-3xl md:text-4xl font-extrabold text-red-400 tabular-nums transition-all duration-300">
+              <span className="text-2xl md:text-3xl font-extrabold text-red-400 tabular-nums transition-all duration-300">
                 {formatBRL(lossMax)}
               </span>
               <span className="text-white/30 text-sm">/mês</span>
             </div>
 
             {/* Progress bar */}
-            <div className="w-full h-3 rounded-full bg-white/[0.06] overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500 ease-out"
                 style={{ width: `${Math.min(lossPercent, 100)}%` }}
@@ -127,15 +127,15 @@ const SavingsCalculator = () => {
           </div>
 
           {/* TrendFood savings block */}
-          <div className="relative rounded-2xl p-[1px] bg-gradient-to-r from-green-500 via-emerald-400 to-yellow-400 mb-8">
-            <div className="rounded-2xl bg-[hsl(20,14%,8%)] p-6 text-center">
+          <div className="relative rounded-2xl p-[1px] bg-gradient-to-r from-green-500 via-emerald-400 to-yellow-400 mb-6">
+            <div className="rounded-2xl bg-[hsl(20,14%,8%)] p-5 text-center">
               <div className="flex items-center justify-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
                   <ShieldCheck className="w-4 h-4 text-green-400" />
                 </div>
                 <p className="text-sm font-medium text-white/70">Com o TrendFood</p>
               </div>
-              <p className="text-3xl md:text-4xl font-extrabold mb-2">
+              <p className="text-2xl md:text-3xl font-extrabold mb-2">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-300 to-yellow-300">
                   {formatBRL(revenue)} fica com você
                 </span>
