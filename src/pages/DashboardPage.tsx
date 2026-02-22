@@ -629,7 +629,7 @@ const DashboardPage = () => {
           <div className="w-9" />
         </header>
 
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-12">
           {/* Trial banners */}
           {planLimits.trialActive && (
             <div className="mb-4 rounded-xl bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 p-4 flex items-center justify-between gap-3 flex-wrap">
@@ -686,6 +686,45 @@ const DashboardPage = () => {
           {activeTab === "settings" && <SettingsTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
         </main>
+
+        {/* Fixed status bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-4 py-1.5 flex items-center gap-4 text-xs">
+          <button
+            onClick={() => toggleAutoPrint(!autoPrint)}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+          >
+            <span className={`inline-block w-2 h-2 rounded-full ${autoPrint ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
+            <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className={autoPrint ? "text-green-600 font-medium" : "text-muted-foreground"}>
+              {autoPrint ? "Impressão auto. ativa" : "Impressão auto. off"}
+            </span>
+          </button>
+
+          <span className="text-border">|</span>
+
+          <button
+            onClick={() => toggleNotifications(!notificationsEnabled)}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+          >
+            <span className={`inline-block w-2 h-2 rounded-full ${notificationsEnabled ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
+            <BellRing className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className={notificationsEnabled ? "text-green-600 font-medium" : "text-muted-foreground"}>
+              {notificationsEnabled ? "Notificações ativas" : "Notificações off"}
+            </span>
+          </button>
+
+          {printMode === "bluetooth" && (
+            <>
+              <span className="text-border">|</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`inline-block w-2 h-2 rounded-full ${btConnected ? "bg-green-500" : "bg-destructive"}`} />
+                <span className={btConnected ? "text-green-600 font-medium" : "text-destructive"}>
+                  {btConnected ? `BT: ${btDevice?.name || "OK"}` : "BT: Desconectada"}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
