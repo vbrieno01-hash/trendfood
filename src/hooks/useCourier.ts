@@ -9,6 +9,7 @@ export interface Courier {
   phone: string;
   plate: string;
   whatsapp?: string;
+  pix_key?: string | null;
   active: boolean;
   created_at: string;
 }
