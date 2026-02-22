@@ -201,6 +201,28 @@ export function useCompleteDelivery() {
   });
 }
 
+export function useLoginCourier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { organization_id: string; phone: string }) => {
+      const { data, error } = await supabase
+        .from("couriers" as any)
+        .select("*")
+        .eq("organization_id", input.organization_id)
+        .eq("phone", input.phone)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("NOT_FOUND");
+      const courier = data as unknown as Courier;
+      saveCourierId(courier.id);
+      return courier;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courier"] });
+    },
+  });
+}
+
 // ── New hooks ──
 
 export interface DateRange {

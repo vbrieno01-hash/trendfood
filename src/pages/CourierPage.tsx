@@ -14,6 +14,7 @@ import {
   clearCourierId,
   useMyCourier,
   useRegisterCourier,
+  useLoginCourier,
   useAvailableDeliveries,
   useMyDeliveries,
   useAcceptDelivery,
@@ -66,10 +67,13 @@ const CourierPage = () => {
   const [phone, setPhone] = useState("");
   const [plate, setPlate] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [isLogin, setIsLogin] = useState(false);
+  const [loginPhone, setLoginPhone] = useState("");
 
   const courierId = getSavedCourierId();
   const { data: courier, isLoading: courierLoading } = useMyCourier();
   const registerMutation = useRegisterCourier();
+  const loginMutation = useLoginCourier();
   const { data: available = [], isLoading: availableLoading } = useAvailableDeliveries(orgId ?? undefined);
   const { data: myDeliveries = [] } = useMyDeliveries(courierId);
   const acceptMutation = useAcceptDelivery();
@@ -154,6 +158,57 @@ const CourierPage = () => {
       }
     };
 
+    const handleLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!orgId) return;
+      try {
+        await loginMutation.mutateAsync({
+          organization_id: orgId,
+          phone: loginPhone.trim(),
+        });
+        toast.success("Bem-vindo de volta! 🏍️");
+      } catch (err: any) {
+        if (err?.message === "NOT_FOUND") {
+          toast.error("Nenhum cadastro encontrado com esse telefone.");
+        } else {
+          toast.error("Erro ao entrar. Tente novamente.");
+        }
+      }
+    };
+
+    if (isLogin) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader className="text-center">
+              <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Bike className="w-7 h-7 text-primary" />
+              </div>
+              <CardTitle className="text-xl">Entrar como Motoboy</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">{orgName}</p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="loginPhone">Telefone cadastrado</Label>
+                  <Input id="loginPhone" value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} placeholder="(11) 99999-9999" required />
+                </div>
+                <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+                  {loginMutation.isPending ? "Entrando..." : "Entrar"}
+                </Button>
+              </form>
+              <p className="text-center text-sm text-muted-foreground mt-4">
+                Não tem cadastro?{" "}
+                <button type="button" onClick={() => setIsLogin(false)} className="text-primary font-medium hover:underline">
+                  Cadastrar
+                </button>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -187,6 +242,12 @@ const CourierPage = () => {
                 {registerMutation.isPending ? "Cadastrando..." : "Cadastrar"}
               </Button>
             </form>
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              Já tem cadastro?{" "}
+              <button type="button" onClick={() => setIsLogin(true)} className="text-primary font-medium hover:underline">
+                Entrar
+              </button>
+            </p>
           </CardContent>
         </Card>
       </div>
