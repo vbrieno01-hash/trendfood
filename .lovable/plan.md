@@ -1,53 +1,37 @@
 
 
-# Reconexao automatica com impressora Bluetooth apos reload/publicacao
+# Corrigir dialogo Bluetooth mostrando "Nenhum dispositivo compativel"
 
 ## Problema
-Apos publicar o site (ou recarregar a pagina), o estado `btDevice` do React e perdido. O Web Bluetooth exige um gesto do usuario para parear novamente via `requestDevice()`. Porem, o Chrome oferece `navigator.bluetooth.getDevices()` que permite reconectar com dispositivos previamente pareados sem popup.
+O `requestBluetoothPrinter` tenta primeiro abrir o seletor do Chrome com filtros de servico (5 UUIDs conhecidos). Como a impressora generica nao anuncia nenhum desses UUIDs, o Chrome mostra "Nenhum dispositivo compativel encontrado". O fallback para `acceptAllDevices` so dispara DEPOIS que o usuario cancela o dialogo manualmente — o que na pratica nunca acontece.
 
 ## Solucao
-Adicionar funcao `reconnectStoredPrinter()` que tenta reconectar automaticamente ao abrir a pagina, usando o device ID salvo no localStorage.
+Inverter a estrategia: usar `acceptAllDevices: true` como abordagem principal (mostra todos os dispositivos Bluetooth), mantendo os `optionalServices` para que a descoberta de servicos funcione apos o pareamento.
 
-## Mudancas
+## Mudanca
 
-### 1. `src/lib/bluetoothPrinter.ts` — Nova funcao `reconnectStoredPrinter()`
+### `src/lib/bluetoothPrinter.ts` — funcao `requestBluetoothPrinter()`
+
+Substituir a logica atual por:
 
 ```text
-export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> {
-  if (!isBluetoothSupported()) return null;
-  const storedId = getStoredDeviceId();
-  if (!storedId) return null;
-
-  try {
-    const devices = await (navigator as any).bluetooth.getDevices();
-    const device = devices.find((d: BluetoothDevice) => d.id === storedId);
-    if (!device) return null;
-
-    // Pre-connect to validate the device is reachable
-    const char = await connectToDevice(device);
-    if (char) return device;
-
-    return null;
-  } catch (err) {
-    console.warn("[BT] Auto-reconnect failed:", err);
-    return null;
-  }
+export async function requestBluetoothPrinter() {
+  // Usar acceptAllDevices diretamente — impressoras genericas
+  // nao anunciam UUIDs padrao, entao filtros nao funcionam.
+  const device = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: ALT_SERVICE_UUIDS,
+  });
+  // salvar ID no localStorage para reconexao automatica
+  if (device?.id) localStorage.setItem(STORED_DEVICE_KEY, device.id);
+  return device;
 }
 ```
 
-### 2. `src/pages/KitchenPage.tsx` — useEffect de reconexao automatica
-Ao montar o componente, se `printMode === "bluetooth"` e `btDevice` e nulo, chamar `reconnectStoredPrinter()`. Se retornar um device, setar no estado.
+Isso remove o try/catch duplo com filtro+fallback e vai direto para a abordagem que funciona com qualquer impressora.
 
-### 3. `src/pages/DashboardPage.tsx` — Mesmo useEffect de reconexao
-Replicar a mesma logica no DashboardPage (que compartilha o estado BT com KitchenTab).
+## Impacto
+- Apenas 1 arquivo alterado: `src/lib/bluetoothPrinter.ts`
+- O seletor do Chrome vai mostrar TODOS os dispositivos Bluetooth (nao apenas impressoras), mas isso e preferivel a nao mostrar nenhum
+- A descoberta dinamica de servicos no `connectToDevice` continua garantindo que a impressora certa seja encontrada apos o pareamento
 
-### 4. Toast informativo
-Se a reconexao automatica falhar, nao mostrar erro (silencioso). Se funcionar, mostrar toast discreto: "Impressora reconectada automaticamente".
-
-## Nota tecnica
-`navigator.bluetooth.getDevices()` so funciona em Chrome 85+ e requer que o usuario tenha pareado pelo menos uma vez na mesma origem. Por isso o fallback para pareamento manual continua existindo.
-
-## Arquivos alterados
-- `src/lib/bluetoothPrinter.ts` (nova funcao)
-- `src/pages/KitchenPage.tsx` (useEffect de reconexao)
-- `src/pages/DashboardPage.tsx` (useEffect de reconexao)
