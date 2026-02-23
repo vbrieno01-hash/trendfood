@@ -5,10 +5,13 @@ const PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
 // Common alternative UUIDs for different printer brands
 const ALT_SERVICE_UUIDS = [
   PRINTER_SERVICE_UUID,
+  "0000ffe0-0000-1000-8000-00805f9b34fb", // HM-10 / MPT-II / impressoras chinesas BLE
   "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
   "0000ff00-0000-1000-8000-00805f9b34fb",
+  "0000ff02-0000-1000-8000-00805f9b34fb", // Zjiang / Goojprt variantes
   "0000fee7-0000-1000-8000-00805f9b34fb",
+  "00001101-0000-1000-8000-00805f9b34fb", // SPP clássico via BLE
 ];
 
 const STORED_DEVICE_KEY = "bt_printer_device_id";
