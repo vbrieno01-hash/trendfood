@@ -1,120 +1,69 @@
 
 
-# Corrigir Crash do APK - Causa Raiz Encontrada
+# Remover Plugin Nativo de Push Notifications
 
-## O Problema Real
+## Problema
 
-O screenshot mostra o erro exato:
+O `FIREBASE_CONFIGURED = false` no JavaScript nao impede o crash porque:
 
-```
-java.lang.IllegalStateException: Default FirebaseApp is not initialized
-in this process app.trendfood.delivery.
-Make sure to call FirebaseApp.initializeApp(Context) first.
-```
+1. O pacote `@capacitor/push-notifications` esta instalado no `package.json`
+2. Quando `npx cap sync` roda, ele registra o plugin nativo no Android
+3. O Capacitor carrega **todos** os plugins nativos ao iniciar o app
+4. O plugin PushNotifications tenta acessar `FirebaseMessaging` durante sua inicializacao nativa
+5. Como nao existe `google-services.json`, o Firebase nao esta configurado -> **crash**
 
-A cadeia de chamadas e:
-
-```text
-usePushNotifications() 
-  -> PushNotifications.register() [JavaScript]
-    -> PushNotificationsPlugin.register() [Java nativo]
-      -> FirebaseMessaging.getInstance() [Java nativo]
-        -> CRASH: FirebaseApp nao inicializado
-```
-
-Este crash acontece na camada **nativa Java** do Android, nao em JavaScript. O `try/catch` no codigo JS nao consegue captura-lo. O app fecha instantaneamente.
-
-A causa raiz e simples: o arquivo `google-services.json` do Firebase nao existe no projeto Android, entao o Firebase nunca e inicializado.
+A protecao em JavaScript (`FIREBASE_CONFIGURED = false`) so impede chamadas JS ao plugin. Mas o plugin ja crashou antes do JavaScript executar.
 
 ## Solucao
 
-Existem duas acoes necessarias:
+Remover completamente o plugin `@capacitor/push-notifications` do projeto ate que o Firebase seja configurado.
 
-### 1. Proteger o codigo contra a ausencia do Firebase (imediato)
+### 1. Remover de `capacitor.config.ts`
 
-Modificar o `usePushNotifications.ts` para verificar se o plugin PushNotifications esta realmente disponivel antes de chamar `register()`. Usar o metodo `Capacitor.isPluginAvailable()` que retorna `false` se o plugin nativo nao consegue funcionar:
-
-```typescript
-// src/hooks/usePushNotifications.ts
-const setup = async () => {
-  try {
-    // Verificar se o plugin nativo esta funcional
-    // (retorna false se Firebase nao esta configurado)
-    if (!Capacitor.isPluginAvailable('PushNotifications')) {
-      console.warn("[Push] Plugin PushNotifications nao disponivel (Firebase nao configurado?)");
-      return;
-    }
-
-    const permResult = await PushNotifications.requestPermissions();
-    if (permResult.receive !== "granted") {
-      console.warn("[Push] Permissao negada");
-      return;
-    }
-
-    await PushNotifications.register();
-    // ... resto do codigo
-  } catch (err) {
-    console.error("[Push] Erro geral:", err);
-  }
-};
-```
-
-**Importante**: O `Capacitor.isPluginAvailable()` pode nao detectar a ausencia do `google-services.json` em todos os casos. Entao, como protecao adicional, vamos tambem mover os listeners para **antes** do `register()` para capturar o `registrationError`:
+Remover o bloco `PushNotifications` da secao `plugins`:
 
 ```typescript
-const setup = async () => {
-  try {
-    // Registrar listener de erro ANTES de chamar register()
-    await PushNotifications.addListener("registrationError", (err) => {
-      console.error("[Push] Erro no registro:", err.error);
-    });
-
-    const permResult = await PushNotifications.requestPermissions();
-    if (permResult.receive !== "granted") return;
-
-    // Chamar register() dentro de setTimeout para dar tempo
-    // ao bridge nativo de processar sem bloquear a thread principal
-    setTimeout(async () => {
-      try {
-        await PushNotifications.register();
-      } catch (err) {
-        console.warn("[Push] register() falhou:", err);
-      }
-    }, 100);
-
-    // ... outros listeners
-  } catch (err) {
-    console.error("[Push] Erro geral:", err);
-  }
-};
+plugins: {
+  SplashScreen: { ... },
+  // PushNotifications: REMOVIDO
+  BluetoothLe: { ... },
+  LocalNotifications: { ... },
+},
 ```
 
-**Porem**, como o crash e nativo (Java), nenhum try/catch em JS vai resolver. A unica solucao 100% segura e **desabilitar completamente** o push notifications ate o Firebase estar configurado.
+### 2. Remover do `package.json`
 
-A solucao definitiva sera: **remover o import e a chamada do plugin PushNotifications** do codigo e substituir por um wrapper seguro que verifica a disponibilidade do Firebase antes de qualquer chamada nativa.
+Remover a dependencia `@capacitor/push-notifications`:
 
-### 2. Configurar o Firebase no projeto Android (necessario para push funcionar)
+```
+"@capacitor/push-notifications": "^8.0.1"  // REMOVER ESTA LINHA
+```
 
-Para que as push notifications funcionem no futuro, voce precisara:
+### 3. Manter `usePushNotifications.ts` como no-op seguro
 
-1. Criar um projeto no Firebase Console (console.firebase.google.com)
-2. Registrar o app com o package `app.trendfood.delivery`
-3. Baixar o arquivo `google-services.json`
-4. Colocar o arquivo em `android/app/google-services.json`
-5. Rebuildar o APK
+O hook continuara existindo mas nunca executara nada, ja que o import dinamico do pacote vai falhar (pacote removido) e o catch vai silenciar o erro.
 
-**Ate la, o push deve ser desativado para nao crashar o app.**
+### 4. Instrucoes pos-alteracao
 
-## Arquivo Modificado
+Apos a alteracao, o usuario precisara:
+1. `git pull`
+2. `npm install`
+3. `npx cap sync android` (isso remove o plugin nativo do projeto Android)
+4. Rebuildar o APK
+
+## Arquivos Modificados
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/hooks/usePushNotifications.ts` | Desabilitar completamente a chamada a `PushNotifications.register()` quando Firebase nao esta configurado. Usar flag de controle e verificacao de disponibilidade do plugin. |
+| `capacitor.config.ts` | Remover configuracao `PushNotifications` da secao plugins |
+| `package.json` | Remover dependencia `@capacitor/push-notifications` |
 
-## O que muda na pratica
+## Para reativar push notifications no futuro
 
-- O APK para de crashar imediatamente ao fazer login
-- Push notifications ficam desabilitadas ate o Firebase ser configurado
-- Todo o resto (Bluetooth, realtime, pedidos) continua funcionando normalmente
-- Quando voce configurar o Firebase futuramente, basta rebuildar o APK e tudo funcionara
+1. Configurar Firebase Console e baixar `google-services.json`
+2. Colocar em `android/app/google-services.json`
+3. `npm install @capacitor/push-notifications`
+4. Restaurar config em `capacitor.config.ts`
+5. Mudar `FIREBASE_CONFIGURED = true` em `usePushNotifications.ts`
+6. `npx cap sync android` + rebuildar APK
 
