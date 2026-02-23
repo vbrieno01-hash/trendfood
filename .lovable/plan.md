@@ -2,70 +2,75 @@
 
 # Completar Splash Screen e Push Notifications
 
-## O que ja foi feito
-- Plugins `@capacitor/splash-screen` e `@capacitor/push-notifications` instalados
-- `capacitor.config.ts` configurado com SplashScreen e PushNotifications
+## Situacao atual
+Os plugins ja estao instalados e o `capacitor.config.ts` ja esta configurado. Falta:
+1. Criar a tabela `device_tokens` no banco de dados
+2. Criar o hook `usePushNotifications.ts`
+3. Adicionar `SplashScreen.hide()` no `App.tsx`
+4. Integrar o hook no `DashboardPage.tsx`
 
-## O que falta
+## Etapas
 
-### 1. Criar tabela `device_tokens` no banco de dados
-Tabela para armazenar os tokens FCM de cada dispositivo:
+### 1. Criar tabela `device_tokens` (banco de dados)
+Tabela para armazenar tokens FCM dos dispositivos, com RLS para que cada usuario gerencie apenas seus proprios tokens.
+
+Colunas:
 - `id` (uuid, PK)
-- `org_id` (uuid, referencia organizations)
+- `org_id` (uuid, referencia organizations, ON DELETE CASCADE)
 - `user_id` (uuid)
-- `token` (text, unique)
-- `platform` (text: 'android' | 'ios' | 'web')
+- `token` (text, UNIQUE)
+- `platform` (text, default 'android')
 - `created_at` (timestamptz)
 
-RLS: usuario so insere/ve/deleta seus proprios tokens.
+Politicas RLS:
+- INSERT: usuario insere seus proprios tokens (auth.uid() = user_id)
+- SELECT: usuario ve seus proprios tokens
+- DELETE: usuario deleta seus proprios tokens
+- SELECT extra: dono da organizacao ve tokens da org (para enviar pushes)
 
 ### 2. Criar hook `usePushNotifications.ts`
+- Verifica se esta em plataforma nativa (Capacitor)
 - Pede permissao ao usuario
-- Registra o dispositivo no FCM
-- Salva o token na tabela `device_tokens` vinculado ao `org_id` e `user_id`
-- Escuta notificacoes recebidas (foreground) e clicadas (background)
-- So executa em plataforma nativa (Capacitor)
+- Registra no FCM
+- Salva/atualiza token na tabela `device_tokens`
+- Escuta notificacoes em foreground (exibe toast)
+- Escuta clique em notificacao background (navega para /dashboard)
 
 ### 3. Adicionar SplashScreen.hide() no App.tsx
-- Importar `SplashScreen` do `@capacitor/splash-screen`
-- Chamar `SplashScreen.hide()` no useEffect inicial, apos o app carregar
-- Usar try/catch para nao quebrar no navegador web
+- Importar SplashScreen do @capacitor/splash-screen
+- Chamar hide() no useEffect com try/catch (nao quebra no browser)
 
-### 4. Integrar push no DashboardPage
-- Chamar o hook `usePushNotifications` no Dashboard
-- O registro acontece automaticamente quando o usuario abre o dashboard no APK
+### 4. Integrar no DashboardPage.tsx
+- Chamar o hook usePushNotifications passando orgId e userId
+- Registro acontece automaticamente ao abrir o dashboard no APK
 
 ## Secao Tecnica
 
-### Tabela device_tokens (SQL)
+### SQL da tabela
 ```text
-CREATE TABLE device_tokens (
+CREATE TABLE public.device_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id uuid NOT NULL,
+  org_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   user_id uuid NOT NULL,
   token text NOT NULL UNIQUE,
   platform text NOT NULL DEFAULT 'android',
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
 
--- Usuario insere seus proprios tokens
-CREATE POLICY "device_tokens_insert_own" ON device_tokens
+CREATE POLICY "device_tokens_insert_own" ON public.device_tokens
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Usuario ve seus proprios tokens
-CREATE POLICY "device_tokens_select_own" ON device_tokens
+CREATE POLICY "device_tokens_select_own" ON public.device_tokens
   FOR SELECT USING (auth.uid() = user_id);
 
--- Usuario deleta seus proprios tokens
-CREATE POLICY "device_tokens_delete_own" ON device_tokens
+CREATE POLICY "device_tokens_delete_own" ON public.device_tokens
   FOR DELETE USING (auth.uid() = user_id);
 
--- Dono da org pode ver tokens da org (para enviar pushes)
-CREATE POLICY "device_tokens_select_org_owner" ON device_tokens
+CREATE POLICY "device_tokens_select_org_owner" ON public.device_tokens
   FOR SELECT USING (
-    auth.uid() = (SELECT user_id FROM organizations WHERE id = device_tokens.org_id)
+    auth.uid() = (SELECT user_id FROM public.organizations WHERE id = device_tokens.org_id)
   );
 ```
 
@@ -73,14 +78,17 @@ CREATE POLICY "device_tokens_select_org_owner" ON device_tokens
 ```text
 - Importa PushNotifications do @capacitor/push-notifications
 - Importa Capacitor.isNativePlatform()
-- requestPermissions() -> register()
-- Listener 'registration' -> upsert token no banco
-- Listener 'pushNotificationReceived' -> toast com titulo
-- Listener 'pushNotificationActionPerformed' -> navegar para /dashboard
+- useEffect que executa apenas em plataforma nativa:
+  1. requestPermissions()
+  2. register()
+  3. Listener 'registration' -> upsert token no banco via supabase
+  4. Listener 'pushNotificationReceived' -> toast
+  5. Listener 'pushNotificationActionPerformed' -> navigate('/dashboard')
 ```
 
-### App.tsx (adicao)
+### App.tsx
 ```text
+// Adicionar no primeiro useEffect existente:
 import { SplashScreen } from '@capacitor/splash-screen';
 
 useEffect(() => {
@@ -89,7 +97,6 @@ useEffect(() => {
 ```
 
 ## Passos manuais apos implementacao
-- Colocar imagem splash em `android/app/src/main/res/drawable/splash.png`
 - Configurar Firebase e adicionar `google-services.json` no projeto Android
+- Colocar imagem splash em `android/app/src/main/res/drawable/splash.png`
 - Rebuild: `npx cap sync && npx cap build android`
-
