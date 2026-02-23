@@ -191,25 +191,33 @@ export const usePlaceOrder = () => {
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
       if (itemsError) throw itemsError;
 
-      // Enfileirar impressão automaticamente
+      // Enfileirar impressão automaticamente (pular no APK nativo — Realtime imprime direto via BLE)
+      let skipQueue = false;
       try {
-        const printableOrder: PrintableOrder = {
-          id: order.id,
-          table_number: tableNumber,
-          created_at: order.created_at,
-          notes: notes || null,
-          order_items: items.map((i, idx) => ({
-            id: `tmp-${idx}`,
-            name: i.name,
-            quantity: i.quantity,
-            price: i.price,
-            customer_name: i.customer_name || null,
-          })),
-        };
-        const text = stripFormatMarkers(formatReceiptText(printableOrder));
-        await enqueuePrint(organizationId, order.id, text);
-      } catch (err) {
-        console.error("Falha ao enfileirar impressão:", err);
+        const { Capacitor } = await import("@capacitor/core");
+        skipQueue = Capacitor.isNativePlatform();
+      } catch { /* not a native platform */ }
+
+      if (!skipQueue) {
+        try {
+          const printableOrder: PrintableOrder = {
+            id: order.id,
+            table_number: tableNumber,
+            created_at: order.created_at,
+            notes: notes || null,
+            order_items: items.map((i, idx) => ({
+              id: `tmp-${idx}`,
+              name: i.name,
+              quantity: i.quantity,
+              price: i.price,
+              customer_name: i.customer_name || null,
+            })),
+          };
+          const text = stripFormatMarkers(formatReceiptText(printableOrder));
+          await enqueuePrint(organizationId, order.id, text);
+        } catch (err) {
+          console.error("Falha ao enfileirar impressão:", err);
+        }
       }
 
       return order;
