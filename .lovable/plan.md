@@ -1,87 +1,79 @@
 
 
-## Correção: Impressão instantânea no APK (eliminar delay de 10s)
+## Correção: Clientes presos na tela "Algo deu errado"
 
-### Causa raiz
+### Problema
 
-O callback Realtime no DashboardPage faz isso:
+Clientes ficam presos na tela de erro mesmo depois de limpar cookies e dados do navegador. Isso acontece porque:
 
-1. Chama `ensureNativeConnection()` -- reconecta o BLE nativo OK
-2. Verifica `btDeviceRef.current || getStoredDeviceId()` -- detecta modo "bluetooth" OK
-3. Chama `printOrderByMode(... btDeviceRef.current ...)` -- mas `btDeviceRef.current` e NULL!
-4. Dentro de `printOrderByMode`, modo "bluetooth" com `btDevice = null` vai direto pro fallback: `enqueuePrint()` (fila)
-5. O polling de 10 segundos encontra o pedido na fila e imprime -- causando o delay
+1. O Service Worker (PWA) continua servindo arquivos JavaScript antigos/quebrados mesmo apos limpar cookies -- cookies e cache do SW sao coisas diferentes
+2. O ErrorBoundary nao mostra qual e o erro real, impossibilitando debug
+3. Nao ha mecanismo automatico para detectar e corrigir cache corrompido
 
-O problema: `ensureNativeConnection()` reconecta o BLE nativo, mas ninguem atualiza `btDeviceRef.current` com um objeto fake compativel.
+### Solucao (3 mudancas)
 
-### Solucao
+#### 1. ErrorBoundary com informacoes do erro real
 
-Duas mudancas complementares:
+Atualizar `src/components/ErrorBoundary.tsx` para:
+- Mostrar o nome e mensagem do erro real na tela (em texto pequeno, colapsavel)
+- Isso permite que voce identifique o problema quando clientes mandarem prints
+- Manter os botoes "Tentar novamente" e "Limpar cache e recarregar"
 
-#### 1. `src/pages/DashboardPage.tsx` -- Atualizar btDeviceRef apos reconexao nativa
+#### 2. Limpeza automatica de Service Worker no carregamento
 
-No callback Realtime, apos `ensureNativeConnection()` com sucesso, criar um objeto fake e atualizar `btDeviceRef.current`:
+Adicionar em `src/App.tsx` um useEffect que roda uma unica vez no mount:
+- Verifica se o Service Worker esta servindo conteudo desatualizado
+- Se detectar que a app crashou recentemente (flag no sessionStorage), desregistra o SW automaticamente e recarrega
+- Isso resolve o caso de clientes que limpam cookies mas o SW continua ativo
 
 ```typescript
-if (isNativePlatform()) {
-  try {
-    const native = await import("@/lib/nativeBluetooth");
-    await native.ensureNativeConnection();
-    if (native.isNativeConnected() && !btDeviceRef.current) {
-      // Criar fake device para que printOrderByMode use o path bluetooth
-      const fakeDevice = { id: native.getNativeStoredDeviceId(), name: "Native BLE", gatt: { connected: true } } as any;
-      btDeviceRef.current = fakeDevice;
+// Em AppInner, novo useEffect:
+useEffect(() => {
+  const crashed = sessionStorage.getItem("app_crashed");
+  if (crashed) {
+    sessionStorage.removeItem("app_crashed");
+    // Limpar SW e caches automaticamente
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+      });
     }
-  } catch (err) {
-    console.warn("[AutoPrint] Native BLE ensure failed:", err);
+    if ('caches' in window) {
+      caches.keys().then(names => names.forEach(n => caches.delete(n)));
+    }
   }
+}, []);
+```
+
+#### 3. ErrorBoundary marca crash no sessionStorage
+
+Quando o ErrorBoundary captura um erro, salva uma flag no sessionStorage:
+```typescript
+componentDidCatch(error, info) {
+  sessionStorage.setItem("app_crashed", "true");
+  // ... log existente
 }
 ```
 
-#### 2. `src/lib/printOrder.ts` -- Path direto nativo quando btDevice e null
-
-Como seguranca extra, no `printOrderByMode`, quando o modo e "bluetooth" e `btDevice` e null mas estamos em plataforma nativa com device armazenado, chamar `sendToNativePrinter` diretamente:
-
-```typescript
-if (printMode === "bluetooth") {
-  // Native platform: try direct native print even without btDevice object
-  if (isNativePlatform()) {
-    try {
-      const native = await import("@/lib/nativeBluetooth");
-      await native.ensureNativeConnection();
-      if (native.isNativeConnected()) {
-        const success = await native.sendToNativePrinter(text);
-        if (success) {
-          toast.success("Impresso via Bluetooth");
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn("[PrintOrder] Native direct print failed:", err);
-    }
-  }
-  
-  // Web path: usa btDevice normalmente
-  if (btDevice) {
-    const success = await sendToBluetoothPrinter(btDevice, text);
-    if (success) {
-      toast.success("Impresso via Bluetooth");
-      return;
-    }
-    // ...fallback...
-  }
-  // ...fallback to queue...
-}
-```
+Na proxima vez que a pagina carregar, o useEffect do App detecta a flag e limpa o SW automaticamente. Assim, mesmo que o usuario apenas recarregue a pagina (F5), o cache corrompido e removido.
 
 ### Detalhes tecnicos
 
-**DashboardPage.tsx** -- Linhas ~190-197 do callback Realtime: apos `ensureNativeConnection()`, adicionar atualizacao do `btDeviceRef.current` com fake device quando conectado.
+**ErrorBoundary.tsx:**
+- Adicionar state `errorMessage` para guardar a mensagem do erro
+- No `componentDidCatch`, salvar `error.message` e `error.stack` 
+- No render da tela de erro, mostrar a mensagem em um bloco colapsavel com fonte pequena
+- No `componentDidCatch`, setar `sessionStorage.setItem("app_crashed", "true")`
 
-**printOrder.ts** -- No bloco `if (printMode === "bluetooth")`: adicionar verificacao `isNativePlatform()` antes do check de `btDevice`, chamando `sendToNativePrinter` diretamente. Isso garante que mesmo se o fake device nao foi criado, a impressao nativa funciona.
+**App.tsx:**
+- No `AppInner`, adicionar useEffect que verifica `sessionStorage.getItem("app_crashed")`
+- Se existir, remove a flag e desregistra todos os Service Workers + limpa caches
+- Isso garante que na proxima recarga a app baixa tudo fresco do servidor
 
 ### Resultado esperado
 
-- Impressao instantanea no APK (sem delay de 10s)
-- O polling de 10s continua como fallback de seguranca
-- Nenhuma mudanca no comportamento web
+- Clientes que cairem na tela de erro verao a mensagem real do problema
+- Na proxima recarga apos um crash, o Service Worker e limpo automaticamente
+- Nao sera mais necessario que o cliente saiba limpar cache manualmente
+- Voce podera diagnosticar problemas pelos prints que clientes enviarem (a mensagem de erro aparece na tela)
+
