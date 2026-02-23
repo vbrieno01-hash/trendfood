@@ -192,6 +192,12 @@ const DashboardPage = () => {
                   const native = await import("@/lib/nativeBluetooth");
                   await native.ensureNativeConnection();
                   console.log("[AutoPrint] Native BLE ensured, connected:", native.isNativeConnected());
+                  // Update btDeviceRef with fake device so printOrderByMode uses bluetooth path
+                  if (native.isNativeConnected() && !btDeviceRef.current) {
+                    const fakeDevice = { id: native.getNativeStoredDeviceId(), name: "Native BLE", gatt: { connected: true } } as any;
+                    btDeviceRef.current = fakeDevice;
+                    console.log("[AutoPrint] Created fake btDevice for native path");
+                  }
                 } catch (err) {
                   console.warn("[AutoPrint] Native BLE ensure failed:", err);
                 }
