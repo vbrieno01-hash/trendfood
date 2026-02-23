@@ -22,7 +22,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getStoredDeviceId } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getStoredDeviceId, isNativePlatform } from "@/lib/bluetoothPrinter";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -227,12 +227,24 @@ const DashboardPage = () => {
 
           playBell();
 
-          if (notificationsRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
+          if (notificationsRef.current) {
             const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
-            new Notification(`🔔 Novo pedido! ${tableLabel}`, {
-              icon: "/pwa-192.png",
-              badge: "/pwa-192.png",
-            });
+            if (isNativePlatform()) {
+              import("@capacitor/local-notifications").then(({ LocalNotifications }) => {
+                LocalNotifications.schedule({
+                  notifications: [{
+                    title: "🔔 Novo pedido!",
+                    body: tableLabel,
+                    id: Math.floor(Math.random() * 2147483647),
+                  }],
+                }).catch((err) => console.warn("[Notif] Native notification failed:", err));
+              });
+            } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+              new Notification(`🔔 Novo pedido! ${tableLabel}`, {
+                icon: "/pwa-192.png",
+                badge: "/pwa-192.png",
+              });
+            }
           }
 
           qc.invalidateQueries({ queryKey: ["orders", orgId] });
@@ -295,18 +307,26 @@ const DashboardPage = () => {
       const device = await requestBluetoothPrinter();
       if (device) {
         setBtDevice(device);
-        // Actually connect GATT so printer is ready
-        toast.info("Conectando à impressora...");
-        const char = await connectToDevice(device);
-        if (char) {
+        if (isNativePlatform()) {
+          // Native BLE already connected internally via scanAndConnectNative
           setBtConnected(true);
           setBtReconnectFailed(false);
           toast.success(`Impressora "${device.name || "Bluetooth"}" conectada!`);
+          // Skip attachDisconnectHandler — fake device doesn't emit gattserverdisconnected
         } else {
-          setBtConnected(false);
-          toast.warning(`Impressora pareada mas não conectou. Ela conectará automaticamente ao imprimir.`);
+          // Web: connect GATT manually
+          toast.info("Conectando à impressora...");
+          const char = await connectToDevice(device);
+          if (char) {
+            setBtConnected(true);
+            setBtReconnectFailed(false);
+            toast.success(`Impressora "${device.name || "Bluetooth"}" conectada!`);
+          } else {
+            setBtConnected(false);
+            toast.warning(`Impressora pareada mas não conectou. Ela conectará automaticamente ao imprimir.`);
+          }
+          attachDisconnectHandler(device);
         }
-        attachDisconnectHandler(device);
       }
     } catch (err: any) {
       const msg = err?.message || "";
