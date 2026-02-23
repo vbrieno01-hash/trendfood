@@ -1,60 +1,40 @@
 
 
-# Corrigir reconexao Bluetooth cancelada por mudanca de estado
+# Corrigir conexao com impressora MPT-II (UUID faltando)
 
 ## Problema
 
-O `useEffect` de reconexao Bluetooth (linha 329) depende de `[organization]`. Quando a pagina carrega:
+A impressora MPT-II parea com sucesso mas nao conecta. O motivo: o Web Bluetooth com `acceptAllDevices: true` so permite acessar servicos listados em `optionalServices`. A MPT-II (e muitas impressoras termicas chinesas) usa o servico BLE `0000ffe0-0000-1000-8000-00805f9b34fb` com caracteristica `0000ffe1-...`, que nao esta na lista `ALT_SERVICE_UUIDS` do codigo atual.
 
-1. `organization` comeca como `undefined` -- o effect roda e inicia `reconnectStoredPrinter()` (pode levar ate 20s)
-2. A organizacao carrega e `organization` muda para o objeto real
-3. O cleanup do primeiro effect roda (`cancelled = true`), cancelando o callback de sucesso
-4. O effect roda de novo, mas o `isConnecting` guard dentro de `connectToDevice` ainda pode estar `true` da tentativa anterior, fazendo a segunda tentativa falhar silenciosamente
-
-Resultado: a reconexao nunca completa.
+Resultado: o GATT conecta, mas `getPrimaryService()` e `getPrimaryServices()` nao encontram nenhum servico acessivel, retornando null.
 
 ## Solucao
 
-Remover `organization` da lista de dependencias do effect de reconexao. Esse effect so precisa rodar uma vez no mount -- ele nao depende de nenhum dado da organizacao. Usar um ref para garantir que roda apenas uma vez.
+Adicionar UUIDs faltantes de impressoras termicas comuns a lista `ALT_SERVICE_UUIDS`. Isso resolve tanto a conexao inicial (pareamento) quanto a reconexao automatica.
 
-## Alteracao
+## Alteracao tecnica
 
-### `src/pages/DashboardPage.tsx`
+### `src/lib/bluetoothPrinter.ts`
 
-Trocar a dependencia do useEffect de `[organization]` para `[]` (rodar apenas no mount) e adicionar um guard ref para evitar execucao dupla:
+Adicionar os seguintes UUIDs a `ALT_SERVICE_UUIDS`:
 
-```typescript
-const btReconnectAttempted = useRef(false);
+```text
+Atual:
+- 000018f0-...  (generico ESC/POS)
+- e7810a71-...  (Nordic UART)
+- 49535343-...  (Microchip/ISSC)
+- 0000ff00-...  (generico)
+- 0000fee7-...  (Telink)
 
-useEffect(() => {
-  if (btDevice) return;
-  if (!isBluetoothSupported()) return;
-  if (btReconnectAttempted.current) return;
-  btReconnectAttempted.current = true;
-
-  const onConnected = (device: BluetoothDevice) => {
-    setBtDevice(device);
-    setBtConnected(true);
-    toast.success("Impressora reconectada automaticamente");
-    attachDisconnectHandler(device);
-  };
-
-  reconnectStoredPrinter()
-    .then(async (device) => {
-      if (device) {
-        onConnected(device);
-        return;
-      }
-      // backoff retry (igual ao atual)
-      ...
-    })
-    .catch(...);
-}, []); // sem dependencia de organization
+Adicionar:
+- 0000ffe0-...  (HM-10/MPT-II/impressoras chinesas BLE -- o UUID da MPT-II)
+- 0000ff02-...  (algumas variantes Zjiang/Goojprt)
+- 00001101-...  (SPP classico, algumas impressoras expoe via BLE)
 ```
 
-Isso elimina o problema de cancelamento e garante que a reconexao rode do inicio ao fim sem interrupcao.
+O UUID `0000ffe0` e o mais critico -- e usado pela grande maioria das impressoras termicas portateis chinesas (MPT-II, MTP-2, POS-5802, etc).
 
 ## Arquivo alterado
 
-- `src/pages/DashboardPage.tsx` -- dependencia do effect + guard ref
+- `src/lib/bluetoothPrinter.ts` -- adicionar UUIDs na lista `ALT_SERVICE_UUIDS`
 
