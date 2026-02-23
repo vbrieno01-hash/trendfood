@@ -1,44 +1,118 @@
 
 
-# Upload global de APK/EXE pelo painel Admin
+# Corrigir Crash do APK ao Fazer Login
 
-## O que muda
+## Problema Identificado
 
-Atualmente o upload de APK e EXE esta na aba "Impressora" do dashboard de cada loja, salvo por organizacao. Vamos transformar isso em uma configuracao **global da plataforma**, gerenciada exclusivamente pelo admin.
+O app Android (APK) fecha ao tentar fazer login. Analisei o codigo e encontrei **3 causas provaveis**:
 
-## Como vai funcionar
+1. **Promessa nao tratada no useAuth**: Apos o login, o `onAuthStateChange` executa `fetchOrganization` dentro de um `setTimeout` sem tratamento de erro adequado. Se essa chamada falhar no WebView nativo, a rejeicao nao tratada causa crash.
 
-1. O admin faz upload do APK e EXE na aba **Configuracoes** do painel `/admin`
-2. Os arquivos ficam salvos no storage em um caminho global (ex: `global/trendfood.apk`)
-3. As URLs sao salvas na tabela `platform_config` (que ja existe como singleton)
-4. Na aba Impressora do dashboard das lojas, os botoes de download apontam para esses arquivos globais (somente download, sem upload)
+2. **Navegacao concorrente**: O `handleLogin` navega para `/dashboard` ou `/admin`, e ao mesmo tempo o `onAuthStateChange` no `useAuth` tambem dispara logica assincrona. Essa corrida pode causar instabilidade no WebView do Android.
 
-## Detalhes tecnicos
+3. **Carregamento pesado pos-login**: A pagina de destino (Dashboard) pode estar carregando recursos pesados que excedem a memoria do WebView.
 
-### 1. Adicionar colunas `apk_url` e `exe_url` na tabela `platform_config`
-- Duas colunas text nullable
-- A tabela ja tem RLS de update restrita ao admin
+## Solucao
 
-### 2. Atualizar storage policy do bucket `downloads`
-- Adicionar politica de upload para o caminho `global/` restrita a admins (usando `has_role`)
-- Manter as politicas existentes por organizacao
+### 1. Proteger o callback do onAuthStateChange (useAuth.tsx)
 
-### 3. Criar componente `AdminDownloadsSection`
-- Componente com upload de APK e EXE, similar ao que ja existe no PrinterTab
-- Upload salva em `downloads/global/trendfood.apk` e `downloads/global/trendfood.exe`
-- Atualiza `platform_config` com as URLs publicas
-- Renderizado dentro da aba "Configuracoes" do AdminPage
+Envolver a chamada assincrona dentro do `setTimeout` com try/catch para evitar rejeicoes nao tratadas:
 
-### 4. Atualizar `PrinterTab.tsx`
-- Remover a logica de upload (botoes "Enviar APK/EXE")
-- Buscar as URLs globais da `platform_config` em vez de `organization.apk_url`
-- Manter apenas os botoes de download
+```typescript
+setTimeout(async () => {
+  if (isMounted.current) {
+    try {
+      await fetchOrganization(userId);
+    } catch (err) {
+      console.error("[useAuth] fetchOrganization failed:", err);
+    }
+    if (isMounted.current) setLoading(false);
+  }
+}, 0);
+```
 
-### 5. Limpar colunas `apk_url` e `exe_url` da tabela `organizations`
-- Remover essas colunas ja que agora sao globais (opcional, pode manter sem uso)
+### 2. Proteger a navegacao no handleLogin (AuthPage.tsx)
 
-### Arquivos afetados
-- `supabase/migrations/` - nova migration (colunas + storage policy)
-- `src/components/admin/AdminDownloadsSection.tsx` - novo componente
-- `src/pages/AdminPage.tsx` - importar e renderizar na aba config
-- `src/components/dashboard/PrinterTab.tsx` - trocar upload por download global
+Adicionar try/catch especifico ao redor da consulta de roles e navegacao:
+
+```typescript
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoginLoading(true);
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginData.email,
+      password: loginData.password,
+    });
+    if (error) throw error;
+    toast.success("Login realizado com sucesso!");
+
+    if (data.user) {
+      try {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+        navigate(roleData ? "/admin" : redirectTo, { replace: true });
+      } catch {
+        // Fallback: navegar para o destino padrao
+        navigate(redirectTo, { replace: true });
+      }
+    } else {
+      navigate(redirectTo, { replace: true });
+    }
+  } catch (err: unknown) {
+    const error = err as { message?: string };
+    toast.error(
+      translateAuthError(error.message) ?? error.message ?? "E-mail ou senha incorretos."
+    );
+  } finally {
+    setLoginLoading(false);
+  }
+};
+```
+
+### 3. Fortalecer o handler global de rejeicoes (App.tsx)
+
+Garantir que o handler de `unhandledrejection` realmente previne o crash no WebView nativo:
+
+```typescript
+const handler = (e: PromiseRejectionEvent) => {
+  console.error("[Unhandled Rejection]", e.reason);
+  e.preventDefault();
+  // No nativo, mostrar feedback ao usuario
+  if (Capacitor.isNativePlatform()) {
+    toast.error("Ocorreu um erro inesperado. Tente novamente.");
+  }
+};
+```
+
+### 4. Proteger o getSession inicial (useAuth.tsx)
+
+Adicionar catch no `getSession` para evitar crash caso a sessao local esteja corrompida:
+
+```typescript
+supabase.auth.getSession()
+  .then(({ data: { session: initialSession } }) => {
+    // ... logica existente
+  })
+  .catch((err) => {
+    console.error("[useAuth] getSession failed:", err);
+    if (isMounted.current) setLoading(false);
+  });
+```
+
+## Arquivos Modificados
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/hooks/useAuth.tsx` | try/catch no setTimeout e no getSession |
+| `src/pages/AuthPage.tsx` | try/catch na consulta de roles pos-login |
+| `src/App.tsx` | Melhorar handler de unhandledrejection para nativo |
+
+## Resultado Esperado
+
+O app Android nao vai mais fechar ao fazer login. Qualquer erro de rede ou de banco sera capturado e exibido como notificacao em vez de causar crash.
+
