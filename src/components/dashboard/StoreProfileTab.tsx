@@ -194,14 +194,15 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 2MB.");
-      return;
-    }
-    setLogoUploading(true);
     try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("A imagem deve ter no máximo 2MB.");
+        if (fileRef.current) fileRef.current.value = "";
+        return;
+      }
+      setLogoUploading(true);
       const ext = file.name.split(".").pop();
       const path = `${organization.id}/logo.${ext}`;
       const { error: uploadError } = await supabase.storage.from("logos").upload(path, file, { upsert: true });
@@ -213,7 +214,8 @@ export default function StoreProfileTab({ organization }: { organization: Organi
       await updateAllOrgs({ logo_url: url });
       await refreshOrganization();
       toast.success("Logo atualizado!");
-    } catch {
+    } catch (err) {
+      console.error("[StoreProfile] Logo upload error:", err);
       toast.error("Erro ao fazer upload do logo.");
     } finally {
       setLogoUploading(false);
@@ -237,14 +239,15 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   };
 
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("A imagem deve ter no máximo 2MB.");
-      return;
-    }
-    setBannerUploading(true);
     try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("A imagem deve ter no máximo 2MB.");
+        if (bannerFileRef.current) bannerFileRef.current.value = "";
+        return;
+      }
+      setBannerUploading(true);
       const ext = file.name.split(".").pop();
       const path = `banners/${organization.id}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("menu-images").upload(path, file, { upsert: true });
@@ -256,7 +259,8 @@ export default function StoreProfileTab({ organization }: { organization: Organi
       await updateAllOrgs({ banner_url: url });
       await refreshOrganization();
       toast.success("Banner atualizado!");
-    } catch {
+    } catch (err) {
+      console.error("[StoreProfile] Banner upload error:", err);
       toast.error("Erro ao fazer upload do banner.");
     } finally {
       setBannerUploading(false);
