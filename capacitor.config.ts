@@ -8,6 +8,18 @@ const config: CapacitorConfig = {
     androidScheme: "https",
   },
   plugins: {
+    SplashScreen: {
+      launchShowDuration: 2500,
+      launchAutoHide: false,
+      backgroundColor: "#FFFFFF",
+      showSpinner: false,
+      launchFadeOutDuration: 500,
+      splashFullScreen: true,
+      splashImmersiveHidden: true,
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
     BluetoothLe: {
       displayStrings: {
         scanning: "Procurando impressora...",
