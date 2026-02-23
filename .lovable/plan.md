@@ -1,79 +1,84 @@
 
 
-## Correção: Clientes presos na tela "Algo deu errado"
+## Correção: Impressão duplicada no APK
 
-### Problema
+### Causa raiz
 
-Clientes ficam presos na tela de erro mesmo depois de limpar cookies e dados do navegador. Isso acontece porque:
+Existem **dois caminhos de impressão** disparando para o mesmo pedido:
 
-1. O Service Worker (PWA) continua servindo arquivos JavaScript antigos/quebrados mesmo apos limpar cookies -- cookies e cache do SW sao coisas diferentes
-2. O ErrorBoundary nao mostra qual e o erro real, impossibilitando debug
-3. Nao ha mecanismo automatico para detectar e corrigir cache corrompido
+1. **`usePlaceOrder`** (useOrders.ts): Sempre chama `enqueuePrint()` ao criar um pedido, inserindo na tabela `fila_impressao`
+2. **Callback Realtime** (DashboardPage): Detecta o INSERT e chama `printOrderByMode()`, que imprime **diretamente via BLE nativo**
 
-### Solucao (3 mudancas)
+Depois, o **polling de 10s** no DashboardPage encontra o registro na `fila_impressao` (inserido pelo passo 1) e imprime **de novo**.
 
-#### 1. ErrorBoundary com informacoes do erro real
+Resultado: impressao direta + impressao da fila = duplicado.
 
-Atualizar `src/components/ErrorBoundary.tsx` para:
-- Mostrar o nome e mensagem do erro real na tela (em texto pequeno, colapsavel)
-- Isso permite que voce identifique o problema quando clientes mandarem prints
-- Manter os botoes "Tentar novamente" e "Limpar cache e recarregar"
+### Solucao
 
-#### 2. Limpeza automatica de Service Worker no carregamento
+Modificar `printOrderByMode` em `src/lib/printOrder.ts` para que, quando a impressao nativa BLE tiver sucesso, ele **nao caia no fallback** de `enqueuePrint`. Isso ja esta correto (tem `return` apos sucesso).
 
-Adicionar em `src/App.tsx` um useEffect que roda uma unica vez no mount:
-- Verifica se o Service Worker esta servindo conteudo desatualizado
-- Se detectar que a app crashou recentemente (flag no sessionStorage), desregistra o SW automaticamente e recarrega
-- Isso resolve o caso de clientes que limpam cookies mas o SW continua ativo
+O problema real e que o `usePlaceOrder` **sempre** enfileira, independente do auto-print. Precisamos de uma das duas abordagens:
+
+**Abordagem escolhida: Nao enfileirar quando estiver em plataforma nativa com auto-print ativo**
+
+#### 1. `src/hooks/useOrders.ts` -- Condicionar o enqueue
+
+Adicionar um parametro opcional `skipQueue` ao `usePlaceOrder`. Quando o DashboardPage sabe que vai auto-imprimir via Realtime, passa `skipQueue: true` para evitar a insercao duplicada na fila.
+
+Alternativa mais simples: verificar se estamos em plataforma nativa antes de enfileirar. Se sim, pular o enqueue porque o Realtime vai cuidar da impressao direta.
 
 ```typescript
-// Em AppInner, novo useEffect:
-useEffect(() => {
-  const crashed = sessionStorage.getItem("app_crashed");
-  if (crashed) {
-    sessionStorage.removeItem("app_crashed");
-    // Limpar SW e caches automaticamente
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(r => r.unregister());
-      });
-    }
-    if ('caches' in window) {
-      caches.keys().then(names => names.forEach(n => caches.delete(n)));
-    }
-  }
-}, []);
-```
+// Em usePlaceOrder, apos criar o pedido:
+const isNative = (() => {
+  try {
+    const { Capacitor } = require("@capacitor/core");
+    return Capacitor.isNativePlatform();
+  } catch { return false; }
+})();
 
-#### 3. ErrorBoundary marca crash no sessionStorage
-
-Quando o ErrorBoundary captura um erro, salva uma flag no sessionStorage:
-```typescript
-componentDidCatch(error, info) {
-  sessionStorage.setItem("app_crashed", "true");
-  // ... log existente
+// So enfileira se NAO for nativo (no nativo, o Realtime imprime direto)
+if (!isNative) {
+  const text = stripFormatMarkers(formatReceiptText(printableOrder));
+  await enqueuePrint(organizationId, order.id, text);
 }
 ```
 
-Na proxima vez que a pagina carregar, o useEffect do App detecta a flag e limpa o SW automaticamente. Assim, mesmo que o usuario apenas recarregue a pagina (F5), o cache corrompido e removido.
+#### 2. `src/lib/printOrder.ts` -- Nao enfileirar apos sucesso nativo (seguranca)
+
+O codigo atual ja faz `return` apos sucesso nativo, entao nao precisa de mudanca aqui. Mas como seguranca extra, garantir que o bloco de fallback `enqueuePrint` no final do modo bluetooth so rode se NAO estivermos em plataforma nativa com sucesso.
 
 ### Detalhes tecnicos
 
-**ErrorBoundary.tsx:**
-- Adicionar state `errorMessage` para guardar a mensagem do erro
-- No `componentDidCatch`, salvar `error.message` e `error.stack` 
-- No render da tela de erro, mostrar a mensagem em um bloco colapsavel com fonte pequena
-- No `componentDidCatch`, setar `sessionStorage.setItem("app_crashed", "true")`
+**useOrders.ts** -- Dentro do `mutationFn` do `usePlaceOrder`, envolver o bloco de `enqueuePrint` (linhas 195-213) com uma verificacao de plataforma nativa:
 
-**App.tsx:**
-- No `AppInner`, adicionar useEffect que verifica `sessionStorage.getItem("app_crashed")`
-- Se existir, remove a flag e desregistra todos os Service Workers + limpa caches
-- Isso garante que na proxima recarga a app baixa tudo fresco do servidor
+```typescript
+// Antes: sempre enfileira
+// Depois: so enfileira se nao for nativo
+let skipQueue = false;
+try {
+  const { Capacitor } = await import("@capacitor/core");
+  skipQueue = Capacitor.isNativePlatform();
+} catch {}
+
+if (!skipQueue) {
+  try {
+    const printableOrder = { ... };
+    const text = stripFormatMarkers(formatReceiptText(printableOrder));
+    await enqueuePrint(organizationId, order.id, text);
+  } catch (err) {
+    console.error("Falha ao enfileirar impressão:", err);
+  }
+}
+```
+
+Isso garante que:
+- **No APK**: o Realtime imprime direto via BLE, sem nada na fila = sem duplicado
+- **Na web**: o `enqueuePrint` continua funcionando normalmente para o robo desktop
+- **Se o Realtime falhar no APK**: o polling nao vai encontrar nada na fila, mas o usuario pode reimprimir manualmente
 
 ### Resultado esperado
 
-- Clientes que cairem na tela de erro verao a mensagem real do problema
-- Na proxima recarga apos um crash, o Service Worker e limpo automaticamente
-- Nao sera mais necessario que o cliente saiba limpar cache manualmente
-- Voce podera diagnosticar problemas pelos prints que clientes enviarem (a mensagem de erro aparece na tela)
+- Apenas UMA impressao por pedido no APK
+- Comportamento web inalterado (fila desktop continua funcionando)
+- Nenhuma mudanca na edge function printer-queue
 
