@@ -50,7 +50,9 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
     if (!res.ok) return null;
     const releases = await res.json();
     for (const release of releases) {
-      const asset = release.assets?.find((a: any) => a.name === filename);
+      const asset = release.assets?.find(
+        (a: any) => a.name.toLowerCase() === filename.toLowerCase()
+      );
       if (asset) return asset.browser_download_url;
     }
     return null;
