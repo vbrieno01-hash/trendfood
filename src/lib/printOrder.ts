@@ -327,6 +327,25 @@ export async function printOrderByMode(
   }
 
   if (printMode === "bluetooth") {
+    // Native platform: try direct native print even without btDevice object
+    const { isNativePlatform } = await import("@/lib/bluetoothPrinter");
+    if (isNativePlatform()) {
+      try {
+        const native = await import("@/lib/nativeBluetooth");
+        await native.ensureNativeConnection();
+        if (native.isNativeConnected()) {
+          const success = await native.sendToNativePrinter(text);
+          if (success) {
+            toast.success("Impresso via Bluetooth");
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("[PrintOrder] Native direct print failed:", err);
+      }
+    }
+
+    // Web path: use btDevice normally
     if (btDevice) {
       const success = await sendToBluetoothPrinter(btDevice, text);
       if (success) {
@@ -336,7 +355,7 @@ export async function printOrderByMode(
       toast.warning("Bluetooth falhou, salvando na fila...", {
         description: "Verifique se a impressora está ligada e próxima.",
       });
-    } else {
+    } else if (!isNativePlatform()) {
       toast.warning("Nenhuma impressora Bluetooth pareada, salvando na fila...");
     }
     // Fallback to queue
