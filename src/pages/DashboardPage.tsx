@@ -64,10 +64,10 @@ const DashboardPage = () => {
   const retryRef = useRef(false);
 
   // Bluetooth state lifted from SettingsTab
-  const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
+  const [btDevice, setBtDevice] = useState<any>(null);
   const [btConnected, setBtConnected] = useState(false);
   const [btReconnectFailed, setBtReconnectFailed] = useState(false);
-  const btSupported = isBluetoothSupported();
+  const btSupported = (() => { try { return isBluetoothSupported(); } catch { return false; } })();
 
   // Push notifications (native only)
   usePushNotifications(organization?.id, user?.id);
@@ -335,7 +335,7 @@ const DashboardPage = () => {
   // Stable disconnect handler ref to allow proper removeEventListener
   const disconnectHandlerRef = useRef<(() => void) | null>(null);
 
-  const attachDisconnectHandler = (device: BluetoothDevice) => {
+  const attachDisconnectHandler = (device: any) => {
     // Remove previous listener if exists
     if (disconnectHandlerRef.current) {
       device.removeEventListener("gattserverdisconnected", disconnectHandlerRef.current);
@@ -433,12 +433,15 @@ const DashboardPage = () => {
   // Auto-reconnect to previously paired Bluetooth printer on mount/reload
   const btReconnectAttempted = useRef(false);
   useEffect(() => {
+    if (loading || !user) return; // guard: wait for auth
     if (btDevice) return; // already connected
-    if (!isBluetoothSupported()) return;
+    let supported = false;
+    try { supported = isBluetoothSupported(); } catch { /* */ }
+    if (!supported) return;
     if (btReconnectAttempted.current) return;
     btReconnectAttempted.current = true;
 
-    const onConnected = (device: BluetoothDevice) => {
+    const onConnected = (device: any) => {
       setBtDevice(device);
       setBtConnected(true);
       setBtReconnectFailed(false);
@@ -458,8 +461,8 @@ const DashboardPage = () => {
         try {
           const bt = navigator as any;
           if (typeof bt.bluetooth?.getDevices !== "function") return;
-          const devices: BluetoothDevice[] = await bt.bluetooth.getDevices();
-          const target = devices.find((d: BluetoothDevice) => d.id === storedId);
+          const devices: any[] = await bt.bluetooth.getDevices();
+          const target = devices.find((d: any) => d.id === storedId);
           if (!target) return;
           console.log("[BT] Starting backoff retry...");
           autoReconnect(target, onConnected, () => {
@@ -475,7 +478,7 @@ const DashboardPage = () => {
         console.warn("[BT] Auto-reconnect failed on mount:", err);
         if (getStoredDeviceId()) setBtReconnectFailed(true);
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   useEffect(() => {
