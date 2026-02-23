@@ -329,11 +329,25 @@ const DashboardPage = () => {
         }
       }
     } catch (err: any) {
+      console.error("[BT] Pair error:", err);
       const msg = err?.message || "";
       if (msg.includes("globally disabled") || msg.includes("Web Bluetooth")) {
         toast.error("Web Bluetooth está bloqueado neste contexto. Abra trendfood.lovable.app diretamente no Google Chrome.");
+      } else if (msg.includes("denied") || msg.includes("permission")) {
+        toast.error("Permissão negada", {
+          description: "Vá em Configurações > Apps > TrendFood > Permissões e ative Bluetooth e Localização.",
+          duration: 8000,
+        });
+      } else if (msg.includes("disabled") || msg.includes("location")) {
+        toast.error("Ative o GPS", {
+          description: "O Bluetooth precisa da Localização ativada para encontrar impressoras.",
+          duration: 8000,
+        });
       } else {
-        toast.error("Falha ao parear impressora. Verifique se o Bluetooth está ativado.");
+        toast.error("Erro ao buscar impressora", {
+          description: "Verifique se Bluetooth e GPS estão ligados.",
+          duration: 8000,
+        });
       }
     }
   };

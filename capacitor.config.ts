@@ -13,6 +13,10 @@ const config: CapacitorConfig = {
         noDeviceFound: "Nenhum dispositivo encontrado",
       },
     },
+    LocalNotifications: {
+      smallIcon: "ic_stat_icon_config_sample",
+      iconColor: "#FF6B00",
+    },
   },
 };
 
