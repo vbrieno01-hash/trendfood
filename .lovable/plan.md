@@ -1,26 +1,31 @@
 
+# Reorganizar a aba Impressora Termica com secao de Downloads
 
-# Corrigir busca case-insensitive nos downloads do GitHub
+## Resumo
 
-## O que muda
+Criar uma nova secao "Downloads" separada visualmente das outras, agrupando os botoes de download do APK e do EXE em um unico card bonito. Atualmente os downloads estao espalhados (APK dentro do bloco Bluetooth, EXE dentro da config Desktop). A ideia e centralizar tudo em um card proprio com icone de Download no header.
 
-Os botoes de download do APK e EXE vao encontrar o arquivo no GitHub independente de como ele foi nomeado — seja `trendFood.apk`, `TrendFood.apk`, `TRENDFOOD.APK` ou qualquer variacao.
+## Layout proposto
 
-## Secao Tecnica
+A aba ficara com 4 cards separados, nesta ordem:
+
+1. **Impressora** -- modo de impressao, Bluetooth, largura do papel (como esta hoje, mas sem o botao de download do APK)
+2. **Downloads** -- novo card agrupando APK e EXE lado a lado ou empilhados, com descricao curta de cada
+3. **Configuracao Desktop** -- ID da loja, teste de impressora (sem o botao de download do EXE, que vai pro card acima)
+4. **Comanda** -- editor do cabecalho + preview (sem mudanca)
+
+## Detalhes tecnicos
 
 ### Arquivo: `src/components/dashboard/PrinterTab.tsx`
 
-Na funcao `findAssetUrl` (linha 52), alterar a comparacao de nomes para ignorar maiusculas/minusculas:
+1. **Remover** o botao "Baixar TrendFood.apk" e seu paragrafo de dentro do bloco Bluetooth (linhas 260-272)
 
-```typescript
-// De:
-const asset = release.assets?.find((a: any) => a.name === filename);
+2. **Remover** o botao "Baixar trendfood.exe" e seu paragrafo de dentro do bloco Desktop (linhas 401-413)
 
-// Para:
-const asset = release.assets?.find(
-  (a: any) => a.name.toLowerCase() === filename.toLowerCase()
-);
-```
+3. **Criar** um novo card "Downloads" entre o card "Impressora" e o card "Configuracao Desktop", seguindo o mesmo padrao visual dos outros cards (rounded-xl, border, header com bg-secondary/30). O header usara o icone `Download` com o titulo "DOWNLOADS". Dentro, dois sub-blocos lado a lado ou empilhados:
+   - **App Android (APK)** -- icone Smartphone, botao de download, descricao curta
+   - **Programa Desktop (EXE)** -- icone Monitor, botao de download, descricao curta
 
-Apenas essa linha precisa mudar. Resolve o problema atual onde o arquivo se chama `trendFood.apk` no GitHub mas o codigo busca `trendfood.apk`.
+   Cada sub-bloco sera um mini-card com borda (rounded-lg border p-3), similar ao estilo ja usado no bloco Bluetooth.
 
+Nenhum arquivo novo sera criado. Apenas reorganizacao dentro do mesmo componente.
