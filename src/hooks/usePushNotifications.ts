@@ -1,20 +1,40 @@
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
-import { PushNotifications } from "@capacitor/push-notifications";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+
+// Flag de controle: só habilitar quando o google-services.json estiver configurado
+const FIREBASE_CONFIGURED = false;
 
 export function usePushNotifications(orgId?: string, userId?: string) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!FIREBASE_CONFIGURED) {
+      console.info("[Push] Firebase não configurado — push notifications desabilitadas");
+      return;
+    }
+
     if (!Capacitor.isNativePlatform() || !orgId || !userId) return;
 
     let mounted = true;
 
     const setup = async () => {
       try {
+        // Import dinâmico para evitar carregar o módulo nativo quando Firebase não está pronto
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+
+        if (!Capacitor.isPluginAvailable("PushNotifications")) {
+          console.warn("[Push] Plugin não disponível");
+          return;
+        }
+
+        // Registrar listener de erro ANTES de register()
+        await PushNotifications.addListener("registrationError", (err) => {
+          console.error("[Push] Erro no registro:", err.error);
+        });
+
         const permResult = await PushNotifications.requestPermissions();
         if (permResult.receive !== "granted") {
           console.warn("[Push] Permissão negada");
@@ -44,10 +64,6 @@ export function usePushNotifications(orgId?: string, userId?: string) {
           }
         });
 
-        await PushNotifications.addListener("registrationError", (err) => {
-          console.error("[Push] Erro no registro:", err.error);
-        });
-
         await PushNotifications.addListener("pushNotificationReceived", (notification) => {
           toast.info(notification.title || "Nova notificação", {
             description: notification.body,
@@ -66,7 +82,9 @@ export function usePushNotifications(orgId?: string, userId?: string) {
 
     return () => {
       mounted = false;
-      PushNotifications.removeAllListeners();
+      import("@capacitor/push-notifications")
+        .then(({ PushNotifications }) => PushNotifications.removeAllListeners())
+        .catch(() => {});
     };
   }, [orgId, userId, navigate]);
 }
