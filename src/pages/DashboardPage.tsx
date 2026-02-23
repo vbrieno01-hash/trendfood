@@ -234,6 +234,16 @@ const DashboardPage = () => {
                 getPixPayload(fullOrder),
                 printerWidthRef.current
               );
+
+              // Marcar job na fila_impressao como impresso para evitar reimpressão pelo polling
+              try {
+                await supabase
+                  .from("fila_impressao")
+                  .update({ status: "impresso", printed_at: new Date().toISOString() } as any)
+                  .eq("order_id", order.id)
+                  .eq("organization_id", orgId)
+                  .eq("status", "pendente");
+              } catch { /* silently ignore */ }
             });
             processQueue();
           }
