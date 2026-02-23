@@ -186,19 +186,30 @@ const DashboardPage = () => {
                 .eq("order_id", order.id);
               const fullOrder = { ...order, order_items: items ?? [] };
 
-              // Reconexao sob demanda
-              if (!btDeviceRef.current && getStoredDeviceId()) {
+              // Native platform: use native BLE reconnect directly
+              if (isNativePlatform()) {
                 try {
-                  const reconnected = await reconnectStoredPrinter();
-                  if (reconnected) {
-                    setBtDevice(reconnected);
-                    setBtConnected(true);
-                    btDeviceRef.current = reconnected;
-                    attachDisconnectHandler(reconnected);
-                    console.log("[AutoPrint] Bluetooth reconnected on-demand");
+                  const native = await import("@/lib/nativeBluetooth");
+                  await native.ensureNativeConnection();
+                  console.log("[AutoPrint] Native BLE ensured, connected:", native.isNativeConnected());
+                } catch (err) {
+                  console.warn("[AutoPrint] Native BLE ensure failed:", err);
+                }
+              } else {
+                // Web: reconexao sob demanda
+                if (!btDeviceRef.current && getStoredDeviceId()) {
+                  try {
+                    const reconnected = await reconnectStoredPrinter();
+                    if (reconnected) {
+                      setBtDevice(reconnected);
+                      setBtConnected(true);
+                      btDeviceRef.current = reconnected;
+                      attachDisconnectHandler(reconnected);
+                      console.log("[AutoPrint] Bluetooth reconnected on-demand");
+                    }
+                  } catch {
+                    console.warn("[AutoPrint] On-demand BT reconnect failed");
                   }
-                } catch {
-                  console.warn("[AutoPrint] On-demand BT reconnect failed");
                 }
               }
 
@@ -257,6 +268,49 @@ const DashboardPage = () => {
   // (Auto-print useEffect removed — printing now happens directly in Realtime callback above)
 
   // Mark existing orders as known when first loaded
+  // ── Polling fila_impressao no APK como fallback ──
+  useEffect(() => {
+    if (!isNativePlatform() || !orgId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const native = await import("@/lib/nativeBluetooth");
+        if (!native.isNativeConnected()) {
+          // Try to reconnect silently
+          await native.ensureNativeConnection();
+          if (!native.isNativeConnected()) return;
+        }
+
+        const { data } = await supabase
+          .from("fila_impressao")
+          .select("*")
+          .eq("organization_id", orgId)
+          .eq("status", "pendente")
+          .order("created_at", { ascending: true })
+          .limit(5);
+
+        if (!data?.length) return;
+
+        console.log("[APK] Queue poll found", data.length, "pending jobs");
+
+        for (const job of data) {
+          const ok = await native.sendToNativePrinter((job as any).conteudo_txt);
+          if (ok) {
+            await supabase
+              .from("fila_impressao")
+              .update({ status: "impresso", printed_at: new Date().toISOString() } as any)
+              .eq("id", (job as any).id);
+            console.log("[APK] Printed queued job:", (job as any).id);
+          }
+        }
+      } catch (err) {
+        console.error("[APK] Queue poll error:", err);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [orgId]);
+
   useEffect(() => {
     dashOrders.forEach((o) => {
       knownIds.current.add(o.id);

@@ -119,83 +119,140 @@ export async function connectNativeDevice(deviceId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Reconnect using stored device ID + fast path with cached UUIDs.
+ */
 export async function reconnectNativeDevice(): Promise<string | null> {
   const storedId = localStorage.getItem(STORED_NATIVE_DEVICE_KEY);
   if (!storedId) return null;
 
-  console.log("[NativeBT] Attempting reconnect to:", storedId);
-  const ok = await connectNativeDevice(storedId);
-  return ok ? storedId : null;
-}
+  const storedService = localStorage.getItem(STORED_NATIVE_SERVICE_KEY);
+  const storedChar = localStorage.getItem(STORED_NATIVE_CHAR_KEY);
 
-export async function sendToNativePrinter(text: string): Promise<boolean> {
-  if (!connectedDeviceId || !cachedServiceUuid || !cachedCharUuid) {
-    console.warn("[NativeBT] Not connected, attempting reconnect...");
-    const reconnected = await reconnectNativeDevice();
-    if (!reconnected) {
-      console.error("[NativeBT] Cannot send: not connected");
-      return false;
-    }
-  }
-
-  const encoder = new TextEncoder();
-  const ESC_INIT = new Uint8Array([0x1b, 0x40]);
-  const ESC_CENTER = new Uint8Array([0x1b, 0x61, 0x01]);
-  const ESC_LEFT = new Uint8Array([0x1b, 0x61, 0x00]);
-  const ESC_BOLD_ON = new Uint8Array([0x1b, 0x45, 0x01]);
-  const ESC_BOLD_OFF = new Uint8Array([0x1b, 0x45, 0x00]);
-  const ESC_CUT = new Uint8Array([0x1d, 0x56, 0x01]);
-  const NEWLINE = encoder.encode("\n");
-
-  const chunks: Uint8Array[] = [ESC_INIT];
-
-  for (const line of text.split("\n")) {
-    if (line.startsWith("##CENTER##")) {
-      chunks.push(ESC_CENTER);
-      chunks.push(encoder.encode(line.replace("##CENTER##", "")));
-      chunks.push(NEWLINE);
-      chunks.push(ESC_LEFT);
-    } else if (line.startsWith("##BOLD##")) {
-      chunks.push(ESC_BOLD_ON);
-      chunks.push(encoder.encode(line.replace("##BOLD##", "")));
-      chunks.push(NEWLINE);
-      chunks.push(ESC_BOLD_OFF);
-    } else {
-      chunks.push(encoder.encode(line));
-      chunks.push(NEWLINE);
-    }
-  }
-  chunks.push(encoder.encode("\n\n\n"));
-  chunks.push(ESC_CUT);
-
-  const totalLen = chunks.reduce((s, c) => s + c.length, 0);
-  const combined = new Uint8Array(totalLen);
-  let offset = 0;
-  for (const c of chunks) {
-    combined.set(c, offset);
-    offset += c.length;
-  }
+  console.log("[NativeBT] Attempting reconnect to:", storedId, "fastPath:", !!(storedService && storedChar));
 
   try {
-    const CHUNK_SIZE = 100;
-    for (let i = 0; i < combined.length; i += CHUNK_SIZE) {
-      const slice = combined.slice(i, i + CHUNK_SIZE);
-      const dataView = new DataView(slice.buffer, slice.byteOffset, slice.byteLength);
-      await BleClient.write(
-        connectedDeviceId!,
-        cachedServiceUuid!,
-        cachedCharUuid!,
-        dataView
-      );
-      await new Promise((r) => setTimeout(r, 30));
+    await initNativeBle();
+
+    // Disconnect first if stale (ignore errors)
+    try { await BleClient.disconnect(storedId); } catch { /* ok */ }
+
+    await BleClient.connect(storedId, (id) => {
+      console.log("[NativeBT] Disconnected callback:", id);
+      connectedDeviceId = null;
+      cachedServiceUuid = null;
+      cachedCharUuid = null;
+    });
+
+    // Fast path: use stored UUIDs without re-discovering services
+    if (storedService && storedChar) {
+      connectedDeviceId = storedId;
+      cachedServiceUuid = storedService;
+      cachedCharUuid = storedChar;
+      console.log("[NativeBT] Fast-path reconnect OK");
+      return storedId;
     }
-    console.log("[NativeBT] Print sent successfully");
-    return true;
+
+    // Slow path: re-discover services
+    const ok = await connectNativeDevice(storedId);
+    return ok ? storedId : null;
   } catch (err) {
-    console.error("[NativeBT] Print failed:", err);
-    connectedDeviceId = null;
-    return false;
+    console.error("[NativeBT] Reconnect failed:", err);
+    return null;
   }
+}
+
+/**
+ * Ensure native BLE connection is alive. Call before printing.
+ */
+export async function ensureNativeConnection(): Promise<boolean> {
+  if (connectedDeviceId && cachedServiceUuid && cachedCharUuid) {
+    return true; // Already connected
+  }
+  const result = await reconnectNativeDevice();
+  return result !== null;
+}
+
+/**
+ * Send text to native BLE printer with retry logic (3 attempts with backoff).
+ */
+export async function sendToNativePrinter(text: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // Ensure connection before each attempt
+    if (!connectedDeviceId || !cachedServiceUuid || !cachedCharUuid) {
+      console.warn(`[NativeBT] Not connected, reconnect attempt ${attempt + 1}/3...`);
+      const reconnected = await reconnectNativeDevice();
+      if (!reconnected) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // backoff
+        continue;
+      }
+    }
+
+    // Build ESC/POS data
+    const encoder = new TextEncoder();
+    const ESC_INIT = new Uint8Array([0x1b, 0x40]);
+    const ESC_CENTER = new Uint8Array([0x1b, 0x61, 0x01]);
+    const ESC_LEFT = new Uint8Array([0x1b, 0x61, 0x00]);
+    const ESC_BOLD_ON = new Uint8Array([0x1b, 0x45, 0x01]);
+    const ESC_BOLD_OFF = new Uint8Array([0x1b, 0x45, 0x00]);
+    const ESC_CUT = new Uint8Array([0x1d, 0x56, 0x01]);
+    const NEWLINE = encoder.encode("\n");
+
+    const chunks: Uint8Array[] = [ESC_INIT];
+
+    for (const line of text.split("\n")) {
+      if (line.startsWith("##CENTER##")) {
+        chunks.push(ESC_CENTER);
+        chunks.push(encoder.encode(line.replace("##CENTER##", "")));
+        chunks.push(NEWLINE);
+        chunks.push(ESC_LEFT);
+      } else if (line.startsWith("##BOLD##")) {
+        chunks.push(ESC_BOLD_ON);
+        chunks.push(encoder.encode(line.replace("##BOLD##", "")));
+        chunks.push(NEWLINE);
+        chunks.push(ESC_BOLD_OFF);
+      } else {
+        chunks.push(encoder.encode(line));
+        chunks.push(NEWLINE);
+      }
+    }
+    chunks.push(encoder.encode("\n\n\n"));
+    chunks.push(ESC_CUT);
+
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+    const combined = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const c of chunks) {
+      combined.set(c, offset);
+      offset += c.length;
+    }
+
+    try {
+      const CHUNK_SIZE = 100;
+      for (let i = 0; i < combined.length; i += CHUNK_SIZE) {
+        const slice = combined.slice(i, i + CHUNK_SIZE);
+        const dataView = new DataView(slice.buffer, slice.byteOffset, slice.byteLength);
+        await BleClient.write(
+          connectedDeviceId!,
+          cachedServiceUuid!,
+          cachedCharUuid!,
+          dataView
+        );
+        await new Promise((r) => setTimeout(r, 30));
+      }
+      console.log("[NativeBT] Print sent successfully on attempt", attempt + 1);
+      return true;
+    } catch (err) {
+      console.error(`[NativeBT] Print attempt ${attempt + 1}/3 failed:`, err);
+      // Clear state to force reconnect on next attempt
+      connectedDeviceId = null;
+      cachedServiceUuid = null;
+      cachedCharUuid = null;
+    }
+  }
+
+  console.error("[NativeBT] All 3 print attempts failed");
+  return false;
 }
 
 export function disconnectNative(): void {
