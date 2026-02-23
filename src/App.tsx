@@ -46,6 +46,25 @@ const AppInner = () => {
     return () => window.removeEventListener("unhandledrejection", handler);
   }, []);
 
+  // Auto-heal: se a app crashou na sessão anterior, limpar SW e caches
+  useEffect(() => {
+    try {
+      const crashed = sessionStorage.getItem("app_crashed");
+      if (crashed) {
+        sessionStorage.removeItem("app_crashed");
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(regs => {
+            regs.forEach(r => r.unregister());
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(names => names.forEach(n => caches.delete(n)));
+        }
+        console.info("[AutoHeal] SW e caches limpos após crash anterior");
+      }
+    } catch (_) {}
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
