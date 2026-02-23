@@ -227,12 +227,10 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                 variant="outline"
                 size="sm"
                 className="h-9 gap-2"
-                asChild
+                onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.apk", "_blank", "noopener,noreferrer")}
               >
-                <a href="https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.apk" download>
-                  <Download className="w-4 h-4" />
-                  Baixar TrendFood.apk
-                </a>
+                <Download className="w-4 h-4" />
+                Baixar TrendFood.apk
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Baixe e instale o app Android para imprimir via Bluetooth.
@@ -369,12 +367,10 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
             variant="outline"
             size="sm"
             className="h-9 gap-2"
-            asChild
+            onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.exe", "_blank", "noopener,noreferrer")}
           >
-            <a href="https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.exe" download>
-              <Download className="w-4 h-4" />
-              Baixar trendfood.exe
-            </a>
+            <Download className="w-4 h-4" />
+            Baixar trendfood.exe
           </Button>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Baixe o programa, abra-o e digite o ID acima para ativar a impressão automática.
