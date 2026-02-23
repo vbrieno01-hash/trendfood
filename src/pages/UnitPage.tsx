@@ -27,6 +27,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 
+const formatPhone = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length === 0) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -269,7 +278,7 @@ const UnitPage = () => {
     let valid = true;
     if (!orderType) { setOrderTypeError(true); valid = false; } else setOrderTypeError(false);
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
-    if (!buyerPhone.trim()) { setPhoneError(true); valid = false; } else setPhoneError(false);
+    if (buyerPhone.replace(/\D/g, "").length < 10) { setPhoneError(true); valid = false; } else setPhoneError(false);
     if (!effectivePayment) { setPaymentError(true); valid = false; } else setPaymentError(false);
     if (orderType === "Entrega") {
       if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
@@ -918,12 +927,12 @@ const UnitPage = () => {
                   id="buyer-phone"
                   placeholder="(11) 99999-0000"
                   value={buyerPhone}
-                  onChange={(e) => { setBuyerPhone(e.target.value); setPhoneError(false); }}
+                  onChange={(e) => { setBuyerPhone(formatPhone(e.target.value)); setPhoneError(false); }}
                   inputMode="tel"
-                  maxLength={20}
+                  maxLength={15}
                   className={phoneError ? "border-destructive" : ""}
                 />
-                {phoneError && <p className="text-destructive text-xs mt-1">Telefone é obrigatório</p>}
+                {phoneError && <p className="text-destructive text-xs mt-1">Informe um telefone válido (mín. 10 dígitos)</p>}
               </div>
 
               <div>
