@@ -43,9 +43,10 @@ import FeaturesTab from "@/components/dashboard/FeaturesTab";
 import GuideTab from "@/components/dashboard/GuideTab";
 import ReportsTab from "@/components/dashboard/ReportsTab";
 import CourierDashboardTab from "@/components/dashboard/CourierDashboardTab";
+import PrinterTab from "@/components/dashboard/PrinterTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -623,6 +624,7 @@ const DashboardPage = () => {
     { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
     { key: "guide", icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
     { key: "profile", icon: <Store className="w-4 h-4" />, label: "Perfil da Loja" },
+    { key: "printer", icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
     { key: "settings", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
   ];
 
@@ -839,15 +841,6 @@ const DashboardPage = () => {
             Indique o TrendFood
           </button>
           <a
-            href="/docs/impressora-termica"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-all duration-150"
-          >
-            <Printer className="w-4 h-4" />
-            Impressora Térmica
-          </a>
-          <a
             href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -950,7 +943,8 @@ const DashboardPage = () => {
             : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgEmoji={organization.emoji} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
-          {activeTab === "settings" && <SettingsTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
+          {activeTab === "printer" && <PrinterTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
+          {activeTab === "settings" && <SettingsTab />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
         </main>
 
