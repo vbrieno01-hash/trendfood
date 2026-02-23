@@ -1,28 +1,66 @@
 
 
-# Abrir no Login ao iniciar o APK
+# Teste Completo e Telefone Obrigatorio no Cardapio Online
 
-## O que sera feito
+## Resultado do Teste de Paginas
 
-Duas mudancas simples, apenas para a versao APK (nao afeta o site web):
+Todas as paginas foram testadas e estao carregando corretamente:
 
-### 1. Redirecionar a rota "/" para "/auth" no APK
-No `App.tsx`, quando detectar que esta rodando no Capacitor (plataforma nativa), redirecionar automaticamente da landing page para a tela de autenticacao.
+| Pagina | Status |
+|--------|--------|
+| `/` (Landing) | OK |
+| `/auth` (Login/Cadastro) | OK - web abre em "Criar conta", APK abre em "Entrar" |
+| `/planos` (Precos) | OK |
+| `/termos` (Termos de Uso) | OK |
+| `/privacidade` | OK |
+| `/dashboard` | OK - push notifications integrado |
+| `/unidade/:slug` (Cardapio online) | OK |
+| `/unidade/:slug/mesa/:n` (Pedido mesa) | OK |
+| `/cozinha` (KDS) | OK |
+| `/garcom` | OK |
+| `/motoboy` | OK |
+| `/docs/impressora-termica` | OK |
 
-### 2. Abrir na aba "Entrar" por padrao no APK
-No `AuthPage.tsx`, detectar se esta no APK usando `Capacitor.isNativePlatform()`. Se sim, o `defaultValue` do componente Tabs muda de `"signup"` para `"login"`.
+Nenhum erro no console (apenas warnings do ambiente de preview, nao do app).
 
-A aba "Criar conta" continua disponivel para quem precisar, mas o padrao no APK sera sempre "Entrar".
+## Mudanca Necessaria: Telefone Obrigatorio
 
-## Secao Tecnica
+Atualmente o campo "Telefone" no checkout do cardapio online (`/unidade/:slug`) esta marcado como **(opcional)**. Sera alterado para **obrigatorio**.
 
-### App.tsx
-- Importar `Capacitor` de `@capacitor/core`
-- No componente `AppInner`, adicionar logica para redirecionar: se `Capacitor.isNativePlatform()` e a rota atual for `/`, navegar para `/auth`
+### O que sera feito
 
-### AuthPage.tsx (linha 238)
-- Importar `Capacitor` de `@capacitor/core`
-- Mudar `defaultValue="signup"` para `defaultValue={Capacitor.isNativePlatform() ? "login" : "signup"}`
+1. **Mudar o label do campo telefone** de "(opcional)" para o asterisco vermelho obrigatorio `*`
+2. **Adicionar estado de erro** `phoneError` para validacao
+3. **Adicionar validacao** no `handleSendWhatsApp`: se `buyerPhone` estiver vazio, bloquear envio e mostrar mensagem de erro
+4. **Incluir borda vermelha** no campo quando vazio na validacao
+5. **Resetar erro** ao digitar e no reset do checkout
+
+### Secao Tecnica
+
+Arquivo: `src/pages/UnitPage.tsx`
+
+Mudancas:
+
+1. **Linha 66** - Adicionar estado:
+```text
+const [phoneError, setPhoneError] = useState(false);
+```
+
+2. **Linhas 269-271** - Adicionar validacao no handleSendWhatsApp:
+```text
+if (!buyerPhone.trim()) { setPhoneError(true); valid = false; } else setPhoneError(false);
+```
+
+3. **Linhas 910-922** - Alterar label e adicionar erro visual:
+   - Trocar `(opcional)` por `*` vermelho
+   - Adicionar `className` condicional com `phoneError ? "border-destructive" : ""`
+   - Adicionar `onChange` que limpa o erro: `setPhoneError(false)`
+   - Adicionar mensagem de erro abaixo do campo
+
+4. **Linha 474** - Limpar `phoneError` no reset:
+```text
+setPhoneError(false); (dentro de resetCheckout, junto com os outros resets)
+```
 
 Nenhuma mudanca no banco de dados necessaria.
 
