@@ -1,61 +1,100 @@
 
 
-## Criar aba dedicada "Impressora Térmica" no dashboard
+## Comanda Editavel na aba Impressora Termica
 
-### O que muda
+### O que sera feito
 
-Todo o conteúdo relacionado a impressora que hoje está espalhado dentro de "Configurações" será movido para uma nova aba própria chamada **"Impressora Térmica"** no menu lateral, deixando as Configurações mais limpas e organizadas.
+Adicionar uma secao "Comanda" na aba Impressora Termica com um editor visual do template do recibo. O cabecalho da loja e editavel (nome, endereco, contato, CNPJ), enquanto a secao do cliente e o rodape sao fixos e apenas exibidos como preview.
 
-### Mudanças
+### Mudancas
 
-#### 1. Novo arquivo: `src/components/dashboard/PrinterTab.tsx`
+#### 1. Banco de dados: adicionar coluna `cnpj`
 
-Criar um componente dedicado contendo todas as seções de impressora que hoje estão no SettingsTab:
+Adicionar a coluna `cnpj` (text, nullable) na tabela `organizations`. Os demais campos do cabecalho ja existem: `name`, `store_address`, `whatsapp`.
 
-- Modo de impressão (browser / desktop / bluetooth)
-- Pareamento Bluetooth (botão parear, status, desconectar)
-- Largura da impressora (58mm / 80mm)
-- Configuração de impressão (ID da loja, copiar, testar impressora, baixar trendfood.exe)
+```sql
+ALTER TABLE public.organizations ADD COLUMN cnpj text;
+```
 
-O componente recebe as mesmas props de Bluetooth que o SettingsTab recebe hoje.
+#### 2. `src/hooks/useOrganization.ts`
 
-#### 2. `src/components/dashboard/SettingsTab.tsx`
+Adicionar `cnpj` a interface `Organization` e ao SELECT da query.
 
-Remover as duas seções de impressora:
-- Seção "IMPRESSORA" (modo, Bluetooth, largura)
-- Seção "CONFIGURAÇÃO DE IMPRESSÃO" (ID da loja, teste, download)
+#### 3. `src/components/dashboard/PrinterTab.tsx`
 
-O SettingsTab fica apenas com: Informações da conta, Assinatura, Indique o TrendFood, Alterar senha, Zona de Perigo.
+Adicionar uma nova secao "Comanda" com:
 
-#### 3. `src/pages/DashboardPage.tsx`
+- **Cabecalho da Loja (editavel)**: 4 campos de Input para Nome da Loja, Endereco, Contato (WhatsApp) e CNPJ. Cada campo salva no banco ao perder o foco (onBlur). Os valores iniciais vem da organizacao.
 
-- Adicionar `"printer"` ao tipo `TabKey`
-- Importar o novo `PrinterTab`
-- Adicionar a aba "Impressora Térmica" no array `navItemsBottom` (com icone de Printer), logo antes de "Configurações"
-- Remover o link externo "Impressora Térmica" que hoje está no rodapé da sidebar (pois agora é uma aba interna)
-- Renderizar `<PrinterTab ... />` quando `activeTab === "printer"`
-- Remover as props de Bluetooth do `<SettingsTab>` (já que elas vão para o PrinterTab)
+- **Preview visual do recibo**: Um bloco estilizado como papel termico (fundo branco, fonte mono, borda) mostrando em tempo real como a comanda ficara:
+
+```text
+        NOME DA LOJA
+     Endereco da loja
+      Contato da loja
+           CNPJ
+__________________________________
+      dd/mm/aaaa hh:mm
+  SIMPLES CONFERENCIA DA CONTA
+      RELATORIO GERENCIAL
+ * * * NAO E DOCUMENTO FISCAL * * *
+----------------------------------
+1x Produto exemplo      R$ 10,00
+----------------------------------
+TOTAL:                  R$ 10,00
+----------------------------------
+Nome: (nome do cliente)
+Tel: (telefone)
+End.: (endereco)
+Frete: R$ 0,00
+Pgto: (forma)
+CPF/CNPJ: (documento)
+Obs: (observacao)
+----------------------------------
+  * Obrigado pela preferencia *
+        Volte sempre!
+          TrendFood
+```
+
+- A secao "Cliente" e "Rodape" aparecem no preview mas nao sao editaveis (sao fixos e preenchidos automaticamente em cada pedido).
+
+#### 4. `src/lib/formatReceiptText.ts`
+
+Atualizar a funcao `formatReceiptText` para incluir o novo layout:
+
+- **Cabecalho**: Nome da loja, endereco, contato e CNPJ (quando preenchidos). Aceitar um novo parametro `storeInfo` com esses campos.
+- **Sub-cabecalho fixo**: Data/hora, "SIMPLES CONFERENCIA DA CONTA", "RELATORIO GERENCIAL", "NAO E DOCUMENTO FISCAL".
+- **Itens e Total**: Manter como esta.
+- **Cliente**: Manter como esta.
+- **Rodape fixo**: "Obrigado pela preferencia", "Volte sempre!", "TrendFood".
+
+A assinatura da funcao mudara para:
+
+```typescript
+interface StoreInfo {
+  name: string;
+  address?: string;
+  contact?: string;
+  cnpj?: string;
+}
+
+export function formatReceiptText(
+  order: PrintableOrder,
+  storeInfo: StoreInfo | string,
+  printerWidth?: "58mm" | "80mm"
+): string
+```
+
+Se `storeInfo` for string (compatibilidade retroativa), trata como nome da loja apenas.
+
+#### 5. Atualizar chamadas de `formatReceiptText`
+
+Nos locais que chamam `formatReceiptText` (hooks/pages), passar o objeto `storeInfo` completo com os dados da organizacao em vez de apenas o nome.
 
 ### Resultado
 
-O menu lateral ficará assim na seção inferior:
-- Funcionalidades
-- Como Usar
-- Perfil da Loja
-- **Impressora Térmica** (nova aba dedicada)
-- Configurações
+- O lojista edita os dados da loja diretamente na aba Impressora Termica
+- Ve um preview em tempo real de como a comanda ficara
+- A secao do cliente e rodape sao fixos e automaticos
+- O recibo impresso fica mais profissional com endereco, contato, CNPJ e mensagem de agradecimento
 
-### Detalhes técnicos
-
-O `PrinterTab` receberá estas props:
-```typescript
-interface PrinterTabProps {
-  btDevice: BluetoothDevice | null;
-  btConnected: boolean;
-  onPairBluetooth: () => void;
-  onDisconnectBluetooth: () => void;
-  btSupported: boolean;
-}
-```
-
-O `SettingsTab` terá suas props simplificadas (sem Bluetooth) e perderá ~150 linhas de código relacionado a impressora.
