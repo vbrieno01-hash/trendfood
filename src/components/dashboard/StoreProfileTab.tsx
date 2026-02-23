@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Loader2, Copy, Check, X, Search, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Camera, Loader2, Copy, Check, X, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
@@ -813,9 +813,9 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           </p>
 
           {/* CEP row */}
-          <div className="flex gap-2 mb-3">
-            <div className="flex-1">
-              <Label htmlFor="addr-cep" className="text-xs font-medium mb-1 block">CEP *</Label>
+          <div className="mb-3">
+            <Label htmlFor="addr-cep" className="text-xs font-medium mb-1 block">CEP *</Label>
+            <div className="relative">
               <Input
                 id="addr-cep"
                 value={addressFields.cep}
@@ -823,25 +823,14 @@ export default function StoreProfileTab({ organization }: { organization: Organi
                   const v = e.target.value.replace(/\D/g, "").slice(0, 8);
                   const formatted = v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v;
                   setAddressFields((p) => ({ ...p, cep: formatted }));
+                  if (v.length === 8) fetchCep(formatted);
                 }}
                 onBlur={(e) => fetchCep(e.target.value)}
                 placeholder="00000-000"
                 inputMode="numeric"
-                className="font-mono"
+                className={`font-mono ${cepFetching ? "pr-9" : ""}`}
               />
-            </div>
-            <div className="flex items-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 gap-1.5"
-                disabled={cepFetching}
-                onClick={() => fetchCep(addressFields.cep)}
-              >
-                {cepFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                {cepFetching ? "Buscando..." : "Buscar"}
-              </Button>
+              {cepFetching && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />}
             </div>
           </div>
 
