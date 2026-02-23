@@ -82,7 +82,7 @@ const AppInner = () => {
           <BrowserRouter>
             <ScrollToTop />
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={Capacitor.isNativePlatform() ? <AuthPage /> : <Index />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/cadastro" element={<AuthPage />} />
               <Route path="/unidade/:slug" element={<UnitPage />} />
