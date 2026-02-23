@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Printer, Download, Copy, Zap, AlertTriangle } from "lucide-react";
+import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
+import ReceiptPreview from "./ReceiptPreview";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
@@ -31,6 +32,26 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   );
   const [printModeLoading, setPrintModeLoading] = useState(false);
   const [testPrintLoading, setTestPrintLoading] = useState(false);
+
+  // Comanda header fields
+  const [rcpName, setRcpName] = useState((organization as any)?.name || "");
+  const [rcpAddress, setRcpAddress] = useState((organization as any)?.store_address || "");
+  const [rcpContact, setRcpContact] = useState((organization as any)?.whatsapp || "");
+  const [rcpCnpj, setRcpCnpj] = useState((organization as any)?.cnpj || "");
+
+  const handleFieldBlur = async (field: string, value: string) => {
+    if (!organization?.id) return;
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ [field]: value || null } as any)
+        .eq("id", organization.id);
+      if (error) throw error;
+      toast.success("Salvo!");
+    } catch {
+      toast.error("Erro ao salvar.");
+    }
+  };
 
   const handlePrinterWidthChange = async (value: string) => {
     if (!organization?.id) return;
@@ -278,6 +299,70 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
           <p className="text-xs text-muted-foreground leading-relaxed">
             Baixe o programa, abra-o e digite o ID acima para ativar a impressão automática.
           </p>
+        </div>
+      </div>
+
+      {/* Comanda */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comanda</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <p className="text-sm text-muted-foreground">Edite os dados da loja que aparecem no cabeçalho da comanda. O preview atualiza em tempo real.</p>
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium">Nome da Loja</Label>
+              <Input
+                className="mt-1"
+                value={rcpName}
+                onChange={(e) => setRcpName(e.target.value)}
+                onBlur={() => handleFieldBlur("name", rcpName)}
+                placeholder="Nome da loja"
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Endereço</Label>
+              <Input
+                className="mt-1"
+                value={rcpAddress}
+                onChange={(e) => setRcpAddress(e.target.value)}
+                onBlur={() => handleFieldBlur("store_address", rcpAddress)}
+                placeholder="Endereço da loja"
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Contato (WhatsApp)</Label>
+              <Input
+                className="mt-1"
+                value={rcpContact}
+                onChange={(e) => setRcpContact(e.target.value)}
+                onBlur={() => handleFieldBlur("whatsapp", rcpContact)}
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">CNPJ</Label>
+              <Input
+                className="mt-1"
+                value={rcpCnpj}
+                onChange={(e) => setRcpCnpj(e.target.value)}
+                onBlur={() => handleFieldBlur("cnpj", rcpCnpj)}
+                placeholder="00.000.000/0000-00"
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Preview da Comanda</p>
+            <ReceiptPreview
+              storeName={rcpName}
+              storeAddress={rcpAddress}
+              storeContact={rcpContact}
+              cnpj={rcpCnpj}
+            />
+          </div>
         </div>
       </div>
     </div>
