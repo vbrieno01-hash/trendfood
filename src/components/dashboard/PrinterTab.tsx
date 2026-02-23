@@ -182,6 +182,20 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   </div>
                 </div>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-2"
+                asChild
+              >
+                <a href="https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.apk" download>
+                  <Download className="w-4 h-4" />
+                  Baixar TrendFood.apk
+                </a>
+              </Button>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Baixe e instale o app Android para imprimir via Bluetooth.
+              </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
