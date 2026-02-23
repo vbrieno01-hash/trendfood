@@ -535,6 +535,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          apk_url: string | null
           banner_url: string | null
           business_hours: Json | null
           cnpj: string | null
@@ -543,6 +544,7 @@ export type Database = {
           delivery_config: Json | null
           description: string | null
           emoji: string
+          exe_url: string | null
           id: string
           logo_url: string | null
           name: string
@@ -562,6 +564,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          apk_url?: string | null
           banner_url?: string | null
           business_hours?: Json | null
           cnpj?: string | null
@@ -570,6 +573,7 @@ export type Database = {
           delivery_config?: Json | null
           description?: string | null
           emoji?: string
+          exe_url?: string | null
           id?: string
           logo_url?: string | null
           name: string
@@ -589,6 +593,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          apk_url?: string | null
           banner_url?: string | null
           business_hours?: Json | null
           cnpj?: string | null
@@ -597,6 +602,7 @@ export type Database = {
           delivery_config?: Json | null
           description?: string | null
           emoji?: string
+          exe_url?: string | null
           id?: string
           logo_url?: string | null
           name?: string
