@@ -1,18 +1,14 @@
 
 
-# Completar Splash Screen e Push Notifications
+# Completar Splash Screen e Push Notifications (tentativa final)
 
-## Situacao atual
-Os plugins ja estao instalados e o `capacitor.config.ts` ja esta configurado. Falta:
-1. Criar a tabela `device_tokens` no banco de dados
-2. Criar o hook `usePushNotifications.ts`
-3. Adicionar `SplashScreen.hide()` no `App.tsx`
-4. Integrar o hook no `DashboardPage.tsx`
+## Importante para o usuario
+Ao aprovar este plano, vai aparecer uma segunda confirmacao para criar a tabela no banco de dados. **Clique nessa segunda confirmacao tambem, sem enviar mensagem no chat.** Isso vai permitir que o processo complete sem interrupcao.
 
-## Etapas
+## O que sera feito (tudo de uma vez)
 
-### 1. Criar tabela `device_tokens` (banco de dados)
-Tabela para armazenar tokens FCM dos dispositivos, com RLS para que cada usuario gerencie apenas seus proprios tokens.
+### 1. Criar tabela `device_tokens` no banco de dados
+Tabela para armazenar tokens FCM dos dispositivos.
 
 Colunas:
 - `id` (uuid, PK)
@@ -23,10 +19,10 @@ Colunas:
 - `created_at` (timestamptz)
 
 Politicas RLS:
-- INSERT: usuario insere seus proprios tokens (auth.uid() = user_id)
+- INSERT: usuario insere seus proprios tokens
 - SELECT: usuario ve seus proprios tokens
 - DELETE: usuario deleta seus proprios tokens
-- SELECT extra: dono da organizacao ve tokens da org (para enviar pushes)
+- SELECT extra: dono da organizacao ve tokens da org
 
 ### 2. Criar hook `usePushNotifications.ts`
 - Verifica se esta em plataforma nativa (Capacitor)
@@ -42,7 +38,6 @@ Politicas RLS:
 
 ### 4. Integrar no DashboardPage.tsx
 - Chamar o hook usePushNotifications passando orgId e userId
-- Registro acontece automaticamente ao abrir o dashboard no APK
 
 ## Secao Tecnica
 
@@ -88,7 +83,6 @@ CREATE POLICY "device_tokens_select_org_owner" ON public.device_tokens
 
 ### App.tsx
 ```text
-// Adicionar no primeiro useEffect existente:
 import { SplashScreen } from '@capacitor/splash-screen';
 
 useEffect(() => {
@@ -100,3 +94,4 @@ useEffect(() => {
 - Configurar Firebase e adicionar `google-services.json` no projeto Android
 - Colocar imagem splash em `android/app/src/main/res/drawable/splash.png`
 - Rebuild: `npx cap sync && npx cap build android`
+
