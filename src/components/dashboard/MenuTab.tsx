@@ -95,21 +95,34 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return;
-    setForm((p) => ({ ...p, imageFile: file }));
-    setImagePreview(URL.createObjectURL(file));
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Foto muito grande", description: "Máximo 5MB.", variant: "destructive" });
+        if (fileRef.current) fileRef.current.value = "";
+        return;
+      }
+      setForm((p) => ({ ...p, imageFile: file }));
+      setImagePreview(URL.createObjectURL(file));
+    } catch (err) {
+      console.error("[MenuTab] Image select error:", err);
+      toast({ title: "Erro ao selecionar foto", variant: "destructive" });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editItem) {
-      await updateMutation.mutateAsync({ id: editItem.id, input: form });
-    } else {
-      await addMutation.mutateAsync(form);
+    try {
+      if (editItem) {
+        await updateMutation.mutateAsync({ id: editItem.id, input: form });
+      } else {
+        await addMutation.mutateAsync(form);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error("[MenuTab] Submit error:", err);
     }
-    setModalOpen(false);
   };
 
   const handleToggleAvailable = (item: MenuItem) => {

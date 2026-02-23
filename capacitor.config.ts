@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: "app.trendfood.delivery",
   appName: "TrendFood",
   webDir: "dist",
+  server: {
+    androidScheme: "https",
+  },
   plugins: {
     BluetoothLe: {
       displayStrings: {
