@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { enqueuePrint } from "@/lib/printQueue";
+import { startBackgroundPrinting, stopBackgroundPrinting, isBackgroundPrintingActive } from "@/lib/backgroundPrinter";
+import { Capacitor } from "@capacitor/core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText } from "lucide-react";
+import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
 
@@ -23,6 +26,8 @@ interface PrinterTabProps {
 export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onDisconnectBluetooth, btSupported }: PrinterTabProps) {
   const { organization } = useAuth();
 
+  const isNative = Capacitor.isNativePlatform();
+
   const [printerWidth, setPrinterWidth] = useState<string>(
     (organization as any)?.printer_width || "58mm"
   );
@@ -32,6 +37,42 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   );
   const [printModeLoading, setPrintModeLoading] = useState(false);
   const [testPrintLoading, setTestPrintLoading] = useState(false);
+  const [bgPrinting, setBgPrinting] = useState(false);
+  const [bgLoading, setBgLoading] = useState(false);
+
+  // Check background service status on mount (native only)
+  useEffect(() => {
+    if (isNative && printMode === "bluetooth") {
+      isBackgroundPrintingActive().then(setBgPrinting).catch(() => {});
+    }
+  }, [isNative, printMode]);
+
+  const handleToggleBackgroundPrinting = async () => {
+    if (!organization?.id || !btDevice) return;
+    setBgLoading(true);
+    try {
+      if (bgPrinting) {
+        await stopBackgroundPrinting();
+        setBgPrinting(false);
+        toast.success("Impressão em segundo plano desativada");
+      } else {
+        // Get BLE address from device (stored by the native BLE plugin)
+        const bleAddress = localStorage.getItem("ble_printer_address") || "";
+        if (!bleAddress) {
+          toast.error("Pareie a impressora Bluetooth antes de ativar o segundo plano.");
+          return;
+        }
+        await startBackgroundPrinting(organization.id, bleAddress);
+        setBgPrinting(true);
+        toast.success("Impressão em segundo plano ativada!");
+      }
+    } catch (err: any) {
+      toast.error("Erro ao alterar modo segundo plano");
+      console.error(err);
+    } finally {
+      setBgLoading(false);
+    }
+  };
 
   // Comanda header fields
   const [rcpName, setRcpName] = useState((organization as any)?.name || "");
@@ -231,6 +272,31 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   </Button>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Background printing toggle (native only) */}
+          {printMode === "bluetooth" && isNative && (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Impressão em Segundo Plano</span>
+                </div>
+                <Switch
+                  checked={bgPrinting}
+                  onCheckedChange={handleToggleBackgroundPrinting}
+                  disabled={bgLoading || !btConnected}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {bgPrinting
+                  ? "✅ Ativo — pedidos serão impressos mesmo com o app minimizado."
+                  : "Ative para imprimir pedidos automaticamente mesmo com o app em segundo plano."}
+              </p>
+              {!btConnected && (
+                <p className="text-xs text-amber-600">Pareie a impressora Bluetooth primeiro.</p>
+              )}
             </div>
           )}
 
