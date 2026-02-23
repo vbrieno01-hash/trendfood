@@ -1,40 +1,65 @@
 
+# Reconexao Bluetooth confiavel com botao de fallback
 
-# Corrigir conexao com impressora MPT-II (UUID faltando)
+## Diagnostico
 
-## Problema
+No Android Chrome, a reconexao automatica BLE sem gesto do usuario falha frequentemente. O `getDevices()` retorna o device, mas `device.gatt.connect()` falha silenciosamente porque o Android exige interacao do usuario para conexoes GATT em muitos cenarios.
 
-A impressora MPT-II parea com sucesso mas nao conecta. O motivo: o Web Bluetooth com `acceptAllDevices: true` so permite acessar servicos listados em `optionalServices`. A MPT-II (e muitas impressoras termicas chinesas) usa o servico BLE `0000ffe0-0000-1000-8000-00805f9b34fb` com caracteristica `0000ffe1-...`, que nao esta na lista `ALT_SERVICE_UUIDS` do codigo atual.
-
-Resultado: o GATT conecta, mas `getPrimaryService()` e `getPrimaryServices()` nao encontram nenhum servico acessivel, retornando null.
+A reconexao automatica continuara tentando (funciona em ~30% dos reloads), mas precisamos de um fallback confiavel.
 
 ## Solucao
 
-Adicionar UUIDs faltantes de impressoras termicas comuns a lista `ALT_SERVICE_UUIDS`. Isso resolve tanto a conexao inicial (pareamento) quanto a reconexao automatica.
+Duas mudancas:
 
-## Alteracao tecnica
+### 1. Adicionar logging detalhado na reconexao (`src/lib/bluetoothPrinter.ts`)
 
-### `src/lib/bluetoothPrinter.ts`
+Adicionar `console.log` em cada etapa critica da `reconnectStoredPrinterInternal` para diagnostico futuro:
+- Log quando encontra o device via `getDevices()`
+- Log quando GATT connect falha (com o erro especifico)
+- Log quando nenhuma caracteristica writavel e encontrada
 
-Adicionar os seguintes UUIDs a `ALT_SERVICE_UUIDS`:
+### 2. Botao "Reconectar Impressora" no Dashboard (`src/pages/DashboardPage.tsx`)
+
+Quando o sistema detecta que:
+- Existe um device salvo no localStorage (`getStoredDeviceId() !== null`)
+- Mas `btConnected` e `false` apos a tentativa automatica
+
+Mostrar um botao/toast persistente: **"Impressora nao reconectou. Toque para reconectar"**
+
+O toque no botao chama `reconnectStoredPrinter()` (que agora funciona porque tem gesto do usuario), ou se falhar, abre o dialogo de pareamento novamente.
+
+### Fluxo atualizado
 
 ```text
-Atual:
-- 000018f0-...  (generico ESC/POS)
-- e7810a71-...  (Nordic UART)
-- 49535343-...  (Microchip/ISSC)
-- 0000ff00-...  (generico)
-- 0000fee7-...  (Telink)
-
-Adicionar:
-- 0000ffe0-...  (HM-10/MPT-II/impressoras chinesas BLE -- o UUID da MPT-II)
-- 0000ff02-...  (algumas variantes Zjiang/Goojprt)
-- 00001101-...  (SPP classico, algumas impressoras expoe via BLE)
+Pagina carrega
+  |
+  v
+Tenta reconexao automatica (silenciosa)
+  |
+  +-- Sucesso --> Toast "Reconectada automaticamente"
+  |
+  +-- Falha --> Mostra botao "Reconectar Impressora" 
+                  |
+                  Toque --> reconnectStoredPrinter()
+                    |
+                    +-- Sucesso --> Toast "Reconectada"
+                    +-- Falha --> requestBluetoothPrinter() (novo pareamento)
 ```
 
-O UUID `0000ffe0` e o mais critico -- e usado pela grande maioria das impressoras termicas portateis chinesas (MPT-II, MTP-2, POS-5802, etc).
+## Detalhes tecnicos
 
-## Arquivo alterado
+### `src/lib/bluetoothPrinter.ts`
+- Adicionar logs em `reconnectStoredPrinterInternal` para cada passo
+- Nao muda logica, so visibilidade
 
-- `src/lib/bluetoothPrinter.ts` -- adicionar UUIDs na lista `ALT_SERVICE_UUIDS`
+### `src/pages/DashboardPage.tsx`
+- Novo estado: `btReconnectFailed` (boolean, default false)
+- No callback de falha do useEffect de reconexao, setar `btReconnectFailed = true`
+- Renderizar um banner/botao fixo no topo quando `btReconnectFailed && !btConnected && getStoredDeviceId()`
+- Handler do botao: tenta `reconnectStoredPrinter()`, se falhar chama `requestBluetoothPrinter()`
+- Ao conectar com sucesso, setar `btReconnectFailed = false`
 
+## Arquivos alterados
+
+- `src/lib/bluetoothPrinter.ts` -- logs de diagnostico
+- `src/pages/DashboardPage.tsx` -- estado `btReconnectFailed` + botao de reconexao
