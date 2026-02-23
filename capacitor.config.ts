@@ -4,10 +4,6 @@ const config: CapacitorConfig = {
   appId: "app.trendfood.delivery",
   appName: "TrendFood",
   webDir: "dist",
-  server: {
-    url: "https://trendfood.lovable.app",
-    cleartext: true,
-  },
   plugins: {
     BluetoothLe: {
       displayStrings: {
