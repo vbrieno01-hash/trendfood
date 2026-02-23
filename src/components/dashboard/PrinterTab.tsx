@@ -61,7 +61,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       const { error } = await supabase
         .from("organizations")
         .update({ printer_width: value } as any)
-        .eq("id", organization.id);
+        .eq("user_id", organization.user_id);
       if (error) throw error;
       toast.success("Largura da impressora atualizada!");
     } catch {
@@ -79,7 +79,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       const { error } = await supabase
         .from("organizations")
         .update({ print_mode: value } as any)
-        .eq("id", organization.id);
+        .eq("user_id", organization.user_id);
       if (error) throw error;
       toast.success("Modo de impressão atualizado!");
     } catch {
