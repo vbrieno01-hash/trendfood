@@ -1,162 +1,110 @@
 
 
-## Correção: Impressão automática no APK (Capacitor/Android)
+## Correção: ErrorBoundary preso na tela "Algo deu errado"
 
-### Problema raiz
+### Problema
 
-No APK, o Android frequentemente desconecta o Bluetooth em segundo plano. Quando um pedido novo chega, o sistema tenta imprimir automaticamente mas:
+O ErrorBoundary que criamos captura erros de renderização, mas o botão "Tentar novamente" apenas faz `window.location.reload()`. Se o erro persistir (cache do service worker, dados do usuário, etc.), a página fica presa nessa tela sem sair.
 
-1. A conexao BLE nativa ja caiu (variaveis em memoria ficaram null)
-2. A reconexao automatica falha silenciosamente
-3. O pedido cai na fila de impressao (`fila_impressao`), mas no APK ninguem consome essa fila
-4. Resultado: nada imprime ate voce clicar manualmente
+### Causas possíveis
 
-### Correcoes planejadas
+1. O ErrorBoundary nao tenta re-renderizar os componentes filhos -- vai direto pro reload
+2. O service worker (PWA) pode estar servindo JavaScript antigo/quebrado mesmo apos reload
+3. O Skeleton component gera warning de ref que, em combinacao com outros erros, pode crashar a arvore React
+4. Nao ha log visivel do erro real para debug futuro
 
-#### 1. `src/lib/nativeBluetooth.ts` -- Reconexao mais robusta
+### Correcoes
 
-- Adicionar reconexao com retry (3 tentativas com backoff) dentro de `sendToNativePrinter`
-- Usar os UUIDs de service/characteristic salvos no localStorage para reconexao rapida (sem re-descoberta)
-- Adicionar logs mais detalhados para debug
+#### 1. `src/components/ErrorBoundary.tsx` -- recuperacao inteligente
 
-#### 2. `src/pages/DashboardPage.tsx` -- Auto-reconnect nativo antes de imprimir
+- Primeira tentativa: resetar `hasError` para `false` e tentar renderizar novamente (sem reload)
+- Se crashar de novo em menos de 3 segundos: mostrar tela com opcao de "Limpar cache e recarregar"
+- A opcao de limpar cache desregistra o service worker e limpa caches antes de recarregar
+- Logar o erro real no console para debug
 
-- No callback de auto-print, quando `isNativePlatform()`, chamar `reconnectNativeDevice()` diretamente em vez de usar o shim de `reconnectStoredPrinter()` que retorna um fake device
-- Garantir que o `btDeviceRef` seja atualizado apos reconexao nativa
+#### 2. `src/components/ui/skeleton.tsx` -- adicionar forwardRef
 
-#### 3. `src/lib/nativeBluetooth.ts` -- Keepalive periodico
+- Envolver o Skeleton com `React.forwardRef` para eliminar o warning de ref que aparece nos logs
+- Isso evita que o warning se combine com outros problemas e cause crash
 
-- Adicionar funcao `ensureNativeConnection()` que verifica se a conexao BLE esta ativa e reconecta se necessario
-- Chamar essa funcao antes de cada impressao
+#### 3. `src/App.tsx` -- limpar service worker quebrado
 
-#### 4. `src/pages/DashboardPage.tsx` -- Polling da fila no APK
-
-- Quando `isNativePlatform()`, adicionar um polling a cada 10s que verifica a tabela `fila_impressao` por itens pendentes
-- Se encontrar itens pendentes e a impressora estiver conectada, imprime e marca como "impresso"
-- Isso serve como fallback: se a impressao direta falhou, o polling pega o pedido da fila
+- No listener de `unhandledrejection`, adicionar log mais detalhado
+- Nenhuma outra mudanca necessaria no App
 
 ---
 
 ### Detalhes tecnicos
 
-**nativeBluetooth.ts -- reconexao com retry:**
+**ErrorBoundary.tsx -- versao com recuperacao:**
 ```typescript
-export async function sendToNativePrinter(text: string): Promise<boolean> {
-  // Tenta ate 3 vezes reconectar antes de desistir
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (!connectedDeviceId || !cachedServiceUuid || !cachedCharUuid) {
-      console.warn(`[NativeBT] Not connected, reconnect attempt ${attempt + 1}/3...`);
-      const reconnected = await reconnectNativeDevice();
-      if (!reconnected) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-        continue;
+class ErrorBoundary extends React.Component<Props, State> {
+  state: State = { hasError: false, retryCount: 0 };
+  lastErrorTime = 0;
+
+  static getDerivedStateFromError(): Partial<State> {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[ErrorBoundary]", error, info);
+    this.lastErrorTime = Date.now();
+  }
+
+  handleRetry = () => {
+    // Se crashou ha menos de 3s, provavelmente vai crashar de novo
+    // Oferece limpar cache
+    if (Date.now() - this.lastErrorTime < 3000 && this.state.retryCount > 0) {
+      this.handleClearAndReload();
+      return;
+    }
+    // Tenta re-renderizar sem reload
+    this.setState(prev => ({ hasError: false, retryCount: prev.retryCount + 1 }));
+  };
+
+  handleClearAndReload = async () => {
+    // Desregistra service workers
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        await reg.unregister();
       }
     }
-    
-    try {
-      // ... enviar dados BLE ...
-      return true;
-    } catch (err) {
-      console.error(`[NativeBT] Print attempt ${attempt + 1} failed:`, err);
-      // Limpa estado para forcar reconexao na proxima tentativa
-      connectedDeviceId = null;
-      cachedServiceUuid = null;
-      cachedCharUuid = null;
+    // Limpa caches
+    if ('caches' in window) {
+      const names = await caches.keys();
+      for (const name of names) {
+        await caches.delete(name);
+      }
     }
-  }
-  return false;
-}
-```
+    window.location.reload();
+  };
 
-**nativeBluetooth.ts -- reconexao rapida usando UUIDs salvos:**
-```typescript
-export async function reconnectNativeDevice(): Promise<string | null> {
-  const storedId = localStorage.getItem(STORED_NATIVE_DEVICE_KEY);
-  const storedService = localStorage.getItem(STORED_NATIVE_SERVICE_KEY);
-  const storedChar = localStorage.getItem(STORED_NATIVE_CHAR_KEY);
-  if (!storedId) return null;
-
-  try {
-    await initNativeBle();
-    await BleClient.connect(storedId, (id) => {
-      console.log("[NativeBT] Disconnected:", id);
-      connectedDeviceId = null;
-    });
-
-    // Fast path: usar UUIDs ja conhecidos sem re-descobrir
-    if (storedService && storedChar) {
-      connectedDeviceId = storedId;
-      cachedServiceUuid = storedService;
-      cachedCharUuid = storedChar;
-      return storedId;
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div> /* tela com "Tentar novamente" + "Limpar cache" */ </div>
+      );
     }
-
-    // Slow path: re-descobrir servicos
-    const ok = await connectNativeDevice(storedId);
-    return ok ? storedId : null;
-  } catch (err) {
-    console.error("[NativeBT] Reconnect failed:", err);
-    return null;
+    return this.props.children;
   }
 }
 ```
 
-**DashboardPage.tsx -- polling da fila como fallback nativo:**
+**skeleton.tsx -- com forwardRef:**
 ```typescript
-// Polling fila_impressao no APK como fallback
-useEffect(() => {
-  if (!isNativePlatform() || !orgId) return;
-  
-  const interval = setInterval(async () => {
-    try {
-      const native = await import("@/lib/nativeBluetooth");
-      if (!native.isNativeConnected()) return;
-      
-      const { data } = await supabase
-        .from("fila_impressao")
-        .select("*")
-        .eq("organization_id", orgId)
-        .eq("status", "pendente")
-        .order("created_at", { ascending: true })
-        .limit(5);
-      
-      if (!data?.length) return;
-      
-      for (const job of data) {
-        const ok = await native.sendToNativePrinter(job.conteudo_txt);
-        if (ok) {
-          await supabase
-            .from("fila_impressao")
-            .update({ status: "impresso", printed_at: new Date().toISOString() })
-            .eq("id", job.id);
-        }
-      }
-    } catch (err) {
-      console.error("[APK] Queue poll error:", err);
-    }
-  }, 10000);
-  
-  return () => clearInterval(interval);
-}, [orgId]);
+const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("animate-pulse rounded-md bg-muted", className)} {...props} />
+  )
+);
+Skeleton.displayName = "Skeleton";
 ```
 
 ### Resultado esperado
 
-- Impressao automatica funciona no APK mesmo apos desconexao BLE temporaria
-- Se a impressao direta falhar, o polling da fila pega o pedido em ate 10 segundos
-- Reconexao BLE nativa mais rapida usando UUIDs ja salvos
-- Logs detalhados para debug futuro
-
-### Apos a correcao
-
-Rodar no terminal:
-```
-cd trendfood
-git pull
-npm install
-npm run build
-npx cap sync
-npx cap open android
-```
-
-Gerar novo APK no Android Studio e testar.
+- O botao "Tentar novamente" primeiro tenta re-renderizar sem recarregar a pagina
+- Se falhar de novo rapidamente, oferece "Limpar cache e recarregar" que remove service workers e caches
+- O warning de ref do Skeleton e eliminado
+- Erros reais sao logados no console para debug futuro
+- O usuario nunca mais fica preso na tela de erro
