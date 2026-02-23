@@ -1,65 +1,61 @@
 
-## Correção: Impressão automática inconsistente entre contas
 
-### Diagnóstico
+## Criar aba dedicada "Impressora Térmica" no dashboard
 
-O problema é que na última correção de duplicação, fizemos o `usePlaceOrder` **pular a fila de impressão** (`fila_impressao`) no APK nativo. Isso criou uma dependência total no Realtime callback do DashboardPage para imprimir. Se o Realtime falhar, atrasar, ou o Bluetooth desconectar silenciosamente, **não há fallback** — o pedido simplesmente não imprime.
+### O que muda
 
-A conta "Julia" funciona porque a conexão BLE está estável. A conta "Rei do Burguer" provavelmente perde a conexão BLE em algum momento, o Realtime tenta imprimir, falha silenciosamente, e como a fila está vazia (não enfileirou), o polling de 10s também não encontra nada. Resultado: tem que ficar na cozinha imprimindo manual.
+Todo o conteúdo relacionado a impressora que hoje está espalhado dentro de "Configurações" será movido para uma nova aba própria chamada **"Impressora Térmica"** no menu lateral, deixando as Configurações mais limpas e organizadas.
 
-### Solução: Sempre enfileirar + deduplicar no auto-print
+### Mudanças
 
-Em vez de pular a fila no APK, vamos **sempre enfileirar** (reverter a última mudança) e fazer o **auto-print via Realtime marcar o job como impresso** quando tiver sucesso. Assim:
+#### 1. Novo arquivo: `src/components/dashboard/PrinterTab.tsx`
 
-- Se o Realtime imprime com sucesso via BLE → marca o job na fila como "impresso" → polling não reimprime
-- Se o Realtime falha (BLE caiu) → job continua "pendente" na fila → polling de 10s imprime como fallback
+Criar um componente dedicado contendo todas as seções de impressora que hoje estão no SettingsTab:
 
-### Mudanças técnicas
+- Modo de impressão (browser / desktop / bluetooth)
+- Pareamento Bluetooth (botão parear, status, desconectar)
+- Largura da impressora (58mm / 80mm)
+- Configuração de impressão (ID da loja, copiar, testar impressora, baixar trendfood.exe)
 
-#### 1. `src/hooks/useOrders.ts` — Reverter skip do enqueue
+O componente recebe as mesmas props de Bluetooth que o SettingsTab recebe hoje.
 
-Remover a verificação de `Capacitor.isNativePlatform()` e voltar a **sempre enfileirar**. Isso garante que a `fila_impressao` sempre tenha o job como rede de segurança.
+#### 2. `src/components/dashboard/SettingsTab.tsx`
 
+Remover as duas seções de impressora:
+- Seção "IMPRESSORA" (modo, Bluetooth, largura)
+- Seção "CONFIGURAÇÃO DE IMPRESSÃO" (ID da loja, teste, download)
+
+O SettingsTab fica apenas com: Informações da conta, Assinatura, Indique o TrendFood, Alterar senha, Zona de Perigo.
+
+#### 3. `src/pages/DashboardPage.tsx`
+
+- Adicionar `"printer"` ao tipo `TabKey`
+- Importar o novo `PrinterTab`
+- Adicionar a aba "Impressora Térmica" no array `navItemsBottom` (com icone de Printer), logo antes de "Configurações"
+- Remover o link externo "Impressora Térmica" que hoje está no rodapé da sidebar (pois agora é uma aba interna)
+- Renderizar `<PrinterTab ... />` quando `activeTab === "printer"`
+- Remover as props de Bluetooth do `<SettingsTab>` (já que elas vão para o PrinterTab)
+
+### Resultado
+
+O menu lateral ficará assim na seção inferior:
+- Funcionalidades
+- Como Usar
+- Perfil da Loja
+- **Impressora Térmica** (nova aba dedicada)
+- Configurações
+
+### Detalhes técnicos
+
+O `PrinterTab` receberá estas props:
 ```typescript
-// ANTES (atual - problemático):
-let skipQueue = false;
-try {
-  const { Capacitor } = await import("@capacitor/core");
-  skipQueue = Capacitor.isNativePlatform();
-} catch {}
-if (!skipQueue) { ... enqueuePrint ... }
-
-// DEPOIS (corrigido):
-// Sempre enfileira, independente da plataforma
-try {
-  const printableOrder = { ... };
-  const text = stripFormatMarkers(formatReceiptText(printableOrder));
-  await enqueuePrint(organizationId, order.id, text);
-} catch (err) {
-  console.error("Falha ao enfileirar impressão:", err);
+interface PrinterTabProps {
+  btDevice: BluetoothDevice | null;
+  btConnected: boolean;
+  onPairBluetooth: () => void;
+  onDisconnectBluetooth: () => void;
+  btSupported: boolean;
 }
 ```
 
-#### 2. `src/pages/DashboardPage.tsx` — Auto-print marca job como impresso
-
-No callback Realtime de auto-print (dentro do `printQueue.push`), após imprimir com sucesso via BLE, buscar e marcar o job correspondente na `fila_impressao` como "impresso". Isso evita que o polling de 10s reimprima.
-
-```typescript
-// Após printOrderByMode com sucesso:
-try {
-  await supabase
-    .from("fila_impressao")
-    .update({ status: "impresso", printed_at: new Date().toISOString() })
-    .eq("order_id", order.id)
-    .eq("organization_id", orgId)
-    .eq("status", "pendente");
-} catch {}
-```
-
-### Resultado esperado
-
-- **Todas as contas**: impressão automática funciona de forma confiável
-- **BLE estável**: Realtime imprime + marca fila = sem duplicado
-- **BLE instável**: Realtime falha + polling de 10s pega da fila = fallback automático
-- **Web (browser)**: continua igual — sempre enfileira para o robô desktop
-- Nenhum cliente precisa mexer em configuração
+O `SettingsTab` terá suas props simplificadas (sem Bluetooth) e perderá ~150 linhas de código relacionado a impressora.
