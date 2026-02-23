@@ -1,5 +1,24 @@
-// Web Bluetooth API for ESC/POS thermal printers
+// Bluetooth printing — auto-detects native (Capacitor) vs web environment
+import { Capacitor } from "@capacitor/core";
 
+// Lazy-load native module only when needed
+let nativeModule: typeof import("./nativeBluetooth") | null = null;
+async function getNativeModule() {
+  if (!nativeModule) {
+    nativeModule = await import("./nativeBluetooth");
+  }
+  return nativeModule;
+}
+
+export function isNativePlatform(): boolean {
+  try {
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
+// Web Bluetooth API for ESC/POS thermal printers
 const PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
 
 // Common alternative UUIDs for different printer brands
@@ -30,6 +49,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 export function isBluetoothSupported(): boolean {
+  if (isNativePlatform()) return true;
   return typeof navigator !== "undefined" && "bluetooth" in navigator;
 }
 
@@ -40,11 +60,25 @@ export function getBluetoothStatus(): "supported" | "brave-disabled" | "unsuppor
 }
 
 export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null> {
+  // Native path: use Capacitor BLE plugin
+  if (isNativePlatform()) {
+    try {
+      const native = await getNativeModule();
+      const deviceId = await native.scanAndConnectNative();
+      if (deviceId) {
+        // Return a fake BluetoothDevice-like object for compatibility
+        return { id: deviceId, name: "Native BLE", gatt: { connected: true } } as any;
+      }
+    } catch (err) {
+      console.warn("[NativeBT] Pairing failed:", err);
+    }
+    return null;
+  }
+
+  // Web path
   if (!isBluetoothSupported()) return null;
 
   try {
-    // Usar acceptAllDevices diretamente — impressoras genéricas
-    // não anunciam UUIDs padrão, então filtros não funcionam.
     const device = await (navigator as any).bluetooth.requestDevice({
       acceptAllDevices: true,
       optionalServices: ALT_SERVICE_UUIDS,
@@ -129,6 +163,18 @@ export async function sendToBluetoothPrinter(
   device: BluetoothDevice,
   text: string
 ): Promise<boolean> {
+  // Native path
+  if (isNativePlatform()) {
+    try {
+      const native = await getNativeModule();
+      return await native.sendToNativePrinter(text);
+    } catch (err) {
+      console.error("[NativeBT] Send failed:", err);
+      return false;
+    }
+  }
+
+  // Web path
   const encoder = new TextEncoder();
 
   const ESC_INIT = new Uint8Array([0x1b, 0x40]);
@@ -218,6 +264,10 @@ export async function sendToBluetoothPrinter(
 }
 
 export function disconnectPrinter(device: BluetoothDevice): void {
+  if (isNativePlatform()) {
+    getNativeModule().then((n) => n.disconnectNative()).catch(() => {});
+    return;
+  }
   try {
     device.gatt?.disconnect();
   } catch {
@@ -228,10 +278,17 @@ export function disconnectPrinter(device: BluetoothDevice): void {
 }
 
 export function getStoredDeviceId(): string | null {
+  if (isNativePlatform()) {
+    return localStorage.getItem("bt_native_device_id");
+  }
   return localStorage.getItem(STORED_DEVICE_KEY);
 }
 
 export function clearStoredDevice(): void {
+  if (isNativePlatform()) {
+    getNativeModule().then((n) => n.clearNativeStoredDevice()).catch(() => {});
+    return;
+  }
   localStorage.removeItem(STORED_DEVICE_KEY);
 }
 
@@ -241,11 +298,25 @@ export function clearStoredDevice(): void {
  * Returns the device if reconnection succeeds, null otherwise (silent fail).
  */
 export async function reconnectStoredPrinter(): Promise<BluetoothDevice | null> {
+  // Native path: reliable reconnection without user gesture
+  if (isNativePlatform()) {
+    try {
+      const native = await getNativeModule();
+      const deviceId = await native.reconnectNativeDevice();
+      if (deviceId) {
+        return { id: deviceId, name: "Native BLE", gatt: { connected: true } } as any;
+      }
+    } catch (err) {
+      console.warn("[NativeBT] Auto-reconnect failed:", err);
+    }
+    return null;
+  }
+
+  // Web path
   if (!isBluetoothSupported()) return null;
   const storedId = getStoredDeviceId();
   if (!storedId) return null;
 
-  // Global timeout to prevent browser freeze when printer is off/out of range
   return withTimeout(reconnectStoredPrinterInternal(storedId), 20000, "reconnectStoredPrinter")
     .catch((err) => {
       console.warn("[BT] Auto-reconnect timed out or failed:", err);
