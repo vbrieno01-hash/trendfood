@@ -1,14 +1,24 @@
 
 
-## Renomear titulo da secao "Configuracao de Impressao"
+## Adicionar botao de download do APK via GitHub Releases
 
-Mudanca simples de texto no arquivo `src/components/dashboard/PrinterTab.tsx`.
+Seguindo o mesmo padrao do botao "Baixar trendfood.exe" na secao Desktop, vamos adicionar um botao de download do APK na secao Bluetooth/Mobile.
 
 ### O que muda
 
-Alterar o titulo da secao de **"Configuração de Impressão"** para **"Configuração de Impressão Desktop"** no texto do header da caixa.
+**`src/components/dashboard/PrinterTab.tsx`**:
 
-### Arquivo afetado
+1. Dentro do bloco condicional `printMode === "bluetooth"` (secao "Impressora Bluetooth"), adicionar um botao de download do APK com o link do GitHub Releases, usando o mesmo padrao do .exe:
 
-- `src/components/dashboard/PrinterTab.tsx`: Trocar o texto "Configuração de Impressão" por "Configuração de Impressão Desktop" na linha do titulo da secao.
+```
+<a href="https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.apk" download>
+  <Download /> Baixar TrendFood.apk
+</a>
+```
+
+2. Adicionar uma descricao curta abaixo, como: "Baixe e instale o app Android para imprimir via Bluetooth."
+
+### Padrao seguido
+
+Identico ao botao de download do `.exe` que ja existe na secao Desktop — mesmo estilo de `Button variant="outline"`, icone `Download`, e link apontando para `/releases/latest/download/`.
 
