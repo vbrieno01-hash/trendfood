@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
+import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -43,6 +44,9 @@ const AppInner = () => {
     const handler = (e: PromiseRejectionEvent) => {
       console.error("[Unhandled Rejection]", e.reason);
       e.preventDefault();
+      if (Capacitor.isNativePlatform()) {
+        toast.error("Ocorreu um erro inesperado. Tente novamente.");
+      }
     };
     window.addEventListener("unhandledrejection", handler);
 
