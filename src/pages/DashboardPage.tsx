@@ -45,6 +45,7 @@ import ReportsTab from "@/components/dashboard/ReportsTab";
 import CourierDashboardTab from "@/components/dashboard/CourierDashboardTab";
 import PrinterTab from "@/components/dashboard/PrinterTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer";
 
@@ -73,6 +74,9 @@ const DashboardPage = () => {
   const [btConnected, setBtConnected] = useState(false);
   const [btReconnectFailed, setBtReconnectFailed] = useState(false);
   const btSupported = isBluetoothSupported();
+
+  // Push notifications (native only)
+  usePushNotifications(organization?.id, user?.id);
 
   // ── Global auto-print + notifications (always mounted) ──
   const AUTO_PRINT_KEY = "kds_auto_print";
