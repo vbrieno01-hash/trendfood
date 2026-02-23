@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -43,6 +45,12 @@ const AppInner = () => {
       e.preventDefault();
     };
     window.addEventListener("unhandledrejection", handler);
+
+    // Hide splash screen on native
+    if (Capacitor.isNativePlatform()) {
+      SplashScreen.hide().catch(() => {});
+    }
+
     return () => window.removeEventListener("unhandledrejection", handler);
   }, []);
 
