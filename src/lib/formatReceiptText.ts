@@ -61,20 +61,49 @@ function wrapLine(text: string, maxCols: number = MAX_COLS): string[] {
   return result;
 }
 
+export interface StoreInfo {
+  name: string;
+  address?: string;
+  contact?: string;
+  cnpj?: string;
+}
+
 export function formatReceiptText(
   order: PrintableOrder,
-  storeName = "Cozinha",
+  storeInfo: StoreInfo | string = "Cozinha",
   _printerWidth: "58mm" | "80mm" = "58mm"
 ): string {
   const cols = MAX_COLS;
   const lines: string[] = [];
 
-  // Header
-  lines.push(center(storeName.toUpperCase(), cols));
+  // Normalize storeInfo
+  const info: StoreInfo = typeof storeInfo === "string" ? { name: storeInfo } : storeInfo;
+
+  // Header — store info
+  lines.push(center(info.name.toUpperCase(), cols));
+  if (info.address) lines.push(center(info.address, cols));
+  if (info.contact) lines.push(center(info.contact, cols));
+  if (info.cnpj) lines.push(center(info.cnpj, cols));
   lines.push(divider());
 
-  // Location
+  // Sub-header
   const parsed = order.notes ? parseNotes(order.notes) : null;
+
+  const date = new Date(order.created_at).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const time = new Date(order.created_at).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  lines.push(center(`${date} ${time}`, cols));
+  lines.push(center("SIMPLES CONFERENCIA DA CONTA", cols));
+  lines.push(center("RELATORIO GERENCIAL", cols));
+  lines.push(center("* * * NAO E DOCUMENTO FISCAL * * *", cols));
+
   const locationLabel =
     order.table_number === 0
       ? parsed?.tipo === "Retirada"
@@ -82,17 +111,8 @@ export function formatReceiptText(
         : "ENTREGA"
       : `MESA ${order.table_number}`;
 
-  const date = new Date(order.created_at).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-  });
-  const time = new Date(order.created_at).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  lines.push(`##BOLD##${locationLabel}  ${date} ${time}`);
   lines.push(divider());
+  lines.push(`##BOLD##${locationLabel}`);
 
   // Items
   const items = order.order_items ?? [];
@@ -162,7 +182,9 @@ export function formatReceiptText(
   }
 
   lines.push(divider());
-  lines.push(center("* " + storeName.toUpperCase() + " *", cols));
+  lines.push(center("* Obrigado pela preferencia *", cols));
+  lines.push(center("Volte sempre!", cols));
+  lines.push(center("TrendFood", cols));
 
   return stripDiacritics(lines.join("\n"));
 }
