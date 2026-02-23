@@ -1,34 +1,32 @@
 
 
-## Corrigir App ID do Capacitor
+## Corrigir redirecionamento de login no APK
 
-O build foi concluido com sucesso, porem o Capacitor reportou um erro de validacao no App ID. O formato atual (`app.lovable.4930409c277c4049bcfee466bb996cff`) nao e valido para Android/iOS porque os segmentos nao podem comecar com numeros.
+### Problema
 
-### O que sera feito
+O app Android esta configurado para carregar a URL de preview (`lovableproject.com`), que exige autenticacao na plataforma Lovable. Por isso, ao abrir o APK, o usuario e redirecionado para a pagina de login do Lovable.
 
-Alterar o arquivo `capacitor.config.ts` para usar um App ID valido no formato Java package:
+### Solucao
 
-- **De:** `app.lovable.4930409c277c4049bcfee466bb996cff`
-- **Para:** `app.trendfood.delivery`
+Alterar o `capacitor.config.ts` para apontar para a URL publicada do app:
+
+- **De:** `https://4930409c-277c-4049-bcfe-e466bb996cff.lovableproject.com?forceHideBadge=true`
+- **Para:** `https://trendfood.lovable.app`
 
 ### Detalhes tecnicos
 
-O App ID precisa seguir estas regras:
-- Formato de pacote Java (ex: com.exemplo.app)
-- Sem tracos
-- Minimo dois segmentos separados por ponto
-- Cada segmento comeca com letra
-- Apenas caracteres alfanumericos e underscore
+Arquivo: `capacitor.config.ts`
 
-Arquivo alterado: `capacitor.config.ts` (apenas a linha do `appId`)
+Apenas a propriedade `server.url` sera alterada. O resto da configuracao permanece igual.
 
-### Proximos passos apos a correcao
+### Passos apos a correcao
 
-Voce precisara rodar no terminal:
+Voce precisara rodar no terminal do projeto:
 
-```
-npx cap add android
+```text
+git pull
 npx cap sync
-npx cap open android
 ```
+
+Depois, gere o APK novamente no Android Studio (Build > Generate App Bundles or APKs > Build APK).
 
