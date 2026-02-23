@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import UnitPage from "./pages/UnitPage";
@@ -34,36 +36,53 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppInner = () => {
+  useEffect(() => {
+    const handler = (e: PromiseRejectionEvent) => {
+      console.error("[Unhandled Rejection]", e.reason);
+      e.preventDefault();
+    };
+    window.addEventListener("unhandledrejection", handler);
+    return () => window.removeEventListener("unhandledrejection", handler);
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/cadastro" element={<AuthPage />} />
+              <Route path="/unidade/:slug" element={<UnitPage />} />
+              <Route path="/unidade/:slug/mesa/:tableNumber" element={<TableOrderPage />} />
+              <Route path="/cozinha" element={<KitchenPage />} />
+              <Route path="/garcom" element={<WaiterPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/planos" element={<PricingPage />} />
+              <Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
+              <Route path="/motoboy" element={<CourierPage />} />
+              <Route path="/termos" element={<TermsPage />} />
+              <Route path="/privacidade" element={<PrivacyPage />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ScrollToTop />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/cadastro" element={<AuthPage />} />
-            <Route path="/unidade/:slug" element={<UnitPage />} />
-            <Route path="/unidade/:slug/mesa/:tableNumber" element={<TableOrderPage />} />
-            <Route path="/cozinha" element={<KitchenPage />} />
-            <Route path="/garcom" element={<WaiterPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/planos" element={<PricingPage />} />
-            <Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
-            <Route path="/motoboy" element={<CourierPage />} />
-            <Route path="/termos" element={<TermsPage />} />
-            <Route path="/privacidade" element={<PrivacyPage />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <AppInner />
+  </ErrorBoundary>
 );
 
 export default App;

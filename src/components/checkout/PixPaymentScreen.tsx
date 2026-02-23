@@ -85,11 +85,31 @@ export default function PixPaymentScreen({
 
   const handleCopy = useCallback(() => {
     if (!pixCopiaECola) return;
-    navigator.clipboard.writeText(pixCopiaECola).then(() => {
+    const onCopied = () => {
       setCopied(true);
       toast({ title: "Código PIX copiado!" });
       setTimeout(() => setCopied(false), 3000);
-    });
+    };
+    const fallbackCopy = () => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = pixCopiaECola;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        onCopied();
+      } catch {
+        toast({ title: "Toque e segure o código para copiar", variant: "destructive" });
+      }
+    };
+    try {
+      navigator.clipboard.writeText(pixCopiaECola).then(onCopied).catch(fallbackCopy);
+    } catch {
+      fallbackCopy();
+    }
   }, [pixCopiaECola, toast]);
 
   const fmt = (v: number) =>
