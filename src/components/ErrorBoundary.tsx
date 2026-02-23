@@ -1,4 +1,5 @@
 import React from "react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface Props {
   children: React.ReactNode;
@@ -7,10 +8,12 @@ interface Props {
 interface State {
   hasError: boolean;
   retryCount: number;
+  errorMessage: string;
+  errorStack: string;
 }
 
 class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { hasError: false, retryCount: 0 };
+  state: State = { hasError: false, retryCount: 0, errorMessage: "", errorStack: "" };
   lastErrorTime = 0;
 
   static getDerivedStateFromError(): Partial<State> {
@@ -20,6 +23,13 @@ class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info);
     this.lastErrorTime = Date.now();
+    this.setState({
+      errorMessage: `${error.name}: ${error.message}`,
+      errorStack: error.stack || "",
+    });
+    try {
+      sessionStorage.setItem("app_crashed", "true");
+    } catch (_) {}
   }
 
   handleRetry = () => {
@@ -74,6 +84,23 @@ class ErrorBoundary extends React.Component<Props, State> {
                 Limpar cache e recarregar
               </button>
             </div>
+            {this.state.errorMessage && (
+              <Collapsible>
+                <CollapsibleTrigger className="text-xs text-muted-foreground underline cursor-pointer">
+                  Ver detalhes do erro
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 text-left bg-muted rounded-lg p-3 max-h-40 overflow-auto">
+                    <p className="text-xs font-mono text-destructive break-all">{this.state.errorMessage}</p>
+                    {this.state.errorStack && (
+                      <pre className="text-[10px] font-mono text-muted-foreground mt-2 whitespace-pre-wrap break-all">
+                        {this.state.errorStack}
+                      </pre>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
           </div>
         </div>
       );
