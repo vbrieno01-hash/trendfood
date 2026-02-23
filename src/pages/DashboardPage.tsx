@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
-  Menu, UtensilsCrossed, TableProperties, Flame, BellRing, Download,
+  Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike,
 } from "lucide-react";
@@ -24,10 +24,6 @@ import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import logoIcon from "@/assets/logo-icon.png";
 import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getStoredDeviceId, isNativePlatform } from "@/lib/bluetoothPrinter";
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
 import HomeTab from "@/components/dashboard/HomeTab";
 import MenuTab from "@/components/dashboard/MenuTab";
 import TablesTab from "@/components/dashboard/TablesTab";
@@ -66,8 +62,6 @@ const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState<TabKey>(getInitialTab);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [appInstalled, setAppInstalled] = useState(false);
 
   // Bluetooth state lifted from SettingsTab
   const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
@@ -483,17 +477,6 @@ const DashboardPage = () => {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => setAppInstalled(true));
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-    };
-  }, []);
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth", { replace: true });
@@ -652,14 +635,6 @@ const DashboardPage = () => {
     localStorage.setItem(NOTIF_KEY_DASH, String(val));
   };
 
-  const handleInstallApp = async () => {
-    if (!installPrompt) return;
-    (installPrompt as BeforeInstallPromptEvent).prompt();
-    const { outcome } = await (installPrompt as BeforeInstallPromptEvent).userChoice;
-    if (outcome === "accepted") {
-      setInstallPrompt(null);
-    }
-  };
 
   const handleManualReconnect = async () => {
     toast.info("Reconectando impressora...");
@@ -819,21 +794,6 @@ const DashboardPage = () => {
 
         {/* Bottom actions */}
         <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
-          {!appInstalled && (
-            <button
-              onClick={() => {
-                if (installPrompt) {
-                  handleInstallApp();
-                } else {
-                  toast("Para instalar o app, toque nos 3 pontinhos do navegador (ou no botão Compartilhar no iPhone) e selecione \"Instalar app\" ou \"Adicionar à tela inicial\".", { duration: 8000 });
-                }
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-primary hover:bg-primary/15 transition-all duration-150"
-            >
-              <Download className="w-4 h-4" />
-              Instalar App
-            </button>
-          )}
           <button
             onClick={() => {
               const msg = encodeURIComponent("Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app");
