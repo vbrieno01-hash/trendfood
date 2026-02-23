@@ -39,6 +39,38 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   const [testPrintLoading, setTestPrintLoading] = useState(false);
   const [bgPrinting, setBgPrinting] = useState(false);
   const [bgLoading, setBgLoading] = useState(false);
+  const [apkLoading, setApkLoading] = useState(false);
+  const [exeLoading, setExeLoading] = useState(false);
+
+  const findAssetUrl = async (filename: string): Promise<string | null> => {
+    const res = await fetch(
+      "https://api.github.com/repos/vbrieno01-hash/trendfood/releases",
+      { headers: { Accept: "application/vnd.github.v3+json" } }
+    );
+    if (!res.ok) return null;
+    const releases = await res.json();
+    for (const release of releases) {
+      const asset = release.assets?.find((a: any) => a.name === filename);
+      if (asset) return asset.browser_download_url;
+    }
+    return null;
+  };
+
+  const handleDownload = async (filename: string, setLoading: (v: boolean) => void) => {
+    setLoading(true);
+    try {
+      const url = await findAssetUrl(filename);
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error(`Arquivo "${filename}" não encontrado em nenhuma release.`);
+      }
+    } catch {
+      toast.error("Erro ao buscar download. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Check background service status on mount (native only)
   useEffect(() => {
@@ -227,10 +259,11 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                 variant="outline"
                 size="sm"
                 className="h-9 gap-2"
-                onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.apk", "_blank", "noopener,noreferrer")}
+                disabled={apkLoading}
+                onClick={() => handleDownload("trendfood.apk", setApkLoading)}
               >
-                <Download className="w-4 h-4" />
-                Baixar TrendFood.apk
+                {apkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {apkLoading ? "Buscando..." : "Baixar TrendFood.apk"}
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Baixe e instale o app Android para imprimir via Bluetooth.
@@ -367,10 +400,11 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
             variant="outline"
             size="sm"
             className="h-9 gap-2"
-            onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.exe", "_blank", "noopener,noreferrer")}
+            disabled={exeLoading}
+            onClick={() => handleDownload("trendfood.exe", setExeLoading)}
           >
-            <Download className="w-4 h-4" />
-            Baixar trendfood.exe
+            {exeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exeLoading ? "Buscando..." : "Baixar trendfood.exe"}
           </Button>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Baixe o programa, abra-o e digite o ID acima para ativar a impressão automática.
