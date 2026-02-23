@@ -1,102 +1,95 @@
 
-# Splash Screen e Push Notifications no Capacitor
 
-## O que sera feito
+# Completar Splash Screen e Push Notifications
 
-### 1. Splash Screen
-Adicionar a tela de carregamento com a logo TrendFood quando o app abre no Android.
+## O que ja foi feito
+- Plugins `@capacitor/splash-screen` e `@capacitor/push-notifications` instalados
+- `capacitor.config.ts` configurado com SplashScreen e PushNotifications
 
-**Dependencia:** `@capacitor/splash-screen`
+## O que falta
 
-**Configuracao no `capacitor.config.ts`:**
-- Definir cor de fundo laranja (#FF6B00) ou branca
-- Tempo de exibicao automatico (2-3 segundos)
-- Fade out animado
-- Configurar para usar a logo do TrendFood
+### 1. Criar tabela `device_tokens` no banco de dados
+Tabela para armazenar os tokens FCM de cada dispositivo:
+- `id` (uuid, PK)
+- `org_id` (uuid, referencia organizations)
+- `user_id` (uuid)
+- `token` (text, unique)
+- `platform` (text: 'android' | 'ios' | 'web')
+- `created_at` (timestamptz)
 
-**Arquivos de imagem necessarios (manual apos sync):**
-- O usuario precisara colocar a imagem do splash em `android/app/src/main/res/drawable/splash.png`
-- Alternativa: usar o modo "launch screen" padrao do Capacitor que exibe um background com a logo centralizada
+RLS: usuario so insere/ve/deleta seus proprios tokens.
 
-**Codigo TypeScript:**
-- Chamar `SplashScreen.hide()` no `App.tsx` apos o app carregar, para controlar quando a splash desaparece
+### 2. Criar hook `usePushNotifications.ts`
+- Pede permissao ao usuario
+- Registra o dispositivo no FCM
+- Salva o token na tabela `device_tokens` vinculado ao `org_id` e `user_id`
+- Escuta notificacoes recebidas (foreground) e clicadas (background)
+- So executa em plataforma nativa (Capacitor)
 
-### 2. Push Notifications
-Substituir o `@capacitor/local-notifications` atual por `@capacitor/push-notifications` para notificacoes remotas (enviadas pelo servidor).
+### 3. Adicionar SplashScreen.hide() no App.tsx
+- Importar `SplashScreen` do `@capacitor/splash-screen`
+- Chamar `SplashScreen.hide()` no useEffect inicial, apos o app carregar
+- Usar try/catch para nao quebrar no navegador web
 
-**Dependencia:** `@capacitor/push-notifications`
-
-**O que sera implementado:**
-- Registro do dispositivo para receber push notifications
-- Salvar o token FCM (Firebase Cloud Messaging) no banco de dados, vinculado a organizacao
-- Listener para receber notificacoes em foreground e background
-- Hook `usePushNotifications.ts` para gerenciar tudo
-
-**Tabela no banco de dados:**
-- `device_tokens` com colunas: `id`, `org_id`, `user_id`, `token`, `platform`, `created_at`
-- Isso permite enviar pushes para dispositivos especificos de cada organizacao
-
-**Integracao:**
-- No `DashboardPage.tsx`, registrar o dispositivo automaticamente ao abrir
-- Quando um novo pedido chegar, uma edge function podera enviar push para todos os dispositivos da org
-
-## Etapas de implementacao
-
-1. Instalar `@capacitor/splash-screen` e `@capacitor/push-notifications`
-2. Atualizar `capacitor.config.ts` com configuracoes de Splash Screen e Push
-3. Criar hook `usePushNotifications.ts` para registro e escuta de notificacoes
-4. Criar tabela `device_tokens` no banco de dados
-5. Adicionar `SplashScreen.hide()` no `App.tsx`
-6. Integrar push notifications no Dashboard
+### 4. Integrar push no DashboardPage
+- Chamar o hook `usePushNotifications` no Dashboard
+- O registro acontece automaticamente quando o usuario abre o dashboard no APK
 
 ## Secao Tecnica
 
-### capacitor.config.ts (adicoes)
+### Tabela device_tokens (SQL)
 ```text
-plugins: {
-  SplashScreen: {
-    launchShowDuration: 2500,
-    launchAutoHide: false,       // controlamos via codigo
-    backgroundColor: "#FFFFFF",
-    showSpinner: false,
-    launchFadeOutDuration: 500,
-    splashFullScreen: true,
-    splashImmersiveHidden: true,
-  },
-  PushNotifications: {
-    presentationOptions: ["badge", "sound", "alert"],
-  },
-  // ... plugins existentes mantidos
-}
+CREATE TABLE device_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  token text NOT NULL UNIQUE,
+  platform text NOT NULL DEFAULT 'android',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Usuario insere seus proprios tokens
+CREATE POLICY "device_tokens_insert_own" ON device_tokens
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Usuario ve seus proprios tokens
+CREATE POLICY "device_tokens_select_own" ON device_tokens
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Usuario deleta seus proprios tokens
+CREATE POLICY "device_tokens_delete_own" ON device_tokens
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Dono da org pode ver tokens da org (para enviar pushes)
+CREATE POLICY "device_tokens_select_org_owner" ON device_tokens
+  FOR SELECT USING (
+    auth.uid() = (SELECT user_id FROM organizations WHERE id = device_tokens.org_id)
+  );
 ```
 
 ### Hook usePushNotifications.ts
 ```text
-- requestPermissions(): pede permissao ao usuario
-- register(): registra no FCM e salva token no banco
-- addListeners(): escuta notificacoes recebidas/clicadas
-- Salva token na tabela device_tokens vinculado ao org_id e user_id
+- Importa PushNotifications do @capacitor/push-notifications
+- Importa Capacitor.isNativePlatform()
+- requestPermissions() -> register()
+- Listener 'registration' -> upsert token no banco
+- Listener 'pushNotificationReceived' -> toast com titulo
+- Listener 'pushNotificationActionPerformed' -> navegar para /dashboard
 ```
 
-### Tabela device_tokens
-```text
-- id (uuid, PK)
-- org_id (uuid, FK -> organizations)
-- user_id (uuid)
-- token (text, unique)
-- platform (text: 'android' | 'ios' | 'web')
-- created_at (timestamptz)
-- RLS: usuario so ve/insere seus proprios tokens
-```
-
-### App.tsx (mudanca)
+### App.tsx (adicao)
 ```text
 import { SplashScreen } from '@capacitor/splash-screen';
-// No useEffect inicial:
-SplashScreen.hide();
+
+useEffect(() => {
+  try { SplashScreen.hide(); } catch {}
+}, []);
 ```
 
-## Limitacoes
-- Push Notifications requer configuracao do Firebase (google-services.json) no projeto Android -- o usuario precisara criar um projeto Firebase e baixar o arquivo
-- Splash Screen requer imagem em `android/app/src/main/res/drawable/` -- apos `npx cap sync`
-- Ambos requerem rebuild do APK
+## Passos manuais apos implementacao
+- Colocar imagem splash em `android/app/src/main/res/drawable/splash.png`
+- Configurar Firebase e adicionar `google-services.json` no projeto Android
+- Rebuild: `npx cap sync && npx cap build android`
+
