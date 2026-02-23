@@ -1,44 +1,79 @@
 
-# Mascara automatica de telefone no cardapio online
+# Corrigir links de download APK/EXE no mobile
 
-## O que sera feito
+## Problema
 
-Adicionar formatacao automatica no campo de telefone do checkout do cardapio online. Conforme o cliente digita, o numero sera formatado automaticamente no padrao brasileiro:
+Os links de download do APK e EXE usam o atributo `download` em tags `<a>` apontando para GitHub. Esse atributo e ignorado por navegadores em links cross-origin (dominio diferente), entao:
 
-- Celular: `(11) 99999-0000` (11 digitos)
-- Fixo: `(11) 3333-0000` (10 digitos)
-- Parcial: `(11) 9999` (enquanto digita)
+1. No mobile, o link abre a pagina do GitHub em vez de baixar o arquivo
+2. Se a release nao existe no GitHub, mostra pagina 404
 
-## Como vai funcionar
+## Solucao
 
-- O usuario digita apenas numeros e a mascara aplica parenteses, espaco e hifen automaticamente
-- O valor armazenado internamente (`buyerPhone`) ja fica formatado para exibicao
-- A validacao continua funcionando (verifica se tem conteudo alem da formatacao)
-- O `maxLength` sera ajustado para 15 caracteres (tamanho maximo com mascara)
+Duas mudancas no arquivo `src/components/dashboard/PrinterTab.tsx`:
+
+### 1. Corrigir os atributos dos links
+
+- Remover o atributo `download` (nao funciona cross-origin)
+- Adicionar `target="_blank"` e `rel="noopener noreferrer"` para abrir em nova aba
+- Isso garante que o GitHub processe o download corretamente no mobile
+
+### 2. Adicionar fallback com verificacao
+
+Criar uma funcao `handleDownload` que:
+- Faz um `fetch` HEAD para verificar se a URL existe (status 200)
+- Se existir, abre o link normalmente em nova aba
+- Se retornar 404 ou erro, mostra um toast informando que o arquivo ainda nao esta disponivel, com instrucao para entrar em contato
+
+Isso evita que o usuario veja a pagina 404 do GitHub.
 
 ## Secao Tecnica
 
-### Arquivo: `src/pages/UnitPage.tsx`
+### Arquivo: `src/components/dashboard/PrinterTab.tsx`
 
-1. **Criar funcao de mascara** `formatPhone(value: string): string` no corpo do componente:
-   - Remove tudo que nao e digito
-   - Limita a 11 digitos
-   - Aplica formatacao progressiva:
-     - 0 digitos: vazio
-     - 1-2 digitos: `(XX`
-     - 3 digitos: `(XX) X`
-     - 4-6 digitos (fixo parcial): `(XX) XXXX`
-     - 7-10 digitos (fixo): `(XX) XXXX-XXXX`
-     - 11 digitos (celular): `(XX) XXXXX-XXXX`
+1. **Criar funcao `handleDownload`** no componente:
 
-2. **Atualizar onChange** do campo telefone (linha ~921):
-   - Aplicar `formatPhone` ao valor antes de salvar:
-   ```
-   onChange={(e) => { setBuyerPhone(formatPhone(e.target.value)); setPhoneError(false); }}
-   ```
+```typescript
+const handleDownload = async (url: string, label: string) => {
+  try {
+    const res = await fetch(url, { method: "HEAD", mode: "no-cors" });
+    window.open(url, "_blank", "noopener,noreferrer");
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+};
+```
 
-3. **Ajustar maxLength** de 20 para 15 (tamanho maximo da mascara com celular)
+Nota: como GitHub nao permite CORS em HEAD requests, a melhor abordagem e simplesmente abrir em nova aba sem o atributo `download`.
 
-4. **Ajustar validacao** (linha ~272): usar `buyerPhone.replace(/\D/g,"").length < 10` em vez de `!buyerPhone.trim()` para garantir que o telefone tenha pelo menos 10 digitos (fixo completo)
+2. **Link do APK (linha ~226-236)**: Trocar de `asChild` + `<a download>` para um `Button` com `onClick` que abre `window.open(url, "_blank")`:
 
-Nenhuma mudanca no banco de dados.
+```tsx
+<Button
+  variant="outline"
+  size="sm"
+  className="h-9 gap-2"
+  onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.apk", "_blank", "noopener,noreferrer")}
+>
+  <Download className="w-4 h-4" />
+  Baixar TrendFood.apk
+</Button>
+```
+
+3. **Link do EXE (linha ~368-378)**: Mesma mudanca:
+
+```tsx
+<Button
+  variant="outline"
+  size="sm"
+  className="h-9 gap-2"
+  onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.exe", "_blank", "noopener,noreferrer")}
+>
+  <Download className="w-4 h-4" />
+  Baixar trendfood.exe
+</Button>
+```
+
+## Importante
+
+Para que os links funcionem, voce precisa ter criado pelo menos uma Release no GitHub com os arquivos `trendfood.apk` e `trendfood.exe` anexados. Sem a release, o link sempre retornara 404 independente do codigo.
