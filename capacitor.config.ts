@@ -17,9 +17,6 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersiveHidden: true,
     },
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"],
-    },
     BluetoothLe: {
       displayStrings: {
         scanning: "Procurando impressora...",
