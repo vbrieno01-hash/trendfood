@@ -263,6 +263,7 @@ const UnitPage = () => {
 
   // WhatsApp checkout
   const handleSendWhatsApp = (overridePayment?: string, overrideOrderId?: string) => {
+   try {
     const effectivePayment = overridePayment || payment;
     let valid = true;
     if (!orderType) { setOrderTypeError(true); valid = false; } else setOrderTypeError(false);
@@ -359,7 +360,11 @@ const UnitPage = () => {
       .join("\n");
 
     const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    try {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      try { window.location.href = url; } catch {}
+    }
 
     // Save order to database (table_number=0 = delivery/pickup) — skip if already created (PIX flow)
     if (org?.id && !overrideOrderId) {
@@ -397,17 +402,19 @@ const UnitPage = () => {
 
     // Reset
     resetCheckout();
+   } catch (err) {
+    console.error("[UnitPage] handleSendWhatsApp error:", err);
+   }
   };
 
   const handlePixSuccess = (orderId: string, paid: boolean) => {
+   try {
     setShowPixScreen(false);
     setPixOrderId(null);
 
     if (paid) {
       // Gateway confirmed — update order status to pending (for kitchen)
-      import("@/integrations/supabase/client").then(({ supabase }) => {
-        supabase.from("orders").update({ paid: true, status: "pending" }).eq("id", orderId);
-      });
+      supabase.from("orders").update({ paid: true, status: "pending" }).eq("id", orderId);
     }
 
     // Send WhatsApp with PIX confirmed info
@@ -445,10 +452,18 @@ const UnitPage = () => {
         .join("\n");
 
       const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-      window.open(url, "_blank", "noopener,noreferrer");
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch {
+        try { window.location.href = url; } catch {}
+      }
     }
 
     resetCheckout();
+   } catch (err) {
+    console.error("[UnitPage] handlePixSuccess error:", err);
+    resetCheckout();
+   }
   };
 
   const resetCheckout = () => {
