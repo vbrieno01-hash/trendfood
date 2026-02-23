@@ -288,41 +288,46 @@ async function reconnectStoredPrinterInternal(storedId: string): Promise<Bluetoo
   try {
     const bt = navigator as any;
     if (typeof bt.bluetooth?.getDevices !== "function") {
-      console.log("[BT] getDevices() not supported in this browser");
+      console.log("[BT][Reconnect] getDevices() not supported in this browser");
       return null;
     }
 
     const devices: BluetoothDevice[] = await bt.bluetooth.getDevices();
+    console.log("[BT][Reconnect] getDevices() returned", devices.length, "device(s)");
     const device = devices.find((d) => d.id === storedId);
     if (!device) {
-      console.log("[BT] Stored device not found among authorized devices");
+      console.log("[BT][Reconnect] Stored device", storedId, "not found among authorized devices");
       return null;
     }
+    console.log("[BT][Reconnect] Found stored device:", device.name || device.id);
 
     // Fast path: tentar GATT connect direto (funciona em muitos dispositivos)
     try {
-      console.log("[BT] Tentando conexao direta...");
+      console.log("[BT][Reconnect] Tentando conexao GATT direta...");
       const char = await connectToDevice(device);
       if (char) {
-        console.log("[BT] Conexao direta OK:", device.name || device.id);
+        console.log("[BT][Reconnect] Conexao direta OK:", device.name || device.id);
         return device;
       }
-    } catch {
-      console.log("[BT] Conexao direta falhou, tentando watchAdvertisements...");
+      console.log("[BT][Reconnect] Conexao direta retornou sem characteristic writavel");
+    } catch (directErr) {
+      console.log("[BT][Reconnect] Conexao direta falhou:", (directErr as Error)?.message || directErr);
     }
 
     // Slow path: watchAdvertisements + retry
+    console.log("[BT][Reconnect] Tentando watchAdvertisements...");
     await waitForAdvertisement(device, 6000);
 
     const char = await connectToDevice(device);
     if (char) {
-      console.log("[BT] Auto-reconnected via advertisement to", device.name || device.id);
+      console.log("[BT][Reconnect] Auto-reconnected via advertisement to", device.name || device.id);
       return device;
     }
 
+    console.log("[BT][Reconnect] Todas as tentativas falharam para", device.name || device.id);
     return null;
   } catch (err) {
-    console.warn("[BT] Auto-reconnect internal error:", err);
+    console.warn("[BT][Reconnect] Erro interno:", err);
     return null;
   }
 }

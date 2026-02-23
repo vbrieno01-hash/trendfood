@@ -70,6 +70,7 @@ const DashboardPage = () => {
   // Bluetooth state lifted from SettingsTab
   const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
   const [btConnected, setBtConnected] = useState(false);
+  const [btReconnectFailed, setBtReconnectFailed] = useState(false);
   const btSupported = isBluetoothSupported();
 
   // ── Global auto-print + notifications (always mounted) ──
@@ -299,6 +300,7 @@ const DashboardPage = () => {
         const char = await connectToDevice(device);
         if (char) {
           setBtConnected(true);
+          setBtReconnectFailed(false);
           toast.success(`Impressora "${device.name || "Bluetooth"}" conectada!`);
         } else {
           setBtConnected(false);
@@ -336,6 +338,7 @@ const DashboardPage = () => {
     const onConnected = (device: BluetoothDevice) => {
       setBtDevice(device);
       setBtConnected(true);
+      setBtReconnectFailed(false);
       toast.success("Impressora reconectada automaticamente");
       attachDisconnectHandler(device);
     };
@@ -356,13 +359,18 @@ const DashboardPage = () => {
           const target = devices.find((d: BluetoothDevice) => d.id === storedId);
           if (!target) return;
           console.log("[BT] Starting backoff retry...");
-          autoReconnect(target, onConnected, () => console.log("[BT] All backoff retries exhausted"), 5);
+          autoReconnect(target, onConnected, () => {
+            console.log("[BT] All backoff retries exhausted");
+            setBtReconnectFailed(true);
+          }, 5);
         } catch (err) {
           console.warn("[BT] Backoff fallback error:", err);
+          setBtReconnectFailed(true);
         }
       })
       .catch((err) => {
         console.warn("[BT] Auto-reconnect failed on mount:", err);
+        if (getStoredDeviceId()) setBtReconnectFailed(true);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -541,6 +549,27 @@ const DashboardPage = () => {
     if (outcome === "accepted") {
       setInstallPrompt(null);
     }
+  };
+
+  const handleManualReconnect = async () => {
+    toast.info("Reconectando impressora...");
+    try {
+      const device = await reconnectStoredPrinter();
+      if (device) {
+        setBtDevice(device);
+        setBtConnected(true);
+        setBtReconnectFailed(false);
+        attachDisconnectHandler(device);
+        toast.success(`Impressora "${device.name || "Bluetooth"}" reconectada!`);
+        return;
+      }
+    } catch {
+      // fall through to new pairing
+    }
+    // Fallback: open pairing dialog (user gesture present)
+    toast.info("Reconexão falhou. Abrindo pareamento...");
+    await handlePairBluetooth();
+    setBtReconnectFailed(false);
   };
 
   // Sidebar nav button style helper
@@ -775,6 +804,19 @@ const DashboardPage = () => {
               </div>
               <Button asChild size="sm" variant="destructive" className="gap-1.5">
                 <Link to="/planos"><Zap className="w-3.5 h-3.5" />Fazer upgrade</Link>
+              </Button>
+            </div>
+          )}
+
+          {btReconnectFailed && !btConnected && getStoredDeviceId() && (
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-800 mb-4">
+              <Printer className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0" />
+              <p className="text-sm text-orange-800 dark:text-orange-300 flex-1">
+                Impressora não reconectou automaticamente.
+              </p>
+              <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-orange-400 text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-900/40" onClick={handleManualReconnect}>
+                <Printer className="w-3.5 h-3.5" />
+                Reconectar
               </Button>
             </div>
           )}
