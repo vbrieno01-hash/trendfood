@@ -1,32 +1,41 @@
 
 
-## Corrigir redirecionamento de login no APK
+## Converter APK para modo standalone (app completo)
 
-### Problema
+### O que muda
 
-O app Android esta configurado para carregar a URL de preview (`lovableproject.com`), que exige autenticacao na plataforma Lovable. Por isso, ao abrir o APK, o usuario e redirecionado para a pagina de login do Lovable.
+O app vai carregar as telas diretamente do APK em vez de abrir um site no navegador. Os dados (pedidos, cardapio, clientes) continuam vindo da nuvem automaticamente.
 
-### Solucao
+### O que continua funcionando
 
-Alterar o `capacitor.config.ts` para apontar para a URL publicada do app:
+- Pedidos dos clientes em tempo real
+- Impressao termica via Bluetooth (funciona ainda melhor no modo nativo)
+- Cardapio, cozinha, caixa, relatorios
+- Pagamentos PIX
+- Tudo que depende de dados na nuvem
 
-- **De:** `https://4930409c-277c-4049-bcfe-e466bb996cff.lovableproject.com?forceHideBadge=true`
-- **Para:** `https://trendfood.lovable.app`
-
-### Detalhes tecnicos
+### Mudanca tecnica
 
 Arquivo: `capacitor.config.ts`
 
-Apenas a propriedade `server.url` sera alterada. O resto da configuracao permanece igual.
-
-### Passos apos a correcao
-
-Voce precisara rodar no terminal do projeto:
+Remover a secao `server` inteira, deixando apenas:
 
 ```text
-git pull
-npx cap sync
+appId: "app.trendfood.delivery"
+appName: "TrendFood"
+webDir: "dist"
+plugins: { ... }
 ```
 
-Depois, gere o APK novamente no Android Studio (Build > Generate App Bundles or APKs > Build APK).
+### Passos apos a correcao (no seu computador)
+
+1. `git pull` — baixar a alteracao
+2. `npm run build` — gerar os arquivos do app
+3. `npx cap sync` — copiar os arquivos para o projeto Android
+4. No Android Studio: Build > Build APK
+
+### Quando precisa gerar novo APK
+
+- Mudancas de tela/layout/design: precisa novo APK
+- Mudancas de dados (produtos, pedidos, precos): atualizam sozinhos pela nuvem
 
