@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildStoreAddress, getStateFromCep, parseStoreAddress } from "@/lib/storeAddress";
-import { Loader2, ChevronRight, ChevronLeft, Check, Search } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -259,24 +259,22 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="cep">CEP</Label>
-                <div className="flex gap-2">
+                <div className="relative">
                   <Input
                     id="cep"
                     placeholder="00000-000"
                     value={cep}
-                    onChange={(e) => setCep(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCep(val);
+                      const cleaned = val.replace(/\D/g, "");
+                      if (cleaned.length === 8) lookupCep();
+                    }}
+                    onBlur={() => { if (cep.replace(/\D/g, "").length === 8) lookupCep(); }}
                     maxLength={9}
+                    className={loadingCep ? "pr-9" : ""}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={lookupCep}
-                    disabled={loadingCep}
-                    className="shrink-0"
-                  >
-                    {loadingCep ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  </Button>
+                  {loadingCep && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">

@@ -946,30 +946,25 @@ const UnitPage = () => {
                     <Label htmlFor="buyer-cep" className="text-xs font-medium mb-1 block">
                       CEP <span className="text-destructive">*</span>
                     </Label>
-                    <div className="flex gap-2">
+                    <div className="relative">
                       <Input
                         id="buyer-cep"
                         placeholder="00000-000"
                         value={customerAddress.cep}
                         onChange={(e) => {
-                          setCustomerAddress((p) => ({ ...p, cep: e.target.value }));
+                          const val = e.target.value;
+                          setCustomerAddress((p) => ({ ...p, cep: val }));
                           setAddressError(false);
                           setCepError("");
+                          const cleaned = val.replace(/\D/g, "");
+                          if (cleaned.length === 8) fetchCustomerCep(val);
                         }}
                         onBlur={(e) => fetchCustomerCep(e.target.value)}
                         inputMode="numeric"
                         maxLength={9}
-                        className={addressError && !customerAddress.cep ? "border-destructive" : ""}
+                        className={`${addressError && !customerAddress.cep ? "border-destructive" : ""} ${cepLoading ? "pr-9" : ""}`}
                       />
-                      <button
-                        type="button"
-                        onClick={() => fetchCustomerCep(customerAddress.cep)}
-                        disabled={cepLoading}
-                        className="shrink-0 px-3 py-2 rounded-md border border-border bg-secondary text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-1"
-                      >
-                        {cepLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                        {cepLoading ? "Buscando..." : "Buscar"}
-                      </button>
+                      {cepLoading && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />}
                     </div>
                     {cepError && <p className="text-destructive text-xs mt-1">{cepError}</p>}
                   </div>
