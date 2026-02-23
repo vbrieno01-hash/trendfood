@@ -1,134 +1,162 @@
 
 
-## Correção: Tela branca em alguns aparelhos ao fazer pedido
+## Correção: Impressão automática no APK (Capacitor/Android)
 
-### Problema
+### Problema raiz
 
-Quando o cliente acessa o cardápio online (`/unidade/:slug`) e tenta finalizar o pedido, alguns dispositivos mostram tela branca. Isso acontece porque erros JavaScript não tratados "matam" o React, e sem um Error Boundary, a tela fica completamente em branco.
+No APK, o Android frequentemente desconecta o Bluetooth em segundo plano. Quando um pedido novo chega, o sistema tenta imprimir automaticamente mas:
 
-### Causas identificadas
+1. A conexao BLE nativa ja caiu (variaveis em memoria ficaram null)
+2. A reconexao automatica falha silenciosamente
+3. O pedido cai na fila de impressao (`fila_impressao`), mas no APK ninguem consome essa fila
+4. Resultado: nada imprime ate voce clicar manualmente
 
-1. **`handlePixSuccess`** usa `import()` dinâmico para importar o Supabase client -- navegadores antigos (especialmente WebView do Instagram/Facebook) não suportam isso e lançam erro
-2. **`handleSendWhatsApp`** não tem `try/catch` -- se `window.open` for bloqueado ou o `placeOrder.mutate` lançar exceção síncrona, o React morre
-3. **`navigator.clipboard.writeText`** no `PixPaymentScreen` falha em conexões HTTP ou navegadores que não suportam -- erro não tratado
-4. **Não existe Error Boundary** -- qualquer promise rejeitada sem tratamento = tela branca permanente
+### Correcoes planejadas
 
-### Correções planejadas
+#### 1. `src/lib/nativeBluetooth.ts` -- Reconexao mais robusta
 
-#### 1. `src/pages/UnitPage.tsx`
-- Remover o `import()` dinâmico de `handlePixSuccess` e usar o `supabase` já importado no topo do arquivo
-- Envolver `handleSendWhatsApp` em `try/catch` com toast de erro
-- Envolver `handlePixSuccess` em `try/catch`
+- Adicionar reconexao com retry (3 tentativas com backoff) dentro de `sendToNativePrinter`
+- Usar os UUIDs de service/characteristic salvos no localStorage para reconexao rapida (sem re-descoberta)
+- Adicionar logs mais detalhados para debug
 
-#### 2. `src/components/checkout/PixPaymentScreen.tsx`
-- Envolver `navigator.clipboard.writeText` em `try/catch` com fallback
+#### 2. `src/pages/DashboardPage.tsx` -- Auto-reconnect nativo antes de imprimir
 
-#### 3. `src/components/ErrorBoundary.tsx` (novo)
-- Criar um Error Boundary global que mostra uma mensagem amigável em vez de tela branca
-- Botão "Tentar novamente" que recarrega a página
+- No callback de auto-print, quando `isNativePlatform()`, chamar `reconnectNativeDevice()` diretamente em vez de usar o shim de `reconnectStoredPrinter()` que retorna um fake device
+- Garantir que o `btDeviceRef` seja atualizado apos reconexao nativa
 
-#### 4. `src/App.tsx`
-- Envolver as rotas com o Error Boundary
-- Adicionar listener global `unhandledrejection` para capturar promises rejeitadas
+#### 3. `src/lib/nativeBluetooth.ts` -- Keepalive periodico
+
+- Adicionar funcao `ensureNativeConnection()` que verifica se a conexao BLE esta ativa e reconecta se necessario
+- Chamar essa funcao antes de cada impressao
+
+#### 4. `src/pages/DashboardPage.tsx` -- Polling da fila no APK
+
+- Quando `isNativePlatform()`, adicionar um polling a cada 10s que verifica a tabela `fila_impressao` por itens pendentes
+- Se encontrar itens pendentes e a impressora estiver conectada, imprime e marca como "impresso"
+- Isso serve como fallback: se a impressao direta falhou, o polling pega o pedido da fila
 
 ---
 
-### Detalhes técnicos
+### Detalhes tecnicos
 
-**UnitPage.tsx -- handlePixSuccess corrigido (sem import dinâmico):**
+**nativeBluetooth.ts -- reconexao com retry:**
 ```typescript
-const handlePixSuccess = (orderId: string, paid: boolean) => {
-  try {
-    setShowPixScreen(false);
-    setPixOrderId(null);
-
-    if (paid) {
-      // Usa o supabase já importado no topo -- sem import() dinâmico
-      supabase.from("orders").update({ paid: true, status: "pending" }).eq("id", orderId);
+export async function sendToNativePrinter(text: string): Promise<boolean> {
+  // Tenta ate 3 vezes reconectar antes de desistir
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (!connectedDeviceId || !cachedServiceUuid || !cachedCharUuid) {
+      console.warn(`[NativeBT] Not connected, reconnect attempt ${attempt + 1}/3...`);
+      const reconnected = await reconnectNativeDevice();
+      if (!reconnected) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
     }
-
-    // Send WhatsApp...
-  } catch (err) {
-    console.error("[UnitPage] handlePixSuccess error:", err);
+    
+    try {
+      // ... enviar dados BLE ...
+      return true;
+    } catch (err) {
+      console.error(`[NativeBT] Print attempt ${attempt + 1} failed:`, err);
+      // Limpa estado para forcar reconexao na proxima tentativa
+      connectedDeviceId = null;
+      cachedServiceUuid = null;
+      cachedCharUuid = null;
+    }
   }
-  resetCheckout();
-};
+  return false;
+}
 ```
 
-**UnitPage.tsx -- handleSendWhatsApp com try/catch:**
+**nativeBluetooth.ts -- reconexao rapida usando UUIDs salvos:**
 ```typescript
-const handleSendWhatsApp = (overridePayment?: string, overrideOrderId?: string) => {
-  try {
-    // ... validação e lógica existente ...
-    window.open(url, "_blank", "noopener,noreferrer");
-  } catch (err) {
-    console.error("[UnitPage] WhatsApp error:", err);
-    // fallback: tenta abrir link diretamente
-    try { window.location.href = url; } catch {}
-  }
-};
-```
+export async function reconnectNativeDevice(): Promise<string | null> {
+  const storedId = localStorage.getItem(STORED_NATIVE_DEVICE_KEY);
+  const storedService = localStorage.getItem(STORED_NATIVE_SERVICE_KEY);
+  const storedChar = localStorage.getItem(STORED_NATIVE_CHAR_KEY);
+  if (!storedId) return null;
 
-**PixPaymentScreen.tsx -- clipboard com fallback:**
-```typescript
-const handleCopy = useCallback(() => {
-  if (!pixCopiaECola) return;
   try {
-    navigator.clipboard.writeText(pixCopiaECola).then(() => {
-      setCopied(true);
-      toast({ title: "Codigo PIX copiado!" });
-      setTimeout(() => setCopied(false), 3000);
-    }).catch(() => {
-      // Fallback para navegadores sem clipboard API
-      const ta = document.createElement("textarea");
-      ta.value = pixCopiaECola;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopied(true);
-      toast({ title: "Codigo PIX copiado!" });
-      setTimeout(() => setCopied(false), 3000);
+    await initNativeBle();
+    await BleClient.connect(storedId, (id) => {
+      console.log("[NativeBT] Disconnected:", id);
+      connectedDeviceId = null;
     });
-  } catch {
-    toast({ title: "Toque e segure o codigo para copiar", variant: "destructive" });
-  }
-}, [pixCopiaECola, toast]);
-```
 
-**ErrorBoundary.tsx (novo componente):**
-```typescript
-class ErrorBoundary extends React.Component {
-  state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error, info) { console.error("ErrorBoundary:", error, info); }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div> /* tela amigável com botão "Tentar novamente" */ </div>
-      );
+    // Fast path: usar UUIDs ja conhecidos sem re-descobrir
+    if (storedService && storedChar) {
+      connectedDeviceId = storedId;
+      cachedServiceUuid = storedService;
+      cachedCharUuid = storedChar;
+      return storedId;
     }
-    return this.props.children;
+
+    // Slow path: re-descobrir servicos
+    const ok = await connectNativeDevice(storedId);
+    return ok ? storedId : null;
+  } catch (err) {
+    console.error("[NativeBT] Reconnect failed:", err);
+    return null;
   }
 }
 ```
 
-**App.tsx -- listener global + Error Boundary:**
+**DashboardPage.tsx -- polling da fila como fallback nativo:**
 ```typescript
-// Dentro do App, antes das Routes:
+// Polling fila_impressao no APK como fallback
 useEffect(() => {
-  const handler = (e: PromiseRejectionEvent) => {
-    console.error("Unhandled rejection:", e.reason);
-    e.preventDefault();
-  };
-  window.addEventListener("unhandledrejection", handler);
-  return () => window.removeEventListener("unhandledrejection", handler);
-}, []);
+  if (!isNativePlatform() || !orgId) return;
+  
+  const interval = setInterval(async () => {
+    try {
+      const native = await import("@/lib/nativeBluetooth");
+      if (!native.isNativeConnected()) return;
+      
+      const { data } = await supabase
+        .from("fila_impressao")
+        .select("*")
+        .eq("organization_id", orgId)
+        .eq("status", "pendente")
+        .order("created_at", { ascending: true })
+        .limit(5);
+      
+      if (!data?.length) return;
+      
+      for (const job of data) {
+        const ok = await native.sendToNativePrinter(job.conteudo_txt);
+        if (ok) {
+          await supabase
+            .from("fila_impressao")
+            .update({ status: "impresso", printed_at: new Date().toISOString() })
+            .eq("id", job.id);
+        }
+      }
+    } catch (err) {
+      console.error("[APK] Queue poll error:", err);
+    }
+  }, 10000);
+  
+  return () => clearInterval(interval);
+}, [orgId]);
 ```
 
 ### Resultado esperado
 
-- Nenhum dispositivo vai mais mostrar tela branca -- erros sao capturados e mostram feedback amigavel
-- O fluxo de compra funciona em navegadores antigos (WebView do Instagram, Facebook, etc.)
-- Se algo falhar, o cliente ve um botao "Tentar novamente" em vez de tela branca
+- Impressao automatica funciona no APK mesmo apos desconexao BLE temporaria
+- Se a impressao direta falhar, o polling da fila pega o pedido em ate 10 segundos
+- Reconexao BLE nativa mais rapida usando UUIDs ja salvos
+- Logs detalhados para debug futuro
 
+### Apos a correcao
+
+Rodar no terminal:
+```
+cd trendfood
+git pull
+npm install
+npm run build
+npx cap sync
+npx cap open android
+```
+
+Gerar novo APK no Android Studio e testar.
