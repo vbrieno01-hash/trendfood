@@ -243,7 +243,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
           <Printer className="w-3.5 h-3.5 text-muted-foreground" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Configuração de Impressão</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Configuração de Impressão Desktop</p>
         </div>
         <div className="px-4 py-4 space-y-3">
           <div>
