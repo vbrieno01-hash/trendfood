@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import GrowthCharts from "@/components/admin/GrowthCharts";
 import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
+import AdminDownloadsSection from "@/components/admin/AdminDownloadsSection";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -625,7 +626,12 @@ function AdminContent() {
           )}
 
           {/* ── Config Tab ── */}
-          {activeTab === "config" && <PlatformConfigSection />}
+          {activeTab === "config" && (
+            <div className="space-y-6">
+              <PlatformConfigSection />
+              <AdminDownloadsSection />
+            </div>
+          )}
 
           {/* ── Features Tab ── */}
           {activeTab === "features" && (
