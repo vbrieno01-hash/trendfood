@@ -1,84 +1,65 @@
 
+## Correção: Impressão automática inconsistente entre contas
 
-## Correção: Impressão duplicada no APK
+### Diagnóstico
 
-### Causa raiz
+O problema é que na última correção de duplicação, fizemos o `usePlaceOrder` **pular a fila de impressão** (`fila_impressao`) no APK nativo. Isso criou uma dependência total no Realtime callback do DashboardPage para imprimir. Se o Realtime falhar, atrasar, ou o Bluetooth desconectar silenciosamente, **não há fallback** — o pedido simplesmente não imprime.
 
-Existem **dois caminhos de impressão** disparando para o mesmo pedido:
+A conta "Julia" funciona porque a conexão BLE está estável. A conta "Rei do Burguer" provavelmente perde a conexão BLE em algum momento, o Realtime tenta imprimir, falha silenciosamente, e como a fila está vazia (não enfileirou), o polling de 10s também não encontra nada. Resultado: tem que ficar na cozinha imprimindo manual.
 
-1. **`usePlaceOrder`** (useOrders.ts): Sempre chama `enqueuePrint()` ao criar um pedido, inserindo na tabela `fila_impressao`
-2. **Callback Realtime** (DashboardPage): Detecta o INSERT e chama `printOrderByMode()`, que imprime **diretamente via BLE nativo**
+### Solução: Sempre enfileirar + deduplicar no auto-print
 
-Depois, o **polling de 10s** no DashboardPage encontra o registro na `fila_impressao` (inserido pelo passo 1) e imprime **de novo**.
+Em vez de pular a fila no APK, vamos **sempre enfileirar** (reverter a última mudança) e fazer o **auto-print via Realtime marcar o job como impresso** quando tiver sucesso. Assim:
 
-Resultado: impressao direta + impressao da fila = duplicado.
+- Se o Realtime imprime com sucesso via BLE → marca o job na fila como "impresso" → polling não reimprime
+- Se o Realtime falha (BLE caiu) → job continua "pendente" na fila → polling de 10s imprime como fallback
 
-### Solucao
+### Mudanças técnicas
 
-Modificar `printOrderByMode` em `src/lib/printOrder.ts` para que, quando a impressao nativa BLE tiver sucesso, ele **nao caia no fallback** de `enqueuePrint`. Isso ja esta correto (tem `return` apos sucesso).
+#### 1. `src/hooks/useOrders.ts` — Reverter skip do enqueue
 
-O problema real e que o `usePlaceOrder` **sempre** enfileira, independente do auto-print. Precisamos de uma das duas abordagens:
-
-**Abordagem escolhida: Nao enfileirar quando estiver em plataforma nativa com auto-print ativo**
-
-#### 1. `src/hooks/useOrders.ts` -- Condicionar o enqueue
-
-Adicionar um parametro opcional `skipQueue` ao `usePlaceOrder`. Quando o DashboardPage sabe que vai auto-imprimir via Realtime, passa `skipQueue: true` para evitar a insercao duplicada na fila.
-
-Alternativa mais simples: verificar se estamos em plataforma nativa antes de enfileirar. Se sim, pular o enqueue porque o Realtime vai cuidar da impressao direta.
+Remover a verificação de `Capacitor.isNativePlatform()` e voltar a **sempre enfileirar**. Isso garante que a `fila_impressao` sempre tenha o job como rede de segurança.
 
 ```typescript
-// Em usePlaceOrder, apos criar o pedido:
-const isNative = (() => {
-  try {
-    const { Capacitor } = require("@capacitor/core");
-    return Capacitor.isNativePlatform();
-  } catch { return false; }
-})();
-
-// So enfileira se NAO for nativo (no nativo, o Realtime imprime direto)
-if (!isNative) {
-  const text = stripFormatMarkers(formatReceiptText(printableOrder));
-  await enqueuePrint(organizationId, order.id, text);
-}
-```
-
-#### 2. `src/lib/printOrder.ts` -- Nao enfileirar apos sucesso nativo (seguranca)
-
-O codigo atual ja faz `return` apos sucesso nativo, entao nao precisa de mudanca aqui. Mas como seguranca extra, garantir que o bloco de fallback `enqueuePrint` no final do modo bluetooth so rode se NAO estivermos em plataforma nativa com sucesso.
-
-### Detalhes tecnicos
-
-**useOrders.ts** -- Dentro do `mutationFn` do `usePlaceOrder`, envolver o bloco de `enqueuePrint` (linhas 195-213) com uma verificacao de plataforma nativa:
-
-```typescript
-// Antes: sempre enfileira
-// Depois: so enfileira se nao for nativo
+// ANTES (atual - problemático):
 let skipQueue = false;
 try {
   const { Capacitor } = await import("@capacitor/core");
   skipQueue = Capacitor.isNativePlatform();
 } catch {}
+if (!skipQueue) { ... enqueuePrint ... }
 
-if (!skipQueue) {
-  try {
-    const printableOrder = { ... };
-    const text = stripFormatMarkers(formatReceiptText(printableOrder));
-    await enqueuePrint(organizationId, order.id, text);
-  } catch (err) {
-    console.error("Falha ao enfileirar impressão:", err);
-  }
+// DEPOIS (corrigido):
+// Sempre enfileira, independente da plataforma
+try {
+  const printableOrder = { ... };
+  const text = stripFormatMarkers(formatReceiptText(printableOrder));
+  await enqueuePrint(organizationId, order.id, text);
+} catch (err) {
+  console.error("Falha ao enfileirar impressão:", err);
 }
 ```
 
-Isso garante que:
-- **No APK**: o Realtime imprime direto via BLE, sem nada na fila = sem duplicado
-- **Na web**: o `enqueuePrint` continua funcionando normalmente para o robo desktop
-- **Se o Realtime falhar no APK**: o polling nao vai encontrar nada na fila, mas o usuario pode reimprimir manualmente
+#### 2. `src/pages/DashboardPage.tsx` — Auto-print marca job como impresso
+
+No callback Realtime de auto-print (dentro do `printQueue.push`), após imprimir com sucesso via BLE, buscar e marcar o job correspondente na `fila_impressao` como "impresso". Isso evita que o polling de 10s reimprima.
+
+```typescript
+// Após printOrderByMode com sucesso:
+try {
+  await supabase
+    .from("fila_impressao")
+    .update({ status: "impresso", printed_at: new Date().toISOString() })
+    .eq("order_id", order.id)
+    .eq("organization_id", orgId)
+    .eq("status", "pendente");
+} catch {}
+```
 
 ### Resultado esperado
 
-- Apenas UMA impressao por pedido no APK
-- Comportamento web inalterado (fila desktop continua funcionando)
-- Nenhuma mudanca na edge function printer-queue
-
+- **Todas as contas**: impressão automática funciona de forma confiável
+- **BLE estável**: Realtime imprime + marca fila = sem duplicado
+- **BLE instável**: Realtime falha + polling de 10s pega da fila = fallback automático
+- **Web (browser)**: continua igual — sempre enfileira para o robô desktop
+- Nenhum cliente precisa mexer em configuração
