@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import UnitPage from "./pages/UnitPage";
-import DashboardPage from "./pages/DashboardPage";
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 import KitchenPage from "./pages/KitchenPage";
 import WaiterPage from "./pages/WaiterPage";
 import TableOrderPage from "./pages/TableOrderPage";
@@ -93,7 +93,11 @@ const AppInner = () => {
               <Route path="/unidade/:slug/mesa/:tableNumber" element={<TableOrderPage />} />
               <Route path="/cozinha" element={<KitchenPage />} />
               <Route path="/garcom" element={<WaiterPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard" element={
+                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+                  <DashboardPage />
+                </Suspense>
+              } />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/planos" element={<PricingPage />} />
               <Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />

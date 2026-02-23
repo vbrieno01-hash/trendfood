@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import OrgSwitcher from "@/components/dashboard/OrgSwitcher";
@@ -46,6 +47,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer";
 
 const DashboardPage = () => {
+  console.log("[Dashboard] Mount");
   const navigate = useNavigate();
   const location = useLocation();
   const { user, organization, organizations, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization, switchOrganization } = useAuth();
@@ -69,8 +71,21 @@ const DashboardPage = () => {
   const [btReconnectFailed, setBtReconnectFailed] = useState(false);
   const btSupported = (() => { try { return isBluetoothSupported(); } catch { return false; } })();
 
-  // Push notifications (native only)
-  usePushNotifications(organization?.id, user?.id);
+  // ── isReady: delays heavy operations 500ms after auth is fully resolved ──
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (loading || !user || !organization) return;
+    console.log("[Dashboard] Auth loaded, user:", !!user, "org:", !!organization);
+    const timer = setTimeout(() => {
+      setIsReady(true);
+      console.log("[Dashboard] isReady activated");
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [loading, user, organization]);
+
+  // Push notifications (native only) — guarded by isReady
+  usePushNotifications(isReady ? organization?.id : undefined, isReady ? user?.id : undefined);
 
   // ── Global auto-print + notifications (always mounted) ──
   const AUTO_PRINT_KEY = "kds_auto_print";
@@ -164,7 +179,8 @@ const DashboardPage = () => {
 
   // Realtime: listen for new orders globally — print directly in callback
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId || !isReady) return;
+    console.log("[Dashboard] Realtime channel created for org:", orgId);
     const channel = supabase
       .channel(`dashboard-autoprint-${orgId}`)
       .on(
@@ -278,14 +294,14 @@ const DashboardPage = () => {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc]);
+  }, [orgId, qc, isReady]);
 
   // (Auto-print useEffect removed — printing now happens directly in Realtime callback above)
 
   // Mark existing orders as known when first loaded
   // ── Polling fila_impressao no APK como fallback ──
   useEffect(() => {
-    if (!isNativePlatform() || !orgId) return;
+    if (!isNativePlatform() || !orgId || !isReady) return;
 
     const interval = setInterval(async () => {
       try {
@@ -324,7 +340,7 @@ const DashboardPage = () => {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [orgId]);
+  }, [orgId, isReady]);
 
   useEffect(() => {
     dashOrders.forEach((o) => {
@@ -433,7 +449,7 @@ const DashboardPage = () => {
   // Auto-reconnect to previously paired Bluetooth printer on mount/reload
   const btReconnectAttempted = useRef(false);
   useEffect(() => {
-    if (loading || !user) return; // guard: wait for auth
+    if (loading || !user || !isReady) return; // guard: wait for auth + isReady
     if (btDevice) return; // already connected
     let supported = false;
     try { supported = isBluetoothSupported(); } catch { /* */ }
@@ -478,7 +494,7 @@ const DashboardPage = () => {
         console.warn("[BT] Auto-reconnect failed on mount:", err);
         if (getStoredDeviceId()) setBtReconnectFailed(true);
       });
-  }, [loading, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, user, isReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   useEffect(() => {
@@ -510,8 +526,12 @@ const DashboardPage = () => {
         if (session) {
           supabase.functions.invoke("check-subscription", {
             headers: { Authorization: `Bearer ${session.access_token}` },
-          }).then(() => refreshOrganization());
+          }).then(() => refreshOrganization()).catch((err) => {
+            console.warn("[Dashboard] check-subscription failed:", err);
+          });
         }
+      }).catch((err) => {
+        console.warn("[Dashboard] getSession failed:", err);
       });
       navigate("/dashboard", { replace: true });
     }
@@ -885,6 +905,7 @@ const DashboardPage = () => {
             </div>
           )}
 
+          <ErrorBoundary>
           {activeTab === "home" && <HomeTab organization={organization} />}
           {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
@@ -913,6 +934,7 @@ const DashboardPage = () => {
           {activeTab === "printer" && <PrinterTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
+          </ErrorBoundary>
         </main>
 
         {/* Fixed status bar */}
