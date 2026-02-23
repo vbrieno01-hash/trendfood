@@ -1,79 +1,103 @@
 
-# Corrigir links de download APK/EXE no mobile
 
-## Problema
+# Busca dinâmica de downloads APK e EXE via API do GitHub
 
-Os links de download do APK e EXE usam o atributo `download` em tags `<a>` apontando para GitHub. Esse atributo e ignorado por navegadores em links cross-origin (dominio diferente), entao:
+## O que muda para voce
 
-1. No mobile, o link abre a pagina do GitHub em vez de baixar o arquivo
-2. Se a release nao existe no GitHub, mostra pagina 404
+- Pode criar releases separadas: uma so com o APK, outra so com o EXE
+- Ou colocar os dois na mesma release
+- O dashboard encontra automaticamente o arquivo certo, nao importa em qual release ele esta
+- Se o arquivo nao existir em nenhuma release, mostra um aviso em vez de abrir pagina 404
 
-## Solucao
+## Como funciona
 
-Duas mudancas no arquivo `src/components/dashboard/PrinterTab.tsx`:
+Quando o usuario clica no botao de download, o sistema:
 
-### 1. Corrigir os atributos dos links
-
-- Remover o atributo `download` (nao funciona cross-origin)
-- Adicionar `target="_blank"` e `rel="noopener noreferrer"` para abrir em nova aba
-- Isso garante que o GitHub processe o download corretamente no mobile
-
-### 2. Adicionar fallback com verificacao
-
-Criar uma funcao `handleDownload` que:
-- Faz um `fetch` HEAD para verificar se a URL existe (status 200)
-- Se existir, abre o link normalmente em nova aba
-- Se retornar 404 ou erro, mostra um toast informando que o arquivo ainda nao esta disponivel, com instrucao para entrar em contato
-
-Isso evita que o usuario veja a pagina 404 do GitHub.
+1. Consulta a API do GitHub para listar todas as releases do repositorio
+2. Percorre cada release procurando o arquivo especifico (`trendfood.apk` ou `trendfood.exe`)
+3. Ao encontrar, abre o link de download
+4. Se nao encontrar em nenhuma release, mostra mensagem de erro
 
 ## Secao Tecnica
 
 ### Arquivo: `src/components/dashboard/PrinterTab.tsx`
 
-1. **Criar funcao `handleDownload`** no componente:
+1. **Adicionar estado de loading** para cada botao de download:
 
 ```typescript
-const handleDownload = async (url: string, label: string) => {
+const [apkLoading, setApkLoading] = useState(false);
+const [exeLoading, setExeLoading] = useState(false);
+```
+
+2. **Criar funcao `findAssetUrl`** que busca o arquivo em todas as releases:
+
+```typescript
+const findAssetUrl = async (filename: string): Promise<string | null> => {
+  const res = await fetch(
+    "https://api.github.com/repos/vbrieno01-hash/trendfood/releases",
+    { headers: { Accept: "application/vnd.github.v3+json" } }
+  );
+  if (!res.ok) return null;
+  const releases = await res.json();
+  for (const release of releases) {
+    const asset = release.assets?.find((a: any) => a.name === filename);
+    if (asset) return asset.browser_download_url;
+  }
+  return null;
+};
+```
+
+3. **Criar funcao `handleDownload`** com loading e tratamento de erro:
+
+```typescript
+const handleDownload = async (filename: string, setLoading: (v: boolean) => void) => {
+  setLoading(true);
   try {
-    const res = await fetch(url, { method: "HEAD", mode: "no-cors" });
-    window.open(url, "_blank", "noopener,noreferrer");
+    const url = await findAssetUrl(filename);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else {
+      toast.error(`Arquivo "${filename}" nao encontrado em nenhuma release.`);
+    }
   } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
+    toast.error("Erro ao buscar download. Tente novamente.");
+  } finally {
+    setLoading(false);
   }
 };
 ```
 
-Nota: como GitHub nao permite CORS em HEAD requests, a melhor abordagem e simplesmente abrir em nova aba sem o atributo `download`.
-
-2. **Link do APK (linha ~226-236)**: Trocar de `asChild` + `<a download>` para um `Button` com `onClick` que abre `window.open(url, "_blank")`:
+4. **Atualizar botao do APK** (substituir o `window.open` atual):
 
 ```tsx
 <Button
   variant="outline"
   size="sm"
   className="h-9 gap-2"
-  onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.apk", "_blank", "noopener,noreferrer")}
+  disabled={apkLoading}
+  onClick={() => handleDownload("trendfood.apk", setApkLoading)}
 >
-  <Download className="w-4 h-4" />
-  Baixar TrendFood.apk
+  {apkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+  {apkLoading ? "Buscando..." : "Baixar TrendFood.apk"}
 </Button>
 ```
 
-3. **Link do EXE (linha ~368-378)**: Mesma mudanca:
+5. **Atualizar botao do EXE** (mesma mudanca):
 
 ```tsx
 <Button
   variant="outline"
   size="sm"
   className="h-9 gap-2"
-  onClick={() => window.open("https://github.com/vbrieno01-hash/trendfood/releases/latest/download/trendfood.exe", "_blank", "noopener,noreferrer")}
+  disabled={exeLoading}
+  onClick={() => handleDownload("trendfood.exe", setExeLoading)}
 >
-  <Download className="w-4 h-4" />
-  Baixar trendfood.exe
+  {exeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+  {exeLoading ? "Buscando..." : "Baixar trendfood.exe"}
 </Button>
 ```
 
-## Importante
+### Nota sobre rate limit
 
-Para que os links funcionem, voce precisa ter criado pelo menos uma Release no GitHub com os arquivos `trendfood.apk` e `trendfood.exe` anexados. Sem a release, o link sempre retornara 404 independente do codigo.
+A API publica do GitHub permite 60 requisicoes por hora sem autenticacao. Como so e chamada quando o usuario clica no botao, e mais que suficiente.
+
