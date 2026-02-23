@@ -1,65 +1,44 @@
 
-# Simplificar distribuicao do APK e EXE
 
-## Problema atual
+# Upload global de APK/EXE pelo painel Admin
 
-Os downloads do APK e EXE dependem da API do GitHub Releases, que exige:
-- Manter um repositorio GitHub publico com releases
-- Fazer build do APK manualmente (processo complicado com JDK, Gradle, etc.)
-- A API do GitHub pode falhar ou ter rate limit
+## O que muda
 
-## Solucao proposta: Upload direto pelo dashboard
+Atualmente o upload de APK e EXE esta na aba "Impressora" do dashboard de cada loja, salvo por organizacao. Vamos transformar isso em uma configuracao **global da plataforma**, gerenciada exclusivamente pelo admin.
 
-Permitir que voce faca upload dos arquivos APK e EXE diretamente pelo painel do TrendFood, sem depender do GitHub. Os arquivos ficam armazenados no backend (storage) e os clientes baixam por um link direto.
+## Como vai funcionar
 
-### Como vai funcionar
-
-1. Na aba "Impressora", a secao de Downloads vai ter um botao "Enviar arquivo" para cada tipo (APK e EXE)
-2. Voce seleciona o arquivo do seu computador e ele e enviado para o storage do backend
-3. O link de download e gerado automaticamente e fica disponivel para os clientes
-4. Pode atualizar o arquivo a qualquer momento, enviando uma nova versao
-
-### Beneficios
-
-- Sem depender do GitHub, sem build complicado
-- Upload simples direto do navegador
-- Pode usar APKs gerados por qualquer metodo (Android Studio, servico online, etc.)
-- Links de download sempre funcionam
+1. O admin faz upload do APK e EXE na aba **Configuracoes** do painel `/admin`
+2. Os arquivos ficam salvos no storage em um caminho global (ex: `global/trendfood.apk`)
+3. As URLs sao salvas na tabela `platform_config` (que ja existe como singleton)
+4. Na aba Impressora do dashboard das lojas, os botoes de download apontam para esses arquivos globais (somente download, sem upload)
 
 ## Detalhes tecnicos
 
-### 1. Criar bucket de storage "downloads"
+### 1. Adicionar colunas `apk_url` e `exe_url` na tabela `platform_config`
+- Duas colunas text nullable
+- A tabela ja tem RLS de update restrita ao admin
 
-- Bucket publico para permitir downloads sem autenticacao
-- Politica de upload restrita ao dono da organizacao
+### 2. Atualizar storage policy do bucket `downloads`
+- Adicionar politica de upload para o caminho `global/` restrita a admins (usando `has_role`)
+- Manter as politicas existentes por organizacao
 
-### 2. Adicionar colunas na tabela `organizations`
+### 3. Criar componente `AdminDownloadsSection`
+- Componente com upload de APK e EXE, similar ao que ja existe no PrinterTab
+- Upload salva em `downloads/global/trendfood.apk` e `downloads/global/trendfood.exe`
+- Atualiza `platform_config` com as URLs publicas
+- Renderizado dentro da aba "Configuracoes" do AdminPage
 
-- `apk_url` (text, nullable) - URL do APK armazenado
-- `exe_url` (text, nullable) - URL do EXE armazenado
+### 4. Atualizar `PrinterTab.tsx`
+- Remover a logica de upload (botoes "Enviar APK/EXE")
+- Buscar as URLs globais da `platform_config` em vez de `organization.apk_url`
+- Manter apenas os botoes de download
 
-### 3. Atualizar `PrinterTab.tsx`
+### 5. Limpar colunas `apk_url` e `exe_url` da tabela `organizations`
+- Remover essas colunas ja que agora sao globais (opcional, pode manter sem uso)
 
-- Remover toda a logica de busca via GitHub API (`findAssetUrl`)
-- Adicionar componente de upload de arquivo para APK e EXE
-- Botao de download aponta direto para a URL salva no banco
-- Manter a mesma interface visual, apenas trocando o mecanismo
-
-### 4. Criar pagina publica de download (opcional)
-
-- Rota `/download` acessivel sem login
-- Mostra botoes de download do APK e EXE da organizacao
-- Link compartilhavel para enviar aos clientes
-
-### Fluxo simplificado
-
-```text
-Voce (admin)                     Cliente
-    |                                |
-    |-- Upload APK pelo painel -->   |
-    |                                |
-    |   [Arquivo salvo no storage]   |
-    |                                |
-    |-- Compartilha link ----------> |
-    |                                |-- Clica e baixa o APK
-```
+### Arquivos afetados
+- `supabase/migrations/` - nova migration (colunas + storage policy)
+- `src/components/admin/AdminDownloadsSection.tsx` - novo componente
+- `src/pages/AdminPage.tsx` - importar e renderizar na aba config
+- `src/components/dashboard/PrinterTab.tsx` - trocar upload por download global
