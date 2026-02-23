@@ -106,9 +106,21 @@ export default function KitchenPage() {
       const device = await requestBluetoothPrinter();
       if (device) setBtDevice(device);
     } catch (err: any) {
-      if (err?.message?.includes("globally disabled")) {
+      console.error("[BT] Pair error:", err);
+      const msg = err?.message || "";
+      if (msg.includes("globally disabled")) {
         toast.error("Bluetooth bloqueado neste navegador", {
           description: "Abra a URL publicada diretamente no Google Chrome.",
+        });
+      } else if (msg.includes("denied") || msg.includes("permission")) {
+        toast.error("Permissão negada", {
+          description: "Ative Bluetooth e Localização nas configurações do app.",
+          duration: 8000,
+        });
+      } else {
+        toast.error("Erro ao buscar impressora", {
+          description: "Verifique se Bluetooth e GPS estão ligados.",
+          duration: 8000,
         });
       }
     }

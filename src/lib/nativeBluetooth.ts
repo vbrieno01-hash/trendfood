@@ -4,7 +4,7 @@
  * Falls back gracefully — this module is only imported when Capacitor.isNativePlatform() is true.
  */
 
-import { BleClient } from "@capacitor-community/bluetooth-le";
+import { BleClient, ScanMode } from "@capacitor-community/bluetooth-le";
 
 const STORED_NATIVE_DEVICE_KEY = "bt_native_device_id";
 const STORED_NATIVE_SERVICE_KEY = "bt_native_service_uuid";
@@ -29,7 +29,7 @@ let cachedCharUuid: string | null = null;
 
 export async function initNativeBle(): Promise<void> {
   if (initialized) return;
-  await BleClient.initialize({ androidNeverForLocation: true });
+  await BleClient.initialize();
   initialized = true;
   console.log("[NativeBT] BleClient initialized");
 }
@@ -39,6 +39,7 @@ export async function scanAndConnectNative(): Promise<string | null> {
 
   const device = await BleClient.requestDevice({
     optionalServices: ALT_SERVICE_UUIDS,
+    scanMode: ScanMode.SCAN_MODE_LOW_LATENCY,
   });
 
   if (!device) {
