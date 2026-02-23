@@ -625,20 +625,26 @@ export type Database = {
       }
       platform_config: {
         Row: {
+          apk_url: string | null
           created_at: string
           delivery_config: Json
+          exe_url: string | null
           id: string
           updated_at: string
         }
         Insert: {
+          apk_url?: string | null
           created_at?: string
           delivery_config?: Json
+          exe_url?: string | null
           id?: string
           updated_at?: string
         }
         Update: {
+          apk_url?: string | null
           created_at?: string
           delivery_config?: Json
+          exe_url?: string | null
           id?: string
           updated_at?: string
         }

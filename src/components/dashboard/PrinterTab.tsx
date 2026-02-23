@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { enqueuePrint } from "@/lib/printQueue";
@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone, Monitor, Upload } from "lucide-react";
+import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
 
@@ -39,52 +39,23 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   const [testPrintLoading, setTestPrintLoading] = useState(false);
   const [bgPrinting, setBgPrinting] = useState(false);
   const [bgLoading, setBgLoading] = useState(false);
-  const [apkLoading, setApkLoading] = useState(false);
-  const [exeLoading, setExeLoading] = useState(false);
-  const [apkUrl, setApkUrl] = useState<string | null>((organization as any)?.apk_url || null);
-  const [exeUrl, setExeUrl] = useState<string | null>((organization as any)?.exe_url || null);
-  const apkInputRef = useRef<HTMLInputElement>(null);
-  const exeInputRef = useRef<HTMLInputElement>(null);
+  const [globalApkUrl, setGlobalApkUrl] = useState<string | null>(null);
+  const [globalExeUrl, setGlobalExeUrl] = useState<string | null>(null);
 
-  const handleUpload = async (
-    file: File,
-    type: "apk" | "exe",
-    setLoading: (v: boolean) => void,
-    setUrl: (url: string | null) => void
-  ) => {
-    if (!organization?.id) return;
-    setLoading(true);
-    try {
-      const ext = type === "apk" ? ".apk" : ".exe";
-      const path = `${organization.id}/trendfood${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("downloads")
-        .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("downloads")
-        .getPublicUrl(path);
-
-      const publicUrl = urlData.publicUrl;
-
-      const col = type === "apk" ? "apk_url" : "exe_url";
-      const { error: dbError } = await supabase
-        .from("organizations")
-        .update({ [col]: publicUrl } as any)
-        .eq("id", organization.id);
-      if (dbError) throw dbError;
-
-      setUrl(publicUrl);
-      toast.success(`${type.toUpperCase()} enviado com sucesso!`);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(`Erro ao enviar ${type.toUpperCase()}: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch global download URLs from platform_config
+  useEffect(() => {
+    supabase
+      .from("platform_config")
+      .select("apk_url, exe_url")
+      .eq("id", "singleton")
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setGlobalApkUrl((data as any).apk_url || null);
+          setGlobalExeUrl((data as any).exe_url || null);
+        }
+      });
+  }, []);
 
   // Check background service status on mount (native only)
   useEffect(() => {
@@ -352,106 +323,56 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       </div>
 
       {/* Downloads */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
-          <Download className="w-3.5 h-3.5 text-muted-foreground" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Downloads</p>
-        </div>
-        <div className="px-4 py-4 grid gap-3 sm:grid-cols-2">
-          {/* APK */}
-          <div className="rounded-lg border border-border p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">App Android</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Instale o app para imprimir pedidos via Bluetooth no celular.
-            </p>
-            <input
-              type="file"
-              accept=".apk"
-              className="hidden"
-              ref={apkInputRef}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleUpload(f, "apk", setApkLoading, setApkUrl);
-                e.target.value = "";
-              }}
-            />
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-2 flex-1"
-                disabled={apkLoading}
-                onClick={() => apkInputRef.current?.click()}
-              >
-                {apkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {apkLoading ? "Enviando..." : "Enviar APK"}
-              </Button>
-              {apkUrl && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-9 gap-2"
-                  onClick={() => window.open(apkUrl, "_blank", "noopener,noreferrer")}
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-            {apkUrl && (
-              <p className="text-xs text-green-600">✓ APK disponível para download</p>
-            )}
+      {(globalApkUrl || globalExeUrl) && (
+        <div className="rounded-xl border border-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+            <Download className="w-3.5 h-3.5 text-muted-foreground" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Downloads</p>
           </div>
-          {/* EXE */}
-          <div className="rounded-lg border border-border p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <Monitor className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Programa Desktop</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Baixe e abra o programa, digite o ID da loja para impressão automática.
-            </p>
-            <input
-              type="file"
-              accept=".exe"
-              className="hidden"
-              ref={exeInputRef}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleUpload(f, "exe", setExeLoading, setExeUrl);
-                e.target.value = "";
-              }}
-            />
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-2 flex-1"
-                disabled={exeLoading}
-                onClick={() => exeInputRef.current?.click()}
-              >
-                {exeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {exeLoading ? "Enviando..." : "Enviar EXE"}
-              </Button>
-              {exeUrl && (
+          <div className="px-4 py-4 grid gap-3 sm:grid-cols-2">
+            {globalApkUrl && (
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">App Android</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Instale o app para imprimir pedidos via Bluetooth no celular.
+                </p>
                 <Button
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
-                  className="h-9 gap-2"
-                  onClick={() => window.open(exeUrl, "_blank", "noopener,noreferrer")}
+                  className="h-9 gap-2 w-full"
+                  onClick={() => window.open(globalApkUrl, "_blank", "noopener,noreferrer")}
                 >
                   <Download className="w-4 h-4" />
+                  Baixar APK
                 </Button>
-              )}
-            </div>
-            {exeUrl && (
-              <p className="text-xs text-green-600">✓ EXE disponível para download</p>
+              </div>
+            )}
+            {globalExeUrl && (
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Monitor className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Programa Desktop</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Baixe e abra o programa, digite o ID da loja para impressão automática.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-2 w-full"
+                  onClick={() => window.open(globalExeUrl, "_blank", "noopener,noreferrer")}
+                >
+                  <Download className="w-4 h-4" />
+                  Baixar EXE
+                </Button>
+              </div>
             )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Print setup */}
       <div className="rounded-xl border border-border overflow-hidden">
