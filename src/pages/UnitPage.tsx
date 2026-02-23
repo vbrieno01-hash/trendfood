@@ -63,6 +63,7 @@ const UnitPage = () => {
   const [payment, setPayment] = useState("");
   const [notes, setNotes] = useState("");
   const [nameError, setNameError] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
   const [paymentError, setPaymentError] = useState(false);
   const [addressError, setAddressError] = useState(false);
   const [showPixScreen, setShowPixScreen] = useState(false);
@@ -268,6 +269,7 @@ const UnitPage = () => {
     let valid = true;
     if (!orderType) { setOrderTypeError(true); valid = false; } else setOrderTypeError(false);
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
+    if (!buyerPhone.trim()) { setPhoneError(true); valid = false; } else setPhoneError(false);
     if (!effectivePayment) { setPaymentError(true); valid = false; } else setPaymentError(false);
     if (orderType === "Entrega") {
       if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
@@ -472,6 +474,7 @@ const UnitPage = () => {
     setOrderType("");
     setBuyerName("");
     setBuyerPhone("");
+    setPhoneError(false);
     setBuyerDoc("");
     setCustomerAddress(emptyAddress);
     setPayment("");
@@ -909,16 +912,18 @@ const UnitPage = () => {
 
               <div>
                 <Label htmlFor="buyer-phone" className="text-xs font-medium mb-1 block">
-                  Telefone <span className="text-muted-foreground font-normal">(opcional)</span>
+                  Telefone <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="buyer-phone"
                   placeholder="(11) 99999-0000"
                   value={buyerPhone}
-                  onChange={(e) => setBuyerPhone(e.target.value)}
+                  onChange={(e) => { setBuyerPhone(e.target.value); setPhoneError(false); }}
                   inputMode="tel"
                   maxLength={20}
+                  className={phoneError ? "border-destructive" : ""}
                 />
+                {phoneError && <p className="text-destructive text-xs mt-1">Telefone é obrigatório</p>}
               </div>
 
               <div>
