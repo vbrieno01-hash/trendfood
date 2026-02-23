@@ -138,7 +138,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
           setTimeout(async () => {
             if (isMounted.current) {
-              await fetchOrganization(userId);
+              try {
+                await fetchOrganization(userId);
+              } catch (err) {
+                console.error("[useAuth] fetchOrganization failed:", err);
+              }
               if (isMounted.current) setLoading(false);
             }
           }, 0);
@@ -162,6 +166,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setLoading(false);
       }
+    }).catch((err) => {
+      console.error("[useAuth] getSession failed:", err);
+      if (isMounted.current) setLoading(false);
     });
 
     const safetyTimeout = setTimeout(() => {
