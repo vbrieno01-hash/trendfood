@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone } from "lucide-react";
+import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
 
@@ -41,6 +41,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   const [bgLoading, setBgLoading] = useState(false);
   const [apkLoading, setApkLoading] = useState(false);
   const [exeLoading, setExeLoading] = useState(false);
+  
 
   const findAssetUrl = async (filename: string): Promise<string | null> => {
     const res = await fetch(
@@ -257,19 +258,6 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   </div>
                 </div>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-2"
-                disabled={apkLoading}
-                onClick={() => handleDownload("trendfood.apk", setApkLoading)}
-              >
-                {apkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {apkLoading ? "Buscando..." : "Baixar TrendFood.apk"}
-              </Button>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Baixe e instale o app Android para imprimir via Bluetooth.
-              </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -352,6 +340,56 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
         </div>
       </div>
 
+      {/* Downloads */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Download className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Downloads</p>
+        </div>
+        <div className="px-4 py-4 grid gap-3 sm:grid-cols-2">
+          {/* APK */}
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">App Android</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Instale o app para imprimir pedidos via Bluetooth no celular.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2 w-full"
+              disabled={apkLoading}
+              onClick={() => handleDownload("trendfood.apk", setApkLoading)}
+            >
+              {apkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {apkLoading ? "Buscando..." : "Baixar TrendFood.apk"}
+            </Button>
+          </div>
+          {/* EXE */}
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Monitor className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Programa Desktop</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Baixe e abra o programa, digite o ID da loja para impressão automática.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2 w-full"
+              disabled={exeLoading}
+              onClick={() => handleDownload("trendfood.exe", setExeLoading)}
+            >
+              {exeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {exeLoading ? "Buscando..." : "Baixar trendfood.exe"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Print setup */}
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
@@ -398,19 +436,6 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
           >
             {testPrintLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Printer className="w-4 h-4" /> Testar Impressora</>}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 gap-2"
-            disabled={exeLoading}
-            onClick={() => handleDownload("trendfood.exe", setExeLoading)}
-          >
-            {exeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {exeLoading ? "Buscando..." : "Baixar trendfood.exe"}
-          </Button>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Baixe o programa, abra-o e digite o ID acima para ativar a impressão automática.
-          </p>
         </div>
       </div>
 
