@@ -1,74 +1,109 @@
 
 
-## Correção: Bluetooth e Notificações no APK Nativo
+## Correção: Bluetooth não encontra dispositivos + Notificações no APK
 
-### Problema 1: Bluetooth fica "procurando" sem conectar
-Quando o app roda como APK (Capacitor), a funcao `requestBluetoothPrinter()` usa o plugin nativo e ja conecta a impressora internamente. Porem, o `handlePairBluetooth` no `DashboardPage` tenta chamar `connectToDevice(device)` no objeto retornado -- que e um objeto fake sem metodo `.gatt.connect()` real. Isso causa erro silencioso e a impressora nunca aparece como "conectada".
+### Problema identificado
 
-**Solucao**: Detectar plataforma nativa no `handlePairBluetooth` e pular a etapa `connectToDevice`, ja que a conexao nativa ja foi feita.
+A tela "Procurando impressora..." aparece mas nunca lista dispositivos. Isso acontece porque:
 
-### Problema 2: Notificacoes nao funcionam
-A API `Notification.requestPermission()` do navegador nao funciona corretamente dentro do WebView do Capacitor. O dialogo de permissao nunca aparece.
+1. **`androidNeverForLocation: true`** no `BleClient.initialize()` -- em muitos celulares Android (especialmente versão 11 e anteriores), o scanner BLE **precisa** da permissão de localização/GPS ativo para funcionar. Com essa flag ativada, o plugin pula esse pedido e o scanner não encontra nada.
 
-**Solucao**: Usar o plugin `@capacitor/local-notifications` para disparar notificacoes nativas no Android. Quando detectar plataforma nativa, usar o plugin ao inves da API web.
+2. **`requestDevice` sem `scanMode`** -- o plugin usa scan passivo por padrão, que pode ser muito lento para encontrar impressoras térmicas.
 
----
+3. **Falta de tratamento de erro claro** -- quando o scanner falha silenciosamente, o usuário não recebe orientação.
 
-### Arquivos a modificar
-
-#### 1. `src/pages/DashboardPage.tsx`
-- Na funcao `handlePairBluetooth`: adicionar check `isNativePlatform()`. Se nativo, pular `connectToDevice()` e marcar como conectado direto apos `requestBluetoothPrinter()` retornar com sucesso.
-- Na logica de notificacoes: usar `LocalNotifications` do Capacitor quando em plataforma nativa.
-
-#### 2. `src/components/dashboard/KitchenTab.tsx`
-- Na funcao `handleToggleNotifications`: usar `LocalNotifications.requestPermissions()` quando nativo ao inves de `Notification.requestPermission()`.
-
-#### 3. Instalar dependencia
-- Adicionar `@capacitor/local-notifications` ao projeto.
+4. **Notificações** -- o código foi atualizado corretamente, mas falta a configuração do plugin `LocalNotifications` no `capacitor.config.ts`.
 
 ---
 
-### Detalhes tecnicos
+### Correções planejadas
 
-**Bluetooth fix no `handlePairBluetooth`:**
+#### 1. `src/lib/nativeBluetooth.ts`
+- Remover `androidNeverForLocation: true` do `BleClient.initialize()` para que o Android peça permissão de localização quando necessário
+- Adicionar `scanMode: ScanMode.SCAN_MODE_LOW_LATENCY` no `requestDevice` para encontrar dispositivos mais rápido
+- Adicionar tratamento de erro com mensagens claras (GPS desligado, permissão negada)
+
+#### 2. `src/pages/DashboardPage.tsx`
+- Melhorar o `catch` do `handlePairBluetooth` nativo com mensagens específicas para cada tipo de erro (permissão, GPS, etc.)
+
+#### 3. `capacitor.config.ts`
+- Adicionar configuração do `LocalNotifications` no bloco de plugins
+
+---
+
+### Detalhes técnicos
+
+**nativeBluetooth.ts -- inicialização corrigida:**
 ```typescript
-const device = await requestBluetoothPrinter();
-if (device) {
-  setBtDevice(device);
-  if (isNativePlatform()) {
-    // Native BLE ja conectou internamente
-    setBtConnected(true);
-    setBtReconnectFailed(false);
-    toast.success(`Impressora conectada!`);
+export async function initNativeBle(): Promise<void> {
+  if (initialized) return;
+  // Sem androidNeverForLocation para garantir compatibilidade com todos os Androids
+  await BleClient.initialize();
+  initialized = true;
+}
+```
+
+**nativeBluetooth.ts -- scan mais rápido:**
+```typescript
+import { BleClient, ScanMode } from "@capacitor-community/bluetooth-le";
+
+const device = await BleClient.requestDevice({
+  optionalServices: ALT_SERVICE_UUIDS,
+  scanMode: ScanMode.SCAN_MODE_LOW_LATENCY,
+});
+```
+
+**DashboardPage.tsx -- erros claros no nativo:**
+```typescript
+} catch (err: any) {
+  console.error("[NativeBT] Pair error:", err);
+  const msg = err?.message || "";
+  if (msg.includes("denied") || msg.includes("permission")) {
+    toast.error("Permissão negada", {
+      description: "Vá em Configurações > Apps > TrendFood > Permissões e ative Bluetooth e Localização.",
+      duration: 8000,
+    });
+  } else if (msg.includes("disabled") || msg.includes("location")) {
+    toast.error("Ative o GPS", {
+      description: "O Bluetooth precisa da Localização ativada para encontrar impressoras.",
+      duration: 8000,
+    });
   } else {
-    // Web: precisa conectar GATT manualmente
-    toast.info("Conectando a impressora...");
-    const char = await connectToDevice(device);
-    // ... resto do fluxo web
+    toast.error("Erro ao buscar impressora", {
+      description: "Verifique se Bluetooth e GPS estão ligados.",
+      duration: 8000,
+    });
   }
 }
 ```
 
-**Notificacoes nativas:**
+**capacitor.config.ts -- adicionar LocalNotifications:**
 ```typescript
-import { Capacitor } from "@capacitor/core";
-import { LocalNotifications } from "@capacitor/local-notifications";
-
-// Ao receber novo pedido:
-if (isNativePlatform()) {
-  await LocalNotifications.schedule({
-    notifications: [{
-      title: "Novo pedido!",
-      body: `Mesa ${order.table_number}`,
-      id: Date.now(),
-    }]
-  });
-} else {
-  new Notification("Novo pedido!", { ... });
-}
+plugins: {
+  BluetoothLe: { ... },
+  LocalNotifications: {
+    smallIcon: "ic_stat_icon_config_sample",
+    iconColor: "#FF6B00",
+  },
+},
 ```
 
-**Auto-reconnect nativo:**
-- A funcao `reconnectStoredPrinter()` ja trata o caminho nativo corretamente usando `reconnectNativeDevice()`.
-- O `attachDisconnectHandler` precisa ser pulado no nativo (o fake device nao emite eventos `gattserverdisconnected`).
+---
+
+### Após a correção
+
+Você vai precisar rodar no terminal:
+```
+cd trendfood
+git pull
+npm install
+npm run build
+npx cap sync
+npx cap open android
+```
+
+Gerar novo APK e instalar. **Antes de testar**, certifique-se de que:
+- Bluetooth está ligado
+- GPS/Localização está ativado
+- Na primeira vez, aceite as permissões que o app pedir
 
