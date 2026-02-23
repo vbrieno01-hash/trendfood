@@ -1,79 +1,102 @@
 
-# Impressao em Segundo Plano no APK Android
+# Splash Screen e Push Notifications no Capacitor
 
-## Problema
-Atualmente o polling da fila de impressao (`setInterval` a cada 10s no `DashboardPage.tsx`) so funciona quando o app esta em primeiro plano. Quando o usuario minimiza o APK, o Android suspende a WebView e o polling para.
+## O que sera feito
 
-## Solucao
-Criar um **Capacitor Plugin customizado** com um Android Foreground Service que:
-1. Roda em segundo plano com uma notificacao persistente ("TrendFood - Impressao ativa")
-2. Faz polling na tabela `fila_impressao` a cada 10-15 segundos
-3. Envia os dados via Bluetooth BLE para a impressora mesmo com o app minimizado
+### 1. Splash Screen
+Adicionar a tela de carregamento com a logo TrendFood quando o app abre no Android.
 
-## Etapas
+**Dependencia:** `@capacitor/splash-screen`
 
-### 1. Criar o plugin Capacitor nativo (Android/Java)
-- Criar um `ForegroundService` Android que exibe uma notificacao persistente
-- Dentro do servico, rodar um loop de polling que consulta a API do backend (endpoint REST) buscando jobs pendentes na `fila_impressao`
-- Ao encontrar jobs, enviar via BLE para a impressora e marcar como impresso
+**Configuracao no `capacitor.config.ts`:**
+- Definir cor de fundo laranja (#FF6B00) ou branca
+- Tempo de exibicao automatico (2-3 segundos)
+- Fade out animado
+- Configurar para usar a logo do TrendFood
 
-### 2. Criar uma Edge Function para o polling do servico nativo
-- Endpoint `GET /printer-queue?org_id=xxx` que retorna jobs pendentes
-- Endpoint `PATCH /printer-queue` para marcar jobs como impressos
-- Isso porque o Foreground Service nao tem acesso ao Supabase JS client
+**Arquivos de imagem necessarios (manual apos sync):**
+- O usuario precisara colocar a imagem do splash em `android/app/src/main/res/drawable/splash.png`
+- Alternativa: usar o modo "launch screen" padrao do Capacitor que exibe um background com a logo centralizada
 
-### 3. Registrar o plugin no Capacitor e expor para o TypeScript
-- Criar a interface TypeScript do plugin
-- Metodos: `startService(orgId, supabaseUrl, anonKey)` e `stopService()`
+**Codigo TypeScript:**
+- Chamar `SplashScreen.hide()` no `App.tsx` apos o app carregar, para controlar quando a splash desaparece
 
-### 4. Integrar no Dashboard
-- Quando o modo Bluetooth estiver ativo e `isNativePlatform()` for true, iniciar o servico automaticamente
-- Adicionar botao de ligar/desligar o servico em segundo plano na aba Impressora
-- Mostrar status do servico (ativo/inativo)
+### 2. Push Notifications
+Substituir o `@capacitor/local-notifications` atual por `@capacitor/push-notifications` para notificacoes remotas (enviadas pelo servidor).
 
-### 5. Rebuild do APK
-- Apos as alteracoes, o usuario precisara gerar um novo APK com `npx cap sync && npx cap build android`
+**Dependencia:** `@capacitor/push-notifications`
 
----
+**O que sera implementado:**
+- Registro do dispositivo para receber push notifications
+- Salvar o token FCM (Firebase Cloud Messaging) no banco de dados, vinculado a organizacao
+- Listener para receber notificacoes em foreground e background
+- Hook `usePushNotifications.ts` para gerenciar tudo
+
+**Tabela no banco de dados:**
+- `device_tokens` com colunas: `id`, `org_id`, `user_id`, `token`, `platform`, `created_at`
+- Isso permite enviar pushes para dispositivos especificos de cada organizacao
+
+**Integracao:**
+- No `DashboardPage.tsx`, registrar o dispositivo automaticamente ao abrir
+- Quando um novo pedido chegar, uma edge function podera enviar push para todos os dispositivos da org
+
+## Etapas de implementacao
+
+1. Instalar `@capacitor/splash-screen` e `@capacitor/push-notifications`
+2. Atualizar `capacitor.config.ts` com configuracoes de Splash Screen e Push
+3. Criar hook `usePushNotifications.ts` para registro e escuta de notificacoes
+4. Criar tabela `device_tokens` no banco de dados
+5. Adicionar `SplashScreen.hide()` no `App.tsx`
+6. Integrar push notifications no Dashboard
 
 ## Secao Tecnica
 
-### Foreground Service (Java)
+### capacitor.config.ts (adicoes)
 ```text
-android/app/src/main/java/.../PrinterForegroundService.java
-- extends Service
-- startForeground() com notificacao "Impressao ativa"
-- ScheduledExecutorService com polling a cada 10s
-- HTTP GET para edge function buscando jobs pendentes
-- BLE write para a impressora (reusa UUIDs salvos em SharedPreferences)
-- HTTP PATCH para marcar job como impresso
+plugins: {
+  SplashScreen: {
+    launchShowDuration: 2500,
+    launchAutoHide: false,       // controlamos via codigo
+    backgroundColor: "#FFFFFF",
+    showSpinner: false,
+    launchFadeOutDuration: 500,
+    splashFullScreen: true,
+    splashImmersiveHidden: true,
+  },
+  PushNotifications: {
+    presentationOptions: ["badge", "sound", "alert"],
+  },
+  // ... plugins existentes mantidos
+}
 ```
 
-### Edge Function: `printer-queue`
+### Hook usePushNotifications.ts
 ```text
-GET  ?org_id=xxx       -> retorna jobs pendentes (status='pendente', limit 5)
-POST ?action=mark      -> body { id: "job_id" } marca como impresso
+- requestPermissions(): pede permissao ao usuario
+- register(): registra no FCM e salva token no banco
+- addListeners(): escuta notificacoes recebidas/clicadas
+- Salva token na tabela device_tokens vinculado ao org_id e user_id
 ```
 
-### Permissoes Android necessarias
+### Tabela device_tokens
 ```text
-android/app/src/main/AndroidManifest.xml
-- FOREGROUND_SERVICE
-- FOREGROUND_SERVICE_CONNECTED_DEVICE
-- BLUETOOTH, BLUETOOTH_ADMIN, BLUETOOTH_CONNECT
-- INTERNET
-- WAKE_LOCK
+- id (uuid, PK)
+- org_id (uuid, FK -> organizations)
+- user_id (uuid)
+- token (text, unique)
+- platform (text: 'android' | 'ios' | 'web')
+- created_at (timestamptz)
+- RLS: usuario so ve/insere seus proprios tokens
 ```
 
-### Interface TypeScript
+### App.tsx (mudanca)
 ```text
-src/lib/backgroundPrinter.ts
-- startBackgroundPrinting(orgId: string): Promise<void>
-- stopBackgroundPrinting(): Promise<void>
-- isBackgroundPrintingActive(): Promise<boolean>
+import { SplashScreen } from '@capacitor/splash-screen';
+// No useEffect inicial:
+SplashScreen.hide();
 ```
 
 ## Limitacoes
-- Requer rebuild completo do APK (nao eh uma mudanca apenas web)
-- O usuario precisara permitir a notificacao persistente do Android
-- O Bluetooth precisa estar pareado antes de ativar o modo segundo plano
+- Push Notifications requer configuracao do Firebase (google-services.json) no projeto Android -- o usuario precisara criar um projeto Firebase e baixar o arquivo
+- Splash Screen requer imagem em `android/app/src/main/res/drawable/` -- apos `npx cap sync`
+- Ambos requerem rebuild do APK
