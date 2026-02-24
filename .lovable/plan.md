@@ -1,79 +1,53 @@
 
-Objetivo: corrigir definitivamente o fechamento do modal no APK Android após escolher foto, mesmo quando o upload retorna sucesso.
 
-Diagnóstico consolidado
-- Pela evidência do print:
-  - Toast “Foto enviada ✓” aparece.
-  - O modal some e a tela volta para “Cardápio vazio”.
-- Isso indica que o upload conclui, mas o estado local `modalOpen` é perdido.
-- O modal já é React puro (sem Radix), então o próximo suspeito forte é remount do `MenuTab`/árvore do dashboard durante ciclo de vida Android (pause/resume ao abrir galeria).
-- Do I know what the issue is? Sim: o problema principal não é “click outside”; é perda de estado local do modal após ciclo nativo da galeria.
+## Plano: Upload da foto somente ao salvar (elimina async durante seleção)
 
-Plano de implementação (correção robusta, sem depender do ciclo do componente)
+### Diagnóstico
 
-1) Tornar o estado do modal/draft persistente (sobrevive remount)
-- Arquivo: `src/components/dashboard/MenuTab.tsx`
-- Criar persistência de rascunho em `sessionStorage` (ou `localStorage`) com chave por organização, por exemplo:
-  - `menu_modal_draft_v2:${organization.id}`
-- Persistir:
-  - `modalOpen`
-  - `editItemId` (ou flag novo/edição)
-  - `form` (nome, descrição, preço, categoria, available, image_url)
-  - `imagePreview`
-  - timestamp
-- Restaurar no mount:
-  - Se houver draft “aberto”, reidratar estado e reabrir modal automaticamente.
-- Limpar draft quando:
-  - usuário clica Cancelar
-  - submit conclui com sucesso
+O problema persiste porque `doImmediateUpload` dispara uma requisição de rede (upload ao Storage) no exato momento em que o Android está resumindo o WebView após a galeria. Esse timing causa remount/perda de estado que nem `sessionStorage` consegue cobrir de forma 100% confiável. A solução definitiva: **zero operações assíncronas durante a seleção de foto**.
 
-2) Reforçar restauração no retorno do app ao foreground (Android)
-- Arquivo: `src/components/dashboard/MenuTab.tsx`
-- Adicionar listener nativo de ciclo de vida (`@capacitor/app`, `appStateChange`).
-- Quando `isActive === true`, executar rotina de “rehydrate draft” (idempotente), para reabrir modal caso o componente tenha sido reconstruído durante ida à galeria.
+### Mudanças
 
-3) Simplificar fluxo de seleção de imagem para reduzir risco de lifecycle
-- Arquivo: `src/components/dashboard/MenuTab.tsx`
-- Remover dependência do caminho “native camera picker” nesse formulário e usar um único fluxo de seleção via input file (`fileRef.current?.click()`), inclusive no APK.
-- Isso elimina uma camada de variação do plugin e mantém UX previsível.
-- O upload imediato continua (como já está), mas com estado persistente não há perda visual do modal.
+**Arquivo: `src/components/dashboard/MenuTab.tsx`**
 
-4) Blindar consistência do draft após upload
-- Arquivo: `src/components/dashboard/MenuTab.tsx`
-- Após `doImmediateUpload`:
-  - atualizar `form.image_url` e `imagePreview`
-  - salvar draft imediatamente na persistência
-- Assim, mesmo com remount logo após upload, o modal volta aberto com preview.
+1. **`handleImageChange`** passa a ser síncrono:
+   - Apenas guarda o `File` no form (`form.imageFile = file`)
+   - Cria preview local via `URL.createObjectURL(file)` (sem rede)
+   - Nenhum upload, nenhum toast, nenhuma Promise
 
-5) Observabilidade mínima para confirmar causa e resultado
-- Arquivo: `src/components/dashboard/MenuTab.tsx`
-- Adicionar logs temporários de ciclo:
-  - mount/unmount do MenuTab
-  - persist/restore do draft
-  - appStateChange active/inactive
-- Isso permite validar no próximo teste se houve remount no retorno da galeria.
-- Depois da confirmação, limpar logs de debug.
+2. **Remover `doImmediateUpload`** completamente
 
-Arquivos impactados
-- `src/components/dashboard/MenuTab.tsx` (principal; refatoração de estado + persistência + lifecycle + fluxo de seleção)
-- `src/lib/nativeCamera.ts` (opcional: manter sem uso ou descontinuar no fluxo de cardápio)
-- Sem mudanças de banco/backend para essa correção.
+3. **`handleSubmit`** passa a fazer o upload antes de salvar:
+   ```text
+   handleSubmit:
+     1. Se form.imageFile existir → uploadMenuImage() → seta form.image_url
+     2. Depois: addMutation / updateMutation como hoje
+     3. closeModal()
+   ```
 
-Critérios de aceite (E2E no APK)
-1. Abrir “Novo item”.
-2. Tocar “Adicionar foto”.
-3. Escolher imagem na galeria.
-4. Confirmar:
-   - toast de sucesso aparece
-   - modal continua aberto
-   - preview da imagem permanece visível
-   - campos digitados antes da foto continuam preenchidos.
-5. Salvar item e validar criação com imagem.
-6. Repetir no fluxo de edição de item existente.
-7. Teste extra: abrir modal, colocar app em background, voltar — modal deve permanecer conforme draft.
+4. **Simplificar persistência de draft**: remover a lógica de salvar `image_url` intermediário no draft (não há mais URL intermediária). O draft persiste o formulário textual; se houver remount, o usuário re-seleciona a foto (operação rápida).
 
-Detalhes técnicos (seção dedicada)
-- Problema atacado: volatilidade de `useState` local em cenário de remount causado por lifecycle Android.
-- Estratégia: transformar estado transitório crítico (modal + draft de formulário) em estado persistente com reidratação automática.
-- Benefício: a UI fica resiliente mesmo quando o SO pausa/retoma Activity/WebView.
-- Trade-off: pequeno aumento de complexidade local em `MenuTab`, compensado por estabilidade real no APK.
+5. **Limpar `URL.createObjectURL`** no `closeModal` para evitar memory leaks.
+
+### Por que isso resolve
+
+- **Zero async durante seleção de foto** = o Android pode pausar/resumir o WebView à vontade sem interferir em nenhum estado
+- O `File` object fica em memória React; se o componente sobrevive (que é o esperado com modal puro), a foto está lá
+- Se por acaso houver remount, o modal reabre via draft mas sem foto (usuário re-seleciona, é um clique)
+- Upload só acontece no botão "Salvar", quando o app já está estável
+
+### O que NÃO muda
+- Estrutura do modal (continua div pura, sem Radix)
+- `AlertDialog` de exclusão
+- Lista de itens, filtros, ordenação
+- Hook `useMenuItems`
+
+### Detalhes técnicos
+
+O fluxo atual dispara `uploadMenuImage()` → fetch HTTP → setState durante o callback de retorno da galeria Android. O Android WebView ainda está processando o retorno de foco da Activity da galeria nesse momento. A combinação de:
+- Callback assíncrono completando durante transição de Activity
+- React Query invalidation implícita
+- Múltiplos `setState` em sequência rápida
+
+...pode causar uma cascata de re-renders que, em alguns dispositivos Android, resulta em perda do estado do componente. Removendo toda operação assíncrona desse momento crítico, o problema é eliminado na origem.
+
