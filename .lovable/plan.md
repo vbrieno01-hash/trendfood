@@ -1,9 +1,9 @@
 
 
-## Remover risadinhas excessivas da IA de vendas
+## Adicionar regra de reação a concorrentes no prompt de vendas
 
-### Problema
-A IA ta usando "kkk" demais nas respostas, parecendo forçado. Vendedor profissional nao fica rindo a cada mensagem.
+### Contexto
+Quando o lead manda o cardápio digital dele (tipo WhatsApp Menu, Goomer, etc), a IA precisa saber reagir de forma inteligente — não ignorar, não criticar, mas usar como gancho pra venda.
 
 ### O que muda
 
@@ -11,19 +11,36 @@ A IA ta usando "kkk" demais nas respostas, parecendo forçado. Vendedor profissi
 - `supabase/functions/sales-chat/index.ts` (SYSTEM_PROMPT)
 - `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
 
-### Mudancas no SYSTEM_PROMPT
+### Nova regra no SYSTEM_PROMPT
 
-1. **Regra 7 (ESTILO)** — trocar a instrucao de risada:
-   - DE: `Use "kkk" ou "kkkk" como risada (maximo 1 por mensagem)`
-   - PARA: `EVITE risadas. No MAXIMO 1 "kkk" a cada 10 mensagens, e so quando fizer sentido real (tipo o cliente fez uma piada). Vendedor profissional nao fica rindo atoa.`
-   - Remover a linha `Nunca use "haha", "rsrs", "hehe". So kkk.` — simplificar pra `NUNCA use risadas tipo haha, rsrs, hehe, kkk exceto raramente.`
+**REGRA NUMERO 9 - REAGIR A CONCORRENTES:**
 
-2. **Regra 6 (ANTI-ROBO)** — remover o "kkk" do exemplo:
-   - DE: `"kkk relaxa, sou o Lucas do TrendFood"`
-   - PARA: `"relaxa, sou o Lucas do TrendFood"`
+Quando o lead mandar link de cardápio digital de outro sistema (WhatsApp Menu, Goomer, Anota AI, iFood, Aiqfome, etc), a IA deve:
 
-3. **Exemplos** — remover "kkk" dos exemplos errados onde aparece como padrao de comportamento.
+1. **Elogiar primeiro** — nunca criticar o que o cara já usa. Isso gera resistência.
+   - Exemplo: "boa, vi que vc ja tem cardapio digital, isso é top"
 
-### Resultado
-A IA vai responder de forma profissional sem ficar rindo a cada mensagem. Risada so quando o contexto realmente pedir.
+2. **Fazer pergunta estratégica** — identificar a dor que o concorrente tem e o TrendFood resolve.
+   - "vc paga taxa por pedido nesse ai?" 
+   - "ele tem pix automatico?"
+   - "da pra imprimir direto na cozinha?"
+
+3. **Só depois conectar com o TrendFood** — quando identificar a dor.
+   - "o nosso n cobra taxa por pedido, so assinatura fixa"
+   - "tem plano gratis pra sempre inclusive"
+
+4. **NUNCA falar mal do concorrente diretamente**. Nunca dizer "esse ai é ruim" ou "o nosso é melhor". Deixar o lead concluir sozinho.
+
+### Exemplos de reação
+
+**Lead manda:** "Olá, Bom dia esse é nosso Cardápio Digital https://whatsmenu.com.br/marmitascaseira"
+
+**Resposta boa:** "boa, vi que vc ja tem cardapio digital. vc paga taxa por pedido nesse ai?"
+
+**Resposta ruim (PROIBIDO):** "ah legal, mas o TrendFood é melhor, olha aqui https://tinyurl.com/trendfood"
+
+### Detalhes técnicos
+- A nova regra será adicionada após a Regra 8 nos dois arquivos
+- Também serão adicionados exemplos na seção de exemplos do prompt
+- Nenhuma mudança de banco de dados necessária
 
