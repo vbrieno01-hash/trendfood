@@ -371,28 +371,32 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
             {group.items.map((item) => (
               <div
                 key={item.id}
-                className={`flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-secondary/40 transition-colors ${!item.available ? "opacity-50" : ""}`}
+                className={`flex flex-col gap-2 px-4 py-3.5 bg-card hover:bg-secondary/40 transition-colors ${!item.available ? "opacity-50" : ""}`}
               >
-                <div className="w-14 h-14 rounded-lg overflow-hidden bg-gradient-to-br from-amber-50 to-orange-100 shrink-0 flex items-center justify-center">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <UtensilsCrossed className="w-5 h-5 text-orange-300" />
-                  )}
+                {/* Row 1: Image + Name + Price */}
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-amber-50 to-orange-100 shrink-0 flex items-center justify-center">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <UtensilsCrossed className="w-5 h-5 text-orange-300" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-medium text-foreground truncate leading-tight">{item.name}</p>
+                    {item.description && (
+                      <p className="text-sm text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
+                    )}
+                  </div>
+
+                  <span className="text-base font-bold text-primary tabular-nums shrink-0 whitespace-nowrap">
+                    {formatPrice(item.price)}
+                  </span>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-base font-medium text-foreground truncate leading-tight">{item.name}</p>
-                  {item.description && (
-                    <p className="text-sm text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
-                  )}
-                </div>
-
-                <span className="text-base font-bold text-primary tabular-nums shrink-0 w-24 text-right">
-                  {formatPrice(item.price)}
-                </span>
-
-                <div className="flex items-center gap-1.5 shrink-0">
+                {/* Row 2: Action buttons */}
+                <div className="flex items-center justify-end gap-1.5">
                   <Switch
                     checked={item.available}
                     onCheckedChange={() => handleToggleAvailable(item)}
