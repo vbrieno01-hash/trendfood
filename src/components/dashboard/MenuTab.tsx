@@ -133,14 +133,17 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log(`[MenuTab] Submitting: editItem=${editItem?.id ?? "NEW"}, hasImageFile=${!!form.imageFile}, imageFileSize=${form.imageFile?.size ?? 0}`);
       if (editItem) {
         await updateMutation.mutateAsync({ id: editItem.id, input: form });
       } else {
         await addMutation.mutateAsync(form);
       }
+      console.log("[MenuTab] Submit success");
       setModalOpen(false);
     } catch (err) {
       console.error("[MenuTab] Submit error:", err);
+      toast({ title: "Erro ao salvar item", description: String(err), variant: "destructive" });
     }
   };
 
