@@ -110,4 +110,3 @@ Substituir o conteudo de `android/app/src/main/AndroidManifest.xml` por:
 4. Rode `.\gradlew.bat assembleDebug` na pasta `android/`
 
 O login vai continuar funcionando E o Bluetooth vai estar configurado.
-
