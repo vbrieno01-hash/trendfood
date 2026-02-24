@@ -1,31 +1,55 @@
 
 
-## Plano: Upload imediato ao storage, mas salvar no banco só ao clicar "Salvar alterações"
+## Diagnóstico: Modal fecha sozinho ao abrir câmera no APK
 
-### Problema
-O código atual salva a `image_url` direto no banco quando o usuário seleciona a foto (para itens existentes). O usuário quer que a foto só seja persistida no banco ao clicar "Salvar alterações".
+### Causa raiz
+
+No Android, quando o plugin `@capacitor/camera` abre a câmera ou galeria, a Activity do app vai para background. O Radix Dialog interpreta isso como uma interação "fora" do modal e dispara `onInteractOutside`, que chama `setModalOpen(false)` — fechando o modal antes mesmo de o usuário escolher a foto.
+
+No navegador isso não acontece porque o file picker não tira o foco do mesmo jeito.
 
 ### Correção
 
 **Arquivo:** `src/components/dashboard/MenuTab.tsx`
 
-Remover o bloco que faz `supabase.from("menu_items").update(...)` e `queryClient.invalidateQueries(...)` de dentro do `doImmediateUpload`. O upload ao storage continua imediato (para não perder o File no Android), mas a URL fica apenas no state do form (`form.image_url`) até o submit.
+Adicionar `onInteractOutside` e `onPointerDownOutside` no `DialogContent` para bloquear o fechamento automático durante o fluxo de foto:
 
-O `doImmediateUpload` ficará assim:
 ```text
-1. Upload file to storage → URL
-2. Guardar URL no form state (form.image_url)
-3. Mostrar preview da foto no modal
-4. Toast "Foto enviada ✓"
-— NÃO salva no banco —
+<DialogContent
+  onInteractOutside={(e) => e.preventDefault()}
+  onPointerDownOutside={(e) => e.preventDefault()}
+>
 ```
 
-Quando o usuário clicar "Salvar alterações":
+Isso impede que o Dialog feche quando:
+- A câmera/galeria abre no Android (Activity vai para background)
+- O usuário toca fora do modal acidentalmente no celular
+
+O modal só fecha por:
+- Clique no botão "Cancelar"
+- Clique no X do modal
+- Submit com sucesso ("Salvar alterações")
+
+### Mudança exata
+
+Linha 348 do `MenuTab.tsx`:
 ```text
-handleSubmit → updateMutation com form.image_url → banco atualizado
+ANTES:
+<DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+
+DEPOIS:
+<DialogContent
+  className="max-w-md max-h-[90vh] overflow-y-auto"
+  onInteractOutside={(e) => e.preventDefault()}
+  onPointerDownOutside={(e) => e.preventDefault()}
+>
 ```
 
-### Mudança específica
+Nenhuma outra mudança necessária.
 
-No `doImmediateUpload`, remover as linhas 112-120 (o `if (editItem)` que faz update direto no banco). Manter apenas o upload ao storage + set do state + toast genérico.
+### Após implementar
+
+```text
+git pull → npm run build → npx cap sync → cd android → .\gradlew.bat assembleDebug
+```
 
