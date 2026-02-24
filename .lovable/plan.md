@@ -1,47 +1,56 @@
 
 
-## Plano: Categoria editavel (texto livre) no formulario de item
+## Plano: Manter categorias predefinidas como botoes selecionaveis + campo editavel
 
-### O que muda para o usuario
-Em vez de um dropdown fechado com categorias fixas, o campo de categoria tera um **combobox**: o usuario pode selecionar uma das categorias sugeridas OU digitar qualquer texto personalizado (ex: "Pecas de Computador", "Roupas", "Acessorios").
+### O que muda
+O campo de categoria tera duas partes:
+1. **Lista de botoes/chips** com as categorias predefinidas (CATEGORIES) — o usuario clica para selecionar rapidamente
+2. **Um input de texto** abaixo, para digitar uma categoria personalizada
 
-### Alteracoes tecnicas
+Ao clicar em um chip predefinido, o valor do input e preenchido automaticamente. Se o usuario quiser algo diferente, digita no input. O input sempre mostra o valor atual.
 
-**1. `src/components/dashboard/MenuTab.tsx`** (formulario do modal, ~linhas 288-300)
+### Alteracao tecnica
 
-Substituir o `<Select>` por um campo que combina sugestoes com entrada livre:
-- Usar um `<Input>` com um `<datalist>` HTML nativo, ou um combo de `Input` + lista de sugestoes
-- A abordagem mais simples e robusta: trocar o `Select` por um `Input` com `<datalist>` que lista as categorias predefinidas como sugestoes, mas permite digitar qualquer valor
-- O `datalist` e nativo do navegador, leve, e funciona bem em mobile/Android
+**`src/components/dashboard/MenuTab.tsx`** (~linhas 513-528)
 
-O codigo do campo ficara assim:
+Substituir o `Input + datalist` atual por:
+
 ```tsx
 <div>
   <Label className="text-sm font-medium">Categoria</Label>
+  {/* Chips das categorias predefinidas */}
+  <div className="flex flex-wrap gap-1.5 mt-1 mb-2">
+    {CATEGORIES.map((c) => (
+      <button
+        key={c.value}
+        type="button"
+        onClick={() => setForm((p) => ({ ...p, category: c.value }))}
+        className={cn(
+          "px-2.5 py-1 rounded-full text-xs border transition-colors",
+          form.category === c.value
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-muted hover:bg-muted/80 border-border"
+        )}
+      >
+        {c.emoji} {c.value}
+      </button>
+    ))}
+  </div>
+  {/* Input editavel para categoria personalizada */}
   <Input
-    list="category-suggestions"
     value={form.category}
     onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-    placeholder="Ex: Lanches, Bebidas, Roupas..."
-    className="mt-1"
+    placeholder="Ou digite uma categoria personalizada..."
+    className="text-sm"
   />
-  <datalist id="category-suggestions">
-    {CATEGORIES.map((c) => (
-      <option key={c.value} value={c.value} />
-    ))}
-  </datalist>
 </div>
 ```
 
-**2. `src/hooks/useMenuItems.ts`** (ordenacao por categoria, linha 41)
+### Comportamento
+- Clicar num chip preenche o input com aquele valor (chip fica destacado)
+- Digitar no input permite qualquer texto livre (se nao bater com nenhum chip, nenhum fica destacado)
+- O agrupamento na listagem continua funcionando igual — categorias personalizadas aparecem no final
 
-Atualizar a logica de `CATEGORY_ORDER` para tratar categorias personalizadas: categorias que nao estao no array predefinido aparecem no final da listagem, ordenadas alfabeticamente.
-
-**3. `src/components/dashboard/MenuTab.tsx`** (agrupamento na listagem)
-
-A logica de agrupamento (`grouped`) ja funciona com qualquer valor de `category` — ela usa `items.filter(i => i.category === cat.value)`. Precisa apenas incluir categorias personalizadas (que nao estao em `CATEGORIES`) como grupos adicionais no final.
-
-### Resumo de arquivos alterados
-- `src/components/dashboard/MenuTab.tsx` — campo de categoria vira input editavel + agrupamento inclui categorias personalizadas
-- `src/hooks/useMenuItems.ts` — ordenacao trata categorias customizadas
+### Arquivo alterado
+- `src/components/dashboard/MenuTab.tsx` — campo de categoria com chips + input
 
