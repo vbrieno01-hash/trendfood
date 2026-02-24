@@ -17,6 +17,7 @@ export function useCreatePixCharge() {
     async (organizationId: string, orderId: string, amount: number, description?: string) => {
       setLoading(true);
       setError(null);
+      setData(null);
       try {
         const { data: result, error: fnError } = await supabase.functions.invoke(
           "verify-pix-payment",

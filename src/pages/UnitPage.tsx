@@ -427,14 +427,17 @@ const UnitPage = () => {
    }
   };
 
-  const handlePixSuccess = (orderId: string, paid: boolean) => {
+  const handlePixSuccess = async (orderId: string, paid: boolean) => {
    try {
     setShowPixScreen(false);
     setPixOrderId(null);
 
     if (paid) {
       // Gateway confirmed — update order status to pending (for kitchen)
-      supabase.from("orders").update({ paid: true, status: "pending" }).eq("id", orderId);
+      const { error: updateErr } = await supabase.from("orders").update({ paid: true, status: "pending" }).eq("id", orderId);
+      if (updateErr) {
+        console.error("[UnitPage] Failed to update order after PIX:", updateErr.message);
+      }
     }
 
     // Send WhatsApp with PIX confirmed info
@@ -472,10 +475,10 @@ const UnitPage = () => {
         .join("\n");
 
       const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-      try {
-        window.open(url, "_blank", "noopener,noreferrer");
-      } catch {
-        try { window.location.href = url; } catch {}
+      // Use window.location.href instead of window.open — this callback runs
+      // from useEffect (not a user gesture), so popup blockers will block window.open
+      try { window.location.href = url; } catch {
+        console.warn("[UnitPage] Could not open WhatsApp URL");
       }
     }
 
