@@ -1,69 +1,49 @@
 
 
-# Remover Plugin Nativo de Push Notifications
+# Corrigir Crash: Limpar usePushNotifications.ts
 
-## Problema
+## O Problema Real
 
-O `FIREBASE_CONFIGURED = false` no JavaScript nao impede o crash porque:
+O arquivo `src/hooks/usePushNotifications.ts` ainda contem TODO o codigo antigo, incluindo:
+- `import("@capacitor/push-notifications")` na linha 26
+- `import("@capacitor/push-notifications")` na linha 85
+- Imports de `@capacitor/core`, `supabase`, `sonner`, `react-router-dom`
 
-1. O pacote `@capacitor/push-notifications` esta instalado no `package.json`
-2. Quando `npx cap sync` roda, ele registra o plugin nativo no Android
-3. O Capacitor carrega **todos** os plugins nativos ao iniciar o app
-4. O plugin PushNotifications tenta acessar `FirebaseMessaging` durante sua inicializacao nativa
-5. Como nao existe `google-services.json`, o Firebase nao esta configurado -> **crash**
-
-A protecao em JavaScript (`FIREBASE_CONFIGURED = false`) so impede chamadas JS ao plugin. Mas o plugin ja crashou antes do JavaScript executar.
+Mesmo com o pacote removido do `package.json`, essas referencias podem causar problemas durante o build ou sync nativo.
 
 ## Solucao
 
-Remover completamente o plugin `@capacitor/push-notifications` do projeto ate que o Firebase seja configurado.
-
-### 1. Remover de `capacitor.config.ts`
-
-Remover o bloco `PushNotifications` da secao `plugins`:
+Substituir **todo o conteudo** de `usePushNotifications.ts` por um no-op puro:
 
 ```typescript
-plugins: {
-  SplashScreen: { ... },
-  // PushNotifications: REMOVIDO
-  BluetoothLe: { ... },
-  LocalNotifications: { ... },
-},
+// Push notifications desabilitadas - Firebase nao configurado.
+// Para reativar: configure Firebase, instale @capacitor/push-notifications,
+// e restaure a implementacao original.
+export function usePushNotifications(_orgId?: string, _userId?: string) {
+  // No-op
+}
 ```
 
-### 2. Remover do `package.json`
+Zero imports. Zero referencias. O hook continua existindo para nao quebrar quem o chama.
 
-Remover a dependencia `@capacitor/push-notifications`:
-
-```
-"@capacitor/push-notifications": "^8.0.1"  // REMOVER ESTA LINHA
-```
-
-### 3. Manter `usePushNotifications.ts` como no-op seguro
-
-O hook continuara existindo mas nunca executara nada, ja que o import dinamico do pacote vai falhar (pacote removido) e o catch vai silenciar o erro.
-
-### 4. Instrucoes pos-alteracao
-
-Apos a alteracao, o usuario precisara:
-1. `git pull`
-2. `npm install`
-3. `npx cap sync android` (isso remove o plugin nativo do projeto Android)
-4. Rebuildar o APK
-
-## Arquivos Modificados
+## Arquivo Modificado
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `capacitor.config.ts` | Remover configuracao `PushNotifications` da secao plugins |
-| `package.json` | Remover dependencia `@capacitor/push-notifications` |
+| `src/hooks/usePushNotifications.ts` | Substituir todo o conteudo por no-op sem nenhum import |
 
-## Para reativar push notifications no futuro
+## Apos aprovar
 
-1. Configurar Firebase Console e baixar `google-services.json`
-2. Colocar em `android/app/google-services.json`
-3. `npm install @capacitor/push-notifications`
-4. Restaurar config em `capacitor.config.ts`
-5. Mudar `FIREBASE_CONFIGURED = true` em `usePushNotifications.ts`
-6. `npx cap sync android` + rebuildar APK
+Na sua maquina, rode:
+
+```
+git pull
+rm -rf node_modules
+npm install
+rm -rf android
+npx cap add android
+npx cap sync android
+```
+
+Depois rebuilde o APK. Dessa vez o plugin push-notifications nao vai existir em lugar nenhum.
 
