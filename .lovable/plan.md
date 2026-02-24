@@ -1,49 +1,81 @@
 
 
-# Corrigir Crash: Limpar usePushNotifications.ts
+# Passo a Passo: Clone Limpo e Build do APK
 
-## O Problema Real
+## Importante
+**NAO rode `npx cap add android`** — a pasta `android/` ja existe no repositorio com os arquivos nativos customizados (impressora). Rodar `cap add` apaga tudo e substitui por um template vazio.
 
-O arquivo `src/hooks/usePushNotifications.ts` ainda contem TODO o codigo antigo, incluindo:
-- `import("@capacitor/push-notifications")` na linha 26
-- `import("@capacitor/push-notifications")` na linha 85
-- Imports de `@capacitor/core`, `supabase`, `sonner`, `react-router-dom`
+## Comandos (PowerShell)
 
-Mesmo com o pacote removido do `package.json`, essas referencias podem causar problemas durante o build ou sync nativo.
-
-## Solucao
-
-Substituir **todo o conteudo** de `usePushNotifications.ts` por um no-op puro:
-
-```typescript
-// Push notifications desabilitadas - Firebase nao configurado.
-// Para reativar: configure Firebase, instale @capacitor/push-notifications,
-// e restaure a implementacao original.
-export function usePushNotifications(_orgId?: string, _userId?: string) {
-  // No-op
-}
+### 1. Apagar a pasta antiga (se ainda existir)
+```text
+Remove-Item -Recurse -Force .\trendfood-delivery-hub -ErrorAction SilentlyContinue
 ```
 
-Zero imports. Zero referencias. O hook continua existindo para nao quebrar quem o chama.
-
-## Arquivo Modificado
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/hooks/usePushNotifications.ts` | Substituir todo o conteudo por no-op sem nenhum import |
-
-## Apos aprovar
-
-Na sua maquina, rode:
-
+### 2. Clonar o repositorio
+```text
+git clone https://github.com/SEU-USUARIO/trendfood-delivery-hub.git
+cd trendfood-delivery-hub
 ```
-git pull
-rm -rf node_modules
+
+### 3. Instalar dependencias
+```text
 npm install
-rm -rf android
-npx cap add android
+```
+
+### 4. Verificar que push-notifications NAO esta instalado
+```text
+npm ls @capacitor/push-notifications
+```
+O resultado deve ser **(empty)** ou mostrar erro "not found". Se aparecer o pacote, rode `npm uninstall @capacitor/push-notifications` e repita.
+
+### 5. Verificar que os arquivos Java customizados existem
+```text
+Get-ChildItem -Recurse android\app\src\main\java -Filter "*.java"
+```
+Deve listar:
+- `BackgroundPrinterPlugin.java`
+- `PrinterForegroundService.java`
+- `MainActivity.java`
+
+Se **NAO** listar esses arquivos, algo esta errado no repositorio. Nesse caso, me avise antes de continuar.
+
+### 6. Sincronizar o Capacitor (SEM cap add)
+```text
 npx cap sync android
 ```
 
-Depois rebuilde o APK. Dessa vez o plugin push-notifications nao vai existir em lugar nenhum.
+### 7. Build do APK
+```text
+cd android
+.\gradlew assembleDebug
+```
+
+O APK vai estar em:
+```text
+android\app\build\outputs\apk\debug\app-debug.apk
+```
+
+### 8. Instalar no celular (cabo USB)
+```text
+adb install app\build\outputs\apk\debug\app-debug.apk
+```
+
+## Resumo visual
+
+| Passo | Comando | Objetivo |
+|-------|---------|----------|
+| 1 | `Remove-Item` | Limpar pasta antiga |
+| 2 | `git clone` + `cd` | Clonar repositorio limpo |
+| 3 | `npm install` | Instalar dependencias JS |
+| 4 | `npm ls @capacitor/push-notifications` | Confirmar que push nao existe |
+| 5 | `Get-ChildItem` | Confirmar arquivos Java nativos |
+| 6 | `npx cap sync android` | Sincronizar web com nativo |
+| 7 | `gradlew assembleDebug` | Gerar o APK |
+| 8 | `adb install` | Instalar no celular |
+
+## O que NAO fazer
+- **NAO** rode `npx cap add android` (apaga os arquivos Java customizados)
+- **NAO** rode `npx cap init` (ja esta configurado)
+- **NAO** edite nenhum arquivo antes de testar
 
