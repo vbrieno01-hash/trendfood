@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-// Dialog Radix removido — modal puro React para compatibilidade Android/Capacitor
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -18,7 +17,6 @@ import {
 import {
   Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown,
 } from "lucide-react";
-import { pickPhotoNative, isNativePlatform } from "@/lib/nativeCamera";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
   uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
@@ -42,6 +40,47 @@ const EMPTY_FORM: MenuItemInput = {
 
 const SORT_KEY = "menu_sort_order";
 
+/* ─── Draft persistence helpers ─── */
+interface DraftState {
+  modalOpen: boolean;
+  editItemId: string | null;
+  form: Omit<MenuItemInput, "imageFile">;
+  imagePreview: string | null;
+  ts: number;
+}
+
+function draftKey(orgId: string) {
+  return `menu_draft_v3:${orgId}`;
+}
+
+function saveDraft(orgId: string, draft: DraftState) {
+  try {
+    sessionStorage.setItem(draftKey(orgId), JSON.stringify(draft));
+    console.log("[MenuTab] Draft saved", { modalOpen: draft.modalOpen, editItemId: draft.editItemId });
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function loadDraft(orgId: string): DraftState | null {
+  try {
+    const raw = sessionStorage.getItem(draftKey(orgId));
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as DraftState;
+    // discard stale drafts (>30 min)
+    if (Date.now() - draft.ts > 30 * 60 * 1000) {
+      sessionStorage.removeItem(draftKey(orgId));
+      return null;
+    }
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft(orgId: string) {
+  sessionStorage.removeItem(draftKey(orgId));
+  console.log("[MenuTab] Draft cleared");
+}
+
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
   
@@ -50,13 +89,82 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const updateMutation = useUpdateMenuItem(organization.id);
   const deleteMutation = useDeleteMenuItem(organization.id);
 
-  const [modalOpen, setModalOpen] = useState(false);
+  // Rehydrate from draft on mount
+  const initialDraft = useRef(loadDraft(organization.id));
+
+  const [modalOpen, setModalOpen] = useState(() => initialDraft.current?.modalOpen ?? false);
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
-  const [form, setForm] = useState<MenuItemInput>(EMPTY_FORM);
+  const [editItemId, setEditItemId] = useState<string | null>(() => initialDraft.current?.editItemId ?? null);
+  const [form, setForm] = useState<MenuItemInput>(() => {
+    if (initialDraft.current?.form) {
+      return { ...initialDraft.current.form, imageFile: null };
+    }
+    return EMPTY_FORM;
+  });
   const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(() => initialDraft.current?.imagePreview ?? null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Log mount/unmount for debugging
+  useEffect(() => {
+    console.log("[MenuTab] MOUNTED, draft restored:", !!initialDraft.current?.modalOpen);
+    return () => console.log("[MenuTab] UNMOUNTED");
+  }, []);
+
+  // Resolve editItem from editItemId when items load
+  useEffect(() => {
+    if (editItemId && items.length > 0) {
+      const found = items.find(i => i.id === editItemId) ?? null;
+      setEditItem(found);
+    }
+  }, [editItemId, items]);
+
+  // Persist draft whenever modal state changes
+  const persistDraft = useCallback(() => {
+    if (modalOpen) {
+      const draft: DraftState = {
+        modalOpen: true,
+        editItemId,
+        form: { name: form.name, description: form.description, price: form.price, category: form.category, available: form.available, image_url: form.image_url },
+        imagePreview,
+        ts: Date.now(),
+      };
+      saveDraft(organization.id, draft);
+    }
+  }, [modalOpen, editItemId, form, imagePreview, organization.id]);
+
+  useEffect(() => {
+    persistDraft();
+  }, [persistDraft]);
+
+  // Listen for app resume (Android lifecycle)
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    (async () => {
+      try {
+        const { App } = await import("@capacitor/app");
+        const listener = await App.addListener("appStateChange", ({ isActive }) => {
+          console.log("[MenuTab] appStateChange isActive:", isActive);
+          if (isActive) {
+            // Re-check draft and force rehydrate if needed
+            const draft = loadDraft(organization.id);
+            if (draft?.modalOpen && !modalOpen) {
+              console.log("[MenuTab] Rehydrating modal from draft on resume");
+              setModalOpen(true);
+              setEditItemId(draft.editItemId);
+              setForm({ ...draft.form, imageFile: null });
+              setImagePreview(draft.imagePreview);
+            }
+          }
+        });
+        cleanup = () => listener.remove();
+      } catch {
+        // Not on native — ignore
+      }
+    })();
+    return () => cleanup?.();
+  }, [organization.id]); // intentionally exclude modalOpen to avoid re-registering
 
   const grouped = CATEGORIES.map((cat) => ({
     ...cat,
@@ -75,6 +183,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
       return;
     }
     setEditItem(null);
+    setEditItemId(null);
     setForm(EMPTY_FORM);
     setImagePreview(null);
     setModalOpen(true);
@@ -82,6 +191,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
 
   const openEdit = (item: MenuItem) => {
     setEditItem(item);
+    setEditItemId(item.id);
     setForm({
       name: item.name,
       description: item.description ?? "",
@@ -95,13 +205,31 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setModalOpen(true);
   };
 
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditItem(null);
+    setEditItemId(null);
+    setForm(EMPTY_FORM);
+    setImagePreview(null);
+    clearDraft(organization.id);
+  };
+
   const doImmediateUpload = async (file: File) => {
     setUploadingImage(true);
     try {
-      const itemId = editItem?.id ?? crypto.randomUUID();
+      const itemId = editItemId ?? editItem?.id ?? crypto.randomUUID();
       const url = await uploadMenuImage(organization.id, itemId, file);
       setForm((p) => ({ ...p, image_url: url, imageFile: null }));
       setImagePreview(url);
+      // Persist draft immediately after upload so remount recovers it
+      const draft: DraftState = {
+        modalOpen: true,
+        editItemId: editItemId ?? editItem?.id ?? null,
+        form: { ...form, image_url: url },
+        imagePreview: url,
+        ts: Date.now(),
+      };
+      saveDraft(organization.id, draft);
       toast({ title: "Foto enviada ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
     } catch (err) {
       console.error("[MenuTab] Immediate upload error:", err);
@@ -127,33 +255,15 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     }
   };
 
-  const handleNativePhoto = async () => {
-    try {
-      const file = await pickPhotoNative();
-      if (!file) return;
-      console.log(`[MenuTab] Native photo received: ${file.name}, size: ${file.size} bytes`);
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ title: "Foto muito grande", description: "Máximo 5MB.", variant: "destructive" });
-        return;
-      }
-      await doImmediateUpload(file);
-    } catch (err) {
-      console.error("[MenuTab] Native photo error:", err);
-      toast({ title: "Erro ao selecionar foto", variant: "destructive" });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      console.log(`[MenuTab] Submitting: editItem=${editItem?.id ?? "NEW"}, hasImageFile=${!!form.imageFile}, imageFileSize=${form.imageFile?.size ?? 0}`);
       if (editItem) {
         await updateMutation.mutateAsync({ id: editItem.id, input: form });
       } else {
         await addMutation.mutateAsync(form);
       }
-      console.log("[MenuTab] Submit success");
-      setModalOpen(false);
+      closeModal();
     } catch (err) {
       console.error("[MenuTab] Submit error:", err);
       toast({ title: "Erro ao salvar item", description: String(err), variant: "destructive" });
@@ -244,7 +354,6 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
       {/* Grouped items — compact list */}
       {!isLoading && grouped.map((group) => (
         <div key={group.value}>
-          {/* Category header — sem emoji */}
           <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
             <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               {group.value}
@@ -253,15 +362,13 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          {/* Item rows */}
           <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
             {group.items.map((item) => (
               <div
                 key={item.id}
                 className={`flex items-center gap-3 px-4 py-3.5 bg-card hover:bg-secondary/40 transition-colors ${!item.available ? "opacity-50" : ""}`}
               >
-                {/* Thumbnail */}
-                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-gradient-to-br from-amber-50 to-orange-100 shrink-0 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-lg overflow-hidden bg-gradient-to-br from-amber-50 to-orange-100 shrink-0 flex items-center justify-center">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
@@ -269,7 +376,6 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                   )}
                 </div>
 
-                {/* Name + description */}
                 <div className="flex-1 min-w-0">
                   <p className="text-base font-medium text-foreground truncate leading-tight">{item.name}</p>
                   {item.description && (
@@ -277,12 +383,10 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                   )}
                 </div>
 
-                {/* Price */}
                 <span className="text-base font-bold text-primary tabular-nums shrink-0 w-24 text-right">
                   {formatPrice(item.price)}
                 </span>
 
-                {/* Switch + actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Switch
                     checked={item.available}
@@ -290,13 +394,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                     disabled={updateMutation.isPending}
                     className="scale-90"
                   />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 text-muted-foreground hover:text-foreground"
-                    onClick={() => openEdit(item)}
-                    title="Editar"
-                  >
+                  <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(item)} title="Editar">
                     <Pencil className="w-4 h-4" />
                   </Button>
                   <Button
@@ -309,6 +407,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                         return;
                       }
                       setEditItem(null);
+                      setEditItemId(null);
                       setForm({
                         name: `(Cópia) ${item.name}`,
                         description: item.description ?? "",
@@ -325,13 +424,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => setDeleteTarget(item)}
-                    title="Remover"
-                  >
+                  <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(item)} title="Remover">
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -341,18 +434,16 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
         </div>
       ))}
 
-      {/* Add/Edit Modal — modal puro React (sem Radix Portal) */}
+      {/* Add/Edit Modal — pure React, no Radix Portal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/80" />
-          {/* Content */}
           <div className="relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto bg-background border border-border rounded-lg p-6 mx-4 shadow-lg">
             <h2 className="text-lg font-semibold text-foreground">
-              {editItem ? "Editar item" : "Novo item do cardápio"}
+              {editItem || editItemId ? "Editar item" : "Novo item do cardápio"}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              {/* Image upload */}
+              {/* Image upload — always uses file input, no native camera picker */}
               <div>
                 <Label className="text-sm font-medium">Foto</Label>
                 <div className="mt-2 flex items-center gap-3">
@@ -370,13 +461,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                       size="sm"
                       className="gap-2"
                       disabled={uploadingImage}
-                      onClick={() => {
-                        if (isNativePlatform()) {
-                          handleNativePhoto();
-                        } else {
-                          fileRef.current?.click();
-                        }
-                      }}
+                      onClick={() => fileRef.current?.click()}
                     >
                       {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
                       {uploadingImage ? "Enviando..." : imagePreview ? "Alterar foto" : "Adicionar foto"}
@@ -461,12 +546,12 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
               </div>
 
               <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+                <Button type="button" variant="outline" onClick={closeModal}>
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isPending} className="gap-2">
                   {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {editItem ? "Salvar alterações" : "Adicionar item"}
+                  {editItem || editItemId ? "Salvar alterações" : "Adicionar item"}
                 </Button>
               </div>
             </form>
