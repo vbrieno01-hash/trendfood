@@ -1,46 +1,31 @@
 
 
-## Restringir o balão de suporte apenas às páginas internas
+## Enriquecer o Footer da Landing Page
 
-### Problema
-O widget de chat aparece em todas as páginas, incluindo landing page (`/`), login (`/auth`, `/cadastro`), planos (`/planos`), termos, privacidade, etc.
+### O que muda
 
-### Solução
-Mover o `SupportChatWidget` de fora das rotas para dentro de um wrapper que verifica a rota atual. O balão só aparece nas rotas internas do app:
-- `/dashboard`
-- `/cozinha`
-- `/garcom`
-- `/admin`
-- `/motoboy`
+**Arquivo: `src/pages/Index.tsx`**
 
-### Detalhes Técnicos
+1. **Adicionar IDs nas secoes da landing page** para que os links do footer funcionem como ancoras:
+   - Secao "Problemas" -> `id="problemas"`
+   - Secao "Como Funciona" -> `id="como-funciona"`
+   - Secao "Funcionalidades" -> `id="funcionalidades"`
+   - Calculadora -> `id="calculadora"`
 
-**Arquivo: `src/App.tsx`**
+2. **Adicionar mais links no footer**, distribuidos entre as colunas:
 
-Substituir a linha:
-```
-{!Capacitor.isNativePlatform() && <SupportChatWidget />}
-```
+   **Produto** (adicionar):
+   - Calculadora de Economia (ancora `#calculadora`)
+   - Comparativo (ancora `#comparativo` - ja existe na ComparisonSection)
 
-Por um componente auxiliar que usa `useLocation` do React Router para checar a rota atual e só renderizar o widget nas rotas internas:
+   **Suporte** (adicionar):
+   - Central de Ajuda (link para o dashboard/guia ou ancora)
+   - FAQ / Perguntas Frequentes (ancora ou link)
 
-```tsx
-const ConditionalSupportChat = () => {
-  const { pathname } = useLocation();
-  const internalRoutes = ["/dashboard", "/cozinha", "/garcom", "/admin", "/motoboy"];
-  const show = internalRoutes.some(r => pathname.startsWith(r));
-  if (!show) return null;
-  return <SupportChatWidget />;
-};
-```
+   **Contato** (adicionar):
+   - Instagram com o handle visivel
 
-E no JSX:
-```
-{!Capacitor.isNativePlatform() && <ConditionalSupportChat />}
-```
-
-Importar `useLocation` de `react-router-dom`.
+3. **Atualizar o ano do copyright** de 2025 para 2026 (data atual).
 
 ### Resultado
-O balãozinho só aparece quando o usuário está logado e dentro do app (dashboard, cozinha, garçom, admin, motoboy). Não aparece na landing page, login, planos, termos, nem privacidade.
-
+Footer mais completo e profissional, com links uteis que levam o visitante para as secoes relevantes da pagina, facilitando a navegacao e passando mais credibilidade.
