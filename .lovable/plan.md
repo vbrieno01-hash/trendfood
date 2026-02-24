@@ -1,31 +1,42 @@
 
 
-## Simular lead resistente: "nem me venha com proposta"
+## Adicionar Regra 10 — Recuo Imediato quando o Lead Recusar
 
-### Objetivo
-Testar se a IA recua de forma natural quando o lead manda o cardápio digital dele e já avisa que não quer proposta, sem ser agressiva nem insistente.
+### Problema
+Na imagem, o lead disse "nem me venha com proposta", depois "não preciso de nada", depois "EU NAO QUERO PROPOSTA. para de insistir" — e o Lucas continuou fazendo perguntas estratégicas de venda disfarçadas ("vc paga taxa?", "ele ja faz pix automatico?", "vc ja ta com o whatsmenu faz tempo?"). Isso é insistência e queima o lead.
 
-### Fluxo da simulação
+A Regra 9 manda elogiar e fazer perguntas estratégicas, mas **não tem instrução de parar quando o lead pede**. A Regra 5 manda nunca encerrar, o que piora — o Lucas fica tentando manter o papo com perguntas de venda.
 
-Vou simular uma conversa de ~8 mensagens no endpoint `/sales-chat` com este cenário:
+### Solução: Nova Regra 10
 
-1. **Lucas**: saudação inicial
-2. **Lead**: responde normalmente
-3. **Lucas**: papo leve
-4. **Lead**: manda o link do cardápio + "nem me venha com proposta, já uso sistema e to satisfeito"
-5. **Lucas**: deve reagir respeitando a Regra 9 (elogiar) MAS sem empurrar produto, já que o lead pediu pra não receber proposta
-6. **Lead**: reforça "sério, não preciso de nada"
-7. **Lucas**: deve recuar de forma natural, sem encerrar a conversa (Regra 5) mas sem insistir na venda
-8. **Lead**: "beleza então" — ver se a IA mantém o papo sem forçar
+**REGRA NUMERO 10 - RECUO IMEDIATO:**
 
-### O que estou verificando
+Quando o lead disser qualquer variação de "não quero proposta", "não preciso de nada", "para de insistir", "não tenho interesse", etc:
 
-- A IA **não empurra link** quando o lead explicitamente recusa
-- A IA **não fica na defensiva** nem se desculpa demais
-- A IA **recua mas mantém a porta aberta** sem encerrar
-- A IA **não usa kkk** desnecessariamente (Regra 7 atualizada)
-- A IA **respeita a Regra 9** — elogia o sistema atual sem criticar
+1. **Parar TODA tentativa de venda IMEDIATAMENTE.** Zero perguntas estratégicas, zero menção a taxas, PIX, concorrente, TrendFood.
+2. **Respeitar com UMA frase curta:** "de boa, sem problema nenhum"
+3. **Mudar 100% de assunto** — ir pra papo casual sobre o dia, o negócio dele, o movimento. Exemplo: "como ta o movimento hj?" / "sabado é corrido ai ne"
+4. **Se o lead insistir na recusa pela SEGUNDA vez:** parar de tentar. Responder "tranquilo, to por aqui qualquer hora. boa noite!" e não mandar mais nada.
+5. **PROIBIDO** fazer pergunta sobre o sistema atual do lead depois que ele recusou. "vc paga taxa nesse ai?" após um "não quero proposta" é INSISTÊNCIA.
 
-### Execução
-Serão 4-5 chamadas sequenciais ao endpoint `POST /sales-chat` construindo o histórico de mensagens a cada turno.
+### O que muda
+
+**Arquivos afetados:**
+- `supabase/functions/sales-chat/index.ts` (SYSTEM_PROMPT)
+- `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
+
+### Mudanças no SYSTEM_PROMPT
+
+1. Adicionar a **Regra 10** após a Regra 9 nos dois arquivos
+2. Adicionar exemplos na seção de exemplos:
+   - Lead: "nem me venha com proposta" → "de boa, sem problema. como ta o movimento ai?"
+   - Lead: "não preciso de nada" → "tranquilo, to por aqui qualquer hora"
+   - ERRADO: Lead diz "não quero proposta" e Lucas pergunta "vc paga taxa por pedido?" — isso é PROIBIDO
+3. Atualizar a **Regra 5** para incluir exceção: se o lead recusar 2x, pode encerrar com despedida curta
+4. Atualizar a **Regra 9** para incluir: se o lead já recusou proposta, NÃO seguir o fluxo de elogio/pergunta/dor
+
+### Detalhes técnicos
+- Mudança apenas nos SYSTEM_PROMPT dos dois edge functions
+- Nenhuma mudança de banco de dados
+- Deploy automático após edição
 
