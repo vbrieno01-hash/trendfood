@@ -1,40 +1,24 @@
 
 
-## Plano: Adicionar categoria "Gourmets" ao cardapio
+## Plano: Mover todos os itens Gourmet para a categoria "Gourmets"
+
+### Situacao atual
+Existem **20 itens** com nome "Gourmet" espalhados nas categorias erradas:
+- 12 em "Lanches com 1 hambúrguer e sem batata frita"
+- 8 em "Lanches com 2 hambúrgueres e batata frita"
 
 ### O que sera feito
-Adicionar a categoria "Gourmets" na lista de categorias do cardapio, posicionada entre "Hambúrgueres triplo" e "Combos com batata frita" (agrupando com os lanches/hamburgueres).
+Executar um UPDATE no banco de dados para mover todos os 20 itens cuja nome comeca com "Gourmet" para a categoria "Gourmets".
 
 ### Alteracao
 
-**Arquivo: `src/hooks/useMenuItems.ts`** (linha 31-32)
-
-Adicionar uma nova entrada no array `CATEGORIES` apos "Hambúrgueres triplo":
-
-```ts
-{ value: "Gourmets", emoji: "👨‍🍳" },
-```
-
-O array ficara assim:
-```ts
-export const CATEGORIES = [
-  { value: "Promoção do dia", emoji: "🔥" },
-  { value: "Lanches com 1 hambúrguer e sem batata frita", emoji: "🍔" },
-  { value: "Lanches com 2 hambúrgueres e batata frita", emoji: "🍔🍟" },
-  { value: "Hambúrgueres triplo", emoji: "🍔" },
-  { value: "Gourmets", emoji: "👨‍🍳" },
-  { value: "Combos com batata frita", emoji: "🎁🍟" },
-  { value: "Combos sem batata frita", emoji: "🎁" },
-  { value: "Bebidas", emoji: "🥤" },
-  { value: "Porções", emoji: "🍟" },
-  { value: "Sobremesas", emoji: "🍰" },
-  { value: "Outros", emoji: "🍽️" },
-];
+**Banco de dados** — Um unico comando UPDATE:
+```sql
+UPDATE menu_items SET category = 'Gourmets' WHERE name ILIKE 'Gourmet%';
 ```
 
 ### Impacto
-- A nova categoria aparece automaticamente no dropdown de selecao ao criar/editar item
-- Aparece como grupo separado na listagem do cardapio
-- Aparece na pagina publica da loja
-- Nenhuma outra alteracao necessaria — tudo e derivado do array `CATEGORIES`
+- Os 20 itens aparecerao agrupados sob a secao "Gourmets" no cardapio
+- Nenhuma alteracao de codigo necessaria — a categoria "Gourmets" ja foi adicionada ao array `CATEGORIES`
+- A ordenacao automatica posiciona Gourmets entre "Hambúrgueres triplo" e "Combos com batata frita"
 
