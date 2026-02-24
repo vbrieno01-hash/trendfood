@@ -1,39 +1,68 @@
 
 
-## Problema: Nomes dos itens invisíveis no mobile
+## Plano: Adicionar categorias detalhadas ao cardápio
 
-No layout atual, cada item do cardápio está numa única linha flex horizontal com **todos os elementos como `shrink-0`** exceto o nome:
+### Contexto
+O usuário quer categorias mais descritivas no cardápio, como as mostradas nas imagens de referência:
+- "Lanches com 1 hambúrguer e sem batata frita"
+- "Lanches com 2 hambúrgueres e batata frita"
+- "Hambúrgueres triplo"
+- "Combos com batata frita"
+- "Combos sem batata frita"
 
-```text
-[Imagem 56px] [Nome flex-1] [Preço 96px] [Switch + 3 botões ~128px] 
+### Mudança
+
+**Arquivo: `src/hooks/useMenuItems.ts` (linhas 27-34)**
+
+Expandir o array `CATEGORIES` com as novas subcategorias:
+
+```typescript
+export const CATEGORIES = [
+  { value: "Promoção do dia", emoji: "🔥" },
+  { value: "Lanches com 1 hambúrguer e sem batata frita", emoji: "🍔" },
+  { value: "Lanches com 2 hambúrgueres e batata frita", emoji: "🍔🍟" },
+  { value: "Hambúrgueres triplo", emoji: "🍔" },
+  { value: "Combos com batata frita", emoji: "🎁🍟" },
+  { value: "Combos sem batata frita", emoji: "🎁" },
+  { value: "Bebidas", emoji: "🥤" },
+  { value: "Porções", emoji: "🍟" },
+  { value: "Sobremesas", emoji: "🍰" },
+  { value: "Outros", emoji: "🍽️" },
+];
 ```
 
-Numa tela de ~360px, sobram **0px para o nome** — ele é esmagado pelo `min-w-0` + `truncate`.
+**Arquivo: `src/pages/TableOrderPage.tsx` (linhas 26-28)**
 
-## Solução
+Atualizar o `CATEGORY_ORDER` local para incluir as novas categorias:
 
-Reestruturar o layout de cada item para **duas linhas no mobile**:
-
-```text
-Linha 1: [Imagem] [Nome + Descrição]        [Preço]
-Linha 2:                          [Switch] [Editar] [Copiar] [Excluir]
+```typescript
+const CATEGORY_ORDER = [
+  "Promoção do dia",
+  "Lanches com 1 hambúrguer e sem batata frita",
+  "Lanches com 2 hambúrgueres e batata frita",
+  "Hambúrgueres triplo",
+  "Combos com batata frita",
+  "Combos sem batata frita",
+  "Bebidas", "Porções", "Sobremesas", "Outros",
+];
 ```
 
-### Mudanças em `src/components/dashboard/MenuTab.tsx` (linhas 371-435):
+**Arquivo: `src/components/dashboard/MenuTab.tsx` (linha 35)**
 
-Substituir o layout flat de uma linha por um layout de duas linhas:
+Atualizar o `EMPTY_FORM` para usar a primeira categoria válida que não seja promoção:
 
-1. **Linha superior**: imagem (w-12 h-12, menor) + nome/descrição (flex-1) + preço (sem width fixo, shrink-0)
-2. **Linha inferior**: botões de ação alinhados à direita (switch + editar + copiar + excluir)
+```typescript
+category: "Lanches com 1 hambúrguer e sem batata frita",
+```
 
-Isso garante que o nome sempre tem espaço suficiente porque não compete com os botões de ação na mesma linha.
+### Impacto
+- A coluna `category` no banco é texto livre — não precisa de migração SQL
+- Itens existentes que usam "Hambúrgueres" ou "Combos" antigos continuarão aparecendo na seção "Outros" (ou o dono pode reclassificá-los editando cada item)
+- Funciona em web, APK e todas as telas: dashboard (MenuTab), loja pública (UnitPage), mesa (TableOrderPage)
 
 ### Detalhes técnicos
-
-- A div externa do item passa de `flex items-center` para `flex flex-col`
-- Primeira sub-div: `flex items-center gap-3` com imagem + nome + preço
-- Segunda sub-div: `flex items-center justify-end gap-1.5` com os botões
-- Remove `w-24` fixo do preço — usa `shrink-0 whitespace-nowrap` para que ocupe só o necessário
-- Imagem reduzida de `w-14 h-14` para `w-12 h-12` para dar mais espaço ao nome
-- Aplica a todas as telas (não é condicional por breakpoint), mantendo consistência global
+- `CATEGORIES` é a fonte de verdade usada em 3 arquivos: `useMenuItems.ts`, `MenuTab.tsx`, `UnitPage.tsx`
+- `TableOrderPage.tsx` tem seu próprio `CATEGORY_ORDER` que precisa ser sincronizado
+- As pills de navegação no UnitPage se adaptam automaticamente pois são geradas do `CATEGORIES`
+- O select de categoria no modal de criação/edição do MenuTab também se adapta automaticamente
 
