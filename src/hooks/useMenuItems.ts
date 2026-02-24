@@ -26,11 +26,14 @@ export interface MenuItemInput {
 
 export const CATEGORIES = [
   { value: "Promoção do dia", emoji: "🔥" },
-  { value: "Hambúrgueres", emoji: "🍔" },
+  { value: "Lanches com 1 hambúrguer e sem batata frita", emoji: "🍔" },
+  { value: "Lanches com 2 hambúrgueres e batata frita", emoji: "🍔🍟" },
+  { value: "Hambúrgueres triplo", emoji: "🍔" },
+  { value: "Combos com batata frita", emoji: "🎁🍟" },
+  { value: "Combos sem batata frita", emoji: "🎁" },
   { value: "Bebidas", emoji: "🥤" },
   { value: "Porções", emoji: "🍟" },
   { value: "Sobremesas", emoji: "🍰" },
-  { value: "Combos", emoji: "🎁" },
   { value: "Outros", emoji: "🍽️" },
 ];
 
