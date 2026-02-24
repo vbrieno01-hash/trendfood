@@ -1,6 +1,12 @@
 
 
-## Atualizar link do TrendFood + estilo com kkk e girias
+## Ajustar a IA de vendas: menos bandido, mais focada, nunca morrer
+
+### Problemas identificados (baseado na screenshot)
+
+1. **"Meio bandido"**: A IA ta exagerando nas girias — "qualquer coisa so gritar", "fechou mano". Parece moleque, nao vendedor.
+2. **"Fugindo do assunto"**: Nao ta conduzindo a conversa pra venda. Fica so no papo leve e nunca aprofunda.
+3. **"Morreu ali"**: Quando o cliente fala "beleza", a IA encerra com "tmj kkk qualquer coisa so gritar" em vez de continuar engajando.
 
 ### O que muda
 
@@ -8,21 +14,26 @@
 - `supabase/functions/sales-chat/index.ts` (SYSTEM_PROMPT)
 - `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
 
-### Mudancas
+### Mudancas no SYSTEM_PROMPT
 
-1. **Link atualizado**: Trocar `trendfood.lovable.app` por `https://tinyurl.com/trendfood` nos dois arquivos. Quando a pessoa pedir o link, mandar esse.
+1. **Tom informal mas profissional**: Manter girias leves ("mano", "boa", "show", "massa") mas remover as mais pesadas ("slk", "dahora", "so gritar"). Falar como um vendedor jovem e nao como um moleque.
 
-2. **Trocar emojis por kkk**: Nos exemplos e regras, substituir emojis (😄, 😂) por "kkk" / "kkkk" / "kkkkk". Maximo 1 emoji a cada 10 mensagens, preferir sempre kkk.
+2. **Regra de NUNCA encerrar**: A IA nunca pode fechar a conversa. Quando o cliente falar "beleza", "ok", "show", a IA deve fazer uma pergunta de follow-up pra manter o papo. Exemplos:
+   - Em vez de "fechou mano, tmj" → "boa! vc ja tem cardapio montado ou ta comecando do zero?"
+   - Em vez de "qualquer coisa chama" → "quer q eu te mando um video rapido de como funciona?"
 
-3. **Adicionar girias reais**: "mano", "boa", "top", "slk", "tamo ai", "massa", "show", "bora", "ne nao", "vrdd", "po", "tmj", "vlw", "blz".
+3. **Regra de FOCO NA VENDA**: Toda mensagem depois da 4a deve ter intencao de avançar a conversa pro TrendFood. Perguntar sobre o negocio, dores, volume de pedidos, como faz hoje. Nao ficar so concordando.
 
-4. **Atualizar exemplos** pra refletir o novo estilo:
-   - `"opa, tudo bem? 😄"` vira `"e ai mano, tudo certo?"`
-   - `"rlx 😂"` vira `"kkkk que isso"`
-   - Novos: "boa mano", "top ne nao kkk", "po massa", "vrdd", "slk kkkk", "show, qualquer coisa chama ai"
+4. **Reduzir temperature de 0.9 pra 0.7**: Menos aleatoriedade = respostas mais consistentes e focadas.
 
-5. **Regra de risada**: Variar entre 3-5 k's (kkk, kkkk, kkkkk). Nunca "haha" ou "rsrs".
+5. **Exemplos atualizados** com tom correto:
+   - "boa! quantos pedidos vc recebe por dia mais ou menos?"
+   - "entendi, e hj vc usa oq pra receber pedido?"
+   - "massa, quer dar uma olhada? tem 7 dias gratis pra testar"
+   - "show, posso te mandar o link pra vc ver como funciona?"
 
-### Resultado
-A IA vai mandar o link certo (tinyurl) quando pedirem, e vai falar com kkk e girias igual conversa real de WhatsApp.
+### Detalhe tecnico
+- Editar o `SYSTEM_PROMPT` nos dois edge functions
+- Baixar `temperature` de `0.9` pra `0.7` no `sales-chat/index.ts` e no `whatsapp-webhook/index.ts`
+- Deploy automatico dos dois functions
 
