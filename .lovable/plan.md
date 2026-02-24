@@ -1,68 +1,35 @@
 
 
-## Plano: Adicionar categorias detalhadas ao cardápio
+## Plano: Reclassificar itens existentes no banco
 
-### Contexto
-O usuário quer categorias mais descritivas no cardápio, como as mostradas nas imagens de referência:
-- "Lanches com 1 hambúrguer e sem batata frita"
-- "Lanches com 2 hambúrgueres e batata frita"
-- "Hambúrgueres triplo"
-- "Combos com batata frita"
-- "Combos sem batata frita"
+Analisando os 138 itens existentes com categorias antigas:
 
-### Mudança
+### Mapeamento proposto
 
-**Arquivo: `src/hooks/useMenuItems.ts` (linhas 27-34)**
+**91 itens "Hambúrgueres" → 3 categorias:**
+- Itens com "Triplo" no nome (ex: X-Bacon Triplo, X-Tudo triplo) → **"Hambúrgueres triplo"**
+- Itens com "Duplo" ou "duplo" no nome (ex: Gourmet Bacon Duplo, Smash bacon duplo) → **"Lanches com 2 hambúrgueres e batata frita"**
+- Itens com sufixo " E" no nome (ex: X-Bacon E, X-Salada E) → **"Lanches com 2 hambúrgueres e batata frita"** (o "E" indica versão especial/dupla)
+- Todos os outros (ex: X-Burguer, X-Salada, Gourmet Bacon) → **"Lanches com 1 hambúrguer e sem batata frita"**
 
-Expandir o array `CATEGORIES` com as novas subcategorias:
+**47 itens "Combos" → 2 categorias:**
+- Itens com "Batata" no nome (ex: Combo 1 Smash Burguer + Batata + 1 Refrigerante) → **"Combos com batata frita"**
+- Itens sem "Batata" no nome (ex: Combo 1 X-Salada + 1 Refrigerante Lata) → **"Combos sem batata frita"**
 
-```typescript
-export const CATEGORIES = [
-  { value: "Promoção do dia", emoji: "🔥" },
-  { value: "Lanches com 1 hambúrguer e sem batata frita", emoji: "🍔" },
-  { value: "Lanches com 2 hambúrgueres e batata frita", emoji: "🍔🍟" },
-  { value: "Hambúrgueres triplo", emoji: "🍔" },
-  { value: "Combos com batata frita", emoji: "🎁🍟" },
-  { value: "Combos sem batata frita", emoji: "🎁" },
-  { value: "Bebidas", emoji: "🥤" },
-  { value: "Porções", emoji: "🍟" },
-  { value: "Sobremesas", emoji: "🍰" },
-  { value: "Outros", emoji: "🍽️" },
-];
-```
+### Execução
 
-**Arquivo: `src/pages/TableOrderPage.tsx` (linhas 26-28)**
+4 queries UPDATE no banco de dados usando a ferramenta de inserção/atualização:
 
-Atualizar o `CATEGORY_ORDER` local para incluir as novas categorias:
+1. `UPDATE menu_items SET category = 'Hambúrgueres triplo' WHERE category = 'Hambúrgueres' AND (name ILIKE '%triplo%')`
+2. `UPDATE menu_items SET category = 'Lanches com 2 hambúrgueres e batata frita' WHERE category = 'Hambúrgueres' AND (name ILIKE '%duplo%' OR name LIKE '% E' OR name LIKE '% E %')`
+3. `UPDATE menu_items SET category = 'Lanches com 1 hambúrguer e sem batata frita' WHERE category = 'Hambúrgueres'` (pega o restante)
+4. `UPDATE menu_items SET category = 'Combos com batata frita' WHERE category = 'Combos' AND name ILIKE '%batata%'`
+5. `UPDATE menu_items SET category = 'Combos sem batata frita' WHERE category = 'Combos'` (pega o restante)
 
-```typescript
-const CATEGORY_ORDER = [
-  "Promoção do dia",
-  "Lanches com 1 hambúrguer e sem batata frita",
-  "Lanches com 2 hambúrgueres e batata frita",
-  "Hambúrgueres triplo",
-  "Combos com batata frita",
-  "Combos sem batata frita",
-  "Bebidas", "Porções", "Sobremesas", "Outros",
-];
-```
-
-**Arquivo: `src/components/dashboard/MenuTab.tsx` (linha 35)**
-
-Atualizar o `EMPTY_FORM` para usar a primeira categoria válida que não seja promoção:
-
-```typescript
-category: "Lanches com 1 hambúrguer e sem batata frita",
-```
+A ordem importa: os updates mais específicos (triplo, duplo) rodam antes do genérico.
 
 ### Impacto
-- A coluna `category` no banco é texto livre — não precisa de migração SQL
-- Itens existentes que usam "Hambúrgueres" ou "Combos" antigos continuarão aparecendo na seção "Outros" (ou o dono pode reclassificá-los editando cada item)
-- Funciona em web, APK e todas as telas: dashboard (MenuTab), loja pública (UnitPage), mesa (TableOrderPage)
-
-### Detalhes técnicos
-- `CATEGORIES` é a fonte de verdade usada em 3 arquivos: `useMenuItems.ts`, `MenuTab.tsx`, `UnitPage.tsx`
-- `TableOrderPage.tsx` tem seu próprio `CATEGORY_ORDER` que precisa ser sincronizado
-- As pills de navegação no UnitPage se adaptam automaticamente pois são geradas do `CATEGORIES`
-- O select de categoria no modal de criação/edição do MenuTab também se adapta automaticamente
+- Zero downtime, as categorias são texto livre
+- Os itens aparecerão imediatamente nas novas seções no dashboard, loja pública e pedido de mesa
+- Nenhuma mudança de código necessária (as categorias já foram atualizadas no passo anterior)
 
