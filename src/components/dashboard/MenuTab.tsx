@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -46,6 +48,7 @@ const SORT_KEY = "menu_sort_order";
 
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
+  const queryClient = useQueryClient();
   const { data: items = [], isLoading } = useMenuItems(organization.id, sortOrder);
   const addMutation = useAddMenuItem(organization.id);
   const updateMutation = useUpdateMenuItem(organization.id);
@@ -99,11 +102,23 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const doImmediateUpload = async (file: File) => {
     setUploadingImage(true);
     try {
-      const tempId = crypto.randomUUID();
-      const url = await uploadMenuImage(organization.id, tempId, file);
+      const itemId = editItem?.id ?? crypto.randomUUID();
+      const url = await uploadMenuImage(organization.id, itemId, file);
       setForm((p) => ({ ...p, image_url: url, imageFile: null }));
       setImagePreview(url);
-      toast({ title: "Foto enviada ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
+
+      // Se está editando item existente, salvar URL direto no banco (igual perfil da loja)
+      if (editItem) {
+        const { error: dbError } = await supabase
+          .from("menu_items")
+          .update({ image_url: url })
+          .eq("id", editItem.id);
+        if (dbError) throw dbError;
+        queryClient.invalidateQueries({ queryKey: ["menu-items", organization.id] });
+        toast({ title: "Foto salva ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
+      } else {
+        toast({ title: "Foto enviada ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
+      }
     } catch (err) {
       console.error("[MenuTab] Immediate upload error:", err);
       toast({ title: "Erro ao enviar foto", description: "Tente novamente.", variant: "destructive" });
