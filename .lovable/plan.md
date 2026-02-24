@@ -1,55 +1,61 @@
 
+Objetivo: impedir definitivamente que o modal de “Novo item” feche sozinho no APK durante o fluxo da galeria/câmera.
 
-## Diagnóstico: Modal fecha sozinho ao abrir câmera no APK
+Contexto confirmado no código atual:
+- `MenuTab.tsx` já bloqueia `onInteractOutside` e `onPointerDownOutside`.
+- O fechamento ainda acontece no APK, então existe outro gatilho de fechamento do Radix/Dialog (principalmente perda de foco e/ou evento de close disparado no `onOpenChange` quando o app volta da galeria).
 
-### Causa raiz
+Plano de implementação
 
-No Android, quando o plugin `@capacitor/camera` abre a câmera ou galeria, a Activity do app vai para background. O Radix Dialog interpreta isso como uma interação "fora" do modal e dispara `onInteractOutside`, que chama `setModalOpen(false)` — fechando o modal antes mesmo de o usuário escolher a foto.
+1) Blindar o terceiro gatilho de fechamento (focus)
+- Arquivo: `src/components/dashboard/MenuTab.tsx`
+- Em `<DialogContent />`, adicionar:
+  - `onFocusOutside={(e) => e.preventDefault()}`
+- Motivo: no Android, ao abrir galeria/câmera o WebView perde foco; isso costuma disparar fechamento por “focus outside”.
 
-No navegador isso não acontece porque o file picker não tira o foco do mesmo jeito.
+2) Proteger o estado `modalOpen` contra closes automáticos durante picker nativo
+- Arquivo: `src/components/dashboard/MenuTab.tsx`
+- Criar um `ref` de controle, ex.:
+  - `const nativePickerInFlightRef = useRef(false);`
+- Trocar `onOpenChange={setModalOpen}` por handler protegido:
+  - Se `nextOpen === false` e `nativePickerInFlightRef.current === true`, ignorar fechamento.
+  - Caso contrário, aplicar `setModalOpen(nextOpen)`.
+- Motivo: mesmo bloqueando eventos “outside”, o Dialog pode emitir close ao retorno do app; esse guard impede fechamento não intencional.
 
-### Correção
+3) Marcar início/fim do fluxo nativo no `handleNativePhoto`
+- Arquivo: `src/components/dashboard/MenuTab.tsx`
+- Em `handleNativePhoto`:
+  - Antes de `pickPhotoNative()`: `nativePickerInFlightRef.current = true`
+  - No `finally`: liberar com pequeno atraso (ex. 250–400ms) para cobrir eventos tardios de resume/focus:
+    - `setTimeout(() => { nativePickerInFlightRef.current = false; }, 300);`
+- Motivo: evita race condition em que o close chega logo após retorno da galeria.
 
-**Arquivo:** `src/components/dashboard/MenuTab.tsx`
+4) (Opcional de robustez) bloquear Escape apenas durante picker nativo
+- Arquivo: `src/components/dashboard/MenuTab.tsx`
+- Em `<DialogContent />`:
+  - `onEscapeKeyDown={(e) => { if (nativePickerInFlightRef.current) e.preventDefault(); }}`
+- Motivo: alguns dispositivos mapeiam retorno/foco de forma parecida com “dismiss”.
 
-Adicionar `onInteractOutside` e `onPointerDownOutside` no `DialogContent` para bloquear o fechamento automático durante o fluxo de foto:
+5) Não alterar fluxo de upload já corrigido
+- Manter comportamento atual:
+  - Upload da imagem no storage imediato
+  - Persistência no banco apenas no submit (“Salvar alterações”)
 
-```text
-<DialogContent
-  onInteractOutside={(e) => e.preventDefault()}
-  onPointerDownOutside={(e) => e.preventDefault()}
->
-```
+Validação (teste obrigatório no APK)
 
-Isso impede que o Dialog feche quando:
-- A câmera/galeria abre no Android (Activity vai para background)
-- O usuário toca fora do modal acidentalmente no celular
+Checklist de teste ponta a ponta:
+1. Abrir “Novo item”.
+2. Clicar “Adicionar foto”.
+3. Escolher imagem na galeria.
+4. Confirmar que o modal permanece aberto com preview da foto.
+5. Preencher nome/preço/categoria e salvar.
+6. Confirmar item criado com imagem.
+7. Repetir no fluxo “Editar item” para garantir que não houve regressão.
+8. Testar cancelar/fechar no X para validar que o fechamento manual continua funcionando.
 
-O modal só fecha por:
-- Clique no botão "Cancelar"
-- Clique no X do modal
-- Submit com sucesso ("Salvar alterações")
-
-### Mudança exata
-
-Linha 348 do `MenuTab.tsx`:
-```text
-ANTES:
-<DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-
-DEPOIS:
-<DialogContent
-  className="max-w-md max-h-[90vh] overflow-y-auto"
-  onInteractOutside={(e) => e.preventDefault()}
-  onPointerDownOutside={(e) => e.preventDefault()}
->
-```
-
-Nenhuma outra mudança necessária.
-
-### Após implementar
-
-```text
-git pull → npm run build → npx cap sync → cd android → .\gradlew.bat assembleDebug
-```
-
+Detalhes técnicos (se você quiser saber o porquê)
+- O Dialog do Radix pode fechar por múltiplas vias: pointer outside, interact outside, focus outside e open-change programático.
+- No Android (Capacitor), abrir câmera/galeria tira foco da WebView e pode disparar fechamento mesmo sem clique fora.
+- Por isso a correção precisa de duas camadas:
+  1) bloquear eventos de outside/focus,
+  2) proteger `onOpenChange` enquanto o picker nativo está ativo.
