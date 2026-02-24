@@ -365,6 +365,36 @@ export type Database = {
           },
         ]
       }
+      fila_whatsapp: {
+        Row: {
+          ai_response: string | null
+          created_at: string
+          id: string
+          incoming_message: string
+          phone: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          ai_response?: string | null
+          created_at?: string
+          id?: string
+          incoming_message: string
+          phone: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          ai_response?: string | null
+          created_at?: string
+          id?: string
+          incoming_message?: string
+          phone?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           available: boolean

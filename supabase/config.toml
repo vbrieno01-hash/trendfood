@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.sales-chat]
 verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.whatsapp-queue]
+verify_jwt = false
