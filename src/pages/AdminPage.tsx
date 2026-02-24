@@ -10,6 +10,7 @@ import GrowthCharts from "@/components/admin/GrowthCharts";
 import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
 import AdminDownloadsSection from "@/components/admin/AdminDownloadsSection";
 import SalesChatTab from "@/components/admin/SalesChatTab";
+import ErrorLogsTab from "@/components/admin/ErrorLogsTab";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -155,7 +156,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs";
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -315,6 +316,7 @@ function AdminContent() {
     { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
     { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
     { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Vendas" },
+    { key: "logs", icon: <AlertCircle className="w-4 h-4" />, label: "Logs" },
   ];
 
   const navBtnClass = (key: AdminTab) =>
@@ -652,6 +654,9 @@ function AdminContent() {
 
           {/* ── Vendas Tab ── */}
           {activeTab === "vendas" && <SalesChatTab />}
+
+          {/* ── Logs Tab ── */}
+          {activeTab === "logs" && <ErrorLogsTab />}
 
         </main>
       </div>

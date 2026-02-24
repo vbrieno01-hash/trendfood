@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { toast } from "sonner";
+import { logClientError } from "@/lib/errorLogger";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -49,21 +50,38 @@ const ConditionalSupportChat = () => {
 
 const AppInner = () => {
   useEffect(() => {
-    const handler = (e: PromiseRejectionEvent) => {
+    const rejectionHandler = (e: PromiseRejectionEvent) => {
       console.error("[Unhandled Rejection]", e.reason);
       e.preventDefault();
+      const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+      const stack = e.reason instanceof Error ? e.reason.stack : undefined;
+      logClientError({ message: msg, stack, source: "unhandled_rejection" });
       if (Capacitor.isNativePlatform()) {
         toast.error("Ocorreu um erro inesperado. Tente novamente.");
       }
     };
-    window.addEventListener("unhandledrejection", handler);
+
+    const errorHandler = (e: ErrorEvent) => {
+      logClientError({
+        message: e.message,
+        stack: e.error?.stack,
+        source: "global_error",
+        metadata: { filename: e.filename, lineno: e.lineno, colno: e.colno },
+      });
+    };
+
+    window.addEventListener("unhandledrejection", rejectionHandler);
+    window.addEventListener("error", errorHandler);
 
     // Hide splash screen on native
     if (Capacitor.isNativePlatform()) {
       SplashScreen.hide().catch(() => {});
     }
 
-    return () => window.removeEventListener("unhandledrejection", handler);
+    return () => {
+      window.removeEventListener("unhandledrejection", rejectionHandler);
+      window.removeEventListener("error", errorHandler);
+    };
   }, []);
 
   // Auto-heal: se a app crashou na sessão anterior, limpar SW e caches
