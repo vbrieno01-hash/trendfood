@@ -1,7 +1,4 @@
 import { useEffect, lazy, Suspense } from "react";
-import { Capacitor } from "@capacitor/core";
-import { SplashScreen } from "@capacitor/splash-screen";
-import { toast } from "sonner";
 import { logClientError, isIgnorableError } from "@/lib/errorLogger";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -57,9 +54,6 @@ const AppInner = () => {
       e.preventDefault();
       const stack = e.reason instanceof Error ? e.reason.stack : undefined;
       logClientError({ message: msg, stack, source: "unhandled_rejection" });
-      if (Capacitor.isNativePlatform()) {
-        toast.error("Ocorreu um erro inesperado. Tente novamente.");
-      }
     };
 
     const errorHandler = (e: ErrorEvent) => {
@@ -74,11 +68,6 @@ const AppInner = () => {
 
     window.addEventListener("unhandledrejection", rejectionHandler);
     window.addEventListener("error", errorHandler);
-
-    // Hide splash screen on native
-    if (Capacitor.isNativePlatform()) {
-      SplashScreen.hide().catch(() => {});
-    }
 
     return () => {
       window.removeEventListener("unhandledrejection", rejectionHandler);
@@ -114,7 +103,7 @@ const AppInner = () => {
           <BrowserRouter>
             <ScrollToTop />
             <Routes>
-              <Route path="/" element={Capacitor.isNativePlatform() ? <AuthPage /> : <Index />} />
+              <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/cadastro" element={<AuthPage />} />
               <Route path="/unidade/:slug" element={<UnitPage />} />

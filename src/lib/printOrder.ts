@@ -12,8 +12,6 @@ export interface PrintableOrder {
   order_items?: Array<{ id: string; name: string; quantity: number; price?: number; customer_name?: string | null }>;
 }
 
-// ─── Notes parser ─────────────────────────────────────────────────────────────
-
 interface ParsedNotes {
   tipo?: string;
   name?: string;
@@ -46,8 +44,6 @@ function parseNotes(notes: string): ParsedNotes {
   };
 }
 
-// ─── Main print function ───────────────────────────────────────────────────────
-
 export async function printOrder(
   order: PrintableOrder,
   storeName = "Cozinha",
@@ -56,7 +52,7 @@ export async function printOrder(
 ) {
   const is58 = printerWidth === '58mm';
   const win = window.open("", "_blank", "width=400,height=700");
-  if (!win) return; // blocked by popup blocker
+  if (!win) return;
 
   const date = new Date(order.created_at).toLocaleDateString("pt-BR", {
     day: "2-digit",
@@ -83,12 +79,10 @@ export async function printOrder(
 
   const parsed = order.notes ? parseNotes(order.notes) : null;
 
-  // For table orders or legacy unstructured notes: show as plain obs
   const notesHtml = parsed?.raw
     ? `<div class="notes"><strong>Obs:</strong> ${parsed.raw}</div>`
     : "";
 
-  // Structured customer info block (delivery orders with new format)
   const customerRows: Array<[string, string]> = [];
   if (parsed && !parsed.raw) {
     if (parsed.name)    customerRows.push(["Nome:",      parsed.name]);
@@ -113,7 +107,6 @@ export async function printOrder(
     ? (parsed?.tipo === "Retirada" ? "RETIRADA" : "ENTREGA")
     : `MESA ${order.table_number}`;
 
-  // Calculate total
   const total = items.reduce((sum, item) => {
     return sum + (item.price != null ? item.quantity * item.price : 0);
   }, 0);
@@ -123,7 +116,6 @@ export async function printOrder(
     ? `<div class="total">TOTAL: R$ ${total.toFixed(2).replace(".", ",")}</div>`
     : "";
 
-  // Generate PIX QR Code from pre-built payload
   let pixHtml = "";
   if (pixPayload && hasTotal) {
     try {
@@ -139,7 +131,7 @@ export async function printOrder(
           <p class="pix-label">📱 Pague com Pix</p>
         </div>`;
     } catch {
-      // QR code generation failed — print without it
+      // QR code generation failed
     }
   }
 
@@ -157,112 +149,28 @@ export async function printOrder(
       padding: ${is58 ? '4mm 2mm' : '6mm 4mm'};
       color: #000;
     }
-    .header {
-      text-align: center;
-      margin-bottom: 8px;
-    }
-    .store-name {
-      font-size: ${is58 ? '14px' : '16px'};
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .divider {
-      border-top: 1px dashed #000;
-      margin: 6px 0;
-    }
-    .mesa-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 2px;
-    }
-    .mesa {
-      font-size: ${is58 ? '18px' : '22px'};
-      font-weight: bold;
-    }
-    .time {
-      font-size: 12px;
-      color: #333;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 4px 0;
-    }
+    .header { text-align: center; margin-bottom: 8px; }
+    .store-name { font-size: ${is58 ? '14px' : '16px'}; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+    .mesa-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+    .mesa { font-size: ${is58 ? '18px' : '22px'}; font-weight: bold; }
+    .time { font-size: 12px; color: #333; }
+    table { width: 100%; border-collapse: collapse; margin: 4px 0; }
     td { padding: 2px 0; vertical-align: top; }
-    td.qty {
-      width: 28px;
-      font-weight: bold;
-      white-space: nowrap;
-    }
+    td.qty { width: 28px; font-weight: bold; white-space: nowrap; }
     td.name { padding-left: 4px; }
-    td.price {
-      text-align: right;
-      white-space: nowrap;
-      font-size: 12px;
-      color: #333;
-    }
-    .notes {
-      margin-top: 6px;
-      font-size: 12px;
-      background: #f5f5f5;
-      border: 1px solid #ccc;
-      padding: 4px 6px;
-      border-radius: 2px;
-    }
-    .total {
-      font-size: ${is58 ? '14px' : '16px'};
-      font-weight: bold;
-      text-align: right;
-      margin: 6px 0 2px;
-      letter-spacing: 0.5px;
-    }
-    .pix-section {
-      text-align: center;
-      padding: 6px 0;
-    }
-    .qr-img {
-      width: ${is58 ? '120px' : '160px'};
-      height: ${is58 ? '120px' : '160px'};
-      display: block;
-      margin: 0 auto 4px;
-    }
-    .pix-label {
-      font-size: 12px;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-    }
-    .client-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 4px 0;
-    }
+    td.price { text-align: right; white-space: nowrap; font-size: 12px; color: #333; }
+    .notes { margin-top: 6px; font-size: 12px; background: #f5f5f5; border: 1px solid #ccc; padding: 4px 6px; border-radius: 2px; }
+    .total { font-size: ${is58 ? '14px' : '16px'}; font-weight: bold; text-align: right; margin: 6px 0 2px; letter-spacing: 0.5px; }
+    .pix-section { text-align: center; padding: 6px 0; }
+    .qr-img { width: ${is58 ? '120px' : '160px'}; height: ${is58 ? '120px' : '160px'}; display: block; margin: 0 auto 4px; }
+    .pix-label { font-size: 12px; font-weight: bold; letter-spacing: 0.5px; }
+    .client-table { width: 100%; border-collapse: collapse; margin: 4px 0; }
     .client-table td { padding: 2px 0; vertical-align: top; }
-    .client-table td.cl {
-      white-space: nowrap;
-      font-weight: bold;
-      padding-right: 6px;
-      font-size: 12px;
-      width: 72px;
-    }
-    .client-table td.cv {
-      font-size: 12px;
-      word-break: break-word;
-    }
-    .cname {
-      font-weight: normal;
-      font-size: 11px;
-      color: #555;
-    }
-    .footer {
-      text-align: center;
-      margin-top: 8px;
-      font-size: 11px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: #555;
-    }
+    .client-table td.cl { white-space: nowrap; font-weight: bold; padding-right: 6px; font-size: 12px; width: 72px; }
+    .client-table td.cv { font-size: 12px; word-break: break-word; }
+    .cname { font-weight: normal; font-size: 11px; color: #555; }
+    .footer { text-align: center; margin-top: 8px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #555; }
     @media print {
       body { width: ${is58 ? '58mm' : '80mm'}; }
       @page { margin: 0; size: ${is58 ? '58mm' : '80mm'} auto; }
@@ -327,25 +235,6 @@ export async function printOrderByMode(
   }
 
   if (printMode === "bluetooth") {
-    // Native platform: try direct native print even without btDevice object
-    const { isNativePlatform } = await import("@/lib/bluetoothPrinter");
-    if (isNativePlatform()) {
-      try {
-        const native = await import("@/lib/nativeBluetooth");
-        await native.ensureNativeConnection();
-        if (native.isNativeConnected()) {
-          const success = await native.sendToNativePrinter(text);
-          if (success) {
-            toast.success("Impresso via Bluetooth");
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn("[PrintOrder] Native direct print failed:", err);
-      }
-    }
-
-    // Web path: use btDevice normally
     if (btDevice) {
       const success = await sendToBluetoothPrinter(btDevice, text);
       if (success) {
@@ -355,7 +244,7 @@ export async function printOrderByMode(
       toast.warning("Bluetooth falhou, salvando na fila...", {
         description: "Verifique se a impressora está ligada e próxima.",
       });
-    } else if (!isNativePlatform()) {
+    } else {
       toast.warning("Nenhuma impressora Bluetooth pareada, salvando na fila...");
     }
     // Fallback to queue

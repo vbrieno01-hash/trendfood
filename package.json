@@ -13,16 +13,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@capacitor-community/bluetooth-le": "^8.1.0",
-    "@capacitor/android": "^8.1.0",
-    "@capacitor/app": "^8.0.1",
-    "@capacitor/camera": "^8.0.1",
-    "@capacitor/cli": "^8.1.0",
-    "@capacitor/core": "^8.1.0",
-    "@capacitor/filesystem": "^8.1.2",
-    "@capacitor/local-notifications": "^8.0.1",
-    "@capacitor/share": "^8.0.1",
-    "@capacitor/splash-screen": "^8.0.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

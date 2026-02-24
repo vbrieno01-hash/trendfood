@@ -13,7 +13,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import html2canvas from "html2canvas";
-import { shareFileNative, isNativePlatform } from "@/lib/nativeShare";
+
 interface ReportsTabProps {
   orgId: string;
   orgName: string;
@@ -237,41 +237,6 @@ ${watermarkHtml}
   };
 
   const handleDownloadPDF = async () => {
-    if (isNativePlatform()) {
-      // Native: render report in hidden div, convert to image and share
-      const html = buildReportHtml(true);
-      const tempDiv = document.createElement("div");
-      tempDiv.style.position = "absolute";
-      tempDiv.style.left = "-9999px";
-      tempDiv.style.top = "0";
-      tempDiv.style.width = "800px";
-      tempDiv.innerHTML = html;
-      document.body.appendChild(tempDiv);
-
-      await new Promise((r) => setTimeout(r, 600));
-
-      try {
-        const canvas = await html2canvas(tempDiv, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          width: 800,
-        });
-        const blob = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob(resolve, "image/png")
-        );
-        if (blob) {
-          const fileName = `relatorio-${orgName.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.png`;
-          await shareFileNative(blob, fileName, `Relatório de Vendas — ${orgName}`);
-        }
-      } catch (err) {
-        console.error("[ReportsTab] Native PDF/share error:", err);
-      } finally {
-        document.body.removeChild(tempDiv);
-      }
-      return;
-    }
-
     // Web: open in new window for printing
     const w = window.open("", "_blank");
     if (!w) return;
@@ -281,7 +246,6 @@ ${watermarkHtml}
   };
 
   const handleDownloadImage = async () => {
-    // Render report in hidden div (works on both web and native)
     const tempDiv = document.createElement("div");
     tempDiv.style.position = "absolute";
     tempDiv.style.left = "-9999px";
@@ -310,20 +274,13 @@ ${watermarkHtml}
 
       const fileName = `relatorio-${orgName.replace(/\s+/g, "-").toLowerCase()}.png`;
 
-      // Try native share first
-      const handled = await shareFileNative(blob, fileName, `Relatório — ${orgName}`);
-
-      if (!handled) {
-        // Web fallback: trigger download
-        const link = document.createElement("a");
-        link.download = fileName;
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        URL.revokeObjectURL(link.href);
-      }
+      const link = document.createElement("a");
+      link.download = fileName;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
     } catch (err) {
       console.error("[ReportsTab] Image download error:", err);
-      // Fallback to PDF
       handleDownloadPDF();
     } finally {
       document.body.removeChild(tempDiv);
