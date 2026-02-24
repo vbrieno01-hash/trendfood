@@ -1,57 +1,46 @@
 
 
-## Bot WhatsApp automático (mesmo padrão da impressora)
+## Painel WhatsApp Bot no Admin
 
-A ideia é replicar a arquitetura que já funciona na impressora térmica: uma edge function de fila + um agente local que faz polling.
+Adicionar uma nova aba/secao no painel Admin para monitorar e gerenciar o bot de WhatsApp automatico.
 
-### Arquitetura
+### O que sera criado
 
-```text
-WhatsApp Web (Evolution API local)
-        |
-        v
-  Edge Function: whatsapp-webhook
-  (recebe mensagem, salva na fila)
-        |
-        v
-  Tabela: fila_whatsapp
-  (mensagens pendentes de resposta)
-        |
-        v
-  Edge Function: whatsapp-queue
-  (polling igual printer-queue, gera resposta com IA, retorna)
-        |
-        v
-  Evolution API local envia resposta no WhatsApp
-```
+**1. Componente `WhatsAppBotTab.tsx`** (nova aba no Admin)
 
-### O que eu consigo fazer aqui (backend)
+Exibe em tempo real todas as mensagens da tabela `fila_whatsapp`:
+- Lista de conversas agrupadas por numero de telefone
+- Cada conversa mostra: mensagem recebida, resposta da IA, status (pendente/respondido), horario
+- Badge com contagem de mensagens pendentes
+- Botao para testar o webhook com payload fake (simular mensagem chegando)
+- Auto-refresh com realtime ou polling a cada 10s
 
-1. **Tabela `fila_whatsapp`** com colunas: id, phone, incoming_message, ai_response, status (pendente/respondido), created_at
-2. **Edge function `whatsapp-webhook`** -- recebe mensagens da Evolution API, salva na fila, gera resposta usando o mesmo prompt do sales-chat, e retorna
-3. **Edge function `whatsapp-queue`** -- endpoint de polling (igual `printer-queue`) para um agente local consultar mensagens pendentes e marcar como respondidas
+**2. Integracao no AdminPage.tsx**
 
-### O que você precisa fazer no seu PC (parte local)
+- Adicionar nova aba "WhatsApp Bot" no menu lateral do admin, com icone de MessageCircle
+- Renderizar o componente `WhatsAppBotTab` quando a aba for selecionada
 
-Instalar a **Evolution API** (open source, grátis) no seu computador. Ela simula o WhatsApp Web e permite enviar/receber mensagens por API local.
+**3. Habilitar Realtime na tabela `fila_whatsapp`**
 
-- Roda com Docker: `docker run` e pronto
-- Escaneia QR code do seu WhatsApp uma vez
-- Configura o webhook apontando pra nossa edge function
-- Funciona 24h enquanto o PC estiver ligado
+- Migration para adicionar `fila_whatsapp` ao `supabase_realtime` para atualizacao instantanea no painel
 
-A Evolution API faz o papel do "exe" -- é um programa que roda local no seu PC, conecta no seu WhatsApp, e chama nossa edge function automaticamente quando chega mensagem.
+**4. Ajustar RLS para admin poder visualizar**
 
-### Resumo
+- Atualmente todas as policies sao `false` (so service_role acessa)
+- Adicionar policy de SELECT para usuarios com role `admin` poderem visualizar as mensagens no painel
 
-| Parte | Onde roda | Quem faz |
-|-------|-----------|----------|
-| Receber/enviar WhatsApp | Seu PC (Evolution API) | Você instala |
-| Fila de mensagens | Nuvem (banco de dados) | Eu crio |
-| IA que gera respostas | Nuvem (edge function) | Eu crio |
-| Orquestração | Evolution API webhook | Automático |
+### Detalhes tecnicos
 
-### Resultado final
+- O componente seguira o mesmo padrao visual do `SalesChatTab.tsx` (lista de conversas a esquerda, detalhes a direita)
+- O botao "Testar" chamara o endpoint `whatsapp-webhook` com um payload fake no formato da Evolution API
+- As mensagens pendentes terao indicador visual (badge amarelo), respondidas (badge verde)
+- Agrupamento por telefone para simular threads de conversa
 
-Mensagem chega no seu WhatsApp -> Evolution API envia pra nuvem -> IA gera resposta -> Evolution API envia de volta automaticamente. Tudo sem pagar API, sem taxa, open source.
+### Arquivos modificados
+- `src/components/admin/WhatsAppBotTab.tsx` -- novo componente
+- `src/pages/AdminPage.tsx` -- adicionar aba
+- Migration SQL -- realtime + RLS policy de select para admin
+
+### Proximo passo (apos este)
+Criar o script Python `whatsapp_bot.py` que faz polling no `whatsapp-queue` e envia respostas via Evolution API -- igual ao `trendfood.py` da impressora.
 
