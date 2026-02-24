@@ -54,14 +54,20 @@ const DashboardPage = () => {
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const [deleteUnit, setDeleteUnit] = useState<{ id: string; name: string } | null>(null);
   const planLimits = usePlanLimits(organization);
-  // Read tab from URL query param, fallback to location.state, then "home"
+  // Read tab from URL query param, fallback to location.state, then localStorage, then "home"
   const getInitialTab = (): TabKey => {
     const params = new URLSearchParams(location.search);
     const tabFromUrl = params.get("tab") as TabKey | null;
     const tabFromState = (location.state as { tab?: string })?.tab as TabKey | null;
-    return tabFromUrl || tabFromState || "home";
+    const tabFromStorage = localStorage.getItem("dashboard_active_tab") as TabKey | null;
+    return tabFromUrl || tabFromState || tabFromStorage || "home";
   };
   const [activeTab, setActiveTab] = useState<TabKey>(getInitialTab);
+
+  // Persist active tab to localStorage for Android WebView recovery
+  useEffect(() => {
+    localStorage.setItem("dashboard_active_tab", activeTab);
+  }, [activeTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
 

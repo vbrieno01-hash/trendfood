@@ -55,19 +55,19 @@ function draftKey(orgId: string) {
 
 function saveDraft(orgId: string, draft: DraftState) {
   try {
-    sessionStorage.setItem(draftKey(orgId), JSON.stringify(draft));
-    console.log("[MenuTab] Draft saved", { modalOpen: draft.modalOpen, editItemId: draft.editItemId });
+    localStorage.setItem(draftKey(orgId), JSON.stringify(draft));
+    console.log("[MenuTab] Draft saved (localStorage)", { modalOpen: draft.modalOpen, editItemId: draft.editItemId });
   } catch { /* quota exceeded — ignore */ }
 }
 
 function loadDraft(orgId: string): DraftState | null {
   try {
-    const raw = sessionStorage.getItem(draftKey(orgId));
+    const raw = localStorage.getItem(draftKey(orgId));
     if (!raw) return null;
     const draft = JSON.parse(raw) as DraftState;
     // discard stale drafts (>30 min)
     if (Date.now() - draft.ts > 30 * 60 * 1000) {
-      sessionStorage.removeItem(draftKey(orgId));
+      localStorage.removeItem(draftKey(orgId));
       return null;
     }
     return draft;
@@ -77,8 +77,8 @@ function loadDraft(orgId: string): DraftState | null {
 }
 
 function clearDraft(orgId: string) {
-  sessionStorage.removeItem(draftKey(orgId));
-  console.log("[MenuTab] Draft cleared");
+  localStorage.removeItem(draftKey(orgId));
+  console.log("[MenuTab] Draft cleared (localStorage)");
 }
 
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
@@ -465,7 +465,12 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      onClick={() => fileRef.current?.click()}
+                      onClick={() => {
+                        // Persist draft BEFORE opening file picker (Android may destroy WebView)
+                        persistDraft();
+                        console.log("[MenuTab] Draft saved before file picker open");
+                        fileRef.current?.click();
+                      }}
                     >
                       <Camera className="w-4 h-4" />
                       {imagePreview ? "Alterar foto" : "Adicionar foto"}
