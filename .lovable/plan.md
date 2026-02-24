@@ -1,63 +1,31 @@
 
 
-## Diagnóstico: Foto enviada mas não salva no banco
+## Plano: Upload imediato ao storage, mas salvar no banco só ao clicar "Salvar alterações"
 
-### Evidência no banco de dados
+### Problema
+O código atual salva a `image_url` direto no banco quando o usuário seleciona a foto (para itens existentes). O usuário quer que a foto só seja persistida no banco ao clicar "Salvar alterações".
 
-Encontrei **6 fotos enviadas ao storage** nos últimos minutos, mas **nenhuma delas está vinculada a nenhum item do cardápio**:
+### Correção
 
-```text
-Storage (uploads recentes):         Menu Items (image_url):
-─────────────────────────────       ─────────────────────────
-a5f2c8e9...jpg  ✓ (16:44)          Nenhum item com essa URL
-71bcfd70...jpg  ✓ (16:43)          Nenhum item com essa URL
-f3539033...jpg  ✓ (16:43)          Nenhum item com essa URL
-b44d206b...jpg  ✓ (16:43)          Nenhum item com essa URL
-0cf29037...jpg  ✓ (16:41)          Nenhum item com essa URL
-665b0524...jpg  ✓ (16:40)          Nenhum item com essa URL
-```
+**Arquivo:** `src/components/dashboard/MenuTab.tsx`
 
-O upload funciona, mas a URL **nunca chega ao banco**. Ou o usuario nao clica "Salvar" (achando que a foto ja salvou), ou o submit falha silenciosamente.
+Remover o bloco que faz `supabase.from("menu_items").update(...)` e `queryClient.invalidateQueries(...)` de dentro do `doImmediateUpload`. O upload ao storage continua imediato (para não perder o File no Android), mas a URL fica apenas no state do form (`form.image_url`) até o submit.
 
-### Causa raiz
-
-O fluxo atual exige dois passos separados: (1) selecionar foto, (2) clicar "Salvar alterações". No Perfil da Loja, o upload **salva direto no banco** no momento da seleção. No Cardápio, a URL fica apenas no estado React e depende de um segundo clique.
-
-### Correção: Salvar foto direto no banco (igual ao Perfil da Loja)
-
-Quando o item **já existe** (edição), ao selecionar a foto, além de fazer upload ao storage, vamos **atualizar o `image_url` no banco imediatamente**. Para **novos itens**, a URL continua no state e é salva junto com o insert.
-
-### Arquivos afetados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/dashboard/MenuTab.tsx` | `doImmediateUpload`: se `editItem` existe, faz `UPDATE menu_items SET image_url = url WHERE id = editItem.id` direto no banco + invalida cache React Query |
-
-### Detalhe da implementação
-
-**`doImmediateUpload`** recebe o `editItem` como parâmetro opcional. Se presente:
-
+O `doImmediateUpload` ficará assim:
 ```text
 1. Upload file to storage → URL
-2. UPDATE menu_items SET image_url = URL WHERE id = editItem.id
-3. Invalidar queryKey ["menu_items", orgId]
-4. Toast "Foto salva ✓"
+2. Guardar URL no form state (form.image_url)
+3. Mostrar preview da foto no modal
+4. Toast "Foto enviada ✓"
+— NÃO salva no banco —
 ```
 
-Se `editItem` é null (novo item):
-
+Quando o usuário clicar "Salvar alterações":
 ```text
-1. Upload file to storage → URL
-2. Guardar URL no form state
-3. Toast "Foto enviada ✓"
-4. URL será incluída no INSERT quando clicar "Salvar"
+handleSubmit → updateMutation com form.image_url → banco atualizado
 ```
 
-Nenhuma mudança no `useMenuItems.ts` é necessária — o update será feito direto via `supabase.from("menu_items").update(...)` no componente.
+### Mudança específica
 
-### Após implementar
-
-```text
-git pull → npm run build → npx cap sync → cd android → .\gradlew.bat assembleDebug
-```
+No `doImmediateUpload`, remover as linhas 112-120 (o `if (editItem)` que faz update direto no banco). Manter apenas o upload ao storage + set do state + toast genérico.
 
