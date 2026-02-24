@@ -10,7 +10,6 @@ import GrowthCharts from "@/components/admin/GrowthCharts";
 import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
 import AdminDownloadsSection from "@/components/admin/AdminDownloadsSection";
 import SalesChatTab from "@/components/admin/SalesChatTab";
-import WhatsAppBotTab from "@/components/admin/WhatsAppBotTab";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -33,7 +32,6 @@ import {
   Users,
   
   Printer,
-  Bot,
   Home,
   Menu,
   LogOut,
@@ -157,7 +155,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "whatsapp";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas";
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -317,7 +315,6 @@ function AdminContent() {
     { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
     { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
     { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Vendas" },
-    { key: "whatsapp", icon: <Bot className="w-4 h-4" />, label: "WhatsApp Bot" },
   ];
 
   const navBtnClass = (key: AdminTab) =>
@@ -656,8 +653,6 @@ function AdminContent() {
           {/* ── Vendas Tab ── */}
           {activeTab === "vendas" && <SalesChatTab />}
 
-          {/* ── WhatsApp Bot Tab ── */}
-          {activeTab === "whatsapp" && <WhatsAppBotTab />}
         </main>
       </div>
     </div>
