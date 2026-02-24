@@ -265,9 +265,11 @@ export default function TableOrderPage() {
 
       if (method === "card" || (method === "pix" && currentPixMode === "direct")) {
         // Direct PIX or card: treat as "pay at table/counter", send to kitchen immediately
-        await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
+        const { error: updErr } = await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
+        if (updErr) console.error("[TableOrder] update payment failed:", updErr.message);
       } else {
-        await supabase.from("orders").update({ payment_method: method } as never).eq("id", orderId);
+        const { error: updErr2 } = await supabase.from("orders").update({ payment_method: method } as never).eq("id", orderId);
+        if (updErr2) console.error("[TableOrder] update payment method failed:", updErr2.message);
       }
 
       if (isAutomatic && org) {
