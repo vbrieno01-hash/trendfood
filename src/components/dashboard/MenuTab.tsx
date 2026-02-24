@@ -471,7 +471,6 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                       {imagePreview ? "Alterar foto" : "Adicionar foto"}
                     </Button>
                     <p className="text-xs text-muted-foreground mt-1">JPG, PNG ou WebP. Máx 5MB.</p>
-                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
                   </div>
                 </div>
               </div>
@@ -583,6 +582,9 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* File input OUTSIDE modal — always in DOM, survives Android WebView lifecycle */}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
     </div>
   );
 }
