@@ -1,12 +1,9 @@
 
 
-## Problema: IA ainda parece robo
+## Remover risadinhas excessivas da IA de vendas
 
-A screenshot mostra a IA mandando "Boa noite link para fazer seu pedido" — isso é 100% robo. Nenhum humano manda assim. Um humano mandaria "opa boa noite, tudo bem?" e so depois, quando fizer sentido, mandaria um link.
-
-### Causa raiz
-
-A Regra 1 (NUNCA ENROLAR) ta forte demais e conflitando com a Regra 3 (ABERTURA). A IA ta interpretando que deve mandar link imediatamente em TODA primeira mensagem, mesmo quando ninguem pediu nada. Resultado: parece spam automatico.
+### Problema
+A IA ta usando "kkk" demais nas respostas, parecendo forçado. Vendedor profissional nao fica rindo a cada mensagem.
 
 ### O que muda
 
@@ -16,24 +13,17 @@ A Regra 1 (NUNCA ENROLAR) ta forte demais e conflitando com a Regra 3 (ABERTURA)
 
 ### Mudancas no SYSTEM_PROMPT
 
-1. **Reforcar a Regra 3 (ABERTURA) como prioridade na primeira mensagem**: A primeira mensagem NUNCA pode ter link, preco, produto ou mencao ao TrendFood. Tem que ser APENAS saudacao humana. Exemplos: "opa boa noite, tudo bem?" / "e ai, blz?" / "fala, como vai?"
+1. **Regra 7 (ESTILO)** — trocar a instrucao de risada:
+   - DE: `Use "kkk" ou "kkkk" como risada (maximo 1 por mensagem)`
+   - PARA: `EVITE risadas. No MAXIMO 1 "kkk" a cada 10 mensagens, e so quando fizer sentido real (tipo o cliente fez uma piada). Vendedor profissional nao fica rindo atoa.`
+   - Remover a linha `Nunca use "haha", "rsrs", "hehe". So kkk.` — simplificar pra `NUNCA use risadas tipo haha, rsrs, hehe, kkk exceto raramente.`
 
-2. **Clarificar a Regra 1**: A regra de "nunca enrolar" so se aplica quando o CLIENTE PEDIR algo. Se ninguem pediu link, NAO mande link. A IA so manda link/preco/info quando for SOLICITADO ou quando a conversa naturalmente chegar la (mensagem 6+).
+2. **Regra 6 (ANTI-ROBO)** — remover o "kkk" do exemplo:
+   - DE: `"kkk relaxa, sou o Lucas do TrendFood"`
+   - PARA: `"relaxa, sou o Lucas do TrendFood"`
 
-3. **Adicionar regra anti-spam**: PROIBIDO mandar link na primeira mensagem. PROIBIDO mandar link sem o cliente ter perguntado. A IA precisa CONVERSAR primeiro como um ser humano normal.
-
-4. **Reforcar exemplos do que NAO fazer**:
-   - ERRADO: "Boa noite link para fazer seu pedido https://..."
-   - ERRADO: "opa, da uma olhada aqui https://..."
-   - CERTO: "opa boa noite, tudo bem?"
-   - CERTO: "e ai, blz? como ta o movimento ai?"
-
-5. **Fluxo humano reforçado**:
-   - Mensagem 1: so saudacao ("opa boa noite, tudo bem?")
-   - Mensagem 2-3: papo leve, perguntar como ta
-   - Mensagem 4-5: perguntar sobre o negocio (delivery, pedidos)
-   - Mensagem 6+: so AGORA pode mencionar TrendFood/link SE fizer sentido
+3. **Exemplos** — remover "kkk" dos exemplos errados onde aparece como padrao de comportamento.
 
 ### Resultado
-A IA vai parecer uma pessoa real mandando mensagem no WhatsApp, nao um bot disparando link automatico.
+A IA vai responder de forma profissional sem ficar rindo a cada mensagem. Risada so quando o contexto realmente pedir.
 
