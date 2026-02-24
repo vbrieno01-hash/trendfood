@@ -24,7 +24,13 @@ interface CartItem {
 }
 
 const CATEGORY_ORDER = [
-  "Hambúrgueres", "Bebidas", "Porções", "Sobremesas", "Combos", "Outros",
+  "Promoção do dia",
+  "Lanches com 1 hambúrguer e sem batata frita",
+  "Lanches com 2 hambúrgueres e batata frita",
+  "Hambúrgueres triplo",
+  "Combos com batata frita",
+  "Combos sem batata frita",
+  "Bebidas", "Porções", "Sobremesas", "Outros",
 ];
 
 export default function TableOrderPage() {

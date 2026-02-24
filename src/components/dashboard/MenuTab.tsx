@@ -32,7 +32,7 @@ const EMPTY_FORM: MenuItemInput = {
   name: "",
   description: "",
   price: 0,
-  category: "Hambúrgueres",
+  category: "Lanches com 1 hambúrguer e sem batata frita",
   available: true,
   imageFile: null,
   image_url: null,
