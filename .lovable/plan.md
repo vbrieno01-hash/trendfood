@@ -1,42 +1,20 @@
 
 
-## Correção definitiva: modal fecha SOMENTE pelos botões
+## Plano: Remover opção "Take Picture" e abrir direto a galeria
 
-### Problema atual
-Mesmo com `onInteractOutside`, `onPointerDownOutside`, `onFocusOutside` e o guard `nativePickerInFlightRef`, o Dialog do Radix ainda consegue fechar no APK. O Android tem comportamentos de lifecycle (Activity pause/resume, foco do WebView) que disparam fechamento por caminhos internos do Radix que não são capturáveis apenas com event handlers.
+### O que muda
 
-### Solução
-Blindar o modal **completamente**: remover o botão X do DialogContent, bloquear Escape sempre, e tornar `onOpenChange` totalmente controlado (nunca aceitar `false` vindo do Radix — só fechar via `setModalOpen(false)` explícito nos botões Cancelar e Salvar).
+**Arquivo:** `src/lib/nativeCamera.ts`
 
-### Mudanças em `src/components/dashboard/MenuTab.tsx`
+Na linha 16, trocar `CameraSource.Prompt` por `CameraSource.Photos`:
 
-**1) `onOpenChange` ignora qualquer tentativa de fechar:**
 ```text
-<Dialog open={modalOpen} onOpenChange={(next) => {
-  if (next) setModalOpen(true);
-  // Nunca aceita false — fechamento só via botões
-}}>
+ANTES:  source: CameraSource.Prompt,  // mostra "Take Picture" + "Gallery"
+DEPOIS: source: CameraSource.Photos,  // abre direto a galeria, sem prompt
 ```
 
-**2) DialogContent bloqueia tudo + esconde o X:**
-```text
-<DialogContent
-  className="max-w-md max-h-[90vh] overflow-y-auto [&>button.absolute]:hidden"
-  onInteractOutside={(e) => e.preventDefault()}
-  onPointerDownOutside={(e) => e.preventDefault()}
-  onFocusOutside={(e) => e.preventDefault()}
-  onEscapeKeyDown={(e) => e.preventDefault()}
->
-```
-- `[&>button.absolute]:hidden` esconde o botão X nativo do Radix DialogContent via CSS
-- `onEscapeKeyDown` agora bloqueia sempre (não só durante picker)
+Isso elimina a tela intermediária com "Take Picture" e abre diretamente a galeria de fotos do dispositivo.
 
-**3) Remover `nativePickerInFlightRef`** — não é mais necessário, pois o modal nunca fecha automaticamente.
-
-**4) Manter os dois pontos de fechamento explícito:**
-- Botão "Cancelar": `onClick={() => setModalOpen(false)}`
-- Após submit bem-sucedido: `setModalOpen(false)` dentro de `handleSubmit`
-
-### Por que isso funciona
-Ao ignorar completamente o `onOpenChange(false)` do Radix, nenhum evento do Android (focus loss, activity pause, resume) consegue fechar o modal. O único caminho é o código explícito nos botões.
+### Nenhuma outra mudança necessária
+- O resto do fluxo (conversão base64, upload, preview) permanece igual.
 
