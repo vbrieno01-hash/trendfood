@@ -103,13 +103,19 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   });
   const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(() => initialDraft.current?.imagePreview ?? null);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Track object URLs for cleanup
+  const objectUrlRef = useRef<string | null>(null);
 
   // Log mount/unmount for debugging
   useEffect(() => {
     console.log("[MenuTab] MOUNTED, draft restored:", !!initialDraft.current?.modalOpen);
-    return () => console.log("[MenuTab] UNMOUNTED");
+    return () => {
+      console.log("[MenuTab] UNMOUNTED");
+      // Cleanup object URL on unmount
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
   }, []);
 
   // Resolve editItem from editItemId when items load
@@ -127,12 +133,12 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
         modalOpen: true,
         editItemId,
         form: { name: form.name, description: form.description, price: form.price, category: form.category, available: form.available, image_url: form.image_url },
-        imagePreview,
+        imagePreview: form.image_url || null, // only persist remote URLs, not blob URLs
         ts: Date.now(),
       };
       saveDraft(organization.id, draft);
     }
-  }, [modalOpen, editItemId, form, imagePreview, organization.id]);
+  }, [modalOpen, editItemId, form, organization.id]);
 
   useEffect(() => {
     persistDraft();
@@ -147,7 +153,6 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
         const listener = await App.addListener("appStateChange", ({ isActive }) => {
           console.log("[MenuTab] appStateChange isActive:", isActive);
           if (isActive) {
-            // Re-check draft and force rehydrate if needed
             const draft = loadDraft(organization.id);
             if (draft?.modalOpen && !modalOpen) {
               console.log("[MenuTab] Rehydrating modal from draft on resume");
@@ -164,7 +169,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
       }
     })();
     return () => cleanup?.();
-  }, [organization.id]); // intentionally exclude modalOpen to avoid re-registering
+  }, [organization.id]);
 
   const grouped = CATEGORIES.map((cat) => ({
     ...cat,
@@ -212,61 +217,61 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setForm(EMPTY_FORM);
     setImagePreview(null);
     clearDraft(organization.id);
-  };
-
-  const doImmediateUpload = async (file: File) => {
-    setUploadingImage(true);
-    try {
-      const itemId = editItemId ?? editItem?.id ?? crypto.randomUUID();
-      const url = await uploadMenuImage(organization.id, itemId, file);
-      setForm((p) => ({ ...p, image_url: url, imageFile: null }));
-      setImagePreview(url);
-      // Persist draft immediately after upload so remount recovers it
-      const draft: DraftState = {
-        modalOpen: true,
-        editItemId: editItemId ?? editItem?.id ?? null,
-        form: { ...form, image_url: url },
-        imagePreview: url,
-        ts: Date.now(),
-      };
-      saveDraft(organization.id, draft);
-      toast({ title: "Foto enviada ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
-    } catch (err) {
-      console.error("[MenuTab] Immediate upload error:", err);
-      toast({ title: "Erro ao enviar foto", description: "Tente novamente.", variant: "destructive" });
-    } finally {
-      setUploadingImage(false);
+    // Cleanup object URL
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
     }
   };
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ title: "Foto muito grande", description: "Máximo 5MB.", variant: "destructive" });
-        if (fileRef.current) fileRef.current.value = "";
-        return;
-      }
-      await doImmediateUpload(file);
-    } catch (err) {
-      console.error("[MenuTab] Image select error:", err);
-      toast({ title: "Erro ao selecionar foto", variant: "destructive" });
+  // 100% synchronous — no network, no async, no promises
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Foto muito grande", description: "Máximo 5MB.", variant: "destructive" });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
     }
+    // Cleanup previous object URL
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+    const localUrl = URL.createObjectURL(file);
+    objectUrlRef.current = localUrl;
+    setForm((p) => ({ ...p, imageFile: file }));
+    setImagePreview(localUrl);
+    console.log("[MenuTab] Photo selected locally (no upload yet)", { size: file.size });
+    // Reset input so same file can be re-selected
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
+      let finalImageUrl = form.image_url;
+
+      // Upload photo now if user selected one
+      if (form.imageFile) {
+        const itemId = editItem?.id ?? editItemId ?? crypto.randomUUID();
+        finalImageUrl = await uploadMenuImage(organization.id, itemId, form.imageFile);
+        console.log("[MenuTab] Photo uploaded on save", { finalImageUrl });
+      }
+
+      const payload: MenuItemInput = { ...form, image_url: finalImageUrl, imageFile: null };
+
       if (editItem) {
-        await updateMutation.mutateAsync({ id: editItem.id, input: form });
+        await updateMutation.mutateAsync({ id: editItem.id, input: payload });
       } else {
-        await addMutation.mutateAsync(form);
+        await addMutation.mutateAsync(payload);
       }
       closeModal();
     } catch (err) {
       console.error("[MenuTab] Submit error:", err);
       toast({ title: "Erro ao salvar item", description: String(err), variant: "destructive" });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -290,7 +295,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setDeleteTarget(null);
   };
 
-  const isPending = addMutation.isPending || updateMutation.isPending || uploadingImage;
+  const isPending = addMutation.isPending || updateMutation.isPending || submitting;
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(price);
@@ -460,11 +465,10 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      disabled={uploadingImage}
                       onClick={() => fileRef.current?.click()}
                     >
-                      {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                      {uploadingImage ? "Enviando..." : imagePreview ? "Alterar foto" : "Adicionar foto"}
+                      <Camera className="w-4 h-4" />
+                      {imagePreview ? "Alterar foto" : "Adicionar foto"}
                     </Button>
                     <p className="text-xs text-muted-foreground mt-1">JPG, PNG ou WebP. Máx 5MB.</p>
                     <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
