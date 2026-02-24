@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,8 +174,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const knownValues = new Set(CATEGORIES.map(c => c.value));
   const customCats = [...new Set(items.map(i => i.category).filter(c => !knownValues.has(c)))].sort();
 
-  // Merge known + custom for datalist suggestions
-  const allCategories = [...CATEGORIES.map(c => c.value), ...customCats];
+  // customCats used for grouping below
 
   const grouped = [
     ...CATEGORIES.map((cat) => ({
@@ -510,21 +510,32 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                 />
               </div>
 
-              {/* Category — editable combobox */}
+              {/* Category — chips + editable input */}
               <div>
                 <Label className="text-sm font-medium">Categoria</Label>
+                <div className="flex flex-wrap gap-1.5 mt-1 mb-2">
+                  {CATEGORIES.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, category: c.value }))}
+                      className={cn(
+                        "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                        form.category === c.value
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted hover:bg-muted/80 border-border"
+                      )}
+                    >
+                      {c.emoji} {c.value}
+                    </button>
+                  ))}
+                </div>
                 <Input
-                  list="category-suggestions"
                   value={form.category}
                   onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-                  placeholder="Ex: Lanches, Bebidas, Roupas..."
-                  className="mt-1"
+                  placeholder="Ou digite uma categoria personalizada..."
+                  className="text-sm"
                 />
-                <datalist id="category-suggestions">
-                  {allCategories.map((c) => (
-                    <option key={c} value={c} />
-                  ))}
-                </datalist>
               </div>
 
               {/* Price */}
