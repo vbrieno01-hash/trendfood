@@ -1,12 +1,12 @@
 
 
-## Ajustar a IA de vendas: menos bandido, mais focada, nunca morrer
+## Problema: IA enrolando e nunca mandando o link
 
-### Problemas identificados (baseado na screenshot)
+A screenshot mostra o problema claro: o cliente pede o video/link e a IA fica enrolando — "vou pegar aqui", "to pegando aqui", "vou te passar o link do canal" — mas NUNCA manda de fato. O cliente explodiu: "para de me enrolar e passa logo essa porra".
 
-1. **"Meio bandido"**: A IA ta exagerando nas girias — "qualquer coisa so gritar", "fechou mano". Parece moleque, nao vendedor.
-2. **"Fugindo do assunto"**: Nao ta conduzindo a conversa pra venda. Fica so no papo leve e nunca aprofunda.
-3. **"Morreu ali"**: Quando o cliente fala "beleza", a IA encerra com "tmj kkk qualquer coisa so gritar" em vez de continuar engajando.
+### Causa raiz
+
+O prompt atual diz "mande esse link quando pedirem" mas nao tem uma regra FORTE e PRIORITARIA pra isso. A IA interpreta que deve sempre fazer perguntas de follow-up (Regra 4) e acaba adiando o link infinitamente.
 
 ### O que muda
 
@@ -16,24 +16,18 @@
 
 ### Mudancas no SYSTEM_PROMPT
 
-1. **Tom informal mas profissional**: Manter girias leves ("mano", "boa", "show", "massa") mas remover as mais pesadas ("slk", "dahora", "so gritar"). Falar como um vendedor jovem e nao como um moleque.
+1. **Nova regra prioritaria — NUNCA ENROLAR**: Quando o cliente pedir link, video, site, ou qualquer coisa concreta, mandar IMEDIATAMENTE na mesma mensagem. Nunca dizer "vou pegar", "ja mando", "guenta ai". Mandar direto.
 
-2. **Regra de NUNCA encerrar**: A IA nunca pode fechar a conversa. Quando o cliente falar "beleza", "ok", "show", a IA deve fazer uma pergunta de follow-up pra manter o papo. Exemplos:
-   - Em vez de "fechou mano, tmj" → "boa! vc ja tem cardapio montado ou ta comecando do zero?"
-   - Em vez de "qualquer coisa chama" → "quer q eu te mando um video rapido de como funciona?"
+2. **Regra anti-promessa vazia**: PROIBIDO prometer algo que nao tem. A IA nao tem video do YouTube, nao tem canal. Ela tem apenas o link https://tinyurl.com/trendfood. Quando pedirem video ou demonstracao, mandar o link direto: "da uma olhada aqui https://tinyurl.com/trendfood la tem tudo".
 
-3. **Regra de FOCO NA VENDA**: Toda mensagem depois da 4a deve ter intencao de avançar a conversa pro TrendFood. Perguntar sobre o negocio, dores, volume de pedidos, como faz hoje. Nao ficar so concordando.
+3. **Exemplos atualizados**:
+   - Cliente: "me manda o link" → "https://tinyurl.com/trendfood da uma olhada ai"
+   - Cliente: "quero ver o video" → "da uma olhada aqui https://tinyurl.com/trendfood tem tudo la"
+   - Cliente: "como funciona?" → "olha aqui https://tinyurl.com/trendfood vc testa gratis por 7 dias"
+   - NUNCA: "vou pegar o link", "to buscando aqui", "guenta ai um segundo"
 
-4. **Reduzir temperature de 0.9 pra 0.7**: Menos aleatoriedade = respostas mais consistentes e focadas.
+4. **Mover a regra de link pra ANTES da regra de follow-up** pra ter prioridade maior.
 
-5. **Exemplos atualizados** com tom correto:
-   - "boa! quantos pedidos vc recebe por dia mais ou menos?"
-   - "entendi, e hj vc usa oq pra receber pedido?"
-   - "massa, quer dar uma olhada? tem 7 dias gratis pra testar"
-   - "show, posso te mandar o link pra vc ver como funciona?"
-
-### Detalhe tecnico
-- Editar o `SYSTEM_PROMPT` nos dois edge functions
-- Baixar `temperature` de `0.9` pra `0.7` no `sales-chat/index.ts` e no `whatsapp-webhook/index.ts`
-- Deploy automatico dos dois functions
+### Resultado
+Quando o cliente pedir qualquer coisa concreta, a IA manda o link na hora em vez de ficar enrolando. Nunca mais vai prometer video ou conteudo que nao existe.
 
