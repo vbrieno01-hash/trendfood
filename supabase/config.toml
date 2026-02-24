@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.printer-queue]
 verify_jwt = false
+
+[functions.sales-chat]
+verify_jwt = false

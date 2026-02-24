@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import GrowthCharts from "@/components/admin/GrowthCharts";
 import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
 import AdminDownloadsSection from "@/components/admin/AdminDownloadsSection";
+import SalesChatTab from "@/components/admin/SalesChatTab";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -154,7 +155,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas";
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -313,6 +314,7 @@ function AdminContent() {
     { key: "lojas", icon: <Store className="w-4 h-4" />, label: "Lojas" },
     { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
     { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
+    { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Vendas" },
   ];
 
   const navBtnClass = (key: AdminTab) =>
@@ -647,6 +649,9 @@ function AdminContent() {
               </div>
             </section>
           )}
+
+          {/* ── Vendas Tab ── */}
+          {activeTab === "vendas" && <SalesChatTab />}
         </main>
       </div>
     </div>
