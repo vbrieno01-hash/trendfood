@@ -23,7 +23,7 @@ import {
 import { pickPhotoNative, isNativePlatform } from "@/lib/nativeCamera";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
-  CATEGORIES, MenuItem, MenuItemInput, SortOrder,
+  uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
 } from "@/hooks/useMenuItems";
 
 interface Organization {
@@ -56,6 +56,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const [form, setForm] = useState<MenuItemInput>(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const grouped = CATEGORIES.map((cat) => ({
@@ -95,7 +96,23 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setModalOpen(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const doImmediateUpload = async (file: File) => {
+    setUploadingImage(true);
+    try {
+      const tempId = crypto.randomUUID();
+      const url = await uploadMenuImage(organization.id, tempId, file);
+      setForm((p) => ({ ...p, image_url: url, imageFile: null }));
+      setImagePreview(url);
+      toast({ title: "Foto enviada ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
+    } catch (err) {
+      console.error("[MenuTab] Immediate upload error:", err);
+      toast({ title: "Erro ao enviar foto", description: "Tente novamente.", variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -104,8 +121,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
         if (fileRef.current) fileRef.current.value = "";
         return;
       }
-      setForm((p) => ({ ...p, imageFile: file }));
-      setImagePreview(URL.createObjectURL(file));
+      await doImmediateUpload(file);
     } catch (err) {
       console.error("[MenuTab] Image select error:", err);
       toast({ title: "Erro ao selecionar foto", variant: "destructive" });
@@ -121,9 +137,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
         toast({ title: "Foto muito grande", description: "Máximo 5MB.", variant: "destructive" });
         return;
       }
-      setForm((p) => ({ ...p, imageFile: file }));
-      setImagePreview(URL.createObjectURL(file));
-      toast({ title: "Foto selecionada ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
+      await doImmediateUpload(file);
     } catch (err) {
       console.error("[MenuTab] Native photo error:", err);
       toast({ title: "Erro ao selecionar foto", variant: "destructive" });
@@ -167,7 +181,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setDeleteTarget(null);
   };
 
-  const isPending = addMutation.isPending || updateMutation.isPending;
+  const isPending = addMutation.isPending || updateMutation.isPending || uploadingImage;
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(price);
@@ -352,6 +366,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                     variant="outline"
                     size="sm"
                     className="gap-2"
+                    disabled={uploadingImage}
                     onClick={() => {
                       if (isNativePlatform()) {
                         handleNativePhoto();
@@ -360,8 +375,8 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                       }
                     }}
                   >
-                    <Camera className="w-4 h-4" />
-                    {imagePreview ? "Alterar foto" : "Adicionar foto"}
+                    {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    {uploadingImage ? "Enviando..." : imagePreview ? "Alterar foto" : "Adicionar foto"}
                   </Button>
                   <p className="text-xs text-muted-foreground mt-1">JPG, PNG ou WebP. Máx 5MB.</p>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />

@@ -61,7 +61,7 @@ export function useMenuItems(orgId: string | undefined, sortOrder: SortOrder = "
   });
 }
 
-async function uploadMenuImage(orgId: string, itemId: string, file: File): Promise<string> {
+export async function uploadMenuImage(orgId: string, itemId: string, file: File): Promise<string> {
   const ext = file.name.split(".").pop();
   const path = `${orgId}/${itemId}.${ext}`;
   console.log(`[uploadMenuImage] Uploading: path=${path}, size=${file.size}, type=${file.type}`);
@@ -82,7 +82,6 @@ export function useAddMenuItem(orgId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: MenuItemInput) => {
-      // First insert to get the ID
       const { data, error } = await supabase
         .from("menu_items")
         .insert({
@@ -92,22 +91,12 @@ export function useAddMenuItem(orgId: string) {
           price: input.price,
           category: input.category,
           available: input.available,
-          image_url: null,
+          image_url: input.image_url ?? null,
         })
         .select()
         .single();
       if (error) throw error;
-
-      // Upload image if provided
-      let image_url = null;
-      if (input.imageFile) {
-        image_url = await uploadMenuImage(orgId, data.id, input.imageFile);
-        await supabase
-          .from("menu_items")
-          .update({ image_url })
-          .eq("id", data.id);
-      }
-      return { ...data, image_url };
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["menu_items", orgId] });
@@ -129,12 +118,6 @@ export function useUpdateMenuItem(orgId: string) {
       id: string;
       input: Partial<MenuItemInput>;
     }) => {
-      let image_url = input.image_url;
-
-      if (input.imageFile) {
-        image_url = await uploadMenuImage(orgId, id, input.imageFile);
-      }
-
       const { error } = await supabase
         .from("menu_items")
         .update({
@@ -143,7 +126,7 @@ export function useUpdateMenuItem(orgId: string) {
           price: input.price,
           category: input.category,
           available: input.available,
-          image_url: image_url ?? undefined,
+          image_url: input.image_url ?? undefined,
         })
         .eq("id", id);
       if (error) throw error;
