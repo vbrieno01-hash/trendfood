@@ -22,10 +22,23 @@ export async function pickPhotoNative(): Promise<File | null> {
     if (!photo.base64String) return null;
 
     const mimeType = photo.format === "png" ? "image/png" : "image/jpeg";
-    const response = await fetch(`data:${mimeType};base64,${photo.base64String}`);
-    const blob = await response.blob();
+
+    // Manual base64→binary conversion (fetch with data: URI fails silently in Android WebViews)
+    const byteString = atob(photo.base64String);
+    const bytes = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
+      bytes[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+
     const ext = photo.format === "png" ? "png" : "jpg";
-    return new File([blob], `photo_${Date.now()}.${ext}`, { type: mimeType });
+    const file = new File([blob], `photo_${Date.now()}.${ext}`, { type: mimeType });
+    console.log(`[nativeCamera] File created: ${file.name}, size: ${file.size} bytes`);
+    if (file.size === 0) {
+      console.error("[nativeCamera] File has 0 bytes — conversion failed");
+      return null;
+    }
+    return file;
   } catch (err: any) {
     // User cancelled — not an error
     if (err?.message?.includes("User cancelled") || err?.message?.includes("cancelled")) {

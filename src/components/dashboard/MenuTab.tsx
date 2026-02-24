@@ -116,12 +116,14 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     try {
       const file = await pickPhotoNative();
       if (!file) return;
+      console.log(`[MenuTab] Native photo received: ${file.name}, size: ${file.size} bytes`);
       if (file.size > 5 * 1024 * 1024) {
         toast({ title: "Foto muito grande", description: "Máximo 5MB.", variant: "destructive" });
         return;
       }
       setForm((p) => ({ ...p, imageFile: file }));
       setImagePreview(URL.createObjectURL(file));
+      toast({ title: "Foto selecionada ✓", description: `${(file.size / 1024).toFixed(0)} KB` });
     } catch (err) {
       console.error("[MenuTab] Native photo error:", err);
       toast({ title: "Erro ao selecionar foto", variant: "destructive" });
