@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Capacitor } from "@capacitor/core";
 import { Eye, EyeOff, Loader2, Check } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
@@ -246,7 +245,7 @@ const AuthPage = () => {
         </div>
 
         <div className="w-full max-w-sm mx-auto">
-          <Tabs defaultValue={Capacitor.isNativePlatform() ? "login" : "signup"}>
+          <Tabs defaultValue="signup">
             <TabsList className="w-full h-11 bg-muted/60 rounded-xl p-1 grid grid-cols-2 mb-8">
               <TabsTrigger
                 value="signup"

@@ -71,44 +71,18 @@ export default function KitchenTab({
 
   const handleToggleNotifications = async (val: boolean) => {
     if (val) {
-      // Detect native platform (Capacitor APK)
-      let isNative = false;
-      try {
-        const { Capacitor } = await import("@capacitor/core");
-        isNative = Capacitor.isNativePlatform();
-      } catch { /* not native */ }
-
-      if (isNative) {
-        try {
-          const { LocalNotifications } = await import("@capacitor/local-notifications");
-          const result = await LocalNotifications.requestPermissions();
-          if (result.display === "denied") {
-            toast.error("Notificações bloqueadas", {
-              description: "Ative as notificações nas configurações do app.",
-              duration: 8000,
-            });
-            return;
-          }
-          setNotifPermission("granted");
-        } catch (err) {
-          console.warn("[Notif] Native permission request failed:", err);
-          toast.error("Erro ao solicitar permissão de notificações.");
-          return;
-        }
-      } else {
-        const permission = await Notification.requestPermission();
-        setNotifPermission(permission);
-        if (permission === "denied") {
-          toast.error("Notificações bloqueadas pelo navegador", {
-            description: "Clique no cadeado na barra de endereço e permita notificações para este site.",
-            duration: 8000,
-          });
-          return;
-        }
-        if (permission !== "granted") {
-          toast.warning("Permissão de notificação não concedida.");
-          return;
-        }
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+      if (permission === "denied") {
+        toast.error("Notificações bloqueadas pelo navegador", {
+          description: "Clique no cadeado na barra de endereço e permita notificações para este site.",
+          duration: 8000,
+        });
+        return;
+      }
+      if (permission !== "granted") {
+        toast.warning("Permissão de notificação não concedida.");
+        return;
       }
     }
     onToggleNotifications(val);
