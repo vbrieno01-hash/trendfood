@@ -45,7 +45,7 @@ const rows = [
 
 const ComparisonSection = () => {
   return (
-    <section className="py-20 px-4 bg-background">
+    <section id="comparativo" className="py-20 px-4 bg-background">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
