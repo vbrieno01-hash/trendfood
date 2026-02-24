@@ -1,6 +1,6 @@
 import React from "react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { logClientError } from "@/lib/errorLogger";
+import { logClientError, isIgnorableError } from "@/lib/errorLogger";
 
 interface Props {
   children: React.ReactNode;
@@ -23,6 +23,13 @@ class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info);
+
+    if (isIgnorableError(error.message)) {
+      console.info("[ErrorBoundary] Erro ambiental ignorado:", error.message);
+      this.setState({ hasError: false });
+      return;
+    }
+
     this.lastErrorTime = Date.now();
     this.setState({
       errorMessage: `${error.name}: ${error.message}`,

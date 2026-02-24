@@ -13,8 +13,23 @@ let timestamps: number[] = [];
 
 const BOT_PATTERN = /googlebot|google-read-aloud|bingbot|yandex|baidu|duckduckbot|facebookexternalhit|twitterbot|linkedinbot|whatsapp|semrushbot|ahrefsbot|mj12bot/i;
 
+const IGNORABLE_PATTERNS = [
+  /removeChild/i,
+  /insertBefore/i,
+  /Failed to construct 'Notification'/i,
+  /ResizeObserver loop/i,
+  /Cannot read properties of null \(reading 'removeChild'\)/i,
+  /Failed to execute 'removeChild' on 'Node'/i,
+  /Failed to execute 'insertBefore' on 'Node'/i,
+];
+
+export function isIgnorableError(message: string): boolean {
+  return IGNORABLE_PATTERNS.some((p) => p.test(message));
+}
+
 export function logClientError(params: ErrorLogParams) {
   if (BOT_PATTERN.test(navigator.userAgent)) return;
+  if (isIgnorableError(params.message)) return;
   const now = Date.now();
   timestamps = timestamps.filter((t) => now - t < WINDOW_MS);
   if (timestamps.length >= ERROR_LIMIT) return;
