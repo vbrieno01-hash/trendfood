@@ -1,25 +1,25 @@
 
 
-## Plano: Corrigir classificacao dos itens com "E" no nome
+## Plano: Preencher mais a tela no desktop (menos espaço em branco)
 
 ### Problema
-17 itens com sufixo " E" no nome (X-Burguer E, X-Bacon E, X-Salada E, etc.) foram classificados como **"Lanches com 2 hambúrgueres e batata frita"**, mas a descrição de todos indica **"1 hambúrguer"**. O "E" não significa duplo -- são lanches simples.
+A página pública da loja (UnitPage) usa `max-w-2xl` (672px) em todos os containers, deixando muito espaço em branco nas laterais em telas desktop.
 
-### Itens afetados (17 no total)
-X-3 Queijos E, X-Bacon E, X-Bacon Egg E, X-Burguer E, X-Calabacon Catupiry E, X-Calabacon Cheddar E, X-Calabacon E, X-Calabresa E, X-Calafrango Catupiry E, X-Calafrango Cheddar E, X-Calafrango E, X-cheddar E, X-Egg E, X-Frango Bacon Catupiry E, X-Frango Bacon E, X-Frango E, X-Salada E
+### Alterações propostas
 
-### Correcao
-Uma unica query UPDATE no banco:
+**Arquivo: `src/pages/UnitPage.tsx`**
 
-```sql
-UPDATE menu_items 
-SET category = 'Lanches com 1 hambúrguer e sem batata frita' 
-WHERE category = 'Lanches com 2 hambúrgueres e batata frita' 
-  AND (name LIKE '% E' OR name LIKE '% E %')
-```
+1. **Ampliar todos os containers `max-w-2xl`** para `max-w-2xl lg:max-w-5xl` (~1024px no desktop):
+   - Header (linha 526)
+   - Banner da loja (linha 545)
+   - Barra de busca (linha 558)
+   - Main content (linha 582)
+   - Loading skeleton (linha 176)
 
-### Resultado esperado
-- **"Lanches com 1 hamburguer e sem batata frita"**: passara de 41 para 58 itens
-- **"Lanches com 2 hamburgueres e batata frita"**: passara de 35 para 18 itens (somente os "Duplo" reais)
-- Nenhuma mudanca de codigo necessaria
+2. **Aumentar colunas do grid de produtos no desktop**:
+   - Linha 682: de `grid-cols-3` para `grid-cols-3 lg:grid-cols-5` — mais produtos por linha no desktop, mantendo 3 colunas no mobile.
+
+### Resultado
+- **Mobile/tablet**: nenhuma mudança visual
+- **Desktop**: conteúdo ocupa ~1024px ao invés de 672px, grid mostra 5 produtos por linha, eliminando o excesso de espaço branco
 
