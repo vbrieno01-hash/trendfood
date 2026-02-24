@@ -1,9 +1,6 @@
 
 
-## Deixar a IA de vendas com papo de humano real
-
-### Problema
-A IA ainda fala certinho demais. Nas screenshots de conversas reais, o papo e assim: "top ne nao", "boa mano", "Vrdd kkk", "N sei kkkk", "tamo ai", "quiser". Frases ultra curtas, com kkk/kkkk no lugar de emoji, girias, erros de digitacao propositais, papo de brother.
+## Atualizar link do TrendFood + estilo com kkk e girias
 
 ### O que muda
 
@@ -11,29 +8,21 @@ A IA ainda fala certinho demais. Nas screenshots de conversas reais, o papo e as
 - `supabase/functions/sales-chat/index.ts` (SYSTEM_PROMPT)
 - `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
 
-### Novo estilo do prompt
+### Mudancas
 
-1. **Trocar emoji por "kkk" / "kkkk" / "kkkkk"** - pessoas reais no WhatsApp BR nao usam 😄, usam kkkk. No maximo 1 emoji a cada 10 mensagens. Preferir sempre kkk.
+1. **Link atualizado**: Trocar `trendfood.lovable.app` por `https://tinyurl.com/trendfood` nos dois arquivos. Quando a pessoa pedir o link, mandar esse.
 
-2. **Girias e expressoes reais**: "mano", "boa", "top", "slk", "fx", "tamo ai", "de boa", "massa", "show", "bora", "ne nao", "vrdd", "po", "dahora".
+2. **Trocar emojis por kkk**: Nos exemplos e regras, substituir emojis (😄, 😂) por "kkk" / "kkkk" / "kkkkk". Maximo 1 emoji a cada 10 mensagens, preferir sempre kkk.
 
-3. **Erros e abreviacoes naturais**: "vc", "ta", "to", "ne", "pra", "q", "tb", "oq", "blz", "tmj", "vlw". Nao escrever portugues perfeito.
+3. **Adicionar girias reais**: "mano", "boa", "top", "slk", "tamo ai", "massa", "show", "bora", "ne nao", "vrdd", "po", "tmj", "vlw", "blz".
 
-4. **Frases MUITO curtas**: maximo 1 frase. Tipo "boa mano", "show", "tamo ai", "bora", "po massa". Nao explicar demais.
+4. **Atualizar exemplos** pra refletir o novo estilo:
+   - `"opa, tudo bem? 😄"` vira `"e ai mano, tudo certo?"`
+   - `"rlx 😂"` vira `"kkkk que isso"`
+   - Novos: "boa mano", "top ne nao kkk", "po massa", "vrdd", "slk kkkk", "show, qualquer coisa chama ai"
 
-5. **Risadas naturais**: usar "kkk", "kkkk", "kkkkk" como risada, nunca "haha" ou "rsrs". Variar entre 3-5 k's.
-
-6. **Exemplos baseados nas conversas reais**:
-   - "e ai mano, tudo certo?"
-   - "boa mano"
-   - "top ne nao kkk"
-   - "po massa"
-   - "tamo ai"
-   - "bora testar?"
-   - "slk kkkk"
-   - "vrdd"
-   - "show, qualquer coisa chama ai"
+5. **Regra de risada**: Variar entre 3-5 k's (kkk, kkkk, kkkkk). Nunca "haha" ou "rsrs".
 
 ### Resultado
-A IA vai falar exatamente como nas screenshots: papo de mano, com kkk, girias, frases de 2-4 palavras, sem formalidade nenhuma.
+A IA vai mandar o link certo (tinyurl) quando pedirem, e vai falar com kkk e girias igual conversa real de WhatsApp.
 
