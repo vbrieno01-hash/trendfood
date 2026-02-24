@@ -29,6 +29,7 @@ export const CATEGORIES = [
   { value: "Lanches com 1 hambúrguer e sem batata frita", emoji: "🍔" },
   { value: "Lanches com 2 hambúrgueres e batata frita", emoji: "🍔🍟" },
   { value: "Hambúrgueres triplo", emoji: "🍔" },
+  { value: "Gourmets", emoji: "👨‍🍳" },
   { value: "Combos com batata frita", emoji: "🎁🍟" },
   { value: "Combos sem batata frita", emoji: "🎁" },
   { value: "Bebidas", emoji: "🥤" },
