@@ -1,30 +1,57 @@
 
 
-## Ajustar tom do assistente de vendas: mais curto e humano
+## Bot WhatsApp automático (mesmo padrão da impressora)
 
-O problema esta no system prompt da edge function. As regras atuais pedem "maximo 3-4 paragrafos", mas na pratica a IA ainda gera textos longos e com cara de robo. Vamos reforcar drasticamente as instrucoes de brevidade e naturalidade.
+A ideia é replicar a arquitetura que já funciona na impressora térmica: uma edge function de fila + um agente local que faz polling.
 
-### O que muda
+### Arquitetura
 
-1. **System prompt reescrito** no arquivo `supabase/functions/sales-chat/index.ts`
-   - Limite de resposta: maximo 2-3 frases curtas por mensagem (estilo WhatsApp real)
-   - Proibir paragrafos longos, listas com bullets e formatacao excessiva
-   - Reforcar: falar como uma pessoa de verdade digitando no celular
-   - Adicionar exemplos concretos de como responder (few-shot)
-   - Instrucao explicita: "Nunca mande textao. Se precisar explicar algo maior, quebre em varias mensagens curtas ao longo da conversa."
+```text
+WhatsApp Web (Evolution API local)
+        |
+        v
+  Edge Function: whatsapp-webhook
+  (recebe mensagem, salva na fila)
+        |
+        v
+  Tabela: fila_whatsapp
+  (mensagens pendentes de resposta)
+        |
+        v
+  Edge Function: whatsapp-queue
+  (polling igual printer-queue, gera resposta com IA, retorna)
+        |
+        v
+  Evolution API local envia resposta no WhatsApp
+```
 
-### Detalhes tecnicos
+### O que eu consigo fazer aqui (backend)
 
-**Alteracoes no system prompt (edge function `sales-chat`):**
+1. **Tabela `fila_whatsapp`** com colunas: id, phone, incoming_message, ai_response, status (pendente/respondido), created_at
+2. **Edge function `whatsapp-webhook`** -- recebe mensagens da Evolution API, salva na fila, gera resposta usando o mesmo prompt do sales-chat, e retorna
+3. **Edge function `whatsapp-queue`** -- endpoint de polling (igual `printer-queue`) para um agente local consultar mensagens pendentes e marcar como respondidas
 
-Regras novas que substituem as atuais:
-- Respostas de 1 a 3 frases no maximo. Como se fosse uma mensagem de WhatsApp.
-- NUNCA use listas com bullets, numeracao ou formatacao markdown.
-- NUNCA mande blocos grandes de texto. Menos é mais.
-- Fale como uma pessoa real: abreviacoes ok, pontuacao leve, sem formalidade.
-- Se o cliente perguntar algo complexo, responda o essencial e pergunte se quer saber mais.
-- Exemplos de tom: "Show! Me conta, qual tipo de comida voces trabalham?" / "Entendi demais. Isso de taxa alta do iFood doi no bolso ne" / "Bora testar 7 dias gratis? Sem pedir cartao nem nada"
+### O que você precisa fazer no seu PC (parte local)
 
-Tambem adicionar `temperature: 0.9` na chamada da API para respostas mais naturais e variadas.
+Instalar a **Evolution API** (open source, grátis) no seu computador. Ela simula o WhatsApp Web e permite enviar/receber mensagens por API local.
 
-Nenhuma outra alteracao necessaria -- apenas o prompt e o parametro de temperatura.
+- Roda com Docker: `docker run` e pronto
+- Escaneia QR code do seu WhatsApp uma vez
+- Configura o webhook apontando pra nossa edge function
+- Funciona 24h enquanto o PC estiver ligado
+
+A Evolution API faz o papel do "exe" -- é um programa que roda local no seu PC, conecta no seu WhatsApp, e chama nossa edge function automaticamente quando chega mensagem.
+
+### Resumo
+
+| Parte | Onde roda | Quem faz |
+|-------|-----------|----------|
+| Receber/enviar WhatsApp | Seu PC (Evolution API) | Você instala |
+| Fila de mensagens | Nuvem (banco de dados) | Eu crio |
+| IA que gera respostas | Nuvem (edge function) | Eu crio |
+| Orquestração | Evolution API webhook | Automático |
+
+### Resultado final
+
+Mensagem chega no seu WhatsApp -> Evolution API envia pra nuvem -> IA gera resposta -> Evolution API envia de volta automaticamente. Tudo sem pagar API, sem taxa, open source.
+
