@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.whatsapp-queue]
 verify_jwt = false
+
+[functions.support-chat]
+verify_jwt = false

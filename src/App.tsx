@@ -24,6 +24,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
+import SupportChatWidget from "./components/SupportChatWidget";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,7 @@ const AppInner = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            {!Capacitor.isNativePlatform() && <SupportChatWidget />}
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
