@@ -92,11 +92,11 @@ export async function printOrder(
   const customerRows: Array<[string, string]> = [];
   if (parsed && !parsed.raw) {
     if (parsed.name)    customerRows.push(["Nome:",      parsed.name]);
+    if (parsed.doc)     customerRows.push(["CPF/CNPJ:", parsed.doc]);
     if (parsed.phone)   customerRows.push(["Tel:",       parsed.phone]);
     if (parsed.address) customerRows.push(["End.:",      parsed.address]);
-    if (parsed.frete)   customerRows.push(["Frete:",     parsed.frete]);
     if (parsed.payment) customerRows.push(["Pgto:",      parsed.payment]);
-    if (parsed.doc)     customerRows.push(["CPF/CNPJ:", parsed.doc]);
+    if (parsed.frete)   customerRows.push(["Frete:",     parsed.frete]);
     if (parsed.obs)     customerRows.push(["Obs:",       parsed.obs]);
   }
 

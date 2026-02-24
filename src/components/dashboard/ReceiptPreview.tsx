@@ -28,11 +28,11 @@ export default function ReceiptPreview({ storeName, storeAddress, storeContact, 
       <div className="border-t border-dashed border-black my-1" />
       <div className="text-muted-foreground/70">
         <div>Nome: (nome do cliente)</div>
+        <div>CPF/CNPJ: (documento)</div>
         <div>Tel: (telefone)</div>
         <div>End.: (endereço)</div>
-        <div>Frete: R$ 0,00</div>
         <div>Pgto: (forma)</div>
-        <div>CPF/CNPJ: (documento)</div>
+        <div>Frete: R$ 0,00</div>
         <div>Obs: (observação)</div>
       </div>
       <div className="border-t border-dashed border-black my-1" />
