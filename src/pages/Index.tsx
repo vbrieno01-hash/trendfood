@@ -20,7 +20,6 @@ import {
   Printer,
   BarChart2,
   Bike,
-  Instagram,
   MessageCircle,
 } from "lucide-react";
 
@@ -382,9 +381,6 @@ const Index = () => {
               Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão.
             </p>
             <div className="flex items-center gap-3">
-              <a href="https://instagram.com/trendfood.app" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                <Instagram className="w-5 h-5" />
-              </a>
               <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <MessageCircle className="w-5 h-5" />
               </a>
@@ -423,12 +419,6 @@ const Index = () => {
                 <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
                   <MessageCircle className="w-4 h-4" />
                   Fale conosco
-                </a>
-              </li>
-              <li>
-                <a href="https://instagram.com/trendfood.app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                  <Instagram className="w-4 h-4" />
-                  @trendfood.app
                 </a>
               </li>
             </ul>
