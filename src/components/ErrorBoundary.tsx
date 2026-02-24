@@ -1,5 +1,6 @@
 import React from "react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { logClientError } from "@/lib/errorLogger";
 
 interface Props {
   children: React.ReactNode;
@@ -30,6 +31,12 @@ class ErrorBoundary extends React.Component<Props, State> {
     try {
       sessionStorage.setItem("app_crashed", "true");
     } catch (_) {}
+    logClientError({
+      message: `${error.name}: ${error.message}`,
+      stack: error.stack,
+      source: "error_boundary",
+      metadata: { componentStack: info.componentStack },
+    });
   }
 
   handleRetry = () => {

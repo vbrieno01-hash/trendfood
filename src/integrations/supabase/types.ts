@@ -97,6 +97,45 @@ export type Database = {
           },
         ]
       }
+      client_error_logs: {
+        Row: {
+          created_at: string
+          error_message: string
+          error_stack: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string | null
+          source: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          error_stack?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          source?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          error_stack?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          source?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           active: boolean
