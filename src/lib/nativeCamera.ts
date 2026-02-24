@@ -13,7 +13,7 @@ export async function pickPhotoNative(): Promise<File | null> {
 
     const photo = await Camera.getPhoto({
       resultType: CameraResultType.Base64,
-      source: CameraSource.Prompt, // Let user choose camera or gallery
+      source: CameraSource.Photos, // Open gallery directly, no prompt
       quality: 85,
       width: 1200,
       height: 1200,
