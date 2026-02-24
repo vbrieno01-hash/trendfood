@@ -1,56 +1,47 @@
 
 
-## Sistema de Logs de Erro do Cliente em Tempo Real
+## Diagnóstico do Erro Encontrado
 
-### O que será feito
+O erro já está registrado no banco e visível na aba Logs. Não há necessidade de mudanças de código para este diagnóstico.
 
-Criar uma tabela `client_error_logs` no banco, capturar erros automaticamente no frontend (crashes do ErrorBoundary, unhandled rejections, erros de console) e enviar pro banco. No painel admin, adicionar uma nova aba "Logs" para visualizar os erros em tempo real.
+### Erro identificado
 
-### Arquivos afetados
+| Campo | Valor |
+|-------|-------|
+| Mensagem | `Rejected` |
+| Source | `unhandled_rejection` |
+| URL | `/dashboard?tab=home` |
+| User Agent | Google-Read-Aloud bot (Android Chrome 138) |
+| Data | 24/02/2026 15:30 |
 
-| Arquivo | Ação |
-|---------|------|
-| Migration SQL | Criar tabela `client_error_logs` com RLS |
-| `src/lib/errorLogger.ts` | **Novo** — função para enviar erros pro banco |
-| `src/components/ErrorBoundary.tsx` | Chamar `logClientError()` no `componentDidCatch` |
-| `src/App.tsx` | Capturar `unhandledrejection` e `error` globais e enviar pro banco |
-| `src/components/admin/ErrorLogsTab.tsx` | **Novo** — aba no painel admin com lista de erros |
-| `src/pages/AdminPage.tsx` | Adicionar aba "Logs" na sidebar e renderizar `ErrorLogsTab` |
+### Causa raiz
+
+O bot do Google (Google-Read-Aloud) acessou a página e tentou registrar o Service Worker via PWA. Bots não suportam SW, então a promise foi rejeitada com "Rejected". Isso gerou um `unhandledrejection` que o sistema capturou corretamente.
+
+### Ação recomendada
+
+Este erro é **inofensivo** — não afeta nenhum usuário real. Para evitar ruído desse tipo no painel, existem duas opções:
+
+1. **Filtrar bots no `errorLogger.ts`** — antes de fazer o insert, verificar se o `navigator.userAgent` contém strings de bots conhecidos (Googlebot, Google-Read-Aloud, bingbot, etc.) e ignorar o erro.
+
+2. **Tratar a rejeição do SW** — no `vite-plugin-pwa` ou no `registerSW.js`, adicionar um `.catch()` na chamada de `navigator.serviceWorker.register()` para que a promise não fique "unhandled".
+
+### O que confirma que funciona
+
+O fato de esse erro ter aparecido no banco prova que o pipeline completo está operacional:
+- Captura global de `unhandledrejection` no `App.tsx`
+- `logClientError()` fez o insert no banco
+- RLS pública para INSERT permitiu a gravação
+- A aba Logs no admin pode exibir o registro (com RLS admin para SELECT)
 
 ### Detalhes técnicos
 
-**1. Tabela `client_error_logs`**
-```sql
-create table public.client_error_logs (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
-  error_message text not null,
-  error_stack text,
-  url text,
-  user_agent text,
-  user_id uuid,
-  organization_id uuid,
-  source text default 'unknown', -- 'error_boundary', 'unhandled_rejection', 'global_error'
-  metadata jsonb
-);
+Para filtrar bots, seria adicionada uma verificação no início da função `logClientError`:
 
--- RLS: insert público (qualquer cliente pode registrar), select apenas admin
-alter table public.client_error_logs enable row level security;
-
-create policy "client_error_logs_insert_public" on public.client_error_logs
-  for insert with check (true);
-
-create policy "client_error_logs_select_admin" on public.client_error_logs
-  for select using (has_role(auth.uid(), 'admin'));
+```typescript
+const BOT_PATTERN = /googlebot|google-read-aloud|bingbot|yandex|baidu|duckduckbot/i;
+if (BOT_PATTERN.test(navigator.userAgent)) return;
 ```
 
-**2. `src/lib/errorLogger.ts`** — Função fire-and-forget que faz insert na tabela. Inclui debounce (máximo 5 erros por minuto) para não spammar o banco. Captura `window.location.href`, `navigator.userAgent`, e tenta pegar `user_id`/`organization_id` se disponíveis.
-
-**3. ErrorBoundary** — No `componentDidCatch`, chamar `logClientError({ message, stack, source: 'error_boundary' })`.
-
-**4. App.tsx** — No handler de `unhandledrejection` e num novo `window.addEventListener('error')`, chamar `logClientError()` com source `'unhandled_rejection'` ou `'global_error'`.
-
-**5. Aba "Logs" no Admin** — Tabela com colunas: Data/Hora, Erro, URL, Navegador, Source. Com botão de refresh e filtro por source. Realtime opcional (pode começar com polling manual via botão).
-
-**6. Tipo da aba** — `AdminTab` passa a incluir `"logs"`. Nav item com ícone `AlertCircle`.
+Isso evitaria poluir os logs com erros de crawlers que não representam problemas reais da aplicação.
 
