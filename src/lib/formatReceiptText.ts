@@ -167,11 +167,11 @@ export function formatReceiptText(
     lines.push(divider());
     const fields: [string, string | undefined][] = [
       ["Nome: ", parsed.name],
+      ["CPF/CNPJ: ", parsed.doc],
       ["Tel: ", parsed.phone],
       ["End.: ", parsed.address],
-      ["Frete: ", parsed.frete],
       ["Pgto: ", parsed.payment],
-      ["CPF/CNPJ: ", parsed.doc],
+      ["Frete: ", parsed.frete],
       ["Obs: ", parsed.obs],
     ];
     for (const [label, value] of fields) {
