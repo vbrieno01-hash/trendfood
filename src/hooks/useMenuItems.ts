@@ -64,12 +64,18 @@ export function useMenuItems(orgId: string | undefined, sortOrder: SortOrder = "
 async function uploadMenuImage(orgId: string, itemId: string, file: File): Promise<string> {
   const ext = file.name.split(".").pop();
   const path = `${orgId}/${itemId}.${ext}`;
+  console.log(`[uploadMenuImage] Uploading: path=${path}, size=${file.size}, type=${file.type}`);
   const { error } = await supabase.storage
     .from("menu-images")
     .upload(path, file, { upsert: true });
-  if (error) throw error;
+  if (error) {
+    console.error("[uploadMenuImage] Storage upload error:", JSON.stringify(error));
+    throw error;
+  }
   const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
-  return data.publicUrl + `?t=${Date.now()}`;
+  const url = data.publicUrl + `?t=${Date.now()}`;
+  console.log(`[uploadMenuImage] Success: ${url}`);
+  return url;
 }
 
 export function useAddMenuItem(orgId: string) {
