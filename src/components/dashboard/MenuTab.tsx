@@ -345,7 +345,11 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
 
       {/* Add/Edit Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-md max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editItem ? "Editar item" : "Novo item do cardápio"}</DialogTitle>
           </DialogHeader>
