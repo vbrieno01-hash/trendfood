@@ -1,36 +1,40 @@
 
 
-## Plano: Blindar o app contra erros ambientais do Android
+## Plano: Adicionar categoria "Gourmets" ao cardapio
 
-### O problema real do cliente
-O cliente estava no dashboard pelo celular Android. O Chrome dele gerou erros de DOM (`removeChild`, `insertBefore`) causados pelo proprio navegador/extensoes. O ErrorBoundary interpretou como crash e mostrou a tela "Algo deu errado", impedindo o cliente de usar o app. O erro nao e do seu codigo — e do ambiente Android.
+### O que sera feito
+Adicionar a categoria "Gourmets" na lista de categorias do cardapio, posicionada entre "Hambúrgueres triplo" e "Combos com batata frita" (agrupando com os lanches/hamburgueres).
 
-### O que vai mudar
-Criar uma lista de padroes de erros conhecidos como nao-acionaveis e filtra-los em 3 pontos do sistema. O app vai simplesmente ignorar esses erros e continuar funcionando.
+### Alteracao
 
-### Alteracoes
+**Arquivo: `src/hooks/useMenuItems.ts`** (linha 31-32)
 
-**1. `src/lib/errorLogger.ts`** — Adicionar filtro de erros ignoraveis
+Adicionar uma nova entrada no array `CATEGORIES` apos "Hambúrgueres triplo":
 
-Exportar uma funcao `isIgnorableError(message)` que verifica contra padroes conhecidos:
-- `removeChild`
-- `insertBefore`
-- `Failed to construct 'Notification'`
-- `ResizeObserver loop`
+```ts
+{ value: "Gourmets", emoji: "👨‍🍳" },
+```
 
-No `logClientError`, retornar antes de gravar se o erro for ignoravel.
+O array ficara assim:
+```ts
+export const CATEGORIES = [
+  { value: "Promoção do dia", emoji: "🔥" },
+  { value: "Lanches com 1 hambúrguer e sem batata frita", emoji: "🍔" },
+  { value: "Lanches com 2 hambúrgueres e batata frita", emoji: "🍔🍟" },
+  { value: "Hambúrgueres triplo", emoji: "🍔" },
+  { value: "Gourmets", emoji: "👨‍🍳" },
+  { value: "Combos com batata frita", emoji: "🎁🍟" },
+  { value: "Combos sem batata frita", emoji: "🎁" },
+  { value: "Bebidas", emoji: "🥤" },
+  { value: "Porções", emoji: "🍟" },
+  { value: "Sobremesas", emoji: "🍰" },
+  { value: "Outros", emoji: "🍽️" },
+];
+```
 
-**2. `src/components/ErrorBoundary.tsx`** — Nao crashar para erros ignoraveis
-
-No `componentDidCatch`, importar `isIgnorableError` e, se o erro bater com os padroes, chamar `setState({ hasError: false })` imediatamente. O usuario nao ve nada — o app continua normal.
-
-**3. `src/App.tsx`** — Filtrar nos handlers globais
-
-No `rejectionHandler` e `errorHandler`, verificar `isIgnorableError` antes de chamar `logClientError`. Tambem pular o toast de erro no Android para esses casos.
-
-### Resultado
-- Cliente nunca mais vera tela de crash por erros do Android
-- Banco de dados nao recebe logs irrelevantes
-- Erros reais continuam sendo capturados e logados normalmente
-- Tudo automatico, sem intervencao
+### Impacto
+- A nova categoria aparece automaticamente no dropdown de selecao ao criar/editar item
+- Aparece como grupo separado na listagem do cardapio
+- Aparece na pagina publica da loja
+- Nenhuma outra alteracao necessaria — tudo e derivado do array `CATEGORIES`
 
