@@ -1,33 +1,31 @@
 
 
-## Problema: IA enrolando e nunca mandando o link
+## Mensagem inicial automatica no chat de vendas
 
-A screenshot mostra o problema claro: o cliente pede o video/link e a IA fica enrolando — "vou pegar aqui", "to pegando aqui", "vou te passar o link do canal" — mas NUNCA manda de fato. O cliente explodiu: "para de me enrolar e passa logo essa porra".
-
-### Causa raiz
-
-O prompt atual diz "mande esse link quando pedirem" mas nao tem uma regra FORTE e PRIORITARIA pra isso. A IA interpreta que deve sempre fazer perguntas de follow-up (Regra 4) e acaba adiando o link infinitamente.
+### Problema
+Quando voce cria uma conversa nova, ela fica vazia. Voce nao sabe o que mandar pro cliente e precisa pensar na abertura. A IA deveria ja gerar a primeira mensagem pra voce copiar e mandar no WhatsApp.
 
 ### O que muda
 
-**Arquivos afetados:**
-- `supabase/functions/sales-chat/index.ts` (SYSTEM_PROMPT)
-- `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
+**Arquivo:** `src/components/admin/SalesChatTab.tsx`
 
-### Mudancas no SYSTEM_PROMPT
+1. **Apos criar a conversa**, chamar automaticamente a IA pedindo pra gerar a mensagem de abertura
+2. A IA vai responder com algo tipo "e ai, tudo certo?" ou "opa, blz?" (seguindo a regra 3 do prompt que ja existe)
+3. Essa mensagem ja aparece no chat pronta pra voce copiar e colar no WhatsApp
+4. Tambem adicionar **sugestoes rapidas** quando a conversa ta vazia, tipo botoes com:
+   - "Gera a primeira mensagem pra eu mandar"
+   - "Cliente respondeu 'oi, tudo bem'" 
+   - "Cliente pediu o link"
+   - "Cliente perguntou o preco"
 
-1. **Nova regra prioritaria — NUNCA ENROLAR**: Quando o cliente pedir link, video, site, ou qualquer coisa concreta, mandar IMEDIATAMENTE na mesma mensagem. Nunca dizer "vou pegar", "ja mando", "guenta ai". Mandar direto.
+### Fluxo novo
+1. Voce clica "Nova Conversa" e preenche nome/whatsapp
+2. A conversa é criada e a IA automaticamente gera a saudacao inicial
+3. Voce copia a mensagem e manda no WhatsApp
+4. Quando o cliente responder, voce cola a resposta dele e a IA gera a proxima mensagem
 
-2. **Regra anti-promessa vazia**: PROIBIDO prometer algo que nao tem. A IA nao tem video do YouTube, nao tem canal. Ela tem apenas o link https://tinyurl.com/trendfood. Quando pedirem video ou demonstracao, mandar o link direto: "da uma olhada aqui https://tinyurl.com/trendfood la tem tudo".
-
-3. **Exemplos atualizados**:
-   - Cliente: "me manda o link" → "https://tinyurl.com/trendfood da uma olhada ai"
-   - Cliente: "quero ver o video" → "da uma olhada aqui https://tinyurl.com/trendfood tem tudo la"
-   - Cliente: "como funciona?" → "olha aqui https://tinyurl.com/trendfood vc testa gratis por 7 dias"
-   - NUNCA: "vou pegar o link", "to buscando aqui", "guenta ai um segundo"
-
-4. **Mover a regra de link pra ANTES da regra de follow-up** pra ter prioridade maior.
-
-### Resultado
-Quando o cliente pedir qualquer coisa concreta, a IA manda o link na hora em vez de ficar enrolando. Nunca mais vai prometer video ou conteudo que nao existe.
+### Detalhe tecnico
+- Na funcao `createConversation()`, apos inserir no banco, disparar automaticamente uma chamada pro `sales-chat` com uma mensagem de sistema tipo "gere a primeira mensagem de abertura para o cliente"
+- Salvar a resposta como mensagem do assistant no banco
+- Adicionar botoes de sugestao rapida no estado vazio da conversa
 
