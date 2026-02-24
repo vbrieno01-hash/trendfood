@@ -20,6 +20,7 @@ import {
 import {
   Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown,
 } from "lucide-react";
+import { pickPhotoNative, isNativePlatform } from "@/lib/nativeCamera";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
   CATEGORIES, MenuItem, MenuItemInput, SortOrder,
@@ -107,6 +108,22 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
       setImagePreview(URL.createObjectURL(file));
     } catch (err) {
       console.error("[MenuTab] Image select error:", err);
+      toast({ title: "Erro ao selecionar foto", variant: "destructive" });
+    }
+  };
+
+  const handleNativePhoto = async () => {
+    try {
+      const file = await pickPhotoNative();
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Foto muito grande", description: "Máximo 5MB.", variant: "destructive" });
+        return;
+      }
+      setForm((p) => ({ ...p, imageFile: file }));
+      setImagePreview(URL.createObjectURL(file));
+    } catch (err) {
+      console.error("[MenuTab] Native photo error:", err);
       toast({ title: "Erro ao selecionar foto", variant: "destructive" });
     }
   };
@@ -330,7 +347,13 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={() => fileRef.current?.click()}
+                    onClick={() => {
+                      if (isNativePlatform()) {
+                        handleNativePhoto();
+                      } else {
+                        fileRef.current?.click();
+                      }
+                    }}
                   >
                     <Camera className="w-4 h-4" />
                     {imagePreview ? "Alterar foto" : "Adicionar foto"}
