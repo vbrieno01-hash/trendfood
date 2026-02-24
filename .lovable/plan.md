@@ -1,69 +1,47 @@
 
 
-## Chat de Vendas com IA no Painel Admin
+## Adicionar contato do cliente nas conversas de vendas
 
-Criar um assistente de vendas inteligente dentro do painel administrativo que gera respostas profissionais e humanizadas para atrair leads e converter clientes para o TrendFood. O admin conversa com a IA, copia as respostas e envia para os potenciais clientes.
+Adicionar campos de contato (nome e WhatsApp) em cada conversa para que voce possa entrar em contato direto com os leads pelo WhatsApp.
 
-### Como vai funcionar
+### O que muda
 
-1. Nova aba "Vendas" no sidebar do admin com icone de mensagem
-2. Painel lateral esquerdo com lista de conversas (Conversa 1, Conversa 2...) e botao para criar nova
-3. Area principal de chat onde o admin digita o que o cliente falou e a IA responde como um estrategista de vendas profissional
-4. Botao de copiar em cada resposta da IA para facilitar o envio ao cliente
-5. Conversas salvas no banco de dados para consulta futura
-
-### Personalidade da IA
-
-- Profissional de estrategia comercial, nao robotizado
-- Conhece todas as dores: taxas altas do iFood, falta de controle, perda de dados dos clientes
-- Sempre oferece 7 dias gratis de teste
-- Se o cliente nao gostar, pode ficar no plano gratuito
-- Conduz a conversa do "oi" ate o fechamento (cadastro no site)
-- Tom humano, empatetico e consultivo
+1. Cada conversa tera campos opcionais de **nome do cliente** e **WhatsApp**
+2. Um botao de WhatsApp aparece no header do chat para abrir conversa direto
+3. Ao criar uma nova conversa, um mini formulario pede nome e WhatsApp (opcionais)
+4. Na lista de conversas, aparece o nome do cliente abaixo do titulo
 
 ### Detalhes tecnicos
 
-**1. Banco de dados -- 2 novas tabelas**
+**1. Migracao no banco de dados**
 
-- `sales_conversations`: id, admin_user_id, title, created_at, updated_at
-- `sales_messages`: id, conversation_id, role (user/assistant), content, created_at
+Adicionar 2 colunas na tabela `sales_conversations`:
+- `client_name` (text, nullable)
+- `client_whatsapp` (text, nullable)
 
-Ambas com RLS restrita ao admin (auth.uid() = admin_user_id).
+**2. Alteracoes em `SalesChatTab.tsx`**
 
-**2. Edge function `sales-chat`**
+- Atualizar interface `Conversation` com os novos campos
+- Adicionar dialog/modal para criar conversa com campos: titulo, nome do cliente, WhatsApp
+- No header do chat, mostrar botao de WhatsApp (abre `https://wa.me/55{numero}`) quando o WhatsApp estiver preenchido
+- Na lista lateral, mostrar nome do cliente como subtitulo da conversa
+- Permitir editar nome e WhatsApp do cliente no header
 
-- Recebe o historico da conversa e envia para o Lovable AI Gateway (google/gemini-3-flash-preview)
-- System prompt robusto com todas as informacoes do TrendFood: dores, solucoes, diferenciais, precos, trial de 7 dias
-- Streaming SSE para resposta em tempo real
-- Usa LOVABLE_API_KEY (ja configurada)
+**3. Atualizar `types.ts`**
 
-**3. Novo componente `SalesChatTab.tsx`**
+Sera atualizado automaticamente apos a migracao.
 
-- Lista de conversas no lado esquerdo (mobile: drawer)
-- Chat no lado direito com historico de mensagens
-- Botao de copiar resposta em cada mensagem da IA
-- Input para digitar o que o cliente falou
-- Criar/renomear/excluir conversas
-
-**4. Alteracoes em `AdminPage.tsx`**
-
-- Adicionar "vendas" ao tipo AdminTab
-- Adicionar item no sidebar com icone MessageCircle
-- Renderizar SalesChatTab quando aba ativa for "vendas"
-
-### Fluxo do admin
+### Fluxo
 
 ```text
-Admin abre aba Vendas
+Admin clica "Nova Conversa"
   |
-  +-- Cria "Conversa 1 - Joao"
+  +-- Modal pede: Titulo, Nome do cliente, WhatsApp (opcionais)
   |
-  +-- Digita: "O cliente disse: oi, voces vendem site pra restaurante?"
+  +-- Conversa criada com dados do lead
   |
-  +-- IA responde como estrategista (tom humano)
+  +-- No chat, botao WhatsApp no header abre wa.me direto
   |
-  +-- Admin clica "Copiar" e cola no WhatsApp do cliente
-  |
-  +-- Repete ate o fechamento
+  +-- Na lista lateral, mostra "Joao - (11) 99999..."
 ```
 
