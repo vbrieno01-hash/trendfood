@@ -1,56 +1,84 @@
 
 
-## Plano: Manter categorias predefinidas como botoes selecionaveis + campo editavel
+## Plano: Reconstruir o projeto Android do zero
 
-### O que muda
-O campo de categoria tera duas partes:
-1. **Lista de botoes/chips** com as categorias predefinidas (CATEGORIES) — o usuario clica para selecionar rapidamente
-2. **Um input de texto** abaixo, para digitar uma categoria personalizada
+### Contexto
+A pasta `android/` no repositorio contem apenas os arquivos Java customizados (BackgroundPrinterPlugin e PrinterForegroundService). O restante da estrutura nativa (build.gradle, AndroidManifest, MainActivity, etc.) e gerado localmente pelo Capacitor quando voce roda `npx cap add android`. Portanto, o que precisa ser feito no Lovable e limpar e recriar a configuracao base.
 
-Ao clicar em um chip predefinido, o valor do input e preenchido automaticamente. Se o usuario quiser algo diferente, digita no input. O input sempre mostra o valor atual.
+### O que sera feito
 
-### Alteracao tecnica
+**1. Deletar a pasta `android/` inteira**
+Remove os arquivos Java antigos. A pasta sera recriada pelo Capacitor no proximo `npx cap add android`.
 
-**`src/components/dashboard/MenuTab.tsx`** (~linhas 513-528)
+**2. Reescrever `capacitor.config.ts` limpo**
+Manter as mesmas configuracoes (appId, plugins de Bluetooth, SplashScreen, etc.) mas garantir que esta limpo e correto:
 
-Substituir o `Input + datalist` atual por:
+```ts
+import type { CapacitorConfig } from "@capacitor/cli";
 
-```tsx
-<div>
-  <Label className="text-sm font-medium">Categoria</Label>
-  {/* Chips das categorias predefinidas */}
-  <div className="flex flex-wrap gap-1.5 mt-1 mb-2">
-    {CATEGORIES.map((c) => (
-      <button
-        key={c.value}
-        type="button"
-        onClick={() => setForm((p) => ({ ...p, category: c.value }))}
-        className={cn(
-          "px-2.5 py-1 rounded-full text-xs border transition-colors",
-          form.category === c.value
-            ? "bg-primary text-primary-foreground border-primary"
-            : "bg-muted hover:bg-muted/80 border-border"
-        )}
-      >
-        {c.emoji} {c.value}
-      </button>
-    ))}
-  </div>
-  {/* Input editavel para categoria personalizada */}
-  <Input
-    value={form.category}
-    onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-    placeholder="Ou digite uma categoria personalizada..."
-    className="text-sm"
-  />
-</div>
+const config: CapacitorConfig = {
+  appId: "app.trendfood.delivery",
+  appName: "TrendFood",
+  webDir: "dist",
+  server: {
+    androidScheme: "https",
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2500,
+      launchAutoHide: false,
+      backgroundColor: "#FFFFFF",
+      showSpinner: false,
+      launchFadeOutDuration: 500,
+      splashFullScreen: true,
+      splashImmersiveHidden: true,
+    },
+    BluetoothLe: {
+      displayStrings: {
+        scanning: "Procurando impressora...",
+        cancel: "Cancelar",
+        availableDevices: "Dispositivos disponíveis",
+        noDeviceFound: "Nenhum dispositivo encontrado",
+      },
+    },
+    LocalNotifications: {
+      smallIcon: "ic_stat_icon_config_sample",
+      iconColor: "#FF6B00",
+    },
+  },
+};
+
+export default config;
 ```
 
-### Comportamento
-- Clicar num chip preenche o input com aquele valor (chip fica destacado)
-- Digitar no input permite qualquer texto livre (se nao bater com nenhum chip, nenhum fica destacado)
-- O agrupamento na listagem continua funcionando igual — categorias personalizadas aparecem no final
+**3. Recriar os arquivos Java customizados**
+Apos o `npx cap add android` gerar a estrutura, os dois arquivos Java (BackgroundPrinterPlugin.java e PrinterForegroundService.java) serao recriados no caminho correto com o mesmo conteudo.
 
-### Arquivo alterado
-- `src/components/dashboard/MenuTab.tsx` — campo de categoria com chips + input
+### Passos que voce precisara executar no terminal
+
+Apos eu aplicar as mudancas, voce faz no seu computador:
+
+```
+git pull
+npm install
+npm run build
+npx cap add android
+npx cap sync
+```
+
+Depois, copie os arquivos Java gerados para `android/app/src/main/java/app/trendfood/delivery/` e registre o plugin no `MainActivity.java`.
+
+Por fim, gere o APK:
+```
+cd android
+.\gradlew.bat assembleDebug
+```
+
+O APK estara em `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+### Arquivos alterados
+- **Deletar**: toda a pasta `android/`
+- **Recriar**: `android/app/src/main/java/app/trendfood/delivery/BackgroundPrinterPlugin.java`
+- **Recriar**: `android/app/src/main/java/app/trendfood/delivery/PrinterForegroundService.java`
+- **Manter**: `capacitor.config.ts` (sem alteracoes necessarias, ja esta correto)
 
