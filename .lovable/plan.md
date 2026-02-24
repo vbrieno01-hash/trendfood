@@ -1,41 +1,36 @@
 
 
-## Plano: Adicionar footer na pagina publica da loja
+## Plano: Blindar o app contra erros ambientais do Android
 
-### O que sera feito
-Adicionar um rodape (footer) no final da pagina publica da loja (`UnitPage.tsx`) com informacoes sobre o TrendFood, similar ao exemplo da imagem de referencia. O footer ficara entre o `</main>` e o carrinho flutuante.
+### O problema real do cliente
+O cliente estava no dashboard pelo celular Android. O Chrome dele gerou erros de DOM (`removeChild`, `insertBefore`) causados pelo proprio navegador/extensoes. O ErrorBoundary interpretou como crash e mostrou a tela "Algo deu errado", impedindo o cliente de usar o app. O erro nao e do seu codigo — e do ambiente Android.
 
-### Conteudo do footer
-- Logo/nome "TrendFood"
-- Texto "Plataforma de cardapio digital e gestao para food service"
-- Link para o site principal (/)
-- Texto "Feito com TrendFood" e ano atual
+### O que vai mudar
+Criar uma lista de padroes de erros conhecidos como nao-acionaveis e filtra-los em 3 pontos do sistema. O app vai simplesmente ignorar esses erros e continuar funcionando.
 
-### Alteracao
+### Alteracoes
 
-**Arquivo: `src/pages/UnitPage.tsx`**
+**1. `src/lib/errorLogger.ts`** — Adicionar filtro de erros ignoraveis
 
-Inserir um bloco `<footer>` apos a tag `</main>` (linha 766), antes do floating cart bar (linha 768):
+Exportar uma funcao `isIgnorableError(message)` que verifica contra padroes conhecidos:
+- `removeChild`
+- `insertBefore`
+- `Failed to construct 'Notification'`
+- `ResizeObserver loop`
 
-```tsx
-{/* Footer */}
-<footer className="bg-muted/50 border-t border-border mt-8 pb-36">
-  <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-8 text-center space-y-2">
-    <Link to="/" className="inline-flex items-center gap-2 text-primary font-bold text-lg hover:opacity-80 transition-opacity">
-      <img src="/logo-trendfood.png" alt="TrendFood" className="w-6 h-6" />
-      TrendFood
-    </Link>
-    <p className="text-muted-foreground text-xs">
-      Plataforma de cardapio digital e gestao para food service
-    </p>
-    <p className="text-muted-foreground/60 text-[10px]">
-      &copy; {new Date().getFullYear()} TrendFood. Todos os direitos reservados.
-    </p>
-  </div>
-</footer>
-```
+No `logClientError`, retornar antes de gravar se o erro for ignoravel.
 
-- `pb-36` garante espaco para o carrinho flutuante nao cobrir o footer
-- Usa o mesmo `max-w-2xl lg:max-w-5xl` dos demais containers
-- Nenhum impacto no mobile (responsivo por padrao)
+**2. `src/components/ErrorBoundary.tsx`** — Nao crashar para erros ignoraveis
+
+No `componentDidCatch`, importar `isIgnorableError` e, se o erro bater com os padroes, chamar `setState({ hasError: false })` imediatamente. O usuario nao ve nada — o app continua normal.
+
+**3. `src/App.tsx`** — Filtrar nos handlers globais
+
+No `rejectionHandler` e `errorHandler`, verificar `isIgnorableError` antes de chamar `logClientError`. Tambem pular o toast de erro no Android para esses casos.
+
+### Resultado
+- Cliente nunca mais vera tela de crash por erros do Android
+- Banco de dados nao recebe logs irrelevantes
+- Erros reais continuam sendo capturados e logados normalmente
+- Tudo automatico, sem intervencao
 
