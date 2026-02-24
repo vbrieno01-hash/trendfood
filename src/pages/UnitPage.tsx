@@ -173,7 +173,7 @@ const UnitPage = () => {
   if (orgLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto px-4 pt-6 space-y-4">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-6 space-y-4">
           <Skeleton className="h-16 w-full rounded-xl" />
           <Skeleton className="h-24 w-full rounded-xl" />
           {Array.from({ length: 3 }).map((_, i) => (
@@ -523,7 +523,7 @@ const UnitPage = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card sticky top-0 z-40 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm">Início</span>
@@ -542,7 +542,7 @@ const UnitPage = () => {
 
       {/* Banner */}
       {org.banner_url && (
-        <div className="max-w-2xl mx-auto px-4 pt-3">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
           <img
             src={org.banner_url}
             alt="Banner"
@@ -555,7 +555,7 @@ const UnitPage = () => {
       {/* Sticky search bar */}
       {!menuLoading && menuItems.length > 0 && (
         <div className="sticky top-[57px] z-30 bg-background shadow-sm">
-          <div className="max-w-2xl mx-auto px-4 py-2">
+          <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -579,7 +579,7 @@ const UnitPage = () => {
 
       {/* Mesa banner removed — UnitPage is now public-only (no table context) */}
 
-      <main className="max-w-2xl mx-auto px-4 pb-32 pt-4">
+      <main className="max-w-2xl lg:max-w-5xl mx-auto px-4 pb-32 pt-4">
         {/* Banner */}
         {/* Banner */}
         <div
@@ -679,7 +679,7 @@ const UnitPage = () => {
                         </h2>
                         <div className="flex-1 h-px bg-border/60" />
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
                         {group.items.map((item) => {
                           const qty = cart[item.id]?.qty ?? 0;
                           return (
