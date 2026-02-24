@@ -1,54 +1,51 @@
 
-Objetivo: confirmar se o build falhou de verdade e orientar o próximo passo com base no print.
 
-1) Leitura do erro que você enviou
-- Pelo screenshot, não é erro de compilação: aparece `Build android: finished ... with 21 warnings`.
-- Todas as etapas principais estão com check verde (`compileDebugJavaWithJavac`, `compileDebugKotlin` etc.).
-- Ou seja: o APK geralmente foi gerado com sucesso, mas com avisos.
+# Plano: Remover tudo relacionado ao APK / Android / Capacitor
 
-2) O que esses avisos significam
-- `Using flatDir should be avoided...`:
-  - é um warning de configuração de dependência Gradle (comum em plugins).
-  - não bloqueia geração de APK.
-- Warnings em:
-  - `capacitor-community-bluetooth-le:compileDebugKotlin`
-  - `capacitor-filesystem:compileDebugKotlin`
-  - geralmente são avisos internos de plugin/compatibilidade e não impedem build debug.
+## O que será removido
 
-3) Plano de validação imediata (sem mudar código)
-- Verificar se o arquivo existe em:
-  - `android\app\build\outputs\apk\debug\app-debug.apk`
-- Se existir:
-  - instalar no celular e testar fluxo real (login, abrir menu, foto, impressão).
-- Se não existir:
-  - rodar build com log detalhado para capturar o primeiro erro real.
+### Arquivos deletados
+- `capacitor.config.ts`
+- `src/lib/backgroundPrinter.ts`
+- `src/lib/nativeBluetooth.ts`
+- `src/lib/nativeCamera.ts`
+- `src/lib/nativeShare.ts`
+- `android/app/src/main/java/app/trendfood/delivery/BackgroundPrinterPlugin.java`
+- `android/app/src/main/java/app/trendfood/delivery/PrinterForegroundService.java`
 
-4) Comandos exatos (PowerShell)
-```bash
-git pull
-npm install
-npm run build
-npx cap sync
-cd android; .\gradlew.bat clean assembleDebug --stacktrace
-```
+### Arquivos editados (remover referências Capacitor)
+1. **`src/App.tsx`** — remover imports do Capacitor/SplashScreen, remover `isNativePlatform()` checks, rota `/` sempre mostra `<Index />`
+2. **`src/pages/AuthPage.tsx`** — remover import Capacitor, tab padrão sempre "signup"
+3. **`src/lib/bluetoothPrinter.ts`** — remover toda lógica nativa, manter só Web Bluetooth
+4. **`src/lib/printOrder.ts`** — remover fallback nativo, manter só impressão web
+5. **`src/components/dashboard/PrinterTab.tsx`** — remover imports e lógica do background printer nativo
+6. **`src/components/dashboard/ReportsTab.tsx`** — remover import `nativeShare`, usar `navigator.share` padrão ou remover
+7. **`src/pages/DashboardPage.tsx`** — remover imports e lógica de `nativeBluetooth`
 
-5) Se você quiser “zerar os warnings” depois
-- Faço um plano de hardening Android para:
-  - revisar `android/build.gradle` e `settings.gradle`
-  - alinhar versões Gradle/Kotlin com Capacitor 8
-  - reduzir warnings de plugins (quando possível)
-- Observação: parte desses warnings vem de bibliotecas de terceiros e pode não ser eliminável 100%.
+### Dependências removidas do `package.json`
+- `@capacitor/core`
+- `@capacitor/cli`
+- `@capacitor/android`
+- `@capacitor/app`
+- `@capacitor/camera`
+- `@capacitor/filesystem`
+- `@capacitor/splash-screen`
+- `@capacitor/share`
+- `@capacitor/local-notifications`
+- `@capacitor-community/bluetooth-le`
+- `@types/web-bluetooth`
 
-Seção técnica (detalhada)
+## O que NÃO será afetado
+- Toda a interface web (cardápio, pedidos, caixa, etc.)
+- Impressão via Web Bluetooth (navegador) continua funcionando
+- Fila de impressão na nuvem continua funcionando
+- PWA (se configurado) continua funcionando
+
+## Seção técnica
 ```text
-Estado atual do build:
-Web build (dist) -> Capacitor sync -> Gradle compile -> APK debug
-
-No print:
-[OK] :capacitor-camera:compileDebugJavaWithJavac
-[WARN] flatDir metadata
-[WARN] bluetooth-le Kotlin warnings
-[WARN] filesystem Kotlin warnings
-[OK] :app:compileDebugJavaWithJavac
-Resultado provável: APK gerado (debug), warnings não-bloqueantes.
+Impacto: ~14 arquivos modificados/deletados
+Risco: baixo — todas as funcionalidades nativas tinham fallback web
+Resultado: app 100% web, sem dependência de Capacitor
+Reconstrução futura: quando tiver créditos, basta reinstalar Capacitor + recriar os arquivos nativos
 ```
+
