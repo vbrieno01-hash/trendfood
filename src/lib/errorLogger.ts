@@ -11,7 +11,10 @@ const ERROR_LIMIT = 5;
 const WINDOW_MS = 60_000;
 let timestamps: number[] = [];
 
+const BOT_PATTERN = /googlebot|google-read-aloud|bingbot|yandex|baidu|duckduckbot|facebookexternalhit|twitterbot|linkedinbot|whatsapp|semrushbot|ahrefsbot|mj12bot/i;
+
 export function logClientError(params: ErrorLogParams) {
+  if (BOT_PATTERN.test(navigator.userAgent)) return;
   const now = Date.now();
   timestamps = timestamps.filter((t) => now - t < WINDOW_MS);
   if (timestamps.length >= ERROR_LIMIT) return;
