@@ -44,7 +44,6 @@ public class PrinterForegroundService extends Service {
 
     public static volatile boolean isRunning = false;
 
-    // BLE printer standard service/characteristic UUIDs
     private static final UUID PRINTER_SERVICE_UUID =
             UUID.fromString("000018f0-0000-1000-8000-00805f9b34fb");
     private static final UUID PRINTER_CHAR_UUID =
@@ -147,7 +146,6 @@ public class PrinterForegroundService extends Service {
                     } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                         Log.d(TAG, "BLE disconnected");
                         bleReady = false;
-                        // Auto reconnect after 5s
                         if (isRunning && scheduler != null) {
                             scheduler.schedule(() -> connectBle(), 5, TimeUnit.SECONDS);
                         }
@@ -235,8 +233,7 @@ public class PrinterForegroundService extends Service {
                 Thread.sleep(50);
             }
 
-            // Feed + cut
-            byte[] feed = new byte[]{0x1B, 0x64, 0x04}; // ESC d 4 = feed 4 lines
+            byte[] feed = new byte[]{0x1B, 0x64, 0x04};
             printerCharacteristic.setValue(feed);
             bluetoothGatt.writeCharacteristic(printerCharacteristic);
 
