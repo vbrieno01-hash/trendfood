@@ -6,6 +6,13 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Plus,
   Send,
   Copy,
@@ -17,11 +24,14 @@ import {
   ChevronLeft,
   Bot,
   User,
+  Phone,
 } from "lucide-react";
 
 interface Conversation {
   id: string;
   title: string;
+  client_name: string | null;
+  client_whatsapp: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +44,18 @@ interface Message {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sales-chat`;
+
+function cleanWhatsapp(raw: string): string {
+  return raw.replace(/\D/g, "");
+}
+
+function formatWhatsappDisplay(raw: string): string {
+  const digits = cleanWhatsapp(raw);
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  return raw;
+}
 
 export default function SalesChatTab() {
   const { user } = useAuth();
@@ -51,10 +73,18 @@ export default function SalesChatTab() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load conversations
-  useEffect(() => {
-    loadConversations();
-  }, []);
+  // New conversation dialog
+  const [showNewDialog, setShowNewDialog] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientWhatsapp, setNewClientWhatsapp] = useState("");
+
+  // Edit contact dialog
+  const [showEditContact, setShowEditContact] = useState(false);
+  const [editClientName, setEditClientName] = useState("");
+  const [editClientWhatsapp, setEditClientWhatsapp] = useState("");
+
+  useEffect(() => { loadConversations(); }, []);
 
   async function loadConversations() {
     const { data } = await supabase
@@ -65,7 +95,6 @@ export default function SalesChatTab() {
     setLoadingConvs(false);
   }
 
-  // Load messages when active conv changes
   useEffect(() => {
     if (!activeConvId) { setMessages([]); return; }
     loadMessages(activeConvId);
@@ -84,18 +113,31 @@ export default function SalesChatTab() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function openNewDialog() {
+    setNewTitle(`Conversa ${conversations.length + 1}`);
+    setNewClientName("");
+    setNewClientWhatsapp("");
+    setShowNewDialog(true);
+  }
+
   async function createConversation() {
     if (!user) return;
-    const title = `Conversa ${conversations.length + 1}`;
+    const title = newTitle.trim() || `Conversa ${conversations.length + 1}`;
     const { data, error } = await supabase
       .from("sales_conversations" as any)
-      .insert({ admin_user_id: user.id, title } as any)
+      .insert({
+        admin_user_id: user.id,
+        title,
+        client_name: newClientName.trim() || null,
+        client_whatsapp: newClientWhatsapp.trim() || null,
+      } as any)
       .select()
       .single();
     if (error) { toast.error("Erro ao criar conversa"); return; }
     const conv = data as any as Conversation;
     setConversations((prev) => [conv, ...prev]);
     setActiveConvId(conv.id);
+    setShowNewDialog(false);
     if (isMobile) setShowList(false);
   }
 
@@ -117,6 +159,37 @@ export default function SalesChatTab() {
     setEditingId(null);
   }
 
+  function openEditContact() {
+    const conv = conversations.find((c) => c.id === activeConvId);
+    if (!conv) return;
+    setEditClientName(conv.client_name ?? "");
+    setEditClientWhatsapp(conv.client_whatsapp ?? "");
+    setShowEditContact(true);
+  }
+
+  async function saveContact() {
+    if (!activeConvId) return;
+    const updates = {
+      client_name: editClientName.trim() || null,
+      client_whatsapp: editClientWhatsapp.trim() || null,
+    };
+    await supabase
+      .from("sales_conversations" as any)
+      .update(updates as any)
+      .eq("id", activeConvId);
+    setConversations((prev) =>
+      prev.map((c) => (c.id === activeConvId ? { ...c, ...updates } : c))
+    );
+    setShowEditContact(false);
+    toast.success("Contato atualizado!");
+  }
+
+  function openWhatsApp(whatsapp: string) {
+    const digits = cleanWhatsapp(whatsapp);
+    const number = digits.startsWith("55") ? digits : `55${digits}`;
+    window.open(`https://wa.me/${number}`, "_blank");
+  }
+
   const copyToClipboard = useCallback(async (text: string, msgId?: string) => {
     await navigator.clipboard.writeText(text);
     setCopiedId(msgId ?? null);
@@ -131,23 +204,13 @@ export default function SalesChatTab() {
     setInput("");
     setIsLoading(true);
 
-    // Save user message to DB
     await supabase
       .from("sales_messages" as any)
-      .insert({
-        conversation_id: activeConvId,
-        role: "user",
-        content: userMsg.content,
-      } as any);
+      .insert({ conversation_id: activeConvId, role: "user", content: userMsg.content } as any);
 
-    // Stream AI response
     let assistantContent = "";
     try {
-      const allMsgs = [...messages, userMsg].map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
+      const allMsgs = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
@@ -161,7 +224,6 @@ export default function SalesChatTab() {
         const errData = await resp.json().catch(() => ({}));
         throw new Error(errData.error || `Erro ${resp.status}`);
       }
-
       if (!resp.body) throw new Error("No stream body");
 
       const reader = resp.body.getReader();
@@ -173,7 +235,6 @@ export default function SalesChatTab() {
         const { done, value } = await reader.read();
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
-
         let newlineIndex: number;
         while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
           let line = textBuffer.slice(0, newlineIndex);
@@ -205,7 +266,6 @@ export default function SalesChatTab() {
         }
       }
 
-      // Flush remaining
       if (textBuffer.trim()) {
         for (let raw of textBuffer.split("\n")) {
           if (!raw) continue;
@@ -231,15 +291,10 @@ export default function SalesChatTab() {
         }
       }
 
-      // Save assistant message to DB
       if (assistantContent) {
         await supabase
           .from("sales_messages" as any)
-          .insert({
-            conversation_id: activeConvId,
-            role: "assistant",
-            content: assistantContent,
-          } as any);
+          .insert({ conversation_id: activeConvId, role: "assistant", content: assistantContent } as any);
       }
     } catch (e: any) {
       console.error("Stream error:", e);
@@ -256,7 +311,7 @@ export default function SalesChatTab() {
   const ConversationList = () => (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-border">
-        <Button onClick={createConversation} className="w-full gap-2" size="sm">
+        <Button onClick={openNewDialog} className="w-full gap-2" size="sm">
           <Plus className="w-4 h-4" /> Nova Conversa
         </Button>
       </div>
@@ -299,24 +354,25 @@ export default function SalesChatTab() {
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <span className="flex-1 truncate">{conv.title}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="block truncate">{conv.title}</span>
+                  {conv.client_name && (
+                    <span className="block text-xs text-muted-foreground truncate">
+                      {conv.client_name}
+                      {conv.client_whatsapp && ` · ${formatWhatsappDisplay(conv.client_whatsapp)}`}
+                    </span>
+                  )}
+                </div>
               )}
-              <div className="hidden group-hover:flex items-center gap-1">
+              <div className="hidden group-hover:flex items-center gap-1 shrink-0">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingId(conv.id);
-                    setEditTitle(conv.title);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); setEditingId(conv.id); setEditTitle(conv.title); }}
                   className="p-1 rounded hover:bg-secondary"
                 >
                   <Pencil className="w-3 h-3" />
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteConversation(conv.id);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
                   className="p-1 rounded hover:bg-destructive/10 text-destructive"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -344,7 +400,29 @@ export default function SalesChatTab() {
           <h3 className="text-sm font-semibold truncate">
             {activeConv?.title || "Assistente de Vendas"}
           </h3>
-          <p className="text-xs text-muted-foreground">IA estrategista TrendFood</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {activeConv?.client_name
+              ? `${activeConv.client_name}${activeConv.client_whatsapp ? ` · ${formatWhatsappDisplay(activeConv.client_whatsapp)}` : ""}`
+              : "IA estrategista TrendFood"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {activeConv?.client_whatsapp && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              onClick={() => openWhatsApp(activeConv.client_whatsapp!)}
+              title="Abrir WhatsApp"
+            >
+              <Phone className="w-4 h-4" />
+            </Button>
+          )}
+          {activeConvId && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openEditContact} title="Editar contato">
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -368,10 +446,7 @@ export default function SalesChatTab() {
           </div>
         ) : (
           messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
+            <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && (
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-primary" />
@@ -423,13 +498,7 @@ export default function SalesChatTab() {
       {/* Input */}
       {activeConvId && (
         <div className="p-4 border-t border-border">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendMessage();
-            }}
-            className="flex gap-2"
-          >
+          <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
             <Input
               ref={inputRef}
               value={input}
@@ -448,19 +517,69 @@ export default function SalesChatTab() {
   );
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex rounded-2xl border border-border bg-card overflow-hidden">
-      {/* Conversation list */}
-      {(!isMobile || showList) && (
-        <div className={`${isMobile ? "w-full" : "w-72 border-r border-border"} shrink-0`}>
-          <ConversationList />
-        </div>
-      )}
-      {/* Chat */}
-      {(!isMobile || !showList) && (
-        <div className="flex-1 min-w-0">
-          <ChatArea />
-        </div>
-      )}
-    </div>
+    <>
+      <div className="h-[calc(100vh-8rem)] flex rounded-2xl border border-border bg-card overflow-hidden">
+        {(!isMobile || showList) && (
+          <div className={`${isMobile ? "w-full" : "w-72 border-r border-border"} shrink-0`}>
+            <ConversationList />
+          </div>
+        )}
+        {(!isMobile || !showList) && (
+          <div className="flex-1 min-w-0">
+            <ChatArea />
+          </div>
+        )}
+      </div>
+
+      {/* New Conversation Dialog */}
+      <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova Conversa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-sm font-medium text-foreground">Título</label>
+              <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Ex: Lead João" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Nome do cliente</label>
+              <Input value={newClientName} onChange={(e) => setNewClientName(e.target.value)} placeholder="Ex: João Silva" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">WhatsApp</label>
+              <Input value={newClientWhatsapp} onChange={(e) => setNewClientWhatsapp(e.target.value)} placeholder="Ex: 11999998888" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewDialog(false)}>Cancelar</Button>
+            <Button onClick={createConversation}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Contact Dialog */}
+      <Dialog open={showEditContact} onOpenChange={setShowEditContact}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Contato do Cliente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-sm font-medium text-foreground">Nome</label>
+              <Input value={editClientName} onChange={(e) => setEditClientName(e.target.value)} placeholder="Nome do cliente" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">WhatsApp</label>
+              <Input value={editClientWhatsapp} onChange={(e) => setEditClientWhatsapp(e.target.value)} placeholder="11999998888" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditContact(false)}>Cancelar</Button>
+            <Button onClick={saveContact}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

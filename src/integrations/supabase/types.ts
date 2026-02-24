@@ -680,6 +680,8 @@ export type Database = {
       sales_conversations: {
         Row: {
           admin_user_id: string
+          client_name: string | null
+          client_whatsapp: string | null
           created_at: string
           id: string
           title: string
@@ -687,6 +689,8 @@ export type Database = {
         }
         Insert: {
           admin_user_id: string
+          client_name?: string | null
+          client_whatsapp?: string | null
           created_at?: string
           id?: string
           title?: string
@@ -694,6 +698,8 @@ export type Database = {
         }
         Update: {
           admin_user_id?: string
+          client_name?: string | null
+          client_whatsapp?: string | null
           created_at?: string
           id?: string
           title?: string
