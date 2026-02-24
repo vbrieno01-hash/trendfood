@@ -1,70 +1,63 @@
 
 
-## Diagnóstico: Por que o Perfil da Loja salva foto e o Cardápio nao
+## Diagnóstico: Foto enviada mas não salva no banco
 
-### Diferença fundamental entre os dois fluxos
+### Evidência no banco de dados
 
-**Perfil da Loja (funciona):**
+Encontrei **6 fotos enviadas ao storage** nos últimos minutos, mas **nenhuma delas está vinculada a nenhum item do cardápio**:
+
 ```text
-Input file → handleLogoUpload → upload IMEDIATO para storage → salva URL no banco
+Storage (uploads recentes):         Menu Items (image_url):
+─────────────────────────────       ─────────────────────────
+a5f2c8e9...jpg  ✓ (16:44)          Nenhum item com essa URL
+71bcfd70...jpg  ✓ (16:43)          Nenhum item com essa URL
+f3539033...jpg  ✓ (16:43)          Nenhum item com essa URL
+b44d206b...jpg  ✓ (16:43)          Nenhum item com essa URL
+0cf29037...jpg  ✓ (16:41)          Nenhum item com essa URL
+665b0524...jpg  ✓ (16:40)          Nenhum item com essa URL
 ```
-O upload acontece **no mesmo instante** que o usuario seleciona a foto. Nao depende de estado React.
 
-**Cardápio (falha):**
-```text
-pickPhotoNative → salva File no state (form.imageFile) → usuario clica "Salvar" → handleSubmit → mutation → uploadMenuImage
-```
-O File fica guardado no estado React. No Android, entre selecionar a foto e clicar "Salvar", o WebView pode perder o estado (garbage collection, Activity restart parcial), e `form.imageFile` vira `null` ou um objeto corrompido.
+O upload funciona, mas a URL **nunca chega ao banco**. Ou o usuario nao clica "Salvar" (achando que a foto ja salvou), ou o submit falha silenciosamente.
 
-### Correção: Upload imediato igual ao Perfil da Loja
+### Causa raiz
 
-Vamos copiar exatamente o padrao que funciona:
+O fluxo atual exige dois passos separados: (1) selecionar foto, (2) clicar "Salvar alterações". No Perfil da Loja, o upload **salva direto no banco** no momento da seleção. No Cardápio, a URL fica apenas no estado React e depende de um segundo clique.
 
-1. **Quando o usuario selecionar foto** (nativa ou input file) → fazer upload **imediatamente** para o storage
-2. Guardar no estado apenas a **URL** resultante (string), nao o File
-3. No `handleSubmit`, usar a URL ja pronta — sem upload pendente
+### Correção: Salvar foto direto no banco (igual ao Perfil da Loja)
+
+Quando o item **já existe** (edição), ao selecionar a foto, além de fazer upload ao storage, vamos **atualizar o `image_url` no banco imediatamente**. Para **novos itens**, a URL continua no state e é salva junto com o insert.
 
 ### Arquivos afetados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/dashboard/MenuTab.tsx` | Upload imediato no `handleNativePhoto` e `handleImageChange`, guardar URL no state em vez de File |
-| `src/hooks/useMenuItems.ts` | Remover upload de dentro das mutations (add/update), usar `image_url` ja pronta |
+| `src/components/dashboard/MenuTab.tsx` | `doImmediateUpload`: se `editItem` existe, faz `UPDATE menu_items SET image_url = url WHERE id = editItem.id` direto no banco + invalida cache React Query |
 
-### Detalhes da implementacao
+### Detalhe da implementação
 
-**MenuTab.tsx:**
-- `handleNativePhoto`: apos criar o File, fazer `uploadMenuImage(orgId, tempId, file)` imediatamente e guardar a URL no form
-- `handleImageChange` (input web): mesmo padrao — upload imediato
-- Usar um ID temporario (`crypto.randomUUID()`) para o path no storage quando for item novo
-- Mostrar spinner durante upload da foto
-- Se upload falhar, mostrar erro e nao permitir salvar
+**`doImmediateUpload`** recebe o `editItem` como parâmetro opcional. Se presente:
 
-**useMenuItems.ts:**
-- `useAddMenuItem`: receber `image_url` pronta, sem upload interno
-- `useUpdateMenuItem`: idem — se `image_url` mudou, ja esta no storage
-- Manter `uploadMenuImage` como funcao exportada para ser chamada pelo MenuTab
-
-### Fluxo corrigido
 ```text
-Usuario seleciona foto
-  → Upload IMEDIATO para storage (igual perfil da loja)
-  → Toast "Foto enviada ✓"
-  → URL salva no state
-Usuario clica "Salvar"
-  → Insert/Update com image_url pronta
-  → Sem upload pendente, sem risco de perder o File
+1. Upload file to storage → URL
+2. UPDATE menu_items SET image_url = URL WHERE id = editItem.id
+3. Invalidar queryKey ["menu_items", orgId]
+4. Toast "Foto salva ✓"
 ```
 
-### Comportamento escolhido
-Se o upload da foto falhar, o item **nao sera salvo** (tudo ou nada). O usuario vera o erro e podera tentar novamente.
+Se `editItem` é null (novo item):
 
-### Apos implementar
 ```text
-git pull
-npm run build
-npx cap sync
-cd android
-.\gradlew.bat assembleDebug
+1. Upload file to storage → URL
+2. Guardar URL no form state
+3. Toast "Foto enviada ✓"
+4. URL será incluída no INSERT quando clicar "Salvar"
+```
+
+Nenhuma mudança no `useMenuItems.ts` é necessária — o update será feito direto via `supabase.from("menu_items").update(...)` no componente.
+
+### Após implementar
+
+```text
+git pull → npm run build → npx cap sync → cd android → .\gradlew.bat assembleDebug
 ```
 
