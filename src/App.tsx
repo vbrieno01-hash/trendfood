@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
@@ -39,6 +39,13 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const ConditionalSupportChat = () => {
+  const { pathname } = useLocation();
+  const internalRoutes = ["/dashboard", "/cozinha", "/garcom", "/admin", "/motoboy"];
+  if (!internalRoutes.some(r => pathname.startsWith(r))) return null;
+  return <SupportChatWidget />;
+};
 
 const AppInner = () => {
   useEffect(() => {
@@ -108,7 +115,7 @@ const AppInner = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            {!Capacitor.isNativePlatform() && <SupportChatWidget />}
+            {!Capacitor.isNativePlatform() && <ConditionalSupportChat />}
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
