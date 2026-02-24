@@ -2,7 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { toast } from "sonner";
-import { logClientError } from "@/lib/errorLogger";
+import { logClientError, isIgnorableError } from "@/lib/errorLogger";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -51,9 +51,10 @@ const ConditionalSupportChat = () => {
 const AppInner = () => {
   useEffect(() => {
     const rejectionHandler = (e: PromiseRejectionEvent) => {
+      const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+      if (isIgnorableError(msg)) return;
       console.error("[Unhandled Rejection]", e.reason);
       e.preventDefault();
-      const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
       const stack = e.reason instanceof Error ? e.reason.stack : undefined;
       logClientError({ message: msg, stack, source: "unhandled_rejection" });
       if (Capacitor.isNativePlatform()) {
@@ -62,6 +63,7 @@ const AppInner = () => {
     };
 
     const errorHandler = (e: ErrorEvent) => {
+      if (isIgnorableError(e.message)) return;
       logClientError({
         message: e.message,
         stack: e.error?.stack,
