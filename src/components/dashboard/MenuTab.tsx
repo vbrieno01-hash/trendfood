@@ -46,6 +46,7 @@ const SORT_KEY = "menu_sort_order";
 
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
+  const nativePickerInFlightRef = useRef(false);
   
   const { data: items = [], isLoading } = useMenuItems(organization.id, sortOrder);
   const addMutation = useAddMenuItem(organization.id);
@@ -130,6 +131,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   };
 
   const handleNativePhoto = async () => {
+    nativePickerInFlightRef.current = true;
     try {
       const file = await pickPhotoNative();
       if (!file) return;
@@ -142,6 +144,8 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     } catch (err) {
       console.error("[MenuTab] Native photo error:", err);
       toast({ title: "Erro ao selecionar foto", variant: "destructive" });
+    } finally {
+      setTimeout(() => { nativePickerInFlightRef.current = false; }, 400);
     }
   };
 
@@ -344,11 +348,16 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
       ))}
 
       {/* Add/Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(next) => {
+        if (!next && nativePickerInFlightRef.current) return;
+        setModalOpen(next);
+      }}>
         <DialogContent
           className="max-w-md max-h-[90vh] overflow-y-auto"
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
+          onFocusOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => { if (nativePickerInFlightRef.current) e.preventDefault(); }}
         >
           <DialogHeader>
             <DialogTitle>{editItem ? "Editar item" : "Novo item do cardápio"}</DialogTitle>
