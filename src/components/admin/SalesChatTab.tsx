@@ -139,6 +139,8 @@ export default function SalesChatTab() {
     setActiveConvId(conv.id);
     setShowNewDialog(false);
     if (isMobile) setShowList(false);
+    // Auto-generate initial greeting
+    generateInitialMessage(conv.id, newClientName.trim() || null);
   }
 
   async function deleteConversation(id: string) {
@@ -190,6 +192,102 @@ export default function SalesChatTab() {
     window.open(`https://wa.me/${number}`, "_blank");
   }
 
+  async function streamAIResponse(convId: string, msgHistory: { role: string; content: string }[]): Promise<string> {
+    let assistantContent = "";
+    const resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ messages: msgHistory }),
+    });
+
+    if (!resp.ok) throw new Error(`Erro ${resp.status}`);
+    if (!resp.body) throw new Error("No stream body");
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = "";
+    let streamDone = false;
+
+    while (!streamDone) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      textBuffer += decoder.decode(value, { stream: true });
+      let newlineIndex: number;
+      while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+        let line = textBuffer.slice(0, newlineIndex);
+        textBuffer = textBuffer.slice(newlineIndex + 1);
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (line.startsWith(":") || line.trim() === "") continue;
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === "[DONE]") { streamDone = true; break; }
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) {
+            assistantContent += content;
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last?.role === "assistant" && !last.id) {
+                return prev.map((m, i) =>
+                  i === prev.length - 1 ? { ...m, content: assistantContent } : m
+                );
+              }
+              return [...prev, { role: "assistant", content: assistantContent }];
+            });
+          }
+        } catch { break; }
+      }
+    }
+
+    if (assistantContent) {
+      await supabase
+        .from("sales_messages" as any)
+        .insert({ conversation_id: convId, role: "assistant", content: assistantContent } as any);
+    }
+    return assistantContent;
+  }
+
+  async function generateInitialMessage(convId: string, clientName: string | null) {
+    setIsLoading(true);
+    const prompt = clientName
+      ? `Gere a primeira mensagem de abertura para o cliente chamado ${clientName}. Siga a REGRA 3 - apenas cumprimento curto.`
+      : `Gere a primeira mensagem de abertura para um cliente novo. Siga a REGRA 3 - apenas cumprimento curto.`;
+    try {
+      await streamAIResponse(convId, [{ role: "user", content: prompt }]);
+    } catch (e: any) {
+      console.error("Auto greeting error:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function sendQuickSuggestion(text: string) {
+    if (!activeConvId || isLoading) return;
+    const userMsg: Message = { role: "user", content: text };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setIsLoading(true);
+
+    await supabase
+      .from("sales_messages" as any)
+      .insert({ conversation_id: activeConvId, role: "user", content: text } as any);
+
+    try {
+      const allMsgs = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
+      await streamAIResponse(activeConvId, allMsgs);
+    } catch (e: any) {
+      console.error("Quick suggestion error:", e);
+      toast.error("Erro ao gerar resposta");
+    } finally {
+      setIsLoading(false);
+      inputRef.current?.focus();
+    }
+  }
+
   const copyToClipboard = useCallback(async (text: string, msgId?: string) => {
     await navigator.clipboard.writeText(text);
     setCopiedId(msgId ?? null);
@@ -208,94 +306,9 @@ export default function SalesChatTab() {
       .from("sales_messages" as any)
       .insert({ conversation_id: activeConvId, role: "user", content: userMsg.content } as any);
 
-    let assistantContent = "";
     try {
       const allMsgs = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ messages: allMsgs }),
-      });
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Erro ${resp.status}`);
-      }
-      if (!resp.body) throw new Error("No stream body");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let streamDone = false;
-
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") { streamDone = true; break; }
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantContent += content;
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant" && !last.id) {
-                  return prev.map((m, i) =>
-                    i === prev.length - 1 ? { ...m, content: assistantContent } : m
-                  );
-                }
-                return [...prev, { role: "assistant", content: assistantContent }];
-              });
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
-      }
-
-      if (textBuffer.trim()) {
-        for (let raw of textBuffer.split("\n")) {
-          if (!raw) continue;
-          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-          if (raw.startsWith(":") || raw.trim() === "") continue;
-          if (!raw.startsWith("data: ")) continue;
-          const jsonStr = raw.slice(6).trim();
-          if (jsonStr === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantContent += content;
-              setMessages((prev) =>
-                prev.map((m, i) =>
-                  i === prev.length - 1 && m.role === "assistant"
-                    ? { ...m, content: assistantContent }
-                    : m
-                )
-              );
-            }
-          } catch {}
-        }
-      }
-
-      if (assistantContent) {
-        await supabase
-          .from("sales_messages" as any)
-          .insert({ conversation_id: activeConvId, role: "assistant", content: assistantContent } as any);
-      }
+      await streamAIResponse(activeConvId, allMsgs);
     } catch (e: any) {
       console.error("Stream error:", e);
       toast.error(e.message || "Erro ao gerar resposta");
@@ -442,12 +455,28 @@ export default function SalesChatTab() {
                       pra você copiar e enviar no WhatsApp.
                     </p>
                   </div>
-                ) : messages.length === 0 ? (
+                ) : messages.length === 0 && !isLoading ? (
                   <div className="flex flex-col items-center justify-center h-full text-center px-4">
                     <MessageCircle className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                    <p className="text-sm text-muted-foreground">
-                      Digite o que o cliente falou e a IA vai te ajudar a responder
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Cole o que o cliente falou ou use uma sugestão rápida
                     </p>
+                    <div className="flex flex-wrap gap-2 justify-center max-w-sm">
+                      {[
+                        "Gera a primeira mensagem pra eu mandar",
+                        "Cliente respondeu 'oi, tudo bem'",
+                        "Cliente pediu o link",
+                        "Cliente perguntou o preço",
+                      ].map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => sendQuickSuggestion(suggestion)}
+                          className="text-xs px-3 py-2 rounded-full border border-border bg-secondary hover:bg-accent text-foreground transition-colors"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   messages.map((msg, i) => (
