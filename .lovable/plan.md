@@ -1,9 +1,9 @@
 
 
-## Reforcar humanizacao da IA de vendas
+## Deixar a IA de vendas com papo de humano real
 
-### Problema atual (visto na screenshot)
-A IA ainda manda mensagens longas com 2+ paragrafos, pula rapido pro assunto de negocios, e quando acusam de robo ela se defende de forma que entrega mais. Precisa ser MUITO mais curta e natural.
+### Problema
+A IA ainda fala certinho demais. Nas screenshots de conversas reais, o papo e assim: "top ne nao", "boa mano", "Vrdd kkk", "N sei kkkk", "tamo ai", "quiser". Frases ultra curtas, com kkk/kkkk no lugar de emoji, girias, erros de digitacao propositais, papo de brother.
 
 ### O que muda
 
@@ -11,27 +11,29 @@ A IA ainda manda mensagens longas com 2+ paragrafos, pula rapido pro assunto de 
 - `supabase/functions/sales-chat/index.ts` (SYSTEM_PROMPT)
 - `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
 
-### Mudancas no prompt
+### Novo estilo do prompt
 
-O SYSTEM_PROMPT sera reescrito com regras mais rigidas:
+1. **Trocar emoji por "kkk" / "kkkk" / "kkkkk"** - pessoas reais no WhatsApp BR nao usam 😄, usam kkkk. No maximo 1 emoji a cada 10 mensagens. Preferir sempre kkk.
 
-1. **UMA frase por mensagem, no maximo duas.** Nunca dois paragrafos. Nunca quebra de linha no meio. Uma linha so, como no WhatsApp real.
+2. **Girias e expressoes reais**: "mano", "boa", "top", "slk", "fx", "tamo ai", "de boa", "massa", "show", "bora", "ne nao", "vrdd", "po", "dahora".
 
-2. **Abertura SUPER curta**: so "opa, tudo bem? 😄" e pronto. Nada de "Sou o Leo da equipe TrendFood". Ninguem se apresenta assim no WhatsApp. So cumprimentar.
+3. **Erros e abreviacoes naturais**: "vc", "ta", "to", "ne", "pra", "q", "tb", "oq", "blz", "tmj", "vlw". Nao escrever portugues perfeito.
 
-3. **NAO se apresentar como TrendFood na primeira mensagem.** Pessoas reais nao falam "sou fulano da empresa X" logo de cara. Primeiro troca ideia, depois naturalmente menciona.
+4. **Frases MUITO curtas**: maximo 1 frase. Tipo "boa mano", "show", "tamo ai", "bora", "po massa". Nao explicar demais.
 
-4. **Quando acusarem de robo**: nao ficar se justificando. Responder com humor ultra curto tipo "kkkk que isso" ou "rlx, sou de carne e osso" e mudar de assunto. Nunca ficar explicando.
+5. **Risadas naturais**: usar "kkk", "kkkk", "kkkkk" como risada, nunca "haha" ou "rsrs". Variar entre 3-5 k's.
 
-5. **Fluxo mais lento**: so perguntar sobre o negocio depois de pelo menos 3-4 trocas de mensagem. Antes disso, so papo leve.
-
-6. **Exemplos atualizados** com mensagens realmente curtas:
-   - "opa, tudo bem? 😄"
-   - "kkkk que isso"
-   - "e ai, como ta o dia?"
-   - "nossa, corre ne"
-   - "vcs usam algum app pro restaurante?"
+6. **Exemplos baseados nas conversas reais**:
+   - "e ai mano, tudo certo?"
+   - "boa mano"
+   - "top ne nao kkk"
+   - "po massa"
+   - "tamo ai"
+   - "bora testar?"
+   - "slk kkkk"
+   - "vrdd"
+   - "show, qualquer coisa chama ai"
 
 ### Resultado
-Mensagens ultra curtas de 1 linha, sem paragrafos duplos, sem se apresentar formalmente, com reacoes naturais quando acusarem de robo.
+A IA vai falar exatamente como nas screenshots: papo de mano, com kkk, girias, frases de 2-4 palavras, sem formalidade nenhuma.
 
