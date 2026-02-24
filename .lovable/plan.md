@@ -1,36 +1,37 @@
 
 
-## Humanizar a IA de vendas (WhatsApp + Admin)
+## Reforcar humanizacao da IA de vendas
 
-### Problema
-A IA atual vai direto ao assunto de vendas sem cumprimentar, sem perguntar como a pessoa esta. Isso faz parecer um robo. O ideal e que ela comece como um humano real: "opa, tudo bem?", "bom dia!", perguntar como a pessoa ta, e so depois ir pra conversa de vendas.
+### Problema atual (visto na screenshot)
+A IA ainda manda mensagens longas com 2+ paragrafos, pula rapido pro assunto de negocios, e quando acusam de robo ela se defende de forma que entrega mais. Precisa ser MUITO mais curta e natural.
 
 ### O que muda
 
 **Arquivos afetados:**
-- `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
 - `supabase/functions/sales-chat/index.ts` (SYSTEM_PROMPT)
+- `supabase/functions/whatsapp-webhook/index.ts` (SYSTEM_PROMPT)
 
-### Novo prompt (aplicado nos dois arquivos)
+### Mudancas no prompt
 
-O SYSTEM_PROMPT sera reescrito para incluir:
+O SYSTEM_PROMPT sera reescrito com regras mais rigidas:
 
-1. **Regra de abertura humana**: Na primeira mensagem, SEMPRE cumprimentar antes de qualquer coisa. "Opa, tudo certo?", "E ai, como ta?", "Bom dia! Tudo bem por ai?". Nunca ir direto pro assunto.
+1. **UMA frase por mensagem, no maximo duas.** Nunca dois paragrafos. Nunca quebra de linha no meio. Uma linha so, como no WhatsApp real.
 
-2. **Regra anti-robo**: Se apresentar como pessoa real da equipe TrendFood. Nunca dizer que e IA ou assistente virtual. Falar como se fosse um colega mandando mensagem.
+2. **Abertura SUPER curta**: so "opa, tudo bem? 😄" e pronto. Nada de "Sou o Leo da equipe TrendFood". Ninguem se apresenta assim no WhatsApp. So cumprimentar.
 
-3. **Fluxo mais natural**:
-   - Mensagem 1: Cumprimentar + perguntar como ta
-   - Mensagem 2: Esperar resposta, responder de volta humanamente
-   - Mensagem 3+: Ai sim perguntar sobre o negocio, qual a dor, etc.
-   - So depois de entender a dor: conectar com a solucao
+3. **NAO se apresentar como TrendFood na primeira mensagem.** Pessoas reais nao falam "sou fulano da empresa X" logo de cara. Primeiro troca ideia, depois naturalmente menciona.
 
-4. **Exemplos atualizados** com frases mais humanas tipo:
-   - "Opa, tudo certo? Sou o pessoal aqui da TrendFood 😄"
-   - "E ai, como ta o movimento ai no restaurante?"
-   - "Que legal! Quanto tempo voces tao no ramo?"
-   - "Poxa, imagino... taxa alta e fogo ne"
+4. **Quando acusarem de robo**: nao ficar se justificando. Responder com humor ultra curto tipo "kkkk que isso" ou "rlx, sou de carne e osso" e mudar de assunto. Nunca ficar explicando.
+
+5. **Fluxo mais lento**: so perguntar sobre o negocio depois de pelo menos 3-4 trocas de mensagem. Antes disso, so papo leve.
+
+6. **Exemplos atualizados** com mensagens realmente curtas:
+   - "opa, tudo bem? 😄"
+   - "kkkk que isso"
+   - "e ai, como ta o dia?"
+   - "nossa, corre ne"
+   - "vcs usam algum app pro restaurante?"
 
 ### Resultado
-A IA vai parecer um vendedor humano real no WhatsApp, cumprimentando antes de vender, perguntando como a pessoa esta, e construindo rapport antes de falar do produto.
+Mensagens ultra curtas de 1 linha, sem paragrafos duplos, sem se apresentar formalmente, com reacoes naturais quando acusarem de robo.
 
