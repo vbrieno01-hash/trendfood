@@ -370,14 +370,16 @@ const UnitPage = () => {
       .filter((l) => l !== null)
       .join("\n");
 
+    // Abrir WhatsApp ANTES de qualquer operação assíncrona (evita bloqueio de popup em Safari/Samsung)
     const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
     try {
-      window.open(url, "_blank", "noopener,noreferrer");
+      const w = window.open(url, "_blank", "noopener,noreferrer");
+      if (!w) window.location.href = url;
     } catch {
       try { window.location.href = url; } catch {}
     }
 
-    // Save order to database (table_number=0 = delivery/pickup) — skip if already created (PIX flow)
+    // Save order to database em background (table_number=0 = delivery/pickup) — skip if already created (PIX flow)
     if (org?.id && !overrideOrderId) {
       const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
         ? `FRETE:${fmt(deliveryFee)}`
@@ -398,17 +400,24 @@ const UnitPage = () => {
         notes.trim() ? `OBS:${notes.trim()}` : null,
       ].filter(Boolean) as string[];
 
-      placeOrder.mutate({
-        organizationId: org.id,
-        tableNumber: 0,
-        notes: noteParts.join("|"),
-        items: cartItems.map((i) => ({
-          menu_item_id: i.id,
-          name: i.name,
-          price: i.price,
-          quantity: i.qty,
-        })),
-      });
+      placeOrder.mutate(
+        {
+          organizationId: org.id,
+          tableNumber: 0,
+          notes: noteParts.join("|"),
+          items: cartItems.map((i) => ({
+            menu_item_id: i.id,
+            name: i.name,
+            price: i.price,
+            quantity: i.qty,
+          })),
+        },
+        {
+          onError: (err) => {
+            console.error("[UnitPage] placeOrder error:", err);
+          },
+        }
+      );
     }
 
     // Reset

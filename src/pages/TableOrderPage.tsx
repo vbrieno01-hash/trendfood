@@ -207,33 +207,38 @@ export default function TableOrderPage() {
   const handleFinish = async () => {
     if (!org || cartItems.length === 0) return;
 
-    let finalNotes = notes;
-    if (appliedCoupon) {
-      finalNotes = finalNotes
-        ? `${finalNotes} | CUPOM:${appliedCoupon.code}`
-        : `CUPOM:${appliedCoupon.code}`;
+    try {
+      let finalNotes = notes;
+      if (appliedCoupon) {
+        finalNotes = finalNotes
+          ? `${finalNotes} | CUPOM:${appliedCoupon.code}`
+          : `CUPOM:${appliedCoupon.code}`;
+      }
+
+      const pixMode = org.pix_confirmation_mode ?? "direct";
+      const needsPaymentFirst = pixMode === "automatic";
+      const initialStatus = needsPaymentFirst ? "awaiting_payment" : "pending";
+
+      const order = await placeOrder.mutateAsync({
+        organizationId: org.id,
+        tableNumber: tableNum,
+        notes: finalNotes,
+        items: cartItems,
+        initialStatus,
+      });
+
+      if (appliedCoupon) {
+        await incrementCouponUses(appliedCoupon.id);
+      }
+
+      setOrderId(order.id);
+      setOrderTotal(totalPrice);
+      setPaymentMethod(null);
+      setSuccess(true);
+    } catch (err) {
+      console.error("[TableOrder] handleFinish error:", err);
+      toast.error("Erro ao enviar pedido. Verifique sua conexão e tente novamente.");
     }
-
-    const pixMode = org.pix_confirmation_mode ?? "direct";
-    const needsPaymentFirst = pixMode === "automatic";
-    const initialStatus = needsPaymentFirst ? "awaiting_payment" : "pending";
-
-    const order = await placeOrder.mutateAsync({
-      organizationId: org.id,
-      tableNumber: tableNum,
-      notes: finalNotes,
-      items: cartItems,
-      initialStatus,
-    });
-
-    if (appliedCoupon) {
-      await incrementCouponUses(appliedCoupon.id);
-    }
-
-    setOrderId(order.id);
-    setOrderTotal(totalPrice);
-    setPaymentMethod(null);
-    setSuccess(true);
   };
 
   if (orgLoading || itemsLoading) {
@@ -402,7 +407,18 @@ export default function TableOrderPage() {
                     </div>
                     <Button
                       variant="outline" size="sm" className="w-full"
-                      onClick={() => { navigator.clipboard.writeText(dynamicQr); toast.success("Código PIX copiado!"); }}
+                      onClick={() => {
+                        const copyText = (text: string) => {
+                          if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+                            navigator.clipboard.writeText(text).then(() => toast.success("Código PIX copiado!")).catch(() => {
+                              const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); toast.success("Código PIX copiado!");
+                            });
+                          } else {
+                            const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); toast.success("Código PIX copiado!");
+                          }
+                        };
+                        copyText(dynamicQr);
+                      }}
                     >
                       <Copy className="w-3.5 h-3.5 mr-1.5" />
                       Copiar código Pix

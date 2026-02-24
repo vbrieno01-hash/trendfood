@@ -93,10 +93,16 @@ const AuthPage = () => {
 
       const userId = authData.user.id;
 
-      await supabase.from("profiles").insert({
+      // Aguardar sessão RLS ficar ativa (race condition em conexões lentas)
+      await new Promise((r) => setTimeout(r, 600));
+
+      const { error: profileError } = await supabase.from("profiles").insert({
         user_id: userId,
         full_name: signupData.fullName,
       });
+      if (profileError) {
+        console.warn("[Signup] Profile insert failed:", profileError.message);
+      }
 
       const { error: orgError } = await supabase.from("organizations").insert({
         user_id: userId,

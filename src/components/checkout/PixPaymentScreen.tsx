@@ -95,19 +95,36 @@ export default function PixPaymentScreen({
         const ta = document.createElement("textarea");
         ta.value = pixCopiaECola;
         ta.style.position = "fixed";
+        ta.style.top = "0";
+        ta.style.left = "0";
+        ta.style.width = "2em";
+        ta.style.height = "2em";
+        ta.style.padding = "0";
+        ta.style.border = "none";
+        ta.style.outline = "none";
+        ta.style.boxShadow = "none";
         ta.style.opacity = "0";
         document.body.appendChild(ta);
+        ta.focus();
         ta.select();
-        document.execCommand("copy");
+        const ok = document.execCommand("copy");
         document.body.removeChild(ta);
-        onCopied();
+        if (ok) {
+          onCopied();
+        } else {
+          toast({ title: "Toque e segure o código para copiar", variant: "destructive" });
+        }
       } catch {
         toast({ title: "Toque e segure o código para copiar", variant: "destructive" });
       }
     };
-    try {
-      navigator.clipboard.writeText(pixCopiaECola).then(onCopied).catch(fallbackCopy);
-    } catch {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      try {
+        navigator.clipboard.writeText(pixCopiaECola).then(onCopied).catch(fallbackCopy);
+      } catch {
+        fallbackCopy();
+      }
+    } else {
       fallbackCopy();
     }
   }, [pixCopiaECola, toast]);
