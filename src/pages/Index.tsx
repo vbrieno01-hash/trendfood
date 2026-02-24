@@ -228,7 +228,7 @@ const Index = () => {
       </section>
 
       {/* Problem Section */}
-      <section className="py-20 px-4 bg-background">
+      <section id="problemas" className="py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
@@ -272,7 +272,7 @@ const Index = () => {
       <SavingsCalculator />
 
       {/* How it works */}
-      <section className="bg-secondary/40 border-y border-border/60 py-20 px-4">
+      <section id="como-funciona" className="bg-secondary/40 border-y border-border/60 py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
@@ -308,7 +308,7 @@ const Index = () => {
       <ShowcaseSection />
 
       {/* Features */}
-      <section className="py-20 px-4 bg-background">
+      <section id="funcionalidades" className="py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
@@ -382,7 +382,7 @@ const Index = () => {
               Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão.
             </p>
             <div className="flex items-center gap-3">
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href="https://instagram.com/trendfood.app" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <Instagram className="w-5 h-5" />
               </a>
               <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
@@ -398,6 +398,8 @@ const Index = () => {
               <li><a href="#funcionalidades" className="text-muted-foreground hover:text-foreground transition-colors">Funcionalidades</a></li>
               <li><Link to="/planos" className="text-muted-foreground hover:text-foreground transition-colors">Planos</Link></li>
               <li><a href="#como-funciona" className="text-muted-foreground hover:text-foreground transition-colors">Como Funciona</a></li>
+              <li><a href="#calculadora" className="text-muted-foreground hover:text-foreground transition-colors">Calculadora de Economia</a></li>
+              <li><a href="#comparativo" className="text-muted-foreground hover:text-foreground transition-colors">Comparativo</a></li>
             </ul>
           </div>
 
@@ -408,6 +410,7 @@ const Index = () => {
               <li><Link to="/termos" className="text-muted-foreground hover:text-foreground transition-colors">Termos de Uso</Link></li>
               <li><Link to="/privacidade" className="text-muted-foreground hover:text-foreground transition-colors">Política de Privacidade</Link></li>
               <li><a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
+              <li><a href="#problemas" className="text-muted-foreground hover:text-foreground transition-colors">Perguntas Frequentes</a></li>
             </ul>
           </div>
 
@@ -422,12 +425,18 @@ const Index = () => {
                   Fale conosco
                 </a>
               </li>
+              <li>
+                <a href="https://instagram.com/trendfood.app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <Instagram className="w-4 h-4" />
+                  @trendfood.app
+                </a>
+              </li>
             </ul>
           </div>
         </div>
 
         <div className="max-w-5xl mx-auto border-t border-border/60 pt-6 text-center text-muted-foreground text-sm">
-          <p>© 2025 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
+          <p>© 2026 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
         </div>
       </footer>
     </div>

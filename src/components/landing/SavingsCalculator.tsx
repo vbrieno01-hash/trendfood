@@ -22,7 +22,7 @@ const SavingsCalculator = () => {
   const display = revenue.toLocaleString("pt-BR");
 
   return (
-    <section className="relative py-24 px-4">
+    <section id="calculadora" className="relative py-24 px-4">
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] to-[#111]" />
 
       <div className="relative max-w-2xl mx-auto">
