@@ -11,9 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+// Select removed — category is now a free-text input with datalist
 import {
   Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown,
 } from "lucide-react";
@@ -171,10 +169,23 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     return () => cleanup?.();
   }, [organization.id]);
 
-  const grouped = CATEGORIES.map((cat) => ({
-    ...cat,
-    items: items.filter((i) => i.category === cat.value),
-  })).filter((g) => g.items.length > 0);
+  // Collect custom categories not in CATEGORIES
+  const knownValues = new Set(CATEGORIES.map(c => c.value));
+  const customCats = [...new Set(items.map(i => i.category).filter(c => !knownValues.has(c)))].sort();
+
+  // Merge known + custom for datalist suggestions
+  const allCategories = [...CATEGORIES.map(c => c.value), ...customCats];
+
+  const grouped = [
+    ...CATEGORIES.map((cat) => ({
+      value: cat.value,
+      items: items.filter((i) => i.category === cat.value),
+    })),
+    ...customCats.map((cat) => ({
+      value: cat,
+      items: items.filter((i) => i.category === cat),
+    })),
+  ].filter((g) => g.items.length > 0);
 
   const totalItems = items.length;
   const totalCategories = grouped.length;
@@ -499,21 +510,21 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                 />
               </div>
 
-              {/* Category */}
+              {/* Category — editable combobox */}
               <div>
                 <Label className="text-sm font-medium">Categoria</Label>
-                <Select value={form.category} onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        {c.emoji} {c.value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  list="category-suggestions"
+                  value={form.category}
+                  onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+                  placeholder="Ex: Lanches, Bebidas, Roupas..."
+                  className="mt-1"
+                />
+                <datalist id="category-suggestions">
+                  {allCategories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Price */}
