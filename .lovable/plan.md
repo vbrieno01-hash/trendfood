@@ -1,61 +1,47 @@
 
 
-# Plano: Corrigir km dos motoboys não sendo calculado
+# Diagnóstico: km dos motoboys mostra 0 mesmo após correção
 
-## Diagnóstico
+## O que foi encontrado
 
-Confirmado com dados reais do banco: **TODAS as entregas têm `distance_km: NULL`**. A última entrega finalizada pela "juju" (id `385aef49...`) mostra `distance_km: nil, fee: 3` — ou seja, o cálculo de distância em background (`calculateAndUpdateDelivery`) está falhando silenciosamente em 100% dos casos.
+Os dados no banco confirmam o problema:
 
-A causa raiz está em **dois problemas**:
+- As 3 entregas da juju estão com `distance_km: 0` (zero exato, **não** NULL)
+- O endereço da loja é: `11510-170, Rua Jaime João Olcese, Casa, Casa, Vila couto, Cubatão, SP, Brasil`
+- O endereço do cliente é: `Rua Jaime João Olcese, 675, Vila Couto, Cubatão, SP, Brasil`
 
-1. **Endereço da loja começa com CEP** (`11510-170, Rua Jaime João Olcese, Casa, Casa, Vila couto, Cubatão, SP, Brasil`). O Nominatim não consegue geocodificar quando o endereço começa com CEP brasileiro — ele não encontra resultado e retorna `null`. A função `geocode()` falha silenciosamente e o `distance_km` nunca é atualizado.
+**Duas causas raiz:**
 
-2. **Falha silenciosa total** — o `catch` vazio na `calculateAndUpdateDelivery` engole qualquer erro, então ninguém nunca é notificado de que o cálculo falhou. O motoboy vê "0.0 km" para sempre.
+1. **A função de recálculo só busca `distance_km IS NULL`** — mas os valores são `0`, não NULL. O cálculo inicial rodou mas ambos os endereços geocodificaram para o mesmo ponto genérico (CEP no início do endereço da loja confunde o Nominatim), resultando em 0 km.
+
+2. **O recálculo retroativo ignora entregas com `distance_km = 0`** — a condição `.is("distance_km", null)` no `recalculateNullDistances` pula todas as entregas da juju.
 
 ## O que será feito
 
-### 1. Tornar a geocodificação mais resiliente
-No `useCreateDelivery.ts`, melhorar a função `geocode`:
-- Remover CEP do início do endereço antes de geocodificar (regex para tirar padrão `XXXXX-XXX,`)
-- Remover duplicatas como "Casa, Casa" que poluem a query
-- Se falhar, tentar apenas com "Rua, Bairro, Cidade, Estado"
-- Se falhar novamente, tentar apenas "Cidade, Estado, Brasil"
+### 1. Expandir o recálculo para incluir `distance_km = 0`
+No `recalculateNullDistances`, além de buscar `IS NULL`, buscar também `distance_km = 0` — pois 0 indica que o cálculo original falhou silenciosamente.
 
-### 2. Aplicar a mesma correção no `useDeliveryDistance.ts`
-O hook de cálculo de distância no checkout usa a mesma lógica e também será afetado. Garantir consistência.
+### 2. Garantir que a limpeza de endereço está funcionando corretamente
+O `geocodeAddress` do `geocode.ts` já limpa CEP, mas preciso confirmar que está sendo usado no fluxo de recálculo (já foi corrigido no último commit).
 
-### 3. Adicionar log de erro ao invés de falha silenciosa
-Trocar o `catch {}` vazio por `console.error` para que falhas de geocodificação sejam visíveis nos logs.
-
-### 4. Recalcular entregas existentes com km nulo
-Criar uma função que, ao carregar o dashboard de motoboys, detecte entregas com `distance_km: null` e `status: entregue` e tente recalcular em background — assim as entregas antigas também ganham os km corretos.
+### 3. Invalidar corretamente o cache após recálculo
+No `CourierDashboardTab`, a invalidação do cache após recálculo usa `["org-deliveries"]` mas a query key real é `["deliveries", orgId, ...]`. Corrigir para invalidar a chave certa.
 
 ## Seção técnica
 
 ```text
-Problema:
-  store_address = "11510-170, Rua Jaime João Olcese, Casa, Casa, Vila couto, Cubatão, SP, Brasil"
-  Nominatim não encontra endereço com CEP no início → geocode retorna null
-  calculateAndUpdateDelivery falha silenciosamente → distance_km = NULL para sempre
+Arquivo 1: src/hooks/useCreateDelivery.ts (recalculateNullDistances)
+  - Linha 122: trocar .is("distance_km", null)
+    por: .or("distance_km.is.null,distance_km.eq.0")
+  - Isso faz o recálculo pegar as entregas da juju que têm 0
 
-Correção:
+Arquivo 2: src/components/dashboard/CourierDashboardTab.tsx
+  - Linha 154: trocar condição d.distance_km === null
+    por: (d.distance_km === null || d.distance_km === 0)
+  - Linha 158: trocar queryKey ["org-deliveries"]
+    por: ["deliveries", orgId] para invalidar corretamente
 
-Arquivo 1: src/hooks/useCreateDelivery.ts
-  - Nova função cleanAddressForGeocode(addr):
-    - Remove CEP (regex /^\d{5}-?\d{3},?\s*/)
-    - Remove "Casa" duplicado e tokens desnecessários
-    - Gera variantes de fallback: [endereço completo limpo, "Rua, Bairro, Cidade, Estado", "Cidade, Estado, Brasil"]
-  - Alterar geocode() para tentar cada variante sequencialmente
-  - Trocar catch vazio por console.error
-
-Arquivo 2: src/hooks/useDeliveryDistance.ts
-  - Aplicar mesma lógica de cleanAddressForGeocode na função geocode()
-
-Arquivo 3: src/components/dashboard/CourierDashboardTab.tsx (ou hook equivalente)
-  - Ao carregar entregas entregues com distance_km === null:
-    - Em background, tentar recalcular e atualizar no banco
-    - Isso corrige entregas históricas sem km
+Resultado: ao abrir o dashboard de motoboys, entregas com 0 km
+serão recalculadas automaticamente com a geocodificação corrigida.
 ```
-
-Resultado: motoboys passam a ter km calculado automaticamente em novas entregas, e entregas antigas com km nulo são recalculadas.
 
