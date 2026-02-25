@@ -1,96 +1,80 @@
 
 
-# Plano: Gestão Manual de Assinaturas + Webhook Universal + Log de Ativações
+# Plano: Simplificar ao Máximo a Gestão de Assinaturas no Admin
+
+## Problema atual
+O fluxo exige: clicar "Gerenciar" → abrir dialog → selecionar plano → selecionar status → abrir calendário → digitar notas → salvar. São muitos passos para algo que deveria ser um clique.
 
 ## O que será feito
 
-1. **Diálogo "Gerenciar Assinatura"** em cada card de loja na aba Lojas do Admin, com:
-   - Seletor de plano (free/pro/enterprise/lifetime)
-   - Seletor de status (active/past_due)
-   - Calendário para definir `trial_ends_at` com data exata
-   - Botão salvar que registra a alteração no log
+### 1. Botão "Ativar Pro 30d" direto no card da loja
+Um botão de ação rápida no `StoreCard` que com **um único clique** faz:
+- Plano → `pro`
+- Status → `active`
+- Trial → `now + 30 dias`
+- Registra no `activation_logs` automaticamente
 
-2. **Tabela `activation_logs`** para rastrear todas as ativações manuais e via webhook, com campos: org_id, org_name, old_plan, new_plan, source (manual/webhook), admin_email, created_at
+Sem dialog, sem formulário. Um clique e pronto.
 
-3. **Edge Function `universal-activation-webhook`** que recebe `org_id` e `days` via query params e ativa o plano pro + estende trial, sem depender de gateway específico
+### 2. Seção "Webhook Pronto" na aba Ativações
+Um bloco no topo da aba Ativações com:
+- O link do webhook completo e pronto para copiar
+- Instruções curtas: "Cole esse link no seu gateway (Cakto, Kiwify, Hotmart)"
+- Dropdown para selecionar a loja e gerar o link com o `org_id` preenchido
+- Botão "Copiar Link" que copia direto para a área de transferência
 
-4. **Aba "Ativações" no Admin** para visualizar o log de ativações
+### 3. Manter o dialog "Gerenciar" como opção avançada
+O dialog atual continua disponível para casos que precisam de customização (ex: mudar para Enterprise, definir data específica, adicionar notas).
 
 ## Seção técnica
 
-### 1. Nova tabela: `activation_logs`
-
-```sql
-CREATE TABLE public.activation_logs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid NOT NULL,
-  org_name text,
-  old_plan text,
-  new_plan text,
-  old_status text,
-  new_status text,
-  source text NOT NULL DEFAULT 'manual',  -- 'manual' | 'webhook'
-  admin_email text,
-  notes text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.activation_logs ENABLE ROW LEVEL SECURITY;
--- SELECT/INSERT/DELETE apenas para admin
-```
-
-### 2. Edge Function: `universal-activation-webhook`
-
-Endpoint: `GET /universal-activation-webhook?org_id=xxx&days=30&secret=YOUR_SECRET`
-
-- Valida secret via query param contra env `UNIVERSAL_WEBHOOK_SECRET`
-- Busca org pelo id
-- Atualiza `subscription_plan = 'pro'`, `subscription_status = 'active'`, `trial_ends_at = now() + days`
-- Insere registro em `activation_logs` com `source = 'webhook'`
-- Retorna JSON com sucesso
-
-Config em `supabase/config.toml`: `verify_jwt = false`
-
-### 3. Componente: Diálogo "Gerenciar Assinatura"
-
-No `StoreCard` existente, substituir o seletor de plano simples por um botão "Gerenciar" que abre um `Dialog` com:
-- Select de plano
-- Select de status (active / past_due)
-- DatePicker para `trial_ends_at`
-- Campo de notas (opcional)
-- Ao salvar: atualiza org no banco + insere `activation_logs` com `source = 'manual'`
-
-### 4. Aba "Ativações" no Admin
-
-Nova tab no sidebar com listagem da tabela `activation_logs` ordenada por `created_at DESC`, mostrando: data, loja, plano anterior → novo, fonte (manual/webhook), admin.
-
-### Arquivos criados/alterados
+### Arquivos alterados
 
 ```text
-NOVO:  migration SQL (activation_logs)
-NOVO:  supabase/functions/universal-activation-webhook/index.ts
-EDIT:  supabase/config.toml (adicionar verify_jwt = false para nova function)
-EDIT:  src/pages/AdminPage.tsx (diálogo de gestão no StoreCard, nova aba "Ativações", log)
+EDIT: src/pages/AdminPage.tsx
+  - Adicionar botão "Ativar Pro 30d" no StoreCard com lógica inline
+  
+EDIT: src/components/admin/ActivationLogsTab.tsx
+  - Adicionar seção "Webhook Pronto" no topo com seletor de org + botão copiar
 ```
 
-### Secret necessário
+### Lógica do botão rápido (StoreCard)
 
-- `UNIVERSAL_WEBHOOK_SECRET` — um token que você define e coloca na URL do webhook em qualquer gateway
+```typescript
+async function quickActivate(orgId: string) {
+  const trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 30);
+  
+  await supabase.from("organizations").update({
+    subscription_plan: "pro",
+    subscription_status: "active", 
+    trial_ends_at: trialEnd.toISOString(),
+  }).eq("id", orgId);
 
-### Fluxo de uso
+  await supabase.from("activation_logs").insert({
+    organization_id: orgId,
+    old_plan: org.subscription_plan,
+    new_plan: "pro",
+    source: "manual",
+    admin_email: user?.email,
+    notes: "Ativação rápida 30d",
+  });
+}
+```
+
+### Seção Webhook na aba Ativações
 
 ```text
-Gateway (Cakto/Kiwify/Hotmart)
-  └─ Webhook URL: https://.../universal-activation-webhook?org_id=UUID&days=30&secret=TOKEN
-       └─ Edge Function valida secret
-            └─ Atualiza org → plan=pro, status=active, trial_ends_at=now()+30d
-                 └─ Insere activation_logs (source=webhook)
-
-Admin Panel → Aba Lojas → Card da loja → "Gerenciar"
-  └─ Dialog com plano, status, calendário
-       └─ Salva no banco + insere activation_logs (source=manual)
-
-Admin Panel → Aba Ativações
-  └─ Tabela com histórico completo
+┌─────────────────────────────────────────────────┐
+│  🔗 Link de Ativação Universal                  │
+│                                                  │
+│  Loja: [Dropdown com todas as lojas ▼]          │
+│  Dias: [30]  Plano: [pro ▼]                     │
+│                                                  │
+│  https://xrzu...webhook?org_id=UUID&days=30&... │
+│                                    [📋 Copiar]   │
+│                                                  │
+│  Cole esse link no webhook do seu gateway.       │
+└─────────────────────────────────────────────────┘
 ```
 
