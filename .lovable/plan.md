@@ -1,39 +1,78 @@
 
 
-# Plano: Corrigir texto e deixar link universal fixo no painel
+# Plano: Expiração automática para planos pagos
 
-## O que voce pediu
+## Situação atual
 
-1. O link novo pronto para copiar
-2. Deixar fixo no painel para copiar quando precisar
-3. Corrigir o texto que diz "Cakto, Kiwify, Hotmart" --- o webhook e universal, funciona com **qualquer plataforma**
+Você configurou cobrança **mensal recorrente** no gateway. Cada vez que o cliente paga, o gateway chama o webhook e o sistema estende o acesso por +30 dias (campo `trial_ends_at`).
 
-## Seu link universal
+**O problema**: o `usePlanLimits` só verifica a data de expiração quando o plano é `free`. Se o plano é `pro` ou `enterprise`, ele **ignora a data** — então uma vez ativado, nunca expira, mesmo se o cliente parar de pagar.
 
+## Como vai funcionar depois da mudança
+
+```text
+┌─────────────────────────────────────────────────────┐
+│  Cliente paga no gateway (mensal)                    │
+│         ↓                                            │
+│  Gateway chama webhook → +30 dias em trial_ends_at   │
+│         ↓                                            │
+│  Sistema libera pro/enterprise por 30 dias           │
+│         ↓                                            │
+│  Passou 30 dias sem novo pagamento?                  │
+│    SIM → Sistema trata como plano Free (bloqueado)   │
+│    NÃO → Webhook renovou, tudo liberado              │
+└─────────────────────────────────────────────────────┘
 ```
-https://xrzudhylpphnzousilye.supabase.co/functions/v1/universal-activation-webhook?email={email}&days=30&plan=pro&secret=trendfood123
-```
 
-O `{email}` sera substituido automaticamente pelo gateway com o email do comprador. Funciona com **qualquer plataforma de pagamento** que envie webhook --- nao apenas Cakto, Kiwify ou Hotmart.
+Pagou = liberado. Não pagou = bloqueado. Automático.
 
 ## O que muda
 
-### Corrigir texto na aba Ativacoes (linha 150-152)
+### `src/hooks/usePlanLimits.ts` (único arquivo)
 
-O texto atual diz:
-> "Compativel com Cakto, Kiwify, Hotmart."
-
-Vai mudar para:
-> "Compativel com qualquer plataforma de pagamento que envie webhook (Cakto, Kiwify, Hotmart, Eduzz, Monetizze, Stripe, etc)."
-
-Isso deixa claro que e **universal** e nao limitado a 3 gateways.
-
-### Arquivo alterado
-
-```text
-EDIT: src/components/admin/ActivationLogsTab.tsx
-  - Linha 150-152: Atualizar texto descritivo para deixar claro que e universal
+Hoje (linha 47-48):
+```typescript
+const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
+const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
 ```
 
-Mudanca minima --- apenas o texto descritivo. O link ja esta fixo e funcional no painel.
+Vai mudar para checar a data para **todos** os planos (exceto `lifetime`):
+
+```typescript
+// Para planos pagos: trial_ends_at funciona como data de expiração
+const isPaid = rawPlan === "pro" || rawPlan === "enterprise";
+const subscriptionExpired = isPaid && !!trialEndsAt && trialEndsAt <= now;
+
+// Trial continua funcionando igual para plano free
+const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
+const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
+
+// Se plano pago expirou, trata como free
+const effectivePlan: Plan = rawPlan === "lifetime" 
+  ? "lifetime" 
+  : subscriptionExpired 
+    ? "free" 
+    : trialActive 
+      ? "pro" 
+      : rawPlan;
+```
+
+Lógica:
+- **`lifetime`**: nunca expira
+- **`pro`/`enterprise`**: se `trial_ends_at` passou, volta para `free` automaticamente
+- **`free` com trial**: funciona igual ao que já existe
+- Quando o gateway envia webhook de renovação, estende +30 dias e volta a funcionar
+
+### Nenhuma mudança no webhook
+
+O webhook já faz exatamente o que precisa: atualiza `trial_ends_at` com +30 dias a cada pagamento. Só faltava o frontend respeitar essa data para planos pagos.
+
+## Seção técnica
+
+```text
+EDIT: src/hooks/usePlanLimits.ts
+  - Linha 47-53: Adicionar lógica de expiração para planos pro/enterprise
+  - Adicionar flag subscriptionExpired e subscriptionDaysLeft ao retorno
+  - effectivePlan volta para "free" se plano pago expirou
+```
 
