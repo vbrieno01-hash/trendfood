@@ -39,6 +39,7 @@ const BRAZIL_STATES = [
 ];
 
 import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
+import { compressImage } from "@/lib/compressImage";
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
@@ -197,15 +198,11 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     try {
       const file = e.target.files?.[0];
       if (!file) return;
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("A imagem deve ter no máximo 2MB.");
-        if (fileRef.current) fileRef.current.value = "";
-        return;
-      }
       setLogoUploading(true);
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800 });
+      const ext = compressed.name.split(".").pop();
       const path = `${organization.id}/logo.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("logos").upload(path, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from("logos").upload(path, compressed, { upsert: true });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from("logos").getPublicUrl(path);
       const url = data.publicUrl + `?t=${Date.now()}`;
@@ -242,15 +239,11 @@ export default function StoreProfileTab({ organization }: { organization: Organi
     try {
       const file = e.target.files?.[0];
       if (!file) return;
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("A imagem deve ter no máximo 2MB.");
-        if (bannerFileRef.current) bannerFileRef.current.value = "";
-        return;
-      }
       setBannerUploading(true);
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 800 });
+      const ext = compressed.name.split(".").pop();
       const path = `banners/${organization.id}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("menu-images").upload(path, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from("menu-images").upload(path, compressed, { upsert: true });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
       const url = data.publicUrl + `?t=${Date.now()}`;

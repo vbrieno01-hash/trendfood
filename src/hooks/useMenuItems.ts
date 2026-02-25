@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/compressImage";
 
 export interface MenuItem {
   id: string;
@@ -66,12 +67,13 @@ export function useMenuItems(orgId: string | undefined, sortOrder: SortOrder = "
 }
 
 export async function uploadMenuImage(orgId: string, itemId: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop();
+  const compressed = await compressImage(file);
+  const ext = compressed.name.split(".").pop();
   const path = `${orgId}/${itemId}.${ext}`;
-  console.log(`[uploadMenuImage] Uploading: path=${path}, size=${file.size}, type=${file.type}`);
+  console.log(`[uploadMenuImage] Uploading: path=${path}, size=${compressed.size}, type=${compressed.type}`);
   const { error } = await supabase.storage
     .from("menu-images")
-    .upload(path, file, { upsert: true });
+    .upload(path, compressed, { upsert: true });
   if (error) {
     console.error("[uploadMenuImage] Storage upload error:", JSON.stringify(error));
     throw error;
