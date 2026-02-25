@@ -1,59 +1,55 @@
 
 
-# Plano: Corrigir erro "api.whatsapp.com está bloqueado"
+# Plano: Aplicar fallback robusto do WhatsApp em todos os arquivos
 
 ## Diagnóstico
 
-O screenshot mostra que ao clicar em "Enviar Pedido", o navegador abre `api.whatsapp.com/send/...` e recebe `ERR_BLOCKED_BY_RESPONSE`. Isso acontece porque o `wa.me` redireciona para `api.whatsapp.com`, que responde com headers de segurança (COOP/COEP) que bloqueiam a abertura dentro de contextos de iframe ou quando chamado via `window.open` de certos ambientes (como o preview do Lovable).
+A correção de fallback do WhatsApp foi aplicada apenas em `UnitPage.tsx`. Existem mais 4 locais no código que usam `window.open` direto para WhatsApp sem nenhum fallback:
 
-O código atual (linha 397-402 de `UnitPage.tsx`) tenta `window.open` e faz fallback para `window.location.href`. O problema é que ambos falham quando `api.whatsapp.com` bloqueia a resposta.
+1. **`src/pages/CourierPage.tsx`** (linha 542) — Notifica o cliente quando o motoboy aceita a entrega
+2. **`src/components/admin/SalesChatTab.tsx`** (linha 192) — Abre o WhatsApp de um lead/contato
+3. **`src/components/dashboard/SettingsTab.tsx`** (linha 164) — Compartilhar via WhatsApp
+4. **`src/pages/DashboardPage.tsx`** (linha 752) — Botão "Indique o TrendFood"
 
-A solução é usar a URL direta `https://api.whatsapp.com/send` em vez de `wa.me` (evitando o redirect), e garantir que o fallback funcione. Porém o problema real é que `api.whatsapp.com` bloqueia respostas em iframes/previews. A melhor abordagem é:
+O `WaiterPage.tsx` já usa `<a href>` com `target="_blank"`, que é a abordagem mais segura e não precisa de alteração.
 
-1. Trocar para `window.location.href` como método primário (em vez de `window.open`), pois navegar a página inteira tem menos chance de ser bloqueado
-2. Ou melhor ainda: detectar se estamos em iframe e usar a estratégia correta
+## O que será feito
 
-## O que sera feito
+Aplicar a mesma lógica de 3 camadas em todos os 4 arquivos:
+1. Tentar `window.open`
+2. Fallback para `window.location.href`
+3. Toast com botão manual caso ambos falhem
 
-### `src/pages/UnitPage.tsx`
+Para os botões de compartilhamento (SettingsTab e DashboardPage), onde navegar para fora da página não é desejável, usar apenas `window.open` + toast de fallback (sem `location.href`).
 
-1. **Linha 397-403 (fluxo principal de WhatsApp)**: Inverter a estratégia — usar `window.location.href` como fallback principal quando `window.open` falhar, mas tambem adicionar um `<a>` link alternativo com `target="_blank"` que o usuario possa clicar manualmente caso tudo falhe.
-
-2. **Linha 397**: Manter `wa.me` pois funciona em dispositivos reais (celular com WhatsApp instalado). O bloqueio acontece apenas no desktop/preview do Lovable.
-
-3. **Adicionar tratamento de erro visivel**: Quando o WhatsApp nao conseguir abrir, mostrar um toast com o link para o usuario copiar/abrir manualmente, em vez de simplesmente falhar silenciosamente.
-
-4. **Mesma correção na linha 503** (fluxo PIX callback) que tambem usa WhatsApp.
-
-## Seção tecnica
+## Seção técnica
 
 ```text
-Arquivo: src/pages/UnitPage.tsx
+Arquivo 1: src/pages/CourierPage.tsx (linha 542)
+  Antes:
+    window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank");
+  Depois:
+    Mesma lógica de 3 camadas do UnitPage (open → location.href → toast)
+  + import ToastAction (se necessário)
 
-Mudança 1 — linhas 396-403 (fluxo principal):
-  // Substituir window.open por estratégia mais robusta
-  const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-  const whatsAppOpened = (() => {
-    try {
-      const w = window.open(url, "_blank", "noopener,noreferrer");
-      return !!w;
-    } catch { return false; }
-  })();
-  if (!whatsAppOpened) {
-    // Fallback: navegar a pagina atual (funciona melhor em mobile)
-    try { window.location.href = url; } catch {}
-    // Toast de aviso com instrução para abrir manualmente
-    toast({
-      title: "Pedido enviado!",
-      description: "Se o WhatsApp não abriu, toque aqui para abrir manualmente.",
-      action: /* botão que abre o link */,
-      duration: 10000,
-    });
-  }
+Arquivo 2: src/components/admin/SalesChatTab.tsx (linha 192)
+  Antes:
+    window.open(`https://wa.me/${number}`, "_blank");
+  Depois:
+    open → location.href → toast com botão "Abrir"
 
-Mudança 2 — linha ~503 (fluxo PIX callback):
-  Aplicar a mesma lógica de fallback robusta.
+Arquivo 3: src/components/dashboard/SettingsTab.tsx (linha 164)
+  Antes:
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  Depois:
+    open → toast (sem location.href, pois é botão de compartilhar dentro do dashboard)
+
+Arquivo 4: src/pages/DashboardPage.tsx (linha 752)
+  Antes:
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  Depois:
+    open → toast (sem location.href, mesma razão)
 ```
 
-Isso garante que mesmo se `api.whatsapp.com` bloquear a resposta, o usuario recebe feedback e uma forma alternativa de abrir o WhatsApp.
+Cada arquivo receberá os imports necessários (`ToastAction`, `ExternalLink`, `useToast`/`toast`) conforme já existam ou não.
 
