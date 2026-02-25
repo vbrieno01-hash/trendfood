@@ -63,6 +63,7 @@ const UnitPage = () => {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const categoryNavRef = useRef<HTMLDivElement>(null);
   const isScrollingByClick = useRef(false);
+  const trocoRef = useRef<HTMLDivElement>(null);
 
   // Checkout form
   const [orderType, setOrderType] = useState<"Entrega" | "Retirada" | "">("");
@@ -412,6 +413,8 @@ const UnitPage = () => {
           organizationId: org.id,
           tableNumber: 0,
           notes: noteParts.join("|"),
+          paymentMethod: effectivePayment.toLowerCase(),
+          paid: false,
           items: cartItems.map((i) => ({
             menu_item_id: i.id,
             name: i.name,
@@ -1113,7 +1116,7 @@ const UnitPage = () => {
                 <Label className="text-xs font-medium mb-1 block">
                   Forma de Pagamento <span className="text-destructive">*</span>
                 </Label>
-                <Select value={payment} onValueChange={(v) => { setPayment(v); setPaymentError(false); if (v !== "Dinheiro") { setChangeFor(0); setChangeForError(false); } }}>
+                <Select value={payment} onValueChange={(v) => { setPayment(v); setPaymentError(false); if (v !== "Dinheiro") { setChangeFor(0); setChangeForError(false); } else { setTimeout(() => trocoRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150); } }}>
                   <SelectTrigger className={paymentError ? "border-destructive" : ""}>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
@@ -1129,7 +1132,7 @@ const UnitPage = () => {
 
               {/* Troco para Dinheiro */}
               {payment === "Dinheiro" && (
-                <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
+                <div ref={trocoRef} className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
                   <Label className="text-xs font-medium block">Precisa de troco?</Label>
                   <div className="flex flex-wrap gap-2">
                     <button
