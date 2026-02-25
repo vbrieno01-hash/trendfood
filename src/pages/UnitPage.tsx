@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  ShoppingCart, Loader2, Search, ExternalLink,
+  ShoppingCart, Loader2, Search,
 } from "lucide-react";
-import { ToastAction } from "@/components/ui/toast";
 import { useOrganization } from "@/hooks/useOrganization";
+import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
@@ -394,29 +394,9 @@ const UnitPage = () => {
       .filter((l) => l !== null)
       .join("\n");
 
-    // Abrir WhatsApp com fallback robusto (api.whatsapp.com pode bloquear em iframes/previews)
+    // Abrir WhatsApp com fallback robusto
     const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-    let whatsAppOpened = false;
-    try {
-      const w = window.open(url, "_blank", "noopener,noreferrer");
-      if (w) whatsAppOpened = true;
-    } catch { /* blocked */ }
-
-    if (!whatsAppOpened) {
-      try { window.location.href = url; } catch {
-        // Ambos falharam — mostrar toast com link manual
-        toast({
-          title: "Pedido pronto!",
-          description: "O WhatsApp não abriu automaticamente. Toque abaixo para abrir.",
-          action: (
-            <ToastAction altText="Abrir WhatsApp" onClick={() => window.open(url, "_blank")}>
-              <ExternalLink className="w-4 h-4 mr-1" /> Abrir
-            </ToastAction>
-          ),
-          duration: 15000,
-        });
-      }
-    }
+    openWhatsAppWithFallback(url, { mode: "operational" });
 
     // Save order to database em background (table_number=0 = delivery/pickup) — skip if already created (PIX flow)
     if (org?.id && !overrideOrderId) {
@@ -517,26 +497,7 @@ const UnitPage = () => {
         .join("\n");
 
       const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-      // Callback de useEffect — popup blockers vão bloquear window.open, então usar location.href
-      let opened = false;
-      try {
-        const w = window.open(url, "_blank", "noopener,noreferrer");
-        if (w) opened = true;
-      } catch { /* blocked */ }
-      if (!opened) {
-        try { window.location.href = url; } catch {
-          toast({
-            title: "Pedido pronto!",
-            description: "O WhatsApp não abriu automaticamente. Toque abaixo para abrir.",
-            action: (
-              <ToastAction altText="Abrir WhatsApp" onClick={() => window.open(url, "_blank")}>
-                <ExternalLink className="w-4 h-4 mr-1" /> Abrir
-              </ToastAction>
-            ),
-            duration: 15000,
-          });
-        }
-      }
+      openWhatsAppWithFallback(url, { mode: "operational" });
     }
 
     resetCheckout();
