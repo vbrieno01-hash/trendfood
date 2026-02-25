@@ -867,38 +867,38 @@ const DashboardPage = () => {
         </main>
 
         {/* Fixed status bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-4 py-1.5 flex items-center gap-4 text-xs">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-3 py-1 flex items-center gap-2 text-[11px] overflow-x-auto">
           <button
             onClick={() => toggleAutoPrint(!autoPrint)}
-            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-1 hover:opacity-80 transition-opacity whitespace-nowrap"
           >
-            <span className={`inline-block w-2 h-2 rounded-full ${autoPrint ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
-            <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${autoPrint ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
+            <Printer className="w-3 h-3 text-muted-foreground" />
             <span className={autoPrint ? "text-green-600 font-medium" : "text-muted-foreground"}>
-              {autoPrint ? "Impressão auto. ativa" : "Impressão auto. off"}
+              {autoPrint ? "Imp. auto." : "Imp. off"}
             </span>
           </button>
 
-          <span className="text-border">|</span>
+          <span className="text-border flex-shrink-0">|</span>
 
           <button
             onClick={() => toggleNotifications(!notificationsEnabled)}
-            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-1 hover:opacity-80 transition-opacity whitespace-nowrap"
           >
-            <span className={`inline-block w-2 h-2 rounded-full ${notificationsEnabled ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
-            <BellRing className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${notificationsEnabled ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
+            <BellRing className="w-3 h-3 text-muted-foreground" />
             <span className={notificationsEnabled ? "text-green-600 font-medium" : "text-muted-foreground"}>
-              {notificationsEnabled ? "Notificações ativas" : "Notificações off"}
+              {notificationsEnabled ? "Notif. on" : "Notif. off"}
             </span>
           </button>
 
           {printMode === "bluetooth" && (
             <>
-              <span className="text-border">|</span>
-              <div className="flex items-center gap-1.5">
-                <span className={`inline-block w-2 h-2 rounded-full ${btConnected ? "bg-green-500" : "bg-destructive"}`} />
+              <span className="text-border flex-shrink-0">|</span>
+              <div className="flex items-center gap-1 whitespace-nowrap">
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${btConnected ? "bg-green-500" : "bg-destructive"}`} />
                 <span className={btConnected ? "text-green-600 font-medium" : "text-destructive"}>
-                  {btConnected ? `BT: ${btDevice?.name || "OK"}` : "BT: Desconectada"}
+                  {btConnected ? `BT: ${btDevice?.name || "OK"}` : "BT: off"}
                 </span>
               </div>
             </>
