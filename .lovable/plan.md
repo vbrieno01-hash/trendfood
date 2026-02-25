@@ -1,78 +1,67 @@
 
 
-# Plano: Expiração automática para planos pagos
-
-## Situação atual
-
-Você configurou cobrança **mensal recorrente** no gateway. Cada vez que o cliente paga, o gateway chama o webhook e o sistema estende o acesso por +30 dias (campo `trial_ends_at`).
-
-**O problema**: o `usePlanLimits` só verifica a data de expiração quando o plano é `free`. Se o plano é `pro` ou `enterprise`, ele **ignora a data** — então uma vez ativado, nunca expira, mesmo se o cliente parar de pagar.
-
-## Como vai funcionar depois da mudança
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  Cliente paga no gateway (mensal)                    │
-│         ↓                                            │
-│  Gateway chama webhook → +30 dias em trial_ends_at   │
-│         ↓                                            │
-│  Sistema libera pro/enterprise por 30 dias           │
-│         ↓                                            │
-│  Passou 30 dias sem novo pagamento?                  │
-│    SIM → Sistema trata como plano Free (bloqueado)   │
-│    NÃO → Webhook renovou, tudo liberado              │
-└─────────────────────────────────────────────────────┘
-```
-
-Pagou = liberado. Não pagou = bloqueado. Automático.
+# Plano: Banner de aviso de expiração de assinatura paga
 
 ## O que muda
 
-### `src/hooks/usePlanLimits.ts` (único arquivo)
+Adicionar um banner no dashboard que aparece quando o plano pago (`pro` ou `enterprise`) está prestes a expirar --- por exemplo, faltando 7 dias ou menos. O banner mostra "Sua assinatura expira em X dias" com um botão para renovar.
 
-Hoje (linha 47-48):
-```typescript
-const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
-const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
-```
+Também adicionar um banner para quando a assinatura já expirou (similar ao que já existe para trial expirado).
 
-Vai mudar para checar a data para **todos** os planos (exceto `lifetime`):
+## Onde aparece
 
-```typescript
-// Para planos pagos: trial_ends_at funciona como data de expiração
-const isPaid = rawPlan === "pro" || rawPlan === "enterprise";
-const subscriptionExpired = isPaid && !!trialEndsAt && trialEndsAt <= now;
+Na mesma área dos banners existentes (trial ativo, trial expirado, impressora), logo após o banner de trial expirado, linhas 824-825 do `DashboardPage.tsx`.
 
-// Trial continua funcionando igual para plano free
-const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
-const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
+## Lógica
 
-// Se plano pago expirou, trata como free
-const effectivePlan: Plan = rawPlan === "lifetime" 
-  ? "lifetime" 
-  : subscriptionExpired 
-    ? "free" 
-    : trialActive 
-      ? "pro" 
-      : rawPlan;
-```
+- **Assinatura expirando** (`subscriptionDaysLeft > 0 && subscriptionDaysLeft <= 7`): banner amarelo/âmbar com "Sua assinatura expira em X dias"
+- **Assinatura expirada** (`subscriptionExpired`): banner vermelho com "Sua assinatura expirou. Renove para continuar usando todos os recursos."
 
-Lógica:
-- **`lifetime`**: nunca expira
-- **`pro`/`enterprise`**: se `trial_ends_at` passou, volta para `free` automaticamente
-- **`free` com trial**: funciona igual ao que já existe
-- Quando o gateway envia webhook de renovação, estende +30 dias e volta a funcionar
-
-### Nenhuma mudança no webhook
-
-O webhook já faz exatamente o que precisa: atualiza `trial_ends_at` com +30 dias a cada pagamento. Só faltava o frontend respeitar essa data para planos pagos.
+Os dados `subscriptionDaysLeft` e `subscriptionExpired` já existem no hook `usePlanLimits` após a última alteração.
 
 ## Seção técnica
 
 ```text
-EDIT: src/hooks/usePlanLimits.ts
-  - Linha 47-53: Adicionar lógica de expiração para planos pro/enterprise
-  - Adicionar flag subscriptionExpired e subscriptionDaysLeft ao retorno
-  - effectivePlan volta para "free" se plano pago expirou
+EDIT: src/pages/DashboardPage.tsx
+  - Após linha 824 (banner de trial expirado): adicionar dois novos banners condicionais
+  - Banner 1: assinatura expirando (âmbar, ≤7 dias)
+  - Banner 2: assinatura expirada (vermelho)
+  - Usa planLimits.subscriptionDaysLeft e planLimits.subscriptionExpired que já existem
 ```
+
+### Código dos banners
+
+```tsx
+{/* Assinatura paga expirando */}
+{!planLimits.subscriptionExpired && planLimits.subscriptionDaysLeft > 0 && planLimits.subscriptionDaysLeft <= 7 && (
+  <div className="mb-4 rounded-xl bg-amber-50 border border-amber-300 p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div className="flex items-center gap-3">
+      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+      <p className="text-sm font-medium text-foreground">
+        Sua assinatura expira em <strong>{planLimits.subscriptionDaysLeft} {planLimits.subscriptionDaysLeft === 1 ? "dia" : "dias"}</strong>. Renove para não perder acesso.
+      </p>
+    </div>
+    <Button asChild size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700">
+      <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar</Link>
+    </Button>
+  </div>
+)}
+
+{/* Assinatura paga expirada */}
+{planLimits.subscriptionExpired && (
+  <div className="mb-4 rounded-xl bg-destructive/10 border border-destructive/30 p-4 flex items-center justify-between gap-3 flex-wrap">
+    <div className="flex items-center gap-3">
+      <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+      <p className="text-sm font-medium text-foreground">
+        Sua assinatura expirou. Renove para continuar usando todos os recursos.
+      </p>
+    </div>
+    <Button asChild size="sm" variant="destructive" className="gap-1.5">
+      <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar agora</Link>
+    </Button>
+  </div>
+)}
+```
+
+Mudança em apenas 1 arquivo. Os dados já estão prontos no hook.
 
