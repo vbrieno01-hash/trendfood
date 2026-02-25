@@ -86,7 +86,8 @@ async function calculateAndUpdateDelivery(
 
     const km = await getRouteDistanceKm(storeCoord, customerCoord);
     if (km === null) {
-      console.error(`[delivery ${deliveryId}] Failed to get route distance`);
+      // null means identical coords or route failure — do NOT update, leave as null
+      console.warn(`[delivery ${deliveryId}] Could not determine reliable distance (coords may be identical)`);
       return;
     }
 
@@ -119,7 +120,7 @@ export async function recalculateNullDistances(
     .select("id, customer_address")
     .eq("organization_id", orgId)
     .eq("status", "entregue")
-    .or("distance_km.is.null,distance_km.eq.0")
+    .is("distance_km", null)
     .limit(10);
 
   if (!nullDeliveries || nullDeliveries.length === 0) return 0;

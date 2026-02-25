@@ -30,6 +30,56 @@ export function cleanAddressForGeocode(addr: string): string {
 }
 
 /**
+ * Extract structured address fields (street, city, state) from a cleaned Brazilian address.
+ */
+function extractAddressFields(cleaned: string): { street?: string; city?: string; state?: string } {
+  const parts = cleaned.split(",").map((p) => p.trim()).filter(Boolean);
+  const withoutBrasil = parts.filter((p) => p.toLowerCase() !== "brasil");
+
+  if (withoutBrasil.length < 2) return {};
+
+  // Last part is usually state (2-letter UF)
+  const lastPart = withoutBrasil[withoutBrasil.length - 1];
+  const isState = /^[A-Z]{2}$/.test(lastPart);
+
+  const state = isState ? lastPart : undefined;
+  const cityIdx = isState ? withoutBrasil.length - 2 : withoutBrasil.length - 1;
+  const city = withoutBrasil[cityIdx];
+  // First part is typically the street
+  const street = withoutBrasil.length > (isState ? 2 : 1) ? withoutBrasil[0] : undefined;
+
+  return { street, city, state };
+}
+
+/**
+ * Try structured Nominatim search with separate street/city/state params.
+ * This has better results for Brazilian addresses than free-text search.
+ */
+async function tryGeocodeStructured(street: string, city: string, state?: string): Promise<GeoCoord | null> {
+  const params = new URLSearchParams({
+    street,
+    city,
+    country: "Brazil",
+    format: "json",
+    limit: "1",
+  });
+  if (state) params.set("state", state);
+
+  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+  try {
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "pt-BR", "User-Agent": "TrendFood/1.0" },
+    });
+    const data = await res.json();
+    if (!data || data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  } catch (e) {
+    console.warn(`[geocode] Structured search failed for "${street}, ${city}":`, e);
+    return null;
+  }
+}
+
+/**
  * Generate fallback address variants for geocoding, from most specific to least.
  */
 export function buildAddressVariants(addr: string): string[] {
@@ -65,20 +115,42 @@ async function tryGeocodeSingle(query: string): Promise<GeoCoord | null> {
 
 /**
  * Geocode an address with resilient fallback variants.
- * Tries the cleaned full address first, then progressively simpler variants.
+ * Tries: 1) cleaned full text, 2) structured search, 3) progressively simpler variants.
  */
 export async function geocodeAddress(rawAddress: string): Promise<GeoCoord | null> {
-  const variants = buildAddressVariants(rawAddress);
+  const cleaned = cleanAddressForGeocode(rawAddress);
+  const fields = extractAddressFields(cleaned);
 
-  for (const variant of variants) {
+  // 1. Try full cleaned text
+  try {
+    const result = await tryGeocodeSingle(cleaned);
+    if (result) return result;
+  } catch (e) {
+    console.warn(`[geocode] Full text failed for "${cleaned}":`, e);
+  }
+
+  // 2. Try structured search (street + city + state)
+  if (fields.street && fields.city) {
+    await new Promise((r) => setTimeout(r, 300));
     try {
-      const result = await tryGeocodeSingle(variant);
+      const result = await tryGeocodeStructured(fields.street, fields.city, fields.state);
       if (result) return result;
     } catch (e) {
-      console.warn(`[geocode] Failed for variant "${variant}":`, e);
+      console.warn(`[geocode] Structured search failed:`, e);
     }
-    // Small delay between attempts to respect Nominatim rate limits
+  }
+
+  // 3. Try simpler fallback variants
+  const variants = buildAddressVariants(rawAddress);
+  // Skip first variant (already tried as full text above)
+  for (let i = 1; i < variants.length; i++) {
     await new Promise((r) => setTimeout(r, 300));
+    try {
+      const result = await tryGeocodeSingle(variants[i]);
+      if (result) return result;
+    } catch (e) {
+      console.warn(`[geocode] Failed for variant "${variants[i]}":`, e);
+    }
   }
 
   console.error(`[geocode] All variants failed for address: "${rawAddress}"`);
@@ -86,9 +158,23 @@ export async function geocodeAddress(rawAddress: string): Promise<GeoCoord | nul
 }
 
 /**
+ * Check if two coordinates are effectively identical (same fallback point).
+ */
+export function areCoordsIdentical(a: GeoCoord, b: GeoCoord): boolean {
+  return Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lon - b.lon) < 0.0001;
+}
+
+/**
  * Get route distance in km between two coordinates using OSRM.
+ * Returns null if coords are identical (indicates geocoding fell back to same point).
  */
 export async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number | null> {
+  // Detect identical coordinates — both addresses resolved to same fallback
+  if (areCoordsIdentical(from, to)) {
+    console.warn("[getRouteDistanceKm] Identical coordinates detected — geocoding likely fell back to same area centroid");
+    return null;
+  }
+
   const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
   try {
     const res = await fetch(url);
