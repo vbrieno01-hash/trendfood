@@ -247,12 +247,14 @@ export function useDeleteCourier() {
     mutationFn: async (courierId: string) => {
       const { error } = await supabase
         .from("couriers" as any)
-        .update({ active: false } as any)
+        .delete()
         .eq("id", courierId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["couriers"] });
+      queryClient.invalidateQueries({ queryKey: ["courier-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
     },
   });
 }

@@ -580,9 +580,10 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Remover motoboy</AlertDialogTitle>
+                              <AlertDialogTitle>Apagar motoboy</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tem certeza que deseja remover <strong>{c.name}</strong>? O histórico de entregas será mantido.
+                                Tem certeza que deseja <strong>APAGAR</strong> a conta de <strong>{c.name}</strong>?{" "}
+                                Essa ação é irreversível. O motoboy será deslogado e precisará se cadastrar novamente para acessar o painel.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -591,12 +592,12 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 onClick={() => {
                                   deleteCourierMutation.mutate(c.id, {
-                                    onSuccess: () => toast.success(`${c.name} removido com sucesso`),
-                                    onError: () => toast.error("Erro ao remover motoboy"),
+                                    onSuccess: () => toast.success(`${c.name} apagado com sucesso`),
+                                    onError: () => toast.error("Erro ao apagar motoboy"),
                                   });
                                 }}
                               >
-                                Remover
+                                Apagar
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
