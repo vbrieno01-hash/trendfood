@@ -1,23 +1,28 @@
 
 
-# Plano: Esconder botão "Confirmar Pagamento" quando motoboy não tem chave PIX
+# Plano: Adicionar botao de deletar motoboy
 
-## Problema
-O botão "Confirmar Pagamento" aparece sempre que o card do motoboy é expandido e há entregas a pagar, mesmo quando o motoboy não cadastrou sua chave PIX. O QR Code já mostra um aviso "Motoboy não cadastrou chave PIX", mas o botão de confirmar continua visível — permitindo registrar pagamento sem ter como pagar.
+## O que sera feito
 
-## O que será feito
+Adicionar um icone de lixeira (Trash2) em cada card de motoboy na lista "Motoboys cadastrados". Ao clicar, abre um AlertDialog de confirmacao. A exclusao sera feita via soft-delete (marcar `active = false`) para nao quebrar historico de entregas vinculadas.
 
-Envolver o botão "Confirmar Pagamento" (linhas 601-614) na mesma condição do QR Code: só renderizar quando `c.pix_key` existir (`pixPayload` não é null). Quando não tiver chave PIX, o aviso amarelo já existente será suficiente.
-
-## Seção técnica
+## Secao tecnica
 
 ```text
-Arquivo: src/components/dashboard/CourierDashboardTab.tsx
-  Linha 601: envolver o <Button> "Confirmar Pagamento" com condição
-    {pixPayload && ( ... )} para que só apareça quando o motoboy
-    tem pix_key cadastrada.
-  
-  O aviso "Motoboy não cadastrou chave PIX" (linhas 594-598)
-  já existe e continuará aparecendo no lugar do QR + botão.
+Arquivo 1: src/hooks/useCourier.ts
+  - Nova hook useDeleteCourier():
+    useMutation que faz update na tabela couriers
+    setando active = false onde id = courierId
+    Invalida queryKey ["couriers"]
+
+Arquivo 2: src/components/dashboard/CourierDashboardTab.tsx
+  - Importar useDeleteCourier
+  - Na linha ~536 (div com nome/phone), adicionar botao Trash2
+    ao lado direito do card, com AlertDialog de confirmacao
+    "Tem certeza que deseja remover {nome}?"
+  - Ao confirmar, chama deleteCourier.mutate(c.id)
+    com toast de sucesso/erro
 ```
+
+O motoboy desativado nao aparecera mais na lista porque useOrgCouriers ja filtra por `active = true`.
 
