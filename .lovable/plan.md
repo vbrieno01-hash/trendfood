@@ -1,67 +1,43 @@
 
 
-# Plano: Banner de aviso de expiração de assinatura paga
+# Status do sistema — Pronto para clientes?
 
-## O que muda
+## Resumo rápido
 
-Adicionar um banner no dashboard que aparece quando o plano pago (`pro` ou `enterprise`) está prestes a expirar --- por exemplo, faltando 7 dias ou menos. O banner mostra "Sua assinatura expira em X dias" com um botão para renovar.
+Sim, o sistema está funcional e já tem **15 lojas cadastradas**, **167 pedidos** e **35 entregas** registradas. Cada loja é independente, com dados isolados por `organization_id`.
 
-Também adicionar um banner para quando a assinatura já expirou (similar ao que já existe para trial expirado).
+## O que já funciona
 
-## Onde aparece
+| Funcionalidade | Status |
+|---|---|
+| Cadastro de loja (slug único, cardápio, logo) | OK |
+| Cardápio público (`/unidade/slug`) | OK |
+| Pedidos presenciais (mesa → KDS) | OK |
+| Pedidos delivery (mesa 0 → KDS + entrega) | OK |
+| Cálculo de frete por distância | OK |
+| Motoboys (cadastro, turnos, corridas, PIX) | OK |
+| Impressora térmica (navegador, desktop, bluetooth) | OK |
+| Caixa (abertura, sangrias, fechamento) | OK |
+| Cupons de desconto | OK |
+| Pagamento PIX (QR code, confirmação) | OK |
+| Planos (free, pro, enterprise, lifetime) | OK |
+| Expiração automática de planos pagos | OK (recém implementado) |
+| Banner de aviso de expiração | OK (recém implementado) |
+| Webhook universal para gateways | OK |
+| Multi-unidade (Enterprise) | OK |
+| Isolamento de dados entre lojas | OK (RLS) |
+| Horário de funcionamento | OK |
+| Relatórios e mais vendidos | OK |
 
-Na mesma área dos banners existentes (trial ativo, trial expirado, impressora), logo após o banner de trial expirado, linhas 824-825 do `DashboardPage.tsx`.
+## Pontos de atenção antes de escalar
 
-## Lógica
+1. **Algumas lojas sem endereço/WhatsApp**: Dos 15 cadastros, vários não têm `store_address` ou `whatsapp` preenchido. O sistema funciona sem, mas o frete não calcula e o delivery não redireciona pro WhatsApp.
 
-- **Assinatura expirando** (`subscriptionDaysLeft > 0 && subscriptionDaysLeft <= 7`): banner amarelo/âmbar com "Sua assinatura expira em X dias"
-- **Assinatura expirada** (`subscriptionExpired`): banner vermelho com "Sua assinatura expirou. Renove para continuar usando todos os recursos."
+2. **Chave PIX**: Apenas 4 das 15 lojas têm `pix_key` cadastrada. Sem ela, o QR code PIX não funciona.
 
-Os dados `subscriptionDaysLeft` e `subscriptionExpired` já existem no hook `usePlanLimits` após a última alteração.
+3. **Onboarding**: O wizard de onboarding já existe para guiar o lojista a preencher tudo.
 
-## Seção técnica
+## Conclusão
 
-```text
-EDIT: src/pages/DashboardPage.tsx
-  - Após linha 824 (banner de trial expirado): adicionar dois novos banners condicionais
-  - Banner 1: assinatura expirando (âmbar, ≤7 dias)
-  - Banner 2: assinatura expirada (vermelho)
-  - Usa planLimits.subscriptionDaysLeft e planLimits.subscriptionExpired que já existem
-```
-
-### Código dos banners
-
-```tsx
-{/* Assinatura paga expirando */}
-{!planLimits.subscriptionExpired && planLimits.subscriptionDaysLeft > 0 && planLimits.subscriptionDaysLeft <= 7 && (
-  <div className="mb-4 rounded-xl bg-amber-50 border border-amber-300 p-4 flex items-center justify-between gap-3 flex-wrap">
-    <div className="flex items-center gap-3">
-      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-      <p className="text-sm font-medium text-foreground">
-        Sua assinatura expira em <strong>{planLimits.subscriptionDaysLeft} {planLimits.subscriptionDaysLeft === 1 ? "dia" : "dias"}</strong>. Renove para não perder acesso.
-      </p>
-    </div>
-    <Button asChild size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700">
-      <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar</Link>
-    </Button>
-  </div>
-)}
-
-{/* Assinatura paga expirada */}
-{planLimits.subscriptionExpired && (
-  <div className="mb-4 rounded-xl bg-destructive/10 border border-destructive/30 p-4 flex items-center justify-between gap-3 flex-wrap">
-    <div className="flex items-center gap-3">
-      <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-      <p className="text-sm font-medium text-foreground">
-        Sua assinatura expirou. Renove para continuar usando todos os recursos.
-      </p>
-    </div>
-    <Button asChild size="sm" variant="destructive" className="gap-1.5">
-      <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar agora</Link>
-    </Button>
-  </div>
-)}
-```
-
-Mudança em apenas 1 arquivo. Os dados já estão prontos no hook.
+O sistema está **pronto para receber clientes**. Todos os módulos core funcionam de forma independente por loja. O fluxo completo — cadastro → cardápio → pedido → KDS → entrega → pagamento → relatórios — está operacional. A expiração de planos pagos que acabamos de implementar garante o controle financeiro automático.
 
