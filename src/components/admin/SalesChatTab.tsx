@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import {
   Dialog,
   DialogContent,
@@ -190,16 +191,7 @@ export default function SalesChatTab() {
     const digits = cleanWhatsapp(whatsapp);
     const number = digits.startsWith("55") ? digits : `55${digits}`;
     const url = `https://wa.me/${number}`;
-    let opened = false;
-    try { const w = window.open(url, "_blank", "noopener,noreferrer"); if (w) opened = true; } catch {}
-    if (!opened) {
-      try { window.location.href = url; } catch {
-        toast.info("WhatsApp não abriu automaticamente.", {
-          action: { label: "Abrir", onClick: () => window.open(url, "_blank") },
-          duration: 15000,
-        });
-      }
-    }
+    openWhatsAppWithFallback(url, { mode: "operational" });
   }
 
   async function streamAIResponse(convId: string, msgHistory: { role: string; content: string }[]): Promise<string> {

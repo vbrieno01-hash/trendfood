@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
+import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 export default function SettingsTab() {
   const { user, organization, signOut } = useAuth();
@@ -162,14 +163,7 @@ export default function SettingsTab() {
             onClick={() => {
               const msg = encodeURIComponent("Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app");
               const url = `https://wa.me/?text=${msg}`;
-              let opened = false;
-              try { const w = window.open(url, "_blank", "noopener,noreferrer"); if (w) opened = true; } catch {}
-              if (!opened) {
-                toast.info("WhatsApp não abriu automaticamente.", {
-                  action: { label: "Abrir", onClick: () => window.open(url, "_blank") },
-                  duration: 15000,
-                });
-              }
+              openWhatsAppWithFallback(url, { mode: "share" });
             }}
           >
             <MessageCircle className="w-4 h-4" />

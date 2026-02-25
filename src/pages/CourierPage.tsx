@@ -29,6 +29,7 @@ import {
   type Delivery,
 } from "@/hooks/useCourier";
 import { parsePhoneFromNotes } from "@/hooks/useCreateDelivery";
+import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 function usePwaInstall() {
   const [prompt, setPrompt] = useState<any>(null);
@@ -540,16 +541,7 @@ const CourierPage = () => {
           `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | trendfood.lovable.app/unidade/${orgSlug}`
         );
         const url = `https://wa.me/55${phone}?text=${msg}`;
-        let opened = false;
-        try { const w = window.open(url, "_blank", "noopener,noreferrer"); if (w) opened = true; } catch {}
-        if (!opened) {
-          try { window.location.href = url; } catch {
-            toast.info("WhatsApp não abriu automaticamente.", {
-              action: { label: "Abrir", onClick: () => window.open(url, "_blank") },
-              duration: 15000,
-            });
-          }
-        }
+        openWhatsAppWithFallback(url, { mode: "operational" });
       }
     } catch {
       toast.error("Erro ao aceitar entrega.");
