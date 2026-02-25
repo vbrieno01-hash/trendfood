@@ -189,7 +189,17 @@ export default function SalesChatTab() {
   function openWhatsApp(whatsapp: string) {
     const digits = cleanWhatsapp(whatsapp);
     const number = digits.startsWith("55") ? digits : `55${digits}`;
-    window.open(`https://wa.me/${number}`, "_blank");
+    const url = `https://wa.me/${number}`;
+    let opened = false;
+    try { const w = window.open(url, "_blank", "noopener,noreferrer"); if (w) opened = true; } catch {}
+    if (!opened) {
+      try { window.location.href = url; } catch {
+        toast.info("WhatsApp não abriu automaticamente.", {
+          action: { label: "Abrir", onClick: () => window.open(url, "_blank") },
+          duration: 15000,
+        });
+      }
+    }
   }
 
   async function streamAIResponse(convId: string, msgHistory: { role: string; content: string }[]): Promise<string> {

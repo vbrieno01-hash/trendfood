@@ -539,7 +539,17 @@ const CourierPage = () => {
         const msg = encodeURIComponent(
           `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | trendfood.lovable.app/unidade/${orgSlug}`
         );
-        window.open(`https://wa.me/55${phone}?text=${msg}`, "_blank");
+        const url = `https://wa.me/55${phone}?text=${msg}`;
+        let opened = false;
+        try { const w = window.open(url, "_blank", "noopener,noreferrer"); if (w) opened = true; } catch {}
+        if (!opened) {
+          try { window.location.href = url; } catch {
+            toast.info("WhatsApp não abriu automaticamente.", {
+              action: { label: "Abrir", onClick: () => window.open(url, "_blank") },
+              duration: 15000,
+            });
+          }
+        }
       }
     } catch {
       toast.error("Erro ao aceitar entrega.");
