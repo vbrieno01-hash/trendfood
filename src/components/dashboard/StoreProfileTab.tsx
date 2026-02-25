@@ -677,16 +677,6 @@ export default function StoreProfileTab({ organization }: { organization: Organi
                         <SelectItem value="efi">EFI (Gerencianet)</SelectItem>
                         <SelectItem value="asaas">Asaas</SelectItem>
                         <SelectItem value="openpix">OpenPix (Woovi)</SelectItem>
-                        <SelectItem value="inter">Inter (Banco Inter)</SelectItem>
-                        <SelectItem value="sicredi">Sicredi</SelectItem>
-                        <SelectItem value="bradesco">Bradesco</SelectItem>
-                        <SelectItem value="itau">Itaú</SelectItem>
-                        <SelectItem value="bb">Banco do Brasil</SelectItem>
-                        <SelectItem value="santander">Santander</SelectItem>
-                        <SelectItem value="caixa">Caixa Econômica</SelectItem>
-                        <SelectItem value="nubank">Nubank</SelectItem>
-                        <SelectItem value="c6bank">C6 Bank</SelectItem>
-                        <SelectItem value="shipay">Shipay</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
