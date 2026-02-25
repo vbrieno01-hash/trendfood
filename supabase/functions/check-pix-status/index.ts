@@ -9,9 +9,11 @@ const corsHeaders = {
 const SUPPORTED_PROVIDERS = ["mercadopago", "pagseguro", "efi", "asaas", "openpix"];
 
 const PROVIDER_NAMES: Record<string, string> = {
-  inter: "Inter", sicredi: "Sicredi", bradesco: "Bradesco", itau: "Itaú",
-  bb: "Banco do Brasil", santander: "Santander", caixa: "Caixa Econômica",
-  nubank: "Nubank", c6bank: "C6 Bank", shipay: "Shipay",
+  mercadopago: "Mercado Pago",
+  pagseguro: "PagSeguro",
+  efi: "EFI (Gerencianet)",
+  asaas: "Asaas",
+  openpix: "OpenPix (Woovi)",
 };
 
 Deno.serve(async (req) => {

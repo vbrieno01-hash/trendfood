@@ -14,16 +14,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   efi: "EFI (Gerencianet)",
   asaas: "Asaas",
   openpix: "OpenPix (Woovi)",
-  inter: "Inter",
-  sicredi: "Sicredi",
-  bradesco: "Bradesco",
-  itau: "Itaú",
-  bb: "Banco do Brasil",
-  santander: "Santander",
-  caixa: "Caixa Econômica",
-  nubank: "Nubank",
-  c6bank: "C6 Bank",
-  shipay: "Shipay",
 };
 
 Deno.serve(async (req) => {
