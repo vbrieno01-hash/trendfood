@@ -1,11 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/hooks/useOrders";
 import { calculateCourierFee, CourierConfig } from "@/hooks/useDeliveryDistance";
-import { geocodeAddress, getRouteDistanceKm } from "@/lib/geocode";
+import { calculateDistanceViaEdge } from "@/lib/geocode";
 
 /**
  * Extract customer address from the pipe-separated notes field.
- * Format: TIPO:Entrega|CLIENTE:Joao|END.:Rua X, 123, Bairro, Cidade, SP, Brasil|...
  */
 export function parseAddressFromNotes(notes: string | null | undefined): string {
   if (!notes) return "Endereço não informado";
@@ -21,7 +20,7 @@ export function parsePhoneFromNotes(notes: string | null | undefined): string | 
 
 /**
  * Create a delivery record for a delivery order marked as ready.
- * Distance/fee calculation runs in background — delivery is created immediately.
+ * Distance/fee calculation runs in background via edge function.
  */
 export async function createDeliveryForOrder(
   order: Order,
@@ -29,7 +28,6 @@ export async function createDeliveryForOrder(
   storeAddress: string | null | undefined,
   courierConfig?: CourierConfig | null
 ): Promise<void> {
-  // Check for duplicate
   const { data: existing } = await supabase
     .from("deliveries")
     .select("id")
@@ -40,7 +38,6 @@ export async function createDeliveryForOrder(
 
   const customerAddress = parseAddressFromNotes(order.notes);
 
-  // Insert with base fee as fallback (geocoding may fail)
   const baseFee = courierConfig?.base_fee ?? 3.0;
   const { data: delivery, error } = await supabase
     .from("deliveries")
@@ -59,7 +56,7 @@ export async function createDeliveryForOrder(
     return;
   }
 
-  // Background: calculate distance and update
+  // Background: calculate distance via edge function and update
   if (storeAddress && customerAddress !== "Endereço não informado") {
     calculateAndUpdateDelivery(delivery.id, storeAddress, customerAddress, courierConfig ?? undefined);
   }
@@ -72,33 +69,24 @@ async function calculateAndUpdateDelivery(
   courierConfig?: CourierConfig
 ): Promise<void> {
   try {
-    const storeCoord = await geocodeAddress(storeAddress);
-    if (!storeCoord) {
-      console.error(`[delivery ${deliveryId}] Failed to geocode store address: "${storeAddress}"`);
+    const result = await calculateDistanceViaEdge(storeAddress, customerAddress, courierConfig);
+
+    if (result.error === "identical_coordinates") {
+      console.warn(`[delivery ${deliveryId}] Identical coordinates — not updating distance`);
       return;
     }
 
-    const customerCoord = await geocodeAddress(customerAddress);
-    if (!customerCoord) {
-      console.error(`[delivery ${deliveryId}] Failed to geocode customer address: "${customerAddress}"`);
+    if (result.distance_km === null || result.fee === null) {
+      console.warn(`[delivery ${deliveryId}] Could not calculate distance: ${result.error}`);
       return;
     }
-
-    const km = await getRouteDistanceKm(storeCoord, customerCoord);
-    if (km === null) {
-      // null means identical coords or route failure — do NOT update, leave as null
-      console.warn(`[delivery ${deliveryId}] Could not determine reliable distance (coords may be identical)`);
-      return;
-    }
-
-    const fee = calculateCourierFee(km, courierConfig);
 
     await supabase
       .from("deliveries")
-      .update({ distance_km: km, fee })
+      .update({ distance_km: result.distance_km, fee: result.fee })
       .eq("id", deliveryId);
 
-    console.log(`[delivery ${deliveryId}] Distance calculated: ${km.toFixed(2)} km, fee: R$ ${fee.toFixed(2)}`);
+    console.log(`[delivery ${deliveryId}] Distance: ${result.distance_km.toFixed(2)} km, fee: R$ ${result.fee.toFixed(2)}`);
   } catch (e) {
     console.error(`[delivery ${deliveryId}] Error calculating distance:`, e);
   }
@@ -106,7 +94,6 @@ async function calculateAndUpdateDelivery(
 
 /**
  * Recalculate distance for deliveries that have null distance_km.
- * Called from the courier dashboard to fix historical deliveries.
  */
 export async function recalculateNullDistances(
   orgId: string,
@@ -129,8 +116,15 @@ export async function recalculateNullDistances(
   for (const d of nullDeliveries) {
     if (d.customer_address === "Endereço não informado") continue;
     try {
-      await calculateAndUpdateDelivery(d.id, storeAddress, d.customer_address, courierConfig ?? undefined);
-      fixed++;
+      const result = await calculateDistanceViaEdge(storeAddress, d.customer_address, courierConfig ?? undefined);
+
+      if (result.distance_km !== null && result.fee !== null) {
+        await supabase
+          .from("deliveries")
+          .update({ distance_km: result.distance_km, fee: result.fee })
+          .eq("id", d.id);
+        fixed++;
+      }
     } catch (e) {
       console.error(`[recalc ${d.id}] Error:`, e);
     }
