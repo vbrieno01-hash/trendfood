@@ -713,10 +713,53 @@ function SetupScore({ org }: { org: OrgRow }) {
 
 /* ── Store Card ── */
 function StoreCard({ org, onPlanChange }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void }) {
+  const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
+  const [activating, setActivating] = useState(false);
   const avatarColor = getAvatarColor(org.name);
   const initial = org.name.charAt(0).toUpperCase();
   const isActive = localOrg.subscription_status === "active";
+
+  async function quickActivate() {
+    setActivating(true);
+    try {
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 30);
+
+      const { error } = await supabase.from("organizations").update({
+        subscription_plan: "pro",
+        subscription_status: "active",
+        trial_ends_at: trialEnd.toISOString(),
+      }).eq("id", org.id);
+
+      if (error) throw error;
+
+      await supabase.from("activation_logs").insert({
+        organization_id: org.id,
+        org_name: org.name,
+        old_plan: localOrg.subscription_plan,
+        new_plan: "pro",
+        old_status: localOrg.subscription_status,
+        new_status: "active",
+        source: "manual",
+        admin_email: user?.email ?? null,
+        notes: "Ativação rápida 30d",
+      });
+
+      setLocalOrg((prev) => ({
+        ...prev,
+        subscription_plan: "pro",
+        subscription_status: "active",
+        trial_ends_at: trialEnd.toISOString(),
+      }));
+      onPlanChange(org.id, "pro");
+      toast.success(`${org.name} ativada como Pro por 30 dias!`);
+    } catch {
+      toast.error("Erro ao ativar");
+    } finally {
+      setActivating(false);
+    }
+  }
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
@@ -787,13 +830,23 @@ function StoreCard({ org, onPlanChange }: { org: OrgRow; onPlanChange: (id: stri
             <Crown className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Plano: <span className="font-medium text-foreground capitalize">{localOrg.subscription_plan}</span></span>
           </div>
-          <ManageSubscriptionDialog
-            org={localOrg}
-            onSaved={(updated) => {
-              setLocalOrg((prev) => ({ ...prev, ...updated }));
-              onPlanChange(org.id, updated.subscription_plan);
-            }}
-          />
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={quickActivate}
+              disabled={activating || localOrg.subscription_plan === "pro"}
+              className="text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {activating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+              Ativar Pro 30d
+            </button>
+            <ManageSubscriptionDialog
+              org={localOrg}
+              onSaved={(updated) => {
+                setLocalOrg((prev) => ({ ...prev, ...updated }));
+                onPlanChange(org.id, updated.subscription_plan);
+              }}
+            />
+          </div>
         </div>
         {localOrg.trial_ends_at && (
           <div className="flex items-center justify-between gap-2">

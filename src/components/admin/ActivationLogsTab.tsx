@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollText, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollText, ArrowRight, Link2, Copy, Check } from "lucide-react";
+import { toast } from "sonner";
 
 interface ActivationLog {
   id: string;
@@ -18,22 +21,54 @@ interface ActivationLog {
   created_at: string;
 }
 
+interface OrgOption {
+  id: string;
+  name: string;
+}
+
+const WEBHOOK_BASE = "https://xrzudhylpphnzousilye.supabase.co/functions/v1/universal-activation-webhook";
+
 export default function ActivationLogsTab() {
   const [logs, setLogs] = useState<ActivationLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orgs, setOrgs] = useState<OrgOption[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState("");
+  const [days, setDays] = useState("30");
+  const [plan, setPlan] = useState("pro");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("activation_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
-      setLogs((data as unknown as ActivationLog[]) ?? []);
+      const [{ data: logsData }, { data: orgsData }] = await Promise.all([
+        supabase
+          .from("activation_logs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase
+          .from("organizations")
+          .select("id, name")
+          .order("name"),
+      ]);
+      setLogs((logsData as unknown as ActivationLog[]) ?? []);
+      setOrgs((orgsData as OrgOption[]) ?? []);
+      if (orgsData && orgsData.length > 0) setSelectedOrg(orgsData[0].id);
       setLoading(false);
     }
     load();
   }, []);
+
+  const webhookUrl = selectedOrg
+    ? `${WEBHOOK_BASE}?org_id=${selectedOrg}&days=${days}&plan=${plan}&secret=trendfood123`
+    : "";
+
+  function copyLink() {
+    if (!webhookUrl) return;
+    navigator.clipboard.writeText(webhookUrl);
+    setCopied(true);
+    toast.success("Link copiado!");
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   if (loading) {
     return (
@@ -46,7 +81,74 @@ export default function ActivationLogsTab() {
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
+      {/* ── Webhook Pronto ── */}
+      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Link2 className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Link de Ativação Universal</h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Cole esse link no webhook do seu gateway (Cakto, Kiwify, Hotmart) para ativar lojas automaticamente.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Loja</label>
+            <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Selecione..." />
+              </SelectTrigger>
+              <SelectContent>
+                {orgs.map((o) => (
+                  <SelectItem key={o.id} value={o.id} className="text-xs">
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Dias</label>
+            <Input
+              type="number"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              className="h-9 text-xs"
+              min={1}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Plano</label>
+            <Select value={plan} onValueChange={setPlan}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pro" className="text-xs">Pro</SelectItem>
+                <SelectItem value="enterprise" className="text-xs">Enterprise</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {webhookUrl && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 bg-muted/50 rounded-lg px-3 py-2 text-xs font-mono text-muted-foreground break-all select-all">
+              {webhookUrl}
+            </div>
+            <button
+              onClick={copyLink}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+            >
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? "Copiado" : "Copiar"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Log de Ativações ── */}
       <div className="flex items-center gap-2">
         <ScrollText className="w-4 h-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold text-foreground">Log de Ativações</h2>
