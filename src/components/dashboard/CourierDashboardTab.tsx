@@ -151,8 +151,8 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
   // Retroactive: recalculate distance_km for historical deliveries with null values
   useEffect(() => {
     if (!orgAddress || !orgId) return;
-    const hasNullOrZeroKm = deliveries.some((d) => d.status === "entregue" && (d.distance_km === null || d.distance_km === 0));
-    if (!hasNullOrZeroKm) return;
+    const hasNullKm = deliveries.some((d) => d.status === "entregue" && d.distance_km === null);
+    if (!hasNullKm) return;
     recalculateNullDistances(orgId, orgAddress, courierConfig).then((fixed) => {
       if (fixed > 0) {
         qc.invalidateQueries({ queryKey: ["deliveries", orgId] });
