@@ -23,6 +23,7 @@ import { useDeliveryFee } from "@/hooks/useDeliveryFee";
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 import { getStateFromCep } from "@/lib/storeAddress";
 import { supabase } from "@/integrations/supabase/client";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 
 type CartItem = { id: string; name: string; price: number; qty: number };
@@ -70,6 +71,8 @@ const UnitPage = () => {
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerDoc, setBuyerDoc] = useState("");
   const [payment, setPayment] = useState("");
+  const [changeFor, setChangeFor] = useState(0);
+  const [changeForError, setChangeForError] = useState(false);
   const [notes, setNotes] = useState("");
   const [nameError, setNameError] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
@@ -280,6 +283,7 @@ const UnitPage = () => {
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
     if (buyerPhone.replace(/\D/g, "").length < 10) { setPhoneError(true); valid = false; } else setPhoneError(false);
     if (!effectivePayment) { setPaymentError(true); valid = false; } else setPaymentError(false);
+    if (effectivePayment === "Dinheiro" && changeFor > 0 && changeFor < grandTotal) { setChangeForError(true); valid = false; } else setChangeForError(false);
     if (orderType === "Entrega") {
       if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
         setAddressError(true); valid = false;
@@ -365,6 +369,8 @@ const UnitPage = () => {
       `👤 *Nome:* ${buyerName.trim()}`,
       orderType === "Entrega" && fullCustomerAddressDisplay ? `🏠 *Endereço:* ${fullCustomerAddressDisplay}` : null,
       `💳 *Pagamento:* ${effectivePayment}`,
+      effectivePayment === "Dinheiro" && changeFor > 0 ? `💵 *Troco para:* ${fmt(changeFor)}` : null,
+      effectivePayment === "Dinheiro" && changeFor > 0 && changeFor > grandTotal ? `🔄 *Troco:* ${fmt(changeFor - grandTotal)}` : null,
       notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
     ]
       .filter((l) => l !== null)
@@ -396,6 +402,7 @@ const UnitPage = () => {
         orderType === "Entrega" && fullCustomerAddressDisplay ? `END.:${fullCustomerAddressDisplay}` : null,
         freteNote,
         `PGTO:${effectivePayment}`,
+        effectivePayment === "Dinheiro" && changeFor > 0 ? `TROCO:${fmt(changeFor)}` : null,
         buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
         notes.trim() ? `OBS:${notes.trim()}` : null,
       ].filter(Boolean) as string[];
@@ -499,6 +506,8 @@ const UnitPage = () => {
     setBuyerDoc("");
     setCustomerAddress(emptyAddress);
     setPayment("");
+    setChangeFor(0);
+    setChangeForError(false);
     setNotes("");
   };
 
@@ -1104,7 +1113,7 @@ const UnitPage = () => {
                 <Label className="text-xs font-medium mb-1 block">
                   Forma de Pagamento <span className="text-destructive">*</span>
                 </Label>
-                <Select value={payment} onValueChange={(v) => { setPayment(v); setPaymentError(false); }}>
+                <Select value={payment} onValueChange={(v) => { setPayment(v); setPaymentError(false); if (v !== "Dinheiro") { setChangeFor(0); setChangeForError(false); } }}>
                   <SelectTrigger className={paymentError ? "border-destructive" : ""}>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
@@ -1117,6 +1126,48 @@ const UnitPage = () => {
                 </Select>
                 {paymentError && <p className="text-destructive text-xs mt-1">Selecione uma forma de pagamento</p>}
               </div>
+
+              {/* Troco para Dinheiro */}
+              {payment === "Dinheiro" && (
+                <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
+                  <Label className="text-xs font-medium block">Precisa de troco?</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setChangeFor(0); setChangeForError(false); }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${changeFor === 0 ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                    >
+                      Não precisa
+                    </button>
+                    {[20, 50, 100, 200].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => { setChangeFor(v); setChangeForError(false); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${changeFor === v ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                      >
+                        R$ {v}
+                      </button>
+                    ))}
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Outro valor:</Label>
+                    <CurrencyInput
+                      value={changeFor}
+                      onChange={(v) => { setChangeFor(v); setChangeForError(false); }}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  {changeFor > 0 && changeFor >= grandTotal && (
+                    <p className="text-xs font-medium text-green-600">
+                      🔄 Troco: {fmt(changeFor - grandTotal)}
+                    </p>
+                  )}
+                  {changeForError && (
+                    <p className="text-destructive text-xs">⚠ O valor deve ser maior que o total ({fmt(grandTotal)})</p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="buyer-notes" className="text-xs font-medium mb-1 block">
