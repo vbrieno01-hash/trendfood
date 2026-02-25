@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  ShoppingCart, Loader2, Search,
+  ShoppingCart, Loader2, Search, ExternalLink,
 } from "lucide-react";
+import { ToastAction } from "@/components/ui/toast";
 import { useOrganization } from "@/hooks/useOrganization";
 
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
@@ -393,13 +394,28 @@ const UnitPage = () => {
       .filter((l) => l !== null)
       .join("\n");
 
-    // Abrir WhatsApp ANTES de qualquer operação assíncrona (evita bloqueio de popup em Safari/Samsung)
+    // Abrir WhatsApp com fallback robusto (api.whatsapp.com pode bloquear em iframes/previews)
     const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
+    let whatsAppOpened = false;
     try {
       const w = window.open(url, "_blank", "noopener,noreferrer");
-      if (!w) window.location.href = url;
-    } catch {
-      try { window.location.href = url; } catch {}
+      if (w) whatsAppOpened = true;
+    } catch { /* blocked */ }
+
+    if (!whatsAppOpened) {
+      try { window.location.href = url; } catch {
+        // Ambos falharam — mostrar toast com link manual
+        toast({
+          title: "Pedido pronto!",
+          description: "O WhatsApp não abriu automaticamente. Toque abaixo para abrir.",
+          action: (
+            <ToastAction altText="Abrir WhatsApp" onClick={() => window.open(url, "_blank")}>
+              <ExternalLink className="w-4 h-4 mr-1" /> Abrir
+            </ToastAction>
+          ),
+          duration: 15000,
+        });
+      }
     }
 
     // Save order to database em background (table_number=0 = delivery/pickup) — skip if already created (PIX flow)
@@ -501,10 +517,25 @@ const UnitPage = () => {
         .join("\n");
 
       const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-      // Use window.location.href instead of window.open — this callback runs
-      // from useEffect (not a user gesture), so popup blockers will block window.open
-      try { window.location.href = url; } catch {
-        console.warn("[UnitPage] Could not open WhatsApp URL");
+      // Callback de useEffect — popup blockers vão bloquear window.open, então usar location.href
+      let opened = false;
+      try {
+        const w = window.open(url, "_blank", "noopener,noreferrer");
+        if (w) opened = true;
+      } catch { /* blocked */ }
+      if (!opened) {
+        try { window.location.href = url; } catch {
+          toast({
+            title: "Pedido pronto!",
+            description: "O WhatsApp não abriu automaticamente. Toque abaixo para abrir.",
+            action: (
+              <ToastAction altText="Abrir WhatsApp" onClick={() => window.open(url, "_blank")}>
+                <ExternalLink className="w-4 h-4 mr-1" /> Abrir
+              </ToastAction>
+            ),
+            duration: 15000,
+          });
+        }
       }
     }
 
