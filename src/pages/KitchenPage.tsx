@@ -231,13 +231,6 @@ export default function KitchenPage() {
           }
         }
       )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `organization_id=eq.${org.id}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["orders", org.id, ["pending", "preparing"]] });
-        }
-      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [org?.id, qc]); // stable — no autoPrint/notificationsEnabled deps needed
