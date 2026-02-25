@@ -277,7 +277,7 @@ const DashboardPage = () => {
 
   // (Auto-print useEffect removed — printing now happens directly in Realtime callback above)
 
-  // Native APK polling removed (Capacitor removed)
+  
 
   useEffect(() => {
     dashOrders.forEach((o) => {
