@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
-import logoIcon from "@/assets/logo-icon.png";
+import logoDashboard from "@/assets/logo-dashboard.png";
 import {
   BarChart3,
   Zap,
@@ -163,7 +163,7 @@ const Index = () => {
         <header className="relative z-10 border-b border-white/[0.06]">
           <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
             <div className="flex items-center gap-2.5">
-              <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
+              <img src={logoDashboard} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
               <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
             </div>
             <div className="flex items-center gap-3">
@@ -374,7 +374,7 @@ const Index = () => {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
-              <img src={logoIcon} alt="TrendFood" className="w-7 h-7 rounded-md object-contain" />
+              <img src={logoDashboard} alt="TrendFood" className="w-7 h-7 rounded-md object-contain" />
               <span className="font-bold text-foreground text-lg tracking-tight">TrendFood</span>
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed mb-4">
