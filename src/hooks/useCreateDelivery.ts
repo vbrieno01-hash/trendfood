@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/hooks/useOrders";
 import { calculateCourierFee, CourierConfig } from "@/hooks/useDeliveryDistance";
+import { geocodeAddress, getRouteDistanceKm } from "@/lib/geocode";
 
 /**
  * Extract customer address from the pipe-separated notes field.
@@ -16,37 +17,6 @@ export function parsePhoneFromNotes(notes: string | null | undefined): string | 
   if (!notes) return null;
   const match = notes.match(/TEL:([^|]+)/);
   return match ? match[1].trim().replace(/\D/g, "") : null;
-}
-
-async function tryGeocode(query: string): Promise<{ lat: number; lon: number } | null> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
-    const res = await fetch(url, {
-      headers: { "Accept-Language": "pt-BR", "User-Agent": "TrendFood/1.0" },
-    });
-    const data = await res.json();
-    if (data?.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-  } catch { /* ignore */ }
-  return null;
-}
-
-async function geocode(query: string): Promise<{ lat: number; lon: number } | null> {
-  const result = await tryGeocode(query);
-  if (result) return result;
-  if (!query.toLowerCase().includes("brasil")) {
-    return tryGeocode(`${query}, Brasil`);
-  }
-  return null;
-}
-
-async function getRouteDistanceKm(from: { lat: number; lon: number }, to: { lat: number; lon: number }): Promise<number | null> {
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.routes?.length > 0) return data.routes[0].distance / 1000;
-  } catch { /* ignore */ }
-  return null;
 }
 
 /**
@@ -102,14 +72,23 @@ async function calculateAndUpdateDelivery(
   courierConfig?: CourierConfig
 ): Promise<void> {
   try {
-    const storeCoord = await geocode(storeAddress);
-    if (!storeCoord) return;
+    const storeCoord = await geocodeAddress(storeAddress);
+    if (!storeCoord) {
+      console.error(`[delivery ${deliveryId}] Failed to geocode store address: "${storeAddress}"`);
+      return;
+    }
 
-    const customerCoord = await geocode(customerAddress);
-    if (!customerCoord) return;
+    const customerCoord = await geocodeAddress(customerAddress);
+    if (!customerCoord) {
+      console.error(`[delivery ${deliveryId}] Failed to geocode customer address: "${customerAddress}"`);
+      return;
+    }
 
     const km = await getRouteDistanceKm(storeCoord, customerCoord);
-    if (km === null) return;
+    if (km === null) {
+      console.error(`[delivery ${deliveryId}] Failed to get route distance`);
+      return;
+    }
 
     const fee = calculateCourierFee(km, courierConfig);
 
@@ -117,7 +96,46 @@ async function calculateAndUpdateDelivery(
       .from("deliveries")
       .update({ distance_km: km, fee })
       .eq("id", deliveryId);
-  } catch {
-    // Silently fail — delivery already exists for the courier to see
+
+    console.log(`[delivery ${deliveryId}] Distance calculated: ${km.toFixed(2)} km, fee: R$ ${fee.toFixed(2)}`);
+  } catch (e) {
+    console.error(`[delivery ${deliveryId}] Error calculating distance:`, e);
   }
+}
+
+/**
+ * Recalculate distance for deliveries that have null distance_km.
+ * Called from the courier dashboard to fix historical deliveries.
+ */
+export async function recalculateNullDistances(
+  orgId: string,
+  storeAddress: string | null | undefined,
+  courierConfig?: CourierConfig | null
+): Promise<number> {
+  if (!storeAddress) return 0;
+
+  const { data: nullDeliveries } = await supabase
+    .from("deliveries")
+    .select("id, customer_address")
+    .eq("organization_id", orgId)
+    .eq("status", "entregue")
+    .is("distance_km", null)
+    .limit(10);
+
+  if (!nullDeliveries || nullDeliveries.length === 0) return 0;
+
+  let fixed = 0;
+  for (const d of nullDeliveries) {
+    if (d.customer_address === "Endereço não informado") continue;
+    try {
+      await calculateAndUpdateDelivery(d.id, storeAddress, d.customer_address, courierConfig ?? undefined);
+      fixed++;
+    } catch (e) {
+      console.error(`[recalc ${d.id}] Error:`, e);
+    }
+    // Respect rate limits
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  return fixed;
 }
