@@ -148,7 +148,7 @@ export default function ActivationLogsTab() {
             </div>
 
             <p className="text-[10px] text-muted-foreground/70">
-              Compatível com Cakto, Kiwify, Hotmart. Aceita GET (query params) e POST (JSON body com campo <code>email</code>, <code>customer.email</code> ou <code>buyer.email</code>).
+              Compatível com <strong>qualquer plataforma</strong> de pagamento que envie webhook (Cakto, Kiwify, Hotmart, Eduzz, Monetizze, Stripe, etc). Aceita GET (query params) e POST (JSON body com campo <code>email</code>, <code>customer.email</code> ou <code>buyer.email</code>).
             </p>
           </TabsContent>
 
