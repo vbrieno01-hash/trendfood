@@ -143,7 +143,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     persistDraft();
   }, [persistDraft]);
 
-  // Listen for page visibility change (replaces Capacitor app lifecycle)
+  // Listen for page visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {

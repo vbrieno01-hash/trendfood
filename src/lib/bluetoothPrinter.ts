@@ -1,4 +1,4 @@
-// Bluetooth printing — Web Bluetooth only (Capacitor removed)
+// Bluetooth printing — Web Bluetooth only
 
 export function isNativePlatform(): boolean {
   return false;
