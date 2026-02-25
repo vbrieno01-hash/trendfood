@@ -1,80 +1,91 @@
 
 
-# Plano: Simplificar ao Máximo a Gestão de Assinaturas no Admin
+# Plano: Webhook por Email (um link para todos os clientes)
 
-## Problema atual
-O fluxo exige: clicar "Gerenciar" → abrir dialog → selecionar plano → selecionar status → abrir calendário → digitar notas → salvar. São muitos passos para algo que deveria ser um clique.
+## Problema
+Hoje o webhook exige `org_id` (UUID) por loja. Isso significa que para cada cliente novo, voce precisa ir no painel, copiar o UUID e montar um link diferente. Isso nao escala --- especialmente com gateways como Cakto/Kiwify que enviam o **email do comprador** no payload, nao um UUID.
 
-## O que será feito
-
-### 1. Botão "Ativar Pro 30d" direto no card da loja
-Um botão de ação rápida no `StoreCard` que com **um único clique** faz:
-- Plano → `pro`
-- Status → `active`
-- Trial → `now + 30 dias`
-- Registra no `activation_logs` automaticamente
-
-Sem dialog, sem formulário. Um clique e pronto.
-
-### 2. Seção "Webhook Pronto" na aba Ativações
-Um bloco no topo da aba Ativações com:
-- O link do webhook completo e pronto para copiar
-- Instruções curtas: "Cole esse link no seu gateway (Cakto, Kiwify, Hotmart)"
-- Dropdown para selecionar a loja e gerar o link com o `org_id` preenchido
-- Botão "Copiar Link" que copia direto para a área de transferência
-
-### 3. Manter o dialog "Gerenciar" como opção avançada
-O dialog atual continua disponível para casos que precisam de customização (ex: mudar para Enterprise, definir data específica, adicionar notas).
-
-## Seção técnica
-
-### Arquivos alterados
+## Solucao
+Atualizar o webhook para aceitar tambem um parametro `email`. O sistema busca a loja pelo email do dono (campo `user_id` na tabela `organizations` cruzado com `auth.users`). Assim voce usa **um unico link** para todos os clientes:
 
 ```text
-EDIT: src/pages/AdminPage.tsx
-  - Adicionar botão "Ativar Pro 30d" no StoreCard com lógica inline
-  
-EDIT: src/components/admin/ActivationLogsTab.tsx
-  - Adicionar seção "Webhook Pronto" no topo com seletor de org + botão copiar
+https://xrzudhylpphnzousilye.supabase.co/functions/v1/universal-activation-webhook?email={email_do_comprador}&days=30&plan=pro&secret=trendfood123
 ```
 
-### Lógica do botão rápido (StoreCard)
+O gateway substitui `{email_do_comprador}` automaticamente com o email de quem pagou.
+
+## O que muda
+
+### Webhook aceita `email` OU `org_id`
+- Se `org_id` vier, funciona como hoje (busca direto)
+- Se `email` vier, busca o `user_id` pelo email no `auth.users`, depois busca a org pelo `user_id`
+- Se nenhum dos dois vier, retorna erro
+- Se o email tiver mais de uma loja, ativa a primeira (ou todas --- podemos decidir)
+
+### Tambem aceita POST com body JSON
+Gateways como Cakto enviam POST com JSON no body. O webhook vai ler tanto query params (GET) quanto body JSON (POST), pegando o email de campos comuns como `email`, `customer.email`, `buyer.email`.
+
+### UI do link na aba Ativacoes
+Atualizar a secao de webhook pronto para mostrar o formato com `{email}` como template, alem de manter a opcao por `org_id`.
+
+## Secao tecnica
+
+### Arquivo alterado
+
+```text
+EDIT: supabase/functions/universal-activation-webhook/index.ts
+  - Aceitar parametro "email" alem de "org_id"
+  - Buscar user pelo email via supabase.auth.admin.listUsers() 
+  - Buscar org pelo user_id encontrado
+  - Aceitar POST com body JSON para compatibilidade com gateways
+
+EDIT: src/components/admin/ActivationLogsTab.tsx
+  - Adicionar opcao de gerar link com {email} como template
+  - Mostrar os dois formatos: por org_id (especifico) e por email (universal)
+```
+
+### Logica do webhook atualizada
 
 ```typescript
-async function quickActivate(orgId: string) {
-  const trialEnd = new Date();
-  trialEnd.setDate(trialEnd.getDate() + 30);
-  
-  await supabase.from("organizations").update({
-    subscription_plan: "pro",
-    subscription_status: "active", 
-    trial_ends_at: trialEnd.toISOString(),
-  }).eq("id", orgId);
+// Aceitar email OU org_id
+let orgId = params.get("org_id") || body?.org_id;
+let email = params.get("email") || body?.email || body?.customer?.email;
 
-  await supabase.from("activation_logs").insert({
-    organization_id: orgId,
-    old_plan: org.subscription_plan,
-    new_plan: "pro",
-    source: "manual",
-    admin_email: user?.email,
-    notes: "Ativação rápida 30d",
-  });
+if (!orgId && !email) {
+  return error("org_id ou email e obrigatorio");
 }
+
+// Se veio email, buscar org pelo user_id
+if (!orgId && email) {
+  const { data: users } = await supabase.auth.admin.listUsers();
+  const user = users.users.find(u => u.email === email);
+  if (!user) return error("Usuario nao encontrado");
+  
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  
+  if (!org) return error("Loja nao encontrada para este email");
+  orgId = org.id;
+}
+// ... resto do fluxo igual
 ```
 
-### Seção Webhook na aba Ativações
+### Link universal na UI
 
 ```text
-┌─────────────────────────────────────────────────┐
-│  🔗 Link de Ativação Universal                  │
-│                                                  │
-│  Loja: [Dropdown com todas as lojas ▼]          │
-│  Dias: [30]  Plano: [pro ▼]                     │
-│                                                  │
-│  https://xrzu...webhook?org_id=UUID&days=30&... │
-│                                    [📋 Copiar]   │
-│                                                  │
-│  Cole esse link no webhook do seu gateway.       │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  Link Universal (por email)                       │
+│                                                   │
+│  ...webhook?email={email}&days=30&plan=pro&secret= │
+│                                     [Copiar]      │
+│                                                   │
+│  Use este link no gateway. O {email} sera          │
+│  substituido automaticamente pelo email do         │
+│  comprador.                                       │
+└──────────────────────────────────────────────────┘
 ```
 
