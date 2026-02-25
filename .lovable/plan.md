@@ -1,60 +1,59 @@
 
 
-# Plano: Corrigir botão "Enviar Pedido" que não responde ao clique
+# Plano: Corrigir erro "api.whatsapp.com está bloqueado"
 
 ## Diagnóstico
 
-O problema é que quando a validação do formulário falha (campos obrigatórios não preenchidos), a função `handleSendWhatsApp` simplesmente faz `return` na linha 297 sem nenhum feedback visível perto do botão. Os indicadores de erro (textos vermelhos) ficam espalhados pelo formulário acima, fora da área visível do usuário, que está olhando para o botão no rodapé do Drawer.
+O screenshot mostra que ao clicar em "Enviar Pedido", o navegador abre `api.whatsapp.com/send/...` e recebe `ERR_BLOCKED_BY_RESPONSE`. Isso acontece porque o `wa.me` redireciona para `api.whatsapp.com`, que responde com headers de segurança (COOP/COEP) que bloqueiam a abertura dentro de contextos de iframe ou quando chamado via `window.open` de certos ambientes (como o preview do Lovable).
 
-Resultado: o usuário clica no botão, a validação falha silenciosamente, e parece que "nada acontece".
+O código atual (linha 397-402 de `UnitPage.tsx`) tenta `window.open` e faz fallback para `window.location.href`. O problema é que ambos falham quando `api.whatsapp.com` bloqueia a resposta.
 
-## O que será feito
+A solução é usar a URL direta `https://api.whatsapp.com/send` em vez de `wa.me` (evitando o redirect), e garantir que o fallback funcione. Porém o problema real é que `api.whatsapp.com` bloqueia respostas em iframes/previews. A melhor abordagem é:
+
+1. Trocar para `window.location.href` como método primário (em vez de `window.open`), pois navegar a página inteira tem menos chance de ser bloqueado
+2. Ou melhor ainda: detectar se estamos em iframe e usar a estratégia correta
+
+## O que sera feito
 
 ### `src/pages/UnitPage.tsx`
 
-1. **Adicionar scroll automático para o primeiro campo com erro** — Quando a validação falhar, fazer scroll até o primeiro campo inválido para que o usuário veja qual campo precisa preencher.
+1. **Linha 397-403 (fluxo principal de WhatsApp)**: Inverter a estratégia — usar `window.location.href` como fallback principal quando `window.open` falhar, mas tambem adicionar um `<a>` link alternativo com `target="_blank"` que o usuario possa clicar manualmente caso tudo falhe.
 
-2. **Adicionar toast de aviso** — Exibir um toast rápido ("Preencha os campos obrigatórios") quando a validação falhar, para dar feedback imediato ao usuário mesmo que ele não veja os campos de erro.
+2. **Linha 397**: Manter `wa.me` pois funciona em dispositivos reais (celular com WhatsApp instalado). O bloqueio acontece apenas no desktop/preview do Lovable.
 
-3. **Adicionar refs aos campos obrigatórios** — Para permitir o scroll automático ao primeiro erro.
+3. **Adicionar tratamento de erro visivel**: Quando o WhatsApp nao conseguir abrir, mostrar um toast com o link para o usuario copiar/abrir manualmente, em vez de simplesmente falhar silenciosamente.
 
-## Seção técnica
+4. **Mesma correção na linha 503** (fluxo PIX callback) que tambem usa WhatsApp.
+
+## Seção tecnica
 
 ```text
 Arquivo: src/pages/UnitPage.tsx
 
-Mudança 1 — imports (linha 1):
-+ import { useToast } from "@/hooks/use-toast";
-
-Mudança 2 — dentro do componente:
-+ const { toast } = useToast();
-+ const orderTypeRef = useRef<HTMLDivElement>(null);
-+ const nameRef = useRef<HTMLInputElement>(null);
-+ const phoneRef = useRef<HTMLInputElement>(null);
-+ const paymentRef = useRef<HTMLDivElement>(null);
-+ const addressRef = useRef<HTMLDivElement>(null);
-
-Mudança 3 — handleSendWhatsApp, após "if (!valid) return;" (linha 297):
-  if (!valid) {
-+   toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
-+   // Scroll to first error
-+   const firstErrorRef = !orderType ? orderTypeRef
-+     : !buyerName.trim() ? nameRef
-+     : buyerPhone.replace(/\D/g,"").length < 10 ? phoneRef
-+     : orderType === "Entrega" && addressError ? addressRef
-+     : !effectivePayment ? paymentRef
-+     : null;
-+   firstErrorRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
+Mudança 1 — linhas 396-403 (fluxo principal):
+  // Substituir window.open por estratégia mais robusta
+  const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
+  const whatsAppOpened = (() => {
+    try {
+      const w = window.open(url, "_blank", "noopener,noreferrer");
+      return !!w;
+    } catch { return false; }
+  })();
+  if (!whatsAppOpened) {
+    // Fallback: navegar a pagina atual (funciona melhor em mobile)
+    try { window.location.href = url; } catch {}
+    // Toast de aviso com instrução para abrir manualmente
+    toast({
+      title: "Pedido enviado!",
+      description: "Se o WhatsApp não abriu, toque aqui para abrir manualmente.",
+      action: /* botão que abre o link */,
+      duration: 10000,
+    });
   }
 
-Mudança 4 — adicionar ref nos elementos JSX correspondentes:
-  - div do orderType → ref={orderTypeRef}
-  - input do buyerName → ref={nameRef}
-  - input do buyerPhone → ref={phoneRef}
-  - div do endereço → ref={addressRef}
-  - div do pagamento → ref={paymentRef}
+Mudança 2 — linha ~503 (fluxo PIX callback):
+  Aplicar a mesma lógica de fallback robusta.
 ```
 
-Isso garante que o usuário sempre receba feedback quando clica no botão e a validação falha.
+Isso garante que mesmo se `api.whatsapp.com` bloquear a resposta, o usuario recebe feedback e uma forma alternativa de abrir o WhatsApp.
 
