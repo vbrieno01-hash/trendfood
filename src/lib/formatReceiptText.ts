@@ -7,6 +7,7 @@ interface ParsedNotes {
   address?: string;
   frete?: string;
   payment?: string;
+  troco?: string;
   doc?: string;
   obs?: string;
   raw?: string;
@@ -27,6 +28,7 @@ function parseNotes(notes: string): ParsedNotes {
     address: parts["END."] || undefined,
     frete: parts["FRETE"] || undefined,
     payment: parts["PGTO"] || undefined,
+    troco: parts["TROCO"] || undefined,
     doc: parts["DOC"] || undefined,
     obs: parts["OBS"] || undefined,
   };
@@ -171,6 +173,7 @@ export function formatReceiptText(
       ["Tel: ", parsed.phone],
       ["End.: ", parsed.address],
       ["Pgto: ", parsed.payment],
+      ["Troco p/: ", parsed.troco],
       ["Frete: ", parsed.frete],
       ["Obs: ", parsed.obs],
     ];

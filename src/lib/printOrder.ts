@@ -19,6 +19,7 @@ interface ParsedNotes {
   address?: string;
   frete?: string;
   payment?: string;
+  troco?: string;
   doc?: string;
   obs?: string;
   raw?: string;
@@ -39,6 +40,7 @@ function parseNotes(notes: string): ParsedNotes {
     address: parts["END."] || undefined,
     frete: parts["FRETE"] || undefined,
     payment: parts["PGTO"] || undefined,
+    troco: parts["TROCO"] || undefined,
     doc: parts["DOC"] || undefined,
     obs: parts["OBS"] || undefined,
   };
@@ -90,6 +92,7 @@ export async function printOrder(
     if (parsed.phone)   customerRows.push(["Tel:",       parsed.phone]);
     if (parsed.address) customerRows.push(["End.:",      parsed.address]);
     if (parsed.payment) customerRows.push(["Pgto:",      parsed.payment]);
+    if (parsed.troco)   customerRows.push(["Troco p/:",  parsed.troco]);
     if (parsed.frete)   customerRows.push(["Frete:",     parsed.frete]);
     if (parsed.obs)     customerRows.push(["Obs:",       parsed.obs]);
   }
