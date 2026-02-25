@@ -1,48 +1,58 @@
 
 
-# Plano: Corrigir erro após finalização do pedido e visibilidade do troco
+# Plano: Garantir que `paymentMethod` é salvo em todos os fluxos da plataforma
 
-## Problemas identificados
+## Diagnóstico
 
-### 1. `paymentMethod` não é salvo no banco de dados (fluxo não-PIX)
-Na linha 410 do `UnitPage.tsx`, ao chamar `placeOrder.mutate`, os campos `paymentMethod` e `paid` não são passados. Resultado: o pedido fica com `payment_method: "pending"` em vez de `"Dinheiro"`, `"Cartão de Débito"`, etc. Isso pode confundir o dashboard e causar comportamentos inesperados.
+O fix anterior corrigiu apenas o fluxo de **delivery/retirada** no `UnitPage.tsx` (pedidos online via WhatsApp). Porém, existe outro ponto de criação de pedidos:
 
-### 2. Seção de troco pode ficar oculta (abaixo da área visível)
-A seção "Precisa de troco?" aparece abaixo do `Select` de pagamento dentro do Drawer de checkout. Em telas menores, o usuário precisa rolar para vê-la. Vou adicionar um scroll automático quando "Dinheiro" for selecionado.
+### Já corrigido
+- **`UnitPage.tsx` — fluxo PIX** (linha 322): passa `paymentMethod: "pix"` e `paid: false`
+- **`UnitPage.tsx` — fluxo não-PIX** (linha 411): agora passa `paymentMethod` e `paid: false` (fix recente)
 
-### 3. Geocoding (Nominatim) falhando — `Failed to fetch`
-A requisição para calcular o frete via Nominatim está falhando (`Failed to fetch`). Isso já é tratado graciosamente ("A combinar via WhatsApp"), mas o retry pode travar o fluxo. Vou melhorar o tratamento para evitar tentativas excessivas.
+### Ainda pendente
+- **`TableOrderPage.tsx` — pedidos de mesa** (linha 228): o `placeOrder.mutateAsync` NÃO passa `paymentMethod` nem `paid`. Resultado: todos os pedidos de mesa ficam com `payment_method: "pending"` no banco
+
+No `TableOrderPage`, o pagamento é selecionado **depois** do pedido ser criado (na tela de sucesso), mas o método escolhido nunca é salvo de volta no banco via update. O `setPaymentMethod` na linha 267 apenas controla o estado local para exibir a tela de PIX/cartão, sem persistir no banco.
+
+## Alcance da correção
+
+Como todas as lojas da plataforma compartilham o mesmo código-fonte (`UnitPage.tsx` e `TableOrderPage.tsx`), a correção é automática para todas as unidades. Não existe código por loja — tudo é multi-tenant via `organization_id`.
 
 ## O que será feito
 
-### `src/pages/UnitPage.tsx`
+### `src/pages/TableOrderPage.tsx`
 
-1. **Passar `paymentMethod` e `paid` na mutação não-PIX** (~linha 410):
-   - Adicionar `paymentMethod: effectivePayment.toLowerCase()` e `paid: false` no objeto passado ao `placeOrder.mutate`
+1. **Salvar `paymentMethod` no banco quando o cliente escolhe o método de pagamento** (~linha 266-290):
+   - Na função `handleSelectPayment`, após o `setPaymentMethod(method)`, fazer um update no pedido para salvar `payment_method` no banco
+   - Usar `supabase.from("orders").update({ payment_method: method }).eq("id", orderId)`
 
-2. **Auto-scroll quando "Dinheiro" for selecionado** (~linha 1116):
-   - Criar um `ref` para a div de troco
-   - No `onValueChange` do Select de pagamento, quando o valor for "Dinheiro", fazer `scrollIntoView({ behavior: "smooth", block: "center" })` com um pequeno delay (100ms) para garantir que o DOM renderizou
+2. **Para o modo "direct" (sem PIX automático)**, onde o pagamento é no balcão:
+   - Quando o cliente seleciona "card", salvar `payment_method: "card"` 
+   - Quando o cliente seleciona "pix", salvar `payment_method: "pix"`
 
 ## Seção técnica
 
 ```text
-Arquivo: src/pages/UnitPage.tsx
+Arquivo: src/pages/TableOrderPage.tsx
 
-Mudança 1 — linhas 410-421:
-  placeOrder.mutate({
-    ...existente,
-+   paymentMethod: effectivePayment.toLowerCase(),
-+   paid: false,
-  })
-
-Mudança 2 — novo ref + scroll:
-  const trocoRef = useRef<HTMLDivElement>(null);
-  // No onValueChange do Select de pagamento:
-  if (v === "Dinheiro") {
-    setTimeout(() => trocoRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
-  }
-  // Na div de troco (linha 1132):
-  <div ref={trocoRef} ...>
+Mudança — função handleSelectPayment (linha 266):
+  const handleSelectPayment = async (method: "pix" | "card") => {
+    setPaymentMethod(method);
++   // Persist payment method to database
++   if (orderId) {
++     await supabase
++       .from("orders")
++       .update({ payment_method: method })
++       .eq("id", orderId);
++   }
+    ...resto existente...
+  };
 ```
+
+Isso garante que o `payment_method` é salvo no banco para TODOS os fluxos:
+- UnitPage delivery/retirada PIX → "pix"
+- UnitPage delivery/retirada Dinheiro/Cartão → "dinheiro"/"cartão de débito"/etc
+- TableOrderPage mesa PIX → "pix"  
+- TableOrderPage mesa Cartão → "card"
 
