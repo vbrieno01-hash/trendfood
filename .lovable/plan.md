@@ -1,97 +1,96 @@
 
 
-# Plano: Painel Admin Self-Service para Planos, Webhooks e Trial
-
-## Problema
-
-Atualmente os planos, preços, links de checkout e duração do trial estão hardcoded no código. Qualquer mudança exige intervenção do desenvolvedor.
+# Plano: Gestão Manual de Assinaturas + Webhook Universal + Log de Ativações
 
 ## O que será feito
 
-Criar uma seção completa na aba **Configurações** do painel admin onde você poderá:
-- Criar, editar e remover planos (nome, preço, features, destaque)
-- Configurar a URL de checkout (Cakto) e o webhook secret de cada plano
-- Definir a duração padrão do trial (em dias) para novas lojas
-- Tudo salvo no banco de dados e consumido dinamicamente pela página de Preços e pelos webhooks
+1. **Diálogo "Gerenciar Assinatura"** em cada card de loja na aba Lojas do Admin, com:
+   - Seletor de plano (free/pro/enterprise/lifetime)
+   - Seletor de status (active/past_due)
+   - Calendário para definir `trial_ends_at` com data exata
+   - Botão salvar que registra a alteração no log
+
+2. **Tabela `activation_logs`** para rastrear todas as ativações manuais e via webhook, com campos: org_id, org_name, old_plan, new_plan, source (manual/webhook), admin_email, created_at
+
+3. **Edge Function `universal-activation-webhook`** que recebe `org_id` e `days` via query params e ativa o plano pro + estende trial, sem depender de gateway específico
+
+4. **Aba "Ativações" no Admin** para visualizar o log de ativações
 
 ## Seção técnica
 
-### 1. Nova tabela: `platform_plans`
+### 1. Nova tabela: `activation_logs`
 
-Armazena a configuração de cada plano editável pelo admin.
+```sql
+CREATE TABLE public.activation_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL,
+  org_name text,
+  old_plan text,
+  new_plan text,
+  old_status text,
+  new_status text,
+  source text NOT NULL DEFAULT 'manual',  -- 'manual' | 'webhook'
+  admin_email text,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | uuid PK | |
-| key | text UNIQUE | Identificador (ex: "free", "pro", "enterprise") |
-| name | text | Nome exibido (ex: "Pro") |
-| price_cents | integer | Preço em centavos (0 para grátis) |
-| description | text | Descrição curta |
-| features | jsonb | Array de strings das features |
-| highlighted | boolean | Se é o plano "Recomendado" |
-| badge | text | Texto da badge (ex: "Recomendado") |
-| checkout_url | text | Link de pagamento Cakto |
-| webhook_secret_name | text | Nome do secret do webhook (ex: "CAKTO_WEBHOOK_SECRET_PRO") |
-| sort_order | integer | Ordem de exibição |
-| active | boolean | Se o plano está visível |
-| created_at | timestamptz | |
-
-RLS: SELECT público (a página de preços precisa ler), INSERT/UPDATE/DELETE restrito a admin.
-
-### 2. Coluna nova em `platform_config`: `default_trial_days`
-
-Adicionar coluna `default_trial_days integer NOT NULL DEFAULT 7` na tabela `platform_config` existente. Esse valor será usado no cálculo do `trial_ends_at` de novas organizações.
-
-### 3. Atualizar o trigger/default de `organizations.trial_ends_at`
-
-Atualmente o default é `now() + '7 days'`. Será alterado para uma function que lê `platform_config.default_trial_days` e calcula dinamicamente.
-
-### 4. Novo componente: `src/components/admin/PlansConfigSection.tsx`
-
-Seção na aba Configurações do admin com:
-
-- **Tabela de planos** editável (nome, preço, descrição, features, checkout URL, badge, destaque, ordem)
-- Botão **"Adicionar Plano"** que abre formulário inline
-- Botão **"Editar"** em cada plano para edição inline
-- Botão **"Excluir"** com confirmação
-- **Campo "Dias de Trial Padrão"** separado, editável, que salva em `platform_config`
-
-### 5. Novo componente: `src/components/admin/TrialConfigSection.tsx`
-
-Campo simples para editar `default_trial_days` no `platform_config`.
-
-### 6. Atualizar `src/pages/PricingPage.tsx`
-
-- Remover os planos hardcoded
-- Buscar planos da tabela `platform_plans` ordenados por `sort_order`
-- Montar os cards dinamicamente
-- Buscar `checkout_url` do banco em vez do objeto `caktoLinks` hardcoded
-
-### 7. Atualizar `src/hooks/usePlanLimits.ts`
-
-- A lógica de features por plano (FEATURE_ACCESS) permanece no código pois é lógica de negócio de acesso
-- Os planos do banco controlam apenas exibição e checkout
-
-### 8. Atualizar webhooks dinâmicos
-
-Os edge functions `cakto-webhook-pro` e `cakto-webhook-enterprise` continuam funcionando como estão, pois usam secrets nomeados. O campo `webhook_secret_name` no banco serve apenas como referência visual para o admin saber qual secret corresponde a qual plano.
-
-### 9. Integração na aba Config do AdminPage
-
-Adicionar `PlansConfigSection` e `TrialConfigSection` na aba "config" junto com `PlatformConfigSection` e `AdminDownloadsSection`.
-
-### Arquivos alterados/criados
-
-```text
-NOVO:  migration SQL (platform_plans + default_trial_days)
-NOVO:  src/components/admin/PlansConfigSection.tsx
-NOVO:  src/components/admin/TrialConfigSection.tsx
-EDIT:  src/pages/AdminPage.tsx (importar novos componentes na aba config)
-EDIT:  src/pages/PricingPage.tsx (buscar planos do banco)
-EDIT:  src/hooks/usePlanLimits.ts (manter, sem mudanças)
+ALTER TABLE public.activation_logs ENABLE ROW LEVEL SECURITY;
+-- SELECT/INSERT/DELETE apenas para admin
 ```
 
-### Seed dos planos iniciais
+### 2. Edge Function: `universal-activation-webhook`
 
-A migration incluirá INSERT dos 3 planos atuais (free, pro, enterprise) com os dados que já existem hardcoded, para que nada quebre na transição.
+Endpoint: `GET /universal-activation-webhook?org_id=xxx&days=30&secret=YOUR_SECRET`
+
+- Valida secret via query param contra env `UNIVERSAL_WEBHOOK_SECRET`
+- Busca org pelo id
+- Atualiza `subscription_plan = 'pro'`, `subscription_status = 'active'`, `trial_ends_at = now() + days`
+- Insere registro em `activation_logs` com `source = 'webhook'`
+- Retorna JSON com sucesso
+
+Config em `supabase/config.toml`: `verify_jwt = false`
+
+### 3. Componente: Diálogo "Gerenciar Assinatura"
+
+No `StoreCard` existente, substituir o seletor de plano simples por um botão "Gerenciar" que abre um `Dialog` com:
+- Select de plano
+- Select de status (active / past_due)
+- DatePicker para `trial_ends_at`
+- Campo de notas (opcional)
+- Ao salvar: atualiza org no banco + insere `activation_logs` com `source = 'manual'`
+
+### 4. Aba "Ativações" no Admin
+
+Nova tab no sidebar com listagem da tabela `activation_logs` ordenada por `created_at DESC`, mostrando: data, loja, plano anterior → novo, fonte (manual/webhook), admin.
+
+### Arquivos criados/alterados
+
+```text
+NOVO:  migration SQL (activation_logs)
+NOVO:  supabase/functions/universal-activation-webhook/index.ts
+EDIT:  supabase/config.toml (adicionar verify_jwt = false para nova function)
+EDIT:  src/pages/AdminPage.tsx (diálogo de gestão no StoreCard, nova aba "Ativações", log)
+```
+
+### Secret necessário
+
+- `UNIVERSAL_WEBHOOK_SECRET` — um token que você define e coloca na URL do webhook em qualquer gateway
+
+### Fluxo de uso
+
+```text
+Gateway (Cakto/Kiwify/Hotmart)
+  └─ Webhook URL: https://.../universal-activation-webhook?org_id=UUID&days=30&secret=TOKEN
+       └─ Edge Function valida secret
+            └─ Atualiza org → plan=pro, status=active, trial_ends_at=now()+30d
+                 └─ Insere activation_logs (source=webhook)
+
+Admin Panel → Aba Lojas → Card da loja → "Gerenciar"
+  └─ Dialog com plano, status, calendário
+       └─ Salva no banco + insere activation_logs (source=manual)
+
+Admin Panel → Aba Ativações
+  └─ Tabela com histórico completo
+```
 
