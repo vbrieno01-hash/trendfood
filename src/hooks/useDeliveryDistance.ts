@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { geocodeAddress, getRouteDistanceKm, type GeoCoord } from "@/lib/geocode";
+import { useState, useEffect } from "react";
+import { calculateDistanceViaEdge, type GeoCoord } from "@/lib/geocode";
 
 export type { GeoCoord };
 
@@ -31,7 +31,6 @@ export function useDeliveryDistance(
   const [fee, setFee] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const storeCoordRef = useRef<GeoCoord | null>(null);
 
   useEffect(() => {
     if (!storeAddress || !customerAddress || customerAddress.trim().length < 5) {
@@ -46,18 +45,18 @@ export function useDeliveryDistance(
       setLoading(true);
       setError(null);
       try {
-        if (!storeCoordRef.current) {
-          const coord = await geocodeAddress(storeAddress);
-          if (!coord) throw new Error("Endereço da loja não encontrado");
-          storeCoordRef.current = coord;
-        }
-        const customerCoord = await geocodeAddress(customerAddress);
-        if (!customerCoord) throw new Error("Endereço do cliente não encontrado");
-        const km = await getRouteDistanceKm(storeCoordRef.current, customerCoord);
-        if (km === null) throw new Error("Rota não encontrada");
+        const result = await calculateDistanceViaEdge(storeAddress, customerAddress);
         if (!cancelled) {
-          setDistanceKm(km);
-          setFee(calculateCourierFee(km));
+          if (result.distance_km !== null && result.fee !== null) {
+            setDistanceKm(result.distance_km);
+            setFee(result.fee);
+          } else {
+            setError(result.error === "identical_coordinates"
+              ? "Endereços resolveram para o mesmo ponto"
+              : result.error ?? "Erro ao calcular distância");
+            setDistanceKm(null);
+            setFee(null);
+          }
         }
       } catch (e) {
         if (!cancelled) {

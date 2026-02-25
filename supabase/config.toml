@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.support-chat]
 verify_jwt = false
+
+[functions.geocode-distance]
+verify_jwt = false
