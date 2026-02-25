@@ -1,22 +1,17 @@
 
 
-# Plano: Colocar a nova logo no header da página inicial
-
-O screenshot que você enviou mostra o header da landing page — onde aparece o logo pequeno ao lado de "TrendFood". Você quer colocar ali a mesma logo que acabou de enviar (a do dashboard).
+# Plano: Adicionar link do Instagram no footer
 
 ## O que será feito
 
 ### Atualizar `src/pages/Index.tsx`
-- Trocar o import de `logoIcon` (logo-icon.png) por `logoDashboard` (logo-dashboard.png)
-- Isso afeta dois pontos: o header no topo e o footer no rodapé da página inicial
 
-## O que NÃO muda
-- A logo do dashboard continua igual (já foi trocada)
-- Nenhuma funcionalidade é alterada
+1. **Importar ícone do Instagram** — adicionar `Instagram` nos imports do lucide-react (linha 20)
+2. **Adicionar link do Instagram** no bloco de ícones sociais do footer (linha 384-386), ao lado do WhatsApp, apontando para `https://www.instagram.com/_trend.food?igsh=MTU4ZWdsY2hyMjE=`
 
 ## Seção técnica
 ```text
-Arquivos editados: 1 (Index.tsx — trocar import de logo-icon.png para logo-dashboard.png)
-Linhas afetadas: 3 (import + header img + footer img)
+Arquivos editados: 1 (Index.tsx)
+Linhas afetadas: 2 (import + novo <a> com ícone Instagram)
 ```
 
