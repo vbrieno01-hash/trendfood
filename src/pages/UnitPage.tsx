@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { toast } from "@/hooks/use-toast";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,6 +65,11 @@ const UnitPage = () => {
   const categoryNavRef = useRef<HTMLDivElement>(null);
   const isScrollingByClick = useRef(false);
   const trocoRef = useRef<HTMLDivElement>(null);
+  const orderTypeRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const paymentRef = useRef<HTMLDivElement>(null);
+  const addressRef = useRef<HTMLDivElement>(null);
 
   // Checkout form
   const [orderType, setOrderType] = useState<"Entrega" | "Retirada" | "">("");
@@ -294,7 +300,17 @@ const UnitPage = () => {
     } else {
       setAddressError(false);
     }
-    if (!valid) return;
+    if (!valid) {
+      toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
+      const firstErrorRef = !orderType ? orderTypeRef
+        : !buyerName.trim() ? nameRef
+        : buyerPhone.replace(/\D/g, "").length < 10 ? phoneRef
+        : orderType === "Entrega" && addressError ? addressRef
+        : !effectivePayment ? paymentRef
+        : null;
+      firstErrorRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
 
     // PIX Automático: show QR Code screen for gateway payment before sending order
     // PIX Direto/Manual: treat like cash — order goes straight to WhatsApp, customer pays on delivery
@@ -908,7 +924,7 @@ const UnitPage = () => {
             </div>
 
             {/* Order type selector */}
-            <div className="space-y-2">
+            <div ref={orderTypeRef} className="space-y-2">
               <h3 className="font-semibold text-foreground text-sm">
                 Como você quer receber? <span className="text-destructive">*</span>
               </h3>
@@ -949,6 +965,7 @@ const UnitPage = () => {
                   Nome <span className="text-destructive">*</span>
                 </Label>
                 <Input
+                  ref={nameRef}
                   id="buyer-name"
                   placeholder="Seu nome"
                   value={buyerName}
@@ -964,6 +981,7 @@ const UnitPage = () => {
                   Telefone <span className="text-destructive">*</span>
                 </Label>
                 <Input
+                  ref={phoneRef}
                   id="buyer-phone"
                   placeholder="(11) 99999-0000"
                   value={buyerPhone}
@@ -989,7 +1007,7 @@ const UnitPage = () => {
               </div>
 
               {orderType === "Entrega" && (
-                <div className="space-y-3">
+                <div ref={addressRef} className="space-y-3">
                   {/* CEP */}
                   <div>
                     <Label htmlFor="buyer-cep" className="text-xs font-medium mb-1 block">
@@ -1112,7 +1130,7 @@ const UnitPage = () => {
                 </div>
               )}
 
-              <div>
+              <div ref={paymentRef}>
                 <Label className="text-xs font-medium mb-1 block">
                   Forma de Pagamento <span className="text-destructive">*</span>
                 </Label>
