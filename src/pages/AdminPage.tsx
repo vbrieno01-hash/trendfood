@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import GrowthCharts from "@/components/admin/GrowthCharts";
 import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
 import AdminDownloadsSection from "@/components/admin/AdminDownloadsSection";
+import PlansConfigSection from "@/components/admin/PlansConfigSection";
+import TrialConfigSection from "@/components/admin/TrialConfigSection";
 import SalesChatTab from "@/components/admin/SalesChatTab";
 import ErrorLogsTab from "@/components/admin/ErrorLogsTab";
 import logoIcon from "@/assets/logo-icon.png";
@@ -632,6 +634,8 @@ function AdminContent() {
           {/* ── Config Tab ── */}
           {activeTab === "config" && (
             <div className="space-y-6">
+              <PlansConfigSection />
+              <TrialConfigSection />
               <PlatformConfigSection />
               <AdminDownloadsSection />
             </div>
