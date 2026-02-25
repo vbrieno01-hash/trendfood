@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.geocode-distance]
 verify_jwt = false
+
+[functions.universal-activation-webhook]
+verify_jwt = false
