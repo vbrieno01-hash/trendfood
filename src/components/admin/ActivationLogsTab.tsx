@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollText, ArrowRight, Link2, Copy, Check } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ScrollText, ArrowRight, Link2, Copy, Check, Mail, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface ActivationLog {
@@ -35,7 +36,8 @@ export default function ActivationLogsTab() {
   const [selectedOrg, setSelectedOrg] = useState("");
   const [days, setDays] = useState("30");
   const [plan, setPlan] = useState("pro");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [linkMode, setLinkMode] = useState<"email" | "org">("email");
 
   useEffect(() => {
     async function load() {
@@ -58,16 +60,18 @@ export default function ActivationLogsTab() {
     load();
   }, []);
 
-  const webhookUrl = selectedOrg
+  const emailWebhookUrl = `${WEBHOOK_BASE}?email={email}&days=${days}&plan=${plan}&secret=trendfood123`;
+
+  const orgWebhookUrl = selectedOrg
     ? `${WEBHOOK_BASE}?org_id=${selectedOrg}&days=${days}&plan=${plan}&secret=trendfood123`
     : "";
 
-  function copyLink() {
-    if (!webhookUrl) return;
-    navigator.clipboard.writeText(webhookUrl);
-    setCopied(true);
+  function copyLink(url: string, key: string) {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopied(key);
     toast.success("Link copiado!");
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(null), 2000);
   }
 
   if (loading) {
@@ -82,70 +86,134 @@ export default function ActivationLogsTab() {
 
   return (
     <section className="space-y-6">
-      {/* ── Webhook Pronto ── */}
+      {/* ── Webhook Links ── */}
       <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Link2 className="w-4 h-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Link de Ativação Universal</h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Cole esse link no webhook do seu gateway (Cakto, Kiwify, Hotmart) para ativar lojas automaticamente.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Loja</label>
-            <Select value={selectedOrg} onValueChange={setSelectedOrg}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                {orgs.map((o) => (
-                  <SelectItem key={o.id} value={o.id} className="text-xs">
-                    {o.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Dias</label>
-            <Input
-              type="number"
-              value={days}
-              onChange={(e) => setDays(e.target.value)}
-              className="h-9 text-xs"
-              min={1}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Plano</label>
-            <Select value={plan} onValueChange={setPlan}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pro" className="text-xs">Pro</SelectItem>
-                <SelectItem value="enterprise" className="text-xs">Enterprise</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <h2 className="text-sm font-semibold text-foreground">Link de Ativação</h2>
         </div>
 
-        {webhookUrl && (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-muted/50 rounded-lg px-3 py-2 text-xs font-mono text-muted-foreground break-all select-all">
-              {webhookUrl}
+        <Tabs value={linkMode} onValueChange={(v) => setLinkMode(v as "email" | "org")}>
+          <TabsList className="h-8">
+            <TabsTrigger value="email" className="text-xs gap-1.5">
+              <Mail className="w-3 h-3" /> Universal (por email)
+            </TabsTrigger>
+            <TabsTrigger value="org" className="text-xs gap-1.5">
+              <Building2 className="w-3 h-3" /> Por loja (org_id)
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Universal por Email ── */}
+          <TabsContent value="email" className="space-y-3 mt-3">
+            <p className="text-xs text-muted-foreground">
+              Use <strong>um único link</strong> para todos os clientes. O gateway substitui <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{"{email}"}</code> automaticamente pelo email do comprador.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Dias</label>
+                <Input
+                  type="number"
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                  className="h-9 text-xs"
+                  min={1}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Plano</label>
+                <Select value={plan} onValueChange={setPlan}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pro" className="text-xs">Pro</SelectItem>
+                    <SelectItem value="enterprise" className="text-xs">Enterprise</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <button
-              onClick={copyLink}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-            >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? "Copiado" : "Copiar"}
-            </button>
-          </div>
-        )}
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-muted/50 rounded-lg px-3 py-2 text-xs font-mono text-muted-foreground break-all select-all">
+                {emailWebhookUrl}
+              </div>
+              <button
+                onClick={() => copyLink(emailWebhookUrl, "email")}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                {copied === "email" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied === "email" ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground/70">
+              Compatível com Cakto, Kiwify, Hotmart. Aceita GET (query params) e POST (JSON body com campo <code>email</code>, <code>customer.email</code> ou <code>buyer.email</code>).
+            </p>
+          </TabsContent>
+
+          {/* ── Por Loja (org_id) ── */}
+          <TabsContent value="org" className="space-y-3 mt-3">
+            <p className="text-xs text-muted-foreground">
+              Gere um link específico para uma loja. Use quando precisar ativar uma loja manualmente via URL.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Loja</label>
+                <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orgs.map((o) => (
+                      <SelectItem key={o.id} value={o.id} className="text-xs">
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Dias</label>
+                <Input
+                  type="number"
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                  className="h-9 text-xs"
+                  min={1}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground font-medium">Plano</label>
+                <Select value={plan} onValueChange={setPlan}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pro" className="text-xs">Pro</SelectItem>
+                    <SelectItem value="enterprise" className="text-xs">Enterprise</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {orgWebhookUrl && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-muted/50 rounded-lg px-3 py-2 text-xs font-mono text-muted-foreground break-all select-all">
+                  {orgWebhookUrl}
+                </div>
+                <button
+                  onClick={() => copyLink(orgWebhookUrl, "org")}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                >
+                  {copied === "org" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied === "org" ? "Copiado" : "Copiar"}
+                </button>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* ── Log de Ativações ── */}
