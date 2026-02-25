@@ -10,6 +10,7 @@ import {
   usePayCourier,
   useOrgActiveShifts,
   useOrgShiftHistory,
+  useDeleteCourier,
   type DateRange,
   type CourierShift,
 } from "@/hooks/useCourier";
@@ -102,6 +103,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
 
   const deleteMutation = useDeleteDelivery();
   const clearMutation = useClearDeliveryHistory();
+  const deleteCourierMutation = useDeleteCourier();
   const completeMutation = useCompleteDelivery();
   const cancelMutation = useCancelDelivery();
   const payMutation = usePayCourier();
@@ -561,11 +563,45 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
                           </p>
                         )}
                       </div>
-                      {unpaidTotal > 0 && (
-                        <div className="shrink-0">
-                          {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {unpaidTotal > 0 && (
+                          isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover motoboy</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja remover <strong>{c.name}</strong>? O histórico de entregas será mantido.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => {
+                                  deleteCourierMutation.mutate(c.id, {
+                                    onSuccess: () => toast.success(`${c.name} removido com sucesso`),
+                                    onError: () => toast.error("Erro ao remover motoboy"),
+                                  });
+                                }}
+                              >
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
 
                     {/* Expanded PIX payment section */}

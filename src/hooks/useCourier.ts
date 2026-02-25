@@ -241,6 +241,22 @@ export function useLoginCourier() {
   });
 }
 
+export function useDeleteCourier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (courierId: string) => {
+      const { error } = await supabase
+        .from("couriers" as any)
+        .update({ active: false } as any)
+        .eq("id", courierId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["couriers"] });
+    },
+  });
+}
+
 // ── New hooks ──
 
 export interface DateRange {
