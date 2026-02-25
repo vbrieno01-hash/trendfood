@@ -1,57 +1,48 @@
 
 
-# Plano: Campo "Troco para" no checkout com pagamento em Dinheiro
+# Plano: Corrigir erro após finalização do pedido e visibilidade do troco
 
-## Problema
-Quando o cliente escolhe pagar com **Dinheiro** na entrega, o motoboy não sabe quanto de troco levar. O cliente precisa informar com qual nota vai pagar para que o troco já esteja separado na saída.
+## Problemas identificados
+
+### 1. `paymentMethod` não é salvo no banco de dados (fluxo não-PIX)
+Na linha 410 do `UnitPage.tsx`, ao chamar `placeOrder.mutate`, os campos `paymentMethod` e `paid` não são passados. Resultado: o pedido fica com `payment_method: "pending"` em vez de `"Dinheiro"`, `"Cartão de Débito"`, etc. Isso pode confundir o dashboard e causar comportamentos inesperados.
+
+### 2. Seção de troco pode ficar oculta (abaixo da área visível)
+A seção "Precisa de troco?" aparece abaixo do `Select` de pagamento dentro do Drawer de checkout. Em telas menores, o usuário precisa rolar para vê-la. Vou adicionar um scroll automático quando "Dinheiro" for selecionado.
+
+### 3. Geocoding (Nominatim) falhando — `Failed to fetch`
+A requisição para calcular o frete via Nominatim está falhando (`Failed to fetch`). Isso já é tratado graciosamente ("A combinar via WhatsApp"), mas o retry pode travar o fluxo. Vou melhorar o tratamento para evitar tentativas excessivas.
 
 ## O que será feito
 
-### 1. Adicionar campo "Troco para" no checkout (`src/pages/UnitPage.tsx`)
+### `src/pages/UnitPage.tsx`
 
-**Estado novo** (junto aos outros estados do checkout, ~linha 170):
-- `changeFor`: número representando o valor da nota que o cliente vai pagar (ex: R$ 50, R$ 100)
-- `changeForError`: booleano para validação
+1. **Passar `paymentMethod` e `paid` na mutação não-PIX** (~linha 410):
+   - Adicionar `paymentMethod: effectivePayment.toLowerCase()` e `paid: false` no objeto passado ao `placeOrder.mutate`
 
-**UI condicional** (após o Select de pagamento, ~linha 1118):
-- Quando `payment === "Dinheiro"`, exibir:
-  - Texto: "Precisa de troco?"
-  - Botões rápidos com valores comuns: R$ 20, R$ 50, R$ 100, R$ 200
-  - Opção "Não precisa" (valor 0)
-  - Campo manual para valor personalizado (usando CurrencyInput)
-  - Se `changeFor > 0`: mostrar o cálculo do troco automaticamente: **"Troco: R$ X,XX"**
-  - Validação: se `changeFor > 0` e `changeFor < grandTotal`, mostrar erro "O valor deve ser maior que o total"
-
-### 2. Incluir "TROCO" nas notes do pedido
-
-**Nas noteParts** (~linhas 306 e 392):
-- Adicionar `TROCO:R$ XX,XX` quando `changeFor > 0`
-- Ex: `TROCO:R$ 50,00`
-
-### 3. Incluir no WhatsApp
-
-**Na mensagem WhatsApp** (~linhas 354 e 456):
-- Após a linha de pagamento, adicionar:
-  - `💵 *Troco para:* R$ 50,00`
-  - `🔄 *Troco:* R$ 15,00`
-
-### 4. Exibir troco no KDS/impressão (parse do notes)
-
-**Em `src/lib/formatReceiptText.ts`**:
-- Verificar se já faz parse de `TROCO:` — se não, adicionar para que apareça no comprovante impresso
+2. **Auto-scroll quando "Dinheiro" for selecionado** (~linha 1116):
+   - Criar um `ref` para a div de troco
+   - No `onValueChange` do Select de pagamento, quando o valor for "Dinheiro", fazer `scrollIntoView({ behavior: "smooth", block: "center" })` com um pequeno delay (100ms) para garantir que o DOM renderizou
 
 ## Seção técnica
 
 ```text
-Arquivo principal: src/pages/UnitPage.tsx
-  - ~linha 170: novo estado changeFor (number), changeForError (boolean)
-  - ~linha 1118: UI condicional com botões rápidos + CurrencyInput
-  - ~linhas 306, 392: adicionar TROCO nas noteParts
-  - ~linhas 354, 456: adicionar troco na mensagem WhatsApp
+Arquivo: src/pages/UnitPage.tsx
 
-Arquivo secundário: src/lib/formatReceiptText.ts
-  - parse do campo TROCO: para exibição em comprovante
+Mudança 1 — linhas 410-421:
+  placeOrder.mutate({
+    ...existente,
++   paymentMethod: effectivePayment.toLowerCase(),
++   paid: false,
+  })
 
-Componente reutilizado: src/components/ui/currency-input.tsx
+Mudança 2 — novo ref + scroll:
+  const trocoRef = useRef<HTMLDivElement>(null);
+  // No onValueChange do Select de pagamento:
+  if (v === "Dinheiro") {
+    setTimeout(() => trocoRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+  }
+  // Na div de troco (linha 1132):
+  <div ref={trocoRef} ...>
 ```
 
