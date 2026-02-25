@@ -823,6 +823,36 @@ const DashboardPage = () => {
             </div>
           )}
 
+          {/* Assinatura paga expirando */}
+          {!planLimits.subscriptionExpired && planLimits.subscriptionDaysLeft > 0 && planLimits.subscriptionDaysLeft <= 7 && (
+            <div className="mb-4 rounded-xl bg-amber-50 border border-amber-300 dark:bg-amber-950/30 dark:border-amber-800 p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <p className="text-sm font-medium text-foreground">
+                  Sua assinatura expira em <strong>{planLimits.subscriptionDaysLeft} {planLimits.subscriptionDaysLeft === 1 ? "dia" : "dias"}</strong>. Renove para não perder acesso.
+                </p>
+              </div>
+              <Button asChild size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700">
+                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Assinatura paga expirada */}
+          {planLimits.subscriptionExpired && (
+            <div className="mb-4 rounded-xl bg-destructive/10 border border-destructive/30 p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+                <p className="text-sm font-medium text-foreground">
+                  Sua assinatura expirou. Renove para continuar usando todos os recursos.
+                </p>
+              </div>
+              <Button asChild size="sm" variant="destructive" className="gap-1.5">
+                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar agora</Link>
+              </Button>
+            </div>
+          )}
+
           {btReconnectFailed && !btConnected && getStoredDeviceId() && (
             <div className="flex items-center gap-3 p-3 rounded-xl border border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-800 mb-4">
               <Printer className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0" />
