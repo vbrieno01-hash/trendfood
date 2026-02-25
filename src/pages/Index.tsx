@@ -21,6 +21,7 @@ import {
   BarChart2,
   Bike,
   MessageCircle,
+  Instagram,
 } from "lucide-react";
 
 const problems = [
@@ -381,6 +382,9 @@ const Index = () => {
               Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão.
             </p>
             <div className="flex items-center gap-3">
+              <a href="https://www.instagram.com/_trend.food?igsh=MTU4ZWdsY2hyMjE=" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                <Instagram className="w-5 h-5" />
+              </a>
               <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <MessageCircle className="w-5 h-5" />
               </a>
