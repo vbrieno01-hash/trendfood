@@ -37,6 +37,7 @@ import { DEFAULT_COURIER_CONFIG, type CourierConfig } from "@/hooks/useDeliveryD
 import { QRCodeSVG } from "qrcode.react";
 import { buildPixPayload } from "@/lib/pixPayload";
 import CourierReportSection from "./CourierReportSection";
+import { recalculateNullDistances } from "@/hooks/useCreateDelivery";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30" },
@@ -146,6 +147,19 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
       setExpandedCourierId(null);
     }
   }, [expandedCourierId, unpaidDeliveries]);
+
+  // Retroactive: recalculate distance_km for historical deliveries with null values
+  useEffect(() => {
+    if (!orgAddress || !orgId) return;
+    const hasNullKm = deliveries.some((d) => d.status === "entregue" && d.distance_km === null);
+    if (!hasNullKm) return;
+    recalculateNullDistances(orgId, orgAddress, courierConfig).then((fixed) => {
+      if (fixed > 0) {
+        qc.invalidateQueries({ queryKey: ["org-deliveries"] });
+        console.log(`[courier] Recalculated ${fixed} deliveries with missing km`);
+      }
+    });
+  }, [orgId, orgAddress, courierConfig, deliveries, qc]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
