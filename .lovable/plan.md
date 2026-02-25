@@ -1,32 +1,30 @@
 
 
-# Plano: Reduzir tamanho da barra de status fixa no dashboard
+# Plano: Afastar o botão do menu hambúrguer da borda superior
 
 ## Problema
-A barra de status fixa no rodapé do dashboard (linha 870 em `DashboardPage.tsx`) está com elementos grandes demais, cobrindo outros conteúdos como o botão "Sair da conta". Os textos e ícones ocupam espaço excessivo em telas menores.
+Em dispositivos com tela "infinita" (edge-to-edge), o botão de menu hambúrguer (☰) fica muito próximo da borda superior da tela. Ao tocar nele, o sistema interpreta como gesto de puxar as notificações do próprio dispositivo, em vez de abrir o menu lateral do app.
 
 ## O que será feito
 
 ### Atualizar `src/pages/DashboardPage.tsx`
 
-1. **Reduzir o padding e tamanho dos elementos** na barra fixa (linha 870):
-   - Diminuir padding: `px-4 py-1.5` → `px-3 py-1`
-   - Reduzir ícones: `w-3.5 h-3.5` → `w-3 h-3`
-   - Adicionar `text-[11px]` no container para texto menor
-   - Adicionar `overflow-x-auto` para evitar que a barra empurre elementos
-   - Usar `flex-shrink-0` nos separadores e `whitespace-nowrap` nos botões
+**Linha 781** — Header mobile:
+- Aumentar o padding vertical do header de `py-3` para `py-4 pt-[env(safe-area-inset-top,12px)]`
+- Isso usa a variável CSS `safe-area-inset-top` que os navegadores mobile expõem para evitar a área de notificações do sistema
+- Em dispositivos sem safe-area, aplica um mínimo de 12px de margem superior
 
-2. **Abreviar os textos** para ocupar menos espaço horizontal:
-   - "Impressão auto. ativa" → "Imp. auto."
-   - "Impressão auto. off" → "Imp. off"
-   - "Notificações ativas" → "Notif. on"
-   - "Notificações off" → "Notif. off"
-   - "BT: Desconectada" → "BT: off"
+### Atualizar `index.html`
+
+- Adicionar a meta tag `viewport-fit=cover` ao viewport existente, para que o browser informe corretamente os safe-area insets:
+  ```html
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  ```
 
 ## Seção técnica
 ```text
-Arquivo: src/pages/DashboardPage.tsx
-Linhas afetadas: 870-906
-Mudanças: reduzir padding, tamanho de fonte/ícones e abreviar textos
+Arquivos: 2
+- src/pages/DashboardPage.tsx (linha 781): py-3 → py-4 pt-[env(safe-area-inset-top,12px)]
+- index.html: adicionar viewport-fit=cover na meta viewport
 ```
 
