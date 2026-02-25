@@ -143,31 +143,22 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     persistDraft();
   }, [persistDraft]);
 
-  // Listen for app resume (Android lifecycle)
+  // Listen for page visibility change (replaces Capacitor app lifecycle)
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    (async () => {
-      try {
-        const { App } = await import("@capacitor/app");
-        const listener = await App.addListener("appStateChange", ({ isActive }) => {
-          console.log("[MenuTab] appStateChange isActive:", isActive);
-          if (isActive) {
-            const draft = loadDraft(organization.id);
-            if (draft?.modalOpen && !modalOpen) {
-              console.log("[MenuTab] Rehydrating modal from draft on resume");
-              setModalOpen(true);
-              setEditItemId(draft.editItemId);
-              setForm({ ...draft.form, imageFile: null });
-              setImagePreview(draft.imagePreview);
-            }
-          }
-        });
-        cleanup = () => listener.remove();
-      } catch {
-        // Not on native — ignore
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const draft = loadDraft(organization.id);
+        if (draft?.modalOpen && !modalOpen) {
+          console.log("[MenuTab] Rehydrating modal from draft on resume");
+          setModalOpen(true);
+          setEditItemId(draft.editItemId);
+          setForm({ ...draft.form, imageFile: null });
+          setImagePreview(draft.imagePreview);
+        }
       }
-    })();
-    return () => cleanup?.();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [organization.id]);
 
   // Collect custom categories not in CATEGORIES
