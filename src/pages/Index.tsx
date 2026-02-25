@@ -385,7 +385,7 @@ const Index = () => {
               <a href="https://www.instagram.com/_trend.food?igsh=MTU4ZWdsY2hyMjE=" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href="http://wa.me/message/H632HC5C5XX5C1" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <MessageCircle className="w-5 h-5" />
               </a>
             </div>
@@ -409,7 +409,7 @@ const Index = () => {
             <ul className="space-y-2 text-sm">
               <li><Link to="/termos" className="text-muted-foreground hover:text-foreground transition-colors">Termos de Uso</Link></li>
               <li><Link to="/privacidade" className="text-muted-foreground hover:text-foreground transition-colors">Política de Privacidade</Link></li>
-              <li><a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
+              <li><a href="http://wa.me/message/H632HC5C5XX5C1" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
               <li><a href="#problemas" className="text-muted-foreground hover:text-foreground transition-colors">Perguntas Frequentes</a></li>
             </ul>
           </div>
@@ -420,7 +420,7 @@ const Index = () => {
             <ul className="space-y-2 text-sm">
               <li><a href="mailto:contato@trendfood.com.br" className="text-muted-foreground hover:text-foreground transition-colors">contato@trendfood.com.br</a></li>
               <li>
-                <a href="https://wa.me/5500000000000" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                <a href="http://wa.me/message/H632HC5C5XX5C1" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
                   <MessageCircle className="w-4 h-4" />
                   Fale conosco
                 </a>
