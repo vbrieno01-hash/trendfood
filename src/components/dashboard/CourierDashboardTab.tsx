@@ -598,20 +598,22 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
                           </div>
                         )}
 
-                        <Button
-                          className="w-full gap-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            payMutation.mutate({ courierId: c.id, organizationId: orgId }, {
-                              onSuccess: () => toast.success(`Pagamento de R$ ${unpaidTotal.toFixed(2)} registrado para ${c.name}!`),
-                              onError: () => toast.error("Erro ao registrar pagamento."),
-                            });
-                          }}
-                          disabled={payMutation.isPending}
-                        >
-                          {payMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                          Confirmar Pagamento
-                        </Button>
+                        {pixPayload && (
+                          <Button
+                            className="w-full gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              payMutation.mutate({ courierId: c.id, organizationId: orgId }, {
+                                onSuccess: () => toast.success(`Pagamento de R$ ${unpaidTotal.toFixed(2)} registrado para ${c.name}!`),
+                                onError: () => toast.error("Erro ao registrar pagamento."),
+                              });
+                            }}
+                            disabled={payMutation.isPending}
+                          >
+                            {payMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                            Confirmar Pagamento
+                          </Button>
+                        )}
 
                         {/* Shift history for this courier */}
                         {(shiftsByCourier.get(c.id) || []).length > 0 && (
