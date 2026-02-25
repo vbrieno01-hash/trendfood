@@ -778,7 +778,7 @@ const DashboardPage = () => {
       {/* ── Main Content ──────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden bg-card border-b border-border px-4 py-4 pt-[env(safe-area-inset-top,12px)] flex items-center justify-between sticky top-0 z-30">
+        <header className="lg:hidden bg-card border-b border-border px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] flex items-center justify-between sticky top-0 z-30">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-lg hover:bg-secondary transition-colors"
