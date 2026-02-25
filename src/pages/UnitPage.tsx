@@ -766,7 +766,7 @@ const UnitPage = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-muted/50 border-t border-border mt-8 pb-36">
+      <footer className="bg-muted/50 border-t border-border mt-8 pb-20">
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-8 text-center space-y-2">
           <Link to="/" className="inline-flex items-center gap-2 text-primary font-bold text-lg hover:opacity-80 transition-opacity">
             <img src="/logo-trendfood.png" alt="TrendFood" className="w-6 h-6" />
