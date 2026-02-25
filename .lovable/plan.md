@@ -1,5 +1,6 @@
 
 
+
 # Status do sistema — Pronto para clientes?
 
 ## Resumo rápido
@@ -40,4 +41,3 @@ Sim, o sistema está funcional e já tem **15 lojas cadastradas**, **167 pedidos
 ## Conclusão
 
 O sistema está **pronto para receber clientes**. Todos os módulos core funcionam de forma independente por loja. O fluxo completo — cadastro → cardápio → pedido → KDS → entrega → pagamento → relatórios — está operacional. A expiração de planos pagos que acabamos de implementar garante o controle financeiro automático.
-
