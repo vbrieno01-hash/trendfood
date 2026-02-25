@@ -1,43 +1,85 @@
 
+# Plano: corrigir itens/categorias novas que não aparecem para clientes no cardápio público
 
+## Diagnóstico (confirmado)
 
-# Status do sistema — Pronto para clientes?
+O problema não está no cadastro do item, e sim na renderização da página pública da loja.
 
-## Resumo rápido
+- No dashboard (`MenuTab`) categorias customizadas aparecem normalmente (ex.: **"feijoada aos sábados"**).
+- Na página pública do cliente (`UnitPage`), o agrupamento usa **apenas** `CATEGORIES` fixas.
+- Resultado: itens em categoria nova/customizada ficam salvos no backend, mas **não entram na lista exibida ao cliente**.
 
-Sim, o sistema está funcional e já tem **15 lojas cadastradas**, **167 pedidos** e **35 entregas** registradas. Cada loja é independente, com dados isolados por `organization_id`.
+Também confirmei no banco da loja atual:
+- categoria customizada `"feijoada aos sábados"` com 3 itens.
+- por isso exatamente esse bloco não aparece para os clientes.
 
-## O que já funciona
+## O que será alterado
 
-| Funcionalidade | Status |
-|---|---|
-| Cadastro de loja (slug único, cardápio, logo) | OK |
-| Cardápio público (`/unidade/slug`) | OK |
-| Pedidos presenciais (mesa → KDS) | OK |
-| Pedidos delivery (mesa 0 → KDS + entrega) | OK |
-| Cálculo de frete por distância | OK |
-| Motoboys (cadastro, turnos, corridas, PIX) | OK |
-| Impressora térmica (navegador, desktop, bluetooth) | OK |
-| Caixa (abertura, sangrias, fechamento) | OK |
-| Cupons de desconto | OK |
-| Pagamento PIX (QR code, confirmação) | OK |
-| Planos (free, pro, enterprise, lifetime) | OK |
-| Expiração automática de planos pagos | OK (recém implementado) |
-| Banner de aviso de expiração | OK (recém implementado) |
-| Webhook universal para gateways | OK |
-| Multi-unidade (Enterprise) | OK |
-| Isolamento de dados entre lojas | OK (RLS) |
-| Horário de funcionamento | OK |
-| Relatórios e mais vendidos | OK |
+### 1) `src/pages/UnitPage.tsx` — incluir categorias customizadas na montagem do cardápio
 
-## Pontos de atenção antes de escalar
+Hoje:
+- `groupedMenuForObserver` usa `CATEGORIES` fixas.
+- `groupedMenu` usa `CATEGORIES` fixas.
 
-1. **Algumas lojas sem endereço/WhatsApp**: Dos 15 cadastros, vários não têm `store_address` ou `whatsapp` preenchido. O sistema funciona sem, mas o frete não calcula e o delivery não redireciona pro WhatsApp.
+Mudança:
+- montar grupos em 2 partes:
+  1. categorias padrão (`CATEGORIES`) na ordem atual
+  2. categorias customizadas detectadas dinamicamente a partir dos itens (`menuItems` / `filteredMenuItems`)
+- para customizadas, usar emoji fallback (ex.: `🍽️`) para não quebrar o layout de chips.
 
-2. **Chave PIX**: Apenas 4 das 15 lojas têm `pix_key` cadastrada. Sem ela, o QR code PIX não funciona.
+## 2) Ajustar navegação por categorias (chips + scroll)
 
-3. **Onboarding**: O wizard de onboarding já existe para guiar o lojista a preencher tudo.
+Como a barra de categorias e o observer dependem dos grupos:
+- aplicar a mesma lógica dinâmica no `groupedMenuForObserver`.
+- manter comportamento atual (chips, rolagem, seção ativa), agora incluindo categorias novas.
 
-## Conclusão
+## 3) Garantir consistência com busca
 
-O sistema está **pronto para receber clientes**. Todos os módulos core funcionam de forma independente por loja. O fluxo completo — cadastro → cardápio → pedido → KDS → entrega → pagamento → relatórios — está operacional. A expiração de planos pagos que acabamos de implementar garante o controle financeiro automático.
+Quando houver busca (`searchQuery`):
+- `groupedMenu` continuará baseado em `filteredMenuItems`, mas agora incluindo customizadas.
+- isso garante que produto novo em categoria nova apareça tanto na lista normal quanto no resultado de busca.
+
+## Arquivo único a editar
+
+```text
+EDIT: src/pages/UnitPage.tsx
+  - Substituir montagem fixa de groupedMenuForObserver e groupedMenu
+  - Adicionar detecção de categorias customizadas
+  - Mesclar [categorias padrão + categorias customizadas]
+  - Definir emoji fallback para customizadas
+```
+
+## Seção técnica (implementação proposta)
+
+```text
+1) Criar helper local para grupos:
+   buildGroups(sourceItems):
+     - knownSet = Set(CATEGORIES.value)
+     - knownGroups = CATEGORIES -> filtra itens por categoria
+     - customValues = unique(sourceItems.category not in knownSet), ordenado localeCompare(pt-BR)
+     - customGroups = customValues.map(value => ({ value, emoji: "🍽️", items: ... }))
+     - return [...knownGroups, ...customGroups].filter(g => g.items.length > 0)
+
+2) Aplicar helper em:
+   - groupedMenuForObserver = buildGroups(menuItems)
+   - groupedMenu = buildGroups(filteredMenuItems)
+
+3) Não alterar backend, tabelas, RLS ou hooks de persistência.
+```
+
+## Impacto esperado
+
+Após essa correção:
+- ao criar categoria/nome novo no dashboard e adicionar produtos, os clientes verão normalmente no cardápio público;
+- produtos duplicados dentro de categoria customizada também aparecerão;
+- problema relatado de “não aparece nem nome nem produto” para esse cenário deixa de ocorrer.
+
+## Validação recomendada (E2E)
+
+1. No dashboard, criar categoria nova (ex.: `Feijoada aos sábados`) e adicionar 1–2 produtos.
+2. Abrir a página pública da loja (`/unidade/:slug`).
+3. Confirmar:
+   - chip da nova categoria aparece;
+   - seção da categoria aparece;
+   - produtos aparecem e podem ser adicionados ao carrinho;
+   - busca encontra esses produtos.
