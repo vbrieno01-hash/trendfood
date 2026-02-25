@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,71 +21,42 @@ import {
 } from "@/components/ui/alert-dialog";
 import PlanCard from "@/components/pricing/PlanCard";
 import logoIcon from "@/assets/logo-icon.png";
-import { ArrowLeft, Check } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-const PLAN_KEYS = {
-  free: "free",
-  pro: "pro",
-  enterprise: "enterprise",
-} as const;
+interface PlanData {
+  key: string;
+  name: string;
+  price: string;
+  description: string;
+  features: string[];
+  cta: string;
+  ctaLink: string;
+  highlighted: boolean;
+  badge?: string;
+  checkout_url?: string;
+  external?: boolean;
+}
 
-const plans = [
-  {
-    key: PLAN_KEYS.free,
-    name: "Grátis",
-    price: "Grátis",
-    description: "Ideal para começar e testar a plataforma",
-    features: [
-      "Catálogo digital",
-      "Até 20 itens no cardápio",
-      "1 ponto de atendimento (QR Code)",
-      "Pedidos por QR Code",
-      "Link compartilhável do catálogo",
-    ],
-    cta: "Começar Grátis",
+function formatPrice(cents: number): string {
+  if (cents === 0) return "Grátis";
+  return `R$ ${(cents / 100).toFixed(0)}`;
+}
+
+function mapPlanRow(row: any): PlanData {
+  return {
+    key: row.key,
+    name: row.name,
+    price: formatPrice(row.price_cents),
+    description: row.description ?? "",
+    features: Array.isArray(row.features) ? row.features : [],
+    cta: row.price_cents === 0 ? "Começar Grátis" : `Assinar ${row.name}`,
     ctaLink: "/auth",
-  },
-  {
-    key: PLAN_KEYS.pro,
-    name: "Pro",
-    price: "R$ 99",
-    description: "Para negócios que querem crescer com controle total",
-    features: [
-      "Tudo do plano Grátis",
-      "Itens ilimitados no cardápio",
-      "Pontos de atendimento ilimitados",
-      "Painel de Produção (KDS)",
-      "Controle de Caixa completo",
-      "Cupons de desconto",
-      "Ranking de mais vendidos",
-      "Impressora térmica 80mm",
-      "Painel do Atendente",
-    ],
-    cta: "Assinar Pro",
-    ctaLink: "/auth",
-    highlighted: true,
-    badge: "Recomendado",
-  },
-  {
-    key: PLAN_KEYS.enterprise,
-    name: "Enterprise",
-    price: "R$ 249",
-    description: "Para redes e operações de alta demanda",
-    features: [
-      "Tudo do plano Pro",
-      "Múltiplas unidades",
-      "Relatórios avançados",
-      "Suporte prioritário",
-      "Integração com delivery (em breve)",
-      "Gerente de conta dedicado",
-    ],
-    cta: "Assinar Enterprise",
-    ctaLink:
-      "https://wa.me/5511999999999?text=Quero+saber+mais+sobre+o+plano+Enterprise+TrendFood",
-    external: true,
-  },
-];
+    highlighted: row.highlighted ?? false,
+    badge: row.badge ?? undefined,
+    checkout_url: row.checkout_url ?? undefined,
+  };
+}
 
 const faqs = [
   {
@@ -114,12 +85,23 @@ const PricingPage = () => {
   const navigate = useNavigate();
   const { user, organization } = useAuth();
   const currentPlan = organization?.subscription_plan || "free";
-  const [selectedPlan, setSelectedPlan] = useState<(typeof plans)[number] | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PlanData | null>(null);
+  const [plans, setPlans] = useState<PlanData[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
 
-  const caktoLinks: Record<string, string> = {
-    pro: "https://pay.cakto.com.br/ad3b2o7_776555",
-    enterprise: "https://pay.cakto.com.br/39s38ju_776565",
-  };
+  useEffect(() => {
+    supabase
+      .from("platform_plans")
+      .select("*")
+      .eq("active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setPlans(data.map(mapPlanRow));
+        }
+        setLoadingPlans(false);
+      });
+  }, []);
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -141,7 +123,7 @@ const PricingPage = () => {
 
   const handleConfirmPlan = () => {
     if (!selectedPlan || !user) return;
-    const url = caktoLinks[selectedPlan.key];
+    const url = selectedPlan.checkout_url;
     if (url) {
       window.open(`${url}?email=${encodeURIComponent(user.email || "")}`, "_blank");
     }
@@ -188,7 +170,11 @@ const PricingPage = () => {
       {/* Plan Cards */}
       <section className="px-4 pb-20">
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
-          {plans.map((plan) => (
+          {loadingPlans ? (
+            <div className="col-span-full flex justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : plans.map((plan) => (
             <PlanCard
               key={plan.name}
               {...plan}

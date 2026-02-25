@@ -696,6 +696,7 @@ export type Database = {
         Row: {
           apk_url: string | null
           created_at: string
+          default_trial_days: number
           delivery_config: Json
           exe_url: string | null
           id: string
@@ -704,6 +705,7 @@ export type Database = {
         Insert: {
           apk_url?: string | null
           created_at?: string
+          default_trial_days?: number
           delivery_config?: Json
           exe_url?: string | null
           id?: string
@@ -712,10 +714,59 @@ export type Database = {
         Update: {
           apk_url?: string | null
           created_at?: string
+          default_trial_days?: number
           delivery_config?: Json
           exe_url?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_plans: {
+        Row: {
+          active: boolean
+          badge: string | null
+          checkout_url: string | null
+          created_at: string
+          description: string | null
+          features: Json
+          highlighted: boolean
+          id: string
+          key: string
+          name: string
+          price_cents: number
+          sort_order: number
+          webhook_secret_name: string | null
+        }
+        Insert: {
+          active?: boolean
+          badge?: string | null
+          checkout_url?: string | null
+          created_at?: string
+          description?: string | null
+          features?: Json
+          highlighted?: boolean
+          id?: string
+          key: string
+          name: string
+          price_cents?: number
+          sort_order?: number
+          webhook_secret_name?: string | null
+        }
+        Update: {
+          active?: boolean
+          badge?: string | null
+          checkout_url?: string | null
+          created_at?: string
+          description?: string | null
+          features?: Json
+          highlighted?: boolean
+          id?: string
+          key?: string
+          name?: string
+          price_cents?: number
+          sort_order?: number
+          webhook_secret_name?: string | null
         }
         Relationships: []
       }
@@ -901,6 +952,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calc_trial_ends_at: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
