@@ -1,38 +1,33 @@
 
 
-# Plano: Substituir a logo em todas as páginas
+# Plano: Corrigir erro de build + confirmar logo no dashboard
 
-A nova logo (chapéu de chef) será colocada em dois arquivos que alimentam todas as páginas do sistema.
+## Situação atual
 
-## Arquivos de logo substituídos
+1. **A logo do chapéu de chef já foi substituída** nos arquivos `src/assets/logo-icon.png` e `public/logo-trendfood.png` — isso já cobre a logo do sidebar do dashboard (linha 676 do `DashboardPage.tsx`).
 
-### 1. `src/assets/logo-icon.png`
-- Substituir pela nova logo (chapéu de chef)
-- Esse arquivo é importado em **7 páginas**:
-  - Página inicial (`Index.tsx`)
-  - Login (`AuthPage.tsx`)
-  - Planos (`PricingPage.tsx`)
-  - Dashboard (`DashboardPage.tsx`)
-  - Admin (`AdminPage.tsx`)
-  - Termos (`TermsPage.tsx`)
-  - Privacidade (`PrivacyPage.tsx`)
+2. **O erro de build é residual** — o código do `MenuTab.tsx` já foi corrigido (não tem mais `import "@capacitor/app"`), mas o build anterior ficou em cache. O código atual só tem **comentários** mencionando "Capacitor", nenhum import real.
 
-### 2. `public/logo-trendfood.png`
-- Substituir pela nova logo
-- Usado em:
-  - Página de pedidos do cliente / delivery (`UnitPage.tsx`)
-  - Marca d'água nos relatórios (`ReportsTab.tsx`, `CourierReportSection.tsx`)
+## O que será feito
+
+### 1. Limpar comentários residuais do Capacitor (3 arquivos)
+Remover os comentários que mencionam "Capacitor" para evitar confusão no build system:
+
+- **`src/pages/DashboardPage.tsx`** linha 280: remover `// Native APK polling removed (Capacitor removed)`
+- **`src/components/dashboard/MenuTab.tsx`** linha 146: simplificar comentário `// Listen for page visibility change`  
+- **`src/lib/bluetoothPrinter.ts`** linha 1: simplificar para `// Bluetooth printing — Web Bluetooth only`
+
+### 2. Sobre a logo no OrgSwitcher (onde aparecem as organizações)
+A logo que aparece **dentro do OrgSwitcher** (ao lado do nome da organização, ex: "TrendFood", "Mago MCD") vem do **banco de dados** — campo `logo_url` de cada organização. Se quiser trocar essa logo específica, precisa atualizar o campo `logo_url` da organização no banco, ou fazer upload de uma nova logo pela aba "Minha Loja" no dashboard.
 
 ## O que NÃO muda
-- Nenhum código será alterado — só os dois arquivos de imagem são substituídos
-- Todas as referências no código já apontam para esses arquivos
-- Layout, tamanhos e posicionamento permanecem iguais
+- Nenhuma funcionalidade web é alterada
+- A logo do chapéu de chef já está nos arquivos corretos
 
 ## Seção técnica
 ```text
-Arquivos modificados: 2 (substituição de imagem)
-Código alterado: 0 linhas
-Risco: zero — apenas troca de arquivo de imagem
-Páginas afetadas: ~10 (todas que mostram a logo)
+Arquivos editados: 3 (só comentários)
+Código funcional alterado: 0 linhas
+Objetivo: forçar rebuild limpo sem referências textuais a Capacitor
 ```
 
