@@ -119,7 +119,7 @@ export async function recalculateNullDistances(
     .select("id, customer_address")
     .eq("organization_id", orgId)
     .eq("status", "entregue")
-    .is("distance_km", null)
+    .or("distance_km.is.null,distance_km.eq.0")
     .limit(10);
 
   if (!nullDeliveries || nullDeliveries.length === 0) return 0;
