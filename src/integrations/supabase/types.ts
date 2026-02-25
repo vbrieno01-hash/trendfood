@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      activation_logs: {
+        Row: {
+          admin_email: string | null
+          created_at: string
+          id: string
+          new_plan: string | null
+          new_status: string | null
+          notes: string | null
+          old_plan: string | null
+          old_status: string | null
+          org_name: string | null
+          organization_id: string
+          source: string
+        }
+        Insert: {
+          admin_email?: string | null
+          created_at?: string
+          id?: string
+          new_plan?: string | null
+          new_status?: string | null
+          notes?: string | null
+          old_plan?: string | null
+          old_status?: string | null
+          org_name?: string | null
+          organization_id: string
+          source?: string
+        }
+        Update: {
+          admin_email?: string | null
+          created_at?: string
+          id?: string
+          new_plan?: string | null
+          new_status?: string | null
+          notes?: string | null
+          old_plan?: string | null
+          old_status?: string | null
+          org_name?: string | null
+          organization_id?: string
+          source?: string
+        }
+        Relationships: []
+      }
       cash_sessions: {
         Row: {
           closed_at: string | null
