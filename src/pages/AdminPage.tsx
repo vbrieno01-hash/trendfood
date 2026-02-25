@@ -13,6 +13,8 @@ import PlansConfigSection from "@/components/admin/PlansConfigSection";
 import TrialConfigSection from "@/components/admin/TrialConfigSection";
 import SalesChatTab from "@/components/admin/SalesChatTab";
 import ErrorLogsTab from "@/components/admin/ErrorLogsTab";
+import ActivationLogsTab from "@/components/admin/ActivationLogsTab";
+import ManageSubscriptionDialog from "@/components/admin/ManageSubscriptionDialog";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -39,6 +41,7 @@ import {
   Menu,
   LogOut,
   Settings,
+  ScrollText,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -65,12 +68,6 @@ function downloadCSV(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-const PLAN_OPTIONS = [
-  { value: "free", label: "Grátis" },
-  { value: "pro", label: "Pro" },
-  { value: "enterprise", label: "Enterprise" },
-  { value: "lifetime", label: "Vitalício" },
-];
 
 function getAvatarColor(name: string) {
   let hash = 0;
@@ -158,7 +155,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes";
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -294,17 +291,6 @@ function AdminContent() {
     toast.success("Plano atualizado!");
   }
 
-  async function handleExtendTrial(orgId: string) {
-    const newDate = new Date();
-    newDate.setDate(newDate.getDate() + 7);
-    const { error } = await supabase
-      .from("organizations")
-      .update({ trial_ends_at: newDate.toISOString() })
-      .eq("id", orgId);
-    if (error) { toast.error("Erro ao estender trial"); return; }
-    setOrgs((prev) => prev.map((o) => o.id === orgId ? { ...o, trial_ends_at: newDate.toISOString() } : o));
-    toast.success("Trial estendido por +7 dias!");
-  }
 
   const handleSignOut = async () => {
     await signOut();
@@ -319,6 +305,7 @@ function AdminContent() {
     { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
     { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Vendas" },
     { key: "logs", icon: <AlertCircle className="w-4 h-4" />, label: "Logs" },
+    { key: "ativacoes", icon: <ScrollText className="w-4 h-4" />, label: "Ativações" },
   ];
 
   const navBtnClass = (key: AdminTab) =>
@@ -624,7 +611,7 @@ function AdminContent() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredOrgs.map((org) => (
-                    <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} onExtendTrial={handleExtendTrial} />
+                    <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} />
                   ))}
                 </div>
               )}
@@ -661,6 +648,9 @@ function AdminContent() {
 
           {/* ── Logs Tab ── */}
           {activeTab === "logs" && <ErrorLogsTab />}
+
+          {/* ── Ativações Tab ── */}
+          {activeTab === "ativacoes" && <ActivationLogsTab />}
 
         </main>
       </div>
@@ -722,10 +712,11 @@ function SetupScore({ org }: { org: OrgRow }) {
 }
 
 /* ── Store Card ── */
-function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onExtendTrial: (id: string) => void }) {
+function StoreCard({ org, onPlanChange }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void }) {
+  const [localOrg, setLocalOrg] = useState(org);
   const avatarColor = getAvatarColor(org.name);
   const initial = org.name.charAt(0).toUpperCase();
-  const isActive = org.subscription_status === "active";
+  const isActive = localOrg.subscription_status === "active";
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
@@ -777,12 +768,12 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
               </Badge>
             )}
             <Badge className={`text-xs px-2 py-0.5 rounded-full border-0 font-medium ${
-              org.subscription_plan === "lifetime" ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" :
-              org.subscription_plan === "enterprise" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
-              org.subscription_plan === "pro" ? "bg-primary/15 text-primary" :
+              localOrg.subscription_plan === "lifetime" ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" :
+              localOrg.subscription_plan === "enterprise" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
+              localOrg.subscription_plan === "pro" ? "bg-primary/15 text-primary" :
               "bg-muted text-muted-foreground"
             }`}>
-              {org.subscription_plan === "lifetime" ? "Vitalício" : org.subscription_plan === "enterprise" ? "Enterprise" : org.subscription_plan === "pro" ? "Pro" : "Free"}
+              {localOrg.subscription_plan === "lifetime" ? "Vitalício" : localOrg.subscription_plan === "enterprise" ? "Enterprise" : localOrg.subscription_plan === "pro" ? "Pro" : "Free"}
             </Badge>
           </div>
         </div>
@@ -794,30 +785,21 @@ function StoreCard({ org, onPlanChange, onExtendTrial }: { org: OrgRow; onPlanCh
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
             <Crown className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Plano:</span>
+            <span className="text-xs text-muted-foreground">Plano: <span className="font-medium text-foreground capitalize">{localOrg.subscription_plan}</span></span>
           </div>
-          <select
-            value={org.subscription_plan}
-            onChange={(e) => onPlanChange(org.id, e.target.value)}
-            className="text-xs border border-border rounded-md px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {PLAN_OPTIONS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
+          <ManageSubscriptionDialog
+            org={localOrg}
+            onSaved={(updated) => {
+              setLocalOrg((prev) => ({ ...prev, ...updated }));
+              onPlanChange(org.id, updated.subscription_plan);
+            }}
+          />
         </div>
-        {org.trial_ends_at && (
+        {localOrg.trial_ends_at && (
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">
-              Trial até {new Date(org.trial_ends_at).toLocaleDateString("pt-BR")}
+              Trial até {new Date(localOrg.trial_ends_at).toLocaleDateString("pt-BR")}
             </span>
-            <button
-              onClick={() => onExtendTrial(org.id)}
-              className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
-            >
-              <CalendarPlus className="w-3 h-3" />
-              +7 dias
-            </button>
           </div>
         )}
       </div>
