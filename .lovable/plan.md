@@ -1,30 +1,32 @@
 
 
-# Plano: Afastar o botão do menu hambúrguer da borda superior
+# Plano: Aumentar espaço do header para respeitar a área de notificações
 
 ## Problema
-Em dispositivos com tela "infinita" (edge-to-edge), o botão de menu hambúrguer (☰) fica muito próximo da borda superior da tela. Ao tocar nele, o sistema interpreta como gesto de puxar as notificações do próprio dispositivo, em vez de abrir o menu lateral do app.
+O `pt-[env(safe-area-inset-top,12px)]` está substituindo o `py-4` (16px) por apenas 12px em dispositivos sem safe-area, e em dispositivos com tela infinita o valor do `env()` pode ainda ser insuficiente. O header precisa somar o padding próprio **mais** o safe-area inset, não substituir um pelo outro.
 
 ## O que será feito
 
 ### Atualizar `src/pages/DashboardPage.tsx`
 
-**Linha 781** — Header mobile:
-- Aumentar o padding vertical do header de `py-3` para `py-4 pt-[env(safe-area-inset-top,12px)]`
-- Isso usa a variável CSS `safe-area-inset-top` que os navegadores mobile expõem para evitar a área de notificações do sistema
-- Em dispositivos sem safe-area, aplica um mínimo de 12px de margem superior
+**Linha 781** — Trocar o padding top atual por um que **soma** o safe-area ao padding base:
 
-### Atualizar `index.html`
+De:
+```
+py-4 pt-[env(safe-area-inset-top,12px)]
+```
 
-- Adicionar a meta tag `viewport-fit=cover` ao viewport existente, para que o browser informe corretamente os safe-area insets:
-  ```html
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  ```
+Para:
+```
+pb-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]
+```
+
+Isso garante que o padding-top é sempre **16px + o inset do sistema**. Em dispositivos normais, fica 16px (igual ao `py-4` original). Em telas infinitas, adiciona o espaço da barra de status por cima.
 
 ## Seção técnica
 ```text
-Arquivos: 2
-- src/pages/DashboardPage.tsx (linha 781): py-3 → py-4 pt-[env(safe-area-inset-top,12px)]
-- index.html: adicionar viewport-fit=cover na meta viewport
+Arquivo: src/pages/DashboardPage.tsx
+Linha: 781
+Mudança: py-4 pt-[env(safe-area-inset-top,12px)] → pb-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]
 ```
 
