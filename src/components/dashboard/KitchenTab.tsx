@@ -4,8 +4,6 @@ import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Flame, Printer } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
@@ -17,7 +15,7 @@ const isNew = (createdAt: string) =>
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-const NOTIF_KEY = "kds_notifications";
+
 
 interface KitchenTabProps {
   orgId: string;
@@ -58,7 +56,7 @@ export default function KitchenTab({
 }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
-  const qc = useQueryClient();
+  
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
 
@@ -112,21 +110,7 @@ export default function KitchenTab({
     );
   };
 
-  // Realtime: listen for all order changes (INSERT + UPDATE + DELETE)
-  useEffect(() => {
-    if (!orgId) return;
-    const channel = supabase
-      .channel(`kitchen-tab-${orgId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc]);
+  // Realtime is handled inside useOrders — no duplicate channel needed here
 
   // Re-render every 5s to refresh "NOVO!" badge countdown
   useEffect(() => {

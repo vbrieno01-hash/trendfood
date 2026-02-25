@@ -117,9 +117,11 @@ export const useOrders = (
       return data as Order[];
     },
     enabled: !!organizationId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
-  // Realtime subscription
+  // Realtime subscription — orders only (order_items come along via select)
   useEffect(() => {
     if (!organizationId) return;
     const channel = supabase
@@ -127,13 +129,6 @@ export const useOrders = (
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["orders", organizationId] });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "order_items" },
         () => {
           qc.invalidateQueries({ queryKey: ["orders", organizationId] });
         }
@@ -226,8 +221,8 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
       const { error } = await supabase.from("orders").update({ status }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+    onSuccess: async () => {
+      await qc.refetchQueries({ queryKey: ["orders", organizationId] });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -255,6 +250,8 @@ export const useDeliveredUnpaidOrders = (organizationId: string | undefined) => 
       return data as Order[];
     },
     enabled: !!organizationId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
@@ -281,9 +278,9 @@ export const useMarkAsPaid = (organizationId: string) => {
       const { error } = await supabase.from("orders").update({ paid: true } as never).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] });
-      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+    onSuccess: async () => {
+      await qc.refetchQueries({ queryKey: ["orders-unpaid", organizationId] });
+      await qc.refetchQueries({ queryKey: ["orders", organizationId] });
       toast({ title: "✅ Pagamento confirmado!" });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -315,6 +312,8 @@ export const useAwaitingPaymentOrders = (organizationId: string | undefined) => 
       return data as Order[];
     },
     enabled: !!organizationId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
@@ -341,9 +340,9 @@ export const useConfirmPixPayment = (organizationId: string) => {
       const { error } = await supabase.from("orders").update({ status: "pending" } as never).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["orders-awaiting-payment", organizationId] });
-      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+    onSuccess: async () => {
+      await qc.refetchQueries({ queryKey: ["orders-awaiting-payment", organizationId] });
+      await qc.refetchQueries({ queryKey: ["orders", organizationId] });
       toast({ title: "✅ Pagamento PIX confirmado! Pedido enviado para a cozinha." });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
