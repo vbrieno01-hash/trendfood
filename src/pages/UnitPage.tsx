@@ -134,11 +134,26 @@ const UnitPage = () => {
     return () => { document.documentElement.style.removeProperty("--org-primary"); };
   }, [org?.primary_color]);
 
+  // Helper: build category groups dynamically (fixed + custom)
+  const buildGroups = (sourceItems: typeof menuItems) => {
+    const knownSet = new Set(CATEGORIES.map((c) => c.value));
+    const knownGroups = CATEGORIES.map((cat) => ({
+      ...cat,
+      items: sourceItems.filter((i) => i.category === cat.value),
+    }));
+    const customValues = [...new Set(sourceItems.map((i) => i.category))]
+      .filter((c) => !knownSet.has(c))
+      .sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const customGroups = customValues.map((value) => ({
+      value,
+      emoji: "🍽️",
+      items: sourceItems.filter((i) => i.category === value),
+    }));
+    return [...knownGroups, ...customGroups].filter((g) => g.items.length > 0);
+  };
+
   // IntersectionObserver: detect which category section is visible
-  const groupedMenuForObserver = CATEGORIES.map((cat) => ({
-    ...cat,
-    items: menuItems.filter((i) => i.category === cat.value),
-  })).filter((g) => g.items.length > 0);
+  const groupedMenuForObserver = buildGroups(menuItems);
 
   useEffect(() => {
     if (groupedMenuForObserver.length === 0) return;
@@ -531,11 +546,8 @@ const UnitPage = () => {
       })
     : menuItems;
 
-  // Group menu items by category
-  const groupedMenu = CATEGORIES.map((cat) => ({
-    ...cat,
-    items: filteredMenuItems.filter((i) => i.category === cat.value),
-  })).filter((g) => g.items.length > 0);
+  // Group menu items by category (fixed + custom)
+  const groupedMenu = buildGroups(filteredMenuItems);
 
   
 
