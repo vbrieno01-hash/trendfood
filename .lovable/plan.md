@@ -1,66 +1,61 @@
 
 
-# Plano: Tornar pedidos e baixas instantâneos (Realtime otimizado)
+# Plano: Corrigir km dos motoboys não sendo calculado
 
 ## Diagnóstico
 
-Identifiquei **3 causas raiz** para a lentidão:
+Confirmado com dados reais do banco: **TODAS as entregas têm `distance_km: NULL`**. A última entrega finalizada pela "juju" (id `385aef49...`) mostra `distance_km: nil, fee: 3` — ou seja, o cálculo de distância em background (`calculateAndUpdateDelivery`) está falhando silenciosamente em 100% dos casos.
 
-1. **`staleTime: 30_000` global** (App.tsx linha 31) — O React Query considera os dados "frescos" por 30 segundos. Quando o Realtime dispara `invalidateQueries`, a query é marcada como stale mas pode haver atraso no refetch se o componente não estiver montado/ativo.
+A causa raiz está em **dois problemas**:
 
-2. **Canais Realtime duplicados** — O hook `useOrders` já cria uma subscription Realtime interna. Mas `KitchenTab`, `KitchenPage` e `DashboardPage` criam **canais adicionais** para a mesma tabela. Isso cria concorrência de invalidações e desperdício de conexões WebSocket.
+1. **Endereço da loja começa com CEP** (`11510-170, Rua Jaime João Olcese, Casa, Casa, Vila couto, Cubatão, SP, Brasil`). O Nominatim não consegue geocodificar quando o endereço começa com CEP brasileiro — ele não encontra resultado e retorna `null`. A função `geocode()` falha silenciosamente e o `distance_km` nunca é atualizado.
 
-3. **Subscription de `order_items` sem filtro** — No `useOrders` (linha 134-139), o hook escuta `order_items` **de toda a plataforma** sem filtrar por organização. Cada mudança em qualquer pedido de qualquer lojista dispara um refetch para todos.
+2. **Falha silenciosa total** — o `catch` vazio na `calculateAndUpdateDelivery` engole qualquer erro, então ninguém nunca é notificado de que o cálculo falhou. O motoboy vê "0.0 km" para sempre.
 
 ## O que será feito
 
-### 1. Reduzir `staleTime` para dados operacionais
-- `App.tsx`: baixar `staleTime` global para `5_000` (5s) para garantir refetch rápido
-- Hooks de pedidos (`useOrders`, `useDeliveredUnpaidOrders`, `useAwaitingPaymentOrders`): definir `staleTime: 0` explicitamente para que qualquer invalidação dispare refetch imediato
+### 1. Tornar a geocodificação mais resiliente
+No `useCreateDelivery.ts`, melhorar a função `geocode`:
+- Remover CEP do início do endereço antes de geocodificar (regex para tirar padrão `XXXXX-XXX,`)
+- Remover duplicatas como "Casa, Casa" que poluem a query
+- Se falhar, tentar apenas com "Rua, Bairro, Cidade, Estado"
+- Se falhar novamente, tentar apenas "Cidade, Estado, Brasil"
 
-### 2. Eliminar canais Realtime duplicados
-- **`KitchenTab.tsx`**: remover o `useEffect` com canal Realtime (linhas 115-129) — o `useOrders` já faz isso internamente
-- **`KitchenPage.tsx`**: simplificar o canal Realtime para focar apenas na lógica de bell/notificações/auto-print (INSERT), removendo o listener de UPDATE que já é coberto pelo `useOrders`
-- **`DashboardPage.tsx`**: manter apenas a lógica de bell/notificações no canal INSERT, sem duplicar invalidação
+### 2. Aplicar a mesma correção no `useDeliveryDistance.ts`
+O hook de cálculo de distância no checkout usa a mesma lógica e também será afetado. Garantir consistência.
 
-### 3. Otimizar subscription de `order_items`
-- No `useOrders`, remover a subscription global de `order_items` (que escuta todos os order_items de toda a plataforma)
-- Em vez disso, quando um evento de `orders` chega, o refetch de `orders` com `select("*, order_items(*)")` já traz os items atualizados
+### 3. Adicionar log de erro ao invés de falha silenciosa
+Trocar o `catch {}` vazio por `console.error` para que falhas de geocodificação sejam visíveis nos logs.
 
-### 4. Refetch imediato após mutações (baixas)
-- No `useUpdateOrderStatus`, adicionar `await qc.refetchQueries(...)` no `onSuccess` em vez de apenas `invalidateQueries` — isso força o refetch instantâneo ao dar baixa
-- No `useMarkAsPaid` e `useConfirmPixPayment`, mesma estratégia
-
-### 5. Adicionar `refetchOnWindowFocus: true` para pedidos
-- Garante que ao retornar à aba do navegador, os pedidos são atualizados imediatamente
+### 4. Recalcular entregas existentes com km nulo
+Criar uma função que, ao carregar o dashboard de motoboys, detecte entregas com `distance_km: null` e `status: entregue` e tente recalcular em background — assim as entregas antigas também ganham os km corretos.
 
 ## Seção técnica
 
 ```text
-Arquivo 1: src/App.tsx (linha 31)
-  staleTime: 30_000  →  staleTime: 5_000
+Problema:
+  store_address = "11510-170, Rua Jaime João Olcese, Casa, Casa, Vila couto, Cubatão, SP, Brasil"
+  Nominatim não encontra endereço com CEP no início → geocode retorna null
+  calculateAndUpdateDelivery falha silenciosamente → distance_km = NULL para sempre
 
-Arquivo 2: src/hooks/useOrders.ts
-  - useOrders: adicionar staleTime: 0, refetchOnWindowFocus: true
-  - Remover subscription de order_items (linhas 134-139)
-  - useUpdateOrderStatus.onSuccess: trocar invalidateQueries por refetchQueries
-  - useMarkAsPaid.onSuccess: trocar invalidateQueries por refetchQueries
-  - useConfirmPixPayment.onSuccess: trocar invalidateQueries por refetchQueries
-  - useDeliveredUnpaidOrders: adicionar staleTime: 0
-  - useAwaitingPaymentOrders: adicionar staleTime: 0
+Correção:
 
-Arquivo 3: src/components/dashboard/KitchenTab.tsx
-  - Remover useEffect do canal Realtime (linhas 115-129) — já existe dentro de useOrders
-  - Remover import de supabase e useQueryClient (se não usados em outro lugar)
+Arquivo 1: src/hooks/useCreateDelivery.ts
+  - Nova função cleanAddressForGeocode(addr):
+    - Remove CEP (regex /^\d{5}-?\d{3},?\s*/)
+    - Remove "Casa" duplicado e tokens desnecessários
+    - Gera variantes de fallback: [endereço completo limpo, "Rua, Bairro, Cidade, Estado", "Cidade, Estado, Brasil"]
+  - Alterar geocode() para tentar cada variante sequencialmente
+  - Trocar catch vazio por console.error
 
-Arquivo 4: src/pages/KitchenPage.tsx
-  - Canal Realtime: manter apenas INSERT para bell/notificação/auto-print
-  - Remover listener de UPDATE (linhas 234-240) — coberto por useOrders
+Arquivo 2: src/hooks/useDeliveryDistance.ts
+  - Aplicar mesma lógica de cleanAddressForGeocode na função geocode()
 
-Arquivo 5: src/pages/DashboardPage.tsx
-  - Canal Realtime: manter apenas INSERT para bell/notificação/auto-print
-  - Remover invalidateQueries duplicado do canal (já feito pelo useOrders)
+Arquivo 3: src/components/dashboard/CourierDashboardTab.tsx (ou hook equivalente)
+  - Ao carregar entregas entregues com distance_km === null:
+    - Em background, tentar recalcular e atualizar no banco
+    - Isso corrige entregas históricas sem km
 ```
 
-Resultado esperado: pedidos aparecem instantaneamente e baixas refletem em < 1 segundo em todas as telas simultaneamente.
+Resultado: motoboys passam a ter km calculado automaticamente em novas entregas, e entregas antigas com km nulo são recalculadas.
 
