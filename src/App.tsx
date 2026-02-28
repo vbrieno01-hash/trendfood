@@ -21,6 +21,7 @@ import CourierPage from "./pages/CourierPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import NotFound from "./pages/NotFound";
+import CheckoutTestPage from "./pages/CheckoutTestPage";
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 
@@ -119,6 +120,7 @@ const AppInner = () => {
               <Route path="/planos" element={<PricingPage />} />
               <Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
               <Route path="/motoboy" element={<CourierPage />} />
+              <Route path="/checkout-test" element={<CheckoutTestPage />} />
               <Route path="/termos" element={<TermsPage />} />
               <Route path="/privacidade" element={<PrivacyPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
