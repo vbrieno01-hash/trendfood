@@ -83,7 +83,7 @@ function clearDraft(orgId: string) {
   console.log("[MenuTab] Draft cleared (localStorage)");
 }
 
-/* ─── Ingredients sub-component ─── */
+/* ─── Ingredients sub-component (edit mode — persists to DB) ─── */
 function IngredientsSection({
   menuItemId,
   stockItems,
@@ -189,6 +189,115 @@ function IngredientsSection({
   );
 }
 
+/* ─── Pending Ingredients (create mode — local state only) ─── */
+interface PendingIngredient {
+  stock_item_id: string;
+  quantity_used: number;
+}
+
+function PendingIngredientsSection({
+  stockItems,
+  pending,
+  onChange,
+}: {
+  stockItems: StockItem[];
+  pending: PendingIngredient[];
+  onChange: (next: PendingIngredient[]) => void;
+}) {
+  const [selectedStockId, setSelectedStockId] = useState("");
+  const [qtyUsed, setQtyUsed] = useState(1);
+
+  const linkedIds = new Set(pending.map((p) => p.stock_item_id));
+  const available = stockItems.filter((s) => !linkedIds.has(s.id));
+
+  const handleAdd = () => {
+    if (!selectedStockId || qtyUsed <= 0) return;
+    onChange([...pending, { stock_item_id: selectedStockId, quantity_used: qtyUsed }]);
+    setSelectedStockId("");
+    setQtyUsed(1);
+  };
+
+  const handleRemove = (idx: number) => {
+    onChange(pending.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <Package className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">Composição do Produto</p>
+      </div>
+
+      {pending.length > 0 && (
+        <div className="space-y-1">
+          {pending.map((p, idx) => {
+            const si = stockItems.find((s) => s.id === p.stock_item_id);
+            return (
+              <div key={idx} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-2.5 py-1.5">
+                <span className="text-foreground">
+                  {si?.name ?? "?"} — <span className="text-muted-foreground">{p.quantity_used} {si?.unit ?? "un"}/venda</span>
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="w-6 h-6 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleRemove(idx)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {stockItems.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhum insumo cadastrado. Crie na aba Estoque primeiro.</p>
+      ) : available.length === 0 && pending.length > 0 ? (
+        <p className="text-xs text-muted-foreground">Todos os insumos já estão vinculados.</p>
+      ) : (
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Label className="text-xs">Insumo</Label>
+            <select
+              value={selectedStockId}
+              onChange={(e) => setSelectedStockId(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Selecione…</option>
+              {available.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} ({s.unit})</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-20">
+            <Label className="text-xs">Qtd/venda</Label>
+            <Input
+              type="number"
+              min={0.01}
+              step="any"
+              value={qtyUsed}
+              onChange={(e) => setQtyUsed(Number(e.target.value))}
+              className="h-9"
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="h-9 gap-1"
+            onClick={handleAdd}
+            disabled={!selectedStockId || qtyUsed <= 0}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Vincular
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
   
@@ -217,6 +326,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const [deleteTarget, setDeleteTarget] = useState<MenuItem | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(() => initialDraft.current?.imagePreview ?? null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingIngredients, setPendingIngredients] = useState<PendingIngredient[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   // Track object URLs for cleanup
   const objectUrlRef = useRef<string | null>(null);
@@ -307,12 +417,14 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setEditItemId(null);
     setForm(EMPTY_FORM);
     setImagePreview(null);
+    setPendingIngredients([]);
     setModalOpen(true);
   };
 
   const openEdit = (item: MenuItem) => {
     setEditItem(item);
     setEditItemId(item.id);
+    setPendingIngredients([]);
     setForm({
       name: item.name,
       description: item.description ?? "",
@@ -332,6 +444,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setEditItemId(null);
     setForm(EMPTY_FORM);
     setImagePreview(null);
+    setPendingIngredients([]);
     clearDraft(organization.id);
     // Cleanup object URL
     if (objectUrlRef.current) {
@@ -380,7 +493,17 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
       if (editItem) {
         await updateMutation.mutateAsync({ id: editItem.id, input: payload });
       } else {
-        await addMutation.mutateAsync(payload);
+        const created = await addMutation.mutateAsync(payload);
+        // Save pending ingredients after creation
+        if (pendingIngredients.length > 0 && created?.id) {
+          for (const pi of pendingIngredients) {
+            addIngredient.mutate({
+              menu_item_id: created.id,
+              stock_item_id: pi.stock_item_id,
+              quantity_used: pi.quantity_used,
+            });
+          }
+        }
       }
       closeModal();
     } catch (err) {
@@ -684,13 +807,19 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                 />
               </div>
 
-              {/* Ingredients section — only for existing items */}
-              {(editItem || editItemId) && (
+              {/* Ingredients section */}
+              {(editItem || editItemId) ? (
                 <IngredientsSection
                   menuItemId={(editItem?.id || editItemId)!}
                   stockItems={stockItems}
                   addIngredient={addIngredient}
                   removeIngredient={removeIngredient}
+                />
+              ) : (
+                <PendingIngredientsSection
+                  stockItems={stockItems}
+                  pending={pendingIngredients}
+                  onChange={setPendingIngredients}
                 />
               )}
 
