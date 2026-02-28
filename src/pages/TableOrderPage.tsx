@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useMenuItems } from "@/hooks/useMenuItems";
+import { useMenuItemStock } from "@/hooks/useMenuItemStock";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
 import type { Coupon } from "@/hooks/useCoupons";
@@ -41,6 +42,7 @@ export default function TableOrderPage() {
 
   const { data: org, isLoading: orgLoading } = useOrganization(slug);
   const { data: items = [], isLoading: itemsLoading } = useMenuItems(org?.id);
+  const { data: stockMap = new Map<string, number>() } = useMenuItemStock(org?.id);
   const placeOrder = usePlaceOrder();
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
@@ -92,7 +94,20 @@ export default function TableOrderPage() {
 
   const tableNum = parseInt(tableNumber || "0", 10);
 
-  const available = items.filter((i) => i.available);
+  // Helper: get max available for a menu item considering stock
+  const getMaxAvailable = (menuItemId: string): number => {
+    // If no ingredients linked, stockMap won't have the key → Infinity (no limit)
+    return stockMap.has(menuItemId) ? stockMap.get(menuItemId)! : Infinity;
+  };
+
+
+  const available = items.filter((i) => {
+    if (!i.available) return false;
+    // Hide items whose stock is zero
+    const max = getMaxAvailable(i.id);
+    return max > 0;
+  });
+
   const byCategory = CATEGORY_ORDER.reduce<Record<string, typeof available>>(
     (acc, cat) => {
       const filtered = available.filter((i) => i.category === cat);
@@ -134,6 +149,27 @@ export default function TableOrderPage() {
         const { [key]: _, ...rest } = prev;
         return rest;
       }
+
+      // Enforce stock cap: total across all people for this item
+      const maxAvail = getMaxAvailable(item.id);
+      if (maxAvail !== Infinity) {
+        const othersQty = Object.values(prev)
+          .filter((ci) => ci.menu_item_id === item.id && cartKey(ci.menu_item_id, ci.customer_name) !== key)
+          .reduce((s, ci) => s + ci.quantity, 0);
+        const cappedQty = Math.min(newQty, maxAvail - othersQty);
+        if (cappedQty <= 0) return prev; // can't add more
+        return {
+          ...prev,
+          [key]: {
+            menu_item_id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: cappedQty,
+            customer_name: cName,
+          },
+        };
+      }
+
       return {
         ...prev,
         [key]: {
@@ -664,6 +700,13 @@ export default function TableOrderPage() {
               <div className="space-y-3">
                 {catItems.map((item) => {
                   const qty = getQty(item.id);
+                  const maxAvail = getMaxAvailable(item.id);
+                  const totalInCart = Object.values(cart)
+                    .filter((ci) => ci.menu_item_id === item.id)
+                    .reduce((s, ci) => s + ci.quantity, 0);
+                  const atLimit = maxAvail !== Infinity && totalInCart >= maxAvail;
+                  const hasStock = stockMap.has(item.id); // has ingredients linked
+
                   return (
                     <div key={item.id} className="flex gap-3 bg-card rounded-xl border border-border p-3">
                       {item.image_url ? (
@@ -678,7 +721,14 @@ export default function TableOrderPage() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-foreground">{item.name}</p>
+                        <p className="font-semibold text-sm text-foreground">
+                          {item.name}
+                          {hasStock && maxAvail !== Infinity && (
+                            <span className="text-xs font-normal text-muted-foreground ml-1">
+                              ({maxAvail} unid.)
+                            </span>
+                          )}
+                        </p>
                         {item.description && (
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                             {item.description}
@@ -704,7 +754,8 @@ export default function TableOrderPage() {
                         )}
                         <button
                           onClick={() => adjust(item, 1)}
-                          className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
+                          disabled={atLimit}
+                          className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
