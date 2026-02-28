@@ -16,8 +16,12 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { Loader2, AlertTriangle, CheckCircle, Calendar, Store } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, AlertTriangle, CheckCircle, Calendar, Store, CreditCard, ChevronDown, ChevronUp } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const PLANS = [
   {
@@ -87,7 +91,31 @@ const SubscriptionTab = () => {
   const currentPlan = organization?.subscription_plan || "free";
   const mpReturn = searchParams.get("mp_return");
 
-  // Show success message when returning from MP
+  // Subscription details state
+  const [subDetails, setSubDetails] = useState<{
+    next_payment_date: string | null;
+    status: string | null;
+    payments: { date: string; amount: number; status: string }[];
+  } | null>(null);
+  const [subDetailsLoading, setSubDetailsLoading] = useState(false);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
+
+  // Fetch subscription details from MP
+  useEffect(() => {
+    const isPaid = currentPlan === "pro" || currentPlan === "enterprise";
+    if (!isPaid || !organization?.id) return;
+    setSubDetailsLoading(true);
+    supabase.functions
+      .invoke("get-subscription-details", { body: { org_id: organization.id } })
+      .then(({ data, error }) => {
+        if (!error && data && !data.error) {
+          setSubDetails(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSubDetailsLoading(false));
+  }, [organization?.id, currentPlan]);
+
   useEffect(() => {
     if (mpReturn === "true") {
       toast.success("Voltou do Mercado Pago! Seu plano será ativado automaticamente em instantes.", {
@@ -204,6 +232,71 @@ const SubscriptionTab = () => {
                   <CheckCircle className="w-4 h-4 flex-shrink-0" />
                   <span>Cobrança recorrente ativa — o Mercado Pago cobra automaticamente todo mês.</span>
                 </div>
+              )}
+
+              {/* Next billing date */}
+              {subDetailsLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Carregando detalhes da assinatura...
+                </div>
+              )}
+
+              {subDetails?.next_payment_date && !subDetailsLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  <CreditCard className="w-4 h-4 flex-shrink-0 text-primary" />
+                  <span>
+                    Próxima cobrança:{" "}
+                    <span className="font-medium text-foreground">
+                      {format(new Date(subDetails.next_payment_date), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </span>
+                  </span>
+                </div>
+              )}
+
+              {/* Payment history */}
+              {subDetails && subDetails.payments.length > 0 && !subDetailsLoading && (
+                <Collapsible open={paymentsOpen} onOpenChange={setPaymentsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between text-muted-foreground">
+                      Histórico de pagamentos ({subDetails.payments.length})
+                      {paymentsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Data</TableHead>
+                            <TableHead className="text-xs">Valor</TableHead>
+                            <TableHead className="text-xs text-right">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {subDetails.payments.map((p, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="text-xs">
+                                {p.date ? format(new Date(p.date), "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {p.amount ? `R$ ${(p.amount).toFixed(2).replace(".", ",")}` : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge
+                                  variant={p.status === "approved" ? "default" : "destructive"}
+                                  className="text-[10px] px-1.5 py-0.5"
+                                >
+                                  {p.status === "approved" ? "Pago" : p.status === "pending" ? "Pendente" : p.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
 
               <Button
