@@ -1,29 +1,23 @@
 
 
-## Diagnóstico e Correção: Pagamentos com Preços Hardcoded nas Edge Functions
+## Problema: Funções faltando no `config.toml`
 
-### Problemas Identificados
+O `get-mp-public-key` retorna **401 Unauthorized** porque não está listado no `config.toml` com `verify_jwt = false`. Sem a public key, o SDK do Mercado Pago não inicializa, o formulário de cartão não gera token, e nenhum pagamento funciona.
 
-Analisando os logs:
+Outras funções também estão faltando no config.toml e podem falhar pelo mesmo motivo.
 
-1. **Cartão (`cc_rejected_high_risk`)**: O Mercado Pago recusou o cartão por risco — isso é avaliação do gateway, não bug de código. Porém, o valor está errado: a edge function envia R$ 5 para o plano "Enterprise" porque os preços são hardcoded.
+### Alteração
 
-2. **PIX**: A edge function `create-mp-payment` tem o mapa de preços `{ pro: 99.0, enterprise: 249.0 }` — **não inclui o plano "free"**, retornando "Invalid plan" quando o usuário tenta pagar.
+**`supabase/config.toml`** — Adicionar TODAS as funções faltantes:
+- `get-mp-public-key`
+- `check-subscription-pix`
+- `check-pix-status`
+- `generate-pix-payload`
+- `verify-pix-payment`
+- `create-admin-user`
 
-3. **Raiz do problema**: Ambas as edge functions (`create-mp-subscription` e `create-mp-payment`) usam preços fixos no código, ignorando a tabela `platform_plans` do banco. Quando você altera preços no Admin, as funções de pagamento continuam cobrando valores antigos/errados.
-
-### Alterações
-
-#### 1. `create-mp-subscription/index.ts`
-- Remover o mapa hardcoded `{ free: 5.0, pro: 99.0, enterprise: 249.0 }`
-- Buscar o preço da tabela `platform_plans` usando o `plan` key recebido
-- Corrigir o texto da razão que só diferencia "pro" vs "Enterprise" (ignorando outros planos)
-
-#### 2. `create-mp-payment/index.ts`
-- Remover o mapa hardcoded `{ pro: 99.0, enterprise: 249.0 }`
-- Buscar o preço da tabela `platform_plans` usando o `plan` key recebido
-- Incluir validação para planos com `price_cents = 0` (não permitir pagamento de plano gratuito)
+Cada uma com `verify_jwt = false` (a autenticação já é validada no código de cada função).
 
 ### Resultado
-Qualquer alteração de preço feita via Admin será automaticamente refletida nos pagamentos por cartão e PIX, eliminando a dessincronia.
+O `get-mp-public-key` retornará a chave pública corretamente, o SDK do MP inicializará, e os pagamentos por cartão e PIX voltarão a funcionar.
 
