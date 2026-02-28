@@ -6,14 +6,6 @@ import {
   Home, UtensilsCrossed, TableProperties, History, Tag,
   BarChart2, Flame, BellRing, Wallet, Store, Settings, Plus, Truck,
 } from "lucide-react";
-import GuideScreenshot from "./guide/GuideScreenshot";
-import {
-  MockupMenuList, MockupMenuEdit,
-  MockupAddonsModal, MockupAddonsClient,
-  MockupTables, MockupHistory, MockupCoupons, MockupBestSellers,
-  MockupKitchen, MockupWaiter, MockupCashier,
-  MockupDelivery, MockupStoreProfile, MockupSettings,
-} from "./guide/GuideMockups";
 
 interface GuideSection {
   id: string;
@@ -23,7 +15,6 @@ interface GuideSection {
   description: string;
   steps: string[];
   tips?: string[];
-  mockups: React.ReactNode[];
 }
 
 const GUIDE_SECTIONS: GuideSection[] = [
@@ -38,7 +29,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Use os atalhos rápidos para ir direto à Cozinha, Garçom ou Cardápio.",
     ],
     tips: ["Confira a Home no início de cada turno para ter uma visão geral rápida."],
-    mockups: [<GuideScreenshot src="/guide/guide-home.png" alt="Tela Home do dashboard" />],
   },
   {
     id: "menu",
@@ -55,7 +45,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Use categorias para organizar os itens (ex: Lanches, Bebidas, Sobremesas).",
       "Fotos atraentes aumentam as vendas — use imagens de boa qualidade.",
     ],
-    mockups: [<MockupMenuList key="list" />, <MockupMenuEdit key="edit" />],
   },
   {
     id: "addons",
@@ -73,7 +62,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Adicionais populares: bacon, queijo extra, molho especial, borda recheada.",
       "Defina preços atrativos — adicionais aumentam o ticket médio.",
     ],
-    mockups: [<MockupAddonsModal key="modal" />, <MockupAddonsClient key="client" />],
   },
   {
     id: "tables",
@@ -90,7 +78,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Teste o QR Code com seu celular antes de disponibilizar para clientes.",
       "Você pode renomear mesas (ex: Varanda 1, Balcão 2).",
     ],
-    mockups: [<MockupTables key="tables" />],
   },
   {
     id: "history",
@@ -103,7 +90,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Clique em um pedido para ver seus detalhes completos.",
     ],
     tips: ["No plano gratuito, o histórico é limitado aos últimos 7 dias. Com o Pro, acesse todo o histórico."],
-    mockups: [<MockupHistory key="history" />],
   },
   {
     id: "coupons",
@@ -121,7 +107,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Cupons com prazo curto geram senso de urgência.",
       "Acompanhe o número de usos para avaliar a eficácia da promoção.",
     ],
-    mockups: [<MockupCoupons key="coupons" />],
   },
   {
     id: "bestsellers",
@@ -134,7 +119,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Veja o ranking dos itens mais pedidos com quantidade e receita.",
       "Use essas informações para ajustar seu cardápio e promoções.",
     ],
-    mockups: [<MockupBestSellers key="best" />],
   },
   {
     id: "kitchen",
@@ -152,7 +136,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Use um tablet exclusivo na cozinha para o KDS.",
       "O KDS funciona em tela cheia para melhor visualização.",
     ],
-    mockups: [<MockupKitchen key="kitchen" />],
   },
   {
     id: "waiter",
@@ -166,7 +149,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Marque pedidos como entregues conforme forem servidos.",
     ],
     tips: ["O garçom pode acessar pelo celular — ideal para o dia a dia."],
-    mockups: [<MockupWaiter key="waiter" />],
   },
   {
     id: "caixa",
@@ -181,7 +163,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       'No fim do turno, clique em "Fechar caixa" para gerar o resumo.',
     ],
     tips: ["Confira o saldo do caixa antes e depois de cada turno para evitar divergências."],
-    mockups: [<MockupCashier key="cashier" />],
   },
   {
     id: "delivery",
@@ -198,7 +179,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Configure pelo menos 3 faixas de distância para cobrir sua área de entrega.",
       "Teste com um CEP real para verificar se os valores estão corretos.",
     ],
-    mockups: [<MockupDelivery key="delivery" />],
   },
   {
     id: "profile",
@@ -211,7 +191,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Configure o endereço e horários de funcionamento.",
       "Adicione seu número de WhatsApp para receber notificações.",
     ],
-    mockups: [<MockupStoreProfile key="profile" />],
   },
   {
     id: "settings",
@@ -225,7 +204,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Personalize a cor primária da sua loja.",
       "Ajuste preferências de notificações e modo de confirmação de pagamento.",
     ],
-    mockups: [<MockupSettings key="settings" />],
   },
 ];
 
@@ -235,7 +213,7 @@ export default function GuideTab() {
       <div>
         <h1 className="text-xl font-bold text-foreground">Como Usar</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Guia completo de cada seção do app. Clique para expandir e ver o passo a passo com ilustrações.
+          Guia completo de cada seção do app. Clique para expandir e ver o passo a passo.
         </p>
       </div>
 
@@ -257,11 +235,6 @@ export default function GuideTab() {
             </AccordionTrigger>
             <AccordionContent className="pb-4 pl-11 space-y-3">
               <p className="text-sm text-muted-foreground leading-relaxed">{section.description}</p>
-
-              {/* Mockups visuais */}
-              {section.mockups.map((mockup, i) => (
-                <div key={i}>{mockup}</div>
-              ))}
 
               <div>
                 <p className="text-xs font-semibold text-foreground mb-1.5">Passo a passo:</p>
