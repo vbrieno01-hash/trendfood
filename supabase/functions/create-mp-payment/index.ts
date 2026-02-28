@@ -165,8 +165,11 @@ Deno.serve(async (req) => {
     // Build response
     const result: Record<string, unknown> = {
       status: mpData.status,
+      status_detail: mpData.status_detail || null,
       payment_id: mpData.id,
     };
+
+    console.log(`[create-mp-payment] status=${mpData.status} detail=${mpData.status_detail}`);
 
     if (payment_method === "pix" && mpData.point_of_interaction?.transaction_data) {
       result.pix_qr_code = mpData.point_of_interaction.transaction_data.qr_code;

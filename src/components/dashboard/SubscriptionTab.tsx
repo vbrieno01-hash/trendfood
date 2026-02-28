@@ -236,6 +236,32 @@ const SubscriptionTab = () => {
         return;
       }
 
+      if (data.status === "in_process") {
+        toast.info("Pagamento em análise. Você será notificado quando for confirmado.");
+        return;
+      }
+
+      if (data.status === "rejected") {
+        const detail = data.status_detail || "";
+        const rejectionMessages: Record<string, string> = {
+          cc_rejected_insufficient_amount: "Saldo insuficiente no cartão",
+          cc_rejected_bad_filled_security_code: "CVV incorreto. Verifique o código de segurança",
+          cc_rejected_bad_filled_date: "Data de validade incorreta",
+          cc_rejected_bad_filled_card_number: "Número do cartão incorreto",
+          cc_rejected_high_risk: "Pagamento recusado por análise de segurança",
+          cc_rejected_blacklist: "Cartão não permitido. Tente outro cartão",
+          cc_rejected_call_for_authorize: "Ligue para a operadora do cartão para autorizar",
+          cc_rejected_card_disabled: "Cartão desabilitado. Contate a operadora",
+          cc_rejected_duplicated_payment: "Pagamento duplicado. Já existe uma cobrança recente",
+          cc_rejected_max_attempts: "Número máximo de tentativas atingido. Tente outro cartão",
+          cc_rejected_card_type_not_allowed: "Tipo de cartão não aceito",
+          cc_rejected_other_reason: "Cartão recusado. Tente outro cartão ou método de pagamento",
+        };
+        const friendlyMessage = rejectionMessages[detail] || "Pagamento recusado. Tente outro cartão ou método de pagamento";
+        toast.error("Pagamento recusado", { description: friendlyMessage });
+        return;
+      }
+
       if (paymentMethod === "pix" && data.pix_qr_code) {
         setPixData({
           qr_code: data.pix_qr_code,
