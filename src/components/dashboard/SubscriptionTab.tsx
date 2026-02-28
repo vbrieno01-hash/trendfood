@@ -82,6 +82,19 @@ const formatCpfCnpj = (value: string) => {
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 };
 
+const formatCardNumber = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 16);
+  return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+};
+
+const formatExpiry = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+  if (digits.length >= 3) {
+    return digits.slice(0, 2) + "/" + digits.slice(2);
+  }
+  return digits;
+};
+
 const SubscriptionTab = () => {
   const { organization, session } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -94,6 +107,12 @@ const SubscriptionTab = () => {
     payment_id: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Card fields
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
 
   const currentPlan = organization?.subscription_plan || "free";
 
@@ -109,6 +128,10 @@ const SubscriptionTab = () => {
     setPixData(null);
     setCopied(false);
     setCpfCnpj("");
+    setCardNumber("");
+    setCardHolder("");
+    setCardExpiry("");
+    setCardCvv("");
   };
 
   const handleCopyPix = async (code: string) => {
@@ -122,6 +145,49 @@ const SubscriptionTab = () => {
     }
   };
 
+  const createCardToken = async (): Promise<string | null> => {
+    try {
+      // Fetch public key from edge function
+      const { data: keyData, error: keyError } = await supabase.functions.invoke("get-mp-public-key");
+      if (keyError || !keyData?.public_key) {
+        toast.error("Erro ao obter chave do gateway de pagamento");
+        return null;
+      }
+
+      if (!window.MercadoPago) {
+        toast.error("SDK de pagamento não carregado. Recarregue a página.");
+        return null;
+      }
+
+      const mp = new window.MercadoPago(keyData.public_key, { locale: "pt-BR" });
+
+      const cleanDoc = cpfCnpj.replace(/\D/g, "");
+      const expiryParts = cardExpiry.split("/");
+      if (expiryParts.length !== 2) {
+        toast.error("Data de validade inválida (MM/AA)");
+        return null;
+      }
+
+      const token = await mp.createCardToken({
+        cardNumber: cardNumber.replace(/\s/g, ""),
+        cardholderName: cardHolder,
+        cardExpirationMonth: expiryParts[0],
+        cardExpirationYear: "20" + expiryParts[1],
+        securityCode: cardCvv,
+        identificationType: cleanDoc.length <= 11 ? "CPF" : "CNPJ",
+        identificationNumber: cleanDoc,
+      });
+
+      return token.id;
+    } catch (err: any) {
+      console.error("[SubscriptionTab] Card token error:", err);
+      toast.error("Erro ao processar dados do cartão", {
+        description: err.message || "Verifique os dados e tente novamente",
+      });
+      return null;
+    }
+  };
+
   const handleSubmitPayment = async () => {
     if (!organization || !session || !selectedPlan) return;
 
@@ -131,14 +197,33 @@ const SubscriptionTab = () => {
       return;
     }
 
+    if (paymentMethod === "card") {
+      if (!cardNumber.replace(/\s/g, "") || !cardHolder || !cardExpiry || !cardCvv) {
+        toast.error("Preencha todos os campos do cartão");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
+      let cardToken: string | undefined;
+
+      if (paymentMethod === "card") {
+        const token = await createCardToken();
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+        cardToken = token;
+      }
+
       const { data, error } = await supabase.functions.invoke("create-mp-payment", {
         body: {
           org_id: organization.id,
           plan: selectedPlan,
           cpf_cnpj: cleanDoc,
           payment_method: paymentMethod,
+          ...(cardToken ? { card_token: cardToken } : {}),
         },
       });
 
@@ -280,23 +365,71 @@ const SubscriptionTab = () => {
                   </div>
                 </label>
                 <label
-                  className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all opacity-50 pointer-events-none ${
+                  className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                     paymentMethod === "card"
                       ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                      : "border-border"
+                      : "border-border hover:border-primary/30"
                   }`}
                 >
-                  <RadioGroupItem value="card" disabled />
+                  <RadioGroupItem value="card" />
                   <div className="flex items-center gap-2">
-                    <CreditCard className="w-5 h-5" />
-                    <div>
-                      <span className="text-sm font-medium">Cartão</span>
-                      <p className="text-[10px] text-muted-foreground">Em breve</p>
-                    </div>
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    <span className="text-sm font-medium">Cartão</span>
                   </div>
                 </label>
               </RadioGroup>
             </div>
+
+            {/* Card fields */}
+            {paymentMethod === "card" && (
+              <div className="space-y-3 pt-1">
+                <div className="space-y-2">
+                  <Label htmlFor="card_number">Número do cartão</Label>
+                  <Input
+                    id="card_number"
+                    placeholder="0000 0000 0000 0000"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                    maxLength={19}
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="card_holder">Nome no cartão</Label>
+                  <Input
+                    id="card_holder"
+                    placeholder="Como está no cartão"
+                    value={cardHolder}
+                    onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="card_expiry">Validade</Label>
+                    <Input
+                      id="card_expiry"
+                      placeholder="MM/AA"
+                      value={cardExpiry}
+                      onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                      maxLength={5}
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="card_cvv">CVV</Label>
+                    <Input
+                      id="card_cvv"
+                      placeholder="123"
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      maxLength={4}
+                      inputMode="numeric"
+                      type="password"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <Button
@@ -309,6 +442,11 @@ const SubscriptionTab = () => {
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 Processando...
+              </>
+            ) : paymentMethod === "card" ? (
+              <>
+                <CreditCard className="w-4 h-4 mr-2" />
+                Pagar com Cartão — {selectedPlanData.price}
               </>
             ) : (
               <>
