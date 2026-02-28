@@ -23,6 +23,10 @@ import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
   uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
 } from "@/hooks/useMenuItems";
+import {
+  useAllMenuItemAddons, useAddMenuItemAddon, useUpdateMenuItemAddon, useDeleteMenuItemAddon,
+  
+} from "@/hooks/useMenuItemAddonsCrud";
 
 interface Organization {
   id: string;
@@ -298,6 +302,180 @@ function PendingIngredientsSection({
   );
 }
 
+/* ─── Addons sub-component (edit mode — persists to DB) ─── */
+function AddonsSection({ menuItemId }: { menuItemId: string }) {
+  const { data: addons = [], isLoading } = useAllMenuItemAddons(menuItemId);
+  const addAddon = useAddMenuItemAddon();
+  const updateAddon = useUpdateMenuItemAddon();
+  const deleteAddon = useDeleteMenuItemAddon();
+  const [newName, setNewName] = useState("");
+  const [newPrice, setNewPrice] = useState(0);
+
+  const handleAdd = () => {
+    if (!newName.trim()) return;
+    addAddon.mutate(
+      { menu_item_id: menuItemId, name: newName.trim(), price_cents: Math.round(newPrice * 100) },
+      { onSuccess: () => { setNewName(""); setNewPrice(0); } },
+    );
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <Plus className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">Adicionais / Complementos</p>
+      </div>
+
+      {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
+
+      {addons.length > 0 && (
+        <div className="space-y-1">
+          {addons.map((a) => (
+            <div key={a.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded px-2.5 py-1.5">
+              <Switch
+                checked={a.available}
+                onCheckedChange={(v) => updateAddon.mutate({ id: a.id, menuItemId, available: v })}
+                className="scale-75"
+              />
+              <span className="flex-1 text-foreground truncate">{a.name}</span>
+              <span className="text-muted-foreground text-xs tabular-nums whitespace-nowrap">
+                +R$ {(a.price_cents / 100).toFixed(2).replace(".", ",")}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="w-6 h-6 text-muted-foreground hover:text-destructive"
+                onClick={() => deleteAddon.mutate({ id: a.id, menuItemId })}
+                disabled={deleteAddon.isPending}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <Label className="text-xs">Nome</Label>
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Ex: Bacon extra"
+            className="h-9"
+          />
+        </div>
+        <div className="w-28">
+          <Label className="text-xs">Preço</Label>
+          <CurrencyInput
+            value={newPrice}
+            onChange={setNewPrice}
+            className="h-9"
+          />
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          className="h-9 gap-1"
+          onClick={handleAdd}
+          disabled={!newName.trim() || addAddon.isPending}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Adicionar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Pending Addons (create mode — local state only) ─── */
+interface PendingAddon {
+  name: string;
+  price_cents: number;
+}
+
+function PendingAddonsSection({
+  pending,
+  onChange,
+}: {
+  pending: PendingAddon[];
+  onChange: (next: PendingAddon[]) => void;
+}) {
+  const [newName, setNewName] = useState("");
+  const [newPrice, setNewPrice] = useState(0);
+
+  const handleAdd = () => {
+    if (!newName.trim()) return;
+    onChange([...pending, { name: newName.trim(), price_cents: Math.round(newPrice * 100) }]);
+    setNewName("");
+    setNewPrice(0);
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <Plus className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">Adicionais / Complementos</p>
+      </div>
+
+      {pending.length > 0 && (
+        <div className="space-y-1">
+          {pending.map((p, idx) => (
+            <div key={idx} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-2.5 py-1.5">
+              <span className="text-foreground">{p.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  +R$ {(p.price_cents / 100).toFixed(2).replace(".", ",")}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="w-6 h-6 text-muted-foreground hover:text-destructive"
+                  onClick={() => onChange(pending.filter((_, i) => i !== idx))}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <Label className="text-xs">Nome</Label>
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Ex: Bacon extra"
+            className="h-9"
+          />
+        </div>
+        <div className="w-28">
+          <Label className="text-xs">Preço</Label>
+          <CurrencyInput
+            value={newPrice}
+            onChange={setNewPrice}
+            className="h-9"
+          />
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          className="h-9 gap-1"
+          onClick={handleAdd}
+          disabled={!newName.trim()}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Adicionar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
   
@@ -327,6 +505,8 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const [imagePreview, setImagePreview] = useState<string | null>(() => initialDraft.current?.imagePreview ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [pendingIngredients, setPendingIngredients] = useState<PendingIngredient[]>([]);
+  const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
+  const addAddonMutation = useAddMenuItemAddon();
   const fileRef = useRef<HTMLInputElement>(null);
   // Track object URLs for cleanup
   const objectUrlRef = useRef<string | null>(null);
@@ -418,6 +598,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setForm(EMPTY_FORM);
     setImagePreview(null);
     setPendingIngredients([]);
+    setPendingAddons([]);
     setModalOpen(true);
   };
 
@@ -425,6 +606,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setEditItem(item);
     setEditItemId(item.id);
     setPendingIngredients([]);
+    setPendingAddons([]);
     setForm({
       name: item.name,
       description: item.description ?? "",
@@ -445,6 +627,7 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
     setForm(EMPTY_FORM);
     setImagePreview(null);
     setPendingIngredients([]);
+    setPendingAddons([]);
     clearDraft(organization.id);
     // Cleanup object URL
     if (objectUrlRef.current) {
@@ -501,6 +684,16 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
               menu_item_id: created.id,
               stock_item_id: pi.stock_item_id,
               quantity_used: pi.quantity_used,
+            });
+          }
+        }
+        // Save pending addons after creation
+        if (pendingAddons.length > 0 && created?.id) {
+          for (const pa of pendingAddons) {
+            addAddonMutation.mutate({
+              menu_item_id: created.id,
+              name: pa.name,
+              price_cents: pa.price_cents,
             });
           }
         }
@@ -820,6 +1013,16 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                   stockItems={stockItems}
                   pending={pendingIngredients}
                   onChange={setPendingIngredients}
+                />
+              )}
+
+              {/* Addons section */}
+              {(editItem || editItemId) ? (
+                <AddonsSection menuItemId={(editItem?.id || editItemId)!} />
+              ) : (
+                <PendingAddonsSection
+                  pending={pendingAddons}
+                  onChange={setPendingAddons}
                 />
               )}
 
