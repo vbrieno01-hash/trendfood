@@ -12,10 +12,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-// Select removed — category is now a free-text input with datalist
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package,
 } from "lucide-react";
+import {
+  useStockItems, useMenuItemIngredients, useAddMenuItemIngredient, useRemoveMenuItemIngredient,
+  type StockItem,
+} from "@/hooks/useStockItems";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
   uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
@@ -80,6 +83,112 @@ function clearDraft(orgId: string) {
   console.log("[MenuTab] Draft cleared (localStorage)");
 }
 
+/* ─── Ingredients sub-component ─── */
+function IngredientsSection({
+  menuItemId,
+  stockItems,
+  addIngredient,
+  removeIngredient,
+}: {
+  menuItemId: string;
+  stockItems: StockItem[];
+  addIngredient: ReturnType<typeof useAddMenuItemIngredient>;
+  removeIngredient: ReturnType<typeof useRemoveMenuItemIngredient>;
+}) {
+  const { data: ingredients = [], isLoading } = useMenuItemIngredients(menuItemId);
+  const [selectedStockId, setSelectedStockId] = useState("");
+  const [qtyUsed, setQtyUsed] = useState(1);
+
+  const linkedIds = new Set(ingredients.map((i) => i.stock_item_id));
+  const available = stockItems.filter((s) => !linkedIds.has(s.id));
+
+  const handleAdd = () => {
+    if (!selectedStockId || qtyUsed <= 0) return;
+    addIngredient.mutate(
+      { menu_item_id: menuItemId, stock_item_id: selectedStockId, quantity_used: qtyUsed },
+      { onSuccess: () => { setSelectedStockId(""); setQtyUsed(1); } },
+    );
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <Package className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">Ingredientes vinculados</p>
+      </div>
+
+      {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
+
+      {/* Linked list */}
+      {ingredients.length > 0 && (
+        <div className="space-y-1">
+          {ingredients.map((ing) => (
+            <div key={ing.id} className="flex items-center justify-between text-sm bg-secondary/50 rounded px-2.5 py-1.5">
+              <span className="text-foreground">
+                {ing.stock_item?.name ?? "?"} — <span className="text-muted-foreground">{ing.quantity_used} {ing.stock_item?.unit ?? "un"}/venda</span>
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="w-6 h-6 text-muted-foreground hover:text-destructive"
+                onClick={() => removeIngredient.mutate({ id: ing.id, menuItemId })}
+                disabled={removeIngredient.isPending}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add new */}
+      {stockItems.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhum insumo cadastrado. Crie na aba Estoque primeiro.</p>
+      ) : available.length === 0 && ingredients.length > 0 ? (
+        <p className="text-xs text-muted-foreground">Todos os insumos já estão vinculados.</p>
+      ) : (
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Label className="text-xs">Insumo</Label>
+            <select
+              value={selectedStockId}
+              onChange={(e) => setSelectedStockId(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Selecione…</option>
+              {available.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} ({s.unit})</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-20">
+            <Label className="text-xs">Qtd/venda</Label>
+            <Input
+              type="number"
+              min={0.01}
+              step="any"
+              value={qtyUsed}
+              onChange={(e) => setQtyUsed(Number(e.target.value))}
+              className="h-9"
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="h-9 gap-1"
+            onClick={handleAdd}
+            disabled={!selectedStockId || qtyUsed <= 0 || addIngredient.isPending}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Vincular
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
   
@@ -87,6 +196,11 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
   const addMutation = useAddMenuItem(organization.id);
   const updateMutation = useUpdateMenuItem(organization.id);
   const deleteMutation = useDeleteMenuItem(organization.id);
+
+  // Stock / ingredients hooks
+  const { data: stockItems = [] } = useStockItems(organization.id);
+  const addIngredient = useAddMenuItemIngredient();
+  const removeIngredient = useRemoveMenuItemIngredient();
 
   // Rehydrate from draft on mount
   const initialDraft = useRef(loadDraft(organization.id));
@@ -569,6 +683,16 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
                   onCheckedChange={(v) => setForm((p) => ({ ...p, available: v }))}
                 />
               </div>
+
+              {/* Ingredients section — only for existing items */}
+              {(editItem || editItemId) && (
+                <IngredientsSection
+                  menuItemId={(editItem?.id || editItemId)!}
+                  stockItems={stockItems}
+                  addIngredient={addIngredient}
+                  removeIngredient={removeIngredient}
+                />
+              )}
 
               <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-2">
                 <Button type="button" variant="outline" onClick={closeModal}>
