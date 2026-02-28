@@ -24,6 +24,7 @@ import PlanCard from "@/components/pricing/PlanCard";
 import logoIcon from "@/assets/logo-icon.png";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import CardPaymentForm from "@/components/checkout/CardPaymentForm";
 
 interface PlanData {
   key: string;
@@ -88,9 +89,9 @@ const PricingPage = () => {
   const { user, organization } = useAuth();
   const currentPlan = organization?.subscription_plan || "free";
   const [selectedPlan, setSelectedPlan] = useState<PlanData | null>(null);
+  const [cardFormPlan, setCardFormPlan] = useState<PlanData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [subscribing, setSubscribing] = useState(false);
 
   useEffect(() => {
     supabase
@@ -136,23 +137,10 @@ const PricingPage = () => {
     if (plan) setSelectedPlan(plan);
   };
 
-  const handleConfirmPlan = async () => {
+  const handleConfirmPlan = () => {
     if (!selectedPlan || !user || !organization) return;
-    setSubscribing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-mp-subscription", {
-        body: { org_id: organization.id, plan: selectedPlan.key },
-      });
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.details || data.error);
-      if (data?.init_point) {
-        window.location.href = data.init_point;
-      }
-    } catch (err: any) {
-      console.error("[PricingPage] Subscribe error:", err);
-      toast.error("Erro ao criar assinatura", { description: err.message });
-      setSubscribing(false);
-    }
+    setSelectedPlan(null);
+    setCardFormPlan(selectedPlan);
   };
 
   return (
@@ -252,8 +240,8 @@ const PricingPage = () => {
             <AlertDialogDescription asChild>
               <div className="space-y-4">
                 <p className="text-muted-foreground">
-                  Você será redirecionado para assinar o plano <strong className="text-foreground">{selectedPlan?.name}</strong> por{" "}
-                  <strong className="text-foreground">{selectedPlan?.price}/mês</strong> via PIX ou cartão.
+                  Você irá assinar o plano <strong className="text-foreground">{selectedPlan?.name}</strong> por{" "}
+                  <strong className="text-foreground">{selectedPlan?.price}/mês</strong> no cartão de crédito.
                 </p>
                 <ul className="space-y-2">
                   {selectedPlan?.features.map((f) => (
@@ -267,15 +255,28 @@ const PricingPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={subscribing}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmPlan} disabled={subscribing}>
-              {subscribing ? (
-                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Redirecionando...</>
-              ) : "Ir para assinatura"}
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPlan}>
+              Continuar para pagamento
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Card Payment Form */}
+      {organization && cardFormPlan && (
+        <CardPaymentForm
+          open={!!cardFormPlan}
+          onOpenChange={(v) => !v && setCardFormPlan(null)}
+          orgId={organization.id}
+          plan={cardFormPlan.key}
+          planName={cardFormPlan.name}
+          planPrice={cardFormPlan.price}
+          onSuccess={() => {
+            navigate("/dashboard?tab=subscription");
+          }}
+        />
+      )}
     </div>
   );
 };
