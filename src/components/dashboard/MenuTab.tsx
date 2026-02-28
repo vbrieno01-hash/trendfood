@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock,
 } from "lucide-react";
 import {
   useStockItems, useMenuItemIngredients, useAddMenuItemIngredient, useRemoveMenuItemIngredient,
@@ -476,7 +476,7 @@ function PendingAddonsSection({
   );
 }
 
-export default function MenuTab({ organization, menuItemLimit }: { organization: Organization; menuItemLimit?: number | null }) {
+export default function MenuTab({ organization, menuItemLimit, canAccessAddons = true, canAccessStockIngredients = true }: { organization: Organization; menuItemLimit?: number | null; canAccessAddons?: boolean; canAccessStockIngredients?: boolean }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => (localStorage.getItem(SORT_KEY) as SortOrder) || "newest");
   
   const { data: items = [], isLoading } = useMenuItems(organization.id, sortOrder);
@@ -1001,29 +1001,49 @@ export default function MenuTab({ organization, menuItemLimit }: { organization:
               </div>
 
               {/* Ingredients section */}
-              {(editItem || editItemId) ? (
-                <IngredientsSection
-                  menuItemId={(editItem?.id || editItemId)!}
-                  stockItems={stockItems}
-                  addIngredient={addIngredient}
-                  removeIngredient={removeIngredient}
-                />
+              {canAccessStockIngredients ? (
+                (editItem || editItemId) ? (
+                  <IngredientsSection
+                    menuItemId={(editItem?.id || editItemId)!}
+                    stockItems={stockItems}
+                    addIngredient={addIngredient}
+                    removeIngredient={removeIngredient}
+                  />
+                ) : (
+                  <PendingIngredientsSection
+                    stockItems={stockItems}
+                    pending={pendingIngredients}
+                    onChange={setPendingIngredients}
+                  />
+                )
               ) : (
-                <PendingIngredientsSection
-                  stockItems={stockItems}
-                  pending={pendingIngredients}
-                  onChange={setPendingIngredients}
-                />
+                <div className="border border-border rounded-lg p-4 flex items-center gap-3 bg-muted/30">
+                  <Lock className="w-5 h-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Composição do Produto</p>
+                    <p className="text-xs text-muted-foreground">Disponível no plano Enterprise</p>
+                  </div>
+                </div>
               )}
 
               {/* Addons section */}
-              {(editItem || editItemId) ? (
-                <AddonsSection menuItemId={(editItem?.id || editItemId)!} />
+              {canAccessAddons ? (
+                (editItem || editItemId) ? (
+                  <AddonsSection menuItemId={(editItem?.id || editItemId)!} />
+                ) : (
+                  <PendingAddonsSection
+                    pending={pendingAddons}
+                    onChange={setPendingAddons}
+                  />
+                )
               ) : (
-                <PendingAddonsSection
-                  pending={pendingAddons}
-                  onChange={setPendingAddons}
-                />
+                <div className="border border-border rounded-lg p-4 flex items-center gap-3 bg-muted/30">
+                  <Lock className="w-5 h-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Adicionais / Complementos</p>
+                    <p className="text-xs text-muted-foreground">Disponível no plano Pro</p>
+                  </div>
+                </div>
               )}
 
               <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-2">

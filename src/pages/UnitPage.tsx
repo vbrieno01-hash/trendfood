@@ -18,6 +18,7 @@ import {
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
 import { useOrganization } from "@/hooks/useOrganization";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
@@ -55,6 +56,7 @@ const UnitPage = () => {
 
   const { data: org, isLoading: orgLoading, isError } = useOrganization(slug);
   const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
+  const planLimits = usePlanLimits(org);
 
   const placeOrder = usePlaceOrder();
 
@@ -1182,9 +1184,14 @@ const UnitPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                    <SelectItem value="PIX">PIX</SelectItem>
+                    <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>
+                    {planLimits.canAccess("online_payment") && (
+                      <>
+                        <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                        <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                        <SelectItem value="PIX">PIX</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
                 {paymentError && <p className="text-destructive text-xs mt-1">Selecione uma forma de pagamento</p>}
