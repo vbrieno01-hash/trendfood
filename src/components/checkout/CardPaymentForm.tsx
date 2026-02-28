@@ -11,8 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, Lock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, CreditCard, Lock, QrCode } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
+import { getMpErrorMessage } from "./mpErrorMessages";
+import PixPaymentTab from "./PixPaymentTab";
 
 interface CardPaymentFormProps {
   open: boolean;
@@ -38,7 +41,6 @@ const CardPaymentForm = ({
   const [submitting, setSubmitting] = useState(false);
   const mpRef = useRef<MercadoPagoInstance | null>(null);
 
-  // Form fields
   const [cardNumber, setCardNumber] = useState("");
   const [cardholderName, setCardholderName] = useState("");
   const [expirationMonth, setExpirationMonth] = useState("");
@@ -46,21 +48,16 @@ const CardPaymentForm = ({
   const [securityCode, setSecurityCode] = useState("");
   const [identificationNumber, setIdentificationNumber] = useState("");
 
-  // Load public key
   useEffect(() => {
     if (!open) return;
     supabase.functions
       .invoke("get-mp-public-key")
       .then(({ data, error }) => {
-        if (!error && data?.public_key) {
-          setPublicKey(data.public_key);
-        } else {
-          toast.error("Erro ao carregar configuração de pagamento");
-        }
+        if (!error && data?.public_key) setPublicKey(data.public_key);
+        else toast.error("Erro ao carregar configuração de pagamento");
       });
   }, [open]);
 
-  // Load MP SDK
   useEffect(() => {
     if (!publicKey) return;
     const existingScript = document.getElementById("mp-sdk-v2");
@@ -68,12 +65,9 @@ const CardPaymentForm = ({
       try {
         mpRef.current = new window.MercadoPago(publicKey, { locale: "pt-BR" });
         setSdkReady(true);
-      } catch {
-        // SDK not ready yet
-      }
+      } catch { /* SDK not ready yet */ }
       return;
     }
-
     const script = document.createElement("script");
     script.id = "mp-sdk-v2";
     script.src = "https://sdk.mercadopago.com/js/v2";
@@ -119,7 +113,6 @@ const CardPaymentForm = ({
 
     setSubmitting(true);
     try {
-      // Generate card token
       const tokenResult = await mpRef.current.createCardToken({
         cardNumber: cleanCard,
         cardholderName,
@@ -130,26 +123,25 @@ const CardPaymentForm = ({
         identificationNumber: cleanCpf,
       });
 
-      if (!tokenResult?.id) {
-        throw new Error("Não foi possível tokenizar o cartão");
-      }
+      if (!tokenResult?.id) throw new Error("Não foi possível tokenizar o cartão");
 
-      // Create subscription with card token
       const { data, error } = await supabase.functions.invoke("create-mp-subscription", {
         body: { org_id: orgId, plan, card_token_id: tokenResult.id },
       });
 
       if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.details || data.error);
+      if (data?.error) {
+        const errorMsg = getMpErrorMessage(data.status_detail);
+        throw new Error(errorMsg);
+      }
 
       toast.success("Assinatura ativada com sucesso! 🎉", { duration: 5000 });
       onOpenChange(false);
       onSuccess();
     } catch (err: any) {
       console.error("[CardPaymentForm] Error:", err);
-      toast.error("Erro ao processar pagamento", {
-        description: err.message || "Verifique os dados e tente novamente",
-      });
+      const message = err.message || "Pagamento recusado. Verifique os dados e tente novamente.";
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -181,114 +173,141 @@ const CardPaymentForm = ({
             <DialogTitle className="text-xl">Assinar {planName}</DialogTitle>
           </div>
           <DialogDescription>
-            {planPrice}/mês — cobrança recorrente no cartão de crédito.
+            {planPrice}/mês — escolha a forma de pagamento.
           </DialogDescription>
         </DialogHeader>
 
-        {!sdkReady ? (
-          <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Carregando formulário de pagamento...
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="cardNumber">Número do cartão</Label>
-              <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="cardNumber"
-                  placeholder="0000 0000 0000 0000"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                  className="pl-10"
-                  maxLength={19}
-                  inputMode="numeric"
-                  disabled={submitting}
-                />
-              </div>
-            </div>
+        <Tabs defaultValue="card" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="card" className="gap-1.5">
+              <CreditCard className="w-4 h-4" />
+              Cartão
+            </TabsTrigger>
+            <TabsTrigger value="pix" className="gap-1.5">
+              <QrCode className="w-4 h-4" />
+              PIX
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="cardholderName">Nome no cartão</Label>
-              <Input
-                id="cardholderName"
-                placeholder="NOME COMO NO CARTÃO"
-                value={cardholderName}
-                onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
-                disabled={submitting}
+          <TabsContent value="card">
+            {!sdkReady ? (
+              <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Carregando formulário...
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="cardNumber">Número do cartão</Label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="cardNumber"
+                      placeholder="0000 0000 0000 0000"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                      className="pl-10"
+                      maxLength={19}
+                      inputMode="numeric"
+                      disabled={submitting}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cardholderName">Nome no cartão</Label>
+                  <Input
+                    id="cardholderName"
+                    placeholder="NOME COMO NO CARTÃO"
+                    value={cardholderName}
+                    onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
+                    disabled={submitting}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="expirationMonth">Mês</Label>
+                    <Input
+                      id="expirationMonth"
+                      placeholder="MM"
+                      value={expirationMonth}
+                      onChange={(e) => setExpirationMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                      maxLength={2}
+                      inputMode="numeric"
+                      disabled={submitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="expirationYear">Ano</Label>
+                    <Input
+                      id="expirationYear"
+                      placeholder="AA"
+                      value={expirationYear}
+                      onChange={(e) => setExpirationYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      maxLength={4}
+                      inputMode="numeric"
+                      disabled={submitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="securityCode">CVV</Label>
+                    <Input
+                      id="securityCode"
+                      placeholder="123"
+                      value={securityCode}
+                      onChange={(e) => setSecurityCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      maxLength={4}
+                      inputMode="numeric"
+                      disabled={submitting}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cpf">CPF do titular</Label>
+                  <Input
+                    id="cpf"
+                    placeholder="000.000.000-00"
+                    value={identificationNumber}
+                    onChange={(e) => setIdentificationNumber(formatCpf(e.target.value))}
+                    maxLength={14}
+                    inputMode="numeric"
+                    disabled={submitting}
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Processando...
+                    </>
+                  ) : (
+                    `Assinar por ${planPrice}/mês`
+                  )}
+                </Button>
+
+                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                  <Lock className="w-3 h-3" />
+                  Pagamento seguro • Cobrança recorrente
+                </div>
+              </form>
+            )}
+          </TabsContent>
+
+          <TabsContent value="pix">
+            <div className="pt-2">
+              <PixPaymentTab
+                orgId={orgId}
+                plan={plan}
+                planPrice={planPrice}
+                onSuccess={onSuccess}
+                onClose={() => onOpenChange(false)}
               />
             </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="expirationMonth">Mês</Label>
-                <Input
-                  id="expirationMonth"
-                  placeholder="MM"
-                  value={expirationMonth}
-                  onChange={(e) => setExpirationMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                  maxLength={2}
-                  inputMode="numeric"
-                  disabled={submitting}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="expirationYear">Ano</Label>
-                <Input
-                  id="expirationYear"
-                  placeholder="AA"
-                  value={expirationYear}
-                  onChange={(e) => setExpirationYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  maxLength={4}
-                  inputMode="numeric"
-                  disabled={submitting}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="securityCode">CVV</Label>
-                <Input
-                  id="securityCode"
-                  placeholder="123"
-                  value={securityCode}
-                  onChange={(e) => setSecurityCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  maxLength={4}
-                  inputMode="numeric"
-                  disabled={submitting}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cpf">CPF do titular</Label>
-              <Input
-                id="cpf"
-                placeholder="000.000.000-00"
-                value={identificationNumber}
-                onChange={(e) => setIdentificationNumber(formatCpf(e.target.value))}
-                maxLength={14}
-                inputMode="numeric"
-                disabled={submitting}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" size="lg" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Processando...
-                </>
-              ) : (
-                `Assinar por ${planPrice}/mês`
-              )}
-            </Button>
-
-            <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <Lock className="w-3 h-3" />
-              Pagamento seguro • Seus dados não são armazenados
-            </div>
-          </form>
-        )}
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
