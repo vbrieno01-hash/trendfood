@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -97,6 +98,7 @@ const formatExpiry = (value: string) => {
 
 const SubscriptionTab = () => {
   const { organization, session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
@@ -115,6 +117,16 @@ const SubscriptionTab = () => {
   const [cardCvv, setCardCvv] = useState("");
 
   const currentPlan = organization?.subscription_plan || "free";
+
+  // Auto-select plan from URL param (e.g. ?plan=pro)
+  useEffect(() => {
+    const planFromUrl = searchParams.get("plan");
+    if (planFromUrl && PLANS.some((p) => p.key === planFromUrl && p.key !== "free")) {
+      setSelectedPlan(planFromUrl);
+      searchParams.delete("plan");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
 
   const handleSelectPlan = (planKey: string) => {
     if (planKey === currentPlan || planKey === "free") return;

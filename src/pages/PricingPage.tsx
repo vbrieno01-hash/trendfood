@@ -136,7 +136,7 @@ const PricingPage = () => {
 
   const handleConfirmPlan = () => {
     if (!selectedPlan || !user) return;
-    navigate(`/dashboard?tab=assinatura&plan=${selectedPlan.key}`, { replace: true });
+    navigate(`/dashboard?tab=subscription&plan=${selectedPlan.key}`, { replace: true });
     setSelectedPlan(null);
   };
 
