@@ -1,68 +1,54 @@
 
 
-# Plano: Adicionar número sequencial de pedido por loja
+# Plano: Criar tabela `whatsapp_instances`
 
-## Problema
-Os pedidos não têm número de ordem. O usuário quer ver "Pedido #1", "#2", "#3" etc., com numeração independente por loja.
+## Migração SQL
 
-## Solução
-
-### 1) Banco de dados — nova coluna + trigger automático
-
-Adicionar coluna `order_number` (integer) na tabela `orders`. Um trigger `BEFORE INSERT` calcula automaticamente o próximo número para aquela `organization_id`:
+Criar tabela `whatsapp_instances` vinculada a `organizations` (que representa cada loja), com RLS protegendo acesso ao dono da organização.
 
 ```sql
-ALTER TABLE orders ADD COLUMN order_number integer;
+CREATE TABLE public.whatsapp_instances (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  instance_name text NOT NULL,
+  instance_token text NOT NULL,
+  status text NOT NULL DEFAULT 'disconnected',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
--- Preencher pedidos existentes com número sequencial por loja
-WITH numbered AS (
-  SELECT id, ROW_NUMBER() OVER (PARTITION BY organization_id ORDER BY created_at) AS rn
-  FROM orders
-)
-UPDATE orders SET order_number = numbered.rn FROM numbered WHERE orders.id = numbered.id;
+ALTER TABLE public.whatsapp_instances ENABLE ROW LEVEL SECURITY;
 
--- Trigger para auto-incrementar por organização
-CREATE OR REPLACE FUNCTION set_order_number()
-RETURNS TRIGGER AS $$
-BEGIN
-  SELECT COALESCE(MAX(order_number), 0) + 1 INTO NEW.order_number
-  FROM orders WHERE organization_id = NEW.organization_id;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Somente o dono da loja pode ler, criar, editar e deletar
+CREATE POLICY wi_select_owner ON public.whatsapp_instances FOR SELECT
+  USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
 
-CREATE TRIGGER trg_set_order_number
-BEFORE INSERT ON orders
-FOR EACH ROW EXECUTE FUNCTION set_order_number();
+CREATE POLICY wi_insert_owner ON public.whatsapp_instances FOR INSERT
+  WITH CHECK (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
+
+CREATE POLICY wi_update_owner ON public.whatsapp_instances FOR UPDATE
+  USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
+
+CREATE POLICY wi_delete_owner ON public.whatsapp_instances FOR DELETE
+  USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
 ```
 
-### 2) Interface Order — adicionar campo
+## Campos
 
-Em `src/hooks/useOrders.ts`, adicionar `order_number?: number` à interface `Order`.
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `id` | uuid PK | Identificador único |
+| `organization_id` | uuid FK → organizations | Loja dona da instância |
+| `instance_name` | text | Nome da instância na Evolution API |
+| `instance_token` | text | Token de autenticação da instância |
+| `status` | text | Estado da conexão (`disconnected`, `connected`, `qr_pending`) |
+| `created_at` | timestamptz | Data de criação |
 
-### 3) KDS (KitchenTab) — exibir número
+## Segurança
 
-No card do pedido, mostrar `#${order.order_number}` ao lado de "Mesa X" ou "ENTREGA".
+- RLS ativado — apenas o `user_id` dono da `organization` pode CRUD.
+- `instance_token` nunca fica exposto publicamente.
 
-### 4) Recibo impresso — exibir número
+## Nenhuma alteração de código nesta etapa
 
-- `src/lib/printOrder.ts` — `PrintableOrder` ganha `order_number?: number`
-- `src/lib/formatReceiptText.ts` — linha `Pedido #N` acima dos itens
-- `src/lib/printOrder.ts` — HTML do recibo browser inclui número
-- `src/components/dashboard/ReceiptPreview.tsx` — preview mostra exemplo
-
-### 5) Histórico (HistoryTab) — exibir número
-
-Mostrar coluna/número do pedido na listagem de histórico.
-
-## Arquivos alterados
-
-```
-MIGRATION: adicionar order_number + trigger
-EDIT: src/hooks/useOrders.ts — interface Order
-EDIT: src/components/dashboard/KitchenTab.tsx — exibir #N
-EDIT: src/lib/printOrder.ts — PrintableOrder + HTML
-EDIT: src/lib/formatReceiptText.ts — linha Pedido #N
-EDIT: src/components/dashboard/ReceiptPreview.tsx — preview
-```
+A tabela será criada apenas no banco. Integração com UI e edge functions pode ser feita em seguida.
 
