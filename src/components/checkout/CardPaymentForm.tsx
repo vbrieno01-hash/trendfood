@@ -53,8 +53,17 @@ const CardPaymentForm = ({
     supabase.functions
       .invoke("get-mp-public-key")
       .then(({ data, error }) => {
-        if (!error && data?.public_key) setPublicKey(data.public_key);
-        else toast.error("Erro ao carregar configuração de pagamento");
+        if (error) {
+          console.error("[CardPaymentForm] get-mp-public-key error:", error);
+          toast.error("Erro ao carregar pagamento. Tente recarregar a página.");
+          return;
+        }
+        if (!data?.public_key) {
+          console.error("[CardPaymentForm] public_key ausente na resposta:", data);
+          toast.error("Configuração de pagamento indisponível. Tente novamente.");
+          return;
+        }
+        setPublicKey(data.public_key);
       });
   }, [open]);
 
