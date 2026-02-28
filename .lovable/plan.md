@@ -1,32 +1,36 @@
 
 
-# Exibir próxima cobrança e histórico de pagamentos na SubscriptionTab
+# Checkout Transparente — Formulário de cartão na própria página
 
-## Abordagem
-
-Criar uma nova Edge Function `get-subscription-details` que consulta a API do Mercado Pago para buscar os dados da assinatura ativa (`mp_subscription_id`) e os pagamentos associados. O frontend chama essa função quando o plano é pago e exibe as informações.
+Sim, a assinatura continua sendo **automática e recorrente**. A diferença é que em vez de redirecionar para o site do Mercado Pago, o cliente preenche o cartão direto na sua página. O MP continua cobrando automaticamente todo mês.
 
 ## Implementação
 
-### 1. Nova Edge Function `get-subscription-details`
-- Recebe `org_id` do frontend autenticado.
-- Busca `mp_subscription_id` da org no banco.
-- Consulta `GET /preapproval/{id}` no MP para obter `next_payment_date` e `status`.
-- Consulta `GET /preapproval/search?preapproval_id={id}` ou `GET /authorized_payments/search?preapproval_id={id}` para listar pagamentos realizados.
-- Retorna JSON com `{ next_payment_date, status, payments: [{ date, amount, status }] }`.
+### 1. Criar `src/components/checkout/CardPaymentForm.tsx`
+- Modal (Dialog) com formulário de cartão: número, titular, validade, CVV, CPF
+- Ao montar, busca public key via `get-mp-public-key` e carrega SDK `https://sdk.mercadopago.com/js/v2`
+- Usa `new MercadoPago(publicKey)` + `mp.createCardToken()` para tokenizar o cartão client-side
+- Ao submeter, chama `create-mp-subscription` passando `card_token_id` + `org_id` + `plan`
+- Se sucesso, mostra toast e recarrega; se erro, permite tentar novamente
+- Visual com a marca TrendFood, sem referência visual ao MP
 
-### 2. Atualizar `supabase/config.toml`
-- Adicionar `[functions.get-subscription-details]` com `verify_jwt = false`.
+### 2. Atualizar `create-mp-subscription` edge function
+- Aceitar campo opcional `card_token_id` no body
+- Se presente, criar preapproval com `card_token_id` e `status: "authorized"` (ativa imediatamente, sem redirect)
+- Se ausente, manter fluxo atual (redirect) como fallback
+- Snippet da mudança no body do preapproval:
+```typescript
+const preapprovalBody = {
+  ...existingFields,
+  ...(card_token_id ? { card_token_id, status: "authorized" } : { status: "pending" }),
+};
+```
 
 ### 3. Atualizar `SubscriptionTab.tsx`
-- Ao montar (se `isPaid` e org tem `mp_subscription_id`), chamar `get-subscription-details`.
-- Exibir no card de status:
-  - **Próxima cobrança**: data formatada (ex: "15 de março de 2026").
-  - **Histórico de pagamentos**: tabela simples com data, valor e status (badge verde/vermelho) usando Collapsible para não poluir a UI.
+- Ao clicar em "Assinar Pro/Enterprise", abrir modal `CardPaymentForm` em vez de redirecionar
+- Passar `org_id`, `plan` e callback de sucesso ao componente
+- Remover o redirect para `init_point` quando o checkout transparente é usado
 
-### Detalhes Técnicos
-
-- API MP para detalhes da assinatura: `GET /preapproval/{id}` → campo `next_payment_date`.
-- API MP para pagamentos da assinatura: `GET /preapproval/{id}/authorized_payments` → lista de pagamentos com `date_created`, `transaction_amount`, `status`.
-- O `mp_subscription_id` já está disponível no banco mas não é exposto ao frontend via `useAuth`. A edge function busca direto com service role key.
+### 4. Atualizar `PricingPage.tsx`
+- Mesma lógica: abrir modal `CardPaymentForm` em vez de redirecionar
 
