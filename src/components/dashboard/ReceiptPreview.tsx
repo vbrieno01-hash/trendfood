@@ -22,6 +22,7 @@ export default function ReceiptPreview({ storeName, storeAddress, storeContact, 
       <div className="text-center">RELATÓRIO GERENCIAL</div>
       <div className="text-center">* * * NÃO É DOCUMENTO FISCAL * * *</div>
       <div className="border-t border-dashed border-black my-1" />
+      <div className="text-center font-bold">Pedido #42</div>
       <div>1x Produto exemplo      R$ 10,00</div>
       <div className="border-t border-dashed border-black my-1" />
       <div className="font-bold text-right">TOTAL: R$ 10,00</div>

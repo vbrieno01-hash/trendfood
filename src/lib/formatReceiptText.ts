@@ -115,6 +115,9 @@ export function formatReceiptText(
 
   lines.push(divider());
   lines.push(`##BOLD##${locationLabel}`);
+  if (order.order_number) {
+    lines.push(center(`Pedido #${order.order_number}`, cols));
+  }
 
   // Items
   const items = order.order_items ?? [];

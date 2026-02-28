@@ -9,6 +9,7 @@ export interface PrintableOrder {
   table_number: number;
   created_at: string;
   notes?: string | null;
+  order_number?: number;
   order_items?: Array<{ id: string; name: string; quantity: number; price?: number; customer_name?: string | null }>;
 }
 
@@ -189,6 +190,7 @@ export async function printOrder(
     <span class="mesa">${locationLabel}</span>
     <span class="time">${date} — ${time}</span>
   </div>
+  ${order.order_number ? `<div style="text-align:center;font-size:${is58 ? '13px' : '15px'};font-weight:bold;margin:4px 0;">Pedido #${order.order_number}</div>` : ''}
   <div class="divider"></div>
   <table>${itemsHtml}</table>
   ${notesHtml}
