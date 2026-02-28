@@ -11,9 +11,15 @@ const MP_ERROR_MAP: Record<string, string> = {
   cc_rejected_other_reason: "Pagamento recusado. Verifique os dados e tente novamente.",
   "Card token service not found": "Erro de credenciais de teste. Use cartões de teste do Mercado Pago ou troque para credenciais de produção.",
   "card_token_service_not_found": "Erro de credenciais de teste. Use cartões de teste do Mercado Pago ou troque para credenciais de produção.",
+  "CC_VAL_433": "Erro de validação do cartão. Se estiver em ambiente de teste, use cartões de teste do Mercado Pago.",
 };
 
+const DEFAULT_MSG = "Pagamento recusado. Verifique os dados e tente novamente.";
+const TEST_ENV_MSG = "Erro de validação do cartão. Se estiver em ambiente de teste, use cartões de teste do Mercado Pago.";
+
 export function getMpErrorMessage(statusDetail?: string | null): string {
-  if (!statusDetail) return "Pagamento recusado. Verifique os dados e tente novamente.";
-  return MP_ERROR_MAP[statusDetail] || "Pagamento recusado. Verifique os dados e tente novamente.";
+  if (!statusDetail) return DEFAULT_MSG;
+  if (MP_ERROR_MAP[statusDetail]) return MP_ERROR_MAP[statusDetail];
+  if (statusDetail.includes("CC_VAL") || statusDetail.includes("card_token")) return TEST_ENV_MSG;
+  return DEFAULT_MSG;
 }
