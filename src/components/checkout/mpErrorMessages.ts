@@ -9,17 +9,17 @@ const MP_ERROR_MAP: Record<string, string> = {
   cc_rejected_max_attempts: "Limite de tentativas atingido. Tente outro cartão.",
   cc_rejected_duplicated_payment: "Pagamento duplicado. Verifique seus extratos.",
   cc_rejected_other_reason: "Pagamento recusado. Verifique os dados e tente novamente.",
-  "Card token service not found": "Erro de credenciais de teste. Use cartões de teste do Mercado Pago ou troque para credenciais de produção.",
-  "card_token_service_not_found": "Erro de credenciais de teste. Use cartões de teste do Mercado Pago ou troque para credenciais de produção.",
-  "CC_VAL_433": "Erro de validação do cartão. Se estiver em ambiente de teste, use cartões de teste do Mercado Pago.",
+  "Card token service not found": "Erro ao processar cartão. Tente novamente ou use outro cartão.",
+  "card_token_service_not_found": "Erro ao processar cartão. Tente novamente ou use outro cartão.",
+  "CC_VAL_433": "Erro de validação do cartão. Verifique os dados e tente novamente.",
 };
 
 const DEFAULT_MSG = "Pagamento recusado. Verifique os dados e tente novamente.";
-const TEST_ENV_MSG = "Erro de validação do cartão. Se estiver em ambiente de teste, use cartões de teste do Mercado Pago.";
 
 export function getMpErrorMessage(statusDetail?: string | null): string {
   if (!statusDetail) return DEFAULT_MSG;
   if (MP_ERROR_MAP[statusDetail]) return MP_ERROR_MAP[statusDetail];
-  if (statusDetail.includes("CC_VAL") || statusDetail.includes("card_token")) return TEST_ENV_MSG;
+  if (statusDetail.includes("CC_VAL") || statusDetail.includes("card_token"))
+    return "Erro ao processar cartão. Verifique os dados e tente novamente.";
   return DEFAULT_MSG;
 }
