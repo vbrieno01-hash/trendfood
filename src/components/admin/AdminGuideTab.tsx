@@ -134,6 +134,25 @@ export default function AdminGuideTab() {
   );
 }
 
+function AdminThumb({ src, alt }: { src: string; alt: string }) {
+  const [error, setError] = useState(false);
+  if (error) {
+    return (
+      <div className="w-16 h-10 rounded-md border border-border bg-muted flex items-center justify-center">
+        <ImageIcon className="w-4 h-4 text-muted-foreground" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-16 h-10 object-cover rounded-md border border-border"
+      onError={() => setError(true)}
+    />
+  );
+}
+
 function SectionRow({
   section,
   imageUrl,
@@ -160,7 +179,7 @@ function SectionRow({
 
       {imageUrl ? (
         <div className="flex items-center gap-2">
-          <img src={imageUrl} alt={section.title} className="w-16 h-10 object-cover rounded-md border border-border" />
+          <AdminThumb src={imageUrl} alt={section.title} />
           <button
             onClick={() => inputRef.current?.click()}
             disabled={uploading}

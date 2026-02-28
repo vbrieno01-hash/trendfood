@@ -209,6 +209,31 @@ const GUIDE_SECTIONS: GuideSection[] = [
   },
 ];
 
+function GuideImage({ src, alt }: { src: string; alt: string }) {
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  return (
+    <div className="relative w-full">
+      {status === "loading" && (
+        <div className="w-full h-48 rounded-xl bg-muted animate-pulse" />
+      )}
+      {status === "error" ? (
+        <div className="w-full h-32 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-xs">
+          Imagem indisponível
+        </div>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          className={`w-full rounded-xl border border-border shadow-sm ${status === "loading" ? "absolute opacity-0" : ""}`}
+          loading="lazy"
+          onLoad={() => setStatus("loaded")}
+          onError={() => setStatus("error")}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function GuideTab() {
   const [screenshots, setScreenshots] = useState<Record<string, string>>({});
 
@@ -252,12 +277,7 @@ export default function GuideTab() {
               <p className="text-sm text-muted-foreground leading-relaxed">{section.description}</p>
 
               {screenshots[section.id] && (
-                <img
-                  src={screenshots[section.id]}
-                  alt={`Screenshot: ${section.title}`}
-                  className="w-full rounded-xl border border-border shadow-sm"
-                  loading="lazy"
-                />
+                <GuideImage src={screenshots[section.id]} alt={`Screenshot: ${section.title}`} />
               )}
 
               <div>
