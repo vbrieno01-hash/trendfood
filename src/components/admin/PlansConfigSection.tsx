@@ -204,8 +204,6 @@ export default function PlansConfigSection() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {fmtPrice(plan.price_cents)}/mês · {plan.features.length} features
-                    {plan.checkout_url && " · Checkout ✓"}
-                    {plan.webhook_secret_name && ` · ${plan.webhook_secret_name}`}
                   </p>
                 </div>
                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(plan)}>
@@ -333,24 +331,6 @@ function PlanForm({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div>
-          <Label className="text-xs">Checkout URL</Label>
-          <Input
-            value={form.checkout_url ?? ""}
-            onChange={(e) => setForm((p) => ({ ...p, checkout_url: e.target.value }))}
-            placeholder="https://pay.cakto.com.br/..."
-            className="h-9 text-sm mt-1"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Webhook Secret Name</Label>
-          <Input
-            value={form.webhook_secret_name ?? ""}
-            onChange={(e) => setForm((p) => ({ ...p, webhook_secret_name: e.target.value }))}
-            placeholder="CAKTO_WEBHOOK_SECRET_PRO"
-            className="h-9 text-sm mt-1"
-          />
-        </div>
         <div>
           <Label className="text-xs">Ordem</Label>
           <Input
