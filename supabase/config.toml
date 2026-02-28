@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.universal-activation-webhook]
 verify_jwt = false
+
+[functions.create-mp-payment]
+verify_jwt = false
+
+[functions.mp-webhook]
+verify_jwt = false
