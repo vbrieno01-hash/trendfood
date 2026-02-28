@@ -1,32 +1,31 @@
 
 
-## Resultado da Verificação: Botão de Upgrade no UpgradePrompt
+## Plano: Criar UpgradeDialog modal inline no dashboard
 
-### O que existe hoje
+### O que será feito
+Transformar o botão "Fazer upgrade" do `UpgradePrompt` para abrir um modal bonito dentro do dashboard, mostrando os planos disponíveis com checkout integrado, em vez de redirecionar para `/planos`.
 
-O `UpgradePrompt` **não é um modal/janelinha** — é um **card estático** que substitui o conteúdo da aba bloqueada. Ele contém:
-- Icone de cadeado
-- Titulo e descrição da feature bloqueada
-- Botão "Fazer upgrade" que **navega para `/planos`** (a página de preços)
+### Implementação
 
-### Fluxo atual ao clicar "Fazer upgrade"
-1. Usuário vê o card com cadeado no lugar da aba (ex: Estoque)
-2. Clica em "Fazer upgrade"
-3. É redirecionado para `/planos` (PricingPage)
-4. Escolhe um plano → abre AlertDialog de confirmação → CardPaymentForm
+**1. Criar componente `UpgradeDialog.tsx`** (`src/components/dashboard/UpgradeDialog.tsx`)
+- Modal usando `Dialog` do Radix
+- Busca planos da tabela `platform_plans` (mesmo padrão do `SubscriptionTab`)
+- Renderiza `PlanCard` para cada plano pago (Pro e Enterprise), sem mostrar o Grátis
+- Ao selecionar um plano, abre o `CardPaymentForm` inline para checkout
+- Recebe `open`, `onOpenChange`, `orgId`, e `currentPlan` como props
 
-### Limitação do teste
-A loja TrendFood está no plano **Enterprise**, portanto as travas não aparecem visualmente. Para testar, seria necessário alterar temporariamente o plano no banco de dados para "free".
+**2. Atualizar `UpgradePrompt.tsx`**
+- Remover o `<Link to="/planos">` do botão
+- Adicionar estado `dialogOpen` e renderizar o `UpgradeDialog`
+- Receber `orgId` e `currentPlan` como props adicionais
+- O botão "Fazer upgrade" agora abre o dialog
 
-### Possível melhoria (opcional)
-Se o desejo é que o botão de upgrade abra uma **janelinha/modal bonita** dentro do próprio dashboard (em vez de redirecionar para `/planos`), seria necessário:
+**3. Atualizar chamadas ao `UpgradePrompt`**
+- Nos locais que usam `UpgradePrompt` (DashboardPage, MenuTab, etc.), passar `orgId` e `currentPlan` como props
 
-1. Criar um `UpgradeDialog` — modal (Dialog) com os planos disponíveis e botão de assinar
-2. Atualizar o `UpgradePrompt` para abrir o dialog ao invés de navegar para `/planos`
-3. Integrar o `CardPaymentForm` dentro do dialog para checkout inline
-
-### Recomendação
-O fluxo atual (redirecionar para `/planos`) já funciona bem e é consistente. A melhoria de modal inline é opcional.
-
-**Para testar visualmente as travas**, posso alterar temporariamente o plano da TrendFood para "free" no banco, tirar screenshots, e restaurar para "enterprise".
+### Detalhes técnicos
+- Reutiliza `PlanCard` e `CardPaymentForm` já existentes
+- Busca de planos via `supabase.from("platform_plans")` igual ao `SubscriptionTab`
+- O dialog terá layout compacto com grid de 2 colunas para os planos pagos
+- Após sucesso no pagamento, faz `window.location.reload()` para atualizar permissões
 
