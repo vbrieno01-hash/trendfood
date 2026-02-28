@@ -22,6 +22,11 @@ function cleanAddressForGeocode(addr: string): string {
     .trim();
 }
 
+function extractCep(addr: string): string | null {
+  const match = addr.match(/(\d{5})-?(\d{3})/);
+  return match ? match[1] + match[2] : null;
+}
+
 function extractAddressFields(cleaned: string): { street?: string; city?: string; state?: string } {
   const parts = cleaned.split(",").map((p) => p.trim()).filter(Boolean);
   const withoutBrasil = parts.filter((p) => p.toLowerCase() !== "brasil");
@@ -77,7 +82,24 @@ async function geocodeAddress(rawAddress: string): Promise<GeoCoord | null> {
   const cleaned = cleanAddressForGeocode(rawAddress);
   const fields = extractAddressFields(cleaned);
 
-  // 1. Full cleaned text
+  // 1. Try CEP via ViaCEP for more precise city-level coords
+  const cep = extractCep(rawAddress);
+  if (cep) {
+    try {
+      const viaRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const viaData = await viaRes.json();
+      if (!viaData.erro && viaData.localidade) {
+        // Use city + state from ViaCEP for more precise geocoding
+        const query = `${viaData.logradouro ? viaData.logradouro + ", " : ""}${viaData.localidade}, ${viaData.uf}, Brasil`;
+        const result = await tryGeocodeSingle(query);
+        if (result) return result;
+      }
+    } catch (e) {
+      console.warn(`[geocode] ViaCEP failed for ${cep}:`, e);
+    }
+  }
+
+  // 2. Full cleaned text
   try {
     const result = await tryGeocodeSingle(cleaned);
     if (result) return result;
@@ -85,9 +107,9 @@ async function geocodeAddress(rawAddress: string): Promise<GeoCoord | null> {
     console.warn(`[geocode] Full text failed for "${cleaned}":`, e);
   }
 
-  // 2. Structured search
+  // 3. Structured search
   if (fields.street && fields.city) {
-    await delay(400);
+    await delay(200);
     try {
       const result = await tryGeocodeStructured(fields.street, fields.city, fields.state);
       if (result) return result;
@@ -96,10 +118,10 @@ async function geocodeAddress(rawAddress: string): Promise<GeoCoord | null> {
     }
   }
 
-  // 3. Simpler fallback variants
+  // 4. Simpler fallback variants
   const variants = buildAddressVariants(rawAddress);
   for (let i = 1; i < variants.length; i++) {
-    await delay(400);
+    await delay(200);
     try {
       const result = await tryGeocodeSingle(variants[i]);
       if (result) return result;
@@ -125,7 +147,7 @@ async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number 
   const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt > 0) await delay(1500);
+    if (attempt > 0) await delay(500);
     try {
       const res = await fetch(url);
       const data = await res.json();
@@ -154,7 +176,12 @@ serve(async (req) => {
 
     console.log(`[geocode-distance] store="${store_address}" customer="${customer_address}"`);
 
-    const storeCoord = await geocodeAddress(store_address);
+    // Geocode both addresses in PARALLEL
+    const [storeCoord, customerCoord] = await Promise.all([
+      geocodeAddress(store_address),
+      geocodeAddress(customer_address),
+    ]);
+
     if (!storeCoord) {
       return new Response(
         JSON.stringify({ distance_km: null, fee: null, error: "store_address_not_found" }),
@@ -162,9 +189,6 @@ serve(async (req) => {
       );
     }
 
-    await delay(400);
-
-    const customerCoord = await geocodeAddress(customer_address);
     if (!customerCoord) {
       return new Response(
         JSON.stringify({ distance_km: null, fee: null, error: "customer_address_not_found" }),
