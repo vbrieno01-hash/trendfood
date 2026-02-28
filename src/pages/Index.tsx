@@ -1,9 +1,12 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
+import PlanCard from "@/components/pricing/PlanCard";
+import { supabase } from "@/integrations/supabase/client";
 import logoDashboard from "@/assets/logo-dashboard.png";
 import {
   BarChart3,
@@ -22,6 +25,10 @@ import {
   Bike,
   MessageCircle,
   Instagram,
+  Smartphone,
+  Package,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
 
 const problems = [
@@ -140,7 +147,59 @@ const proofBadges = [
   "Sem app para baixar",
 ];
 
+const benefitCards = [
+  {
+    icon: <Smartphone className="w-7 h-7" />,
+    title: "Cardápio Digital",
+    description: "Seu catálogo completo acessível por QR Code, sem app para baixar.",
+  },
+  {
+    icon: <Package className="w-7 h-7" />,
+    title: "Controle de Estoque",
+    description: "Gerencie entradas, saídas e estoque mínimo com alertas automáticos.",
+  },
+  {
+    icon: <CreditCard className="w-7 h-7" />,
+    title: "Pagamento Online",
+    description: "PIX integrado direto no pedido, sem maquininha.",
+  },
+];
+
+const formatPrice = (cents: number) => {
+  if (cents === 0) return "Grátis";
+  return `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
+};
+
+interface PlanRow {
+  id: string;
+  name: string;
+  key: string;
+  description: string | null;
+  price_cents: number;
+  features: string[];
+  highlighted: boolean;
+  badge: string | null;
+  checkout_url: string | null;
+  sort_order: number;
+  active: boolean;
+}
+
 const Index = () => {
+  const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("platform_plans")
+      .select("*")
+      .eq("active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        setPlans((data as unknown as PlanRow[]) ?? []);
+        setLoadingPlans(false);
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -151,7 +210,6 @@ const Index = () => {
           alt="Ambiente comercial de restaurante"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
-        {/* Dark overlay — darker on left for text readability */}
         <div
           className="absolute inset-0"
           style={{
@@ -160,19 +218,23 @@ const Index = () => {
           }}
         />
 
-        {/* Header — glassmorphism */}
+        {/* Header */}
         <header className="relative z-10 border-b border-white/[0.06]">
           <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
             <div className="flex items-center gap-2.5">
               <img src={logoDashboard} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
               <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
             </div>
+            <div className="hidden md:flex items-center gap-6 mr-auto ml-10">
+              <a href="#funcionalidades" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Recursos</a>
+              <Link to="/planos" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Preços</Link>
+            </div>
             <div className="flex items-center gap-3">
               <Button size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/[0.06] transition-all" asChild>
-                <Link to="/auth">Login</Link>
+                <Link to="/auth">Entrar</Link>
               </Button>
               <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-5 transition-all" asChild>
-                <Link to="/auth">Criar Loja Grátis</Link>
+                <Link to="/auth">Começar Agora</Link>
               </Button>
             </div>
           </div>
@@ -187,11 +249,9 @@ const Index = () => {
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
-              Transforme seu Delivery com a TrendFood
+              O Cardápio Digital que Profissionaliza seu Delivery
               <br />
-              <span
-                className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent"
-              >
+              <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent">
                 Sem Taxas, Com Gestão Real.
               </span>
             </h1>
@@ -223,6 +283,26 @@ const Index = () => {
                 </span>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Benefit Cards */}
+      <section className="py-16 px-4 bg-background border-b border-border/60">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6">
+            {benefitCards.map((card) => (
+              <div
+                key={card.title}
+                className="bg-card rounded-2xl p-6 border border-border hover:border-primary/40 hover:shadow-lg transition-all text-center"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                  {card.icon}
+                </div>
+                <h3 className="font-bold text-foreground text-lg mb-2">{card.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{card.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -336,6 +416,44 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Plans Section */}
+      <section id="planos" className="py-20 px-4 bg-secondary/40 border-y border-border/60">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+              Planos
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+              Escolha o plano ideal para seu negócio
+            </h2>
+            <p className="text-muted-foreground text-lg">
+              Comece grátis e evolua conforme sua operação cresce
+            </p>
+          </div>
+          {loadingPlans ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6 items-stretch">
+              {plans.map((plan) => (
+                <PlanCard
+                  key={plan.id}
+                  name={plan.name}
+                  price={formatPrice(plan.price_cents)}
+                  description={plan.description ?? ""}
+                  features={Array.isArray(plan.features) ? plan.features : []}
+                  cta="Ver detalhes"
+                  ctaLink="/planos"
+                  highlighted={plan.highlighted}
+                  badge={plan.badge ?? undefined}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* CTA final */}
       <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
@@ -430,7 +548,7 @@ const Index = () => {
         </div>
 
         <div className="max-w-5xl mx-auto border-t border-border/60 pt-6 text-center text-muted-foreground text-sm">
-          <p>© 2026 TrendFood. Feito com ❤️ para o comércio brasileiro.</p>
+          <p>TrendFood © 2026 - Todos os direitos reservados</p>
         </div>
       </footer>
     </div>
