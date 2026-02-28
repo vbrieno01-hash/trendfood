@@ -193,9 +193,9 @@ const PricingPage = () => {
               {...plan}
               currentPlan={!!user && currentPlan === plan.key}
               loading={false}
-              onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
+              onSelect={plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
               external={false}
-              ctaLink={!user ? "/auth" : plan.ctaLink}
+              ctaLink={plan.ctaLink}
             />
           ))}
         </div>
