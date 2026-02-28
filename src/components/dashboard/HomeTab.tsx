@@ -1,10 +1,10 @@
-import { useDeliveredOrders, useDeliveredUnpaidOrders } from "@/hooks/useOrders";
+import { useDeliveredOrders, useDeliveredUnpaidOrders, useOrders } from "@/hooks/useOrders";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend,
 } from "recharts";
-import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2 } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle } from "lucide-react";
 import { subDays, format, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 
 interface Organization {
   id: string;
@@ -30,8 +31,27 @@ const fmtBRL = (v: number) =>
 export default function HomeTab({ organization }: { organization: Organization }) {
   const { data: delivered = [], isLoading: loadingDelivered } = useDeliveredOrders(organization.id);
   const { data: unpaid = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(organization.id);
+  const { data: activeOrders = [] } = useOrders(organization.id, ["pending", "preparing"]);
   const { refreshOrganization } = useAuth();
   const [pauseLoading, setPauseLoading] = useState(false);
+
+  // Occupied tables: distinct table_number from active orders (excluding delivery = table 0)
+  const occupiedTables = new Set(activeOrders.filter(o => o.table_number > 0).map(o => o.table_number)).size;
+
+  // Low stock alerts
+  const { data: lowStockCount = 0 } = useQuery({
+    queryKey: ["low_stock_count", organization.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_items")
+        .select("quantity, min_quantity")
+        .eq("organization_id", organization.id)
+        .gt("min_quantity", 0);
+      if (error) throw error;
+      return (data ?? []).filter(i => i.quantity <= i.min_quantity).length;
+    },
+    enabled: !!organization.id,
+  });
 
   const togglePause = async () => {
     setPauseLoading(true);
@@ -179,6 +199,37 @@ export default function HomeTab({ organization }: { organization: Organization }
               : "Período de Teste"}
           </span>
         )}
+      </div>
+
+      {/* ── Quick Summary ─────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50">
+            <ClipboardList className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-foreground leading-tight">{activeOrders.length}</p>
+            <p className="text-xs text-muted-foreground font-medium">Pedidos Ativos</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-violet-200 bg-violet-50 dark:bg-violet-950/30 dark:border-violet-800 p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/50">
+            <LayoutGrid className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-foreground leading-tight">{occupiedTables}</p>
+            <p className="text-xs text-muted-foreground font-medium">Mesas Ocupadas</p>
+          </div>
+        </div>
+        <div className={`rounded-xl border p-4 flex items-center gap-3 ${lowStockCount > 0 ? "border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800" : "border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800"}`}>
+          <div className={`p-2 rounded-lg ${lowStockCount > 0 ? "bg-red-100 dark:bg-red-900/50" : "bg-green-100 dark:bg-green-900/50"}`}>
+            <AlertTriangle className={`w-5 h-5 ${lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`} />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-foreground leading-tight">{lowStockCount}</p>
+            <p className="text-xs text-muted-foreground font-medium">Estoque Baixo</p>
+          </div>
+        </div>
       </div>
 
       {/* ── Pause toggle ─────────────────────────────────── */}

@@ -14,11 +14,13 @@ import { buildPixPayload } from "@/lib/pixPayload";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike, Package,
+  ChevronDown,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -73,6 +75,7 @@ const DashboardPage = () => {
   }, [activeTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const retryRef = useRef(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ operacional: true });
 
   // Bluetooth state lifted from SettingsTab
   const [btDevice, setBtDevice] = useState<any>(null);
@@ -545,32 +548,46 @@ const DashboardPage = () => {
     reports: !planLimits.canAccess("reports"),
   };
 
-  const navItemsTop: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] = [
-    { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
-    { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Meu Cardápio" },
-    { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas" },
-    { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
-    { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
-    { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
-    { key: "reports", icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
-    { key: "stock", icon: <Package className="w-4 h-4" />, label: "Estoque" },
+  const sidebarGroups: { id: string; emoji: string; title: string; items: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] }[] = [
+    {
+      id: "operacional", emoji: "⚡", title: "OPERACIONAL",
+      items: [
+        { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Gestão de Pedidos", locked: lockedFeatures.waiter },
+        { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas & Comandas" },
+        { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
+        { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
+        { key: "courier", icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
+      ],
+    },
+    {
+      id: "logistica", emoji: "📦", title: "LOGÍSTICA",
+      items: [
+        { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Cardápio (Menu)" },
+        { key: "stock", icon: <Package className="w-4 h-4" />, label: "Estoque & Insumos" },
+      ],
+    },
+    {
+      id: "financeiro", emoji: "💰", title: "FINANCEIRO",
+      items: [
+        { key: "caixa", icon: <Wallet className="w-4 h-4" />, label: "Fluxo de Caixa", locked: lockedFeatures.caixa },
+        { key: "reports", icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
+        { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
+        { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
+      ],
+    },
+    {
+      id: "ajustes", emoji: "⚙️", title: "AJUSTES",
+      items: [
+        { key: "profile", icon: <Store className="w-4 h-4" />, label: "Dados da Loja" },
+        { key: "subscription", icon: <Rocket className="w-4 h-4" />, label: "Assinatura / Plano" },
+        { key: "printer", icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
+        { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
+        { key: "guide", icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
+        { key: "settings", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
+      ],
+    },
   ];
 
-  const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] = [
-    { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
-    { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Painel do Garçom", locked: lockedFeatures.waiter },
-    { key: "caixa", icon: <Wallet className="w-4 h-4" />, label: "Caixa", locked: lockedFeatures.caixa },
-    { key: "courier", icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
-  ];
-
-  const navItemsBottom: { key: TabKey; icon: React.ReactNode; label: string }[] = [
-    { key: "subscription", icon: <Rocket className="w-4 h-4" />, label: "Assinatura" },
-    { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
-    { key: "guide", icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
-    { key: "profile", icon: <Store className="w-4 h-4" />, label: "Perfil da Loja" },
-    { key: "printer", icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
-    { key: "settings", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
-  ];
 
   const handleSignOut = async () => {
     await signOut();
@@ -702,51 +719,48 @@ const DashboardPage = () => {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {navItemsTop.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
-              className={navBtnClass(item.key)}
-            >
-              {item.icon}
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
-            </button>
-          ))}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {/* Home – fixed at top */}
+          <button
+            onClick={() => { handleTabChange("home"); setSidebarOpen(false); }}
+            className={navBtnClass("home")}
+          >
+            <Home className="w-4 h-4" />
+            <span className="flex-1 text-left">Home</span>
+          </button>
 
-          {/* Operações separator */}
-          <div className="pt-5 pb-2 px-3">
-            <p className="text-xs font-semibold text-white/30 uppercase tracking-widest">Operações</p>
-          </div>
+          {/* Accordion groups */}
+          {sidebarGroups.map((group) => {
+            const isGroupOpen = openGroups[group.id] ?? false;
+            const hasActiveTab = group.items.some((i) => i.key === activeTab);
 
-          {navItemsOps.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
-              className={navBtnClass(item.key)}
-            >
-              {item.icon}
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
-            </button>
-          ))}
-
-          {/* Divider */}
-          <div className="pt-4 pb-1">
-            <div className="border-t border-white/10" />
-          </div>
-
-          {navItemsBottom.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
-              className={navBtnClass(item.key)}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
+            return (
+              <Collapsible
+                key={group.id}
+                open={isGroupOpen || hasActiveTab}
+                onOpenChange={(val) => setOpenGroups((prev) => ({ ...prev, [group.id]: val }))}
+              >
+                <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-widest text-white/40 hover:text-white/60 transition-colors">
+                  <span>{group.emoji}</span>
+                  <span className="flex-1 text-left">{group.title}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${(isGroupOpen || hasActiveTab) ? "rotate-180" : ""}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-0.5 mt-0.5">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.key}
+                      onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
+                      className={navBtnClass(item.key)}
+                    >
+                      {item.icon}
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
+                    </button>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </nav>
 
         {/* Bottom actions */}
