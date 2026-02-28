@@ -134,13 +134,27 @@ const CardPaymentForm = ({
 
       if (!tokenResult?.id) throw new Error("Não foi possível tokenizar o cartão");
 
-      const { data, error } = await supabase.functions.invoke("create-mp-subscription", {
-        body: { org_id: orgId, plan, card_token_id: tokenResult.id },
-      });
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
 
-      if (error && !data) throw new Error(error.message);
-      if (data?.error) {
-        const errorMsg = getMpErrorMessage(data.status_detail || data.message);
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-subscription`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ org_id: orgId, plan, card_token_id: tokenResult.id }),
+        }
+      );
+
+      const data = await response.json();
+      console.log("[CardPaymentForm] create-mp-subscription response:", response.status, data);
+
+      if (!response.ok || data?.error) {
+        const errorMsg = getMpErrorMessage(data?.status_detail || data?.message || data?.error);
         throw new Error(errorMsg);
       }
 
