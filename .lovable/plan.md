@@ -1,25 +1,42 @@
 
 
-# Diagnóstico: Erro "Card token service not found"
+# Estoque Inteligente — Insumos vinculados a produtos com baixa automática
 
-## Problema identificado
-O erro **"Card token service not found"** vem do Mercado Pago e ocorre porque as credenciais estão em **modo TEST** (`TEST-774a082e-...`). No modo teste do MP, é necessário usar **contas de teste** (comprador e vendedor teste) — cartões reais não funcionam.
+## Visão geral
+Criar sistema de estoque onde cada produto do cardápio pode ter ingredientes (insumos) vinculados. Quando um pagamento é confirmado (`paid = true`), o sistema subtrai automaticamente os insumos e desativa produtos sem estoque.
 
-O código está correto, mas há dois problemas a corrigir:
+## Banco de dados (2 tabelas novas + 1 trigger + 1 function)
 
-## Correções necessárias
+### Tabela `stock_items` (insumos)
+- `id`, `organization_id`, `name`, `unit` (ex: "kg", "un", "L"), `quantity` (estoque atual), `min_quantity` (alerta), `created_at`
+- RLS: owner da org pode CRUD, select público (para o trigger funcionar)
 
-### 1. Melhorar tratamento de erro no frontend (`CardPaymentForm.tsx`)
-- Quando a edge function retorna status 500, o `supabase.functions.invoke` lança erro genérico "Edge Function returned a non-2xx status code" — o detalhe do MP se perde
-- Corrigir para extrair a mensagem real do `data` mesmo quando há `error`
+### Tabela `menu_item_ingredients` (vínculo produto ↔ insumo)
+- `id`, `menu_item_id`, `stock_item_id`, `quantity_used` (quanto consome por unidade vendida)
+- RLS: owner da org pode CRUD
 
-### 2. Retornar status 200 com erro estruturado na edge function (`create-mp-subscription`)
-- Em vez de retornar HTTP 500 quando o MP rejeita, retornar 200 com `{ error: ..., status_detail: ... }` para que o frontend consiga ler a mensagem
-- Isso permite que o mapeamento de erros em português funcione corretamente
+### Function `deduct_stock_and_disable()`
+- Trigger `AFTER UPDATE` na tabela `orders` quando `NEW.paid = true AND OLD.paid = false`
+- Para cada `order_item` do pedido:
+  - Busca ingredientes vinculados em `menu_item_ingredients`
+  - Subtrai `quantity_used * order_item.quantity` do `stock_items.quantity`
+  - Se algum `stock_item.quantity <= 0`, busca todos os `menu_items` que usam esse insumo e seta `available = false`
 
-### 3. Adicionar mensagem específica para "Card token service not found"
-- Adicionar no `mpErrorMessages.ts` uma mensagem para esse erro específico explicando que pode ser problema de credenciais teste
+## Frontend
 
-### Sobre produção
-Quando você trocar as credenciais para **produção** (`APP_USR-...` em vez de `TEST-...`), o fluxo funcionará normalmente com cartões reais.
+### Nova aba "Estoque" no Dashboard
+- Lista de insumos com nome, unidade, quantidade atual, quantidade mínima
+- CRUD de insumos (adicionar, editar, remover)
+- No formulário de edição de item do cardápio (MenuTab), adicionar seção "Ingredientes" para vincular insumos e definir quantidade consumida por unidade
+
+### Hook `useStockItems.ts`
+- `useStockItems(orgId)` — lista insumos
+- `useAddStockItem`, `useUpdateStockItem`, `useDeleteStockItem`
+- `useMenuItemIngredients(menuItemId)` — ingredientes vinculados a um item
+
+### Alterações no `DashboardPage.tsx`
+- Adicionar tab "Estoque" com ícone `Package` no sidebar
+
+## Fluxo automático (sem alteração no frontend de pedidos)
+A trigger no banco cuida de tudo: quando `paid` muda para `true` (seja pelo garçom, PIX, ou webhook MP), a baixa e desativação acontecem automaticamente no PostgreSQL.
 
