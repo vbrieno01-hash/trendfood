@@ -24,67 +24,45 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const PLANS = [
-  {
-    key: "free",
-    name: "Grátis",
-    price: "R$ 5",
-    description: "Teste de pagamento real",
-    features: [
-      "Cardápio digital ilimitado",
-      "Até 5 itens no cardápio",
-      "Até 3 mesas",
-      "Pedidos via QR Code",
-      "Suporte por chat",
-    ],
-    cta: "Assinar por R$ 5",
+interface PlanData {
+  key: string;
+  name: string;
+  price: string;
+  description: string;
+  features: string[];
+  cta: string;
+  ctaLink: string;
+  highlighted: boolean;
+  badge?: string;
+  priceCents: number;
+}
+
+function formatPrice(cents: number): string {
+  if (cents === 0) return "Grátis";
+  return `R$ ${(cents / 100).toFixed(0)}`;
+}
+
+function mapPlanRow(row: any): PlanData {
+  const price = formatPrice(row.price_cents);
+  return {
+    key: row.key,
+    name: row.name,
+    price,
+    description: row.description ?? "",
+    features: Array.isArray(row.features) ? row.features : [],
+    cta: row.price_cents === 0 ? "Plano atual" : `Assinar ${row.name}`,
     ctaLink: "#",
-    priceCents: 500,
-  },
-  {
-    key: "pro",
-    name: "Pro",
-    price: "R$ 99",
-    description: "Para restaurantes em crescimento",
-    features: [
-      "Itens ilimitados no cardápio",
-      "Mesas ilimitadas",
-      "Painel Cozinha (KDS)",
-      "Painel do Garçom",
-      "Cupons de desconto",
-      "Mais vendidos",
-      "Controle de caixa",
-      "Impressão automática",
-    ],
-    cta: "Assinar Pro",
-    ctaLink: "#",
-    highlighted: true,
-    badge: "Mais popular",
-    priceCents: 9900,
-  },
-  {
-    key: "enterprise",
-    name: "Enterprise",
-    price: "R$ 249",
-    description: "Para operações completas",
-    features: [
-      "Tudo do Pro",
-      "Relatórios avançados",
-      "Robô de WhatsApp",
-      "Multi-unidades",
-      "Motoboys integrados",
-      "Suporte prioritário",
-    ],
-    cta: "Assinar Enterprise",
-    ctaLink: "#",
-    priceCents: 24900,
-  },
-];
+    highlighted: row.highlighted ?? false,
+    badge: row.badge ?? undefined,
+    priceCents: row.price_cents,
+  };
+}
 
 const SubscriptionTab = () => {
   const { organization, session } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loading, setLoading] = useState(false);
+  const [plans, setPlans] = useState<PlanData[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
@@ -128,19 +106,34 @@ const SubscriptionTab = () => {
     }
   }, []);
 
+  // Fetch plans from database
+  useEffect(() => {
+    supabase
+      .from("platform_plans")
+      .select("*")
+      .eq("active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setPlans(data.map(mapPlanRow));
+        }
+        setLoadingPlans(false);
+      });
+  }, []);
+
   // Auto-select plan from URL param
   useEffect(() => {
     const planFromUrl = searchParams.get("plan");
-    if (planFromUrl && planFromUrl !== "free" && PLANS.some((p) => p.key === planFromUrl)) {
+    if (planFromUrl && planFromUrl !== "free" && plans.length > 0 && plans.some((p) => p.key === planFromUrl)) {
       handleSubscribe(planFromUrl);
       searchParams.delete("plan");
       setSearchParams(searchParams, { replace: true });
     }
-  }, []);
+  }, [plans]);
 
   const handleSubscribe = (planKey: string) => {
     if (!organization || !session) return;
-    const planData = PLANS.find((p) => p.key === planKey);
+    const planData = plans.find((p) => p.key === planKey);
     if (planData) {
       setCardFormPlan({ key: planData.key, name: planData.name, price: planData.price });
     }
@@ -306,7 +299,11 @@ const SubscriptionTab = () => {
 
       {/* Plan cards */}
       <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
-        {PLANS.map((plan) => (
+        {loadingPlans ? (
+          <div className="col-span-full flex justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : plans.map((plan) => (
           <PlanCard
             key={plan.key}
             name={plan.name}
@@ -318,7 +315,7 @@ const SubscriptionTab = () => {
             highlighted={plan.highlighted}
             badge={plan.badge}
             currentPlan={currentPlan === plan.key}
-            loading={loading}
+            loading={false}
             onSelect={
               plan.key !== currentPlan && !isLifetime
                 ? () => handleSubscribe(plan.key)
