@@ -891,23 +891,23 @@ const DashboardPage = () => {
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
           {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
           {activeTab === "coupons" && (lockedFeatures.coupons
-            ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." />
+            ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <CouponsTab orgId={organization.id} />)}
           {activeTab === "bestsellers" && (lockedFeatures.bestsellers
-            ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." />
+            ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <BestSellersTab orgId={organization.id} />)}
           {activeTab === "kitchen" && (lockedFeatures.kitchen
-            ? <UpgradePrompt title="Painel da Cozinha (KDS)" description="Gerencie pedidos em tempo real com o KDS. Disponível nos planos Pro e Enterprise." />
+            ? <UpgradePrompt title="Painel da Cozinha (KDS)" description="Gerencie pedidos em tempo real com o KDS. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} onPairBluetooth={handlePairBluetooth} btConnected={btConnected} btSupported={btSupported} autoPrint={autoPrint} onToggleAutoPrint={toggleAutoPrint} notificationsEnabled={notificationsEnabled} onToggleNotifications={toggleNotifications} />)}
           {activeTab === "waiter" && (lockedFeatures.waiter
-            ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." />
+            ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"} pixKey={(organization as any).pix_key} />)}
           {activeTab === "caixa" && (lockedFeatures.caixa
-            ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." />
+            ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <CaixaTab orgId={organization.id} />)}
           {activeTab === "features" && <FeaturesTab effectivePlan={planLimits.effectivePlan} />}
           {activeTab === "reports" && (lockedFeatures.reports
-            ? <UpgradePrompt title="Relatórios Avançados" description="Gráficos de faturamento, ticket médio, horários de pico e comparativos. Disponível nos planos Enterprise e Vitalício." />
+            ? <UpgradePrompt title="Relatórios Avançados" description="Gráficos de faturamento, ticket médio, horários de pico e comparativos. Disponível nos planos Enterprise e Vitalício." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgEmoji={organization.emoji} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} />}
@@ -916,7 +916,7 @@ const DashboardPage = () => {
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
           {activeTab === "subscription" && <SubscriptionTab />}
           {activeTab === "stock" && (lockedFeatures.stock
-            ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." />
+            ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <StockTab orgId={organization.id} />)}
           </ErrorBoundary>
         </main>
