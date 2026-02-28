@@ -38,3 +38,21 @@ verify_jwt = false
 
 [functions.get-subscription-details]
 verify_jwt = false
+
+[functions.get-mp-public-key]
+verify_jwt = false
+
+[functions.check-subscription-pix]
+verify_jwt = false
+
+[functions.check-pix-status]
+verify_jwt = false
+
+[functions.generate-pix-payload]
+verify_jwt = false
+
+[functions.verify-pix-payment]
+verify_jwt = false
+
+[functions.create-admin-user]
+verify_jwt = false
