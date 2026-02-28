@@ -1,36 +1,42 @@
 
 
-# Checkout Transparente — Formulário de cartão na própria página
+# Checkout Transparente: PIX + Erros detalhados no cartão
 
-Sim, a assinatura continua sendo **automática e recorrente**. A diferença é que em vez de redirecionar para o site do Mercado Pago, o cliente preenche o cartão direto na sua página. O MP continua cobrando automaticamente todo mês.
+## Contexto
+O backend já possui `create-mp-payment` (suporta PIX e cartão) e `check-subscription-pix` (polling de status). O frontend precisa ser atualizado para expor a opção PIX e melhorar mensagens de erro.
 
 ## Implementação
 
-### 1. Criar `src/components/checkout/CardPaymentForm.tsx`
-- Modal (Dialog) com formulário de cartão: número, titular, validade, CVV, CPF
-- Ao montar, busca public key via `get-mp-public-key` e carrega SDK `https://sdk.mercadopago.com/js/v2`
-- Usa `new MercadoPago(publicKey)` + `mp.createCardToken()` para tokenizar o cartão client-side
-- Ao submeter, chama `create-mp-subscription` passando `card_token_id` + `org_id` + `plan`
-- Se sucesso, mostra toast e recarrega; se erro, permite tentar novamente
-- Visual com a marca TrendFood, sem referência visual ao MP
+### 1. Refatorar `CardPaymentForm.tsx` para suportar abas Cartão/PIX
+- Adicionar `Tabs` com duas abas: "Cartão de crédito" e "PIX"
+- Aba Cartão: formulário atual (sem mudanças estruturais)
+- Aba PIX: campo CPF/CNPJ → chama `create-mp-payment` com `payment_method: "pix"` → exibe QR Code + Copia e Cola → polling via `check-subscription-pix` a cada 5s
+- Ao confirmar PIX (polling retorna `paid: true`), mostra toast de sucesso e chama `onSuccess`
 
-### 2. Atualizar `create-mp-subscription` edge function
-- Aceitar campo opcional `card_token_id` no body
-- Se presente, criar preapproval com `card_token_id` e `status: "authorized"` (ativa imediatamente, sem redirect)
-- Se ausente, manter fluxo atual (redirect) como fallback
-- Snippet da mudança no body do preapproval:
-```typescript
-const preapprovalBody = {
-  ...existingFields,
-  ...(card_token_id ? { card_token_id, status: "authorized" } : { status: "pending" }),
-};
-```
+### 2. Adicionar mapeamento de erros em português para cartão
+- Mapear `status_detail` do Mercado Pago para mensagens amigáveis:
+  - `cc_rejected_insufficient_amount` → "Saldo insuficiente no cartão"
+  - `cc_rejected_bad_filled_card_number` → "Número do cartão inválido"
+  - `cc_rejected_bad_filled_security_code` → "Código de segurança (CVV) inválido"
+  - `cc_rejected_bad_filled_date` → "Data de validade inválida"
+  - `cc_rejected_high_risk` → "Pagamento recusado por medida de segurança"
+  - `cc_rejected_call_for_authorize` → "Cartão requer autorização. Ligue para o banco."
+  - `cc_rejected_card_disabled` → "Cartão desabilitado. Ligue para o banco."
+  - `cc_rejected_max_attempts` → "Limite de tentativas atingido. Tente outro cartão."
+  - Demais → "Pagamento recusado. Verifique os dados e tente novamente."
+- Exibir no catch do `handleSubmit` com `toast.error` usando a mensagem mapeada
 
-### 3. Atualizar `SubscriptionTab.tsx`
-- Ao clicar em "Assinar Pro/Enterprise", abrir modal `CardPaymentForm` em vez de redirecionar
-- Passar `org_id`, `plan` e callback de sucesso ao componente
-- Remover o redirect para `init_point` quando o checkout transparente é usado
+### 3. Fluxo PIX dentro do modal
+- Ao submeter PIX, chama `create-mp-payment` → recebe `pix_qr_code`, `pix_qr_code_base64`, `payment_id`
+- Renderiza QR Code usando `QRCodeSVG` ou imagem base64
+- Mostra "Copia e Cola" com botão copiar
+- Inicia polling com `setInterval` chamando `check-subscription-pix` a cada 5 segundos
+- Countdown de 10 minutos para expiração
+- Quando `paid: true`, toast de sucesso + `onSuccess()`
 
-### 4. Atualizar `PricingPage.tsx`
-- Mesma lógica: abrir modal `CardPaymentForm` em vez de redirecionar
+### Detalhes técnicos
+- Reutiliza edge functions existentes (`create-mp-payment`, `check-subscription-pix`) — sem alteração no backend
+- O `create-mp-subscription` continua como fluxo principal de cartão com assinatura recorrente
+- PIX no checkout de assinatura será pagamento avulso (mensal manual ou single payment) via `create-mp-payment`, não recorrente — pois a API de preapproval do MP não suporta PIX automático
+- Ao pagar PIX, o plano é ativado por 30 dias (mesma lógica já existente em `check-subscription-pix`)
 
