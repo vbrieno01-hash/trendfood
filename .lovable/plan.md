@@ -1,45 +1,41 @@
 
 
-## Plano: Atualizar textos de benefícios dos planos
+## Bug: Botão "Assinar Pro" redireciona para `/planos` em vez de abrir o UpgradeDialog
 
-### Onde os dados estão
-Os benefícios dos planos vêm da tabela `platform_plans` no banco de dados (coluna `features` do tipo JSONB). São carregados dinamicamente tanto na `PricingPage` quanto no `UpgradeDialog`. Portanto, basta atualizar o banco.
+### Problema
+O banner de trial na aba Home usa `<Link to="/planos">`, que navega para a página de preços externa. O esperado é abrir o `UpgradeDialog` inline, como acontece em outros pontos do dashboard.
 
-### Implementação
+### Correção — `src/pages/DashboardPage.tsx`
 
-**1. Migration SQL** — atualizar a coluna `features` de cada plano:
+1. **Adicionar estado para controlar o UpgradeDialog** (junto dos outros estados do componente):
+```typescript
+const [upgradeOpen, setUpgradeOpen] = useState(false);
+```
 
-- **Grátis** (`key = 'free'`): substituir features por:
-  - Catálogo digital
-  - Até 20 itens no cardápio
-  - 1 ponto de atendimento (QR Code)
-  - Pedidos por QR Code
-  - Link compartilhável do catálogo
-  - Pagamento apenas na entrega
-  - Selo TrendFood no rodapé
+2. **Importar o UpgradeDialog** (já existe no projeto):
+```typescript
+import UpgradeDialog from "@/components/dashboard/UpgradeDialog";
+```
 
-- **Pro** (`key = 'pro'`): substituir features por:
-  - Tudo do plano Grátis
-  - Itens ilimitados no cardápio
-  - Pontos de atendimento ilimitados
-  - Adicionais ilimitados
-  - Pagamento Online (PIX/Cartão)
-  - Retirada da marca TrendFood
-  - Painel de Produção (KDS)
-  - Controle de Caixa completo
-  - Cupons de desconto
-  - Ranking de mais vendidos
-  - Impressora térmica 80mm
-  - Painel do Atendente
+3. **Substituir o botão do banner de trial ativo** (~linha 826-828):
+   - De: `<Button asChild><Link to="/planos">...Assinar Pro</Link></Button>`
+   - Para: `<Button size="sm" className="gap-1.5" onClick={() => setUpgradeOpen(true)}><Zap />Assinar Pro</Button>`
 
-- **Enterprise** (`key = 'enterprise'`): substituir features por:
-  - Tudo do plano Pro
-  - Múltiplas unidades
-  - Gestão de Insumos/Ficha Técnica
-  - Baixa automática de estoque
-  - Relatórios avançados
-  - Suporte prioritário
-  - Gerente de conta dedicado
+4. **Fazer o mesmo no banner de trial expirado** (~linha 839-841):
+   - De: `<Button asChild><Link to="/planos">...Fazer upgrade</Link></Button>`
+   - Para: `<Button size="sm" variant="destructive" className="gap-1.5" onClick={() => setUpgradeOpen(true)}><Zap />Fazer upgrade</Button>`
 
-Nenhuma alteração de código é necessária — o `PlanCard` já renderiza a lista `features` dinamicamente.
+5. **Fazer o mesmo no banner de assinatura expirando** (se houver botão similar mais abaixo).
+
+6. **Renderizar o UpgradeDialog** no final do JSX, antes do `</div>` de fechamento:
+```tsx
+<UpgradeDialog
+  open={upgradeOpen}
+  onOpenChange={setUpgradeOpen}
+  orgId={organization.id}
+  currentPlan={planLimits.plan}
+/>
+```
+
+Nenhuma outra alteração necessária — o fluxo de checkout já funciona dentro do `UpgradeDialog`.
 
