@@ -16,6 +16,7 @@ import ErrorLogsTab from "@/components/admin/ErrorLogsTab";
 import ActivationLogsTab from "@/components/admin/ActivationLogsTab";
 import ManageSubscriptionDialog from "@/components/admin/ManageSubscriptionDialog";
 import WhatsAppConnectTab from "@/components/admin/WhatsAppConnectTab";
+import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -157,7 +158,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia";
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -309,6 +310,7 @@ function AdminContent() {
     { key: "logs", icon: <AlertCircle className="w-4 h-4" />, label: "Logs" },
     { key: "ativacoes", icon: <ScrollText className="w-4 h-4" />, label: "Ativações" },
     { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
+    { key: "guia", icon: <ScrollText className="w-4 h-4" />, label: "Guia" },
   ];
 
   const navBtnClass = (key: AdminTab) =>
@@ -657,6 +659,9 @@ function AdminContent() {
 
           {/* ── WhatsApp Tab ── */}
           {activeTab === "whatsapp" && <WhatsAppConnectTab />}
+
+          {/* ── Guia Tab ── */}
+          {activeTab === "guia" && <AdminGuideTab />}
 
         </main>
       </div>
