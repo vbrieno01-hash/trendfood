@@ -546,6 +546,7 @@ const DashboardPage = () => {
     waiter: !planLimits.canAccess("waiter"),
     caixa: !planLimits.canAccess("caixa"),
     reports: !planLimits.canAccess("reports"),
+    stock: !planLimits.canAccess("stock_ingredients"),
   };
 
   const sidebarGroups: { id: string; emoji: string; title: string; items: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] }[] = [
@@ -563,7 +564,7 @@ const DashboardPage = () => {
       id: "logistica", emoji: "📦", title: "LOGÍSTICA",
       items: [
         { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Cardápio (Menu)" },
-        { key: "stock", icon: <Package className="w-4 h-4" />, label: "Estoque & Insumos" },
+        { key: "stock", icon: <Package className="w-4 h-4" />, label: "Estoque & Insumos", locked: lockedFeatures.stock },
       ],
     },
     {
@@ -886,7 +887,7 @@ const DashboardPage = () => {
 
           <ErrorBoundary>
           {activeTab === "home" && <HomeTab organization={organization} />}
-          {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} />}
+          {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} canAccessAddons={planLimits.canAccess("addons")} canAccessStockIngredients={planLimits.canAccess("stock_ingredients")} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
           {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
           {activeTab === "coupons" && (lockedFeatures.coupons
@@ -914,7 +915,9 @@ const DashboardPage = () => {
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
           {activeTab === "subscription" && <SubscriptionTab />}
-          {activeTab === "stock" && <StockTab orgId={organization.id} />}
+          {activeTab === "stock" && (lockedFeatures.stock
+            ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." />
+            : <StockTab orgId={organization.id} />)}
           </ErrorBoundary>
         </main>
 
