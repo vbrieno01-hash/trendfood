@@ -1,52 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import dashboardImg from "@/assets/dashboard-screenshot.png";
-import mobileImg from "@/assets/mobile-screenshot.png";
-
-const DashboardMockup = () => (
-  <div className="relative w-full" style={{ maxWidth: 520 }}>
-    {/* Laptop frame */}
-    <div className="rounded-xl overflow-hidden shadow-2xl border border-gray-200" style={{ background: "#1a1a2e" }}>
-      {/* Mac-style title bar */}
-      <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
-        <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-        <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-        <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-        <div className="flex-1 mx-3">
-          <div className="h-3.5 rounded bg-white/10 w-40 mx-auto" />
-        </div>
-      </div>
-
-      {/* App body - Screenshot real do dashboard */}
-      <div className="overflow-hidden" style={{ height: 340 }}>
-        <img
-          src={dashboardImg}
-          alt="Painel TrendFood - Dashboard de vendas e faturamento"
-          className="w-full h-full object-contain"
-        />
-      </div>
-    </div>
-
-    {/* Laptop base */}
-    <div className="mx-auto h-2 rounded-b-lg" style={{ width: "60%", background: "#d1d5db" }} />
-    <div className="mx-auto h-1 rounded-b-xl" style={{ width: "80%", background: "#9ca3af" }} />
-
-    {/* Mobile mockup overlapping bottom-right */}
-    <div
-      className="absolute z-10"
-      style={{ right: -28, bottom: -32, width: 110 }}
-    >
-      {/* Phone frame */}
-      <div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800">
-        <img
-          src={mobileImg}
-          alt="Cardápio digital mobile TrendFood"
-          className="w-full block"
-          style={{ display: "block" }}
-        />
-      </div>
-    </div>
-  </div>
-);
+import showcaseImg from "@/assets/showcase-devices.png";
 
 const ShowcaseSection = () => {
   return (
@@ -90,7 +43,11 @@ const ShowcaseSection = () => {
 
           {/* Center mockups */}
           <div className="flex-1 flex justify-center order-1 lg:order-2 px-4 lg:px-8">
-            <DashboardMockup />
+            <img
+              src={showcaseImg}
+              alt="Painel TrendFood - Dashboard e cardápio digital"
+              className="w-full max-w-[520px] drop-shadow-2xl"
+            />
           </div>
 
           {/* Right text */}
