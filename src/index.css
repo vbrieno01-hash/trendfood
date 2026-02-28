@@ -13,8 +13,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 20 14% 8%;
 
-    /* Red vibrant primary - food service */
-    --primary: 0 84% 52%;
+    /* Orange vibrant primary - TrendFood brand */
+    --primary: 24 95% 53%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 10% 94%;
@@ -23,7 +23,7 @@
     --muted: 0 8% 93%;
     --muted-foreground: 0 5% 45%;
 
-    --accent: 0 84% 52%;
+    --accent: 24 95% 53%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
