@@ -1,26 +1,19 @@
 
 
-# Plano: Melhorar feedback de status do pagamento por cartão
-
-## Problema
-Quando o cartão é rejeitado (sem saldo, dados inválidos, fraude), o frontend mostra uma mensagem genérica. O lojista não sabe exatamente o que aconteceu.
+# Plano: Remover seção de Assinatura das Configurações e edge functions da Cakto
 
 ## Alterações
 
-### 1. `supabase/functions/create-mp-payment/index.ts`
-- Quando `mpData.status !== "approved"`, retornar também `status_detail` do MP (ex: `cc_rejected_insufficient_amount`, `cc_rejected_bad_filled_security_code`, etc.)
-- Logar o status_detail no console para debug
+### 1. `src/components/dashboard/SettingsTab.tsx`
+- Remover o bloco "Assinatura" (seção com ícone CreditCard, "Plano atual", botão "Trocar plano"/"Fazer upgrade")
+- Remover imports não utilizados: `CreditCard`, `Zap`, `useNavigate` (se não usado em outro lugar)
+- A gestão de assinatura já é feita pela aba dedicada (SubscriptionTab) com pagamento direto por cartão/PIX via Mercado Pago
 
-### 2. `src/components/dashboard/SubscriptionTab.tsx`
-- Mapear os `status_detail` do MP para mensagens em português amigáveis:
-  - `cc_rejected_insufficient_amount` → "Saldo insuficiente no cartão"
-  - `cc_rejected_bad_filled_security_code` → "CVV incorreto"
-  - `cc_rejected_bad_filled_date` → "Data de validade incorreta"
-  - `cc_rejected_high_risk` → "Pagamento recusado por análise de segurança"
-  - etc.
-- Mostrar toast com a mensagem específica ao invés de genérica
-- Quando status é `in_process`, mostrar toast informativo "Pagamento em análise, você será notificado"
+### 2. Remover edge functions da Cakto
+- Deletar `supabase/functions/cakto-webhook-pro/index.ts`
+- Deletar `supabase/functions/cakto-webhook-enterprise/index.ts`
+- O webhook universal (`universal-activation-webhook`) continua disponível para qualquer gateway externa, caso necessário
 
-## Resultado
-O lojista saberá exatamente por que o pagamento foi recusado e poderá tentar novamente com outro cartão ou corrigir os dados.
+### 3. Referências Cakto em Admin (manter)
+- `PlansConfigSection.tsx` e `ActivationLogsTab.tsx` mencionam "Cakto" apenas como texto de placeholder/exemplo — não são dependências funcionais, podem permanecer como referência genérica
 
