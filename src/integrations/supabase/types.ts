@@ -571,6 +571,7 @@ export type Database = {
           gateway_payment_id: string | null
           id: string
           notes: string | null
+          order_number: number | null
           organization_id: string
           paid: boolean
           payment_method: string | null
@@ -582,6 +583,7 @@ export type Database = {
           gateway_payment_id?: string | null
           id?: string
           notes?: string | null
+          order_number?: number | null
           organization_id: string
           paid?: boolean
           payment_method?: string | null
@@ -593,6 +595,7 @@ export type Database = {
           gateway_payment_id?: string | null
           id?: string
           notes?: string | null
+          order_number?: number | null
           organization_id?: string
           paid?: boolean
           payment_method?: string | null

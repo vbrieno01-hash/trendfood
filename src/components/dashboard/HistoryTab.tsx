@@ -230,10 +230,11 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                 className="bg-card border border-border rounded-xl p-4 space-y-2"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5">
                       <Receipt className="w-4 h-4 text-muted-foreground" />
                       <span className="font-bold text-foreground">
+                        {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
                         {order.table_number === 0 ? "🛵 Entrega" : `Mesa ${order.table_number}`}
                       </span>
                     </div>

@@ -225,7 +225,10 @@ export default function KitchenTab({
                           NOVO!
                         </span>
                       )}
-                      <span className="font-bold text-foreground text-lg">{order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}</span>
+                      <span className="font-bold text-foreground text-lg">
+                        {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
+                        {order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
+                      </span>
                       {(order as any).payment_method && (order as any).payment_method !== "pending" && (
                         <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
                           (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
