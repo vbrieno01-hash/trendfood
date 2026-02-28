@@ -1,19 +1,41 @@
 
 
-## Plano: Adicionar botão de excluir loja no StoreCard do painel admin
+## Plano: Travas de permissão por plano de assinatura
 
-### Implementação
+### 1. Atualizar `usePlanLimits.ts` — adicionar novas features
 
-**Arquivo: `src/pages/AdminPage.tsx`**
+Adicionar 3 novas features ao tipo `Feature` e à matriz `FEATURE_ACCESS`:
+- `addons` — Pro+ (bloqueado no Free)
+- `stock_ingredients` — Enterprise+ (bloqueado no Free e Pro)
+- `online_payment` — Pro+ (bloqueado no Free)
 
-1. Importar `Trash2` do lucide-react (já importado no projeto) e o componente `DeleteUnitDialog`
-2. Adicionar estado `deleteTarget` no `AdminContent` para controlar qual loja está sendo excluída
-3. No `StoreCard`, adicionar um botão de lixeira ao lado do link "Ver loja" no rodapé do card
-4. Renderizar o `DeleteUnitDialog` no `AdminContent`, passando a org selecionada
-5. Após exclusão, recarregar a lista de lojas removendo a org deletada do state local
+### 2. Bloquear Adicionais no `MenuTab.tsx` (plano Free)
 
-### Detalhes
-- O `DeleteUnitDialog` já existe e faz a limpeza em cascata (order_items, orders, menu_items, tables, etc.)
-- O botão terá estilo discreto (muted) com hover vermelho para indicar ação destrutiva
-- Posicionado no rodapé do card, ao lado de "Ver loja →"
+- Receber `planLimits` como prop (ou `effectivePlan`)
+- Envolver `AddonsSection` e `PendingAddonsSection` com uma verificação: se `!canAccess("addons")`, exibir um card com cadeado e texto "Disponível no plano Pro" em vez da seção funcional
+
+### 3. Bloquear Composição/Estoque no `MenuTab.tsx` (Free e Pro)
+
+- Envolver `IngredientsSection` e `PendingIngredientsSection` com verificação: se `!canAccess("stock_ingredients")`, exibir card com cadeado "Disponível no plano Enterprise"
+
+### 4. Bloquear aba Estoque no `DashboardPage.tsx`
+
+- Adicionar `stock` ao `lockedFeatures` usando `!canAccess("stock_ingredients")`
+- Renderizar `UpgradePrompt` quando a aba estoque estiver bloqueada
+
+### 5. Filtrar pagamentos no `UnitPage.tsx` (cardápio do cliente)
+
+- Importar `usePlanLimits` e chamar com `org`
+- Se `!canAccess("online_payment")`, renderizar apenas as opções "Dinheiro" e "Maquininha na Entrega" no `<Select>` de pagamento
+- Se Pro+, mostrar todas as opções (Dinheiro, Cartão Débito, Cartão Crédito, PIX)
+
+### 6. Reforçar limite de 20 itens (já existe)
+
+- O limite já funciona via `menuItemLimit` prop. Verificar que o toast e bloqueio do botão "Adicionar" estão corretos — o código atual já impede criação acima do limite.
+
+### Arquivos afetados
+- `src/hooks/usePlanLimits.ts`
+- `src/components/dashboard/MenuTab.tsx`
+- `src/pages/DashboardPage.tsx`
+- `src/pages/UnitPage.tsx`
 
