@@ -1,11 +1,15 @@
 
 
-## Melhorar mensagem de rejeição por risco
+## Corrigir preço do plano Grátis
 
-Atualizar a mensagem do `cc_rejected_high_risk` em `src/components/checkout/mpErrorMessages.ts` para sugerir usar outro cartão ou PIX.
+O plano "Grátis" na tabela `platform_plans` está com `price_cents = 500` (R$ 5/mês). Precisa ser atualizado para `0` para que exiba "Grátis" corretamente.
 
 ### Alteração
 
-**`src/components/checkout/mpErrorMessages.ts`**:
-- `cc_rejected_high_risk`: de "Pagamento recusado por medida de segurança" para "Pagamento recusado por medida de segurança. Tente outro cartão ou pague via PIX."
+**Migration SQL:**
+```sql
+UPDATE platform_plans SET price_cents = 0 WHERE key = 'free';
+```
+
+Nenhuma alteração de código necessária — o `formatPrice` já retorna "Grátis" quando `cents === 0`.
 
