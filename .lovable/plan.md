@@ -1,25 +1,21 @@
 
 
-# Plano: Polling automático no QR Code PIX da assinatura
+# Plano: Redirecionar de volta para assinatura após login
+
+## Problema
+Quando um usuário não logado clica em "Assinar Pro" na página `/planos`, ele é levado para `/auth` e após login vai para `/dashboard` — perdendo a intenção de assinar.
 
 ## Alterações
 
-### 1. Criar edge function `check-subscription-pix` 
-Nova edge function em `supabase/functions/check-subscription-pix/index.ts` que:
-- Recebe `payment_id` e `org_id`
-- Consulta o status do pagamento na API do Mercado Pago usando o `MERCADO_PAGO_ACCESS_TOKEN`
-- Se `status === "approved"`, atualiza a organização (`subscription_plan`, `subscription_status`, `trial_ends_at`) e registra em `activation_logs`
-- Retorna `{ paid: boolean, status: string }`
+### 1. `src/pages/PricingPage.tsx`
+- Ao clicar num plano sem estar logado, navegar para `/auth?redirect=/planos&plan=<key>` em vez de apenas `/auth`
+- No `useEffect` inicial, verificar query param `plan` — se o usuário acabou de voltar logado, abrir automaticamente o dialog de confirmação do plano selecionado
 
-### 2. Atualizar `src/components/dashboard/SubscriptionTab.tsx`
-- Adicionar `useEffect` com `setInterval` de 10s na tela do QR Code PIX (linhas 288-339)
-- A cada 10s, invocar `check-subscription-pix` passando `pixData.payment_id` e `organization.id`
-- Quando `paid === true`: mostrar toast de sucesso, chamar `handleBack()` para voltar à tela de planos
-- Mostrar indicador visual "Aguardando pagamento..." com spinner animado
-- Limpar o intervalo no cleanup do useEffect e quando o pagamento é confirmado
+### 2. `src/pages/AuthPage.tsx`
+- Já suporta `?redirect=` via `searchParams.get("redirect")` — nenhuma alteração necessária
 
-### Detalhes técnicos
-- O polling usa a mesma abordagem do `useCheckPixStatus` existente (checkout de pedidos), adaptada para assinaturas
-- O token do MP já está configurado como secret (`MERCADO_PAGO_ACCESS_TOKEN`)
-- A edge function usa `SUPABASE_SERVICE_ROLE_KEY` para atualizar a organização (bypass RLS)
+### Fluxo resultante
+1. Usuário clica "Assinar Pro" → vai para `/auth?redirect=/planos&plan=pro`
+2. Faz login/cadastro → redirecionado para `/planos?plan=pro`
+3. PricingPage detecta `?plan=pro` com usuário logado → abre dialog de confirmação automaticamente
 
