@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,30 +11,17 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, CreditCard, Zap, Share2, Copy, MessageCircle } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Share2, Copy, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 export default function SettingsTab() {
-  const { user, organization, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const currentPlan = organization?.subscription_plan || "free";
-  const isFree = currentPlan === "free";
-
-  const planLabels: Record<string, string> = {
-    free: "Grátis",
-    pro: "Pro",
-    enterprise: "Enterprise",
-  };
-
-  const handleManageSubscription = () => {
-    navigate("/planos");
-  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,37 +81,6 @@ export default function SettingsTab() {
             <p className="text-xs text-muted-foreground">E-mail</p>
             <p className="text-sm font-medium text-foreground">{user?.email}</p>
           </div>
-        </div>
-      </div>
-
-      {/* Subscription */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
-          <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Assinatura</p>
-        </div>
-        <div className="px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <CreditCard className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Plano atual</p>
-              <p className="text-sm font-medium text-foreground">{planLabels[currentPlan] || currentPlan}</p>
-            </div>
-          </div>
-          <Button
-            variant={isFree ? "default" : "outline"}
-            size="sm"
-            onClick={handleManageSubscription}
-            className="h-9 gap-2"
-          >
-            {isFree ? (
-              <><Zap className="w-4 h-4" /> Fazer upgrade</>
-            ) : (
-              "Trocar plano"
-            )}
-          </Button>
         </div>
       </div>
 
