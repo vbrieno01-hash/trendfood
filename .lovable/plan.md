@@ -1,41 +1,32 @@
 
 
-## Plano: Travas de permissão por plano de assinatura
+## Resultado da Verificação: Botão de Upgrade no UpgradePrompt
 
-### 1. Atualizar `usePlanLimits.ts` — adicionar novas features
+### O que existe hoje
 
-Adicionar 3 novas features ao tipo `Feature` e à matriz `FEATURE_ACCESS`:
-- `addons` — Pro+ (bloqueado no Free)
-- `stock_ingredients` — Enterprise+ (bloqueado no Free e Pro)
-- `online_payment` — Pro+ (bloqueado no Free)
+O `UpgradePrompt` **não é um modal/janelinha** — é um **card estático** que substitui o conteúdo da aba bloqueada. Ele contém:
+- Icone de cadeado
+- Titulo e descrição da feature bloqueada
+- Botão "Fazer upgrade" que **navega para `/planos`** (a página de preços)
 
-### 2. Bloquear Adicionais no `MenuTab.tsx` (plano Free)
+### Fluxo atual ao clicar "Fazer upgrade"
+1. Usuário vê o card com cadeado no lugar da aba (ex: Estoque)
+2. Clica em "Fazer upgrade"
+3. É redirecionado para `/planos` (PricingPage)
+4. Escolhe um plano → abre AlertDialog de confirmação → CardPaymentForm
 
-- Receber `planLimits` como prop (ou `effectivePlan`)
-- Envolver `AddonsSection` e `PendingAddonsSection` com uma verificação: se `!canAccess("addons")`, exibir um card com cadeado e texto "Disponível no plano Pro" em vez da seção funcional
+### Limitação do teste
+A loja TrendFood está no plano **Enterprise**, portanto as travas não aparecem visualmente. Para testar, seria necessário alterar temporariamente o plano no banco de dados para "free".
 
-### 3. Bloquear Composição/Estoque no `MenuTab.tsx` (Free e Pro)
+### Possível melhoria (opcional)
+Se o desejo é que o botão de upgrade abra uma **janelinha/modal bonita** dentro do próprio dashboard (em vez de redirecionar para `/planos`), seria necessário:
 
-- Envolver `IngredientsSection` e `PendingIngredientsSection` com verificação: se `!canAccess("stock_ingredients")`, exibir card com cadeado "Disponível no plano Enterprise"
+1. Criar um `UpgradeDialog` — modal (Dialog) com os planos disponíveis e botão de assinar
+2. Atualizar o `UpgradePrompt` para abrir o dialog ao invés de navegar para `/planos`
+3. Integrar o `CardPaymentForm` dentro do dialog para checkout inline
 
-### 4. Bloquear aba Estoque no `DashboardPage.tsx`
+### Recomendação
+O fluxo atual (redirecionar para `/planos`) já funciona bem e é consistente. A melhoria de modal inline é opcional.
 
-- Adicionar `stock` ao `lockedFeatures` usando `!canAccess("stock_ingredients")`
-- Renderizar `UpgradePrompt` quando a aba estoque estiver bloqueada
-
-### 5. Filtrar pagamentos no `UnitPage.tsx` (cardápio do cliente)
-
-- Importar `usePlanLimits` e chamar com `org`
-- Se `!canAccess("online_payment")`, renderizar apenas as opções "Dinheiro" e "Maquininha na Entrega" no `<Select>` de pagamento
-- Se Pro+, mostrar todas as opções (Dinheiro, Cartão Débito, Cartão Crédito, PIX)
-
-### 6. Reforçar limite de 20 itens (já existe)
-
-- O limite já funciona via `menuItemLimit` prop. Verificar que o toast e bloqueio do botão "Adicionar" estão corretos — o código atual já impede criação acima do limite.
-
-### Arquivos afetados
-- `src/hooks/usePlanLimits.ts`
-- `src/components/dashboard/MenuTab.tsx`
-- `src/pages/DashboardPage.tsx`
-- `src/pages/UnitPage.tsx`
+**Para testar visualmente as travas**, posso alterar temporariamente o plano da TrendFood para "free" no banco, tirar screenshots, e restaurar para "enterprise".
 
