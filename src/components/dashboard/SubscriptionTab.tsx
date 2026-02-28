@@ -28,8 +28,8 @@ const PLANS = [
   {
     key: "free",
     name: "Grátis",
-    price: "Grátis",
-    description: "Para começar a vender online",
+    price: "R$ 5",
+    description: "Teste de pagamento real",
     features: [
       "Cardápio digital ilimitado",
       "Até 5 itens no cardápio",
@@ -37,9 +37,9 @@ const PLANS = [
       "Pedidos via QR Code",
       "Suporte por chat",
     ],
-    cta: "Plano atual",
+    cta: "Assinar por R$ 5",
     ctaLink: "#",
-    priceCents: 0,
+    priceCents: 500,
   },
   {
     key: "pro",
@@ -320,7 +320,7 @@ const SubscriptionTab = () => {
             currentPlan={currentPlan === plan.key}
             loading={loading}
             onSelect={
-              plan.key !== "free" && plan.key !== currentPlan && !isLifetime
+              plan.key !== currentPlan && !isLifetime
                 ? () => handleSubscribe(plan.key)
                 : undefined
             }
