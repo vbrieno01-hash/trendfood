@@ -661,6 +661,7 @@ export type Database = {
           exe_url: string | null
           id: string
           logo_url: string | null
+          mp_subscription_id: string | null
           name: string
           onboarding_done: boolean
           paused: boolean
@@ -690,6 +691,7 @@ export type Database = {
           exe_url?: string | null
           id?: string
           logo_url?: string | null
+          mp_subscription_id?: string | null
           name: string
           onboarding_done?: boolean
           paused?: boolean
@@ -719,6 +721,7 @@ export type Database = {
           exe_url?: string | null
           id?: string
           logo_url?: string | null
+          mp_subscription_id?: string | null
           name?: string
           onboarding_done?: boolean
           paused?: boolean

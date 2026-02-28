@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -89,6 +90,7 @@ const PricingPage = () => {
   const [selectedPlan, setSelectedPlan] = useState<PlanData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const [subscribing, setSubscribing] = useState(false);
 
   useEffect(() => {
     supabase
@@ -134,10 +136,23 @@ const PricingPage = () => {
     if (plan) setSelectedPlan(plan);
   };
 
-  const handleConfirmPlan = () => {
-    if (!selectedPlan || !user) return;
-    navigate(`/dashboard?tab=subscription&plan=${selectedPlan.key}`, { replace: true });
-    setSelectedPlan(null);
+  const handleConfirmPlan = async () => {
+    if (!selectedPlan || !user || !organization) return;
+    setSubscribing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-mp-subscription", {
+        body: { org_id: organization.id, plan: selectedPlan.key },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.details || data.error);
+      if (data?.init_point) {
+        window.location.href = data.init_point;
+      }
+    } catch (err: any) {
+      console.error("[PricingPage] Subscribe error:", err);
+      toast.error("Erro ao criar assinatura", { description: err.message });
+      setSubscribing(false);
+    }
   };
 
   return (
@@ -252,9 +267,11 @@ const PricingPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmPlan}>
-              Ir para assinatura
+            <AlertDialogCancel disabled={subscribing}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPlan} disabled={subscribing}>
+              {subscribing ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Redirecionando...</>
+              ) : "Ir para assinatura"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
