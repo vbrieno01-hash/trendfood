@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.mp-webhook]
 verify_jwt = false
+
+[functions.create-mp-subscription]
+verify_jwt = false
+
+[functions.cancel-mp-subscription]
+verify_jwt = false
