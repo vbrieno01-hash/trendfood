@@ -114,7 +114,7 @@ function IngredientsSection({
     <div className="border border-border rounded-lg p-3 space-y-3">
       <div className="flex items-center gap-2">
         <Package className="w-4 h-4 text-muted-foreground" />
-        <p className="text-sm font-medium text-foreground">Ingredientes vinculados</p>
+        <p className="text-sm font-medium text-foreground">Composição do Produto</p>
       </div>
 
       {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
