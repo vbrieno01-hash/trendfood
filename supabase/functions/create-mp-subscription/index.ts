@@ -107,9 +107,6 @@ Deno.serve(async (req) => {
     // Build back_url
     const backUrl = `https://trendfood.lovable.app/dashboard?tab=subscription&mp_return=true`;
 
-    // Detect sandbox mode — card_token_id is NOT supported by Preapproval API in sandbox
-    const isSandbox = accessToken.startsWith("TEST-");
-
     // Create preapproval (subscription)
     const preapprovalBody: Record<string, unknown> = {
       reason: `Assinatura ${plan === "pro" ? "Pro" : "Enterprise"} - ${org.name}`,
@@ -122,7 +119,7 @@ Deno.serve(async (req) => {
         currency_id: "BRL",
       },
       back_url: backUrl,
-      ...(card_token_id && !isSandbox
+      ...(card_token_id
         ? { card_token_id, status: "authorized" }
         : { status: "pending" }),
     };
@@ -164,7 +161,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         init_point: mpData.init_point,
         subscription_id: mpData.id,
-        sandbox_redirect: isSandbox && !!card_token_id,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
