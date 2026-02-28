@@ -1,15 +1,9 @@
 
 
-## Plano: Usar mockups CSS com as novas screenshots
+## Plano: Substituir ícones PWA pelo logo laranja
 
-### 1. Copiar as duas imagens para o projeto
-- `user-uploads://image-324.png` → `src/assets/dashboard-screenshot.png` (desktop)
-- `user-uploads://sasasas.jpeg` → `src/assets/mobile-screenshot.png` (mobile)
-
-### 2. Atualizar `src/components/landing/ShowcaseSection.tsx`
-- Remover import da imagem única `showcase-devices.png`
-- Importar as duas novas screenshots (`dashboard-screenshot.png` e `mobile-screenshot.png`)
-- Restaurar o componente `DashboardMockup` com frames CSS (barra de titulo estilo Mac para o laptop, moldura de celular para o mobile)
-- Usar as screenshots reais dentro dos mockups via `<img>` com `object-cover`
-- Manter o layout de 3 colunas e todos os textos/badges existentes
+### 1. Copiar a imagem para o projeto
+- `user-uploads://Black_Chef_and_restaurant_simple_retro_logo_design_with_a_cap_chef_hat-2.png` → `public/pwa-512.png`
+- Mesma imagem → `public/pwa-192.png` (o navegador redimensiona automaticamente)
+- Mesma imagem → `public/favicon.png` para manter consistência
 
