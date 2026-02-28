@@ -169,10 +169,10 @@ const Index = () => {
             </div>
             <div className="flex items-center gap-3">
               <Button size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/[0.06] transition-all" asChild>
-                <Link to="/planos">Ver planos</Link>
+                <Link to="/auth">Login</Link>
               </Button>
-              <Button size="sm" className="border border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent backdrop-blur-sm rounded-full px-5 transition-all" asChild>
-                <Link to="/auth">Entrar</Link>
+              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-5 transition-all" asChild>
+                <Link to="/auth">Criar Loja Grátis</Link>
               </Button>
             </div>
           </div>
@@ -187,12 +187,12 @@ const Index = () => {
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
-              Zero taxas. Zero comissão.
+              Transforme seu Delivery com a TrendFood
               <br />
               <span
-                className="bg-gradient-to-r from-red-500 via-red-400 to-orange-400 bg-clip-text text-transparent"
+                className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent"
               >
-                Seu negócio, seu lucro.
+                Sem Taxas, Com Gestão Real.
               </span>
             </h1>
 
