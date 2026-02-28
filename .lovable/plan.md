@@ -1,21 +1,25 @@
 
 
-# Plano: Redirecionar de volta para assinatura após login
+# Bug Fix: Plan selection redirect not including query params
 
-## Problema
-Quando um usuário não logado clica em "Assinar Pro" na página `/planos`, ele é levado para `/auth` e após login vai para `/dashboard` — perdendo a intenção de assinar.
+## Problem
+When a user is **not logged in**, the `PlanCard` component receives `onSelect={undefined}`, so it renders a plain `<Link to="/auth">` instead of calling `handleSelectPlan`. The redirect logic with `?redirect=/planos&plan=pro` is never executed.
 
-## Alterações
+## Fix: `src/pages/PricingPage.tsx` (line 196-198)
 
-### 1. `src/pages/PricingPage.tsx`
-- Ao clicar num plano sem estar logado, navegar para `/auth?redirect=/planos&plan=<key>` em vez de apenas `/auth`
-- No `useEffect` inicial, verificar query param `plan` — se o usuário acabou de voltar logado, abrir automaticamente o dialog de confirmação do plano selecionado
+Change the PlanCard props so that `onSelect` is **always provided** for paid plans (regardless of login state), allowing `handleSelectPlan` to run and navigate with the correct query parameters:
 
-### 2. `src/pages/AuthPage.tsx`
-- Já suporta `?redirect=` via `searchParams.get("redirect")` — nenhuma alteração necessária
+```tsx
+// Before:
+onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
+external={false}
+ctaLink={!user ? "/auth" : plan.ctaLink}
 
-### Fluxo resultante
-1. Usuário clica "Assinar Pro" → vai para `/auth?redirect=/planos&plan=pro`
-2. Faz login/cadastro → redirecionado para `/planos?plan=pro`
-3. PricingPage detecta `?plan=pro` com usuário logado → abre dialog de confirmação automaticamente
+// After:
+onSelect={plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
+external={false}
+ctaLink={plan.ctaLink}
+```
+
+This ensures that clicking "Assinar Pro" always calls `handleSelectPlan`, which handles the redirect to `/auth?redirect=/planos&plan=pro` when the user is not logged in. The free plan will still render as a simple link.
 
