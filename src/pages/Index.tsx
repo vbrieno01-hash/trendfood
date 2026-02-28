@@ -463,26 +463,16 @@ const Index = () => {
           <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
             Mesmo sistema, zero taxa. Configure em minutos e veja a diferença no seu caixa.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button
-              size="lg"
-              className="text-base font-bold gap-2 bg-white text-primary hover:bg-white/90 shadow-xl"
-              asChild
-            >
-              <Link to="/auth">
-                Começar Grátis Agora
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="text-base font-bold border-white/30 text-white hover:bg-white/10 hover:text-white bg-transparent"
-              asChild
-            >
-              <Link to="/planos">Ver planos</Link>
-            </Button>
-          </div>
+          <Button
+            size="lg"
+            className="text-base font-bold gap-2 bg-white text-primary hover:bg-white/90 shadow-xl"
+            asChild
+          >
+            <Link to="/auth">
+              Começar Grátis Agora
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </Button>
           <p className="mt-4 text-white/40 text-sm">Sem cartão de crédito · Cancele quando quiser</p>
         </div>
       </section>
