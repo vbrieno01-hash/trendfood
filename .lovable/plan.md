@@ -1,59 +1,20 @@
 
 
-# Menu Lateral com Accordions + Resumo Rápido na Dashboard
+# Atualizar Access Token de Sandbox do Mercado Pago
 
-## Mudanças
+## O que será feito
+Atualizar o secret `MERCADO_PAGO_ACCESS_TOKEN` com o valor de teste fornecido (`TEST-3776...`).
 
-### 1. Sidebar com Accordions (`DashboardPage.tsx`)
+Ambas as credenciais ficarão alinhadas no ambiente Sandbox:
+- **Public Key**: `TEST-774a082e-...` (já configurada)
+- **Access Token**: `TEST-3776833830...` (será atualizada agora)
 
-Substituir as 3 listas flat (`navItemsTop`, `navItemsOps`, `navItemsBottom`) por 4 grupos accordion usando `Collapsible` do Radix (já instalado).
+## Resultado esperado
+Após a atualização, o erro "Card token service not found" será resolvido e o fluxo completo funcionará:
+1. Frontend tokeniza o cartão com a Public Key de teste
+2. Backend cria a assinatura/pagamento com o Access Token de teste
+3. Pagamento aprovado → trigger baixa estoque → pedido aparece no KDS
 
-**Home** fica fora dos accordions, como botão fixo no topo.
-
-Mapeamento das abas nos grupos:
-
-```text
-🏠 Home (botão fixo, fora de accordion)
-
-⚡ OPERACIONAL (defaultOpen = true)
-   ├── Gestão de Pedidos (Kanban)  → waiter
-   ├── Mesas & Comandas            → tables
-   ├── Cozinha (KDS)               → kitchen
-   ├── Histórico                   → history
-   └── Motoboys                    → courier
-
-📦 LOGÍSTICA
-   ├── Cardápio (Menu)             → menu
-   └── Estoque & Insumos           → stock
-
-💰 FINANCEIRO
-   ├── Fluxo de Caixa              → caixa
-   ├── Relatórios                  → reports
-   ├── Cupons                      → coupons
-   └── Mais Vendidos               → bestsellers
-
-⚙️ AJUSTES
-   ├── Dados da Loja               → profile
-   ├── Assinatura / Plano          → subscription
-   ├── Impressora Térmica           → printer
-   ├── Funcionalidades             → features
-   ├── Como Usar                   → guide
-   └── Configurações               → settings
-```
-
-Cada grupo: header clicável com emoji + título + chevron. Grupo OPERACIONAL inicia aberto; demais fechados. Ao clicar numa aba, o grupo correspondente abre automaticamente.
-
-### 2. Resumo Rápido no HomeTab (`HomeTab.tsx`)
-
-Adicionar 3 cards no topo (antes do hero de faturamento):
-
-- **Pedidos Ativos**: conta pedidos com status `pending` ou `preparing` (já disponível via `useOrders`)
-- **Mesas Ocupadas**: query em `orders` com status `pending`/`preparing` agrupando por `table_number` distintos
-- **Alertas de Estoque Baixo**: query em `stock_items` onde `quantity <= min_quantity` e `min_quantity > 0`
-
-Os 3 cards ficam numa row horizontal com ícones, valores grandes e cores distintas.
-
-### Arquivos alterados
-- `src/pages/DashboardPage.tsx` — sidebar com accordions via Collapsible
-- `src/components/dashboard/HomeTab.tsx` — 3 cards de resumo rápido no topo
+## Arquivos alterados
+Nenhum arquivo de código será alterado. Apenas o secret `MERCADO_PAGO_ACCESS_TOKEN` será atualizado no backend.
 
