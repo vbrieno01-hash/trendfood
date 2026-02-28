@@ -18,7 +18,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike,
+  BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike, Package,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -43,10 +43,11 @@ import CourierDashboardTab from "@/components/dashboard/CourierDashboardTab";
 import PrinterTab from "@/components/dashboard/PrinterTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
+import StockTab from "@/components/dashboard/StockTab";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -552,6 +553,7 @@ const DashboardPage = () => {
     { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
     { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
     { key: "reports", icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
+    { key: "stock", icon: <Package className="w-4 h-4" />, label: "Estoque" },
   ];
 
   const navItemsOps: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] = [
@@ -898,6 +900,7 @@ const DashboardPage = () => {
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
           {activeTab === "subscription" && <SubscriptionTab />}
+          {activeTab === "stock" && <StockTab orgId={organization.id} />}
           </ErrorBoundary>
         </main>
 
