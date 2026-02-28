@@ -1,54 +1,31 @@
 
 
-# Plano: Criar tabela `whatsapp_instances`
+# Plano: Aba "Conectar WhatsApp" no painel Admin
 
-## Migração SQL
+## Resumo
 
-Criar tabela `whatsapp_instances` vinculada a `organizations` (que representa cada loja), com RLS protegendo acesso ao dono da organização.
+Adicionar uma nova aba "WhatsApp" no painel Admin com um botão "Gerar QR Code" que simula uma chamada de API e exibe um placeholder de QR Code.
 
-```sql
-CREATE TABLE public.whatsapp_instances (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  instance_name text NOT NULL,
-  instance_token text NOT NULL,
-  status text NOT NULL DEFAULT 'disconnected',
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+## Alterações
 
-ALTER TABLE public.whatsapp_instances ENABLE ROW LEVEL SECURITY;
+### 1) Novo componente `src/components/admin/WhatsAppConnectTab.tsx`
 
--- Somente o dono da loja pode ler, criar, editar e deletar
-CREATE POLICY wi_select_owner ON public.whatsapp_instances FOR SELECT
-  USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
+Componente com:
+- Card com título "Conectar WhatsApp" e descrição
+- Botão "Gerar QR Code" que ao clicar mostra estado de loading (1.5s simulado) e depois exibe um placeholder de imagem (256x256) representando o QR Code
+- Usa `Card`, `Button`, `Skeleton` do design system existente
+- Ícones do Lucide (`QrCode`, `Smartphone`, `CheckCircle2`)
 
-CREATE POLICY wi_insert_owner ON public.whatsapp_instances FOR INSERT
-  WITH CHECK (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
+### 2) Editar `src/pages/AdminPage.tsx`
 
-CREATE POLICY wi_update_owner ON public.whatsapp_instances FOR UPDATE
-  USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
+- Adicionar `"whatsapp"` ao type `AdminTab`
+- Adicionar item no array `navItems` com ícone `Smartphone` e label "WhatsApp"
+- Importar e renderizar `WhatsAppConnectTab` quando `activeTab === "whatsapp"`
 
-CREATE POLICY wi_delete_owner ON public.whatsapp_instances FOR DELETE
-  USING (auth.uid() = (SELECT user_id FROM organizations WHERE id = organization_id));
+## Arquivos
+
 ```
-
-## Campos
-
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| `id` | uuid PK | Identificador único |
-| `organization_id` | uuid FK → organizations | Loja dona da instância |
-| `instance_name` | text | Nome da instância na Evolution API |
-| `instance_token` | text | Token de autenticação da instância |
-| `status` | text | Estado da conexão (`disconnected`, `connected`, `qr_pending`) |
-| `created_at` | timestamptz | Data de criação |
-
-## Segurança
-
-- RLS ativado — apenas o `user_id` dono da `organization` pode CRUD.
-- `instance_token` nunca fica exposto publicamente.
-
-## Nenhuma alteração de código nesta etapa
-
-A tabela será criada apenas no banco. Integração com UI e edge functions pode ser feita em seguida.
+CREATE: src/components/admin/WhatsAppConnectTab.tsx
+EDIT:   src/pages/AdminPage.tsx (type, navItems, render)
+```
 
