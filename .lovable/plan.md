@@ -1,14 +1,10 @@
 
 
-## Sim! Posso colocar setas nas fotos reais
+## Plano: Adicionar screenshot real da Home sem setas
 
-Quando você enviar as screenshots, vou:
+1. **Salvar a imagem** enviada como `public/guide/guide-home.png`
+2. **Atualizar `GuideTab.tsx`** — na seção "Home", substituir o mockup `MockupHome` pelo componente `GuideScreenshot` usando a foto real, sem nenhuma seta (array `arrows` vazio)
+3. **Importar `GuideScreenshot`** no `GuideTab.tsx` se ainda não estiver importado
 
-1. **Salvar cada imagem** em `public/guide/` (ex: `guide-home.png`, `guide-menu.png`)
-2. **Criar um componente `GuideScreenshot`** que exibe a foto real dentro de um frame bonito, com **setas e labels sobrepostos via CSS** (usando `position: absolute` sobre a imagem)
-3. **Substituir os mockups HTML** atuais pelas fotos reais com anotações
-
-As setas serão o mesmo ícone `MousePointerClick` animado que já temos, posicionadas por cima da imagem apontando para o botão/área relevante, com um label tipo "Clique aqui para adicionar item".
-
-**Próximo passo**: Envie as fotos aqui no chat (pode mandar todas de uma vez ou em lotes). Para cada foto, me diga qual seção ela representa e onde devo colocar a seta.
+Implementação simples — só trocar o mockup pela foto real sem anotações.
 
