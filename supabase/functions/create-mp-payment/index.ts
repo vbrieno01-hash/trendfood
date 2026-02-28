@@ -59,18 +59,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Plan pricing
-    const planPrices: Record<string, number> = {
-      pro: 99.0,
-      enterprise: 249.0,
-    };
-    const amount = planPrices[plan];
-    if (!amount) {
+    // Fetch plan price from database
+    const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: planRow, error: planError } = await serviceClient
+      .from("platform_plans")
+      .select("name, price_cents")
+      .eq("key", plan)
+      .eq("active", true)
+      .single();
+
+    if (planError || !planRow) {
+      console.error("[create-mp-payment] Plan not found:", plan, planError);
       return new Response(JSON.stringify({ error: "Invalid plan" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (planRow.price_cents === 0) {
+      return new Response(JSON.stringify({ error: "Cannot create payment for a free plan" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const amount = planRow.price_cents / 100;
 
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!accessToken) {
@@ -86,7 +99,7 @@ Deno.serve(async (req) => {
 
     const paymentBody: Record<string, unknown> = {
       transaction_amount: amount,
-      description: `Assinatura ${plan.charAt(0).toUpperCase() + plan.slice(1)} - ${org.name}`,
+      description: `Assinatura ${planRow.name} - ${org.name}`,
       payment_method_id: payment_method === "pix" ? "pix" : undefined,
       payer: {
         email: userEmail,
@@ -139,8 +152,6 @@ Deno.serve(async (req) => {
 
     // If card payment is approved immediately, update org
     if (mpData.status === "approved") {
-      const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
       await serviceClient
         .from("organizations")
         .update({
@@ -169,7 +180,7 @@ Deno.serve(async (req) => {
       payment_id: mpData.id,
     };
 
-    console.log(`[create-mp-payment] status=${mpData.status} detail=${mpData.status_detail}`);
+    console.log(`[create-mp-payment] plan=${plan} amount=${amount} status=${mpData.status} detail=${mpData.status_detail}`);
 
     if (payment_method === "pix" && mpData.point_of_interaction?.transaction_data) {
       result.pix_qr_code = mpData.point_of_interaction.transaction_data.qr_code;

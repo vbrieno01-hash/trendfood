@@ -70,15 +70,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Determine price
-    const prices: Record<string, number> = { free: 5.0, pro: 99.0, enterprise: 249.0 };
-    const amount = prices[plan];
-    if (!amount) {
+    // Fetch plan price from database
+    const { data: planRow, error: planError } = await supabaseAdmin
+      .from("platform_plans")
+      .select("name, price_cents")
+      .eq("key", plan)
+      .eq("active", true)
+      .single();
+
+    if (planError || !planRow) {
+      console.error("[create-mp-subscription] Plan not found:", plan, planError);
       return new Response(JSON.stringify({ error: "Invalid plan" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (planRow.price_cents === 0) {
+      return new Response(JSON.stringify({ error: "Cannot create subscription for a free plan" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const amount = planRow.price_cents / 100;
 
     // If there's already an active subscription, cancel it first
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
@@ -109,7 +124,7 @@ Deno.serve(async (req) => {
 
     // Create preapproval (subscription)
     const preapprovalBody: Record<string, unknown> = {
-      reason: `Assinatura ${plan === "pro" ? "Pro" : "Enterprise"} - ${org.name}`,
+      reason: `Assinatura ${planRow.name} - ${org.name}`,
       external_reference: org_id,
       payer_email: userEmail,
       auto_recurring: {
