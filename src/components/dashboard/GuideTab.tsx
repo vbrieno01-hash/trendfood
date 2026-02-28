@@ -6,8 +6,9 @@ import {
   Home, UtensilsCrossed, TableProperties, History, Tag,
   BarChart2, Flame, BellRing, Wallet, Store, Settings, Plus, Truck,
 } from "lucide-react";
+import GuideScreenshot from "./guide/GuideScreenshot";
 import {
-  MockupHome, MockupMenuList, MockupMenuEdit,
+  MockupMenuList, MockupMenuEdit,
   MockupAddonsModal, MockupAddonsClient,
   MockupTables, MockupHistory, MockupCoupons, MockupBestSellers,
   MockupKitchen, MockupWaiter, MockupCashier,
@@ -37,7 +38,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Use os atalhos rápidos para ir direto à Cozinha, Garçom ou Cardápio.",
     ],
     tips: ["Confira a Home no início de cada turno para ter uma visão geral rápida."],
-    mockups: [<MockupHome key="home" />],
+    mockups: [<GuideScreenshot src="/guide/guide-home.png" alt="Tela Home do dashboard" />],
   },
   {
     id: "menu",
