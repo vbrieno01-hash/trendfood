@@ -1,32 +1,19 @@
 
 
-## Plano: Gráfico de faturamento diário por método de pagamento na Home
-
-### Contexto
-Os pedidos já possuem o campo `payment_method` (valores como "dinheiro", "pix", "cartao", "credito", "debito", etc). O gráfico será adicionado abaixo do gráfico existente de "Últimos 7 dias".
+## Plano: Adicionar botão de excluir loja no StoreCard do painel admin
 
 ### Implementação
 
-**Arquivo: `src/components/dashboard/HomeTab.tsx`**
+**Arquivo: `src/pages/AdminPage.tsx`**
 
-1. Criar uma função `classifyPayment(method: string)` que agrupa os métodos em 3 categorias:
-   - **Dinheiro**: `"dinheiro"`, `"pending"`, vazio/null
-   - **PIX**: `"pix"`
-   - **Cartao**: `"cartao"`, `"credito"`, `"debito"`, `"credit_card"`
+1. Importar `Trash2` do lucide-react (já importado no projeto) e o componente `DeleteUnitDialog`
+2. Adicionar estado `deleteTarget` no `AdminContent` para controlar qual loja está sendo excluída
+3. No `StoreCard`, adicionar um botão de lixeira ao lado do link "Ver loja" no rodapé do card
+4. Renderizar o `DeleteUnitDialog` no `AdminContent`, passando a org selecionada
+5. Após exclusão, recarregar a lista de lojas removendo a org deletada do state local
 
-2. Gerar dados dos últimos 7 dias com breakdown por categoria: para cada dia, somar o faturamento (itens × preço × quantidade) dos pedidos pagos, agrupando por categoria de pagamento.
-
-3. Adicionar um novo `<Card>` com um `BarChart` empilhado (stacked) usando Recharts:
-   - Eixo X: dias da semana
-   - Eixo Y: faturamento em R$
-   - 3 barras empilhadas: Dinheiro (verde), PIX (azul), Cartao (roxo)
-   - Tooltip formatado em BRL
-   - Legenda
-
-### Detalhes visuais
-- Cores: Dinheiro `#22c55e`, PIX `#3b82f6`, Cartao `#8b5cf6`
-- Barras com `radius` arredondado no topo
-- Mesmo estilo visual dos cards existentes (border-border, shadow-sm)
-- Título: "Faturamento por Método de Pagamento"
-- Subtítulo com total do período
+### Detalhes
+- O `DeleteUnitDialog` já existe e faz a limpeza em cascata (order_items, orders, menu_items, tables, etc.)
+- O botão terá estilo discreto (muted) com hover vermelho para indicar ação destrutiva
+- Posicionado no rodapé do card, ao lado de "Ver loja →"
 
