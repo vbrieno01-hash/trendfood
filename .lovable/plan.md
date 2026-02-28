@@ -1,31 +1,56 @@
 
 
-# Plano: Aba "Conectar WhatsApp" no painel Admin
+# Plano: Página de Checkout personalizada na pasta `checkout`
 
 ## Resumo
 
-Adicionar uma nova aba "WhatsApp" no painel Admin com um botão "Gerar QR Code" que simula uma chamada de API e exibe um placeholder de QR Code.
+Criar um componente `CheckoutPage.tsx` em `src/components/checkout/` com design mobile-first, usando o design system existente (Card, Button, Input, RadioGroup, etc.) e as cores da marca Trendfood (primary vermelho/laranja).
 
-## Alterações
+## Novo arquivo: `src/components/checkout/CheckoutPage.tsx`
 
-### 1) Novo componente `src/components/admin/WhatsAppConnectTab.tsx`
+Componente standalone que recebe via props os itens do carrinho e callbacks. Estrutura:
 
-Componente com:
-- Card com título "Conectar WhatsApp" e descrição
-- Botão "Gerar QR Code" que ao clicar mostra estado de loading (1.5s simulado) e depois exibe um placeholder de imagem (256x256) representando o QR Code
-- Usa `Card`, `Button`, `Skeleton` do design system existente
-- Ícones do Lucide (`QrCode`, `Smartphone`, `CheckCircle2`)
+### Layout
+- Mobile-first, single column em telas pequenas
+- Em desktop (`md:`), duas colunas: formulário à esquerda, resumo do pedido à direita (sticky)
 
-### 2) Editar `src/pages/AdminPage.tsx`
+### Seções
 
-- Adicionar `"whatsapp"` ao type `AdminTab`
-- Adicionar item no array `navItems` com ícone `Smartphone` e label "WhatsApp"
-- Importar e renderizar `WhatsAppConnectTab` quando `activeTab === "whatsapp"`
+1. **Resumo do pedido** (Card lateral/topo)
+   - Lista de itens com nome, qtd, preço unitário e subtotal
+   - Separador + linha de total em destaque
+   - Usa `ScrollArea` se muitos itens
+
+2. **Formulário de dados** (Card principal)
+   - Campo Nome (Input, obrigatório)
+   - Campo WhatsApp (Input com máscara `formatPhone` já existente no projeto)
+   - Campo Endereço (Input, simplificado — apenas texto livre para este componente standalone)
+
+3. **Seleção de pagamento** (RadioGroup)
+   - Opções: `pix`, `cartao`, `entrega`
+   - Labels com ícones Lucide: `QrCode`, `CreditCard`, `Banknote`
+   - Cards clicáveis com borda highlight na seleção
+
+4. **Placeholder PIX condicional**
+   - Quando `pix` selecionado, exibe Card com ícone `QrCode` grande (placeholder 256x256) e texto "QR Code será gerado ao confirmar"
+
+5. **Botão Finalizar Pedido**
+   - Cor `primary` (vermelho Trendfood), full-width, com validação básica dos campos
+
+### Props
+```typescript
+interface CheckoutPageProps {
+  items: { id: string; name: string; price: number; qty: number }[];
+  onConfirm: (data: { name: string; phone: string; address: string; payment: string }) => void;
+  onBack: () => void;
+}
+```
 
 ## Arquivos
 
 ```
-CREATE: src/components/admin/WhatsAppConnectTab.tsx
-EDIT:   src/pages/AdminPage.tsx (type, navItems, render)
+CREATE: src/components/checkout/CheckoutPage.tsx
 ```
+
+Nenhuma alteração em rotas ou outras páginas — o componente fica disponível para ser integrado onde necessário.
 
