@@ -1,15 +1,11 @@
 
 
-## Atualizar mensagens de erro para produção
+## Melhorar mensagem de rejeição por risco
 
-O erro ainda mostra "Se estiver em ambiente de teste, use cartões de teste do Mercado Pago" — mas agora estamos em produção. As mensagens precisam ser atualizadas.
+Atualizar a mensagem do `cc_rejected_high_risk` em `src/components/checkout/mpErrorMessages.ts` para sugerir usar outro cartão ou PIX.
 
-### Alterações
+### Alteração
 
 **`src/components/checkout/mpErrorMessages.ts`**:
-- Remover todas as referências a "ambiente de teste" e "cartões de teste"
-- `CC_VAL_433` → "Erro de validação do cartão. Verifique os dados e tente novamente."
-- `card_token_service_not_found` → "Erro ao processar cartão. Tente novamente ou use outro cartão."
-- Fallback para `CC_VAL` / `card_token` → mensagem genérica sem menção a teste
-- Remover constante `TEST_ENV_MSG`
+- `cc_rejected_high_risk`: de "Pagamento recusado por medida de segurança" para "Pagamento recusado por medida de segurança. Tente outro cartão ou pague via PIX."
 
