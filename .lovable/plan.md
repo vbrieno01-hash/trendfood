@@ -1,18 +1,22 @@
 
 
-## Plano: Gerenciar fotos do guia pelo painel admin
+## Plano: Garantir renderização de imagens no GuideTab e AdminGuideTab
 
-### Banco de dados
-1. **Criar tabela `guide_screenshots`** com colunas: `id`, `section_id` (text, unique), `image_url` (text), `updated_at` (timestamp). RLS: leitura pública, escrita apenas para admins.
-2. **Criar bucket de storage `guide-images`** com acesso público para leitura, escrita restrita a admins.
+### 1. Adicionar loading state e fallback nas imagens do GuideTab
+- Adicionar estado `loading` na `<img>` com skeleton/placeholder enquanto carrega
+- Adicionar `onError` handler para esconder imagens quebradas ou mostrar fallback
+- Manter `loading="lazy"` para performance
 
-### Painel Admin
-3. **Criar nova aba "Guia"** no `AdminPage.tsx` — lista as 13 seções do guia, cada uma com preview da imagem atual (se houver) e botão para upload/troca de screenshot.
-4. **Componente `AdminGuideTab`** — para cada seção, mostra título + ícone + campo de upload de imagem. Ao fazer upload, salva no bucket `guide-images` e grava/atualiza a URL na tabela `guide_screenshots`.
+### 2. Melhorar preview de imagem no AdminGuideTab
+- Adicionar `onError` handler no thumbnail de preview para mostrar ícone de imagem quebrada
+- Garantir que o cache-bust (`?t=Date.now()`) funcione corretamente para forçar re-render após upload
 
-### GuideTab (lado do usuário)
-5. **Atualizar `GuideTab.tsx`** — buscar os registros de `guide_screenshots` ao montar o componente. Se existir imagem para a seção, exibir abaixo da descrição em um frame arredondado com sombra.
+### 3. Testar o fluxo end-to-end
+- Verificar que o upload no admin salva no bucket e no banco
+- Verificar que o GuideTab carrega e renderiza as imagens automaticamente
+- Verificar fallback para imagens com URL inválida
 
-### Resultado
-Você poderá fazer upload de screenshots para cada seção do guia diretamente pelo painel admin, sem precisar do Lovable.
+### Alterações
+- **`src/components/dashboard/GuideTab.tsx`**: Envolver `<img>` com container que mostra skeleton durante load e fallback em erro
+- **`src/components/admin/AdminGuideTab.tsx`**: Adicionar `onError` no thumbnail preview
 
