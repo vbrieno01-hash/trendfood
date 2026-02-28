@@ -1,26 +1,21 @@
 
 
-## Resultado dos Testes
+## Diagnóstico: "Erro ao carregar configuração de pagamento"
 
-### O que funciona
-- **`get-mp-public-key`**: Respondendo corretamente (fix do config.toml funcionou)
-- **PIX (plano Pro)**: Funcionando — logs mostram `plan=pro amount=99 status=pending detail=pending_waiting_transfer` com QR Code gerado
-- **Busca de preços do banco**: Ambas as edge functions estão lendo da tabela `platform_plans` corretamente
+### O que aconteceu
 
-### Problemas encontrados
+O `CardPaymentForm` chama a função `get-mp-public-key` quando o dialog abre. A função está funcionando corretamente (confirmado via teste direto). O erro ocorre porque o código em `CardPaymentForm.tsx` não loga o erro real — apenas exibe o toast genérico.
 
-#### 1. Não existe plano de R$ 5
-A tabela `platform_plans` mostra:
-- `free` → `price_cents = 0` (R$ 0)
-- `pro` → `price_cents = 9900` (R$ 99)
-- `enterprise` → `price_cents = 24900` (R$ 249)
+Possíveis causas:
+- Sessão expirada ou token inválido no momento da chamada
+- Resposta da função parseada incorretamente pelo SDK (campo `error` preenchido mesmo com status 200)
+- O dialog foi aberto durante uma troca de sessão (de `vendass945` para `brenojackson30`)
 
-O plano "Grátis" tem preço R$ 0. A edge function rejeita com "Cannot create subscription for a free plan". Para testar com R$ 5, o `price_cents` do plano `free` precisa ser atualizado para `500`.
+### Alterações
 
-#### 2. Cartão rejeitado por risco (`cc_rejected_high_risk`)
-Isso é uma avaliação de risco do Mercado Pago, não um bug de código. Pode ocorrer por: cartão de teste em ambiente de produção, valor muito baixo, conta MP nova, etc. O código está correto.
+**`src/components/checkout/CardPaymentForm.tsx`** (linhas 51-59):
+- Adicionar `console.error` com o `error` e `data` reais para diagnosticar a causa exata
+- Adicionar fallback: se `error` for null mas `data?.public_key` não existir, logar `data` inteiro
+- Melhorar mensagem de erro para o usuário com mais contexto
 
-### Alteração necessária
-
-**Atualizar o plano `free` no banco** para `price_cents = 500` (R$ 5) via SQL migration, permitindo o teste real de pagamento. Após validar, reverter para o valor final desejado.
-
+Isso permitirá ver nos logs do console exatamente o que a função retorna e identificar a causa raiz na próxima ocorrência.
