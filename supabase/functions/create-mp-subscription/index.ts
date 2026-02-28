@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const userEmail = user.email!;
     const userId = user.id;
 
-    const { org_id, plan } = await req.json();
+    const { org_id, plan, card_token_id } = await req.json();
     if (!org_id || !plan) {
       return new Response(JSON.stringify({ error: "Missing org_id or plan" }), {
         status: 400,
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
     const backUrl = `https://trendfood.lovable.app/dashboard?tab=subscription&mp_return=true`;
 
     // Create preapproval (subscription)
-    const preapprovalBody = {
+    const preapprovalBody: Record<string, unknown> = {
       reason: `Assinatura ${plan === "pro" ? "Pro" : "Enterprise"} - ${org.name}`,
       external_reference: org_id,
       payer_email: userEmail,
@@ -119,7 +119,9 @@ Deno.serve(async (req) => {
         currency_id: "BRL",
       },
       back_url: backUrl,
-      status: "pending",
+      ...(card_token_id
+        ? { card_token_id, status: "authorized" }
+        : { status: "pending" }),
     };
 
     console.log("[create-mp-subscription] Creating preapproval:", JSON.stringify(preapprovalBody));

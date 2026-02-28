@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import CardPaymentForm from "@/components/checkout/CardPaymentForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PlanCard from "@/components/pricing/PlanCard";
@@ -86,6 +87,7 @@ const SubscriptionTab = () => {
   const [loading, setLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
   const planLimits = usePlanLimits(organization);
 
   const currentPlan = organization?.subscription_plan || "free";
@@ -136,28 +138,11 @@ const SubscriptionTab = () => {
     }
   }, []);
 
-  const handleSubscribe = async (planKey: string) => {
+  const handleSubscribe = (planKey: string) => {
     if (!organization || !session) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-mp-subscription", {
-        body: { org_id: organization.id, plan: planKey },
-      });
-
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.details || data.error);
-
-      if (data?.init_point) {
-        toast.info("Redirecionando para o Mercado Pago...");
-        window.location.href = data.init_point;
-      }
-    } catch (err: any) {
-      console.error("[SubscriptionTab] Subscribe error:", err);
-      toast.error("Erro ao criar assinatura", {
-        description: err.message || "Tente novamente",
-      });
-    } finally {
-      setLoading(false);
+    const planData = PLANS.find((p) => p.key === planKey);
+    if (planData) {
+      setCardFormPlan({ key: planData.key, name: planData.name, price: planData.price });
     }
   };
 
@@ -343,11 +328,17 @@ const SubscriptionTab = () => {
         ))}
       </div>
 
-      {loading && (
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Criando assinatura no Mercado Pago...
-        </div>
+      {/* Card Payment Form */}
+      {organization && cardFormPlan && (
+        <CardPaymentForm
+          open={!!cardFormPlan}
+          onOpenChange={(v) => !v && setCardFormPlan(null)}
+          orgId={organization.id}
+          plan={cardFormPlan.key}
+          planName={cardFormPlan.name}
+          planPrice={cardFormPlan.price}
+          onSuccess={() => setTimeout(() => window.location.reload(), 1500)}
+        />
       )}
 
       {/* Cancel dialog */}
