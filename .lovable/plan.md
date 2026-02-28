@@ -1,22 +1,29 @@
 
 
-## Plano: Sincronizar SubscriptionTab com a tabela `platform_plans`
+## Diagnóstico e Correção: Pagamentos com Preços Hardcoded nas Edge Functions
 
-### Problema
-O `SubscriptionTab.tsx` usa uma constante `PLANS` hardcoded, enquanto o `PricingPage.tsx` já busca os planos da tabela `platform_plans`. Isso causa dessincronia — alterações feitas no admin ou no banco não aparecem no dashboard.
+### Problemas Identificados
+
+Analisando os logs:
+
+1. **Cartão (`cc_rejected_high_risk`)**: O Mercado Pago recusou o cartão por risco — isso é avaliação do gateway, não bug de código. Porém, o valor está errado: a edge function envia R$ 5 para o plano "Enterprise" porque os preços são hardcoded.
+
+2. **PIX**: A edge function `create-mp-payment` tem o mapa de preços `{ pro: 99.0, enterprise: 249.0 }` — **não inclui o plano "free"**, retornando "Invalid plan" quando o usuário tenta pagar.
+
+3. **Raiz do problema**: Ambas as edge functions (`create-mp-subscription` e `create-mp-payment`) usam preços fixos no código, ignorando a tabela `platform_plans` do banco. Quando você altera preços no Admin, as funções de pagamento continuam cobrando valores antigos/errados.
 
 ### Alterações
 
-#### 1. `SubscriptionTab.tsx` — Buscar planos do banco
-- Remover a constante `PLANS` hardcoded (linhas 27-82)
-- Adicionar um `useEffect` + `useState` para buscar da tabela `platform_plans` (igual ao `PricingPage.tsx`)
-- Mapear os dados do banco para o formato esperado pelo componente (usando lógica similar à função `mapPlanRow` do `PricingPage`)
-- Manter o estado de loading enquanto os planos carregam
+#### 1. `create-mp-subscription/index.ts`
+- Remover o mapa hardcoded `{ free: 5.0, pro: 99.0, enterprise: 249.0 }`
+- Buscar o preço da tabela `platform_plans` usando o `plan` key recebido
+- Corrigir o texto da razão que só diferencia "pro" vs "Enterprise" (ignorando outros planos)
 
-#### 2. Atualizar `platform_plans` no banco
-- Atualizar o plano `free` na tabela para `price_cents = 500` (R$ 5) e description "Teste de pagamento real" para o teste atual
-- Isso garante que tanto a página de preços pública quanto o dashboard mostrem o mesmo valor
+#### 2. `create-mp-payment/index.ts`
+- Remover o mapa hardcoded `{ pro: 99.0, enterprise: 249.0 }`
+- Buscar o preço da tabela `platform_plans` usando o `plan` key recebido
+- Incluir validação para planos com `price_cents = 0` (não permitir pagamento de plano gratuito)
 
 ### Resultado
-Qualquer alteração feita via Admin nos planos será refletida automaticamente em ambas as páginas (PricingPage e SubscriptionTab).
+Qualquer alteração de preço feita via Admin será automaticamente refletida nos pagamentos por cartão e PIX, eliminando a dessincronia.
 
