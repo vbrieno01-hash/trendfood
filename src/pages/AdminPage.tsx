@@ -17,6 +17,7 @@ import ActivationLogsTab from "@/components/admin/ActivationLogsTab";
 import ManageSubscriptionDialog from "@/components/admin/ManageSubscriptionDialog";
 import WhatsAppConnectTab from "@/components/admin/WhatsAppConnectTab";
 import AdminGuideTab from "@/components/admin/AdminGuideTab";
+import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -45,6 +46,7 @@ import {
   Settings,
   ScrollText,
   Smartphone,
+  Trash2,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -187,6 +189,7 @@ function AdminContent() {
   const [addressFilter, setAddressFilter] = useState<"all" | "with" | "without">("all");
   const [activeTab, setActiveTab] = useState<AdminTab>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -616,7 +619,7 @@ function AdminContent() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredOrgs.map((org) => (
-                    <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} />
+                    <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} onDelete={(id, name) => setDeleteTarget({ id, name })} />
                   ))}
                 </div>
               )}
@@ -664,6 +667,19 @@ function AdminContent() {
           {activeTab === "guia" && <AdminGuideTab />}
 
         </main>
+
+        {deleteTarget && (
+          <DeleteUnitDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+            orgId={deleteTarget.id}
+            orgName={deleteTarget.name}
+            onDeleted={async () => {
+              setOrgs((prev) => prev.filter((o) => o.id !== deleteTarget.id));
+              setDeleteTarget(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -723,7 +739,7 @@ function SetupScore({ org }: { org: OrgRow }) {
 }
 
 /* ── Store Card ── */
-function StoreCard({ org, onPlanChange }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void }) {
+function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void }) {
   const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
   const [activating, setActivating] = useState(false);
@@ -872,12 +888,21 @@ function StoreCard({ org, onPlanChange }: { org: OrgRow; onPlanChange: (id: stri
         <span className="text-xs text-muted-foreground">
           Desde {new Date(org.created_at).toLocaleDateString("pt-BR")}
         </span>
-        <Link
-          to={`/unidade/${org.slug}`}
-          className="text-xs text-primary hover:underline font-medium"
-        >
-          Ver loja →
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onDelete(org.id, org.name)}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Excluir loja"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <Link
+            to={`/unidade/${org.slug}`}
+            className="text-xs text-primary hover:underline font-medium"
+          >
+            Ver loja →
+          </Link>
+        </div>
       </div>
     </div>
   );
