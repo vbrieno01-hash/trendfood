@@ -1,52 +1,26 @@
 
 
-# Plano: Adicionar Pagamento por Cartão de Crédito
+# Plano: Melhorar feedback de status do pagamento por cartão
 
-## Contexto
-A opção "Cartão" já existe no checkout mas está desabilitada (`opacity-50 pointer-events-none`). A edge function `create-mp-payment` já suporta `card_token`. A secret `MERCADO_PAGO_PUBLIC_KEY` já está configurada. Falta integrar o SDK JS do Mercado Pago no frontend para tokenizar o cartão.
+## Problema
+Quando o cartão é rejeitado (sem saldo, dados inválidos, fraude), o frontend mostra uma mensagem genérica. O lojista não sabe exatamente o que aconteceu.
 
-## Arquivos a editar
+## Alterações
 
-### 1. `index.html`
-- Adicionar `<script src="https://sdk.mercadopago.com/js/v2"></script>` no `<head>`
+### 1. `supabase/functions/create-mp-payment/index.ts`
+- Quando `mpData.status !== "approved"`, retornar também `status_detail` do MP (ex: `cc_rejected_insufficient_amount`, `cc_rejected_bad_filled_security_code`, etc.)
+- Logar o status_detail no console para debug
 
-### 2. `src/vite-env.d.ts`
-- Declarar tipo global `MercadoPago` para o SDK (evitar erros TS)
+### 2. `src/components/dashboard/SubscriptionTab.tsx`
+- Mapear os `status_detail` do MP para mensagens em português amigáveis:
+  - `cc_rejected_insufficient_amount` → "Saldo insuficiente no cartão"
+  - `cc_rejected_bad_filled_security_code` → "CVV incorreto"
+  - `cc_rejected_bad_filled_date` → "Data de validade incorreta"
+  - `cc_rejected_high_risk` → "Pagamento recusado por análise de segurança"
+  - etc.
+- Mostrar toast com a mensagem específica ao invés de genérica
+- Quando status é `in_process`, mostrar toast informativo "Pagamento em análise, você será notificado"
 
-### 3. `src/components/dashboard/SubscriptionTab.tsx`
-Mudanças:
-- **Desbloquear** a opção Cartão (remover `opacity-50 pointer-events-none` e `disabled`)
-- **Adicionar estados** para campos do cartão: `cardNumber`, `cardHolder`, `cardExpiry`, `cardCvv`, `installments`
-- **Quando `paymentMethod === "card"`**, renderizar campos:
-  - Número do cartão (Input com máscara `0000 0000 0000 0000`)
-  - Nome no cartão
-  - Validade MM/YY + CVV lado a lado
-  - Parcelas (1x por padrão)
-- **No submit com cartão**: usar `new window.MercadoPago(publicKey)` → `mp.createCardToken()` para gerar token seguro, depois enviar `card_token` à edge function
-- **Botão dinâmico**: mostrar "Pagar com Cartão" quando método é cartão, "Gerar PIX" quando é PIX
-- **Buscar a public key** via uma nova edge function simples que retorna a `MERCADO_PAGO_PUBLIC_KEY` (já cadastrada como secret)
-
-### 4. `supabase/functions/get-mp-public-key/index.ts` (novo)
-- Edge function simples que retorna `{ public_key: Deno.env.get("MERCADO_PAGO_PUBLIC_KEY") }`
-- Requer autenticação (JWT)
-- Evita expor a chave no código fonte do frontend
-
-## Fluxo
-
-```text
-Lojista seleciona "Cartão"
-  → Campos de cartão aparecem no formulário
-  → Preenche número, nome, validade, CVV + CPF/CNPJ
-  → Clica "Pagar com Cartão"
-  → Frontend busca public key via get-mp-public-key
-  → mp.createCardToken({...}) → card_token
-  → Envia token + plan + org_id para create-mp-payment
-  → MP processa → se approved, org atualizada imediatamente
-  → Webhook confirma assíncrono também
-```
-
-## Observações
-- O SDK do Mercado Pago usa `createCardToken` (método direto, sem iframes) — mais simples de integrar
-- A edge function `create-mp-payment` já tem toda a lógica de cartão (token, installments, etc.)
-- Se o pagamento for aprovado instantaneamente (comum em cartão), o plano é ativado na hora
+## Resultado
+O lojista saberá exatamente por que o pagamento foi recusado e poderá tentar novamente com outro cartão ou corrigir os dados.
 
