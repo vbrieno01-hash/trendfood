@@ -1,23 +1,26 @@
 
 
-## Problema: Funções faltando no `config.toml`
+## Resultado dos Testes
 
-O `get-mp-public-key` retorna **401 Unauthorized** porque não está listado no `config.toml` com `verify_jwt = false`. Sem a public key, o SDK do Mercado Pago não inicializa, o formulário de cartão não gera token, e nenhum pagamento funciona.
+### O que funciona
+- **`get-mp-public-key`**: Respondendo corretamente (fix do config.toml funcionou)
+- **PIX (plano Pro)**: Funcionando — logs mostram `plan=pro amount=99 status=pending detail=pending_waiting_transfer` com QR Code gerado
+- **Busca de preços do banco**: Ambas as edge functions estão lendo da tabela `platform_plans` corretamente
 
-Outras funções também estão faltando no config.toml e podem falhar pelo mesmo motivo.
+### Problemas encontrados
 
-### Alteração
+#### 1. Não existe plano de R$ 5
+A tabela `platform_plans` mostra:
+- `free` → `price_cents = 0` (R$ 0)
+- `pro` → `price_cents = 9900` (R$ 99)
+- `enterprise` → `price_cents = 24900` (R$ 249)
 
-**`supabase/config.toml`** — Adicionar TODAS as funções faltantes:
-- `get-mp-public-key`
-- `check-subscription-pix`
-- `check-pix-status`
-- `generate-pix-payload`
-- `verify-pix-payment`
-- `create-admin-user`
+O plano "Grátis" tem preço R$ 0. A edge function rejeita com "Cannot create subscription for a free plan". Para testar com R$ 5, o `price_cents` do plano `free` precisa ser atualizado para `500`.
 
-Cada uma com `verify_jwt = false` (a autenticação já é validada no código de cada função).
+#### 2. Cartão rejeitado por risco (`cc_rejected_high_risk`)
+Isso é uma avaliação de risco do Mercado Pago, não um bug de código. Pode ocorrer por: cartão de teste em ambiente de produção, valor muito baixo, conta MP nova, etc. O código está correto.
 
-### Resultado
-O `get-mp-public-key` retornará a chave pública corretamente, o SDK do MP inicializará, e os pagamentos por cartão e PIX voltarão a funcionar.
+### Alteração necessária
+
+**Atualizar o plano `free` no banco** para `price_cents = 500` (R$ 5) via SQL migration, permitindo o teste real de pagamento. Após validar, reverter para o valor final desejado.
 
