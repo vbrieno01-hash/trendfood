@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +83,7 @@ const faqs = [
 
 const PricingPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, organization } = useAuth();
   const currentPlan = organization?.subscription_plan || "free";
   const [selectedPlan, setSelectedPlan] = useState<PlanData | null>(null);
@@ -103,6 +104,18 @@ const PricingPage = () => {
       });
   }, []);
 
+  // Auto-open plan dialog when returning from auth with ?plan=
+  useEffect(() => {
+    const planParam = searchParams.get("plan");
+    if (planParam && user && plans.length > 0 && planParam !== "free") {
+      const plan = plans.find((p) => p.key === planParam);
+      if (plan) {
+        setSelectedPlan(plan);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [user, plans, searchParams, setSearchParams]);
+
   const handleBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -113,7 +126,7 @@ const PricingPage = () => {
 
   const handleSelectPlan = (planKey: string) => {
     if (!user) {
-      navigate("/auth");
+      navigate(`/auth?redirect=/planos&plan=${planKey}`);
       return;
     }
     if (planKey === "free") return;
