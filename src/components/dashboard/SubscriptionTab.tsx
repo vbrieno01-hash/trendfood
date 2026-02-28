@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -284,6 +284,52 @@ const SubscriptionTab = () => {
 
   const selectedPlanData = PLANS.find((p) => p.key === selectedPlan);
 
+  // PIX polling
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pixPaid, setPixPaid] = useState(false);
+
+  useEffect(() => {
+    if (!pixData || !organization || !selectedPlan || pixPaid) {
+      return;
+    }
+
+    const check = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("check-subscription-pix", {
+          body: {
+            payment_id: pixData.payment_id,
+            org_id: organization.id,
+            plan: selectedPlan,
+          },
+        });
+        if (!error && data?.paid) {
+          setPixPaid(true);
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          toast.success("Pagamento confirmado! Seu plano foi ativado 🎉");
+          setTimeout(() => {
+            handleBack();
+            window.location.reload();
+          }, 1500);
+        }
+      } catch {
+        // retry on next interval
+      }
+    };
+
+    check();
+    pollingRef.current = setInterval(check, 10000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [pixData, organization, selectedPlan, pixPaid]);
+
   // PIX screen
   if (pixData && selectedPlanData) {
     return (
@@ -330,6 +376,20 @@ const SubscriptionTab = () => {
               </Button>
             </div>
           </div>
+
+          {/* Polling status indicator */}
+          {!pixPaid && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground pt-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Aguardando pagamento...
+            </div>
+          )}
+          {pixPaid && (
+            <div className="flex items-center justify-center gap-2 text-sm text-primary font-medium pt-2">
+              <CheckCircle className="w-4 h-4" />
+              Pagamento confirmado!
+            </div>
+          )}
 
           <p className="text-xs text-muted-foreground">
             Após o pagamento, seu plano será ativado automaticamente em alguns segundos.
