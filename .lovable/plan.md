@@ -1,65 +1,75 @@
 
 
-# Auditoria Completa do Fluxo de Assinatura
+# Implementar Assinaturas Recorrentes com Mercado Pago (Preapproval API)
 
-## Status: Tudo correto no lado do código
+## Situação Atual
+O sistema usa pagamentos avulsos (`/v1/payments`). Após pagar, o plano fica ativo indefinidamente sem renovação automática. Não há cobrança recorrente nem bloqueio por falta de pagamento.
 
-### Pontos de entrada verificados (todos apontam para `/planos` ou direto para o checkout)
-
-1. **Landing page (`/`)** — 3 links para `/planos` (header, CTA principal, footer)
-2. **Dashboard banners** — 4 banners (trial ativo, trial expirando, trial expirado, plano grátis) todos linkam para `/planos`
-3. **UpgradePrompt** — componente usado em tabs bloqueadas (Cozinha, Garçom, Cupons, etc.) linka para `/planos`
-4. **FeaturesTab** — botão "Fazer upgrade" linka para `/planos`
-5. **HistoryTab** — link inline "Fazer upgrade" aponta para `/planos`
-6. **SubscriptionTab** — checkout interno com Mercado Pago (PIX + Cartão)
-
-### Fluxo completo verificado
+## Arquitetura Nova
 
 ```text
-/planos → Dialog de confirmação → /dashboard?tab=subscription&plan=pro
+/planos → Dialog confirma → Edge Function cria preapproval no MP
                                     ↓
-                         SubscriptionTab lê ?plan=pro
+                         Retorna init_point (URL do MP)
                                     ↓
-                         Abre checkout Mercado Pago automaticamente
+                         Usuário é redirecionado ao checkout do MP
+                         (MP coleta cartão/dados de pagamento)
                                     ↓
-                    PIX: gera QR Code + polling a cada 10s
-                    Cartão: tokeniza via SDK MP + envia pagamento
+                         MP cobra automaticamente todo mês
                                     ↓
-                    Webhook (mp-webhook) atualiza org no banco
+              Webhook recebe notificações de status da assinatura
+              (authorized → ativa plano, cancelled/paused → bloqueia)
 ```
 
-### Fluxo deslogado
+## Etapas de Implementação
 
-```text
-/planos (deslogado) → /auth?redirect=/planos&plan=pro
-                         ↓
-                    Login/Cadastro
-                         ↓
-                    Redireciona para /planos?plan=pro
-                         ↓
-                    useEffect reabre dialog automaticamente
-```
+### 1. Migração de banco de dados
+- Adicionar coluna `mp_subscription_id` (text, nullable) na tabela `organizations` para rastrear a assinatura ativa no MP.
 
-### Secrets do Mercado Pago: OK
-- `MERCADO_PAGO_ACCESS_TOKEN` — configurado
-- `MERCADO_PAGO_PUBLIC_KEY` — configurado
+### 2. Nova Edge Function `create-mp-subscription`
+- Recebe `org_id` e `plan` do frontend autenticado.
+- Chama `POST https://api.mercadopago.com/preapproval` com:
+  - `reason`: "Assinatura Pro - NomeLoja"
+  - `external_reference`: org_id
+  - `payer_email`: email do usuário
+  - `auto_recurring`: `{ frequency: 1, frequency_type: "months", transaction_amount: 99.00 ou 249.00, currency_id: "BRL" }`
+  - `back_url`: URL de retorno ao dashboard
+- Salva o `preapproval.id` na coluna `mp_subscription_id` da org.
+- Retorna o `init_point` (URL hospedada do MP) para o frontend redirecionar.
 
-### Edge Functions envolvidas (todas deployadas)
-- `create-mp-payment` — cria pagamento PIX ou cartão
-- `get-mp-public-key` — retorna public key para SDK do cartão
-- `mp-webhook` — recebe notificação de pagamento aprovado e ativa o plano
-- `check-subscription-pix` — polling do status do PIX
+### 3. Atualizar `mp-webhook` para tratar assinaturas
+- Além de `type: "payment"`, tratar `type: "subscription_preapproval"`.
+- Quando receber notificação de assinatura:
+  - Buscar dados em `GET /preapproval/{id}`.
+  - Se `status === "authorized"` → ativar plano (subscription_plan = plan, trial_ends_at = +30 dias).
+  - Se `status === "cancelled"` ou `"paused"` → reverter para plano free.
+  - Usar `external_reference` (org_id) para identificar a organização.
+- Para pagamentos recorrentes aprovados (`type: "payment"` com subscription associada), renovar `trial_ends_at` em +30 dias.
 
-### O que NÃO consigo testar automaticamente
-- **Pagamento real no Mercado Pago** — requer credenciais de produção e um pagamento verdadeiro. Não há como simular isso via automação do browser.
-- **Webhook callback** — o Mercado Pago precisa chamar a URL do webhook (`mp-webhook`) após o pagamento. Isso depende do webhook estar configurado no painel do Mercado Pago apontando para a URL correta da edge function.
+### 4. Nova Edge Function `cancel-mp-subscription`
+- Recebe `org_id` do frontend autenticado.
+- Busca `mp_subscription_id` da org.
+- Chama `PUT /preapproval/{id}` com `status: "cancelled"`.
+- Atualiza org para plano free.
 
-### Ponto de atenção
-O webhook do Mercado Pago precisa estar configurado no painel do MP apontando para:
-`https://xrzudhylpphnzousilye.supabase.co/functions/v1/mp-webhook`
+### 5. Atualizar `SubscriptionTab` (frontend)
+- Remover formulário de checkout interno (PIX/cartão direto).
+- Novo fluxo: ao selecionar plano → chamar `create-mp-subscription` → redirecionar para `init_point` (página do MP).
+- Mostrar status da assinatura ativa (plano, próxima cobrança).
+- Botão "Cancelar assinatura" que chama `cancel-mp-subscription`.
+- Ao retornar do MP (via `back_url`), mostrar status atualizado.
 
-Se isso não estiver configurado, pagamentos PIX serão gerados mas o plano não será ativado automaticamente (apenas o polling do `check-subscription-pix` tentaria verificar).
+### 6. Atualizar `PricingPage`
+- Manter fluxo atual de seleção → dialog → mas ao confirmar, chamar `create-mp-subscription` diretamente e redirecionar para o `init_point` do MP (em vez de navegar para o dashboard).
 
-### Conclusão
-Todo o código está correto e conectado. Os redirecionamentos funcionam, o checkout interno do Mercado Pago está integrado, e os webhooks estão prontos. A única validação pendente é confirmar que a URL do webhook está cadastrada no painel do Mercado Pago.
+### 7. Config TOML
+- Adicionar entradas para as novas edge functions com `verify_jwt = false`.
+
+## Detalhes Técnicos
+
+- **API do MP usada**: `POST /preapproval` (assinaturas sem plano pré-cadastrado)
+- **Webhook topics**: `subscription_preapproval` (mudança de status da assinatura) + `payment` (cada cobrança mensal)
+- **Renovação automática**: O MP cobra o cartão mensalmente. Cada pagamento aprovado renova `trial_ends_at` em +30 dias via webhook.
+- **Bloqueio automático**: Se MP não conseguir cobrar e cancelar a assinatura, o webhook recebe `status: cancelled` e o sistema reverte para plano free. O `usePlanLimits` já bloqueia funcionalidades quando `trial_ends_at` expira.
+- **Edge functions existentes mantidas**: `create-mp-payment`, `check-subscription-pix` e `get-mp-public-key` continuam funcionando como fallback mas não serão mais o fluxo principal.
 
