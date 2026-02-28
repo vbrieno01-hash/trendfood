@@ -2,7 +2,7 @@ import { useDeliveredOrders, useDeliveredUnpaidOrders, useOrders } from "@/hooks
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend,
+  Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend, BarChart,
 } from "recharts";
 import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle } from "lucide-react";
 import { subDays, format, isSameDay, startOfDay } from "date-fns";
@@ -103,6 +103,13 @@ export default function HomeTab({ organization }: { organization: Organization }
       : null;
 
   // ── Last 7 days chart data ─────────────────────────────────────
+  const classifyPayment = (method: string | null | undefined): "Dinheiro" | "PIX" | "Cartão" => {
+    const m = (method ?? "").toLowerCase().trim();
+    if (m === "pix") return "PIX";
+    if (["cartao", "credito", "debito", "credit_card"].includes(m)) return "Cartão";
+    return "Dinheiro";
+  };
+
   const last7 = Array.from({ length: 7 }, (_, i) => {
     const day = subDays(new Date(), 6 - i);
     const dayOrders = delivered.filter((o) => isSameDay(new Date(o.created_at), day));
@@ -115,6 +122,25 @@ export default function HomeTab({ organization }: { organization: Organization }
       faturamento: Math.round(revenue * 100) / 100,
     };
   });
+
+  // ── Payment method chart data ──────────────────────────────────
+  const paymentChartData = Array.from({ length: 7 }, (_, i) => {
+    const day = subDays(new Date(), 6 - i);
+    const dayPaid = delivered.filter((o) => o.paid && isSameDay(new Date(o.created_at), day));
+    const breakdown = { Dinheiro: 0, PIX: 0, Cartão: 0 };
+    dayPaid.forEach((o) => {
+      const cat = classifyPayment(o.payment_method);
+      const val = (o.order_items ?? []).reduce((s, it) => s + it.price * it.quantity, 0);
+      breakdown[cat] += val;
+    });
+    return {
+      dia: format(day, "EEE", { locale: ptBR }),
+      Dinheiro: Math.round(breakdown.Dinheiro * 100) / 100,
+      PIX: Math.round(breakdown.PIX * 100) / 100,
+      Cartão: Math.round(breakdown.Cartão * 100) / 100,
+    };
+  });
+  const paymentTotal = paymentChartData.reduce((s, d) => s + d.Dinheiro + d.PIX + d.Cartão, 0);
 
   const totalLast7Orders = last7.reduce((s, d) => s + d.pedidos, 0);
 
@@ -380,6 +406,49 @@ export default function HomeTab({ organization }: { organization: Organization }
                   dot={{ r: 4, fill: "#22c55e" }}
                 />
               </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Payment method chart ──────────────────────────── */}
+      <Card className="border border-border shadow-sm">
+        <CardContent className="p-5">
+          <div className="mb-4">
+            <h2 className="font-black text-foreground text-base">Faturamento por Método de Pagamento</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Total no período: {fmtBRL(paymentTotal)}
+            </p>
+          </div>
+          {delivered.filter(o => o.paid).length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-3xl mb-2">💳</p>
+              <p className="text-muted-foreground text-sm">Nenhum pedido pago ainda. Os dados aparecerão aqui!</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={paymentChartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="dia" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis
+                  width={55}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tickFormatter={(v) => `R$${v}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  formatter={(value: number, name: string) => [fmtBRL(value), name]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="Dinheiro" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="PIX" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="Cartão" stackId="a" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           )}
         </CardContent>
