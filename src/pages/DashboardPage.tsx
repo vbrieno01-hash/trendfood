@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
+import UpgradeDialog from "@/components/dashboard/UpgradeDialog";
 import logoDashboard from "@/assets/logo-dashboard.png";
 import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getStoredDeviceId } from "@/lib/bluetoothPrinter";
 
@@ -74,6 +75,7 @@ const DashboardPage = () => {
     localStorage.setItem("dashboard_active_tab", activeTab);
   }, [activeTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const retryRef = useRef(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ operacional: true });
 
@@ -823,8 +825,8 @@ const DashboardPage = () => {
                   Você tem <strong>{planLimits.trialDaysLeft} {planLimits.trialDaysLeft === 1 ? "dia" : "dias"}</strong> restantes do plano Pro grátis!
                 </p>
               </div>
-              <Button asChild size="sm" className="gap-1.5">
-                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Assinar Pro</Link>
+              <Button size="sm" className="gap-1.5" onClick={() => setUpgradeOpen(true)}>
+                <Zap className="w-3.5 h-3.5" />Assinar Pro
               </Button>
             </div>
           )}
@@ -836,8 +838,8 @@ const DashboardPage = () => {
                   Seu período de teste Pro expirou. Faça upgrade para continuar usando todos os recursos.
                 </p>
               </div>
-              <Button asChild size="sm" variant="destructive" className="gap-1.5">
-                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Fazer upgrade</Link>
+              <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => setUpgradeOpen(true)}>
+                <Zap className="w-3.5 h-3.5" />Fazer upgrade
               </Button>
             </div>
           )}
@@ -851,8 +853,8 @@ const DashboardPage = () => {
                   Sua assinatura expira em <strong>{planLimits.subscriptionDaysLeft} {planLimits.subscriptionDaysLeft === 1 ? "dia" : "dias"}</strong>. Renove para não perder acesso.
                 </p>
               </div>
-              <Button asChild size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700">
-                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar</Link>
+              <Button size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700" onClick={() => setUpgradeOpen(true)}>
+                <Zap className="w-3.5 h-3.5" />Renovar
               </Button>
             </div>
           )}
@@ -866,8 +868,8 @@ const DashboardPage = () => {
                   Sua assinatura expirou. Renove para continuar usando todos os recursos.
                 </p>
               </div>
-              <Button asChild size="sm" variant="destructive" className="gap-1.5">
-                <Link to="/planos"><Zap className="w-3.5 h-3.5" />Renovar agora</Link>
+              <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => setUpgradeOpen(true)}>
+                <Zap className="w-3.5 h-3.5" />Renovar agora
               </Button>
             </div>
           )}
@@ -960,6 +962,14 @@ const DashboardPage = () => {
           )}
         </div>
       </div>
+      {organization && (
+        <UpgradeDialog
+          open={upgradeOpen}
+          onOpenChange={setUpgradeOpen}
+          orgId={organization.id}
+          currentPlan={planLimits.plan}
+        />
+      )}
     </div>
   );
 };
