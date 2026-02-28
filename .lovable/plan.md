@@ -1,25 +1,25 @@
 
 
-# Bug Fix: Plan selection redirect not including query params
+# Correção: Preservar parâmetro `plan` após login/cadastro
 
-## Problem
-When a user is **not logged in**, the `PlanCard` component receives `onSelect={undefined}`, so it renders a plain `<Link to="/auth">` instead of calling `handleSelectPlan`. The redirect logic with `?redirect=/planos&plan=pro` is never executed.
+## Problema
+O `AuthPage.tsx` recebe `?redirect=/planos&plan=pro` na URL, mas:
+1. O `handleSignup` redireciona fixo para `/dashboard` (ignora o `redirectTo`)
+2. O parâmetro `plan` não é repassado na URL de redirecionamento
 
-## Fix: `src/pages/PricingPage.tsx` (line 196-198)
+## Alterações: `src/pages/AuthPage.tsx`
 
-Change the PlanCard props so that `onSelect` is **always provided** for paid plans (regardless of login state), allowing `handleSelectPlan` to run and navigate with the correct query parameters:
-
-```tsx
-// Before:
-onSelect={user ? (plan.key !== "free" ? () => handleSelectPlan(plan.key) : () => {}) : undefined}
-external={false}
-ctaLink={!user ? "/auth" : plan.ctaLink}
-
-// After:
-onSelect={plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
-external={false}
-ctaLink={plan.ctaLink}
+### 1. Construir URL completa com o parâmetro `plan` (após linha 40)
+```typescript
+const planParam = searchParams.get("plan");
+const fullRedirect = planParam && redirectTo.includes("/planos")
+  ? `${redirectTo}?plan=${planParam}`
+  : redirectTo;
 ```
 
-This ensures that clicking "Assinar Pro" always calls `handleSelectPlan`, which handles the redirect to `/auth?redirect=/planos&plan=pro` when the user is not logged in. The free plan will still render as a simple link.
+### 2. Corrigir signup (linha ~128)
+Trocar `navigate("/dashboard", { replace: true })` por `navigate(fullRedirect, { replace: true })`
+
+### 3. Corrigir login (linhas ~157-162)
+Trocar todas as referências a `redirectTo` por `fullRedirect` nos `navigate()`
 
