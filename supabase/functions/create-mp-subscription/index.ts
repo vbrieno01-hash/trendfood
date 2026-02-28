@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     }
 
     // Determine price
-    const prices: Record<string, number> = { pro: 99.0, enterprise: 249.0 };
+    const prices: Record<string, number> = { free: 5.0, pro: 99.0, enterprise: 249.0 };
     const amount = prices[plan];
     if (!amount) {
       return new Response(JSON.stringify({ error: "Invalid plan" }), {
