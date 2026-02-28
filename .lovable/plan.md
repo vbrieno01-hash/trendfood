@@ -1,30 +1,59 @@
 
 
-# Trava de Estoque no Painel do Garcom e Mesas
+# Menu Lateral com Accordions + Resumo Rápido na Dashboard
 
-## Contexto
-O `TableOrderPage.tsx` renderiza o cardapio filtrando apenas `item.available`, mas nao verifica o estoque real dos ingredientes. O seletor de quantidade (`adjust`) nao tem limite superior baseado em estoque.
+## Mudanças
 
-## Abordagem
+### 1. Sidebar com Accordions (`DashboardPage.tsx`)
 
-### 1. Criar hook `useMenuItemStock` 
-Novo arquivo `src/hooks/useMenuItemStock.ts`:
-- Busca todos os `menu_item_ingredients` com join em `stock_items` para a org
-- Calcula para cada `menu_item_id` o maximo disponivel: `Math.floor(min(stock.quantity / ingredient.quantity_used))`
-- Itens sem ingredientes vinculados retornam `Infinity` (sem limite)
-- Retorna um `Map<string, number>` de `menuItemId -> maxAvailable`
+Substituir as 3 listas flat (`navItemsTop`, `navItemsOps`, `navItemsBottom`) por 4 grupos accordion usando `Collapsible` do Radix (já instalado).
 
-### 2. Alterar `TableOrderPage.tsx`
-- Importar `useMenuItemStock`
-- Filtrar itens: ocultar produtos cujo `maxAvailable === 0`
-- No nome do produto, mostrar `"Coca-Cola (8 unid.)"` quando tem ingredientes vinculados
-- Na funcao `adjust`: limitar quantidade ao `maxAvailable` considerando TODOS os itens no carrinho que usam o mesmo menu_item_id (soma de todas as pessoas)
-- Desabilitar botao `+` quando atingir o limite
+**Home** fica fora dos accordions, como botão fixo no topo.
 
-### 3. Alterar `WaiterPage.tsx`
-- Esse arquivo nao tem seletor de cardapio — ele so exibe pedidos prontos/pagamento. O painel do garcom que faz pedidos e o `TableOrderPage`. Nenhuma alteracao necessaria aqui.
+Mapeamento das abas nos grupos:
 
-### Arquivos
-- **Criar**: `src/hooks/useMenuItemStock.ts`
-- **Editar**: `src/pages/TableOrderPage.tsx`
+```text
+🏠 Home (botão fixo, fora de accordion)
+
+⚡ OPERACIONAL (defaultOpen = true)
+   ├── Gestão de Pedidos (Kanban)  → waiter
+   ├── Mesas & Comandas            → tables
+   ├── Cozinha (KDS)               → kitchen
+   ├── Histórico                   → history
+   └── Motoboys                    → courier
+
+📦 LOGÍSTICA
+   ├── Cardápio (Menu)             → menu
+   └── Estoque & Insumos           → stock
+
+💰 FINANCEIRO
+   ├── Fluxo de Caixa              → caixa
+   ├── Relatórios                  → reports
+   ├── Cupons                      → coupons
+   └── Mais Vendidos               → bestsellers
+
+⚙️ AJUSTES
+   ├── Dados da Loja               → profile
+   ├── Assinatura / Plano          → subscription
+   ├── Impressora Térmica           → printer
+   ├── Funcionalidades             → features
+   ├── Como Usar                   → guide
+   └── Configurações               → settings
+```
+
+Cada grupo: header clicável com emoji + título + chevron. Grupo OPERACIONAL inicia aberto; demais fechados. Ao clicar numa aba, o grupo correspondente abre automaticamente.
+
+### 2. Resumo Rápido no HomeTab (`HomeTab.tsx`)
+
+Adicionar 3 cards no topo (antes do hero de faturamento):
+
+- **Pedidos Ativos**: conta pedidos com status `pending` ou `preparing` (já disponível via `useOrders`)
+- **Mesas Ocupadas**: query em `orders` com status `pending`/`preparing` agrupando por `table_number` distintos
+- **Alertas de Estoque Baixo**: query em `stock_items` onde `quantity <= min_quantity` e `min_quantity > 0`
+
+Os 3 cards ficam numa row horizontal com ícones, valores grandes e cores distintas.
+
+### Arquivos alterados
+- `src/pages/DashboardPage.tsx` — sidebar com accordions via Collapsible
+- `src/components/dashboard/HomeTab.tsx` — 3 cards de resumo rápido no topo
 
