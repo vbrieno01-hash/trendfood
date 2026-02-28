@@ -1,13 +1,18 @@
+import { useState } from "react";
 import { Lock, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import UpgradeDialog from "@/components/dashboard/UpgradeDialog";
 
 interface UpgradePromptProps {
   title: string;
   description: string;
+  orgId: string;
+  currentPlan: string;
 }
 
-export default function UpgradePrompt({ title, description }: UpgradePromptProps) {
+export default function UpgradePrompt({ title, description, orgId, currentPlan }: UpgradePromptProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
     <div className="max-w-md mx-auto py-16 text-center">
       <div className="bg-card border border-border rounded-2xl p-8 space-y-5">
@@ -18,13 +23,18 @@ export default function UpgradePrompt({ title, description }: UpgradePromptProps
           <h2 className="font-bold text-foreground text-xl mb-1.5">{title}</h2>
           <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
         </div>
-        <Button asChild className="gap-2">
-          <Link to="/planos">
-            <Zap className="w-4 h-4" />
-            Fazer upgrade
-          </Link>
+        <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+          <Zap className="w-4 h-4" />
+          Fazer upgrade
         </Button>
       </div>
+
+      <UpgradeDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        orgId={orgId}
+        currentPlan={currentPlan}
+      />
     </div>
   );
 }
