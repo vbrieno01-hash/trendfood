@@ -38,6 +38,10 @@ const AuthPage = () => {
   const { refreshOrganizationForUser } = useAuth();
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const planParam = searchParams.get("plan");
+  const fullRedirect = planParam && redirectTo.includes("/planos")
+    ? `${redirectTo}?plan=${planParam}`
+    : redirectTo;
 
   const [signupData, setSignupData] = useState({
     fullName: "",
@@ -125,7 +129,7 @@ const AuthPage = () => {
 
       toast.success("Conta criada com sucesso! Bem-vindo! 🎉");
       await refreshOrganizationForUser(userId);
-      navigate("/dashboard", { replace: true });
+      navigate(fullRedirect, { replace: true });
     } catch (err: unknown) {
       const error = err as { message?: string };
       toast.error(translateAuthError(error.message) ?? error.message ?? "Erro ao criar conta.");
@@ -154,12 +158,12 @@ const AuthPage = () => {
             .eq("user_id", data.user.id)
             .eq("role", "admin")
             .maybeSingle();
-          navigate(roleData ? "/admin" : redirectTo, { replace: true });
+          navigate(roleData ? "/admin" : fullRedirect, { replace: true });
         } catch {
-          navigate(redirectTo, { replace: true });
+          navigate(fullRedirect, { replace: true });
         }
       } else {
-        navigate(redirectTo, { replace: true });
+        navigate(fullRedirect, { replace: true });
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
