@@ -1,19 +1,46 @@
 
 
-## Plano: Ajustar cores da tabela comparativa para a marca TrendFood
+## Plano: Finalizar Landing Page profissional
 
-### Alterações em `src/components/landing/ComparisonSection.tsx`
+### 1. Header — adicionar links de navegacao
+**`src/pages/Index.tsx`** — Entre a logo e os botoes, adicionar links "Recursos" e "Precos":
+- `<a href="#funcionalidades">Recursos</a>` e `<Link to="/planos">Precos</Link>` com estilo `text-white/60 hover:text-white text-sm font-medium`, hidden em mobile
+- Trocar "Login" para "Entrar" e "Criar Loja Gratis" para "Comecar Agora"
 
-**Coluna TrendFood — trocar verde para laranja da marca:**
+### 2. Hero — atualizar titulo
+**`src/pages/Index.tsx`** — Trocar o H1:
+- Linha principal: "O Cardapio Digital que Profissionaliza seu Delivery"
+- Subtitulo destacado mantido: "Sem Taxas, Com Gestao Real."
 
-1. **Desktop — ícone Check** (linha 88): `text-green-600` → `text-orange-500`
-2. **Desktop — fundo da coluna** (linha 87): `bg-green-500/5` → `bg-orange-500/5`
-3. **Desktop — badges** (linha 93): `bg-green-100 text-green-700 border-green-200` → `bg-orange-100 text-orange-700 border-orange-200`
-4. **Mobile — ícone Check** (linha 119): `text-green-600` → `text-orange-500`
-5. **Mobile — fundo da coluna** (linha 117): `bg-green-500/5` → `bg-orange-500/5`
-6. **Mobile — badges** (linha 124): `bg-green-100 text-green-700 border-green-200` → `bg-orange-100 text-orange-700 border-orange-200`
+### 3. Cards de Beneficios — nova secao apos o Hero
+**`src/pages/Index.tsx`** — Adicionar 3 cards destacados entre o hero e a secao de problemas:
+- `Smartphone` — "Cardapio Digital" — "Seu catalogo completo acessivel por QR Code, sem app para baixar."
+- `Package` — "Controle de Estoque" — "Gerencie entradas, saidas e estoque minimo com alertas automaticos."
+- `CreditCard` — "Pagamento Online" — "PIX integrado direto no pedido, sem maquininha."
 
-**Coluna Marketplaces** — sem alteração, já usa `text-destructive` (vermelho) e `bg-destructive/5`.
+Layout: grid de 3 colunas com icone laranja, titulo e descricao.
 
-**Responsividade** — já está implementada com layout desktop (grid) e mobile (cards empilhados). Sem alteração necessária.
+### 4. Secao de Planos — inline na landing page
+**`src/pages/Index.tsx`** — Adicionar secao antes do CTA final:
+- Buscar planos da tabela `platform_plans` via `useEffect` + `useState`
+- Renderizar `<PlanCard />` para cada plano com `highlighted` e `badge` vindos do banco
+- O plano Pro ja tem `badge: "Recomendado"` e `highlighted: true` no banco
+- Botao CTA dos planos redireciona para `/planos` (onde o checkout funciona)
+- Fallback com `Loader2` enquanto carrega
+
+### 5. Rodape — atualizar copyright
+**`src/pages/Index.tsx`** — Trocar texto do footer:
+- De: `© 2026 TrendFood. Feito com ❤️ para o comercio brasileiro.`
+- Para: `TrendFood © 2026 - Todos os direitos reservados`
+
+### 6. Tabela comparativa — ja atualizada
+As cores laranja na `ComparisonSection` ja foram aplicadas na edicao anterior. Nenhuma alteracao necessaria.
+
+### Detalhes tecnicos
+- Importar `Smartphone`, `Package`, `CreditCard` de `lucide-react`
+- Importar `useState`, `useEffect` de React
+- Importar `supabase` de `@/integrations/supabase/client`
+- Importar `PlanCard` de `@/components/pricing/PlanCard`
+- Reutilizar a funcao `formatPrice` inline (mesma logica do PricingPage)
+- Todas as alteracoes ficam em `src/pages/Index.tsx`
 
