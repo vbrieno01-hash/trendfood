@@ -140,8 +140,12 @@ Deno.serve(async (req) => {
     if (!mpRes.ok) {
       console.error("[create-mp-subscription] MP error:", JSON.stringify(mpData));
       return new Response(
-        JSON.stringify({ error: "Failed to create subscription", details: mpData.message || mpData }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Failed to create subscription",
+          status_detail: mpData.cause?.[0]?.code || mpData.message || "unknown_error",
+          message: mpData.message || "Pagamento recusado",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
