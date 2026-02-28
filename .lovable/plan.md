@@ -1,46 +1,40 @@
 
 
-## Plano: CRUD de Adicionais no Painel + Integração Completa
+## Problema identificado
 
-### Situação Atual
-- A tabela `menu_item_addons` **já existe** no banco com RLS configurado.
-- O hook `useMenuItemAddons` **já existe** (leitura pública).
-- O `ItemDetailDrawer` (cardápio do cliente) **já exibe** adicionais com checkboxes e preço dinâmico.
-- O carrinho e WhatsApp **já incluem** adicionais no formato correto.
-- **Falta**: CRUD de adicionais no painel do lojista (`MenuTab.tsx`) e exibição no KDS (cozinha).
+O `useDeliveryFee` faz chamadas **diretas do navegador** para o Nominatim (geocoding) e OSRM (rota). Isso causa:
 
-### Alterações
+1. **Múltiplas chamadas sequenciais** — até 8 requisições ao Nominatim (loja + cliente, com retries de 1.5s cada)
+2. **Delays artificiais** — `tryGeocodeWithRetry` espera 1.5s entre tentativas
+3. **CORS/rate-limit** — Nominatim bloqueia chamadas do navegador com frequência
+4. **Sem cache** — endereço da loja é geocodificado toda vez que o componente remonta
 
-#### 1. Criar hooks CRUD para adicionais
-**Novo arquivo**: `src/hooks/useMenuItemAddonsCrud.ts`
-- `useMenuItemAddons(menuItemId)` — listar todos (incluindo inativos) para o painel admin
-- `useAddMenuItemAddon()` — inserir addon
-- `useUpdateMenuItemAddon()` — atualizar nome/preço/disponibilidade
-- `useDeleteMenuItemAddon()` — remover addon
+Já existe uma Edge Function `geocode-distance` que faz tudo server-side, mas o `useDeliveryFee` **não a utiliza** — tem sua própria lógica de geocoding duplicada.
 
-#### 2. Adicionar seção "Adicionais" no modal de edição de produto (`MenuTab.tsx`)
-- Inserir após a seção "Composição do Produto" (linha ~824) um novo componente `AddonsSection`
-- Em modo **edição**: CRUD direto no banco (como `IngredientsSection`)
-- Em modo **criação**: estado local `pendingAddons[]`, salvar após `addMutation` retornar o ID
-- Cada addon: campo nome, campo preço (CurrencyInput em centavos), switch ativo/inativo, botão remover
-- Botão "+ Adicionar adicional" para criar novos
+## Plano: Migrar useDeliveryFee para usar a Edge Function
 
-#### 3. Exibir adicionais no KDS (KitchenPage + KitchenTab)
-- O campo `name` do `order_items` já contém `"Hambúrguer (+ Bacon, + Queijo)"` — já aparece no KDS.
-- Verificar e garantir que a exibição está legível nas telas de cozinha (nenhuma alteração deve ser necessária pois os nomes já incluem os adicionais).
+### 1. Refatorar `useDeliveryFee` para usar `geocode-distance`
+**Arquivo**: `src/hooks/useDeliveryFee.ts`
 
-#### 4. Integração com Mercado Pago
-- O valor total do pedido já soma adicionais corretamente (`item.price` no carrinho já inclui base + addons).
-- Os `order_items` salvos no banco já contêm o preço com adicionais somados.
-- Nenhuma alteração necessária no fluxo de pagamento.
+- Remover toda a lógica local de geocoding (~100 linhas): `tryGeocode`, `tryGeocodeWithRetry`, `geocode`, `geocodeStoreAddress`, `getRouteDistanceKm`, `stripComplementForGeo`, `deduplicateAddressParts`
+- Chamar a Edge Function `geocode-distance` via `calculateDistanceViaEdge` (de `src/lib/geocode.ts`) que já existe
+- Manter o cache do resultado da loja via `useRef` para evitar recalcular quando só o endereço do cliente muda
+- Manter o debounce de 800ms e a tabela de frete `applyFeeTable`
+
+### 2. Otimizar a Edge Function `geocode-distance`
+**Arquivo**: `supabase/functions/geocode-distance/index.ts`
+
+- Reduzir delays entre chamadas: de 400ms para 200ms (server-side não tem rate-limit tão agressivo)
+- Usar busca por CEP via ViaCEP primeiro para obter coordenadas mais precisas (extrair lat/lon do IBGE code quando disponível)
+- Geocodar loja e cliente em **paralelo** (hoje é sequencial com delay de 400ms entre eles)
+- Reduzir delay de retry do OSRM: de 1500ms para 500ms
 
 ### Arquivos alterados
-1. **Novo**: `src/hooks/useMenuItemAddonsCrud.ts`
-2. **Editado**: `src/components/dashboard/MenuTab.tsx` — adicionar `AddonsSection` e `PendingAddonsSection`
+1. `src/hooks/useDeliveryFee.ts` — simplificar para usar edge function
+2. `supabase/functions/geocode-distance/index.ts` — paralelizar e reduzir delays
 
-### Detalhes técnicos
-- O CRUD usa a tabela existente `menu_item_addons` com `price_cents` (inteiro em centavos).
-- RLS já configurado: leitura pública, gestão por owner da org.
-- Nenhuma migration necessária — a tabela já tem a estrutura correta.
-- O KDS já funciona porque `order_items.name` inclui os adicionais inline.
+### Resultado esperado
+- Tempo de cálculo reduzido de ~5-8s para ~1-3s
+- Sem problemas de CORS
+- Mais confiável (server-side não tem rate-limit do Nominatim para navegadores)
 
