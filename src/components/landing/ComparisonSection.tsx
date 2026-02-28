@@ -84,13 +84,13 @@ const ComparisonSection = () => {
                   {row.marketplace}
                 </span>
               </div>
-              <div className="p-4 border-l border-border flex items-center justify-center gap-2 bg-green-500/5">
-                <Check className="w-4 h-4 text-green-600 shrink-0" />
+              <div className="p-4 border-l border-border flex items-center justify-center gap-2 bg-orange-500/5">
+                <Check className="w-4 h-4 text-orange-500 shrink-0" />
                 <span className="text-sm text-foreground font-medium text-center">
                   {row.trendfood}
                 </span>
                 {row.trendfoodBadge && (
-                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200 shrink-0">
+                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border-orange-200 shrink-0">
                     {row.trendfoodBadge}
                   </Badge>
                 )}
@@ -114,14 +114,14 @@ const ComparisonSection = () => {
                     {row.marketplace}
                   </span>
                 </div>
-                <div className="p-3 bg-green-500/5 border-l border-border flex flex-col items-center gap-1">
+                <div className="p-3 bg-orange-500/5 border-l border-border flex flex-col items-center gap-1">
                   <span className="text-xs font-bold text-primary">TrendFood</span>
-                  <Check className="w-4 h-4 text-green-600 shrink-0" />
+                  <Check className="w-4 h-4 text-orange-500 shrink-0" />
                   <span className="text-xs text-foreground font-medium text-center leading-tight">
                     {row.trendfood}
                   </span>
                   {row.trendfoodBadge && (
-                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200 mt-1">
+                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border-orange-200 mt-1">
                       {row.trendfoodBadge}
                     </Badge>
                   )}
