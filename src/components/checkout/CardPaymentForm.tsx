@@ -135,13 +135,6 @@ const CardPaymentForm = ({
         throw new Error(errorMsg);
       }
 
-      // Sandbox mode: card_token_id not supported, redirect to MP checkout
-      if (data?.sandbox_redirect && data?.init_point) {
-        toast.info("Modo sandbox: redirecionando para o checkout do Mercado Pago...", { duration: 3000 });
-        window.open(data.init_point, "_blank");
-        onOpenChange(false);
-        return;
-      }
 
       toast.success("Assinatura ativada com sucesso! 🎉", { duration: 5000 });
       onOpenChange(false);
