@@ -1,5 +1,52 @@
 import { Badge } from "@/components/ui/badge";
-import showcaseImg from "@/assets/showcase-devices.png";
+import dashboardImg from "@/assets/dashboard-screenshot.png";
+import mobileImg from "@/assets/mobile-screenshot.png";
+
+const DashboardMockup = () => (
+  <div className="relative w-full" style={{ maxWidth: 520 }}>
+    {/* Laptop frame */}
+    <div className="rounded-xl overflow-hidden shadow-2xl border border-border" style={{ background: "#1a1a2e" }}>
+      {/* Mac-style title bar */}
+      <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
+        <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+        <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+        <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+        <div className="flex-1 mx-3">
+          <div className="h-3.5 rounded bg-white/10 w-40 mx-auto" />
+        </div>
+      </div>
+      {/* Screenshot */}
+      <img
+        src={dashboardImg}
+        alt="Painel TrendFood - Dashboard de vendas e faturamento"
+        className="w-full block"
+      />
+    </div>
+
+    {/* Laptop base */}
+    <div className="mx-auto h-2 rounded-b-lg" style={{ width: "60%", background: "#d1d5db" }} />
+    <div className="mx-auto h-1 rounded-b-xl" style={{ width: "80%", background: "#9ca3af" }} />
+
+    {/* Mobile mockup overlapping bottom-right */}
+    <div className="absolute z-10" style={{ right: -28, bottom: -32, width: 110 }}>
+      <div className="rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-800 bg-black">
+        {/* Phone notch */}
+        <div className="h-3 bg-black flex justify-center items-end">
+          <div className="w-10 h-1.5 rounded-full bg-gray-700" />
+        </div>
+        <img
+          src={mobileImg}
+          alt="Cardápio digital mobile TrendFood"
+          className="w-full block"
+        />
+        {/* Phone bottom bar */}
+        <div className="h-2.5 bg-black flex justify-center items-center">
+          <div className="w-8 h-1 rounded-full bg-gray-600" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 const ShowcaseSection = () => {
   return (
@@ -43,11 +90,7 @@ const ShowcaseSection = () => {
 
           {/* Center mockups */}
           <div className="flex-1 flex justify-center order-1 lg:order-2 px-4 lg:px-8">
-            <img
-              src={showcaseImg}
-              alt="Painel TrendFood - Dashboard e cardápio digital"
-              className="w-full max-w-[520px] drop-shadow-2xl"
-            />
+            <DashboardMockup />
           </div>
 
           {/* Right text */}
