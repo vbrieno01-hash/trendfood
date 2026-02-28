@@ -1,17 +1,19 @@
 
 
-## Correção: mapear erro CC_VAL_433 e melhorar feedback
+## Trocar para credenciais de produção do Mercado Pago
 
-### Problema
-- O erro `CC_VAL_433` do Mercado Pago não está mapeado em `mpErrorMessages.ts`
-- Com credenciais de teste, cartões reais são rejeitados — o usuário precisa saber disso
+O erro `CC_VAL_433` acontece porque o `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_PUBLIC_KEY` configurados são credenciais de **teste**. Cartões reais são rejeitados com credenciais de teste.
 
-### Alterações
+### O que precisa ser feito
 
-**`src/components/checkout/mpErrorMessages.ts`**:
-- Adicionar mapeamento para `CC_VAL_433` com mensagem clara: "Erro de validação do cartão. Se estiver em ambiente de teste, use cartões de teste do Mercado Pago."
-- Adicionar fallback parcial: se o `statusDetail` contiver "CC_VAL" ou "card_token", mostrar mensagem sobre credenciais de teste
+1. Acesse sua conta no [Mercado Pago Developers](https://www.mercadopago.com.br/developers/panel/app) e copie as **credenciais de produção**:
+   - **Access Token** de produção (começa com `APP_USR-...` mas é diferente do de teste)
+   - **Public Key** de produção
 
-### Resultado
-O usuário verá uma mensagem específica indicando que precisa usar cartões de teste do Mercado Pago em ambiente de teste, em vez da genérica "Pagamento recusado".
+2. Atualize os dois secrets do projeto com os valores de produção:
+   - `MERCADO_PAGO_ACCESS_TOKEN` → Access Token de produção
+   - `MERCADO_PAGO_PUBLIC_KEY` → Public Key de produção
+
+### Nenhuma alteração de código é necessária
+O código já está preparado para produção. Basta trocar as credenciais.
 
