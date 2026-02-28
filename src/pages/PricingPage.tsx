@@ -136,10 +136,7 @@ const PricingPage = () => {
 
   const handleConfirmPlan = () => {
     if (!selectedPlan || !user) return;
-    const url = selectedPlan.checkout_url;
-    if (url) {
-      window.open(`${url}?email=${encodeURIComponent(user.email || "")}`, "_blank");
-    }
+    navigate(`/dashboard?tab=assinatura&plan=${selectedPlan.key}`, { replace: true });
     setSelectedPlan(null);
   };
 
@@ -240,8 +237,8 @@ const PricingPage = () => {
             <AlertDialogDescription asChild>
               <div className="space-y-4">
                 <p className="text-muted-foreground">
-                  Você está assinando o plano <strong className="text-foreground">{selectedPlan?.name}</strong> por{" "}
-                  <strong className="text-foreground">{selectedPlan?.price}/mês</strong>.
+                  Você será redirecionado para assinar o plano <strong className="text-foreground">{selectedPlan?.name}</strong> por{" "}
+                  <strong className="text-foreground">{selectedPlan?.price}/mês</strong> via PIX ou cartão.
                 </p>
                 <ul className="space-y-2">
                   {selectedPlan?.features.map((f) => (
@@ -257,7 +254,7 @@ const PricingPage = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmPlan}>
-              Continuar para pagamento
+              Ir para assinatura
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
