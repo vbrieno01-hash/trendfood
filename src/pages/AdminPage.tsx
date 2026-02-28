@@ -15,6 +15,7 @@ import SalesChatTab from "@/components/admin/SalesChatTab";
 import ErrorLogsTab from "@/components/admin/ErrorLogsTab";
 import ActivationLogsTab from "@/components/admin/ActivationLogsTab";
 import ManageSubscriptionDialog from "@/components/admin/ManageSubscriptionDialog";
+import WhatsAppConnectTab from "@/components/admin/WhatsAppConnectTab";
 import logoIcon from "@/assets/logo-icon.png";
 import {
   Store,
@@ -42,6 +43,7 @@ import {
   LogOut,
   Settings,
   ScrollText,
+  Smartphone,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -155,7 +157,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp";
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -306,6 +308,7 @@ function AdminContent() {
     { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Vendas" },
     { key: "logs", icon: <AlertCircle className="w-4 h-4" />, label: "Logs" },
     { key: "ativacoes", icon: <ScrollText className="w-4 h-4" />, label: "Ativações" },
+    { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
   ];
 
   const navBtnClass = (key: AdminTab) =>
@@ -651,6 +654,9 @@ function AdminContent() {
 
           {/* ── Ativações Tab ── */}
           {activeTab === "ativacoes" && <ActivationLogsTab />}
+
+          {/* ── WhatsApp Tab ── */}
+          {activeTab === "whatsapp" && <WhatsAppConnectTab />}
 
         </main>
       </div>
