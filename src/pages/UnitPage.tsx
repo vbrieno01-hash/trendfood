@@ -825,21 +825,17 @@ const UnitPage = () => {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-muted/50 border-t border-border mt-8 pb-20">
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-8 text-center space-y-2">
-          <Link to="/" className="inline-flex items-center gap-2 text-primary font-bold text-lg hover:opacity-80 transition-opacity">
-            <img src="/logo-trendfood.png" alt="TrendFood" className="w-6 h-6" />
-            TrendFood
-          </Link>
-          <p className="text-muted-foreground text-xs">
-            Plataforma de cardápio digital e gestão para food service
-          </p>
-          <p className="text-muted-foreground/60 text-[10px]">
-            &copy; {new Date().getFullYear()} TrendFood. Todos os direitos reservados.
-          </p>
-        </div>
-      </footer>
+      {/* Footer — only shown for free plan */}
+      {planLimits.effectivePlan === "free" && (
+        <footer className="bg-muted/50 border-t border-border mt-8 pb-20">
+          <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-6 text-center">
+            <Link to="/" className="inline-flex items-center gap-2 text-primary font-semibold text-sm hover:opacity-80 transition-opacity">
+              <img src="/logo-trendfood.png" alt="TrendFood" className="w-5 h-5" />
+              Powered by TrendFood — Crie seu cardápio grátis
+            </Link>
+          </div>
+        </footer>
+      )}
 
       {/* ── FLOATING CART BAR ── */}
       {totalItems > 0 && (
