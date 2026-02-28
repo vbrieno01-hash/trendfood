@@ -1,0 +1,176 @@
+import { useState, useEffect } from "react";
+import { Plus, Minus, UtensilsCrossed } from "lucide-react";
+import {
+  Drawer, DrawerContent,
+} from "@/components/ui/drawer";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMenuItemAddons } from "@/hooks/useMenuItemAddons";
+import type { MenuItem } from "@/hooks/useMenuItems";
+
+type CartItemAddon = { id: string; name: string; price: number };
+
+interface ItemDetailDrawerProps {
+  item: MenuItem | null;
+  onClose: () => void;
+  onAdd: (item: { id: string; name: string; price: number }, addons: CartItemAddon[], notes: string, qty: number) => void;
+  primaryColor: string;
+  isClosed: boolean;
+  opensAt: string | null;
+}
+
+const fmt = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensAt }: ItemDetailDrawerProps) => {
+  const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
+  const [itemNotes, setItemNotes] = useState("");
+  const [qty, setQty] = useState(1);
+
+  const { data: addons = [], isLoading: addonsLoading } = useMenuItemAddons(item?.id);
+
+  // Reset state when item changes
+  useEffect(() => {
+    if (item) {
+      setSelectedAddons([]);
+      setItemNotes("");
+      setQty(1);
+    }
+  }, [item?.id]);
+
+  if (!item) return null;
+
+  const toggleAddon = (addon: { id: string; name: string; price_cents: number }) => {
+    setSelectedAddons((prev) => {
+      const exists = prev.find((a) => a.id === addon.id);
+      if (exists) return prev.filter((a) => a.id !== addon.id);
+      return [...prev, { id: addon.id, name: addon.name, price: addon.price_cents / 100 }];
+    });
+  };
+
+  const addonsTotal = selectedAddons.reduce((s, a) => s + a.price, 0);
+  const unitPrice = item.price + addonsTotal;
+  const totalPrice = unitPrice * qty;
+
+  return (
+    <Drawer open={item !== null} onClose={onClose}>
+      <DrawerContent className="max-h-[90vh]">
+        {/* Foto */}
+        <div className="w-full aspect-video bg-gradient-to-br from-amber-50 to-orange-100 overflow-hidden">
+          {item.image_url ? (
+            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <UtensilsCrossed className="w-12 h-12 text-orange-300" />
+            </div>
+          )}
+        </div>
+
+        {/* Conteúdo */}
+        <div className="p-5 space-y-4 overflow-y-auto max-h-[50vh]">
+          <div>
+            <h2 className="text-lg font-bold text-foreground leading-snug">{item.name}</h2>
+            {item.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed mt-1">{item.description}</p>
+            )}
+            <p className="text-xl font-bold mt-1" style={{ color: primaryColor }}>
+              {fmt(item.price)}
+            </p>
+          </div>
+
+          {/* Adicionais */}
+          {addonsLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : addons.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-foreground">Adicionais</h3>
+              <div className="space-y-1.5">
+                {addons.map((addon) => {
+                  const isChecked = selectedAddons.some((a) => a.id === addon.id);
+                  return (
+                    <label
+                      key={addon.id}
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
+                        isChecked ? "border-primary/50 bg-primary/5" : "border-border hover:bg-accent/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={() => toggleAddon(addon)}
+                        />
+                        <span className="text-sm text-foreground">{addon.name}</span>
+                      </div>
+                      <span className="text-sm font-medium" style={{ color: primaryColor }}>
+                        + {fmt(addon.price_cents / 100)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Observações */}
+          <div className="space-y-1.5">
+            <h3 className="text-sm font-semibold text-foreground">Observações</h3>
+            <Textarea
+              placeholder="Ex: Sem cebola, ponto da carne..."
+              value={itemNotes}
+              onChange={(e) => setItemNotes(e.target.value)}
+              maxLength={200}
+              rows={2}
+              className="resize-none text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Ação */}
+        <div className="px-5 pb-6 pt-3 border-t border-border">
+          {isClosed ? (
+            <div className="bg-muted rounded-xl p-4 text-center">
+              <p className="font-semibold text-foreground text-sm">🔒 Loja fechada · pedidos indisponíveis</p>
+              {opensAt && <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              {/* Qty selector */}
+              <div className="flex items-center gap-3 bg-secondary rounded-xl px-3 py-2">
+                <button
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  className="w-7 h-7 rounded-full bg-background shadow flex items-center justify-center hover:bg-muted transition-colors"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-6 text-center font-bold text-base">{qty}</span>
+                <button
+                  onClick={() => setQty((q) => q + 1)}
+                  className="w-7 h-7 rounded-full text-white shadow flex items-center justify-center transition-colors"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Add button */}
+              <button
+                onClick={() => onAdd(item, selectedAddons, itemNotes, qty)}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Adicionar {fmt(totalPrice)}
+              </button>
+            </div>
+          )}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+};
+
+export default ItemDetailDrawer;

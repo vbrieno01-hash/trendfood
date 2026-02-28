@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  ShoppingCart, Loader2, Search,
+  ShoppingCart, ShoppingBag, Loader2, Search,
 } from "lucide-react";
+import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
 import { useOrganization } from "@/hooks/useOrganization";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
@@ -28,7 +29,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 
-type CartItem = { id: string; name: string; price: number; qty: number };
+type CartItemAddon = { id: string; name: string; price: number };
+type CartItem = { id: string; menuItemId: string; name: string; price: number; qty: number; addons: CartItemAddon[]; notes: string };
+
+const cartKey = (menuItemId: string, addons: CartItemAddon[]) => {
+  const sortedIds = [...addons].sort((a, b) => a.id.localeCompare(b.id)).map(a => a.id).join(",");
+  return sortedIds ? `${menuItemId}__${sortedIds}` : menuItemId;
+};
 
 const formatPhone = (value: string): string => {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -222,34 +229,49 @@ const UnitPage = () => {
   const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
 
   // Cart helpers
-  const addToCart = (item: { id: string; name: string; price: number }) => {
+  const addToCart = (item: { id: string; name: string; price: number }, addons: CartItemAddon[] = [], itemNotes: string = "") => {
+    const key = cartKey(item.id, addons);
+    const unitPrice = item.price + addons.reduce((s, a) => s + a.price, 0);
     setCart((prev) => {
-      const existing = prev[item.id];
+      const existing = prev[key];
       return {
         ...prev,
-        [item.id]: existing
+        [key]: existing
           ? { ...existing, qty: existing.qty + 1 }
-          : { id: item.id, name: item.name, price: item.price, qty: 1 },
+          : { id: key, menuItemId: item.id, name: item.name, price: unitPrice, qty: 1, addons, notes: itemNotes },
       };
     });
   };
 
-  const removeFromCart = (id: string) => {
+  const addToCartWithQty = (item: { id: string; name: string; price: number }, addons: CartItemAddon[], itemNotes: string, qty: number) => {
+    const key = cartKey(item.id, addons);
+    const unitPrice = item.price + addons.reduce((s, a) => s + a.price, 0);
+    setCart((prev) => ({
+      ...prev,
+      [key]: { id: key, menuItemId: item.id, name: item.name, price: unitPrice, qty, addons, notes: itemNotes },
+    }));
+  };
+
+  const removeFromCart = (key: string) => {
     setCart((prev) => {
-      const existing = prev[id];
+      const existing = prev[key];
       if (!existing) return prev;
       if (existing.qty <= 1) {
         const next = { ...prev };
-        delete next[id];
+        delete next[key];
         return next;
       }
-      return { ...prev, [id]: { ...existing, qty: existing.qty - 1 } };
+      return { ...prev, [key]: { ...existing, qty: existing.qty - 1 } };
     });
   };
 
   const cartItems = Object.values(cart);
   const totalItems = cartItems.reduce((s, i) => s + i.qty, 0);
   const totalPrice = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+
+  // Get total qty for a specific menu item (across all addon combos)
+  const getItemTotalQty = (menuItemId: string) =>
+    cartItems.filter(i => i.menuItemId === menuItemId).reduce((s, i) => s + i.qty, 0);
 
   // (deliveryFee and related vars declared above, before early returns)
 
@@ -357,8 +379,8 @@ const UnitPage = () => {
             tableNumber: 0,
             notes: noteParts.join("|"),
             items: cartItems.map((i) => ({
-              menu_item_id: i.id,
-              name: i.name,
+              menu_item_id: i.menuItemId,
+              name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.name}`).join(", ")})` : i.name,
               price: i.price,
               quantity: i.qty,
             })),
@@ -392,7 +414,13 @@ const UnitPage = () => {
       `🍔 *Novo Pedido — ${org.name}*`,
       ``,
       `📋 *Itens:*`,
-      ...cartItems.map((i) => `• ${i.qty}x ${i.name} — ${fmt(i.price * i.qty)}`),
+      ...cartItems.map((i) => {
+        let line = `• ${i.qty}x ${i.name}`;
+        if (i.addons.length > 0) line += ` (${i.addons.map(a => `+ ${a.name}`).join(", ")})`;
+        line += ` — ${fmt(i.price * i.qty)}`;
+        if (i.notes.trim()) line += ` | Obs: ${i.notes.trim()}`;
+        return line;
+      }),
       ``,
       orderType === "Entrega" && freightLabel
         ? `📦 *Subtotal:* ${fmt(totalPrice)}\n🛵 *Frete:* ${freightLabel}\n💰 *Total:* ${fmt(grandTotal)}`
@@ -443,8 +471,8 @@ const UnitPage = () => {
           paymentMethod: effectivePayment.toLowerCase(),
           paid: false,
           items: cartItems.map((i) => ({
-            menu_item_id: i.id,
-            name: i.name,
+            menu_item_id: i.menuItemId,
+            name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.name}`).join(", ")})` : i.name,
             price: i.price,
             quantity: i.qty,
           })),
@@ -496,7 +524,13 @@ const UnitPage = () => {
         `🍔 *Novo Pedido — ${org.name}*`,
         ``,
         `📋 *Itens:*`,
-        ...cartItems.map((i) => `• ${i.qty}x ${i.name} — ${fmt(i.price * i.qty)}`),
+        ...cartItems.map((i) => {
+          let line = `• ${i.qty}x ${i.name}`;
+          if (i.addons.length > 0) line += ` (${i.addons.map(a => `+ ${a.name}`).join(", ")})`;
+          line += ` — ${fmt(i.price * i.qty)}`;
+          if (i.notes.trim()) line += ` | Obs: ${i.notes.trim()}`;
+          return line;
+        }),
         ``,
         orderType === "Entrega" && freightLabel
           ? `📦 *Subtotal:* ${fmt(totalPrice)}\n🛵 *Frete:* ${freightLabel}\n💰 *Total:* ${fmt(grandTotal)}`
@@ -713,7 +747,7 @@ const UnitPage = () => {
                       </div>
                       <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
                         {group.items.map((item) => {
-                          const qty = cart[item.id]?.qty ?? 0;
+                          const qty = getItemTotalQty(item.id);
                           return (
                             <div
                               key={item.id}
@@ -758,7 +792,7 @@ const UnitPage = () => {
                                     </span>
                                   ) : qty === 0 ? (
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); addToCart(item); }}
+                                      onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}
                                       className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
                                       style={{ backgroundColor: primaryColor }}
                                     >
@@ -766,21 +800,13 @@ const UnitPage = () => {
                                       Add
                                     </button>
                                   ) : (
-                                    <div className="mt-auto flex items-center justify-between w-full">
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); removeFromCart(item.id); }}
-                                        className="w-6 h-6 rounded-full bg-secondary hover:bg-muted flex items-center justify-center transition-colors"
-                                      >
-                                        <Minus className="w-3 h-3" />
-                                      </button>
-                                      <span className="text-sm font-bold">{qty}</span>
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); addToCart(item); }}
-                                        className="w-6 h-6 rounded-full text-primary-foreground flex items-center justify-center transition-colors"
+                                    <div className="mt-auto flex items-center justify-center w-full">
+                                      <span
+                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-primary-foreground"
                                         style={{ backgroundColor: primaryColor }}
                                       >
-                                        <Plus className="w-3 h-3" />
-                                      </button>
+                                        {qty} no carrinho
+                                      </span>
                                     </div>
                                   )
                                 )}
@@ -817,30 +843,30 @@ const UnitPage = () => {
       {totalItems > 0 && (
         <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center px-4">
           {isClosed ? (
-            <div className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl font-semibold text-sm w-full max-w-sm justify-between bg-muted text-muted-foreground cursor-not-allowed">
+            <div className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl font-semibold text-sm w-full max-w-sm justify-between bg-muted text-muted-foreground cursor-not-allowed animate-in slide-in-from-bottom-4 duration-300">
               <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 opacity-50" />
                 <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
                   {totalItems}
                 </span>
                 <span>🔒 Loja fechada</span>
               </div>
-              <ShoppingCart className="w-4 h-4 opacity-50" />
               <span className="opacity-50">{fmt(totalPrice)}</span>
             </div>
           ) : (
             <button
               onClick={() => setCheckoutOpen(true)}
-              className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95"
+              className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95 animate-in slide-in-from-bottom-4 duration-300"
               style={{ backgroundColor: primaryColor }}
             >
               <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5" />
                 <span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
                   {totalItems}
                 </span>
-                <span>{totalItems === 1 ? "1 item" : `${totalItems} itens`}</span>
+                <span>{totalItems === 1 ? "1 item" : `${totalItems} itens`} · {fmt(totalPrice)}</span>
               </div>
-              <ShoppingCart className="w-4 h-4" />
-              <span>{fmt(totalPrice)}</span>
+              <span className="text-xs opacity-80">Ver sacola →</span>
             </button>
           )}
         </div>
@@ -860,27 +886,39 @@ const UnitPage = () => {
             {/* Items summary */}
             <div className="space-y-2">
               {cartItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 py-2 border-b border-border/50 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center transition-colors hover:bg-muted"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-5 text-center text-sm font-bold">{item.qty}</span>
-                      <button
-                        onClick={() => addToCart({ id: item.id, name: item.name, price: item.price })}
-                        className="w-6 h-6 rounded-full text-primary-foreground flex items-center justify-center"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
+                <div key={item.id} className="py-2 border-b border-border/50 last:border-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center transition-colors hover:bg-muted"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="w-5 text-center text-sm font-bold">{item.qty}</span>
+                        <button
+                          onClick={() => addToCart({ id: item.menuItemId, name: item.name, price: item.price - item.addons.reduce((s, a) => s + a.price, 0) }, item.addons, item.notes)}
+                          className="w-6 h-6 rounded-full text-primary-foreground flex items-center justify-center"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <span className="text-sm text-foreground font-medium">{item.name}</span>
                     </div>
-                    <span className="text-sm text-foreground font-medium">{item.name}</span>
+                    <span className="text-sm font-semibold shrink-0">{fmt(item.price * item.qty)}</span>
                   </div>
-                  <span className="text-sm font-semibold shrink-0">{fmt(item.price * item.qty)}</span>
+                  {item.addons.length > 0 && (
+                    <p className="text-xs text-muted-foreground ml-[76px] mt-0.5">
+                      {item.addons.map(a => `+ ${a.name}`).join(", ")}
+                    </p>
+                  )}
+                  {item.notes.trim() && (
+                    <p className="text-xs text-muted-foreground ml-[76px] mt-0.5 italic">
+                      Obs: {item.notes}
+                    </p>
+                  )}
                 </div>
               ))}
               {/* Subtotal / Frete / Total */}
@@ -1258,87 +1296,17 @@ const UnitPage = () => {
       </Drawer>
 
       {/* ── ITEM DETAIL DRAWER ── */}
-      <Drawer open={selectedItem !== null} onClose={() => setSelectedItem(null)}>
-        <DrawerContent className="max-h-[90vh]">
-          {selectedItem && (() => {
-            const qty = cart[selectedItem.id]?.qty ?? 0;
-            return (
-              <>
-                {/* Foto */}
-                <div className="w-full aspect-video bg-gradient-to-br from-amber-50 to-orange-100 overflow-hidden">
-                  {selectedItem.image_url ? (
-                    <img
-                      src={selectedItem.image_url}
-                      alt={selectedItem.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <UtensilsCrossed className="w-12 h-12 text-orange-300" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Conteúdo */}
-                <div className="p-5 space-y-3 overflow-y-auto">
-                  <h2 className="text-lg font-bold text-foreground leading-snug">{selectedItem.name}</h2>
-                  {selectedItem.description && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedItem.description}</p>
-                  )}
-                  <p className="text-xl font-bold" style={{ color: primaryColor }}>
-                    {fmt(selectedItem.price)}
-                  </p>
-                </div>
-
-                {/* Ação */}
-                <div className="px-5 pb-6">
-                  {isClosed ? (
-                    <div className="bg-muted rounded-xl p-4 text-center">
-                      <p className="font-semibold text-foreground text-sm">🔒 Loja fechada · pedidos indisponíveis</p>
-                      {opensAt && <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>}
-                    </div>
-                  ) : qty === 0 ? (
-                    <button
-                      onClick={() => { addToCart(selectedItem); setSelectedItem(null); }}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Plus className="w-4 h-4" />
-                      Adicionar ao carrinho
-                    </button>
-                  ) : (
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4 flex-1 bg-secondary rounded-xl px-4 py-2.5">
-                        <button
-                          onClick={() => removeFromCart(selectedItem.id)}
-                          className="w-7 h-7 rounded-full bg-background shadow flex items-center justify-center hover:bg-muted transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="flex-1 text-center font-bold text-base">{qty}</span>
-                        <button
-                          onClick={() => addToCart(selectedItem)}
-                          className="w-7 h-7 rounded-full text-white shadow flex items-center justify-center transition-colors"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => setSelectedItem(null)}
-                        className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        Confirmar
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            );
-          })()}
-        </DrawerContent>
-      </Drawer>
+      <ItemDetailDrawer
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onAdd={(item, addons, itemNotes, qty) => {
+          addToCartWithQty(item, addons, itemNotes, qty);
+          setSelectedItem(null);
+        }}
+        primaryColor={primaryColor}
+        isClosed={isClosed}
+        opensAt={opensAt}
+      />
     </div>
   );
 };
