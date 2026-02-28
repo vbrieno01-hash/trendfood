@@ -476,6 +476,44 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_item_addons: {
+        Row: {
+          available: boolean
+          created_at: string
+          id: string
+          menu_item_id: string
+          name: string
+          price_cents: number
+          sort_order: number
+        }
+        Insert: {
+          available?: boolean
+          created_at?: string
+          id?: string
+          menu_item_id: string
+          name: string
+          price_cents?: number
+          sort_order?: number
+        }
+        Update: {
+          available?: boolean
+          created_at?: string
+          id?: string
+          menu_item_id?: string
+          name?: string
+          price_cents?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_item_addons_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_item_ingredients: {
         Row: {
           id: string
