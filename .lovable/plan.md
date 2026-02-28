@@ -1,25 +1,45 @@
 
 
-## Bug: Selo "Powered by TrendFood" aparece para TODOS os planos
+## Plano: Atualizar textos de benefícios dos planos
 
-### Problema encontrado
-O hook `useOrganization` (usado no `UnitPage`) **não busca os campos `subscription_plan` e `trial_ends_at`** do banco de dados. A query SQL seleciona apenas campos específicos e omite esses dois. Resultado: `usePlanLimits` sempre recebe `undefined` e assume plano `"free"`, mostrando o selo para todas as lojas — inclusive as pagas.
+### Onde os dados estão
+Os benefícios dos planos vêm da tabela `platform_plans` no banco de dados (coluna `features` do tipo JSONB). São carregados dinamicamente tanto na `PricingPage` quanto no `UpgradeDialog`. Portanto, basta atualizar o banco.
 
-### Correção
+### Implementação
 
-**Editar `src/hooks/useOrganization.ts` — linha 58:**
+**1. Migration SQL** — atualizar a coluna `features` de cada plano:
 
-Adicionar `subscription_plan, trial_ends_at, subscription_status` na lista de campos do `.select()`.
+- **Grátis** (`key = 'free'`): substituir features por:
+  - Catálogo digital
+  - Até 20 itens no cardápio
+  - 1 ponto de atendimento (QR Code)
+  - Pedidos por QR Code
+  - Link compartilhável do catálogo
+  - Pagamento apenas na entrega
+  - Selo TrendFood no rodapé
 
-De:
-```
-.select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, store_address, delivery_config, pix_confirmation_mode, paused, printer_width, banner_url, courier_config, print_mode, cnpj")
-```
+- **Pro** (`key = 'pro'`): substituir features por:
+  - Tudo do plano Grátis
+  - Itens ilimitados no cardápio
+  - Pontos de atendimento ilimitados
+  - Adicionais ilimitados
+  - Pagamento Online (PIX/Cartão)
+  - Retirada da marca TrendFood
+  - Painel de Produção (KDS)
+  - Controle de Caixa completo
+  - Cupons de desconto
+  - Ranking de mais vendidos
+  - Impressora térmica 80mm
+  - Painel do Atendente
 
-Para:
-```
-.select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, store_address, delivery_config, pix_confirmation_mode, paused, printer_width, banner_url, courier_config, print_mode, cnpj, subscription_status, subscription_plan, trial_ends_at")
-```
+- **Enterprise** (`key = 'enterprise'`): substituir features por:
+  - Tudo do plano Pro
+  - Múltiplas unidades
+  - Gestão de Insumos/Ficha Técnica
+  - Baixa automática de estoque
+  - Relatórios avançados
+  - Suporte prioritário
+  - Gerente de conta dedicado
 
-Isso é a única mudança necessária. Após isso, o `usePlanLimits` receberá o plano correto e o selo será ocultado para lojas pagas.
+Nenhuma alteração de código é necessária — o `PlanCard` já renderiza a lista `features` dinamicamente.
 
