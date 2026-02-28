@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
@@ -6,6 +7,7 @@ import {
   Home, UtensilsCrossed, TableProperties, History, Tag,
   BarChart2, Flame, BellRing, Wallet, Store, Settings, Plus, Truck,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GuideSection {
   id: string;
@@ -208,6 +210,19 @@ const GUIDE_SECTIONS: GuideSection[] = [
 ];
 
 export default function GuideTab() {
+  const [screenshots, setScreenshots] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase
+      .from("guide_screenshots")
+      .select("section_id, image_url")
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        (data ?? []).forEach((r: any) => { map[r.section_id] = r.image_url; });
+        setScreenshots(map);
+      });
+  }, []);
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -235,6 +250,15 @@ export default function GuideTab() {
             </AccordionTrigger>
             <AccordionContent className="pb-4 pl-11 space-y-3">
               <p className="text-sm text-muted-foreground leading-relaxed">{section.description}</p>
+
+              {screenshots[section.id] && (
+                <img
+                  src={screenshots[section.id]}
+                  alt={`Screenshot: ${section.title}`}
+                  className="w-full rounded-xl border border-border shadow-sm"
+                  loading="lazy"
+                />
+              )}
 
               <div>
                 <p className="text-xs font-semibold text-foreground mb-1.5">Passo a passo:</p>

@@ -476,6 +476,27 @@ export type Database = {
         }
         Relationships: []
       }
+      guide_screenshots: {
+        Row: {
+          id: string
+          image_url: string
+          section_id: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          image_url: string
+          section_id: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          image_url?: string
+          section_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       menu_item_addons: {
         Row: {
           available: boolean
