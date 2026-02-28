@@ -9,6 +9,8 @@ const MP_ERROR_MAP: Record<string, string> = {
   cc_rejected_max_attempts: "Limite de tentativas atingido. Tente outro cartão.",
   cc_rejected_duplicated_payment: "Pagamento duplicado. Verifique seus extratos.",
   cc_rejected_other_reason: "Pagamento recusado. Verifique os dados e tente novamente.",
+  "Card token service not found": "Erro de credenciais de teste. Use cartões de teste do Mercado Pago ou troque para credenciais de produção.",
+  "card_token_service_not_found": "Erro de credenciais de teste. Use cartões de teste do Mercado Pago ou troque para credenciais de produção.",
 };
 
 export function getMpErrorMessage(statusDetail?: string | null): string {

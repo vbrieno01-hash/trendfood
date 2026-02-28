@@ -129,9 +129,9 @@ const CardPaymentForm = ({
         body: { org_id: orgId, plan, card_token_id: tokenResult.id },
       });
 
-      if (error) throw new Error(error.message);
+      if (error && !data) throw new Error(error.message);
       if (data?.error) {
-        const errorMsg = getMpErrorMessage(data.status_detail);
+        const errorMsg = getMpErrorMessage(data.status_detail || data.message);
         throw new Error(errorMsg);
       }
 
