@@ -22,7 +22,8 @@ export default function ReferralSection({ orgId }: ReferralSectionProps) {
   const [bonuses, setBonuses] = useState<ReferralBonus[]>([]);
   const [totalDays, setTotalDays] = useState(0);
 
-  const referralLink = `${window.location.origin}/cadastro?ref=${orgId}`;
+  const BASE_URL = "https://trendfood.lovable.app";
+  const referralLink = `${BASE_URL}/cadastro?ref=${orgId}`;
 
   useEffect(() => {
     // Count referrals
