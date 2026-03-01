@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
 
       const { data: org } = await supabase
         .from("organizations")
-        .select("subscription_plan, subscription_status, name")
+        .select("subscription_plan, subscription_status, name, billing_cycle")
         .eq("id", orgId)
         .single();
 
@@ -178,8 +178,10 @@ Deno.serve(async (req) => {
       if (sub.auto_recurring?.transaction_amount >= 200) plan = "enterprise";
       if (sub.reason?.toLowerCase().includes("enterprise")) plan = "enterprise";
 
+      const renewalDays = org?.billing_cycle === "annual" ? 370 : 35;
+
       if (sub.status === "authorized") {
-        const trialEnds = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString();
+        const trialEnds = new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString();
         await supabase
           .from("organizations")
           .update({
@@ -284,12 +286,14 @@ Deno.serve(async (req) => {
         }
 
         if (orgId) {
-          const trialEnds = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString();
           const { data: org } = await supabase
             .from("organizations")
-            .select("subscription_plan, subscription_status, name")
+            .select("subscription_plan, subscription_status, name, billing_cycle")
             .eq("id", orgId)
             .single();
+
+          const renewalDays = org?.billing_cycle === "annual" ? 370 : 35;
+          const trialEnds = new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString();
 
           await supabase
             .from("organizations")
@@ -331,11 +335,12 @@ Deno.serve(async (req) => {
 
       const { data: org } = await supabase
         .from("organizations")
-        .select("subscription_plan, subscription_status, name")
+        .select("subscription_plan, subscription_status, name, billing_cycle")
         .eq("id", orgId)
         .single();
 
-      const trialEnds = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const legacyDays = org?.billing_cycle === "annual" ? 370 : 30;
+      const trialEnds = new Date(Date.now() + legacyDays * 24 * 60 * 60 * 1000).toISOString();
       await supabase
         .from("organizations")
         .update({
