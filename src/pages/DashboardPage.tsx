@@ -19,7 +19,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike, Package, Gift,
+  BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift,
   ChevronDown,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -522,7 +522,7 @@ const DashboardPage = () => {
         { key: "subscription" as TabKey, icon: <Rocket className="w-4 h-4" />, label: "Assinatura / Plano" },
         { key: "printer" as TabKey, icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
         { key: "features" as TabKey, icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
-        { key: "referral" as TabKey, icon: <Share2 className="w-4 h-4" />, label: "Ganhe Desconto" },
+        
         { key: "guide" as TabKey, icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
         { key: "settings" as TabKey, icon: <Settings className="w-4 h-4" />, label: "Configurações" },
       ],
