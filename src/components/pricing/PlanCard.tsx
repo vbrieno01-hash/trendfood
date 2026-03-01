@@ -102,11 +102,11 @@ const PlanCard = ({
         })}
       </ul>
 
-      {currentPlan ? (
+      {currentPlan && price === "Grátis" ? null : currentPlan ? (
         <Button
           size="lg"
           variant={highlighted ? "default" : "outline"}
-          className="w-full font-bold opacity-60"
+          className="w-full font-bold"
           disabled
         >
           Plano atual
