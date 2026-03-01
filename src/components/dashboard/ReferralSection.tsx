@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Gift, Users, CalendarPlus } from "lucide-react";
+import { Copy, Check, Gift, Users, CalendarPlus, Info } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -115,6 +115,17 @@ export default function ReferralSection({ orgId }: ReferralSectionProps) {
               <p className="text-xs text-muted-foreground">dias ganhos</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* How it works */}
+      <div className="flex gap-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+        <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-foreground">Como funciona?</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Seus dias de bônus são creditados automaticamente quando o amigo indicado <strong className="text-foreground">comprar um plano pago</strong>. O simples cadastro já conta como indicação, mas o bônus só é liberado após o primeiro pagamento.
+          </p>
         </div>
       </div>
 
