@@ -1,15 +1,16 @@
 
 
-## Plano: Adicionar explicação visual na seção "Ganhe Desconto"
+## Plano: Substituir "Indique o TrendFood" pelo acesso à aba "Ganhe Desconto"
 
-Adicionar um banner informativo no `ReferralSection.tsx`, logo abaixo do card de compartilhamento, explicando como funciona a mecânica de bônus.
+Existem dois locais com "Indique o TrendFood":
 
-**Arquivo: `src/components/dashboard/ReferralSection.tsx`**
+### 1. Sidebar do Dashboard (`DashboardPage.tsx`, linha 785-795)
+O botão atualmente abre o WhatsApp para compartilhar. Será alterado para navegar à aba `referral` (Ganhe Desconto), usando o mesmo `setActiveTab("referral")`.
 
-Inserir um bloco visual (estilo `Alert` com ícone de informação) entre o card de compartilhamento e o histórico de bônus, com o texto:
+### 2. Seção em Configurações (`SettingsTab.tsx`, linhas 87-130)
+A seção "Indique o TrendFood" com link genérico será substituída por um botão que leva à aba "Ganhe Desconto", ou removida completamente já que a aba dedicada já existe.
 
-> **Como funciona?**
-> Seus dias de bônus são creditados automaticamente quando o amigo indicado **comprar um plano pago**. O simples cadastro já conta como indicação, mas o bônus só é liberado após o primeiro pagamento.
-
-Usar o componente `Info` do Lucide como ícone e estilizar com cores suaves (`bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800`).
+### Mudanças:
+- **`DashboardPage.tsx`**: Trocar o `onClick` do botão "Indique o TrendFood" para `setActiveTab("referral")` e renomear para "Ganhe Desconto"
+- **`SettingsTab.tsx`**: Remover a seção "Indique o TrendFood" (redundante com a aba dedicada) ou substituir por um link para a aba referral
 
