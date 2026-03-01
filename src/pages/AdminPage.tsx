@@ -79,7 +79,7 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
   try {
     const { data: activatedOrg } = await supabase
       .from("organizations")
-      .select("referred_by_id")
+      .select("referred_by_id, billing_cycle")
       .eq("id", activatedOrgId)
       .single();
 
@@ -96,15 +96,17 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
 
     if (existing) return;
 
+    const bonusDays = (activatedOrg as any)?.billing_cycle === "annual" ? 30 : 10;
+
     // Insert bonus
     await (supabase.from("referral_bonuses") as any).insert({
       referrer_org_id: referrerId,
       referred_org_id: activatedOrgId,
-      bonus_days: 10,
+      bonus_days: bonusDays,
       referred_org_name: activatedOrgName,
     });
 
-    // Add +10 days to referrer
+    // Add bonus days to referrer
     const { data: referrerOrg } = await supabase
       .from("organizations")
       .select("trial_ends_at, name")
@@ -115,7 +117,7 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
       const currentExpiry = referrerOrg.trial_ends_at
         ? new Date(referrerOrg.trial_ends_at)
         : new Date();
-      const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+      const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
 
       await supabase
         .from("organizations")
@@ -126,10 +128,10 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
         organization_id: referrerId,
         org_name: referrerOrg.name || null,
         source: "referral_bonus",
-        notes: `+10 dias por indicar "${activatedOrgName}" (org ${activatedOrgId})`,
+        notes: `+${bonusDays} dias por indicar "${activatedOrgName}" (org ${activatedOrgId})`,
       });
 
-      console.log("[referral] Bonus +10 days for org", referrerId);
+      console.log(`[referral] Bonus +${bonusDays} days for org`, referrerId);
     }
   } catch (err) {
     console.error("[referral] Bonus error (non-blocking):", err);

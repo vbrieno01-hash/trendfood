@@ -13,7 +13,7 @@ async function processReferralBonus(
   try {
     const { data: activatedOrg } = await supabase
       .from("organizations")
-      .select("referred_by_id, name")
+      .select("referred_by_id, name, billing_cycle")
       .eq("id", activatedOrgId)
       .single();
 
@@ -31,15 +31,17 @@ async function processReferralBonus(
 
     if (existing) return;
 
+    const bonusDays = activatedOrg.billing_cycle === "annual" ? 30 : 10;
+
     // Insert bonus record
     await supabase.from("referral_bonuses").insert({
       referrer_org_id: referrerId,
       referred_org_id: activatedOrgId,
-      bonus_days: 10,
+      bonus_days: bonusDays,
       referred_org_name: activatedOrg.name || null,
     });
 
-    // Add +10 days to referrer's trial_ends_at
+    // Add bonus days to referrer's trial_ends_at
     const { data: referrerOrg } = await supabase
       .from("organizations")
       .select("trial_ends_at, name")
@@ -50,7 +52,7 @@ async function processReferralBonus(
       const currentExpiry = referrerOrg.trial_ends_at
         ? new Date(referrerOrg.trial_ends_at)
         : new Date();
-      const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+      const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
 
       await supabase
         .from("organizations")
@@ -65,10 +67,10 @@ async function processReferralBonus(
         old_status: null,
         new_status: null,
         source: "referral_bonus",
-        notes: `+10 dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
+        notes: `+${bonusDays} dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
       });
 
-      console.log("[universal-webhook] Referral bonus: +10 days for org", referrerId);
+      console.log(`[universal-webhook] Referral bonus: +${bonusDays} days for org`, referrerId);
     }
   } catch (err) {
     console.error("[universal-webhook] Referral bonus error (non-blocking):", err);

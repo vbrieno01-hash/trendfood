@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Accordion,
   AccordionContent,
@@ -38,6 +39,8 @@ interface PlanData {
   badge?: string;
   checkout_url?: string;
   external?: boolean;
+  price_cents: number;
+  annual_price_cents: number;
 }
 
 function formatPrice(cents: number): string {
@@ -50,6 +53,8 @@ function mapPlanRow(row: any): PlanData {
     key: row.key,
     name: row.name,
     price: formatPrice(row.price_cents),
+    price_cents: row.price_cents,
+    annual_price_cents: row.annual_price_cents || 0,
     description: row.description ?? "",
     features: Array.isArray(row.features) ? row.features : [],
     cta: row.price_cents === 0 ? "Começar Grátis" : `Assinar ${row.name}`,
@@ -92,6 +97,7 @@ const PricingPage = () => {
   const [cardFormPlan, setCardFormPlan] = useState<PlanData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const [isAnnual, setIsAnnual] = useState(false);
 
   useEffect(() => {
     supabase
@@ -180,6 +186,17 @@ const PricingPage = () => {
         </p>
       </section>
 
+      {/* Billing Toggle */}
+      <section className="px-4 pb-8">
+        <div className="flex items-center justify-center gap-3">
+          <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
+          <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+          <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+            Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
+          </span>
+        </div>
+      </section>
+
       {/* Plan Cards */}
       <section className="px-4 pb-20">
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
@@ -187,17 +204,30 @@ const PricingPage = () => {
             <div className="col-span-full flex justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : plans.map((plan) => (
-            <PlanCard
-              key={plan.name}
-              {...plan}
-              currentPlan={!!user && currentPlan === plan.key}
-              loading={false}
-              onSelect={plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
-              external={false}
-              ctaLink={plan.ctaLink}
-            />
-          ))}
+          ) : plans.map((plan) => {
+            const showAnnual = isAnnual && plan.annual_price_cents > 0;
+            const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents) : plan.price;
+            const period = showAnnual ? "/ano" : "/mês";
+            const subtitle = showAnnual
+              ? `Equivalente a R$ ${((plan.annual_price_cents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
+              : undefined;
+            const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+            return (
+              <PlanCard
+                key={plan.name}
+                {...plan}
+                price={displayPrice}
+                period={period}
+                subtitle={subtitle}
+                savingsBadge={savingsBadge}
+                currentPlan={!!user && currentPlan === plan.key}
+                loading={false}
+                onSelect={plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
+                external={false}
+                ctaLink={plan.ctaLink}
+              />
+            );
+          })}
         </div>
       </section>
 
@@ -241,7 +271,12 @@ const PricingPage = () => {
               <div className="space-y-4">
                 <p className="text-muted-foreground">
                   Você irá assinar o plano <strong className="text-foreground">{selectedPlan?.name}</strong> por{" "}
-                  <strong className="text-foreground">{selectedPlan?.price}/mês</strong> no cartão de crédito.
+                  <strong className="text-foreground">
+                    {isAnnual && selectedPlan?.annual_price_cents
+                      ? `${formatPrice(selectedPlan.annual_price_cents)}/ano`
+                      : `${selectedPlan?.price}/mês`}
+                  </strong>{" "}
+                  no cartão de crédito.
                 </p>
                 <ul className="space-y-2">
                   {selectedPlan?.features.map((f) => (
@@ -271,7 +306,8 @@ const PricingPage = () => {
           orgId={organization.id}
           plan={cardFormPlan.key}
           planName={cardFormPlan.name}
-          planPrice={cardFormPlan.price}
+          planPrice={isAnnual && cardFormPlan.annual_price_cents ? formatPrice(cardFormPlan.annual_price_cents) : cardFormPlan.price}
+          billing={isAnnual && cardFormPlan.annual_price_cents ? "annual" : "monthly"}
           onSuccess={() => {
             navigate("/dashboard?tab=subscription");
           }}
