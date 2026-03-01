@@ -1,60 +1,56 @@
 
 
-## Plano: Redesign Completo do Painel Admin TrendFood
+## Plano: Redesign Premium do Painel Admin — Nível Dashboard
 
-### Visão Geral
-Modernizar o painel admin com um design mais profissional, limpo e conectado à identidade TrendFood. O painel é o centro de controle do SaaS e precisa refletir isso.
+### O que muda
 
-### Alterações
+**1. Visual da Sidebar (`AdminPage.tsx`)**
+- Trocar `logoIcon` por `logoDashboard` (mesmo logo do dashboard do lojista)
+- Adicionar indicador "ao vivo" com pulsação verde no badge admin (mostrando que está conectado à plataforma)
+- Sidebar com gradiente mais rico e sutil glow na borda direita
+- Ícones de nav com micro-animação no hover (scale + color transition)
 
-**1. Sidebar Modernizada (`AdminPage.tsx`)**
-- Gradiente escuro premium (de `#111` para gradiente com tons de laranja sutil)
-- Logo maior com texto "TrendFood Admin" estilizado
-- Badge "Admin" com glow sutil na cor primária
-- Agrupamento visual das seções de navegação (Visão Geral, Gestão, Sistema)
-- Separadores entre grupos com labels discretos
-- Ícone ativo com background arredondado e borda lateral (indicator bar)
-- Botão de ir ao Dashboard do lojista na sidebar
+**2. Dashboard Home — Visual Premium**
+- Cards KPI com gradiente de fundo sutil (não apenas borda), glassmorphism leve
+- Adicionar animação de entrada (fade-in + slide-up) nos cards e seções
+- Número grande com animação de contagem (count-up effect via CSS)
+- Indicador "ao vivo" pulsante no header: "🟢 Plataforma Online"
+- Saudação com avatar do admin (primeira letra do email)
+- Quick actions com ícones mais coloridos e hover com scale
 
-**2. Home Tab - Dashboard Executivo**
-- Header com saudação "Bom dia, Admin" + data atual
-- KPI cards redesenhados: mais compactos, com sparkline micro ou % de variação
-- Cards com hover effect sutil e transição suave
-- Gráficos de crescimento com área preenchida (AreaChart) em vez de linha simples
-- Seção "Ações Rápidas" com botões de atalho (Ativar loja, Ver logs, Gerar link)
-- Tabela de assinantes com avatares coloridos e status pills mais refinados
+**3. Tabela de Assinantes — Upgrade Visual**
+- Rows com hover mais rico (bg-gradient sutil)
+- Avatar colorido maior com sombra
+- Coluna de "Status" com dot pulsante para ativos
+- Footer da tabela com gradiente laranja sutil
 
-**3. Lojas Tab - Lista Aprimorada**
-- Cards de loja com layout mais limpo e informações hierarquizadas
-- Barra de filtros com design pill/chip mais moderno
-- Contador de resultados mais visível
-- Quick-actions inline (ativar, gerenciar, abrir loja) com ícones
+**4. Store Cards — Mais Vivos**
+- Hover com elevação mais dramática (shadow-xl + translate-y)
+- Setup score bar com animação de preenchimento
+- Badge de status com dot pulsante para lojas ativas
+- Botões de ação com micro-animações
 
-**4. Gráficos (`GrowthCharts.tsx`)**
-- Trocar LineChart por AreaChart com gradiente de preenchimento
-- Tooltip customizado mais bonito
-- Labels mais legíveis
+**5. Gráficos (`GrowthCharts.tsx`)**
+- Cards dos gráficos com glassmorphism (backdrop-blur + bg semi-transparente)
+- Animação suave de entrada
+- Valor atual destacado no canto do card (último ponto do gráfico)
 
-**5. KPI Card Component**
-- Redesenhar com micro-trend indicator (seta ↑↓ ou %)
-- Ícone com background mais suave e arredondado
-- Tipografia: valor grande em destaque, label abaixo em muted
+**6. Mobile — Mais Polido**
+- Header mobile com gradiente laranja sutil e shadow
+- Transição mais suave do menu (backdrop-blur no overlay)
 
-**6. Mobile Experience**
-- Header mobile com gradiente matching a sidebar
-- Bottom sheet menu em vez de sidebar deslizante (mais nativo)
-- Cards KPI em scroll horizontal no mobile
+**7. CSS Animations (`index.css`)**
+- Adicionar keyframes para fade-in, slide-up, count-up
+- Classe utilitária `animate-fade-in` e `animate-slide-up`
+- Pulse suave para indicadores "ao vivo"
 
-**7. Conexão com Dashboard do Lojista**
-- Botão "Ir ao Dashboard" na sidebar que leva a `/dashboard`
-- Link "Ir ao site" que leva a `/`
-
-### Componentes afetados
-- `src/pages/AdminPage.tsx` — rewrite completo do layout, sidebar, home tab e store cards
-- `src/components/admin/GrowthCharts.tsx` — AreaChart + gradientes + tooltip melhorado
+### Arquivos afetados
+- `src/pages/AdminPage.tsx` — visual completo (sidebar, KPIs, tabela, store cards)
+- `src/components/admin/GrowthCharts.tsx` — glassmorphism + valor atual
+- `src/index.css` — novas animações CSS
 
 ### O que NÃO muda
-- Lógica de negócio (KPIs, filtros, ativação, etc.)
-- Componentes de sub-tabs existentes (PlansConfig, ErrorLogs, ActivationLogs, etc.)
+- Toda a lógica de negócio (KPIs, filtros, ativação, referral bonus)
+- Componentes de sub-tabs (PlansConfig, ErrorLogs, ActivationLogs, etc.)
 - Rotas e autenticação
 
