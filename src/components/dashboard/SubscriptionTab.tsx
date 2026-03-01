@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import PlanCard from "@/components/pricing/PlanCard";
 import {
   AlertDialog,
@@ -35,6 +36,7 @@ interface PlanData {
   highlighted: boolean;
   badge?: string;
   priceCents: number;
+  annualPriceCents: number;
 }
 
 function formatPrice(cents: number): string {
@@ -55,6 +57,7 @@ function mapPlanRow(row: any): PlanData {
     highlighted: row.highlighted ?? false,
     badge: row.badge ?? undefined,
     priceCents: row.price_cents,
+    annualPriceCents: row.annual_price_cents || 0,
   };
 }
 
@@ -66,6 +69,7 @@ const SubscriptionTab = () => {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
+  const [isAnnual, setIsAnnual] = useState(false);
   const planLimits = usePlanLimits(organization);
 
   const currentPlan = organization?.subscription_plan || "free";
@@ -135,7 +139,9 @@ const SubscriptionTab = () => {
     if (!organization || !session) return;
     const planData = plans.find((p) => p.key === planKey);
     if (planData) {
-      setCardFormPlan({ key: planData.key, name: planData.name, price: planData.price });
+      const showAnnual = isAnnual && planData.annualPriceCents > 0;
+      const displayPrice = showAnnual ? formatPrice(planData.annualPriceCents) : planData.price;
+      setCardFormPlan({ key: planData.key, name: planData.name, price: displayPrice });
     }
   };
 
@@ -297,32 +303,53 @@ const SubscriptionTab = () => {
         </div>
       )}
 
+      {/* Billing Toggle */}
+      <div className="flex items-center justify-center gap-3">
+        <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
+        <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+        <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+          Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
+        </span>
+      </div>
+
       {/* Plan cards */}
       <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
         {loadingPlans ? (
           <div className="col-span-full flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : plans.map((plan) => (
-          <PlanCard
-            key={plan.key}
-            name={plan.name}
-            price={plan.price}
-            description={plan.description}
-            features={plan.features}
-            cta={plan.cta}
-            ctaLink={plan.ctaLink}
-            highlighted={plan.highlighted}
-            badge={plan.badge}
-            currentPlan={currentPlan === plan.key}
-            loading={false}
-            onSelect={
-              plan.key !== currentPlan && !isLifetime
-                ? () => handleSubscribe(plan.key)
-                : undefined
-            }
-          />
-        ))}
+        ) : plans.map((plan) => {
+          const showAnnual = isAnnual && plan.annualPriceCents > 0;
+          const displayPrice = showAnnual ? formatPrice(plan.annualPriceCents) : plan.price;
+          const period = showAnnual ? "/ano" : "/mês";
+          const subtitle = showAnnual
+            ? `Equivalente a R$ ${((plan.annualPriceCents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
+            : undefined;
+          const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+          return (
+            <PlanCard
+              key={plan.key}
+              name={plan.name}
+              price={displayPrice}
+              period={period}
+              subtitle={subtitle}
+              savingsBadge={savingsBadge}
+              description={plan.description}
+              features={plan.features}
+              cta={plan.cta}
+              ctaLink={plan.ctaLink}
+              highlighted={plan.highlighted}
+              badge={plan.badge}
+              currentPlan={currentPlan === plan.key}
+              loading={false}
+              onSelect={
+                plan.key !== currentPlan && !isLifetime
+                  ? () => handleSubscribe(plan.key)
+                  : undefined
+              }
+            />
+          );
+        })}
       </div>
 
       {/* Card Payment Form */}
@@ -334,6 +361,7 @@ const SubscriptionTab = () => {
           plan={cardFormPlan.key}
           planName={cardFormPlan.name}
           planPrice={cardFormPlan.price}
+          billing={isAnnual ? "annual" : "monthly"}
           onSuccess={() => setTimeout(() => window.location.reload(), 1500)}
         />
       )}
