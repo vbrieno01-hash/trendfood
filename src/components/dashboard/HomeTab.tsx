@@ -247,7 +247,7 @@ export default function HomeTab({ organization }: { organization: Organization }
             <p className="text-xs text-muted-foreground font-medium">Mesas Ocupadas</p>
           </div>
         </div>
-        <div className={`rounded-xl border p-4 flex items-center gap-3 ${lowStockCount > 0 ? "border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800" : "border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800"}`}>
+        <div className={`rounded-xl border p-4 flex items-center gap-3 ${lowStockCount > 0 ? "border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800 animate-pulse" : "border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800"}`}>
           <div className={`p-2 rounded-lg ${lowStockCount > 0 ? "bg-red-100 dark:bg-red-900/50" : "bg-green-100 dark:bg-green-900/50"}`}>
             <AlertTriangle className={`w-5 h-5 ${lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`} />
           </div>
