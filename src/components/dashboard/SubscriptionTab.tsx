@@ -68,6 +68,8 @@ const SubscriptionTab = () => {
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const billingCycle = organization?.billing_cycle || "monthly";
+  const isAnnualBilling = billingCycle === "annual";
   const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
   const planLimits = usePlanLimits(organization);
@@ -156,9 +158,17 @@ const SubscriptionTab = () => {
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Assinatura cancelada. Seu plano foi revertido para Grátis.");
+      const expiresAt = organization?.trial_ends_at
+        ? format(new Date(organization.trial_ends_at), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
+        : null;
+      toast.success(
+        expiresAt
+          ? `Assinatura cancelada. O acesso continua até ${expiresAt}.`
+          : "Assinatura cancelada.",
+        { duration: 6000 }
+      );
       setShowCancelDialog(false);
-      setTimeout(() => window.location.reload(), 1500);
+      setTimeout(() => window.location.reload(), 2000);
     } catch (err: any) {
       console.error("[SubscriptionTab] Cancel error:", err);
       toast.error("Erro ao cancelar assinatura", {
@@ -381,9 +391,25 @@ const SubscriptionTab = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar assinatura?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ao cancelar, sua assinatura será interrompida e o plano voltará para <strong>Grátis</strong>.
-              As funcionalidades avançadas serão desativadas imediatamente.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {isAnnualBilling ? (
+                  <>
+                    <div className="flex items-start gap-2 text-destructive bg-destructive/10 p-3 rounded-lg text-sm">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>
+                        <strong>Atenção:</strong> Seu plano anual possui multa de rescisão de 20% sobre o saldo restante, conforme os Termos de Uso.
+                      </span>
+                    </div>
+                    <p>O acesso continuará disponível até o fim do período já pago.</p>
+                  </>
+                ) : (
+                  <p>
+                    Ao cancelar, a cobrança recorrente será interrompida.
+                    Você continuará com acesso aos recursos até o fim do período atual.
+                  </p>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
