@@ -1,28 +1,54 @@
 
 
-## Problema Identificado
+## Diagnóstico
 
-O link de indicação está usando `window.location.origin` (linha 25 do `ReferralSection.tsx`), que no ambiente de preview retorna a URL longa do Lovable (`https://id-preview--4930409c-...lovable.app`). Isso gera dois problemas:
+O erro é **React error #310** ("Too many re-renders") acontecendo no `DashboardPage` quando usuários fazem login pelo celular Android. O erro é capturado pelo `ErrorBoundary` que exibe a tela "Algo deu errado".
 
-1. O link fica extenso e feio para compartilhar
-2. Não mostra a marca "TrendFood"
-3. Se alguém abrir esse link, pode cair numa sessão de preview, não no site publicado
+### Causa raiz
 
-## Solução
+Encontrei dois problemas no `DashboardPage.tsx` que podem causar loops de re-render:
 
-Trocar `window.location.origin` por um domínio fixo apontando para o site publicado (`https://trendfood.lovable.app`). Assim o link ficará:
+1. **`useEffect` na linha 598-605** — chama `setOpenGroups({ operacional: true })` a cada render, criando um novo objeto mesmo quando o valor é idêntico ao estado anterior. O React faz comparação por referência, então considera que o estado mudou e dispara um novo render. Em dispositivos mais lentos (Android), isso pode se acumular e causar o erro #310.
 
+2. **`sidebarGroups` (linha 556)** — array criado dentro do render body sem memoização, sendo recriado a cada render. É referenciado pelo `useEffect` acima.
+
+3. **`usePlanLimits`** — retorna um novo objeto `canAccess` (função) a cada render, potencialmente causando re-renders em cascata nos componentes filhos.
+
+### Solução
+
+**Arquivo: `src/pages/DashboardPage.tsx`**
+
+1. **Memoizar `sidebarGroups`** com `useMemo` para evitar recriação desnecessária
+2. **Corrigir o `useEffect` de `openGroups`** para evitar criar novo objeto quando o valor é o mesmo — usar comparação funcional em `setOpenGroups`
+3. **Memoizar `lockedFeatures`** com `useMemo`
+
+```typescript
+// Antes (linha 598-605):
+useEffect(() => {
+  const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
+  if (parentGroup) {
+    setOpenGroups({ [parentGroup.id]: true });
+  } else {
+    setOpenGroups({});
+  }
+}, [activeTab]);
+
+// Depois:
+useEffect(() => {
+  const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
+  const targetId = parentGroup?.id;
+  setOpenGroups(prev => {
+    const keys = Object.keys(prev);
+    if (targetId && keys.length === 1 && prev[targetId]) return prev; // mesma referência
+    if (!targetId && keys.length === 0) return prev;
+    return targetId ? { [targetId]: true } : {};
+  });
+}, [activeTab]);
 ```
-trendfood.lovable.app/cadastro?ref=UUID
-```
 
-### Alteração
+**Arquivo: `src/hooks/usePlanLimits.ts`**
 
-**Arquivo:** `src/components/dashboard/ReferralSection.tsx`
+4. **Envolver o retorno com `useMemo`** para estabilizar a referência do objeto retornado
 
-- Linha 25: substituir `window.location.origin` por uma constante com o domínio publicado
-- Usar `const BASE_URL = "https://trendfood.lovable.app"` no topo do componente
-- O link gerado passará a ser `https://trendfood.lovable.app/cadastro?ref={orgId}`
-
-Isso é uma alteração de 2 linhas, rápida e direta.
+Essas mudanças eliminam os re-renders desnecessários que causam o loop no Android.
 
