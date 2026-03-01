@@ -1,34 +1,62 @@
 
 
-## Diagnóstico Real
+## Diagnóstico
 
-O erro persiste porque a correção anterior não atacou a causa real. O problema é uma **violação das regras de hooks do React** no `DashboardPage.tsx`.
+O problema acontece quando o cadastro falha **depois** que o usuário auth já foi criado. O fluxo atual é:
 
-### O que está acontecendo
+1. `supabase.auth.signUp()` → cria o usuário no auth (sucesso)
+2. Insere `organizations` com `referred_by_id` → **falha** (ex: slug duplicado, timeout, etc.)
+3. Usuário tenta de novo → `signUp` retorna **422: "User already registered"**
+4. Usuário fica preso: não consegue criar conta de novo, e a organização com a indicação nunca foi criada
 
-O componente tem **3 retornos antecipados (early returns)** nas linhas 479, 491 e 517:
-- Linha 479: `if (loading || !user)` → retorna skeleton
-- Linha 491: `if (!organization)` → retorna "nenhuma loja"
-- Linha 517: `if (subscriptionStatus === "inactive")` → retorna tela bloqueada
+Os logs de auth confirmam: `user_repeated_signup` com status 422.
 
-**Depois** desses returns, existem hooks nas linhas 546, 556 e 598:
-- `useMemo` para `lockedFeatures` (linha 546)
-- `useMemo` para `sidebarGroups` (linha 556)
-- `useEffect` para `openGroups` (linha 598)
+## Solução
 
-Isso viola a regra fundamental do React: hooks devem ser chamados na mesma ordem em todo render. Quando `loading` é `true`, o componente retorna na linha 479 e esses 3 hooks nunca executam. Quando o auth completa e `loading` vira `false`, os hooks aparecem pela primeira vez — o React detecta a inconsistência e crasha com error #310.
+**Arquivo: `src/pages/AuthPage.tsx`** — Tratar o caso "User already registered" no `handleSignup`:
 
-Em dispositivos Android mais lentos, o estado `loading` muda mais devagar, tornando o bug mais visível.
+1. Quando `signUp` retornar erro "User already registered", fazer `signInWithPassword` automaticamente
+2. Após login, verificar se o usuário já tem uma organização
+3. Se não tiver, criar a organização (com `referred_by_id` preservado)
+4. Se já tiver, redirecionar normalmente para o dashboard
 
-### Solução
+Isso resolve tanto o cenário de indicação perdida quanto o de usuário preso na tela de cadastro.
 
-Mover os 3 hooks (`useMemo` de `lockedFeatures`, `useMemo` de `sidebarGroups`, e `useEffect` de `openGroups`) para **antes** de todos os early returns (antes da linha 479). Os hooks podem receber valores fallback quando `organization` é null, já que os early returns impedirão que o resultado seja usado de qualquer forma.
+### Mudanças no código
 
-**Arquivo: `src/pages/DashboardPage.tsx`**
+```typescript
+// No handleSignup, ao capturar o erro:
+if (authError) {
+  // Se o usuário já existe, tentar login e verificar se tem org
+  if (authError.message?.includes("already registered")) {
+    const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+      email: signupData.email,
+      password: signupData.password,
+    });
+    if (loginErr) throw loginErr;
+    
+    const userId = loginData.user.id;
+    
+    // Verificar se já tem organização
+    const { data: existingOrg } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    if (!existingOrg) {
+      // Criar organização que falhou antes (preservando referral)
+      const orgPayload = { ... com referred_by_id };
+      await supabase.from("organizations").insert(orgPayload);
+    }
+    
+    // Redirecionar
+    navigate(fullRedirect, { replace: true });
+    return;
+  }
+  throw authError;
+}
+```
 
-1. Mover `lockedFeatures` (linhas 546-554) para antes da linha 479
-2. Mover `sidebarGroups` (linhas 556-595) para antes da linha 479
-3. Mover `useEffect` de `openGroups` (linhas 598-607) para antes da linha 479
-
-Todos usam `planLimits` que já está declarado na linha 63, então não há problema de dependência.
+Também garantir que o profile seja criado se não existir (mesmo tratamento).
 
