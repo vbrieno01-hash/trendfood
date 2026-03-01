@@ -1,21 +1,19 @@
 
 
-## Correção: Fechar todos os grupos ao navegar para "Home"
+## Adicionar funcionalidades faltantes ao FeaturesTab
 
-**Problema:** O `useEffect` na linha 596-601 só fecha/abre grupos quando `activeTab` pertence a algum grupo. Como "home" não está em nenhum grupo, nada acontece e o grupo anterior continua aberto.
+Inserir 3 itens no array `FEATURES` em `src/components/dashboard/FeaturesTab.tsx`:
 
-**Solução:** Adicionar um `else` no `useEffect` para fechar todos os grupos quando a aba ativa não pertence a nenhum grupo (ex: "home"):
+1. **Adicionais** — ícone `Plus` ou `ListPlus`, minPlan `pro`, status `available`
+   - "Adicione opções extras aos itens do cardápio (bordas, tamanhos, acompanhamentos)."
 
-```tsx
-useEffect(() => {
-  const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
-  if (parentGroup) {
-    setOpenGroups({ [parentGroup.id]: true });
-  } else {
-    setOpenGroups({});
-  }
-}, [activeTab]);
-```
+2. **Pagamento Online** — ícone `CreditCard` ou `Smartphone`, minPlan `pro`, status `available`
+   - "Aceite pagamentos via PIX e cartão de crédito diretamente pelo cardápio digital."
 
-**Arquivo:** `src/pages/DashboardPage.tsx`, linhas 596-601. Alteração de 1 linha (adicionar o `else`).
+3. **Gestão de Insumos** — ícone `Package` ou `Boxes`, minPlan `enterprise`, status `available`
+   - "Controle estoque de ingredientes com baixa automática a cada venda."
+
+Os novos itens serão inseridos na posição lógica: Adicionais e Pagamento Online junto aos outros Pro (após "Mais Vendidos"), e Gestão de Insumos junto aos Enterprise (após "Multi-unidade").
+
+Apenas adição de itens ao array, sem mudança de lógica.
 
