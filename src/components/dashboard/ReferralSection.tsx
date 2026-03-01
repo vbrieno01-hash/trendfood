@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Gift, Users, CalendarPlus, Info } from "lucide-react";
+import { Copy, Check, Gift, Users, CalendarPlus, Info, BadgeDollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -14,13 +14,15 @@ interface ReferralBonus {
 
 interface ReferralSectionProps {
   orgId: string;
+  subscriptionPlan?: string;
 }
 
-export default function ReferralSection({ orgId }: ReferralSectionProps) {
+export default function ReferralSection({ orgId, subscriptionPlan = "free" }: ReferralSectionProps) {
   const [count, setCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [bonuses, setBonuses] = useState<ReferralBonus[]>([]);
   const [totalDays, setTotalDays] = useState(0);
+  const [priceCents, setPriceCents] = useState(0);
 
   const BASE_URL = "https://trendfood.lovable.app";
   const referralLink = `${BASE_URL}/cadastro?ref=${orgId}`;
@@ -45,7 +47,18 @@ export default function ReferralSection({ orgId }: ReferralSectionProps) {
           setTotalDays(data.reduce((sum: number, b: ReferralBonus) => sum + b.bonus_days, 0));
         }
       });
-  }, [orgId]);
+
+    // Fetch plan price
+    const planKey = subscriptionPlan === "free" ? "pro" : subscriptionPlan;
+    supabase
+      .from("platform_plans")
+      .select("price_cents")
+      .eq("key", planKey)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setPriceCents(data.price_cents);
+      });
+  }, [orgId, subscriptionPlan]);
 
   const handleCopy = async () => {
     try {
@@ -96,7 +109,7 @@ export default function ReferralSection({ orgId }: ReferralSectionProps) {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3">
             <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
               <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -115,7 +128,24 @@ export default function ReferralSection({ orgId }: ReferralSectionProps) {
               <p className="text-xs text-muted-foreground">dias ganhos</p>
             </div>
           </div>
+          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3 col-span-2 sm:col-span-1">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <BadgeDollarSign className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">
+                {priceCents > 0
+                  ? `R$ ${((totalDays * (priceCents / 30)) / 100).toFixed(2).replace(".", ",")}`
+                  : "R$ 0,00"}
+              </p>
+              <p className="text-xs text-muted-foreground">economia total</p>
+            </div>
+          </div>
         </div>
+
+        <p className="text-sm text-center font-medium text-primary">
+          Continue indicando para zerar sua mensalidade! 🚀
+        </p>
       </div>
 
       {/* How it works */}
