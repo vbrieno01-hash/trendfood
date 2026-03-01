@@ -948,7 +948,7 @@ const DashboardPage = () => {
           {activeTab === "stock" && (lockedFeatures.stock
             ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <StockTab orgId={organization.id} />)}
-          {activeTab === "referral" && <ReferralSection orgId={organization.id} />}
+          {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           </ErrorBoundary>
         </main>
 
