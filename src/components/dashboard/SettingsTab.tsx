@@ -11,9 +11,8 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Share2, Copy, MessageCircle } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 export default function SettingsTab() {
   const { user, signOut } = useAuth();
@@ -84,50 +83,6 @@ export default function SettingsTab() {
         </div>
       </div>
 
-      {/* Share / Refer */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
-          <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Indique o TrendFood</p>
-        </div>
-        <div className="px-4 py-4 space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Gostou do TrendFood? Compartilhe com outros empreendedores!
-          </p>
-          <div className="flex items-center gap-2">
-            <Input
-              readOnly
-              value="https://trendfood.lovable.app"
-              className="text-sm flex-1"
-              onFocus={(e) => e.target.select()}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              onClick={() => {
-                navigator.clipboard.writeText("https://trendfood.lovable.app");
-                toast.success("Link copiado!");
-              }}
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 gap-2"
-            onClick={() => {
-              const msg = encodeURIComponent("Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app");
-              const url = `https://wa.me/?text=${msg}`;
-              openWhatsAppWithFallback(url, { mode: "share" });
-            }}
-          >
-            <MessageCircle className="w-4 h-4" />
-            Compartilhar via WhatsApp
-          </Button>
-        </div>
-      </div>
 
       {/* Change password */}
       <div className="rounded-xl border border-border overflow-hidden">
