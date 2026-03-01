@@ -555,11 +555,11 @@ const DashboardPage = () => {
     {
       id: "operacional", emoji: "⚡", title: "OPERACIONAL",
       items: [
-        { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Gestão de Pedidos", locked: lockedFeatures.waiter },
         { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas & Comandas" },
         { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
-        { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
+        { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Gestão de Pedidos", locked: lockedFeatures.waiter },
         { key: "courier", icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
+        { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
       ],
     },
     {
