@@ -149,33 +149,33 @@ export default function HomeTab({ organization }: { organization: Organization }
       label: "Faturamento total",
       value: fmtBRL(totalRevenue),
       icon: <DollarSign className="w-5 h-5" />,
-      color: "text-green-600",
-      border: "border-green-200",
-      bg: "bg-green-50",
+      color: "text-green-600 dark:text-green-400",
+      border: "border-green-200 dark:border-green-800",
+      bg: "bg-green-50 dark:bg-green-950/30",
     },
     {
       label: "Pedidos entregues hoje",
       value: todayDelivered.length,
       icon: <ShoppingBag className="w-5 h-5" />,
-      color: "text-blue-600",
-      border: "border-blue-200",
-      bg: "bg-blue-50",
+      color: "text-blue-600 dark:text-blue-400",
+      border: "border-blue-200 dark:border-blue-800",
+      bg: "bg-blue-50 dark:bg-blue-950/30",
     },
     {
       label: "Aguardando pagamento",
       value: pendingPayment,
       icon: <Clock className="w-5 h-5" />,
-      color: "text-amber-600",
-      border: "border-amber-200",
-      bg: "bg-amber-50",
+      color: "text-amber-600 dark:text-amber-400",
+      border: "border-amber-200 dark:border-amber-800",
+      bg: "bg-amber-50 dark:bg-amber-950/30",
     },
     {
       label: "Ticket médio",
       value: fmtBRL(avgTicket),
       icon: <TrendingUp className="w-5 h-5" />,
-      color: "text-purple-600",
-      border: "border-purple-200",
-      bg: "bg-purple-50",
+      color: "text-purple-600 dark:text-purple-400",
+      border: "border-purple-200 dark:border-purple-800",
+      bg: "bg-purple-50 dark:bg-purple-950/30",
     },
   ];
 
@@ -212,10 +212,10 @@ export default function HomeTab({ organization }: { organization: Organization }
           <span
             className={`mt-1 text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0 ${
               organization.subscription_status === "active"
-                ? "bg-green-50 text-green-700 border-green-200"
+                ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800"
                 : organization.subscription_status === "inactive"
-                ? "bg-red-50 text-red-600 border-red-200"
-                : "bg-amber-50 text-amber-700 border-amber-200"
+                ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800"
+                : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800"
             }`}
           >
             {organization.subscription_status === "active"
@@ -259,7 +259,7 @@ export default function HomeTab({ organization }: { organization: Organization }
       </div>
 
       {/* ── Pause toggle ─────────────────────────────────── */}
-      <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${organization.paused ? "border-amber-300 bg-amber-50" : "border-border bg-card"}`}>
+      <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${organization.paused ? "border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700" : "border-border bg-card"}`}>
         <div className="flex items-center gap-3">
           {organization.paused ? (
             <PauseCircle className="w-5 h-5 text-amber-600" />
