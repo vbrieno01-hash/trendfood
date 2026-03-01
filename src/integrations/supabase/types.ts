@@ -746,6 +746,7 @@ export type Database = {
         Row: {
           apk_url: string | null
           banner_url: string | null
+          billing_cycle: string
           business_hours: Json | null
           cnpj: string | null
           courier_config: Json | null
@@ -777,6 +778,7 @@ export type Database = {
         Insert: {
           apk_url?: string | null
           banner_url?: string | null
+          billing_cycle?: string
           business_hours?: Json | null
           cnpj?: string | null
           courier_config?: Json | null
@@ -808,6 +810,7 @@ export type Database = {
         Update: {
           apk_url?: string | null
           banner_url?: string | null
+          billing_cycle?: string
           business_hours?: Json | null
           cnpj?: string | null
           courier_config?: Json | null
@@ -879,6 +882,7 @@ export type Database = {
       platform_plans: {
         Row: {
           active: boolean
+          annual_price_cents: number | null
           badge: string | null
           checkout_url: string | null
           created_at: string
@@ -894,6 +898,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          annual_price_cents?: number | null
           badge?: string | null
           checkout_url?: string | null
           created_at?: string
@@ -909,6 +914,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          annual_price_cents?: number | null
           badge?: string | null
           checkout_url?: string | null
           created_at?: string
