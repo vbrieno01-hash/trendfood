@@ -135,7 +135,7 @@ const AppInner = () => {
 
 const App = () => (
   <ErrorBoundary>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <AppInner />
     </ThemeProvider>
   </ErrorBoundary>
