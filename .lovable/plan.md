@@ -1,58 +1,57 @@
 
 
-## Módulo de Afiliados / Indicações
+## Automação de Recompensa por Indicação
 
-### Visão Geral
-Criar um sistema de referral onde cada loja existente pode indicar novos estabelecimentos via link único. O admin acompanha as indicações no painel, e o lojista vê seu link e contagem de indicados no dashboard.
+### Resumo
+Quando uma organização indicada faz seu primeiro pagamento (muda para plano pago), o indicador ganha +10 dias de assinatura e um registro de histórico aparece no dashboard.
 
-### 1. Migração de Banco de Dados
+### 1. Nova tabela `referral_bonuses`
 
-**Coluna na tabela `organizations`:**
 ```sql
-ALTER TABLE organizations ADD COLUMN referred_by_id uuid REFERENCES organizations(id) ON DELETE SET NULL;
+CREATE TABLE public.referral_bonuses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_org_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  referred_org_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  bonus_days integer NOT NULL DEFAULT 10,
+  referred_org_name text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.referral_bonuses ENABLE ROW LEVEL SECURITY;
+-- Owner pode ver seus próprios bônus
+-- Admin pode ver todos
+-- Service role insere (via webhook)
 ```
 
-Isso permite rastrear qual organização indicou qual.
+RLS policies: SELECT para owner (`referrer_org_id` pertence ao user), SELECT para admin, INSERT service (true).
 
-**RLS:** Nenhuma policy nova necessária — a coluna é lida pela policy `organizations_select_public` já existente e escrita apenas pelo owner no signup.
+### 2. Lógica no `mp-webhook`
 
-### 2. Signup com `?ref=`
+No trecho onde a org é ativada (subscription_preapproval `authorized` e pagamentos aprovados), adicionar após a ativação:
 
-**Arquivo:** `src/pages/AuthPage.tsx`
+- Buscar `referred_by_id` da org recém-ativada.
+- Verificar se já existe um `referral_bonuses` para esse par (evitar duplicatas).
+- Se não existe: inserir em `referral_bonuses` e adicionar +10 dias ao `trial_ends_at` da org indicadora.
+- Tentar adiar `next_payment_date` na API do MP se a org indicadora tiver `mp_subscription_id` (PUT na preapproval com `next_payment_date` + 10 dias). Se falhar, apenas logar — não é bloqueante.
 
-- Capturar o parâmetro `ref` da URL (ex: `/cadastro?ref=UUID_DA_LOJA`).
-- No `handleSignup`, ao inserir na tabela `organizations`, incluir `referred_by_id: refParam || null`.
-- O link público será `trendfood.lovable.app/cadastro?ref=ID_DA_ORG`.
+### 3. Dashboard do lojista (`ReferralSection.tsx`)
 
-### 3. Aba "Indicações" no Admin
+Adicionar seção "Bônus recebidos" abaixo do contador de indicados:
+- Query `referral_bonuses` onde `referrer_org_id = orgId`, ordenado por `created_at desc`.
+- Exibir lista: "Você ganhou 10 dias por indicar a **Lanchonete X**!" com data.
+- Card com total de dias ganhos.
 
-**Novo arquivo:** `src/components/admin/ReferralsTab.tsx`
+### 4. Arquivos alterados
 
-- Buscar `organizations` onde `referred_by_id IS NOT NULL`.
-- Exibir tabela com: Loja indicada, Indicado por (nome), Plano atual, Status, Data de cadastro.
-- KPI cards: Total de indicações, Indicações que viraram assinantes.
-
-**Arquivo:** `src/pages/AdminPage.tsx`
-
-- Adicionar `"indicacoes"` ao tipo `AdminTab`.
-- Adicionar item de nav com ícone `Share2` e label "Indicações".
-- Renderizar `<ReferralsTab />` quando `activeTab === "indicacoes"`.
-
-### 4. Seção "Ganhe Desconto" no Dashboard do Cliente
-
-**Novo arquivo:** `src/components/dashboard/ReferralSection.tsx`
-
-- Exibir o link de indicação da loja (`/cadastro?ref={org.id}`) com botão "Copiar link".
-- Buscar `organizations` onde `referred_by_id = org.id` para contar quantos amigos o lojista já trouxe.
-- Card visual simples com ícone, contagem e CTA.
-
-**Arquivo:** `src/pages/DashboardPage.tsx`
-
-- Adicionar `"referral"` como nova `TabKey` na sidebar, dentro do grupo AJUSTES.
-- Renderizar `<ReferralSection />` quando `activeTab === "referral"`.
+| Arquivo | Mudança |
+|---------|---------|
+| Migração SQL | Criar tabela `referral_bonuses` + RLS |
+| `supabase/functions/mp-webhook/index.ts` | Lógica de bônus após ativação |
+| `src/components/dashboard/ReferralSection.tsx` | Exibir histórico de bônus |
 
 ### Detalhes Técnicos
-- A coluna `referred_by_id` é nullable e referencia `organizations(id)` com `ON DELETE SET NULL`.
-- A query de contagem no dashboard usa `supabase.from("organizations").select("id", { count: "exact" }).eq("referred_by_id", orgId)`.
-- Nenhum edge function necessário — tudo via client SDK com RLS existente.
+
+- A verificação de duplicidade usa `referrer_org_id + referred_org_id` como par único (constraint UNIQUE).
+- O adiamento da cobrança no MP usa `PUT /preapproval/{id}` com campo `next_payment_date`. É best-effort — se a API falhar, o bônus local é mantido.
+- O campo `trial_ends_at` da memória do sistema é a coluna usada para expiração, então somar 10 dias nela é suficiente.
 
