@@ -17,6 +17,8 @@ export interface PlanCardProps {
   onSelect?: () => void;
   loading?: boolean;
   currentPlan?: boolean;
+  subtitle?: string;
+  savingsBadge?: string;
 }
 
 const PlanCard = ({
@@ -33,6 +35,8 @@ const PlanCard = ({
   onSelect,
   loading,
   currentPlan,
+  subtitle,
+  savingsBadge,
 }: PlanCardProps) => {
   return (
     <div
@@ -64,6 +68,14 @@ const PlanCard = ({
             <span className="text-muted-foreground text-sm">{period}</span>
           )}
         </div>
+        {subtitle && (
+          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+        )}
+        {savingsBadge && (
+          <span className="inline-block mt-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full">
+            {savingsBadge}
+          </span>
+        )}
       </div>
 
       <ul className="space-y-3 flex-1 mb-8">

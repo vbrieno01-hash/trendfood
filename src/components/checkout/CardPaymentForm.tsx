@@ -24,6 +24,7 @@ interface CardPaymentFormProps {
   plan: string;
   planName: string;
   planPrice: string;
+  billing?: "monthly" | "annual";
   onSuccess: () => void;
 }
 
@@ -34,6 +35,7 @@ const CardPaymentForm = ({
   plan,
   planName,
   planPrice,
+  billing = "monthly",
   onSuccess,
 }: CardPaymentFormProps) => {
   const [sdkReady, setSdkReady] = useState(false);
@@ -146,7 +148,7 @@ const CardPaymentForm = ({
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ org_id: orgId, plan, card_token_id: tokenResult.id }),
+          body: JSON.stringify({ org_id: orgId, plan, card_token_id: tokenResult.id, billing }),
         }
       );
 
@@ -197,7 +199,7 @@ const CardPaymentForm = ({
             <DialogTitle className="text-xl">Assinar {planName}</DialogTitle>
           </div>
           <DialogDescription>
-            {planPrice}/mês — escolha a forma de pagamento.
+            {planPrice}{billing === "annual" ? "/ano" : "/mês"} — escolha a forma de pagamento.
           </DialogDescription>
         </DialogHeader>
 
@@ -308,7 +310,7 @@ const CardPaymentForm = ({
                       Processando...
                     </>
                   ) : (
-                    `Assinar por ${planPrice}/mês`
+                    `Assinar por ${planPrice}${billing === "annual" ? "/ano" : "/mês"}`
                   )}
                 </Button>
 

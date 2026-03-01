@@ -16,7 +16,7 @@ async function processReferralBonus(
     // Get the activated org's referred_by_id
     const { data: activatedOrg } = await supabase
       .from("organizations")
-      .select("referred_by_id, name")
+      .select("referred_by_id, name, billing_cycle")
       .eq("id", activatedOrgId)
       .single();
 
@@ -37,15 +37,18 @@ async function processReferralBonus(
       return;
     }
 
+    // Determine bonus days based on billing cycle
+    const bonusDays = activatedOrg.billing_cycle === "annual" ? 30 : 10;
+
     // Insert bonus record
     await supabase.from("referral_bonuses").insert({
       referrer_org_id: referrerId,
       referred_org_id: activatedOrgId,
-      bonus_days: 10,
+      bonus_days: bonusDays,
       referred_org_name: activatedOrg.name || null,
     });
 
-    // Add +10 days to referrer's trial_ends_at
+    // Add bonus days to referrer's trial_ends_at
     const { data: referrerOrg } = await supabase
       .from("organizations")
       .select("trial_ends_at, mp_subscription_id, name")
@@ -56,16 +59,16 @@ async function processReferralBonus(
       const currentExpiry = referrerOrg.trial_ends_at
         ? new Date(referrerOrg.trial_ends_at)
         : new Date();
-      const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+      const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
 
       await supabase
         .from("organizations")
         .update({ trial_ends_at: newExpiry.toISOString() })
         .eq("id", referrerId);
 
-      console.log("[mp-webhook] Referral bonus: +10 days for org", referrerId);
+      console.log(`[mp-webhook] Referral bonus: +${bonusDays} days for org`, referrerId);
 
-      // Best-effort: postpone next MP billing by 10 days
+      // Best-effort: postpone next MP billing by bonus days
       if (referrerOrg.mp_subscription_id) {
         try {
           const mpRes = await fetch(
@@ -75,7 +78,7 @@ async function processReferralBonus(
           const sub = await mpRes.json();
           if (mpRes.ok && sub.next_payment_date) {
             const nextPayment = new Date(sub.next_payment_date);
-            nextPayment.setDate(nextPayment.getDate() + 10);
+            nextPayment.setDate(nextPayment.getDate() + bonusDays);
             await fetch(
               `https://api.mercadopago.com/preapproval/${referrerOrg.mp_subscription_id}`,
               {
@@ -89,7 +92,7 @@ async function processReferralBonus(
                 }),
               },
             );
-            console.log("[mp-webhook] MP next_payment_date postponed +10 days for", referrerId);
+            console.log(`[mp-webhook] MP next_payment_date postponed +${bonusDays} days for`, referrerId);
           }
         } catch (mpErr) {
           console.error("[mp-webhook] Failed to postpone MP billing (non-blocking):", mpErr);
@@ -104,7 +107,7 @@ async function processReferralBonus(
         old_status: null,
         new_status: null,
         source: "referral_bonus",
-        notes: `+10 dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
+        notes: `+${bonusDays} dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
       });
     }
   } catch (err) {
