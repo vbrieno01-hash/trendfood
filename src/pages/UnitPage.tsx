@@ -1309,6 +1309,7 @@ const UnitPage = () => {
         primaryColor={primaryColor}
         isClosed={isClosed}
         opensAt={opensAt}
+        organizationId={org.id}
       />
     </div>
   );

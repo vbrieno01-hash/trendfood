@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMenuItemAddons } from "@/hooks/useMenuItemAddons";
+import { useGlobalAddons } from "@/hooks/useGlobalAddons";
 import type { MenuItem } from "@/hooks/useMenuItems";
 
 type CartItemAddon = { id: string; name: string; price: number };
@@ -18,17 +19,28 @@ interface ItemDetailDrawerProps {
   primaryColor: string;
   isClosed: boolean;
   opensAt: string | null;
+  organizationId?: string;
 }
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensAt }: ItemDetailDrawerProps) => {
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensAt, organizationId }: ItemDetailDrawerProps) => {
   const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
   const [itemNotes, setItemNotes] = useState("");
   const [qty, setQty] = useState(1);
 
-  const { data: addons = [], isLoading: addonsLoading } = useMenuItemAddons(item?.id);
+  const { data: itemAddons = [], isLoading: itemAddonsLoading } = useMenuItemAddons(item?.id);
+  const { data: globalAddons = [], isLoading: globalAddonsLoading } = useGlobalAddons(organizationId);
+
+  const addonsLoading = itemAddonsLoading || globalAddonsLoading;
+
+  // Merge: global first, then item-specific (no duplicates by name)
+  const seenNames = new Set<string>();
+  const addons = [
+    ...globalAddons.map((a) => { seenNames.add(a.name.toLowerCase()); return a; }),
+    ...itemAddons.filter((a) => !seenNames.has(a.name.toLowerCase())),
+  ];
 
   // Reset state when item changes
   useEffect(() => {

@@ -27,6 +27,7 @@ import {
   useAllMenuItemAddons, useAddMenuItemAddon, useUpdateMenuItemAddon, useDeleteMenuItemAddon,
   
 } from "@/hooks/useMenuItemAddonsCrud";
+import GlobalAddonsSection from "@/components/dashboard/GlobalAddonsSection";
 
 interface Organization {
   id: string;
@@ -763,6 +764,9 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
           </Button>
         </div>
       </div>
+
+      {/* Global Addons */}
+      {canAccessAddons && <GlobalAddonsSection organizationId={organization.id} />}
 
       {/* Loading */}
       {isLoading && (

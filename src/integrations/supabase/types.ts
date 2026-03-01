@@ -476,6 +476,44 @@ export type Database = {
         }
         Relationships: []
       }
+      global_addons: {
+        Row: {
+          available: boolean
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          price_cents: number
+          sort_order: number
+        }
+        Insert: {
+          available?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          price_cents?: number
+          sort_order?: number
+        }
+        Update: {
+          available?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          price_cents?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_addons_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guide_screenshots: {
         Row: {
           id: string
