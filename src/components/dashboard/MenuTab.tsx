@@ -306,7 +306,7 @@ function PendingIngredientsSection({
 }
 
 /* ─── Addons sub-component (edit mode — persists to DB) ─── */
-function AddonsSection({ menuItemId, organizationId }: { menuItemId: string; organizationId: string }) {
+function AddonsSection({ menuItemId, organizationId, hideGlobalAddons, onToggleHideGlobal }: { menuItemId: string; organizationId: string; hideGlobalAddons: boolean; onToggleHideGlobal: (val: boolean) => void }) {
   const { data: addons = [], isLoading } = useAllMenuItemAddons(menuItemId);
   const { data: globalAddons = [] } = useAllGlobalAddons(organizationId);
   const { data: exclusions = [] } = useGlobalAddonExclusions(menuItemId);
@@ -344,11 +344,23 @@ function AddonsSection({ menuItemId, organizationId }: { menuItemId: string; org
         <p className="text-sm font-medium text-foreground">Adicionais / Complementos</p>
       </div>
 
-      {/* Global addons inherited — with toggle to exclude from this product */}
+      {/* Hide all global addons toggle */}
       {availableGlobals.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground font-medium">Adicionais fixos (globais)</p>
-          {availableGlobals.map((g) => {
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-muted/50 rounded">
+            <Switch
+              checked={hideGlobalAddons}
+              onCheckedChange={onToggleHideGlobal}
+              className="scale-75"
+            />
+            <span className="text-sm text-foreground">Ocultar todos os adicionais fixos deste produto</span>
+          </div>
+
+          {/* Individual toggles — only show when not hiding all */}
+          {!hideGlobalAddons && (
+            <>
+              <p className="text-xs text-muted-foreground font-medium">Adicionais fixos (globais)</p>
+              {availableGlobals.map((g) => {
             const isExcluded = excludedIds.has(g.id);
             return (
               <div key={g.id} className={cn(
@@ -367,7 +379,9 @@ function AddonsSection({ menuItemId, organizationId }: { menuItemId: string; org
                 </span>
               </div>
             );
-          })}
+              })}
+            </>
+          )}
         </div>
       )}
 
@@ -1079,7 +1093,18 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
               {/* Addons section */}
               {canAccessAddons ? (
                 (editItem || editItemId) ? (
-                  <AddonsSection menuItemId={(editItem?.id || editItemId)!} organizationId={organization.id} />
+                  <AddonsSection
+                    menuItemId={(editItem?.id || editItemId)!}
+                    organizationId={organization.id}
+                    hideGlobalAddons={editItem?.hide_global_addons ?? false}
+                    onToggleHideGlobal={async (val) => {
+                      const id = editItem?.id || editItemId;
+                      if (!id) return;
+                      const { supabase } = await import("@/integrations/supabase/client");
+                      await supabase.from("menu_items").update({ hide_global_addons: val } as any).eq("id", id);
+                      if (editItem) setEditItem({ ...editItem, hide_global_addons: val });
+                    }}
+                  />
                 ) : (
                   <PendingAddonsSection
                     pending={pendingAddons}
