@@ -903,7 +903,25 @@ const DashboardPage = () => {
             : <KitchenTab orgId={organization.id} orgName={organization.name} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} onPairBluetooth={handlePairBluetooth} btConnected={btConnected} btSupported={btSupported} autoPrint={autoPrint} onToggleAutoPrint={toggleAutoPrint} notificationsEnabled={notificationsEnabled} onToggleNotifications={toggleNotifications} />)}
           {activeTab === "waiter" && (lockedFeatures.waiter
             ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
-            : <WaiterTab orgId={organization.id} whatsapp={organization.whatsapp} orgName={organization.name} pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"} pixKey={(organization as any).pix_key} />)}
+            : <WaiterTab
+                orgId={organization.id}
+                whatsapp={organization.whatsapp}
+                orgName={organization.name}
+                pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"}
+                pixKey={(organization as any).pix_key}
+                storeAddress={organization.store_address}
+                courierConfig={(organization as any).courier_config}
+                printMode={printMode}
+                printerWidth={printerWidth}
+                btDevice={btDevice}
+                onPairBluetooth={handlePairBluetooth}
+                btConnected={btConnected}
+                btSupported={btSupported}
+                autoPrint={autoPrint}
+                onToggleAutoPrint={(val) => { setAutoPrint(val); localStorage.setItem(AUTO_PRINT_KEY, String(val)); }}
+                notificationsEnabled={notificationsEnabled}
+                onToggleNotifications={(val) => { setNotificationsEnabled(val); localStorage.setItem(NOTIF_KEY_DASH, String(val)); }}
+              />)}
           {activeTab === "caixa" && (lockedFeatures.caixa
             ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <CaixaTab orgId={organization.id} />)}
