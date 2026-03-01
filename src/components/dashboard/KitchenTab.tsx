@@ -4,7 +4,9 @@ import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, Flame, Printer } from "lucide-react";
+import { Loader2, Flame, Printer, BellRing } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import WaiterTab from "@/components/dashboard/WaiterTab";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
 import { toast } from "sonner";
@@ -35,6 +37,9 @@ interface KitchenTabProps {
   // Notifications state controlled by DashboardPage
   notificationsEnabled: boolean;
   onToggleNotifications: (val: boolean) => void;
+  // WaiterTab modal props
+  whatsapp?: string | null;
+  pixConfirmationMode?: "direct" | "manual" | "automatic";
 }
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -53,6 +58,7 @@ export default function KitchenTab({
   onPairBluetooth, btConnected, btSupported,
   autoPrint, onToggleAutoPrint,
   notificationsEnabled, onToggleNotifications,
+  whatsapp, pixConfirmationMode,
 }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
@@ -65,6 +71,7 @@ export default function KitchenTab({
     () => (typeof Notification !== "undefined" ? Notification.permission : "default")
   );
 
+  const [showWaiter, setShowWaiter] = useState(false);
   const [, forceRender] = useState(0);
 
   const handleToggleNotifications = async (val: boolean) => {
@@ -313,6 +320,45 @@ export default function KitchenTab({
           })}
         </div>
       )}
+
+      {/* Floating button – Gestão de Pedidos */}
+      <Button
+        onClick={() => setShowWaiter(true)}
+        className="fixed bottom-6 right-6 z-40 gap-2 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-3 h-auto text-sm font-semibold"
+      >
+        <BellRing className="w-5 h-5" />
+        Gestão de Pedidos
+      </Button>
+
+      <Dialog open={showWaiter} onOpenChange={setShowWaiter}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BellRing className="w-5 h-5" />
+              Gestão de Pedidos
+            </DialogTitle>
+          </DialogHeader>
+          <WaiterTab
+            orgId={orgId}
+            orgName={orgName}
+            whatsapp={whatsapp}
+            pixConfirmationMode={pixConfirmationMode}
+            pixKey={pixKey}
+            storeAddress={storeAddress}
+            courierConfig={courierConfig}
+            printMode={printMode}
+            printerWidth={printerWidth}
+            btDevice={btDevice}
+            onPairBluetooth={onPairBluetooth}
+            btConnected={btConnected}
+            btSupported={btSupported}
+            autoPrint={autoPrint}
+            onToggleAutoPrint={onToggleAutoPrint}
+            notificationsEnabled={notificationsEnabled}
+            onToggleNotifications={onToggleNotifications}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
