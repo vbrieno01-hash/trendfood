@@ -39,6 +39,7 @@ const AuthPage = () => {
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   const planParam = searchParams.get("plan");
+  const refParam = searchParams.get("ref") || null;
   const fullRedirect = planParam && redirectTo.includes("/planos")
     ? `${redirectTo}?plan=${planParam}`
     : redirectTo;
@@ -107,7 +108,7 @@ const AuthPage = () => {
         console.warn("[Signup] Profile insert failed:", profileError.message);
       }
 
-      const { error: orgError } = await supabase.from("organizations").insert({
+      const orgPayload: any = {
         user_id: userId,
         name: signupData.businessName,
         slug: signupData.slug,
@@ -115,7 +116,9 @@ const AuthPage = () => {
         description: "Bem-vindo à nossa loja!",
         primary_color: "#f97316",
         whatsapp: signupData.whatsapp || null,
-      });
+      };
+      if (refParam) orgPayload.referred_by_id = refParam;
+      const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
 
       if (orgError) {
         if (orgError.code === "23505") {

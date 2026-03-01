@@ -765,6 +765,7 @@ export type Database = {
           primary_color: string
           print_mode: string
           printer_width: string
+          referred_by_id: string | null
           slug: string
           store_address: string | null
           subscription_plan: string
@@ -795,6 +796,7 @@ export type Database = {
           primary_color?: string
           print_mode?: string
           printer_width?: string
+          referred_by_id?: string | null
           slug: string
           store_address?: string | null
           subscription_plan?: string
@@ -825,6 +827,7 @@ export type Database = {
           primary_color?: string
           print_mode?: string
           printer_width?: string
+          referred_by_id?: string | null
           slug?: string
           store_address?: string | null
           subscription_plan?: string
@@ -833,7 +836,15 @@ export type Database = {
           user_id?: string
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_referred_by_id_fkey"
+            columns: ["referred_by_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platform_config: {
         Row: {
