@@ -14,9 +14,14 @@ import {
   ShoppingBag,
   User,
   Phone,
-  MapPin,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import AddressFields, {
+  EMPTY_ADDRESS,
+  buildAddressString,
+  isAddressValid,
+  type AddressData,
+} from "./AddressFields";
 
 interface CheckoutPageProps {
   items: { id: string; name: string; price: number; qty: number }[];
@@ -44,7 +49,7 @@ export default function CheckoutPage({ items, onConfirm, onBack }: CheckoutPageP
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [addr, setAddr] = useState<AddressData>({ ...EMPTY_ADDRESS });
   const [payment, setPayment] = useState("pix");
 
   const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
@@ -58,11 +63,11 @@ export default function CheckoutPage({ items, onConfirm, onBack }: CheckoutPageP
       toast({ title: "Informe um WhatsApp válido", variant: "destructive" });
       return;
     }
-    if (!address.trim()) {
-      toast({ title: "Informe o endereço de entrega", variant: "destructive" });
+    if (!isAddressValid(addr)) {
+      toast({ title: "Preencha CEP, rua, número, cidade e estado", variant: "destructive" });
       return;
     }
-    onConfirm({ name: name.trim(), phone, address: address.trim(), payment });
+    onConfirm({ name: name.trim(), phone, address: buildAddressString(addr), payment });
   };
 
   /* ── Order Summary Card ── */
@@ -143,17 +148,7 @@ export default function CheckoutPage({ items, onConfirm, onBack }: CheckoutPageP
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="ck-address" className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" /> Endereço
-                </Label>
-                <Input
-                  id="ck-address"
-                  placeholder="Rua, número, bairro"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                />
-              </div>
+              <AddressFields value={addr} onChange={setAddr} />
             </CardContent>
           </Card>
 
