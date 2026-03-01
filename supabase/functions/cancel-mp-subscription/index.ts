@@ -88,13 +88,13 @@ Deno.serve(async (req) => {
       console.log("[cancel-mp-subscription] No mp_subscription_id, skipping MP cancellation");
     }
 
-    // Update org to free
+    // Mark as cancelled but keep plan active until trial_ends_at expires
     await supabaseAdmin
       .from("organizations")
       .update({
-        subscription_plan: "free",
         subscription_status: "cancelled",
         mp_subscription_id: null,
+        // subscription_plan is NOT changed — access continues until trial_ends_at
       })
       .eq("id", org_id);
 
