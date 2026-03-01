@@ -94,6 +94,59 @@
   }
 }
 
+/* ── Admin Premium Animations ── */
+@keyframes admin-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes admin-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes admin-pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.3); }
+}
+@keyframes admin-bar-fill {
+  from { width: 0; }
+}
+@keyframes admin-count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-admin-fade-in {
+  animation: admin-fade-in 0.5s ease-out both;
+}
+.animate-admin-slide-up {
+  animation: admin-slide-up 0.6s ease-out both;
+}
+.animate-admin-pulse-live {
+  animation: admin-pulse-live 2s ease-in-out infinite;
+}
+.animate-admin-bar-fill {
+  animation: admin-bar-fill 0.8s ease-out both;
+}
+.animate-admin-count-up {
+  animation: admin-count-up 0.4s ease-out both;
+}
+
+/* Staggered animation delays */
+.admin-delay-1 { animation-delay: 0.05s; }
+.admin-delay-2 { animation-delay: 0.1s; }
+.admin-delay-3 { animation-delay: 0.15s; }
+.admin-delay-4 { animation-delay: 0.2s; }
+.admin-delay-5 { animation-delay: 0.25s; }
+.admin-delay-6 { animation-delay: 0.3s; }
+
+/* Glassmorphism utility */
+.admin-glass {
+  background: hsl(var(--card) / 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
 /* Hide Lovable badge */
 #lovable-badge,
 [data-lovable-badge],

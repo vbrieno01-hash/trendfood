@@ -19,14 +19,13 @@ import WhatsAppConnectTab from "@/components/admin/WhatsAppConnectTab";
 import ReferralsTab from "@/components/admin/ReferralsTab";
 import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
-import logoIcon from "@/assets/logo-icon.png";
+import logoDashboard from "@/assets/logo-dashboard.png";
 import {
   Store,
   ShieldAlert,
   TrendingUp,
   ExternalLink,
   Loader2,
-  
   CheckCircle2,
   AlertCircle,
   Search,
@@ -53,6 +52,7 @@ import {
   ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
+  
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -224,7 +224,6 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
 
 type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes";
 
-// ── Nav groups ──
 interface NavGroup {
   label: string;
   items: { key: AdminTab; icon: React.ReactNode; label: string }[];
@@ -319,7 +318,6 @@ function AdminContent() {
     load();
   }, []);
 
-  // ── SaaS KPIs ──
   const payingOrgs = useMemo(() => orgs.filter((o) => o.subscription_plan !== "free" && o.subscription_plan !== "lifetime"), [orgs]);
   const proCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "pro").length, [orgs]);
   const enterpriseCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "enterprise").length, [orgs]);
@@ -343,7 +341,6 @@ function AdminContent() {
 
   const totalRevenue = useMemo(() => subscriberDetails.reduce((acc, s) => acc + s.totalEstimated, 0), [subscriberDetails]);
 
-  // ── New stores this month vs last ──
   const { newThisMonth, newLastMonth } = useMemo(() => {
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -405,7 +402,6 @@ function AdminContent() {
     navigate("/auth", { replace: true });
   };
 
-  // ── Greeting ──
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Bom dia";
@@ -419,12 +415,14 @@ function AdminContent() {
     month: "long",
   });
 
+  const adminInitial = user?.email?.charAt(0).toUpperCase() ?? "A";
+
   return (
     <div className="min-h-screen bg-background flex w-full">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-all"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -436,17 +434,20 @@ function AdminContent() {
           w-[272px] transform transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
+          shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)]
         `}
         style={{
-          background: "linear-gradient(180deg, #0f0f0f 0%, #1a1208 50%, #0f0f0f 100%)",
+          background: "linear-gradient(180deg, #0c0c0c 0%, #18110a 40%, #110e08 100%)",
         }}
       >
+        {/* Glow border right */}
+        <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-primary/20 to-transparent" />
+
         {/* Logo area */}
         <div className="px-5 py-5 border-b border-white/[0.06]">
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <img src={logoIcon} alt="TrendFood" className="w-9 h-9 rounded-xl object-contain" />
-              <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 group-hover:ring-primary/40 transition-all" />
+              <img src={logoDashboard} alt="TrendFood" className="w-10 h-10 rounded-xl object-contain ring-1 ring-white/10 group-hover:ring-primary/40 transition-all duration-300 group-hover:scale-105" />
             </div>
             <div>
               <span className="font-extrabold text-white text-[15px] tracking-tight block leading-tight">TrendFood</span>
@@ -455,14 +456,20 @@ function AdminContent() {
           </Link>
         </div>
 
-        {/* Admin badge */}
+        {/* Admin badge with live indicator */}
         <div className="px-4 py-3">
-          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-white/[0.03] border border-white/[0.06]">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center border border-primary/20">
+          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-gradient-to-r from-primary/[0.08] to-transparent border border-primary/10">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/40 to-primary/15 flex items-center justify-center border border-primary/25 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.3)]">
               <ShieldAlert className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-white/90 text-xs truncate">Administrador</p>
+              <div className="flex items-center gap-1.5">
+                <p className="font-semibold text-white/90 text-xs truncate">Administrador</p>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-admin-pulse-live absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              </div>
               <p className="text-white/30 text-[10px] truncate">{user?.email}</p>
             </div>
           </div>
@@ -480,16 +487,16 @@ function AdminContent() {
                     <button
                       key={item.key}
                       onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 text-left relative ${
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 text-left relative group/nav ${
                         isActive
-                          ? "bg-primary/15 text-primary"
+                          ? "bg-primary/15 text-primary shadow-[0_0_16px_-4px_hsl(var(--primary)/0.25)]"
                           : "text-white/45 hover:bg-white/[0.04] hover:text-white/70"
                       }`}
                     >
                       {isActive && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full shadow-[0_0_8px_hsl(var(--primary)/0.5)]" />
                       )}
-                      {item.icon}
+                      <span className="group-hover/nav:scale-110 transition-transform duration-200">{item.icon}</span>
                       <span>{item.label}</span>
                     </button>
                   );
@@ -503,16 +510,16 @@ function AdminContent() {
         <div className="px-3 pb-4 pt-2 border-t border-white/[0.06] space-y-1">
           <Link
             to="/dashboard"
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/45 hover:bg-white/[0.04] hover:text-white/70 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/45 hover:bg-white/[0.04] hover:text-white/70 transition-all group/nav"
           >
-            <LayoutDashboard className="w-4 h-4" />
+            <span className="group-hover/nav:scale-110 transition-transform"><LayoutDashboard className="w-4 h-4" /></span>
             Ir ao Dashboard
           </Link>
           <Link
             to="/"
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/45 hover:bg-white/[0.04] hover:text-white/70 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/45 hover:bg-white/[0.04] hover:text-white/70 transition-all group/nav"
           >
-            <Globe className="w-4 h-4" />
+            <span className="group-hover/nav:scale-110 transition-transform"><Globe className="w-4 h-4" /></span>
             Ver o Site
           </Link>
           <button
@@ -528,8 +535,8 @@ function AdminContent() {
       {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 border-b border-border"
-          style={{ background: "linear-gradient(135deg, hsl(var(--background)) 0%, hsl(24 20% 97%) 100%)" }}
+        <header className="lg:hidden sticky top-0 z-30 border-b border-border shadow-sm"
+          style={{ background: "linear-gradient(135deg, hsl(var(--background)) 0%, hsl(24 30% 96%) 100%)" }}
         >
           <div className="px-4 py-3 flex items-center justify-between">
             <button
@@ -539,8 +546,12 @@ function AdminContent() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <img src={logoIcon} alt="" className="w-6 h-6 rounded-lg" />
-              <span className="font-bold text-sm">TrendFood Admin</span>
+              <img src={logoDashboard} alt="" className="w-7 h-7 rounded-lg" />
+              <span className="font-bold text-sm">TrendFood</span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-admin-pulse-live absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
             </div>
             <div className="w-9" />
           </div>
@@ -550,98 +561,122 @@ function AdminContent() {
           {/* ── Home Tab ── */}
           {activeTab === "home" && (
             <div className="space-y-8">
-              {/* Greeting header */}
-              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-                <div>
-                  <h1 className="text-xl font-bold text-foreground">{greeting}, Admin 👋</h1>
-                  <p className="text-sm text-muted-foreground capitalize mt-0.5">{todayFormatted}</p>
+              {/* Greeting header with avatar and live indicator */}
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-admin-fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
+                    {adminInitial}
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-foreground">{greeting}, Admin 👋</h1>
+                    <p className="text-sm text-muted-foreground capitalize mt-0.5">{todayFormatted}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-admin-pulse-live absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Plataforma Online</span>
+                  </div>
                   <Link
                     to="/dashboard"
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    Dashboard do Lojista
+                    Dashboard
                     <ChevronRight className="w-3 h-3" />
                   </Link>
                 </div>
               </div>
 
-              {/* KPI cards - scrollable on mobile */}
+              {/* KPI cards with glassmorphism and staggered animation */}
               <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
                 <KpiCard
                   icon={<DollarSign className="w-4 h-4" />}
                   label="Receita Estimada"
                   value={loading ? null : fmt(totalRevenue)}
-                  iconBg="bg-emerald-500/10"
+                  gradient="from-emerald-500/20 to-emerald-500/5"
+                  iconBg="bg-emerald-500/15"
                   iconColor="text-emerald-600 dark:text-emerald-400"
+                  delay={1}
                 />
                 <KpiCard
                   icon={<TrendingUp className="w-4 h-4" />}
                   label="MRR"
                   value={loading ? null : fmt(mrr)}
-                  iconBg="bg-blue-500/10"
+                  gradient="from-blue-500/20 to-blue-500/5"
+                  iconBg="bg-blue-500/15"
                   iconColor="text-blue-600 dark:text-blue-400"
+                  delay={2}
                 />
                 <KpiCard
                   icon={<CalendarPlus className="w-4 h-4" />}
                   label="A Receber (Mês)"
                   value={loading ? null : fmt(mrr)}
-                  iconBg="bg-violet-500/10"
+                  gradient="from-violet-500/20 to-violet-500/5"
+                  iconBg="bg-violet-500/15"
                   iconColor="text-violet-600 dark:text-violet-400"
+                  delay={3}
                 />
                 <KpiCard
                   icon={<Store className="w-4 h-4" />}
                   label="Total Lojas"
                   value={loading ? null : orgs.length.toString()}
-                  iconBg="bg-cyan-500/10"
+                  gradient="from-cyan-500/20 to-cyan-500/5"
+                  iconBg="bg-cyan-500/15"
                   iconColor="text-cyan-600 dark:text-cyan-400"
                   trend={newLastMonth > 0 ? Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100) : undefined}
+                  delay={4}
                 />
                 <KpiCard
                   icon={<Users className="w-4 h-4" />}
                   label="Assinantes"
                   value={loading ? null : payingOrgs.length.toString()}
-                  iconBg="bg-orange-500/10"
+                  gradient="from-orange-500/20 to-orange-500/5"
+                  iconBg="bg-orange-500/15"
                   iconColor="text-orange-600 dark:text-orange-400"
+                  delay={5}
                 />
                 <KpiCard
                   icon={<Sparkles className="w-4 h-4" />}
                   label="Trials"
                   value={loading ? null : trialCount.toString()}
-                  iconBg="bg-amber-500/10"
+                  gradient="from-amber-500/20 to-amber-500/5"
+                  iconBg="bg-amber-500/15"
                   iconColor="text-amber-600 dark:text-amber-400"
+                  delay={6}
                 />
               </div>
 
-              {/* Quick actions */}
+              {/* Quick actions with colored icons */}
               {!loading && (
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap animate-admin-fade-in admin-delay-3">
                   <button
                     onClick={() => setActiveTab("lojas")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105 transition-all duration-200 shadow-sm"
                   >
                     <Store className="w-3.5 h-3.5" />
                     Ver Lojas
                   </button>
                   <button
                     onClick={() => setActiveTab("ativacoes")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
                   >
                     <ScrollText className="w-3.5 h-3.5" />
                     Ver Ativações
                   </button>
                   <button
                     onClick={() => setActiveTab("logs")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
                   >
                     <AlertCircle className="w-3.5 h-3.5" />
                     Logs de Erros
                   </button>
                   <button
                     onClick={() => setActiveTab("vendas")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
                     Chat de Vendas
@@ -651,25 +686,26 @@ function AdminContent() {
 
               {!loading && <GrowthCharts orgs={orgs} />}
 
-              {/* ── Subscriber details ── */}
+              {/* ── Subscriber details with premium table ── */}
               {!loading && (
-                <section>
+                <section className="animate-admin-slide-up admin-delay-4">
                   <div className="flex items-center gap-2 mb-4">
                     <Crown className="w-4 h-4 text-primary/60" />
                     <h2 className="text-sm font-bold text-foreground">Detalhamento de Assinantes</h2>
                   </div>
                   {subscriberDetails.length === 0 ? (
-                    <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                    <div className="admin-glass rounded-2xl p-8 text-center">
                       <p className="text-sm text-muted-foreground">Nenhum assinante pago ainda</p>
                     </div>
                   ) : (
-                    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                    <div className="admin-glass rounded-2xl overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-border bg-muted/30">
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Loja</th>
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Plano</th>
+                              <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Status</th>
                               <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Valor/mês</th>
                               <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Meses</th>
                               <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Estimado</th>
@@ -677,10 +713,10 @@ function AdminContent() {
                           </thead>
                           <tbody>
                             {subscriberDetails.map((s) => (
-                              <tr key={s.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
+                              <tr key={s.id} className="border-b border-border/50 last:border-0 hover:bg-gradient-to-r hover:from-primary/[0.03] hover:to-transparent transition-all duration-200">
                                 <td className="px-5 py-3.5">
-                                  <div className="flex items-center gap-2.5">
-                                    <div className={`w-7 h-7 rounded-lg ${getAvatarColor(s.name)} flex items-center justify-center text-white text-xs font-bold`}>
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-xl ${getAvatarColor(s.name)} flex items-center justify-center text-white text-xs font-bold shadow-md`}>
                                       {s.emoji !== "🍽️" ? s.emoji : s.name.charAt(0).toUpperCase()}
                                     </div>
                                     <span className="font-medium text-foreground">{s.name}</span>
@@ -693,6 +729,15 @@ function AdminContent() {
                                     {s.subscription_plan}
                                   </Badge>
                                 </td>
+                                <td className="px-5 py-3.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="animate-admin-pulse-live absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    </span>
+                                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Ativo</span>
+                                  </div>
+                                </td>
                                 <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{fmt(s.planValue)}</td>
                                 <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{s.monthsActive}</td>
                                 <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">{fmt(s.totalEstimated)}</td>
@@ -700,8 +745,8 @@ function AdminContent() {
                             ))}
                           </tbody>
                           <tfoot>
-                            <tr className="bg-primary/[0.03]">
-                              <td colSpan={4} className="px-5 py-3 text-xs font-bold text-muted-foreground text-right uppercase tracking-wider">Total</td>
+                            <tr style={{ background: "linear-gradient(90deg, hsl(24 95% 53% / 0.06) 0%, transparent 100%)" }}>
+                              <td colSpan={5} className="px-5 py-3 text-xs font-bold text-muted-foreground text-right uppercase tracking-wider">Total</td>
                               <td className="px-5 py-3 text-right font-bold tabular-nums text-foreground">{fmt(totalRevenue)}</td>
                             </tr>
                           </tfoot>
@@ -717,7 +762,7 @@ function AdminContent() {
           {/* ── Lojas Tab ── */}
           {activeTab === "lojas" && (
             <section className="space-y-5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between animate-admin-fade-in">
                 <div>
                   <h2 className="text-lg font-bold text-foreground">Lojas da Plataforma</h2>
                   {!loading && (
@@ -737,7 +782,7 @@ function AdminContent() {
 
               {/* Filter bar */}
               {!loading && orgs.length > 0 && (
-                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <div className="admin-glass rounded-2xl p-4 space-y-3 animate-admin-fade-in admin-delay-1">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     <Input
@@ -763,9 +808,9 @@ function AdminContent() {
                         <button
                           key={v}
                           onClick={() => setStatusFilter(v)}
-                          className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-all duration-200 ${
                             statusFilter === v
-                              ? "bg-primary text-primary-foreground shadow-sm"
+                              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
                               : "bg-muted/60 text-muted-foreground hover:bg-muted"
                           }`}
                         >
@@ -780,9 +825,9 @@ function AdminContent() {
                         <button
                           key={v}
                           onClick={() => setAddressFilter(v)}
-                          className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-all duration-200 ${
                             addressFilter === v
-                              ? "bg-primary text-primary-foreground shadow-sm"
+                              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
                               : "bg-muted/60 text-muted-foreground hover:bg-muted"
                           }`}
                         >
@@ -825,8 +870,8 @@ function AdminContent() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredOrgs.map((org) => (
-                    <StoreCard key={org.id} org={org} onPlanChange={handlePlanChange} onDelete={(id, name) => setDeleteTarget({ id, name })} />
+                  {filteredOrgs.map((org, i) => (
+                    <StoreCard key={org.id} org={org} index={i} onPlanChange={handlePlanChange} onDelete={(id, name) => setDeleteTarget({ id, name })} />
                   ))}
                 </div>
               )}
@@ -834,7 +879,7 @@ function AdminContent() {
           )}
 
           {activeTab === "config" && (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-admin-fade-in">
               <PlansConfigSection />
               <TrialConfigSection />
               <PlatformConfigSection />
@@ -843,7 +888,7 @@ function AdminContent() {
           )}
 
           {activeTab === "features" && (
-            <section>
+            <section className="animate-admin-fade-in">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="w-4 h-4 text-primary/60" />
                 <h2 className="text-sm font-bold text-foreground">Funcionalidades da Plataforma</h2>
@@ -881,9 +926,9 @@ function AdminContent() {
   );
 }
 
-/* ── KPI Card — compact with trend indicator ── */
+/* ── KPI Card — glassmorphism with gradient and animation ── */
 function KpiCard({
-  icon, label, value, iconBg, iconColor, trend,
+  icon, label, value, iconBg, iconColor, trend, gradient, delay,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -891,11 +936,14 @@ function KpiCard({
   iconBg: string;
   iconColor: string;
   trend?: number;
+  gradient?: string;
+  delay?: number;
 }) {
   return (
-    <div className="min-w-[140px] bg-card border border-border rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-md hover:border-border/80 transition-all duration-200 group">
-      <div className="flex items-center justify-between">
-        <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-105 transition-transform`}>
+    <div className={`min-w-[140px] admin-glass rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in admin-delay-${delay ?? 1}`}>
+      <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient ?? ""} opacity-50 pointer-events-none`} />
+      <div className="relative flex items-center justify-between">
+        <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform duration-200`}>
           {icon}
         </div>
         {trend !== undefined && trend !== 0 && (
@@ -905,17 +953,19 @@ function KpiCard({
           </div>
         )}
       </div>
-      {value === null ? (
-        <Skeleton className="h-6 w-14" />
-      ) : (
-        <p className="text-lg font-bold text-foreground leading-none">{value}</p>
-      )}
-      <p className="text-[11px] text-muted-foreground leading-snug font-medium">{label}</p>
+      <div className="relative">
+        {value === null ? (
+          <Skeleton className="h-6 w-14" />
+        ) : (
+          <p className="text-lg font-bold text-foreground leading-none animate-admin-count-up">{value}</p>
+        )}
+      </div>
+      <p className="relative text-[11px] text-muted-foreground leading-snug font-medium">{label}</p>
     </div>
   );
 }
 
-/* ── Setup Score ── */
+/* ── Setup Score with animated bar ── */
 function SetupScore({ org }: { org: OrgRow }) {
   const checks = [
     !!org.store_address,
@@ -931,10 +981,10 @@ function SetupScore({ org }: { org: OrgRow }) {
         <span>Setup</span>
         <span className={pct === 100 ? "text-emerald-600 dark:text-emerald-400 font-bold" : ""}>{pct}%</span>
       </div>
-      <div className="h-1 bg-muted rounded-full overflow-hidden">
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${
-            pct === 100 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-rose-400"
+          className={`h-full rounded-full animate-admin-bar-fill ${
+            pct === 100 ? "bg-gradient-to-r from-emerald-500 to-emerald-400" : pct >= 50 ? "bg-gradient-to-r from-amber-500 to-amber-400" : "bg-gradient-to-r from-rose-400 to-rose-300"
           }`}
           style={{ width: `${pct}%` }}
         />
@@ -943,8 +993,8 @@ function SetupScore({ org }: { org: OrgRow }) {
   );
 }
 
-/* ── Store Card — refined ── */
-function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void }) {
+/* ── Store Card — premium with hover elevation ── */
+function StoreCard({ org, onPlanChange, onDelete, index }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void; index: number }) {
   const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
   const [activating, setActivating] = useState(false);
@@ -996,10 +1046,13 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg hover:border-border/80 transition-all duration-200 flex flex-col group">
+    <div
+      className="admin-glass rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group animate-admin-fade-in"
+      style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
+    >
       <div className="p-5 flex items-start gap-3 flex-1">
         <div
-          className={`w-10 h-10 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-base shrink-0 group-hover:scale-105 transition-transform`}
+          className={`w-11 h-11 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-base shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-lg`}
         >
           {org.emoji !== "🍽️" ? org.emoji : initial}
         </div>
@@ -1016,7 +1069,7 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
               href={`/unidade/${org.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded-lg hover:bg-primary/10"
+              className="shrink-0 text-muted-foreground hover:text-primary transition-all p-1.5 rounded-lg hover:bg-primary/10 hover:scale-110"
               title="Abrir loja"
             >
               <ExternalLink className="w-3.5 h-3.5" />
@@ -1025,12 +1078,18 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
 
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <Badge
-              className={`text-[10px] px-2 py-0.5 rounded-full border-0 font-bold ${
+              className={`text-[10px] px-2 py-0.5 rounded-full border-0 font-bold flex items-center gap-1 ${
                 isActive
                   ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
                   : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
               }`}
             >
+              {isActive && (
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-admin-pulse-live absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
+              )}
               {isActive ? "Ativo" : "Trial"}
             </Badge>
             {org.store_address ? (
@@ -1063,7 +1122,7 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
           <button
             onClick={quickActivate}
             disabled={activating || localOrg.subscription_plan === "pro"}
-            className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+            className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 hover:scale-105 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
           >
             {activating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
             Ativar 30d
@@ -1083,14 +1142,14 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
         )}
       </div>
 
-      <div className="border-t border-border/50 px-5 py-2.5 flex items-center justify-between bg-muted/20">
+      <div className="border-t border-border/50 px-5 py-2.5 flex items-center justify-between bg-muted/10">
         <span className="text-[10px] text-muted-foreground">
           Desde {new Date(org.created_at).toLocaleDateString("pt-BR")}
         </span>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => onDelete(org.id, org.name)}
-            className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:scale-110 transition-all duration-200"
             title="Excluir loja"
           >
             <Trash2 className="w-3 h-3" />
@@ -1114,7 +1173,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
   const isActionable = feature.status === "available" || feature.status === "beta";
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 hover:shadow-md hover:border-border/80 transition-all duration-200">
+    <div className="admin-glass rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
       <div className="flex items-start justify-between gap-3">
         <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shrink-0">
           {feature.icon}

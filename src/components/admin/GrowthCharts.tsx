@@ -58,14 +58,14 @@ export default function GrowthCharts({ orgs }: GrowthChartsProps) {
   }, [orgs, months]);
 
   return (
-    <section>
+    <section className="animate-admin-slide-up admin-delay-3">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-4 h-4 text-primary/60" />
         <h2 className="text-sm font-bold text-foreground">Crescimento da Plataforma</h2>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Novas Lojas por Mês" data={storeData} colorId="stores" color="hsl(24, 95%, 53%)" />
-        <ChartCard title="MRR por Mês" data={mrrData} colorId="mrr" color="hsl(142, 71%, 45%)" isCurrency />
+        <ChartCard title="Novas Lojas por Mês" data={storeData} colorId="stores" color="hsl(24, 95%, 53%)" delay={1} />
+        <ChartCard title="MRR por Mês" data={mrrData} colorId="mrr" color="hsl(142, 71%, 45%)" isCurrency delay={2} />
       </div>
     </section>
   );
@@ -74,7 +74,7 @@ export default function GrowthCharts({ orgs }: GrowthChartsProps) {
 function CustomTooltip({ active, payload, label, isCurrency }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg">
+    <div className="admin-glass rounded-xl px-3.5 py-2.5 shadow-xl">
       <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">{label}</p>
       <p className="text-sm font-bold text-foreground">
         {isCurrency ? fmt(payload[0].value) : payload[0].value}
@@ -83,23 +83,34 @@ function CustomTooltip({ active, payload, label, isCurrency }: any) {
   );
 }
 
-function ChartCard({ title, data, colorId, color, isCurrency }: {
+function ChartCard({ title, data, colorId, color, isCurrency, delay }: {
   title: string;
   data: { name: string; value: number }[];
   colorId: string;
   color: string;
   isCurrency?: boolean;
+  delay?: number;
 }) {
+  const lastValue = data[data.length - 1]?.value ?? 0;
+
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 hover:shadow-md transition-shadow">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-4">{title}</p>
+    <div className={`admin-glass rounded-2xl p-5 hover:shadow-lg transition-all duration-300 animate-admin-fade-in admin-delay-${delay ?? 1}`}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{title}</p>
+        <div className="text-right">
+          <p className="text-lg font-bold text-foreground leading-none animate-admin-count-up">
+            {isCurrency ? fmt(lastValue) : lastValue}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">atual</p>
+        </div>
+      </div>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>
               <linearGradient id={`gradient-${colorId}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
+                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={color} stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
