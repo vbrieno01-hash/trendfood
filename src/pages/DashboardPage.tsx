@@ -19,7 +19,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike, Package,
+  BookOpen, Sparkles, FileBarChart, Share2, Printer, Bike, Package, Gift,
   ChevronDown,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -48,7 +48,7 @@ import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
 import StockTab from "@/components/dashboard/StockTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
-import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
+
 
 
 type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral";
@@ -783,15 +783,11 @@ const DashboardPage = () => {
         {/* Bottom actions */}
         <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
           <button
-            onClick={() => {
-              const msg = encodeURIComponent("Cansado de perder tempo anotando pedido no papel? 📝 Conheça o TrendFood: o sistema que vai agilizar sua cozinha e organizar seu delivery em poucos cliques. 🚀\n\nConfira como funciona: https://trendfood.lovable.app");
-              const url = `https://wa.me/?text=${msg}`;
-              openWhatsAppWithFallback(url, { mode: "share" });
-            }}
+            onClick={() => setActiveTab("referral")}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-all duration-150"
           >
-            <Share2 className="w-4 h-4" />
-            Indique o TrendFood
+            <Gift className="w-4 h-4" />
+            Ganhe Desconto
           </button>
           <a
             href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
