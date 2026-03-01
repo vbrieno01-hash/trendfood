@@ -1,47 +1,19 @@
 
-
-## Plano: Permitir trocar de ciclo de cobrança (mensal → anual)
+## Plano: Tornar a verificação do Grátis mais robusta
 
 ### Problema
-Quando o usuário está no plano Pro **mensal** e ativa o toggle **Anual**, o botão do Pro continua como "Plano atual" desabilitado. Ele não consegue assinar o plano anual do mesmo plano.
+A lógica atual no `PlanCard.tsx` verifica `price === "Grátis"` para esconder o botão, mas isso depende do texto exato do preço. Vou trocar para uma verificação mais confiável usando `price === "Grátis" || price === "R$ 0"` e também garantir que nenhum outro caminho renderize o botão para o plano gratuito quando logado.
 
-### Solução
-Quando o toggle está em **Anual** e o plano atual do usuário é mensal (ou vice-versa), o botão do plano atual deve ser clicável com texto como "Mudar para anual".
+### Alteração
 
-### Alterações
+**Arquivo: `src/components/pricing/PlanCard.tsx`**
+- Trocar a verificação de `price === "Grátis"` para `price === "Grátis" || price === "R$ 0" || price === "0"` para cobrir qualquer formatação possível
 
-**1. `src/components/pricing/PlanCard.tsx`**
-- Adicionar prop `billingMismatch?: boolean` — indica que o usuário está no plano mas com ciclo diferente
-- Quando `currentPlan && billingMismatch && onSelect`: renderizar botão clicável com texto do `cta` (ex: "Mudar para anual")
-- Quando `currentPlan && !billingMismatch`: manter "Plano atual" desabilitado (comportamento atual)
+**Arquivo: `src/components/dashboard/SubscriptionTab.tsx`**
+- No card do plano Free, quando `isSamePlan` é `true`, NÃO passar `onSelect` (já é assim, mas confirmar que `billingMismatch` não ativa por engano para o plano free)
+- Verificar que o plano free nunca receba `billingMismatch = true`
 
-**2. `src/components/dashboard/SubscriptionTab.tsx`**
-- Verificar o `billing_cycle` da organização (campo `organization.billing_cycle`)
-- Calcular se há diferença de ciclo: `isAnnual && billingCycle !== 'annual'` ou `!isAnnual && billingCycle !== 'monthly'`
-- Passar `billingMismatch` e manter `onSelect` ativo mesmo para o plano atual quando há diferença de ciclo
-- Ajustar o `cta` para "Mudar para anual" ou "Mudar para mensal"
+**Arquivo: `src/pages/PricingPage.tsx`**
+- Mesma verificação: garantir que o plano free com `currentPlan=true` nunca tenha `onSelect` nem `billingMismatch`
 
-**3. `src/pages/PricingPage.tsx`**
-- Aplicar a mesma lógica de `billingMismatch` usando `organization?.billing_cycle`
-
-**4. `src/components/dashboard/UpgradeDialog.tsx`**
-- Aplicar a mesma lógica (UpgradeDialog já filtra planos pagos, mas precisa da mesma prop)
-
-### Lógica resumida
-```
-const billingCycle = organization?.billing_cycle || 'monthly';
-const billingMismatch = currentPlan === plan.key && (
-  (isAnnual && billingCycle !== 'annual') || 
-  (!isAnnual && billingCycle === 'annual')
-);
-
-// No PlanCard:
-onSelect={
-  (plan.key !== currentPlan || billingMismatch) && !isLifetime
-    ? () => handleSubscribe(plan.key)
-    : undefined
-}
-```
-
-**Também corrigir**: O card do plano Grátis mostra "Plano atual" quando o usuário está no Pro — isso é um bug separado. O `onSelect` não está `undefined` para Free, mas o botão renderiza como "Plano atual". Preciso verificar se há conflito.
-
+A mudança é mínima — apenas blindar a lógica contra edge cases de formatação.
