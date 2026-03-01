@@ -6,6 +6,112 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** After activating an org, reward the referrer if applicable */
+async function processReferralBonus(
+  supabase: ReturnType<typeof createClient>,
+  activatedOrgId: string,
+  accessToken: string,
+) {
+  try {
+    // Get the activated org's referred_by_id
+    const { data: activatedOrg } = await supabase
+      .from("organizations")
+      .select("referred_by_id, name")
+      .eq("id", activatedOrgId)
+      .single();
+
+    if (!activatedOrg?.referred_by_id) return;
+
+    const referrerId = activatedOrg.referred_by_id;
+
+    // Check if bonus already granted for this pair
+    const { data: existing } = await supabase
+      .from("referral_bonuses")
+      .select("id")
+      .eq("referrer_org_id", referrerId)
+      .eq("referred_org_id", activatedOrgId)
+      .maybeSingle();
+
+    if (existing) {
+      console.log("[mp-webhook] Referral bonus already granted for pair", referrerId, activatedOrgId);
+      return;
+    }
+
+    // Insert bonus record
+    await supabase.from("referral_bonuses").insert({
+      referrer_org_id: referrerId,
+      referred_org_id: activatedOrgId,
+      bonus_days: 10,
+      referred_org_name: activatedOrg.name || null,
+    });
+
+    // Add +10 days to referrer's trial_ends_at
+    const { data: referrerOrg } = await supabase
+      .from("organizations")
+      .select("trial_ends_at, mp_subscription_id, name")
+      .eq("id", referrerId)
+      .single();
+
+    if (referrerOrg) {
+      const currentExpiry = referrerOrg.trial_ends_at
+        ? new Date(referrerOrg.trial_ends_at)
+        : new Date();
+      const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from("organizations")
+        .update({ trial_ends_at: newExpiry.toISOString() })
+        .eq("id", referrerId);
+
+      console.log("[mp-webhook] Referral bonus: +10 days for org", referrerId);
+
+      // Best-effort: postpone next MP billing by 10 days
+      if (referrerOrg.mp_subscription_id) {
+        try {
+          const mpRes = await fetch(
+            `https://api.mercadopago.com/preapproval/${referrerOrg.mp_subscription_id}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+          );
+          const sub = await mpRes.json();
+          if (mpRes.ok && sub.next_payment_date) {
+            const nextPayment = new Date(sub.next_payment_date);
+            nextPayment.setDate(nextPayment.getDate() + 10);
+            await fetch(
+              `https://api.mercadopago.com/preapproval/${referrerOrg.mp_subscription_id}`,
+              {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  next_payment_date: nextPayment.toISOString(),
+                }),
+              },
+            );
+            console.log("[mp-webhook] MP next_payment_date postponed +10 days for", referrerId);
+          }
+        } catch (mpErr) {
+          console.error("[mp-webhook] Failed to postpone MP billing (non-blocking):", mpErr);
+        }
+      }
+
+      await supabase.from("activation_logs").insert({
+        organization_id: referrerId,
+        org_name: referrerOrg.name || null,
+        old_plan: null,
+        new_plan: null,
+        old_status: null,
+        new_status: null,
+        source: "referral_bonus",
+        notes: `+10 dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
+      });
+    }
+  } catch (err) {
+    console.error("[mp-webhook] Referral bonus error (non-blocking):", err);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -59,26 +165,18 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get current org
       const { data: org } = await supabase
         .from("organizations")
         .select("subscription_plan, subscription_status, name")
         .eq("id", orgId)
         .single();
 
-      // Determine plan from reason string or amount
       let plan = "pro";
-      if (sub.auto_recurring?.transaction_amount >= 200) {
-        plan = "enterprise";
-      }
-      // Also try to extract from reason
-      if (sub.reason?.toLowerCase().includes("enterprise")) {
-        plan = "enterprise";
-      }
+      if (sub.auto_recurring?.transaction_amount >= 200) plan = "enterprise";
+      if (sub.reason?.toLowerCase().includes("enterprise")) plan = "enterprise";
 
       if (sub.status === "authorized") {
-        // Activate plan
-        const trialEnds = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString(); // +35 days buffer
+        const trialEnds = new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString();
         await supabase
           .from("organizations")
           .update({
@@ -101,8 +199,10 @@ Deno.serve(async (req) => {
         });
 
         console.log("[mp-webhook] Org activated:", orgId, "plan:", plan);
+
+        // ── Referral bonus ──
+        await processReferralBonus(supabase, orgId, accessToken);
       } else if (sub.status === "cancelled" || sub.status === "paused") {
-        // Revert to free
         await supabase
           .from("organizations")
           .update({
@@ -131,7 +231,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Handle payment notifications (recurring payments from subscriptions) ──
+    // ── Handle payment notifications ──
     if (body.type === "payment" || body.action === "payment.updated") {
       const paymentId = body.data?.id;
       if (!paymentId) {
@@ -162,10 +262,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check if this is a recurring subscription payment
+      // Recurring subscription payment
       if (mpData.point_of_interaction?.type === "SUBSCRIPTIONS" || mpData.metadata?.preapproval_id) {
-        // This is a recurring charge — renew trial_ends_at
-        // Find org by mp_subscription_id or external_reference
         const preapprovalId = mpData.metadata?.preapproval_id;
         let orgId: string | null = null;
 
@@ -178,7 +276,6 @@ Deno.serve(async (req) => {
           if (orgBySubId) orgId = orgBySubId.id;
         }
 
-        // Also try external_reference from the payment
         if (!orgId && mpData.external_reference) {
           orgId = mpData.external_reference;
         }
@@ -208,13 +305,17 @@ Deno.serve(async (req) => {
           });
 
           console.log("[mp-webhook] Recurring payment renewed org:", orgId);
+
+          // ── Referral bonus (first payment) ──
+          await processReferralBonus(supabase, orgId, accessToken);
+
           return new Response(JSON.stringify({ success: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
       }
 
-      // Fallback: legacy one-time payment flow (from metadata)
+      // Legacy one-time payment flow
       const orgId = mpData.metadata?.org_id;
       const plan = mpData.metadata?.plan;
 
@@ -254,12 +355,14 @@ Deno.serve(async (req) => {
 
       console.log("[mp-webhook] Org updated:", orgId, "plan:", plan);
 
+      // ── Referral bonus ──
+      await processReferralBonus(supabase, orgId, accessToken);
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Other notification types — just acknowledge
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Gift, Users } from "lucide-react";
+import { Copy, Check, Gift, Users, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+
+interface ReferralBonus {
+  id: string;
+  bonus_days: number;
+  referred_org_name: string | null;
+  created_at: string;
+}
 
 interface ReferralSectionProps {
   orgId: string;
@@ -11,15 +19,31 @@ interface ReferralSectionProps {
 export default function ReferralSection({ orgId }: ReferralSectionProps) {
   const [count, setCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [bonuses, setBonuses] = useState<ReferralBonus[]>([]);
+  const [totalDays, setTotalDays] = useState(0);
 
   const referralLink = `${window.location.origin}/cadastro?ref=${orgId}`;
 
   useEffect(() => {
+    // Count referrals
     (supabase
       .from("organizations")
       .select("id", { count: "exact", head: true }) as any)
       .eq("referred_by_id", orgId)
       .then(({ count: c }: { count: number | null }) => setCount(c ?? 0));
+
+    // Fetch bonuses
+    supabase
+      .from("referral_bonuses" as any)
+      .select("id, bonus_days, referred_org_name, created_at")
+      .eq("referrer_org_id", orgId)
+      .order("created_at", { ascending: false })
+      .then(({ data }: any) => {
+        if (data) {
+          setBonuses(data);
+          setTotalDays(data.reduce((sum: number, b: ReferralBonus) => sum + b.bonus_days, 0));
+        }
+      });
   }, [orgId]);
 
   const handleCopy = async () => {
@@ -71,16 +95,58 @@ export default function ReferralSection({ orgId }: ReferralSectionProps) {
         </div>
 
         {/* Stats */}
-        <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-            <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{count ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">amigos indicados</p>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{count ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">amigos já indicados</p>
+          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <CalendarPlus className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{totalDays}</p>
+              <p className="text-xs text-muted-foreground">dias ganhos</p>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Bonus history */}
+      {bonuses.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <h3 className="font-bold text-foreground flex items-center gap-2">
+            <CalendarPlus className="w-5 h-5 text-primary" />
+            Bônus recebidos
+          </h3>
+          <div className="space-y-3">
+            {bonuses.map((b) => (
+              <div
+                key={b.id}
+                className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    +{b.bonus_days} dias por indicar{" "}
+                    <span className="font-bold">{b.referred_org_name || "uma loja"}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(b.created_at), "dd/MM/yyyy")}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-1">
+                  +{b.bonus_days}d
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
