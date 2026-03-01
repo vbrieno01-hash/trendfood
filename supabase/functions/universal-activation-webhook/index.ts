@@ -5,6 +5,76 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/** After activating an org, reward the referrer if applicable */
+async function processReferralBonus(
+  supabase: ReturnType<typeof createClient>,
+  activatedOrgId: string,
+) {
+  try {
+    const { data: activatedOrg } = await supabase
+      .from("organizations")
+      .select("referred_by_id, name")
+      .eq("id", activatedOrgId)
+      .single();
+
+    if (!activatedOrg?.referred_by_id) return;
+
+    const referrerId = activatedOrg.referred_by_id;
+
+    // Check if bonus already granted
+    const { data: existing } = await supabase
+      .from("referral_bonuses")
+      .select("id")
+      .eq("referrer_org_id", referrerId)
+      .eq("referred_org_id", activatedOrgId)
+      .maybeSingle();
+
+    if (existing) return;
+
+    // Insert bonus record
+    await supabase.from("referral_bonuses").insert({
+      referrer_org_id: referrerId,
+      referred_org_id: activatedOrgId,
+      bonus_days: 10,
+      referred_org_name: activatedOrg.name || null,
+    });
+
+    // Add +10 days to referrer's trial_ends_at
+    const { data: referrerOrg } = await supabase
+      .from("organizations")
+      .select("trial_ends_at, name")
+      .eq("id", referrerId)
+      .single();
+
+    if (referrerOrg) {
+      const currentExpiry = referrerOrg.trial_ends_at
+        ? new Date(referrerOrg.trial_ends_at)
+        : new Date();
+      const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from("organizations")
+        .update({ trial_ends_at: newExpiry.toISOString() })
+        .eq("id", referrerId);
+
+      await supabase.from("activation_logs").insert({
+        organization_id: referrerId,
+        org_name: referrerOrg.name || null,
+        old_plan: null,
+        new_plan: null,
+        old_status: null,
+        new_status: null,
+        source: "referral_bonus",
+        notes: `+10 dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
+      });
+
+      console.log("[universal-webhook] Referral bonus: +10 days for org", referrerId);
+    }
+  } catch (err) {
+    console.error("[universal-webhook] Referral bonus error (non-blocking):", err);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -148,6 +218,9 @@ Deno.serve(async (req) => {
       source: "webhook",
       notes: `+${days} dias via webhook${email ? ` (email: ${email})` : ""}`,
     });
+
+    // ── Referral bonus ──
+    await processReferralBonus(supabase, orgId!);
 
     return new Response(
       JSON.stringify({

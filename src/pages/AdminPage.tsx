@@ -74,6 +74,67 @@ function downloadCSV(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Process referral bonus on the client side (for manual activations) */
+async function processReferralBonusClient(activatedOrgId: string, activatedOrgName: string) {
+  try {
+    const { data: activatedOrg } = await supabase
+      .from("organizations")
+      .select("referred_by_id")
+      .eq("id", activatedOrgId)
+      .single();
+
+    if (!activatedOrg?.referred_by_id) return;
+
+    const referrerId = activatedOrg.referred_by_id;
+
+    // Check if bonus already granted
+    const { data: existing } = await (supabase.from("referral_bonuses") as any)
+      .select("id")
+      .eq("referrer_org_id", referrerId)
+      .eq("referred_org_id", activatedOrgId)
+      .maybeSingle();
+
+    if (existing) return;
+
+    // Insert bonus
+    await (supabase.from("referral_bonuses") as any).insert({
+      referrer_org_id: referrerId,
+      referred_org_id: activatedOrgId,
+      bonus_days: 10,
+      referred_org_name: activatedOrgName,
+    });
+
+    // Add +10 days to referrer
+    const { data: referrerOrg } = await supabase
+      .from("organizations")
+      .select("trial_ends_at, name")
+      .eq("id", referrerId)
+      .single();
+
+    if (referrerOrg) {
+      const currentExpiry = referrerOrg.trial_ends_at
+        ? new Date(referrerOrg.trial_ends_at)
+        : new Date();
+      const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from("organizations")
+        .update({ trial_ends_at: newExpiry.toISOString() })
+        .eq("id", referrerId);
+
+      await (supabase.from("activation_logs") as any).insert({
+        organization_id: referrerId,
+        org_name: referrerOrg.name || null,
+        source: "referral_bonus",
+        notes: `+10 dias por indicar "${activatedOrgName}" (org ${activatedOrgId})`,
+      });
+
+      console.log("[referral] Bonus +10 days for org", referrerId);
+    }
+  } catch (err) {
+    console.error("[referral] Bonus error (non-blocking):", err);
+  }
+}
 
 function getAvatarColor(name: string) {
   let hash = 0;
@@ -777,6 +838,9 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
         admin_email: user?.email ?? null,
         notes: "Ativação rápida 30d",
       });
+
+      // ── Referral bonus ──
+      await processReferralBonusClient(org.id, org.name);
 
       setLocalOrg((prev) => ({
         ...prev,

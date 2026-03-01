@@ -107,6 +107,67 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
         notes: notes || null,
       });
 
+      // ── Referral bonus: when activating a paid plan ──
+      const paidPlans = ["pro", "enterprise", "lifetime"];
+      const wasNotActive = org.subscription_status !== "active" || !paidPlans.includes(org.subscription_plan);
+      const isNowActivePaid = status === "active" && paidPlans.includes(plan);
+
+      if (wasNotActive && isNowActivePaid) {
+        try {
+          const { data: activatedOrg } = await supabase
+            .from("organizations")
+            .select("referred_by_id")
+            .eq("id", org.id)
+            .single();
+
+          if (activatedOrg?.referred_by_id) {
+            const referrerId = activatedOrg.referred_by_id;
+
+            const { data: existing } = await (supabase.from("referral_bonuses") as any)
+              .select("id")
+              .eq("referrer_org_id", referrerId)
+              .eq("referred_org_id", org.id)
+              .maybeSingle();
+
+            if (!existing) {
+              await (supabase.from("referral_bonuses") as any).insert({
+                referrer_org_id: referrerId,
+                referred_org_id: org.id,
+                bonus_days: 10,
+                referred_org_name: org.name,
+              });
+
+              const { data: referrerOrg } = await supabase
+                .from("organizations")
+                .select("trial_ends_at, name")
+                .eq("id", referrerId)
+                .single();
+
+              if (referrerOrg) {
+                const currentExpiry = referrerOrg.trial_ends_at
+                  ? new Date(referrerOrg.trial_ends_at)
+                  : new Date();
+                const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+
+                await supabase
+                  .from("organizations")
+                  .update({ trial_ends_at: newExpiry.toISOString() })
+                  .eq("id", referrerId);
+
+                await (supabase.from("activation_logs") as any).insert({
+                  organization_id: referrerId,
+                  org_name: referrerOrg.name || null,
+                  source: "referral_bonus",
+                  notes: `+10 dias por indicar "${org.name}" (org ${org.id})`,
+                });
+              }
+            }
+          }
+        } catch (refErr) {
+          console.error("[ManageSubscription] Referral bonus error:", refErr);
+        }
+      }
+
       onSaved({
         subscription_plan: plan,
         subscription_status: status,
