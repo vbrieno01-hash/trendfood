@@ -597,6 +597,8 @@ const DashboardPage = () => {
     const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
     if (parentGroup) {
       setOpenGroups({ [parentGroup.id]: true });
+    } else {
+      setOpenGroups({});
     }
   }, [activeTab]);
 
