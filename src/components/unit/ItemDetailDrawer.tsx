@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMenuItemAddons } from "@/hooks/useMenuItemAddons";
 import { useGlobalAddons } from "@/hooks/useGlobalAddons";
+import { useGlobalAddonExclusions } from "@/hooks/useGlobalAddonExclusions";
 import type { MenuItem } from "@/hooks/useMenuItems";
 
 type CartItemAddon = { id: string; name: string; price: number };
@@ -32,13 +33,16 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensA
 
   const { data: itemAddons = [], isLoading: itemAddonsLoading } = useMenuItemAddons(item?.id);
   const { data: globalAddons = [], isLoading: globalAddonsLoading } = useGlobalAddons(organizationId);
+  const { data: exclusions = [], isLoading: exclusionsLoading } = useGlobalAddonExclusions(item?.id);
 
-  const addonsLoading = itemAddonsLoading || globalAddonsLoading;
+  const addonsLoading = itemAddonsLoading || globalAddonsLoading || exclusionsLoading;
 
-  // Merge: global first, then item-specific (no duplicates by name)
+  // Filter out excluded global addons, then merge with item-specific (no duplicates by name)
+  const excludedIds = new Set(exclusions.map((e) => e.global_addon_id));
+  const filteredGlobals = globalAddons.filter((a) => !excludedIds.has(a.id));
   const seenNames = new Set<string>();
   const addons = [
-    ...globalAddons.map((a) => { seenNames.add(a.name.toLowerCase()); return a; }),
+    ...filteredGlobals.map((a) => { seenNames.add(a.name.toLowerCase()); return a; }),
     ...itemAddons.filter((a) => !seenNames.has(a.name.toLowerCase())),
   ];
 

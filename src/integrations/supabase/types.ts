@@ -476,6 +476,42 @@ export type Database = {
         }
         Relationships: []
       }
+      global_addon_exclusions: {
+        Row: {
+          created_at: string | null
+          global_addon_id: string
+          id: string
+          menu_item_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          global_addon_id: string
+          id?: string
+          menu_item_id: string
+        }
+        Update: {
+          created_at?: string | null
+          global_addon_id?: string
+          id?: string
+          menu_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_addon_exclusions_global_addon_id_fkey"
+            columns: ["global_addon_id"]
+            isOneToOne: false
+            referencedRelation: "global_addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "global_addon_exclusions_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       global_addons: {
         Row: {
           available: boolean
