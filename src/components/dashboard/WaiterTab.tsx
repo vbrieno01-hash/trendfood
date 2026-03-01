@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useOrders, useUpdateOrderStatus, useDeliveredUnpaidOrders, useMarkAsPaid, useAwaitingPaymentOrders, useConfirmPixPayment } from "@/hooks/useOrders";
 import type { Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
-import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode, Flame } from "lucide-react";
 import { printOrder } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
+import KitchenTab from "@/components/dashboard/KitchenTab";
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -50,9 +52,28 @@ interface WaiterTabProps {
   orgName?: string;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
   pixKey?: string | null;
+  // KDS modal props
+  storeAddress?: string | null;
+  courierConfig?: { base_fee: number; per_km: number } | null;
+  printMode?: 'browser' | 'desktop' | 'bluetooth';
+  printerWidth?: '58mm' | '80mm';
+  btDevice?: BluetoothDevice | null;
+  onPairBluetooth?: () => void;
+  btConnected?: boolean;
+  btSupported?: boolean;
+  autoPrint: boolean;
+  onToggleAutoPrint: (val: boolean) => void;
+  notificationsEnabled: boolean;
+  onToggleNotifications: (val: boolean) => void;
 }
 
-export default function WaiterTab({ orgId, whatsapp, orgName, pixConfirmationMode, pixKey }: WaiterTabProps) {
+export default function WaiterTab({
+  orgId, whatsapp, orgName, pixConfirmationMode, pixKey,
+  storeAddress, courierConfig, printMode, printerWidth, btDevice,
+  onPairBluetooth, btConnected, btSupported,
+  autoPrint, onToggleAutoPrint, notificationsEnabled, onToggleNotifications,
+}: WaiterTabProps) {
+  const [showKds, setShowKds] = useState(false);
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
   const { data: unpaidOrders = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(orgId);
   const { data: awaitingOrders = [], isLoading: loadingAwaiting } = useAwaitingPaymentOrders(orgId);
@@ -428,6 +449,44 @@ export default function WaiterTab({ orgId, whatsapp, orgName, pixConfirmationMod
           </div>
         )}
       </div>
+
+      {/* Botão flutuante — Monitor da Cozinha */}
+      <Button
+        onClick={() => setShowKds(true)}
+        className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 h-auto text-sm font-semibold"
+      >
+        <Flame className="w-4 h-4" />
+        Monitor da Cozinha
+      </Button>
+
+      {/* Dialog fullscreen com KDS */}
+      <Dialog open={showKds} onOpenChange={setShowKds}>
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-orange-500" />
+              Monitor da Cozinha
+            </DialogTitle>
+          </DialogHeader>
+          <KitchenTab
+            orgId={orgId}
+            orgName={orgName}
+            storeAddress={storeAddress}
+            courierConfig={courierConfig}
+            printMode={printMode}
+            printerWidth={printerWidth}
+            btDevice={btDevice}
+            pixKey={pixKey}
+            onPairBluetooth={onPairBluetooth}
+            btConnected={btConnected}
+            btSupported={btSupported}
+            autoPrint={autoPrint}
+            onToggleAutoPrint={onToggleAutoPrint}
+            notificationsEnabled={notificationsEnabled}
+            onToggleNotifications={onToggleNotifications}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
