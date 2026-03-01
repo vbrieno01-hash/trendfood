@@ -1,33 +1,27 @@
 
 
-## Plano: Processar bônus de indicação em TODAS as formas de ativação
+## Plano: Card "Economia Total" na aba Ganhe Desconto
 
-### Problema
-O bônus de +10 dias para quem indicou **só é processado** quando a ativação vem pelo webhook do Mercado Pago. As seguintes fontes de ativação **não concedem o bônus**:
-- Ativação rápida pelo admin (botão "Ativar Pro 30d")
-- Gerenciamento manual de assinatura (ManageSubscriptionDialog)
-- Webhook universal (usado por gateways externos)
+### O que será feito
+Adicionar um terceiro card de estatística no `ReferralSection` que mostra quanto o usuário economizou em R$ com base nos dias de bônus acumulados, proporcional ao valor da mensalidade do plano atual.
 
-### Solução
+### Cálculo
+- Buscar o `price_cents` do plano atual do usuário na tabela `platform_plans`
+- Valor diário = `price_cents / 30`
+- Economia = `totalDays * (price_cents / 30)` convertido para R$
+- Se plano for `free`, usar o valor do plano Pro como referência (pois é o plano que o bônus estende)
 
-#### 1. `supabase/functions/universal-activation-webhook/index.ts`
-Adicionar a função `processReferralBonus` (mesma lógica do mp-webhook, sem a parte do Mercado Pago billing):
-- Verificar `referred_by_id` da org ativada
-- Checar duplicidade em `referral_bonuses`
-- Inserir bônus de 10 dias
-- Somar +10 dias ao `trial_ends_at` do indicador
-- Registrar em `activation_logs`
-- Chamar após a ativação da org
+### Alteração em `src/components/dashboard/ReferralSection.tsx`
+1. Receber `subscriptionPlan` como prop (ou buscar do contexto)
+2. Fazer query na `platform_plans` para obter o `price_cents` do plano
+3. Adicionar terceiro card no grid (mudar de `grid-cols-2` para `grid-cols-3`) com:
+   - Ícone de moedas (`DollarSign` ou `Coins` do Lucide) em amarelo/dourado
+   - Valor formatado como `R$ XX,XX`
+   - Label "economia total"
+4. Abaixo do grid de stats, frase de incentivo: "Continue indicando para zerar sua mensalidade!"
 
-#### 2. `src/pages/AdminPage.tsx` (função `quickActivate`)
-Após ativar a org, adicionar lógica para:
-- Buscar `referred_by_id` da org ativada
-- Se existir, verificar se bônus já foi concedido
-- Inserir em `referral_bonuses` e somar +10 dias ao `trial_ends_at` do indicador
-
-#### 3. `src/components/admin/ManageSubscriptionDialog.tsx`
-Quando o status mudar para "active" e o plano for pago (pro/enterprise/lifetime), executar a mesma lógica de bônus de indicação.
-
-#### 4. Correção manual pendente
-Executar SQL para creditar os +10 dias à org "MCD" pela indicação da "teste1" (inserir em `referral_bonuses` e atualizar `trial_ends_at`).
+### Detalhes visuais
+- Ícone: `BadgeDollarSign` com fundo amarelo/amber
+- Grid responsivo: `grid-cols-2 sm:grid-cols-3` para não quebrar em mobile
+- Frase de incentivo em texto pequeno, centralizada, cor primary
 
