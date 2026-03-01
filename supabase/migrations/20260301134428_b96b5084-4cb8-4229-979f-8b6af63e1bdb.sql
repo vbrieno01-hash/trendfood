@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trg_deduct_stock_on_paid ON public.orders;
