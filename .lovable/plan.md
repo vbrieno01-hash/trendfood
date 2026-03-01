@@ -1,23 +1,22 @@
 
 
-## Plano: Reverter transparência do card, manter só botão desabilitado
+## Plano: Esconder botão "Plano atual" no plano Grátis
 
 ### Problema
-O card inteiro ficou transparente (`opacity-60 pointer-events-none`), mas o pedido era apenas para o **botão** ficar desabilitado. O card deve manter sua aparência normal.
+Quando uma loja cria uma conta, o plano Grátis é o padrão. O botão "Plano atual" no card Grátis deve ficar **invisível** (não renderizado), já que não faz sentido mostrar — o usuário nunca vai "assinar" o Grátis.
 
 ### Correção
 
 **Arquivo: `src/components/pricing/PlanCard.tsx`**
-- Remover `opacity-60 pointer-events-none` do container `<div>` do card
-- Manter apenas `ring-2 ring-primary` quando `currentPlan` é true (para destacar visualmente)
-- O botão já está correto: renderiza "Plano atual" desabilitado quando `currentPlan === true`
-- Remover o `opacity-60` do botão disabled também — deixar apenas `disabled` natural
+- Na seção do botão, quando `currentPlan === true` **e** o preço for "Grátis" (ou `price === "Grátis"`), não renderizar nenhum botão (retornar `null`)
+- Para os demais planos pagos que sejam o plano atual, continuar mostrando o botão "Plano atual" desabilitado como já está
 
-Mudança única na linha do `cn()`:
+Lógica:
 ```
-// DE:
-currentPlan && "ring-2 ring-primary opacity-60 pointer-events-none"
-// PARA:
-currentPlan && "ring-2 ring-primary"
+if (currentPlan && price === "Grátis") → null (sem botão)
+if (currentPlan) → Button disabled "Plano atual"
+else if (onSelect) → Button com onClick
+else if (external) → <a>
+else → <Link>
 ```
 
