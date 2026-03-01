@@ -45,7 +45,7 @@ const PlanCard = ({
         highlighted
           ? "border-primary bg-card shadow-xl shadow-primary/10 scale-[1.02] md:scale-105"
           : "border-border bg-card shadow-sm hover:border-primary/30 hover:shadow-md",
-        currentPlan && "ring-2 ring-primary opacity-60 pointer-events-none"
+        currentPlan && "ring-2 ring-primary"
       )}
     >
       {badge && (
