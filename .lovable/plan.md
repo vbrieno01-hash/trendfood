@@ -1,41 +1,46 @@
 
 
-## Plano: Migrar adicionais existentes para globais automaticamente
+## Situação
 
-### Situação atual
-- **Rei do Burguer** (`7d99c44e`) tem 17 adicionais item-específicos (Bacon, Catupiry, Ovo, etc.) — cada um ligado a 1 produto só. Nenhum global addon criado.
-- **TrendFood** (`c9d9db45`) tem 1 addon item-específico e já tem 3 globais.
-- As outras orgs não têm adicionais.
+Os adicionais agora são **globais** -- aparecem em todos os produtos. O problema é que não existe mecanismo para **excluir** um adicional global de um produto específico. Por exemplo, se "Bacon" é global mas não faz sentido para "Suco de Laranja", hoje não dá para remover só desse item.
 
-### O que fazer
-Rodar um script SQL (via migration) que, para cada organização:
-1. Seleciona todos os `menu_item_addons` distintos por `(name, price_cents)` daquela org
-2. Insere cada combinação única na tabela `global_addons` (se ainda não existir com mesmo nome + org)
-3. Isso faz com que todos esses adicionais apareçam automaticamente em todos os produtos do cardápio
+Existem duas abordagens possíveis:
 
-### SQL da migração
+### Opção A: Tabela de exclusões por produto
+Criar uma tabela `global_addon_exclusions(menu_item_id, global_addon_id)`. No `ItemDetailDrawer`, ao montar a lista de adicionais, filtrar os que estão na tabela de exclusão. No painel do lojista, ao editar um produto, mostrar os adicionais globais com um toggle para excluir daquele item.
+
+### Opção B: Gerenciar direto na seção de Adicionais Fixos
+A seção "Adicionais fixos" (`GlobalAddonsSection`) já existe no painel e já tem botão de deletar (lixeira) e toggle on/off. Para remover um adicional de **todos** os produtos, basta deletar ou desativar ali. Se o objetivo é remover de **todos**, já funciona.
+
+## Proposta
+
+A abordagem mais provável do que o usuário quer: **remover certos adicionais globais que não deveriam ter sido migrados**, ou **excluir adicionais globais de produtos específicos**.
+
+Vou implementar a **Opção A** -- exclusão por produto:
+
+1. **Criar tabela `global_addon_exclusions`** com colunas `menu_item_id` e `global_addon_id`, RLS permitindo owner gerenciar e select público
+2. **No `AddonsSection` (edição de produto no painel)**: mostrar os adicionais globais herdados com um botão para excluir daquele produto específico (toggle de exclusão)
+3. **No `ItemDetailDrawer` (cardápio do cliente)**: ao montar a lista de adicionais, filtrar removendo os que estão na tabela de exclusões para aquele `menu_item_id`
+
+### Detalhes técnicos
+
+**Migração SQL:**
 ```sql
-INSERT INTO global_addons (organization_id, name, price_cents, available, sort_order)
-SELECT DISTINCT
-  mi.organization_id,
-  mia.name,
-  mia.price_cents,
-  true,
-  0
-FROM menu_item_addons mia
-JOIN menu_items mi ON mi.id = mia.menu_item_id
-WHERE NOT EXISTS (
-  SELECT 1 FROM global_addons ga
-  WHERE ga.organization_id = mi.organization_id
-    AND LOWER(TRIM(ga.name)) = LOWER(TRIM(mia.name))
+CREATE TABLE global_addon_exclusions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  menu_item_id uuid NOT NULL,
+  global_addon_id uuid NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(menu_item_id, global_addon_id)
 );
+ALTER TABLE global_addon_exclusions ENABLE ROW LEVEL SECURITY;
+-- RLS: owner manage, public select
 ```
 
-### Resultado
-- **Rei do Burguer**: os 17 adicionais (Bacon R$5, Catupiry R$4, Ovo R$2, etc.) passam a aparecer em **todos** os lanches automaticamente
-- **TrendFood**: só os que ainda não existem como global serão adicionados (evita duplicatas)
-- Os adicionais item-específicos originais continuam existindo mas serão filtrados pelo merge no `ItemDetailDrawer` (que já remove duplicatas por nome)
+**Hook novo:** `useGlobalAddonExclusions(menuItemId)` -- busca exclusões para um item
 
-### Arquivo alterado
-- Apenas uma migração SQL (sem alteração de código — a lógica de merge já existe no `ItemDetailDrawer.tsx`)
+**Alterações em componentes:**
+- `AddonsSection` no `MenuTab.tsx`: mostrar adicionais globais com opção de excluir do produto
+- `ItemDetailDrawer.tsx`: filtrar globais excluídos
+- `useGlobalAddons.ts` ou novo hook para buscar exclusões
 
