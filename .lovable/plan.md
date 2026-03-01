@@ -1,19 +1,30 @@
 
-## Plano: Tornar a verificação do Grátis mais robusta
+
+## Plano: Corrigir cancelamento de assinatura sem mp_subscription_id
 
 ### Problema
-A lógica atual no `PlanCard.tsx` verifica `price === "Grátis"` para esconder o botão, mas isso depende do texto exato do preço. Vou trocar para uma verificação mais confiável usando `price === "Grátis" || price === "R$ 0"` e também garantir que nenhum outro caminho renderize o botão para o plano gratuito quando logado.
+A organização TrendFood (e provavelmente outras ativadas manualmente pelo admin) tem `mp_subscription_id = null`. A edge function `cancel-mp-subscription` retorna erro "No active subscription" quando esse campo é nulo, impedindo o cancelamento.
+
+### Solução
+Modificar a edge function para que, quando não houver `mp_subscription_id`, ela **pule a chamada à API do Mercado Pago** e simplesmente reverta a organização para o plano Grátis.
 
 ### Alteração
 
-**Arquivo: `src/components/pricing/PlanCard.tsx`**
-- Trocar a verificação de `price === "Grátis"` para `price === "Grátis" || price === "R$ 0" || price === "0"` para cobrir qualquer formatação possível
+**Arquivo: `supabase/functions/cancel-mp-subscription/index.ts`**
+- Remover o bloqueio que retorna erro 400 quando `mp_subscription_id` é null
+- Só chamar a API do Mercado Pago se `mp_subscription_id` existir
+- Sempre executar o downgrade para free e o log de auditoria
 
-**Arquivo: `src/components/dashboard/SubscriptionTab.tsx`**
-- No card do plano Free, quando `isSamePlan` é `true`, NÃO passar `onSelect` (já é assim, mas confirmar que `billingMismatch` não ativa por engano para o plano free)
-- Verificar que o plano free nunca receba `billingMismatch = true`
+Lógica:
+```
+// Antes: retornava erro
+if (!org.mp_subscription_id) return error 400
 
-**Arquivo: `src/pages/PricingPage.tsx`**
-- Mesma verificação: garantir que o plano free com `currentPlan=true` nunca tenha `onSelect` nem `billingMismatch`
+// Depois: cancela no MP apenas se houver ID
+if (org.mp_subscription_id) {
+  // chama API do MP para cancelar
+}
 
-A mudança é mínima — apenas blindar a lógica contra edge cases de formatação.
+// Sempre: downgrade para free + log
+```
+
