@@ -98,7 +98,7 @@ const SubscriptionTab = () => {
 
   useEffect(() => {
     if (mpReturn === "true") {
-      toast.success("Voltou do Mercado Pago! Seu plano será ativado automaticamente em instantes.", {
+      toast.success("Voltou do TrendFood! Seu plano será ativado automaticamente em instantes.", {
         duration: 6000,
       });
       searchParams.delete("mp_return");
@@ -208,7 +208,7 @@ const SubscriptionTab = () => {
               {!planLimits.subscriptionExpired && (
                 <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 p-3 rounded-lg">
                   <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>Cobrança recorrente ativa — o Mercado Pago cobra automaticamente todo mês.</span>
+                  <span>Cobrança recorrente ativa — o TrendFood cobra automaticamente todo mês.</span>
                 </div>
               )}
 
