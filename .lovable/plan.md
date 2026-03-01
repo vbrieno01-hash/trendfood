@@ -1,20 +1,23 @@
 
 
-## Plano: Card do plano atual com aparência desabilitada (incluindo Grátis)
+## Plano: Reverter transparência do card, manter só botão desabilitado
 
 ### Problema
-Atualmente só o **botão** fica com `opacity-60` quando é o plano atual. O card inteiro continua com aparência normal, o que não deixa claro visualmente que aquele plano já está ativo. Isso precisa valer para **todos** os planos, incluindo o Grátis (que é o padrão após criar conta ou após reembolso/cancelamento).
+O card inteiro ficou transparente (`opacity-60 pointer-events-none`), mas o pedido era apenas para o **botão** ficar desabilitado. O card deve manter sua aparência normal.
 
 ### Correção
 
 **Arquivo: `src/components/pricing/PlanCard.tsx`**
-- Adicionar `opacity-60 pointer-events-none` no container do card (`<div>`) quando `currentPlan` é `true`
-- Isso faz o card inteiro ficar semi-transparente e não-interativo
-- O botão "Plano atual" continua desabilitado como já está
-- Manter o badge "Seu plano" e o `ring-2 ring-primary` para identificação visual
+- Remover `opacity-60 pointer-events-none` do container `<div>` do card
+- Manter apenas `ring-2 ring-primary` quando `currentPlan` é true (para destacar visualmente)
+- O botão já está correto: renderiza "Plano atual" desabilitado quando `currentPlan === true`
+- Remover o `opacity-60` do botão disabled também — deixar apenas `disabled` natural
 
-### Resultado esperado
-- Plano Grátis: card transparente + botão "Plano atual" desabilitado quando o lojista está no free
-- Plano Pro/Enterprise: mesma aparência quando ativo
-- Após reembolso/cancelamento: volta para free e o card Grátis fica com essa aparência automaticamente
+Mudança única na linha do `cn()`:
+```
+// DE:
+currentPlan && "ring-2 ring-primary opacity-60 pointer-events-none"
+// PARA:
+currentPlan && "ring-2 ring-primary"
+```
 
