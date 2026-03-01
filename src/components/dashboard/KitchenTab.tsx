@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import WaiterTab from "@/components/dashboard/WaiterTab";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const isNew = (createdAt: string) =>
@@ -17,7 +19,27 @@ const isNew = (createdAt: string) =>
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-
+const playBell = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const times = [0, 0.3, 0.6];
+    times.forEach((t) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime + t);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + t + 0.4);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.5);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.5);
+    });
+  } catch {
+    // Audio not available
+  }
+};
 
 interface KitchenTabProps {
   orgId: string;
@@ -31,15 +53,13 @@ interface KitchenTabProps {
   onPairBluetooth?: () => void;
   btConnected?: boolean;
   btSupported?: boolean;
-  // Auto-print state controlled by DashboardPage
   autoPrint: boolean;
   onToggleAutoPrint: (val: boolean) => void;
-  // Notifications state controlled by DashboardPage
   notificationsEnabled: boolean;
   onToggleNotifications: (val: boolean) => void;
-  // WaiterTab modal props
   whatsapp?: string | null;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
+  embedded?: boolean;
 }
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -59,20 +79,29 @@ export default function KitchenTab({
   autoPrint, onToggleAutoPrint,
   notificationsEnabled, onToggleNotifications,
   whatsapp, pixConfirmationMode,
+  embedded = false,
 }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
-  
+  const qc = useQueryClient();
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
 
-  // Track browser permission state for badge display
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     () => (typeof Notification !== "undefined" ? Notification.permission : "default")
   );
 
   const [showWaiter, setShowWaiter] = useState(false);
   const [, forceRender] = useState(0);
+
+  // ─── Refs for Realtime channel (stable, no restarts on toggle) ───
+  const knownIds = useRef<Set<string>>(new Set());
+  const pendingPrintIds = useRef<Set<string>>(new Set());
+  const isPrintingRef = useRef(false);
+  const autoPrintRef = useRef(autoPrint);
+  const notificationsRef = useRef(notificationsEnabled);
+  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+  useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
 
   const handleToggleNotifications = async (val: boolean) => {
     if (val) {
@@ -117,7 +146,63 @@ export default function KitchenTab({
     );
   };
 
-  // Realtime is handled inside useOrders — no duplicate channel needed here
+  // ─── Realtime: bell, auto-print, push notifications ───
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel(`kitchen-tab-bell-${orgId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders", filter: `organization_id=eq.${orgId}` },
+        (payload) => {
+          const order = payload.new as Order;
+          if (!knownIds.current.has(order.id)) {
+            knownIds.current.add(order.id);
+            playBell();
+            if (autoPrintRef.current) {
+              pendingPrintIds.current.add(order.id);
+            }
+            if (notificationsRef.current && Notification.permission === "granted") {
+              const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+              new Notification(`🔔 Novo pedido! ${tableLabel}`, {
+                icon: "/pwa-192.png",
+                badge: "/pwa-192.png",
+              });
+            }
+            qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [orgId, qc]);
+
+  // ─── Process pending auto-print queue ───
+  useEffect(() => {
+    if (pendingPrintIds.current.size === 0 || isPrintingRef.current) return;
+    const toPrint = orders.filter(
+      (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
+    );
+    if (toPrint.length === 0) return;
+
+    isPrintingRef.current = true;
+    (async () => {
+      for (const order of toPrint) {
+        pendingPrintIds.current.delete(order.id);
+        try {
+          await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
+        } catch (err) {
+          console.error("[KDS-Tab] Auto-print failed:", err);
+        }
+      }
+      isPrintingRef.current = false;
+    })();
+  }, [orders, orgName, printMode, orgId, btDevice, printerWidth, pixKey]);
+
+  // ─── Mark existing orders as known on mount ───
+  useEffect(() => {
+    orders.forEach((o) => knownIds.current.add(o.id));
+  }, [orders]);
 
   // Re-render every 5s to refresh "NOVO!" badge countdown
   useEffect(() => {
@@ -321,44 +406,49 @@ export default function KitchenTab({
         </div>
       )}
 
-      {/* Floating button – Gestão de Pedidos */}
-      <Button
-        onClick={() => setShowWaiter(true)}
-        className="fixed bottom-6 right-6 z-40 gap-2 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-3 h-auto text-sm font-semibold"
-      >
-        <BellRing className="w-5 h-5" />
-        Gestão de Pedidos
-      </Button>
+      {/* Floating button – Gestão de Pedidos (hidden when embedded) */}
+      {!embedded && (
+        <Button
+          onClick={() => setShowWaiter(true)}
+          className="fixed bottom-6 right-6 z-40 gap-2 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-3 h-auto text-sm font-semibold"
+        >
+          <BellRing className="w-5 h-5" />
+          Gestão de Pedidos
+        </Button>
+      )}
 
-      <Dialog open={showWaiter} onOpenChange={setShowWaiter}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BellRing className="w-5 h-5" />
-              Gestão de Pedidos
-            </DialogTitle>
-          </DialogHeader>
-          <WaiterTab
-            orgId={orgId}
-            orgName={orgName}
-            whatsapp={whatsapp}
-            pixConfirmationMode={pixConfirmationMode}
-            pixKey={pixKey}
-            storeAddress={storeAddress}
-            courierConfig={courierConfig}
-            printMode={printMode}
-            printerWidth={printerWidth}
-            btDevice={btDevice}
-            onPairBluetooth={onPairBluetooth}
-            btConnected={btConnected}
-            btSupported={btSupported}
-            autoPrint={autoPrint}
-            onToggleAutoPrint={onToggleAutoPrint}
-            notificationsEnabled={notificationsEnabled}
-            onToggleNotifications={onToggleNotifications}
-          />
-        </DialogContent>
-      </Dialog>
+      {!embedded && (
+        <Dialog open={showWaiter} onOpenChange={setShowWaiter}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <BellRing className="w-5 h-5" />
+                Gestão de Pedidos
+              </DialogTitle>
+            </DialogHeader>
+            <WaiterTab
+              orgId={orgId}
+              orgName={orgName}
+              whatsapp={whatsapp}
+              pixConfirmationMode={pixConfirmationMode}
+              pixKey={pixKey}
+              storeAddress={storeAddress}
+              courierConfig={courierConfig}
+              printMode={printMode}
+              printerWidth={printerWidth}
+              btDevice={btDevice}
+              onPairBluetooth={onPairBluetooth}
+              btConnected={btConnected}
+              btSupported={btSupported}
+              autoPrint={autoPrint}
+              onToggleAutoPrint={onToggleAutoPrint}
+              notificationsEnabled={notificationsEnabled}
+              onToggleNotifications={onToggleNotifications}
+              embedded
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
