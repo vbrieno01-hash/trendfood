@@ -79,6 +79,7 @@ const DashboardPage = () => {
   const retryRef = useRef(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ operacional: true });
 
+
   // Bluetooth state lifted from SettingsTab
   const [btDevice, setBtDevice] = useState<any>(null);
   const [btConnected, setBtConnected] = useState(false);
@@ -591,6 +592,13 @@ const DashboardPage = () => {
     },
   ];
 
+  // Accordion único: abre o grupo da aba ativa automaticamente
+  useEffect(() => {
+    const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
+    if (parentGroup) {
+      setOpenGroups({ [parentGroup.id]: true });
+    }
+  }, [activeTab]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -735,18 +743,18 @@ const DashboardPage = () => {
           {/* Accordion groups */}
           {sidebarGroups.map((group) => {
             const isGroupOpen = openGroups[group.id] ?? false;
-            const hasActiveTab = group.items.some((i) => i.key === activeTab);
+            
 
             return (
               <Collapsible
                 key={group.id}
-                open={isGroupOpen || hasActiveTab}
-                onOpenChange={(val) => setOpenGroups((prev) => ({ ...prev, [group.id]: val }))}
+                open={isGroupOpen}
+                onOpenChange={(val) => setOpenGroups(val ? { [group.id]: true } : {})}
               >
                 <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-widest text-white/40 hover:text-white/60 transition-colors">
                   <span>{group.emoji}</span>
                   <span className="flex-1 text-left">{group.title}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${(isGroupOpen || hasActiveTab) ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isGroupOpen ? "rotate-180" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-0.5 mt-0.5">
                   {group.items.map((item) => (
