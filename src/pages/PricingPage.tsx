@@ -214,7 +214,7 @@ const PricingPage = () => {
             const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
             const billingCycle = organization?.billing_cycle || "monthly";
             const isSamePlan = !!user && currentPlan === plan.key;
-            const billingMismatch = isSamePlan && (
+            const billingMismatch = isSamePlan && plan.price_cents > 0 && (
               (isAnnual && billingCycle !== "annual") ||
               (!isAnnual && billingCycle === "annual")
             );

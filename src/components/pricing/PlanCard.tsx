@@ -104,7 +104,7 @@ const PlanCard = ({
         })}
       </ul>
 
-      {currentPlan && price === "Grátis" ? null : currentPlan && billingMismatch && onSelect ? (
+      {currentPlan && (price === "Grátis" || price === "R$ 0" || price === "0") ? null : currentPlan && billingMismatch && onSelect ? (
         <Button
           size="lg"
           variant={highlighted ? "default" : "outline"}

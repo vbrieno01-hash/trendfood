@@ -328,7 +328,7 @@ const SubscriptionTab = () => {
           const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
           const billingCycle = organization?.billing_cycle || "monthly";
           const isSamePlan = currentPlan === plan.key;
-          const billingMismatch = isSamePlan && (
+          const billingMismatch = isSamePlan && plan.priceCents > 0 && (
             (isAnnual && billingCycle !== "annual") ||
             (!isAnnual && billingCycle === "annual")
           );
