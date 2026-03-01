@@ -92,7 +92,67 @@ const AuthPage = () => {
         password: signupData.password,
       });
 
-      if (authError) throw authError;
+      // Se o usuário já existe, tentar login automático e recuperar org/profile
+      if (authError) {
+        if (authError.message?.includes("already registered")) {
+          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+            email: signupData.email,
+            password: signupData.password,
+          });
+          if (loginErr) throw loginErr;
+
+          const userId = loginData.user.id;
+
+          // Verificar/criar profile
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (!existingProfile) {
+            await supabase.from("profiles").insert({
+              user_id: userId,
+              full_name: signupData.fullName,
+            });
+          }
+
+          // Verificar/criar organização (preservando indicação)
+          const { data: existingOrg } = await supabase
+            .from("organizations")
+            .select("id")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (!existingOrg) {
+            const orgPayload: any = {
+              user_id: userId,
+              name: signupData.businessName,
+              slug: signupData.slug,
+              emoji: "🍔",
+              description: "Bem-vindo à nossa loja!",
+              primary_color: "#f97316",
+              whatsapp: signupData.whatsapp || null,
+            };
+            if (refParam) orgPayload.referred_by_id = refParam;
+            const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
+            if (orgError) {
+              if (orgError.code === "23505") {
+                toast.error("Este slug já está em uso. Escolha outro nome para a lanchonete.");
+              } else {
+                throw orgError;
+              }
+              setSignupLoading(false);
+              return;
+            }
+          }
+
+          toast.success("Conta criada com sucesso! Bem-vindo! 🎉");
+          await refreshOrganizationForUser(userId);
+          navigate(fullRedirect, { replace: true });
+          return;
+        }
+        throw authError;
+      }
       if (!authData.user) throw new Error("Usuário não criado.");
 
       const userId = authData.user.id;
