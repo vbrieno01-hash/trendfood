@@ -102,18 +102,27 @@ const PlanCard = ({
         })}
       </ul>
 
-      {onSelect ? (
+      {currentPlan ? (
+        <Button
+          size="lg"
+          variant={highlighted ? "default" : "outline"}
+          className="w-full font-bold opacity-60"
+          disabled
+        >
+          Plano atual
+        </Button>
+      ) : onSelect ? (
         <Button
           size="lg"
           variant={highlighted ? "default" : "outline"}
           className="w-full font-bold"
           onClick={onSelect}
-          disabled={loading || currentPlan}
+          disabled={loading}
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
           ) : null}
-          {currentPlan ? "Plano atual" : cta}
+          {cta}
         </Button>
       ) : external ? (
         <a
