@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Lock, Zap, MessageCircle, Printer, Compass, Wallet,
   Flame, Tag, BarChart2, BellRing, Building2, UtensilsCrossed,
-  TableProperties, History,
+  TableProperties, History, ListPlus, CreditCard, Package,
 } from "lucide-react";
 
 type MinPlan = "free" | "pro" | "enterprise" | "lifetime";
@@ -90,6 +90,20 @@ const FEATURES: FeatureItem[] = [
     status: "available",
   },
   {
+    icon: <ListPlus className="w-5 h-5" />,
+    title: "Adicionais",
+    description: "Adicione opções extras aos itens do cardápio (bordas, tamanhos, acompanhamentos).",
+    minPlan: "pro",
+    status: "available",
+  },
+  {
+    icon: <CreditCard className="w-5 h-5" />,
+    title: "Pagamento Online",
+    description: "Aceite pagamentos via PIX e cartão de crédito diretamente pelo cardápio digital.",
+    minPlan: "pro",
+    status: "available",
+  },
+  {
     icon: <Printer className="w-5 h-5" />,
     title: "Impressora Térmica",
     description: "Imprima pedidos automaticamente na cozinha via impressora térmica.",
@@ -100,6 +114,13 @@ const FEATURES: FeatureItem[] = [
     icon: <Building2 className="w-5 h-5" />,
     title: "Multi-unidade",
     description: "Gerencie várias unidades da sua operação em um só painel.",
+    minPlan: "enterprise",
+    status: "available",
+  },
+  {
+    icon: <Package className="w-5 h-5" />,
+    title: "Gestão de Insumos",
+    description: "Controle estoque de ingredientes com baixa automática a cada venda.",
     minPlan: "enterprise",
     status: "available",
   },
