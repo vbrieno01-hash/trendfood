@@ -1,31 +1,31 @@
 
 
-## Plano: Termos de Uso + Checkbox de Aceite no Checkout
+## Plano: Adicionar toggle Mensal/Anual nos locais que faltam
 
-### 1. Atualizar `/termos` com o novo conteúdo
-- Reescrever `src/pages/TermsPage.tsx` com o texto fornecido (5 seções: O Serviço, Planos e Pagamentos, Política de Reembolso, Indisponibilidade, Isenção de Responsabilidade).
+Identifiquei que o toggle de faturamento anual existe apenas em 2 dos 4 locais que mostram planos:
 
-### 2. Criar tabela `terms_acceptances` no banco
-- Colunas: `id`, `organization_id`, `user_id`, `ip_address`, `accepted_at`, `user_agent`
-- RLS: owner pode inserir e ler, admin pode ler
+| Local | Toggle Anual | Status |
+|---|---|---|
+| `PricingPage.tsx` (/planos) | Sim | OK |
+| `UpgradeDialog.tsx` (popup upgrade) | Sim | OK |
+| `SubscriptionTab.tsx` (dashboard) | **Não** | Corrigir |
+| `Index.tsx` (landing page) | **Não** | Corrigir |
 
-### 3. Criar edge function `get-client-ip`
-- Retorna o IP do request (`request.headers.get("x-forwarded-for")` ou similar)
-- Necessário porque o frontend não tem acesso ao IP real do usuário
+### Correções
 
-### 4. Adicionar checkbox + modal de termos no `CardPaymentForm.tsx`
-- Estado `termsAccepted` (boolean) e `termsDialogOpen` (boolean)
-- Antes do botão "Assinar", adicionar checkbox com texto: "Li e concordo com os **Termos de Uso**" onde "Termos de Uso" é um link que abre um Dialog/ScrollArea com o conteúdo completo dos termos (sem navegar para outra página)
-- Botão de submit fica `disabled` enquanto `!termsAccepted`
-- No `handleSubmit`, antes de processar pagamento: chamar `get-client-ip`, depois inserir registro em `terms_acceptances` com org_id, user_id, ip e timestamp
+**1. `SubscriptionTab.tsx`** — Adicionar toggle Mensal/Anual
+- Adicionar estado `isAnnual` e o componente `Switch` (Mensal ↔ Anual)
+- Atualizar `mapPlanRow` para incluir `annual_price_cents`
+- Mostrar preço anual nos `PlanCard` quando toggle ativo (com subtitle e savings badge)
+- Passar `billing` e preço correto ao `CardPaymentForm`
 
-### 5. Mesmo checkbox no `PixPaymentTab.tsx`
-- Mesma lógica: checkbox obrigatório + modal dos termos
-- Botão "Pagar via PIX" fica disabled sem aceite
-- Registra aceite no banco antes de gerar o PIX
+**2. `Index.tsx`** — Adicionar toggle Mensal/Anual na seção de planos
+- Adicionar estado `isAnnual` e o componente `Switch` entre o subtítulo e os cards
+- Atualizar os `PlanCard` para mostrar preço anual quando toggle ativo (com subtitle e savings badge)
+- O CTA continua sendo "Ver detalhes" apontando para `/planos`, sem mudança funcional
 
 ### Detalhes Técnicos
-- O conteúdo dos termos será extraído para um componente reutilizável `TermsContent` usado tanto na página `/termos` quanto nos modais do checkout
-- A edge function `get-client-ip` é simples: lê `x-forwarded-for` ou `x-real-ip` dos headers e retorna como JSON
-- O insert em `terms_acceptances` usa o Supabase client autenticado (o usuário já está logado no checkout de assinatura)
+- Reutilizar o mesmo padrão visual do toggle já existente em `PricingPage.tsx` e `UpgradeDialog.tsx`
+- A query de `platform_plans` já retorna `annual_price_cents`, só precisa ser utilizado nos componentes
+- Nenhuma alteração de banco de dados ou edge function necessária
 
