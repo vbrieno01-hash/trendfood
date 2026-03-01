@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Copy, CheckCircle2, QrCode, Clock } from "lucide-react";
+import TermsCheckbox from "./TermsCheckbox";
 
 interface PixPaymentTabProps {
   orgId: string;
@@ -42,6 +43,7 @@ const PixPaymentTab = ({ orgId, plan, planPrice, onSuccess, onClose }: PixPaymen
   const [paid, setPaid] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -61,6 +63,23 @@ const PixPaymentTab = ({ orgId, plan, planPrice, onSuccess, onClose }: PixPaymen
 
     setSubmitting(true);
     try {
+      // Record terms acceptance
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error("Sessão expirada. Faça login novamente.");
+
+      let clientIp = "unknown";
+      try {
+        const { data: ipData } = await supabase.functions.invoke("get-client-ip");
+        if (ipData?.ip) clientIp = ipData.ip;
+      } catch {}
+
+      await supabase.from("terms_acceptances" as any).insert({
+        organization_id: orgId,
+        user_id: session.user.id,
+        ip_address: clientIp,
+        user_agent: navigator.userAgent,
+      });
+
       const { data, error } = await supabase.functions.invoke("create-mp-payment", {
         body: { org_id: orgId, plan, cpf_cnpj: cleanDoc, payment_method: "pix" },
       });
@@ -220,7 +239,13 @@ const PixPaymentTab = ({ orgId, plan, planPrice, onSuccess, onClose }: PixPaymen
         />
       </div>
 
-      <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+      <TermsCheckbox
+        checked={termsAccepted}
+        onCheckedChange={setTermsAccepted}
+        disabled={submitting}
+      />
+
+      <Button type="submit" className="w-full" size="lg" disabled={submitting || !termsAccepted}>
         {submitting ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin mr-2" />

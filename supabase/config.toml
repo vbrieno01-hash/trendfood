@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.create-admin-user]
 verify_jwt = false
+
+[functions.get-client-ip]
+verify_jwt = false

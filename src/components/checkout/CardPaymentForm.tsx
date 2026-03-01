@@ -16,6 +16,7 @@ import { Loader2, CreditCard, Lock, QrCode } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { getMpErrorMessage } from "./mpErrorMessages";
 import PixPaymentTab from "./PixPaymentTab";
+import TermsCheckbox from "./TermsCheckbox";
 
 interface CardPaymentFormProps {
   open: boolean;
@@ -49,6 +50,7 @@ const CardPaymentForm = ({
   const [expirationYear, setExpirationYear] = useState("");
   const [securityCode, setSecurityCode] = useState("");
   const [identificationNumber, setIdentificationNumber] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -124,6 +126,23 @@ const CardPaymentForm = ({
 
     setSubmitting(true);
     try {
+      // Record terms acceptance
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
+
+      let clientIp = "unknown";
+      try {
+        const { data: ipData } = await supabase.functions.invoke("get-client-ip");
+        if (ipData?.ip) clientIp = ipData.ip;
+      } catch {}
+
+      await supabase.from("terms_acceptances" as any).insert({
+        organization_id: orgId,
+        user_id: session.user.id,
+        ip_address: clientIp,
+        user_agent: navigator.userAgent,
+      });
+
       const tokenResult = await mpRef.current.createCardToken({
         cardNumber: cleanCard,
         cardholderName,
@@ -135,9 +154,6 @@ const CardPaymentForm = ({
       });
 
       if (!tokenResult?.id) throw new Error("Não foi possível tokenizar o cartão");
-
-      const session = (await supabase.auth.getSession()).data.session;
-      if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-subscription`,
@@ -303,7 +319,13 @@ const CardPaymentForm = ({
                   />
                 </div>
 
-                <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                <TermsCheckbox
+                  checked={termsAccepted}
+                  onCheckedChange={setTermsAccepted}
+                  disabled={submitting}
+                />
+
+                <Button type="submit" className="w-full" size="lg" disabled={submitting || !termsAccepted}>
                   {submitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
