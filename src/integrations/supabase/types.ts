@@ -951,6 +951,48 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_bonuses: {
+        Row: {
+          bonus_days: number
+          created_at: string
+          id: string
+          referred_org_id: string
+          referred_org_name: string | null
+          referrer_org_id: string
+        }
+        Insert: {
+          bonus_days?: number
+          created_at?: string
+          id?: string
+          referred_org_id: string
+          referred_org_name?: string | null
+          referrer_org_id: string
+        }
+        Update: {
+          bonus_days?: number
+          created_at?: string
+          id?: string
+          referred_org_id?: string
+          referred_org_name?: string | null
+          referrer_org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_bonuses_referred_org_id_fkey"
+            columns: ["referred_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_bonuses_referrer_org_id_fkey"
+            columns: ["referrer_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_conversations: {
         Row: {
           admin_user_id: string
