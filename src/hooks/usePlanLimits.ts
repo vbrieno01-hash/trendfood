@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 type Plan = "free" | "pro" | "enterprise" | "lifetime";
 
 type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports" | "addons" | "stock_ingredients" | "online_payment";
@@ -47,48 +49,46 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
 
 export function usePlanLimits(organization: OrgLike | null | undefined): PlanLimits {
   const rawPlan = (organization?.subscription_plan ?? "free") as Plan;
+  const trialEndsAtStr = organization?.trial_ends_at ?? null;
 
-  const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
-  const now = new Date();
-  // Para planos pagos: trial_ends_at funciona como data de expiração
-  const isPaid = rawPlan === "pro" || rawPlan === "enterprise";
-  const subscriptionExpired = isPaid && !!trialEndsAt && trialEndsAt <= now;
+  return useMemo(() => {
+    const trialEndsAt = trialEndsAtStr ? new Date(trialEndsAtStr) : null;
+    const now = new Date();
+    const isPaid = rawPlan === "pro" || rawPlan === "enterprise";
+    const subscriptionExpired = isPaid && !!trialEndsAt && trialEndsAt <= now;
 
-  // Trial continua funcionando igual para plano free
-  const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
-  const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
-  const trialDaysLeft = trialActive
-    ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
+    const trialActive = !!trialEndsAt && trialEndsAt > now && rawPlan === "free";
+    const trialExpired = !!trialEndsAt && trialEndsAt <= now && rawPlan === "free";
+    const trialDaysLeft = trialActive
+      ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+      : 0;
 
-  // Dias restantes da assinatura paga
-  const subscriptionDaysLeft = isPaid && !!trialEndsAt && trialEndsAt > now
-    ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
+    const subscriptionDaysLeft = isPaid && !!trialEndsAt && trialEndsAt > now
+      ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+      : 0;
 
-  // Se plano pago expirou, trata como free
-  const effectivePlan: Plan = rawPlan === "lifetime"
-    ? "lifetime"
-    : subscriptionExpired
-      ? "free"
-      : trialActive
-        ? "pro"
-        : rawPlan;
+    const effectivePlan: Plan = rawPlan === "lifetime"
+      ? "lifetime"
+      : subscriptionExpired
+        ? "free"
+        : trialActive
+          ? "pro"
+          : rawPlan;
 
-  const features = FEATURE_ACCESS[effectivePlan];
+    const features = FEATURE_ACCESS[effectivePlan];
 
-  return {
-    plan: rawPlan,
-    effectivePlan,
-    menuItemLimit: effectivePlan === "free" ? 20 : null,
-    tableLimit: effectivePlan === "free" ? 1 : null,
-
-    canAccess: (feature: Feature) => features[feature],
-    features,
-    trialActive,
-    trialExpired,
-    trialDaysLeft,
-    subscriptionExpired,
-    subscriptionDaysLeft,
-  };
+    return {
+      plan: rawPlan,
+      effectivePlan,
+      menuItemLimit: effectivePlan === "free" ? 20 : null,
+      tableLimit: effectivePlan === "free" ? 1 : null,
+      canAccess: (feature: Feature) => features[feature],
+      features,
+      trialActive,
+      trialExpired,
+      trialDaysLeft,
+      subscriptionExpired,
+      subscriptionDaysLeft,
+    };
+  }, [rawPlan, trialEndsAtStr]);
 }
