@@ -1,31 +1,30 @@
 
 
-## Plano: Adicionar toggle Mensal/Anual nos locais que faltam
+## Plano: Botão "Plano atual" desabilitado para todos os planos
 
-Identifiquei que o toggle de faturamento anual existe apenas em 2 dos 4 locais que mostram planos:
+### Problema
+Quando `currentPlan` é `true` mas `onSelect` é `undefined`, o `PlanCard` cai no branch do `Link` ou `external`, renderizando um botão clicável em vez de um botão desabilitado. Isso afeta o plano Grátis e qualquer plano ativo.
 
-| Local | Toggle Anual | Status |
-|---|---|---|
-| `PricingPage.tsx` (/planos) | Sim | OK |
-| `UpgradeDialog.tsx` (popup upgrade) | Sim | OK |
-| `SubscriptionTab.tsx` (dashboard) | **Não** | Corrigir |
-| `Index.tsx` (landing page) | **Não** | Corrigir |
+### Correção
 
-### Correções
-
-**1. `SubscriptionTab.tsx`** — Adicionar toggle Mensal/Anual
-- Adicionar estado `isAnnual` e o componente `Switch` (Mensal ↔ Anual)
-- Atualizar `mapPlanRow` para incluir `annual_price_cents`
-- Mostrar preço anual nos `PlanCard` quando toggle ativo (com subtitle e savings badge)
-- Passar `billing` e preço correto ao `CardPaymentForm`
-
-**2. `Index.tsx`** — Adicionar toggle Mensal/Anual na seção de planos
-- Adicionar estado `isAnnual` e o componente `Switch` entre o subtítulo e os cards
-- Atualizar os `PlanCard` para mostrar preço anual quando toggle ativo (com subtitle e savings badge)
-- O CTA continua sendo "Ver detalhes" apontando para `/planos`, sem mudança funcional
+**Arquivo: `src/components/pricing/PlanCard.tsx`**
+- Reorganizar a lógica de renderização do botão: se `currentPlan === true`, sempre renderizar um `Button` desabilitado com texto "Plano atual" e aparência semi-transparente (`opacity-60`), independente de `onSelect` estar definido ou não.
+- Mover a checagem de `currentPlan` para ser a PRIMEIRA condição, antes de `onSelect`, `external` e `Link`.
 
 ### Detalhes Técnicos
-- Reutilizar o mesmo padrão visual do toggle já existente em `PricingPage.tsx` e `UpgradeDialog.tsx`
-- A query de `platform_plans` já retorna `annual_price_cents`, só precisa ser utilizado nos componentes
-- Nenhuma alteração de banco de dados ou edge function necessária
+A mudança é apenas no componente `PlanCard.tsx`. A lógica do botão passará de:
+```
+if (onSelect) → Button com onClick
+else if (external) → <a>
+else → <Link>
+```
+Para:
+```
+if (currentPlan) → Button disabled + opacity-60 + "Plano atual"
+else if (onSelect) → Button com onClick
+else if (external) → <a>
+else → <Link>
+```
+
+Nenhuma alteração em `SubscriptionTab`, `PricingPage`, `Index` ou banco de dados.
 
