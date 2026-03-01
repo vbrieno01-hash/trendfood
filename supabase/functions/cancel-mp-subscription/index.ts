@@ -67,33 +67,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!org.mp_subscription_id) {
-      return new Response(JSON.stringify({ error: "No active subscription" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Cancel on MP only if there's a subscription ID
+    if (org.mp_subscription_id) {
+      const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
+      if (accessToken) {
+        const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${org.mp_subscription_id}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "cancelled" }),
+        });
+        const mpData = await mpRes.json();
+        console.log("[cancel-mp-subscription] MP response:", JSON.stringify(mpData));
+      } else {
+        console.log("[cancel-mp-subscription] No MP access token, skipping MP cancellation");
+      }
+    } else {
+      console.log("[cancel-mp-subscription] No mp_subscription_id, skipping MP cancellation");
     }
-
-    const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
-    if (!accessToken) {
-      return new Response(JSON.stringify({ error: "Payment gateway not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Cancel on MP
-    const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${org.mp_subscription_id}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ status: "cancelled" }),
-    });
-
-    const mpData = await mpRes.json();
-    console.log("[cancel-mp-subscription] MP response:", JSON.stringify(mpData));
 
     // Update org to free
     await supabaseAdmin
