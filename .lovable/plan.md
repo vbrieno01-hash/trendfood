@@ -1,19 +1,58 @@
 
 
-## Adicionar funcionalidades faltantes ao FeaturesTab
+## Módulo de Afiliados / Indicações
 
-Inserir 3 itens no array `FEATURES` em `src/components/dashboard/FeaturesTab.tsx`:
+### Visão Geral
+Criar um sistema de referral onde cada loja existente pode indicar novos estabelecimentos via link único. O admin acompanha as indicações no painel, e o lojista vê seu link e contagem de indicados no dashboard.
 
-1. **Adicionais** — ícone `Plus` ou `ListPlus`, minPlan `pro`, status `available`
-   - "Adicione opções extras aos itens do cardápio (bordas, tamanhos, acompanhamentos)."
+### 1. Migração de Banco de Dados
 
-2. **Pagamento Online** — ícone `CreditCard` ou `Smartphone`, minPlan `pro`, status `available`
-   - "Aceite pagamentos via PIX e cartão de crédito diretamente pelo cardápio digital."
+**Coluna na tabela `organizations`:**
+```sql
+ALTER TABLE organizations ADD COLUMN referred_by_id uuid REFERENCES organizations(id) ON DELETE SET NULL;
+```
 
-3. **Gestão de Insumos** — ícone `Package` ou `Boxes`, minPlan `enterprise`, status `available`
-   - "Controle estoque de ingredientes com baixa automática a cada venda."
+Isso permite rastrear qual organização indicou qual.
 
-Os novos itens serão inseridos na posição lógica: Adicionais e Pagamento Online junto aos outros Pro (após "Mais Vendidos"), e Gestão de Insumos junto aos Enterprise (após "Multi-unidade").
+**RLS:** Nenhuma policy nova necessária — a coluna é lida pela policy `organizations_select_public` já existente e escrita apenas pelo owner no signup.
 
-Apenas adição de itens ao array, sem mudança de lógica.
+### 2. Signup com `?ref=`
+
+**Arquivo:** `src/pages/AuthPage.tsx`
+
+- Capturar o parâmetro `ref` da URL (ex: `/cadastro?ref=UUID_DA_LOJA`).
+- No `handleSignup`, ao inserir na tabela `organizations`, incluir `referred_by_id: refParam || null`.
+- O link público será `trendfood.lovable.app/cadastro?ref=ID_DA_ORG`.
+
+### 3. Aba "Indicações" no Admin
+
+**Novo arquivo:** `src/components/admin/ReferralsTab.tsx`
+
+- Buscar `organizations` onde `referred_by_id IS NOT NULL`.
+- Exibir tabela com: Loja indicada, Indicado por (nome), Plano atual, Status, Data de cadastro.
+- KPI cards: Total de indicações, Indicações que viraram assinantes.
+
+**Arquivo:** `src/pages/AdminPage.tsx`
+
+- Adicionar `"indicacoes"` ao tipo `AdminTab`.
+- Adicionar item de nav com ícone `Share2` e label "Indicações".
+- Renderizar `<ReferralsTab />` quando `activeTab === "indicacoes"`.
+
+### 4. Seção "Ganhe Desconto" no Dashboard do Cliente
+
+**Novo arquivo:** `src/components/dashboard/ReferralSection.tsx`
+
+- Exibir o link de indicação da loja (`/cadastro?ref={org.id}`) com botão "Copiar link".
+- Buscar `organizations` onde `referred_by_id = org.id` para contar quantos amigos o lojista já trouxe.
+- Card visual simples com ícone, contagem e CTA.
+
+**Arquivo:** `src/pages/DashboardPage.tsx`
+
+- Adicionar `"referral"` como nova `TabKey` na sidebar, dentro do grupo AJUSTES.
+- Renderizar `<ReferralSection />` quando `activeTab === "referral"`.
+
+### Detalhes Técnicos
+- A coluna `referred_by_id` é nullable e referencia `organizations(id)` com `ON DELETE SET NULL`.
+- A query de contagem no dashboard usa `supabase.from("organizations").select("id", { count: "exact" }).eq("referred_by_id", orgId)`.
+- Nenhum edge function necessário — tudo via client SDK com RLS existente.
 
