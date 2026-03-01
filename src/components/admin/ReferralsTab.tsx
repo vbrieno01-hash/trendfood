@@ -51,71 +51,63 @@ export default function ReferralsTab() {
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
-        <Skeleton className="h-64" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">Indicações</h2>
-        <p className="text-sm text-muted-foreground">Acompanhe lojas indicadas por afiliados</p>
+    <div className="space-y-6 animate-admin-fade-in">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
+          <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Indicações</h2>
+          <p className="text-sm text-muted-foreground">Acompanhe lojas indicadas por afiliados</p>
+        </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPI Cards with glassmorphism */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-            <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        {[
+          { icon: <Users className="w-5 h-5" />, value: referrals.length, label: "Total de indicações", gradient: "from-blue-500/20 to-blue-500/5", iconBg: "bg-blue-500/15", iconColor: "text-blue-600 dark:text-blue-400" },
+          { icon: <TrendingUp className="w-5 h-5" />, value: payingReferrals.length, label: "Viraram assinantes", gradient: "from-emerald-500/20 to-emerald-500/5", iconBg: "bg-emerald-500/15", iconColor: "text-emerald-600 dark:text-emerald-400" },
+          { icon: <Store className="w-5 h-5" />, value: `${referrals.length > 0 ? Math.round((payingReferrals.length / referrals.length) * 100) : 0}%`, label: "Taxa de conversão", gradient: "from-amber-500/20 to-amber-500/5", iconBg: "bg-amber-500/15", iconColor: "text-amber-600 dark:text-amber-400" },
+        ].map((kpi, i) => (
+          <div key={i} className={`admin-glass rounded-2xl p-4 flex items-center gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden animate-admin-fade-in admin-delay-${i + 1}`}>
+            <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${kpi.gradient} opacity-50 pointer-events-none`} />
+            <div className={`relative w-10 h-10 rounded-xl ${kpi.iconBg} flex items-center justify-center ${kpi.iconColor}`}>
+              {kpi.icon}
+            </div>
+            <div className="relative">
+              <p className="text-2xl font-bold text-foreground">{kpi.value}</p>
+              <p className="text-xs text-muted-foreground">{kpi.label}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{referrals.length}</p>
-            <p className="text-xs text-muted-foreground">Total de indicações</p>
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{payingReferrals.length}</p>
-            <p className="text-xs text-muted-foreground">Viraram assinantes</p>
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <Store className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">
-              {referrals.length > 0 ? Math.round((payingReferrals.length / referrals.length) * 100) : 0}%
-            </p>
-            <p className="text-xs text-muted-foreground">Taxa de conversão</p>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Table */}
       {referrals.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">Nenhuma indicação ainda</p>
-          <p className="text-sm">Quando lojas se cadastrarem via link de indicação, aparecerão aqui.</p>
+        <div className="text-center py-20 animate-admin-fade-in">
+          <Users className="w-14 h-14 mx-auto mb-4 text-muted-foreground/20" />
+          <p className="font-medium text-muted-foreground">Nenhuma indicação ainda</p>
+          <p className="text-sm text-muted-foreground/70 mt-1">Quando lojas se cadastrarem via link de indicação, aparecerão aqui.</p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="admin-glass rounded-2xl overflow-hidden animate-admin-fade-in admin-delay-3">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Loja Indicada</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Indicado por</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Plano</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Cadastro</th>
+                <tr className="border-b border-border/50 bg-muted/20">
+                  <th className="text-left px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Loja Indicada</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Indicado por</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Plano</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Cadastro</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,14 +115,14 @@ export default function ReferralsTab() {
                   const referrerName = r.referred_by_id ? allOrgs.get(r.referred_by_id) ?? "—" : "—";
                   const badge = planBadge[r.subscription_plan] ?? planBadge.free;
                   return (
-                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                    <tr key={r.id} className="border-b border-border/30 last:border-0 hover:bg-gradient-to-r hover:from-primary/[0.03] hover:to-transparent transition-all duration-200">
+                      <td className="px-4 py-3 font-semibold text-foreground">{r.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{referrerName}</td>
                       <td className="px-4 py-3">
-                        <Badge variant="secondary" className={badge.className}>{badge.label}</Badge>
+                        <Badge variant="secondary" className={`rounded-full border-0 font-bold text-[10px] ${badge.className}`}>{badge.label}</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant="secondary" className={r.subscription_status === "active" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-destructive/15 text-destructive"}>
+                        <Badge variant="secondary" className={`rounded-full border-0 font-bold text-[10px] ${r.subscription_status === "active" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-destructive/15 text-destructive"}`}>
                           {r.subscription_status === "active" ? "Ativo" : "Inativo"}
                         </Badge>
                       </td>

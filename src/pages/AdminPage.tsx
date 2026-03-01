@@ -1177,9 +1177,14 @@ function FeatureCard({ feature }: { feature: Feature }) {
   const isActionable = feature.status === "available" || feature.status === "beta";
 
   return (
-    <div className="admin-glass rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+    <div className="admin-glass rounded-2xl p-5 flex flex-col gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
       <div className="flex items-start justify-between gap-3">
-        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 ${
+          feature.status === "available" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
+          feature.status === "beta" ? "bg-blue-500/15 text-blue-600 dark:text-blue-400" :
+          feature.status === "soon" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+          "bg-muted text-muted-foreground"
+        }`}>
           {feature.icon}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">

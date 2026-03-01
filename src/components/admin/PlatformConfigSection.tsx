@@ -41,37 +41,39 @@ export default function PlatformConfigSection() {
   }
 
   return (
-    <section>
+    <section className="animate-admin-fade-in admin-delay-3">
       <div className="flex items-center gap-2 mb-4">
-        <Settings className="w-4 h-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Configurações da Plataforma</h2>
+        <div className="w-8 h-8 rounded-xl bg-blue-500/15 flex items-center justify-center">
+          <Settings className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        </div>
+        <h2 className="text-sm font-bold text-foreground">Configurações da Plataforma</h2>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <p className="text-xs text-muted-foreground mb-4">Taxas de entrega padrão aplicadas a novas lojas</p>
+      <div className="admin-glass rounded-2xl p-5 hover:shadow-lg transition-all duration-300">
+        <p className="text-xs text-muted-foreground mb-5 leading-relaxed">Taxas de entrega padrão aplicadas a novas lojas</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {FIELDS.map((f) => (
-            <div key={f.key}>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{f.label}</label>
+            <div key={f.key} className="space-y-1.5">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">{f.label}</label>
               <div className="relative">
                 {f.prefix && (
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{f.prefix}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">{f.prefix}</span>
                 )}
                 <Input
                   type="number"
                   step="0.01"
                   value={form[f.key]}
                   onChange={(e) => handleChange(f.key, e.target.value)}
-                  className={`h-9 text-sm ${f.prefix ? "pl-9" : ""} ${f.suffix ? "pr-9" : ""}`}
+                  className={`h-10 text-sm font-semibold bg-muted/40 border-0 focus-visible:ring-1 ${f.prefix ? "pl-9" : ""} ${f.suffix ? "pr-10" : ""}`}
                 />
                 {f.suffix && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{f.suffix}</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">{f.suffix}</span>
                 )}
               </div>
             </div>
           ))}
         </div>
-        <Button onClick={handleSave} disabled={updateMutation.isPending} className="mt-4" size="sm">
+        <Button onClick={handleSave} disabled={updateMutation.isPending} className="mt-5 gap-2 rounded-xl hover:scale-105 transition-transform" size="sm">
           {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar Configurações
         </Button>

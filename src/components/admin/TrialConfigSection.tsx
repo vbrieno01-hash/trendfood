@@ -36,26 +36,30 @@ export default function TrialConfigSection() {
   if (loading) return null;
 
   return (
-    <section>
+    <section className="animate-admin-fade-in admin-delay-2">
       <div className="flex items-center gap-2 mb-4">
-        <Clock className="w-4 h-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Período de Trial</h2>
+        <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center">
+          <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        </div>
+        <h2 className="text-sm font-bold text-foreground">Período de Trial</h2>
       </div>
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <p className="text-xs text-muted-foreground mb-3">
+      <div className="admin-glass rounded-2xl p-5 hover:shadow-lg transition-all duration-300">
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
           Duração padrão do trial para novas lojas. Novas organizações receberão esse número de dias com acesso Pro.
         </p>
         <div className="flex items-center gap-3">
-          <Input
-            type="number"
-            min={0}
-            max={365}
-            value={days}
-            onChange={(e) => setDays(parseInt(e.target.value) || 0)}
-            className="h-9 w-24 text-sm"
-          />
-          <span className="text-sm text-muted-foreground">dias</span>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
+          <div className="relative">
+            <Input
+              type="number"
+              min={0}
+              max={365}
+              value={days}
+              onChange={(e) => setDays(parseInt(e.target.value) || 0)}
+              className="h-10 w-28 text-sm font-semibold bg-muted/40 border-0 focus-visible:ring-1 pr-12"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">dias</span>
+          </div>
+          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2 rounded-xl hover:scale-105 transition-transform">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Salvar
           </Button>
