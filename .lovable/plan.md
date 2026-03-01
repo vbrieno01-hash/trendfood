@@ -1,54 +1,34 @@
 
 
-## Diagnóstico
+## Diagnóstico Real
 
-O erro é **React error #310** ("Too many re-renders") acontecendo no `DashboardPage` quando usuários fazem login pelo celular Android. O erro é capturado pelo `ErrorBoundary` que exibe a tela "Algo deu errado".
+O erro persiste porque a correção anterior não atacou a causa real. O problema é uma **violação das regras de hooks do React** no `DashboardPage.tsx`.
 
-### Causa raiz
+### O que está acontecendo
 
-Encontrei dois problemas no `DashboardPage.tsx` que podem causar loops de re-render:
+O componente tem **3 retornos antecipados (early returns)** nas linhas 479, 491 e 517:
+- Linha 479: `if (loading || !user)` → retorna skeleton
+- Linha 491: `if (!organization)` → retorna "nenhuma loja"
+- Linha 517: `if (subscriptionStatus === "inactive")` → retorna tela bloqueada
 
-1. **`useEffect` na linha 598-605** — chama `setOpenGroups({ operacional: true })` a cada render, criando um novo objeto mesmo quando o valor é idêntico ao estado anterior. O React faz comparação por referência, então considera que o estado mudou e dispara um novo render. Em dispositivos mais lentos (Android), isso pode se acumular e causar o erro #310.
+**Depois** desses returns, existem hooks nas linhas 546, 556 e 598:
+- `useMemo` para `lockedFeatures` (linha 546)
+- `useMemo` para `sidebarGroups` (linha 556)
+- `useEffect` para `openGroups` (linha 598)
 
-2. **`sidebarGroups` (linha 556)** — array criado dentro do render body sem memoização, sendo recriado a cada render. É referenciado pelo `useEffect` acima.
+Isso viola a regra fundamental do React: hooks devem ser chamados na mesma ordem em todo render. Quando `loading` é `true`, o componente retorna na linha 479 e esses 3 hooks nunca executam. Quando o auth completa e `loading` vira `false`, os hooks aparecem pela primeira vez — o React detecta a inconsistência e crasha com error #310.
 
-3. **`usePlanLimits`** — retorna um novo objeto `canAccess` (função) a cada render, potencialmente causando re-renders em cascata nos componentes filhos.
+Em dispositivos Android mais lentos, o estado `loading` muda mais devagar, tornando o bug mais visível.
 
 ### Solução
 
+Mover os 3 hooks (`useMemo` de `lockedFeatures`, `useMemo` de `sidebarGroups`, e `useEffect` de `openGroups`) para **antes** de todos os early returns (antes da linha 479). Os hooks podem receber valores fallback quando `organization` é null, já que os early returns impedirão que o resultado seja usado de qualquer forma.
+
 **Arquivo: `src/pages/DashboardPage.tsx`**
 
-1. **Memoizar `sidebarGroups`** com `useMemo` para evitar recriação desnecessária
-2. **Corrigir o `useEffect` de `openGroups`** para evitar criar novo objeto quando o valor é o mesmo — usar comparação funcional em `setOpenGroups`
-3. **Memoizar `lockedFeatures`** com `useMemo`
+1. Mover `lockedFeatures` (linhas 546-554) para antes da linha 479
+2. Mover `sidebarGroups` (linhas 556-595) para antes da linha 479
+3. Mover `useEffect` de `openGroups` (linhas 598-607) para antes da linha 479
 
-```typescript
-// Antes (linha 598-605):
-useEffect(() => {
-  const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
-  if (parentGroup) {
-    setOpenGroups({ [parentGroup.id]: true });
-  } else {
-    setOpenGroups({});
-  }
-}, [activeTab]);
-
-// Depois:
-useEffect(() => {
-  const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
-  const targetId = parentGroup?.id;
-  setOpenGroups(prev => {
-    const keys = Object.keys(prev);
-    if (targetId && keys.length === 1 && prev[targetId]) return prev; // mesma referência
-    if (!targetId && keys.length === 0) return prev;
-    return targetId ? { [targetId]: true } : {};
-  });
-}, [activeTab]);
-```
-
-**Arquivo: `src/hooks/usePlanLimits.ts`**
-
-4. **Envolver o retorno com `useMemo`** para estabilizar a referência do objeto retornado
-
-Essas mudanças eliminam os re-renders desnecessários que causam o loop no Android.
+Todos usam `planLimits` que já está declarado na linha 63, então não há problema de dependência.
 
