@@ -119,6 +119,13 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan }
                   ? `Equivalente a R$ ${((plan.annual_price_cents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
                   : undefined;
                 const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+                const isSamePlan = currentPlan === plan.key;
+                const billingMismatch = isSamePlan && (
+                  (isAnnual && true) || (!isAnnual && false)
+                );
+                const ctaText = billingMismatch
+                  ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
+                  : "Assinar agora";
                 return (
                   <PlanCard
                     key={plan.id}
@@ -129,11 +136,12 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan }
                     savingsBadge={savingsBadge}
                     description={plan.description || ""}
                     features={plan.features}
-                    cta="Assinar agora"
+                    cta={ctaText}
                     ctaLink="#"
                     highlighted={plan.highlighted}
                     badge={plan.badge || undefined}
-                    currentPlan={currentPlan === plan.key}
+                    currentPlan={isSamePlan}
+                    billingMismatch={billingMismatch}
                     onSelect={() => handleSelect(plan)}
                   />
                 );

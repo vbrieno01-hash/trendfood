@@ -326,6 +326,15 @@ const SubscriptionTab = () => {
             ? `Equivalente a R$ ${((plan.annualPriceCents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
             : undefined;
           const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+          const billingCycle = organization?.billing_cycle || "monthly";
+          const isSamePlan = currentPlan === plan.key;
+          const billingMismatch = isSamePlan && (
+            (isAnnual && billingCycle !== "annual") ||
+            (!isAnnual && billingCycle === "annual")
+          );
+          const ctaText = billingMismatch
+            ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
+            : plan.cta;
           return (
             <PlanCard
               key={plan.key}
@@ -336,14 +345,15 @@ const SubscriptionTab = () => {
               savingsBadge={savingsBadge}
               description={plan.description}
               features={plan.features}
-              cta={plan.cta}
+              cta={ctaText}
               ctaLink={plan.ctaLink}
               highlighted={plan.highlighted}
               badge={plan.badge}
-              currentPlan={currentPlan === plan.key}
+              currentPlan={isSamePlan}
+              billingMismatch={billingMismatch}
               loading={false}
               onSelect={
-                plan.key !== currentPlan && !isLifetime
+                (!isSamePlan || billingMismatch) && !isLifetime
                   ? () => handleSubscribe(plan.key)
                   : undefined
               }

@@ -17,6 +17,7 @@ export interface PlanCardProps {
   onSelect?: () => void;
   loading?: boolean;
   currentPlan?: boolean;
+  billingMismatch?: boolean;
   subtitle?: string;
   savingsBadge?: string;
 }
@@ -35,6 +36,7 @@ const PlanCard = ({
   onSelect,
   loading,
   currentPlan,
+  billingMismatch,
   subtitle,
   savingsBadge,
 }: PlanCardProps) => {
@@ -102,7 +104,18 @@ const PlanCard = ({
         })}
       </ul>
 
-      {currentPlan && price === "Grátis" ? null : currentPlan ? (
+      {currentPlan && price === "Grátis" ? null : currentPlan && billingMismatch && onSelect ? (
+        <Button
+          size="lg"
+          variant={highlighted ? "default" : "outline"}
+          className="w-full font-bold"
+          onClick={onSelect}
+          disabled={loading}
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          {cta}
+        </Button>
+      ) : currentPlan ? (
         <Button
           size="lg"
           variant={highlighted ? "default" : "outline"}
