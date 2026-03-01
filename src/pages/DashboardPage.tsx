@@ -708,7 +708,7 @@ const DashboardPage = () => {
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
         `}
-        style={{ background: "#111111" }}
+        style={{ background: "hsl(220, 15%, 7%)" }}
       >
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/10">
