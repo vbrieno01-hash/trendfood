@@ -1,15 +1,11 @@
 
 
-## Plano: Remover "Ganhe Desconto" da seção Ajustes
+## Plano: Substituir "Mercado Pago" por "TrendFood" na aba de Assinatura
 
-**Arquivo: `src/pages/DashboardPage.tsx`**
+**Arquivo: `src/components/dashboard/SubscriptionTab.tsx`**
 
-Remover a linha 525 que adiciona o item `referral` ("Ganhe Desconto") na lista de itens do grupo "Ajustes" na sidebar. O acesso à aba continuará funcionando pelo botão destacado na parte inferior da sidebar.
+Duas ocorrências serão atualizadas:
 
-Apenas uma linha será removida:
-```
-{ key: "referral" as TabKey, icon: <Share2 className="w-4 h-4" />, label: "Ganhe Desconto" },
-```
-
-Nenhuma outra alteração necessária -- a aba `referral` continuará existindo e sendo renderizada normalmente quando acessada pelo botão inferior.
+1. **Linha 101** (toast de retorno): `"Voltou do Mercado Pago!"` → `"Voltou do TrendFood!"`
+2. **Linha 211** (banner de cobrança recorrente): `"o Mercado Pago cobra automaticamente todo mês"` → `"o TrendFood cobra automaticamente todo mês"`
 
