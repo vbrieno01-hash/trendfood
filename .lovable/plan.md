@@ -1,30 +1,58 @@
 
 
-## Plano: Corrigir cancelamento de assinatura sem mp_subscription_id
+## Plano: Cancelamento inteligente com distinção mensal/anual e acesso até expiração
 
-### Problema
-A organização TrendFood (e provavelmente outras ativadas manualmente pelo admin) tem `mp_subscription_id = null`. A edge function `cancel-mp-subscription` retorna erro "No active subscription" quando esse campo é nulo, impedindo o cancelamento.
+### Problemas atuais
+1. O modal de cancelamento não diferencia plano mensal de anual -- mostra sempre a mesma mensagem
+2. A edge function reverte imediatamente para `subscription_plan: "free"`, removendo acesso na hora
+3. O texto diz "funcionalidades serão desativadas imediatamente" -- errado para planos anuais
 
-### Solução
-Modificar a edge function para que, quando não houver `mp_subscription_id`, ela **pule a chamada à API do Mercado Pago** e simplesmente reverta a organização para o plano Grátis.
+### Alterações
 
-### Alteração
+**1. Frontend: `src/components/dashboard/SubscriptionTab.tsx`**
+- Detectar `billing_cycle` da organização (`organization.billing_cycle`)
+- Se `billing_cycle === "annual"`: mostrar modal diferente com aviso de multa de 20% e que o acesso continua até o fim do período pago
+- Se `billing_cycle === "monthly"`: manter modal atual mas ajustar texto para dizer que acesso continua até a data de expiração (não "imediatamente")
+- Passar `billing_cycle` para a edge function no body da requisição
 
-**Arquivo: `supabase/functions/cancel-mp-subscription/index.ts`**
-- Remover o bloqueio que retorna erro 400 quando `mp_subscription_id` é null
-- Só chamar a API do Mercado Pago se `mp_subscription_id` existir
-- Sempre executar o downgrade para free e o log de auditoria
+**2. Edge Function: `supabase/functions/cancel-mp-subscription/index.ts`**
+- Receber `billing_cycle` no body (ou ler da org no banco)
+- Cancelar no Mercado Pago (já funciona)
+- **Não** mudar `subscription_plan` para "free" imediatamente
+- Em vez disso: mudar apenas `subscription_status` para `"cancelled"` e manter o plano atual + `trial_ends_at` intacto
+- O sistema de `usePlanLimits` já reverte automaticamente para "free" quando `trial_ends_at` expira (via `subscriptionExpired`)
 
-Lógica:
+**3. Frontend: Ajustar toast de sucesso**
+- Trocar "Seu plano foi revertido para Grátis" por "Sua assinatura foi cancelada. O acesso continua até {data de expiração}."
+
+### Modal para plano anual (texto)
 ```
-// Antes: retornava erro
-if (!org.mp_subscription_id) return error 400
-
-// Depois: cancela no MP apenas se houver ID
-if (org.mp_subscription_id) {
-  // chama API do MP para cancelar
-}
-
-// Sempre: downgrade para free + log
+Atenção: Seu plano anual possui multa de rescisão de 20% 
+sobre o saldo restante, conforme os Termos de Uso. 
+O acesso continuará disponível até o fim do período já pago.
 ```
+
+### Modal para plano mensal (texto)
+```
+Ao cancelar, a cobrança recorrente será interrompida. 
+Você continuará com acesso aos recursos até o fim do 
+período atual.
+```
+
+### Lógica resumida da edge function
+```
+// Antes: subscription_plan = "free" (acesso perdido imediatamente)
+// Depois: subscription_status = "cancelled" (acesso mantido até trial_ends_at)
+
+await supabaseAdmin
+  .from("organizations")
+  .update({
+    subscription_status: "cancelled",
+    mp_subscription_id: null,
+    // NÃO muda subscription_plan -- mantém pro/enterprise
+  })
+  .eq("id", org_id);
+```
+
+O `usePlanLimits` já cuida de revogar acesso quando `trial_ends_at` expirar, pois `subscriptionExpired` retorna `true` e `effectivePlan` vira `"free"`.
 
