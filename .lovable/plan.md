@@ -1,23 +1,21 @@
 
 
-## Problema
+## Plano: Toggle "Ocultar adicionais fixos" no modal de criação de produto
 
-Existem 16 adicionais globais e dezenas de produtos. Excluir um por um de cada produto é inviável -- por exemplo, "Água" tem só 3 exclusões de 16. Precisa de uma forma rápida de dizer "este produto não tem adicionais".
-
-## Solução: Toggle "Sem adicionais" por produto
-
-Adicionar um campo `hide_global_addons` (boolean) na tabela `menu_items`. Quando ativado, o produto não mostra nenhum adicional global no cardápio do cliente.
+### Problema
+O toggle "Ocultar todos os adicionais fixos deste produto" só aparece quando **editando** um item existente (dentro do `AddonsSection`). Ao **criar** um novo item, o `PendingAddonsSection` não tem esse toggle. O usuário quer definir isso já na criação.
 
 ### Alterações
 
-1. **Migração SQL**: adicionar coluna `hide_global_addons boolean NOT NULL DEFAULT false` na tabela `menu_items`
+1. **Adicionar estado `pendingHideGlobalAddons`** no componente principal do `MenuTab` (junto com `pendingAddons`, `pendingIngredients`), resetado em `openCreate` e `closeModal`.
 
-2. **Painel do lojista (MenuTab.tsx)**: na seção de adicionais do modal de edição de produto, adicionar um Switch "Ocultar todos os adicionais fixos deste produto". Quando ligado, esconde os toggles individuais de exclusão (não precisa mais)
+2. **Adicionar o Switch no `PendingAddonsSection`** com a mesma aparência do existente no `AddonsSection` -- "Ocultar todos os adicionais fixos deste produto".
 
-3. **Cardápio do cliente (ItemDetailDrawer.tsx)**: antes de montar a lista de adicionais, checar `item.hide_global_addons`. Se `true`, pular todos os adicionais globais (mostrar apenas os item-específicos, se houver)
+3. **No `handleSubmit`, ao criar**: incluir `hide_global_addons` no payload. Como o `useAddMenuItem` não passa esse campo hoje, ajustar a mutation ou fazer um update logo após a criação com o valor.
 
-4. **Tipo MenuItem**: adicionar o campo `hide_global_addons` no tipo
+4. **Ajustar `useAddMenuItem`** para aceitar `hide_global_addons` no insert.
 
-### Resultado
-O lojista pode abrir cada produto que não precisa de adicionais (Bebidas, etc.) e ligar um único switch, em vez de desmarcar 16 adicionais um por um.
+### Componentes afetados
+- `src/components/dashboard/MenuTab.tsx` -- estado + PendingAddonsSection + handleSubmit
+- `src/hooks/useMenuItems.ts` -- `useAddMenuItem` para incluir `hide_global_addons`
 
