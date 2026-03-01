@@ -1,16 +1,15 @@
 
 
-## Plano: Substituir "Indique o TrendFood" pelo acesso à aba "Ganhe Desconto"
+## Plano: Remover "Ganhe Desconto" da seção Ajustes
 
-Existem dois locais com "Indique o TrendFood":
+**Arquivo: `src/pages/DashboardPage.tsx`**
 
-### 1. Sidebar do Dashboard (`DashboardPage.tsx`, linha 785-795)
-O botão atualmente abre o WhatsApp para compartilhar. Será alterado para navegar à aba `referral` (Ganhe Desconto), usando o mesmo `setActiveTab("referral")`.
+Remover a linha 525 que adiciona o item `referral` ("Ganhe Desconto") na lista de itens do grupo "Ajustes" na sidebar. O acesso à aba continuará funcionando pelo botão destacado na parte inferior da sidebar.
 
-### 2. Seção em Configurações (`SettingsTab.tsx`, linhas 87-130)
-A seção "Indique o TrendFood" com link genérico será substituída por um botão que leva à aba "Ganhe Desconto", ou removida completamente já que a aba dedicada já existe.
+Apenas uma linha será removida:
+```
+{ key: "referral" as TabKey, icon: <Share2 className="w-4 h-4" />, label: "Ganhe Desconto" },
+```
 
-### Mudanças:
-- **`DashboardPage.tsx`**: Trocar o `onClick` do botão "Indique o TrendFood" para `setActiveTab("referral")` e renomear para "Ganhe Desconto"
-- **`SettingsTab.tsx`**: Remover a seção "Indique o TrendFood" (redundante com a aba dedicada) ou substituir por um link para a aba referral
+Nenhuma outra alteração necessária -- a aba `referral` continuará existindo e sendo renderizada normalmente quando acessada pelo botão inferior.
 
