@@ -27,6 +27,8 @@ import {
   useAllMenuItemAddons, useAddMenuItemAddon, useUpdateMenuItemAddon, useDeleteMenuItemAddon,
   
 } from "@/hooks/useMenuItemAddonsCrud";
+import { useAllGlobalAddons } from "@/hooks/useGlobalAddonsCrud";
+import { useGlobalAddonExclusions, useAddExclusion, useRemoveExclusion } from "@/hooks/useGlobalAddonExclusions";
 import GlobalAddonsSection from "@/components/dashboard/GlobalAddonsSection";
 
 interface Organization {
@@ -304,13 +306,20 @@ function PendingIngredientsSection({
 }
 
 /* ─── Addons sub-component (edit mode — persists to DB) ─── */
-function AddonsSection({ menuItemId }: { menuItemId: string }) {
+function AddonsSection({ menuItemId, organizationId }: { menuItemId: string; organizationId: string }) {
   const { data: addons = [], isLoading } = useAllMenuItemAddons(menuItemId);
+  const { data: globalAddons = [] } = useAllGlobalAddons(organizationId);
+  const { data: exclusions = [] } = useGlobalAddonExclusions(menuItemId);
+  const addExclusion = useAddExclusion();
+  const removeExclusion = useRemoveExclusion();
   const addAddon = useAddMenuItemAddon();
   const updateAddon = useUpdateMenuItemAddon();
   const deleteAddon = useDeleteMenuItemAddon();
   const [newName, setNewName] = useState("");
   const [newPrice, setNewPrice] = useState(0);
+
+  const excludedIds = new Set(exclusions.map((e) => e.global_addon_id));
+  const availableGlobals = globalAddons.filter((g) => g.available);
 
   const handleAdd = () => {
     if (!newName.trim()) return;
@@ -320,6 +329,14 @@ function AddonsSection({ menuItemId }: { menuItemId: string }) {
     );
   };
 
+  const toggleGlobalExclusion = (globalAddonId: string) => {
+    if (excludedIds.has(globalAddonId)) {
+      removeExclusion.mutate({ menu_item_id: menuItemId, global_addon_id: globalAddonId });
+    } else {
+      addExclusion.mutate({ menu_item_id: menuItemId, global_addon_id: globalAddonId });
+    }
+  };
+
   return (
     <div className="border border-border rounded-lg p-3 space-y-3">
       <div className="flex items-center gap-2">
@@ -327,10 +344,39 @@ function AddonsSection({ menuItemId }: { menuItemId: string }) {
         <p className="text-sm font-medium text-foreground">Adicionais / Complementos</p>
       </div>
 
+      {/* Global addons inherited — with toggle to exclude from this product */}
+      {availableGlobals.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground font-medium">Adicionais fixos (globais)</p>
+          {availableGlobals.map((g) => {
+            const isExcluded = excludedIds.has(g.id);
+            return (
+              <div key={g.id} className={cn(
+                "flex items-center gap-2 text-sm rounded px-2.5 py-1.5",
+                isExcluded ? "bg-muted/50 opacity-60" : "bg-primary/5"
+              )}>
+                <Switch
+                  checked={!isExcluded}
+                  onCheckedChange={() => toggleGlobalExclusion(g.id)}
+                  className="scale-75"
+                  disabled={addExclusion.isPending || removeExclusion.isPending}
+                />
+                <span className={cn("flex-1 text-foreground truncate", isExcluded && "line-through")}>{g.name}</span>
+                <span className="text-muted-foreground text-xs tabular-nums whitespace-nowrap">
+                  +R$ {(g.price_cents / 100).toFixed(2).replace(".", ",")}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
 
+      {/* Item-specific addons */}
       {addons.length > 0 && (
         <div className="space-y-1">
+          <p className="text-xs text-muted-foreground font-medium">Adicionais deste produto</p>
           {addons.map((a) => (
             <div key={a.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded px-2.5 py-1.5">
               <Switch
@@ -1033,7 +1079,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
               {/* Addons section */}
               {canAccessAddons ? (
                 (editItem || editItemId) ? (
-                  <AddonsSection menuItemId={(editItem?.id || editItemId)!} />
+                  <AddonsSection menuItemId={(editItem?.id || editItemId)!} organizationId={organization.id} />
                 ) : (
                   <PendingAddonsSection
                     pending={pendingAddons}
