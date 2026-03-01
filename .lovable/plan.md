@@ -1,21 +1,31 @@
 
 
-## Plano: Toggle "Ocultar adicionais fixos" no modal de criação de produto
+## Plano: Busca por CEP no Checkout
 
 ### Problema
-O toggle "Ocultar todos os adicionais fixos deste produto" só aparece quando **editando** um item existente (dentro do `AddonsSection`). Ao **criar** um novo item, o `PendingAddonsSection` não tem esse toggle. O usuário quer definir isso já na criação.
+O campo de endereço no checkout (`CheckoutPage.tsx`) é texto livre — o cliente pode errar ou não saber o endereço completo. A `UnitPage` já tem busca por CEP via `viacep-proxy`, mas o checkout não.
 
-### Alterações
+### Solução
+Substituir o campo único de endereço por campos estruturados com busca automática por CEP, igual ao que já existe na `UnitPage`:
 
-1. **Adicionar estado `pendingHideGlobalAddons`** no componente principal do `MenuTab` (junto com `pendingAddons`, `pendingIngredients`), resetado em `openCreate` e `closeModal`.
+1. **Novo estado estruturado** no `CheckoutPage`: `{ cep, street, number, complement, neighborhood, city, state }` em vez de um único `address` string.
 
-2. **Adicionar o Switch no `PendingAddonsSection`** com a mesma aparência do existente no `AddonsSection` -- "Ocultar todos os adicionais fixos deste produto".
+2. **Campo CEP com auto-preenchimento**: ao digitar 8 dígitos, chama `viacep-proxy` e preenche rua, bairro, cidade e estado automaticamente. O cliente só precisa digitar o número e complemento.
 
-3. **No `handleSubmit`, ao criar**: incluir `hide_global_addons` no payload. Como o `useAddMenuItem` não passa esse campo hoje, ajustar a mutation ou fazer um update logo após a criação com o valor.
+3. **Layout dos campos**:
+   - CEP (com loading spinner e máscara `00000-000`)
+   - Rua (preenchida automaticamente, editável)
+   - Número + Complemento (lado a lado)
+   - Bairro (preenchido automaticamente, editável)
+   - Cidade + Estado (preenchidos, read-only ou editáveis)
 
-4. **Ajustar `useAddMenuItem`** para aceitar `hide_global_addons` no insert.
+4. **Montagem do endereço final**: ao confirmar, concatena os campos em uma string formatada igual à `UnitPage` (`Rua X, 123, Bairro, Cidade, Estado, CEP, Brasil`) para manter compatibilidade com o `onConfirm` e o cálculo de frete.
+
+5. **Validação**: exigir CEP, rua, número, cidade e estado preenchidos antes de permitir o envio.
 
 ### Componentes afetados
-- `src/components/dashboard/MenuTab.tsx` -- estado + PendingAddonsSection + handleSubmit
-- `src/hooks/useMenuItems.ts` -- `useAddMenuItem` para incluir `hide_global_addons`
+- `src/components/checkout/CheckoutPage.tsx` — substituir campo livre por campos estruturados com busca CEP
+
+### Referência
+A lógica de `fetchCustomerCep` da `UnitPage.tsx` (linhas ~289-314) será replicada.
 
