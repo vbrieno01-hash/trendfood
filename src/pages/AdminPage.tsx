@@ -26,7 +26,7 @@ import {
   TrendingUp,
   ExternalLink,
   Loader2,
-  BarChart3,
+  
   CheckCircle2,
   AlertCircle,
   Search,
@@ -48,6 +48,11 @@ import {
   ScrollText,
   Smartphone,
   Trash2,
+  LayoutDashboard,
+  Globe,
+  ChevronRight,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -74,7 +79,6 @@ function downloadCSV(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Process referral bonus on the client side (for manual activations) */
 async function processReferralBonusClient(activatedOrgId: string, activatedOrgName: string) {
   try {
     const { data: activatedOrg } = await supabase
@@ -87,7 +91,6 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
 
     const referrerId = activatedOrg.referred_by_id;
 
-    // Check if bonus already granted
     const { data: existing } = await (supabase.from("referral_bonuses") as any)
       .select("id")
       .eq("referrer_org_id", referrerId)
@@ -98,7 +101,6 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
 
     const bonusDays = (activatedOrg as any)?.billing_cycle === "annual" ? 30 : 10;
 
-    // Insert bonus
     await (supabase.from("referral_bonuses") as any).insert({
       referrer_org_id: referrerId,
       referred_org_id: activatedOrgId,
@@ -106,7 +108,6 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
       referred_org_name: activatedOrgName,
     });
 
-    // Add bonus days to referrer
     const { data: referrerOrg } = await supabase
       .from("organizations")
       .select("trial_ends_at, name")
@@ -130,8 +131,6 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
         source: "referral_bonus",
         notes: `+${bonusDays} dias por indicar "${activatedOrgName}" (org ${activatedOrgId})`,
       });
-
-      console.log(`[referral] Bonus +${bonusDays} days for org`, referrerId);
     }
   } catch (err) {
     console.error("[referral] Bonus error (non-blocking):", err);
@@ -159,7 +158,6 @@ interface OrgRow {
   business_hours: object | null;
 }
 
-// ── Feature Roadmap data ──
 type FeatureStatus = "available" | "beta" | "soon" | "planned";
 
 interface Feature {
@@ -226,6 +224,40 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
 
 type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes";
 
+// ── Nav groups ──
+interface NavGroup {
+  label: string;
+  items: { key: AdminTab; icon: React.ReactNode; label: string }[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Visão Geral",
+    items: [
+      { key: "home", icon: <Home className="w-4 h-4" />, label: "Dashboard" },
+      { key: "lojas", icon: <Store className="w-4 h-4" />, label: "Lojas" },
+      { key: "indicacoes", icon: <Share2 className="w-4 h-4" />, label: "Indicações" },
+    ],
+  },
+  {
+    label: "Gestão",
+    items: [
+      { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
+      { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
+      { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Chat de Vendas" },
+      { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { key: "logs", icon: <AlertCircle className="w-4 h-4" />, label: "Logs de Erros" },
+      { key: "ativacoes", icon: <ScrollText className="w-4 h-4" />, label: "Ativações" },
+      { key: "guia", icon: <ScrollText className="w-4 h-4" />, label: "Guia" },
+    ],
+  },
+];
+
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
 
@@ -289,13 +321,10 @@ function AdminContent() {
 
   // ── SaaS KPIs ──
   const payingOrgs = useMemo(() => orgs.filter((o) => o.subscription_plan !== "free" && o.subscription_plan !== "lifetime"), [orgs]);
-  const _lifetimeCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "lifetime").length, [orgs]);
   const proCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "pro").length, [orgs]);
   const enterpriseCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "enterprise").length, [orgs]);
   const mrr = proCount * 99 + enterpriseCount * 249;
-  
 
-  // ── Financial metrics ──
   const trialCount = useMemo(() => orgs.filter((o) => {
     if (!o.trial_ends_at) return false;
     return new Date(o.trial_ends_at) > new Date();
@@ -314,7 +343,19 @@ function AdminContent() {
 
   const totalRevenue = useMemo(() => subscriberDetails.reduce((acc, s) => acc + s.totalEstimated, 0), [subscriberDetails]);
 
-  // Filtered list
+  // ── New stores this month vs last ──
+  const { newThisMonth, newLastMonth } = useMemo(() => {
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const ntm = orgs.filter((o) => new Date(o.created_at) >= thisMonthStart).length;
+    const nlm = orgs.filter((o) => {
+      const d = new Date(o.created_at);
+      return d >= lastMonthStart && d < thisMonthStart;
+    }).length;
+    return { newThisMonth: ntm, newLastMonth: nlm };
+  }, [orgs]);
+
   const filteredOrgs = useMemo(() => {
     const q = search.toLowerCase().trim();
     return orgs
@@ -341,7 +382,6 @@ function AdminContent() {
     setAddressFilter("all");
   }
 
-  // ── CSV Export ──
   function exportStoresCSV() {
     const header = "Nome,Slug,Endereço,Status,Plano,Itens,Criado em\n";
     const rows = filteredOrgs.map((o) =>
@@ -350,7 +390,6 @@ function AdminContent() {
     downloadCSV(header + rows, "lojas.csv");
   }
 
-  // ── Plan update ──
   async function handlePlanChange(orgId: string, plan: string) {
     const { error } = await supabase
       .from("organizations")
@@ -361,93 +400,124 @@ function AdminContent() {
     toast.success("Plano atualizado!");
   }
 
-
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth", { replace: true });
   };
 
-  // ── Nav items ──
-  const navItems: { key: AdminTab; icon: React.ReactNode; label: string }[] = [
-    { key: "home", icon: <Home className="w-4 h-4" />, label: "Home" },
-    { key: "lojas", icon: <Store className="w-4 h-4" />, label: "Lojas" },
-    { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
-    { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
-    { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Vendas" },
-    { key: "logs", icon: <AlertCircle className="w-4 h-4" />, label: "Logs" },
-    { key: "ativacoes", icon: <ScrollText className="w-4 h-4" />, label: "Ativações" },
-    { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
-    { key: "indicacoes", icon: <Share2 className="w-4 h-4" />, label: "Indicações" },
-    { key: "guia", icon: <ScrollText className="w-4 h-4" />, label: "Guia" },
-  ];
+  // ── Greeting ──
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Bom dia";
+    if (hour < 18) return "Boa tarde";
+    return "Boa noite";
+  }, []);
 
-  const navBtnClass = (key: AdminTab) =>
-    `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left ${
-      activeTab === key
-        ? "bg-primary text-white shadow-sm shadow-primary/30"
-        : "text-white/60 hover:bg-white/10 hover:text-white"
-    }`;
+  const todayFormatted = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
     <div className="min-h-screen bg-background flex w-full">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* ── Sidebar ── */}
+      {/* ── Premium Sidebar ── */}
       <aside
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
-          w-64 transform transition-transform duration-300
+          w-[272px] transform transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
         `}
-        style={{ background: "#111111" }}
+        style={{
+          background: "linear-gradient(180deg, #0f0f0f 0%, #1a1208 50%, #0f0f0f 100%)",
+        }}
       >
-        {/* Logo */}
-        <div className="px-5 py-5 border-b border-white/10">
-          <Link to="/" className="flex items-center gap-2.5">
-            <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-xl object-contain shadow-lg shadow-primary/30" />
-            <span className="font-extrabold text-white text-base tracking-tight">TrendFood</span>
+        {/* Logo area */}
+        <div className="px-5 py-5 border-b border-white/[0.06]">
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="relative">
+              <img src={logoIcon} alt="TrendFood" className="w-9 h-9 rounded-xl object-contain" />
+              <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 group-hover:ring-primary/40 transition-all" />
+            </div>
+            <div>
+              <span className="font-extrabold text-white text-[15px] tracking-tight block leading-tight">TrendFood</span>
+              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-primary/80">Admin Panel</span>
+            </div>
           </Link>
         </div>
 
-        {/* Admin info */}
-        <div className="px-4 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5">
-            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
-              <ShieldAlert className="w-5 h-5 text-primary" />
+        {/* Admin badge */}
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-white/[0.03] border border-white/[0.06]">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center border border-primary/20">
+              <ShieldAlert className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-white text-sm truncate">Admin</p>
-              <p className="text-white/40 text-xs truncate">{user?.email}</p>
+              <p className="font-semibold text-white/90 text-xs truncate">Administrador</p>
+              <p className="text-white/30 text-[10px] truncate">{user?.email}</p>
             </div>
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
-              className={navBtnClass(item.key)}
-            >
-              {item.icon}
-              <span className="flex-1 text-left">{item.label}</span>
-            </button>
+        {/* Grouped Nav */}
+        <nav className="flex-1 px-3 py-2 overflow-y-auto space-y-5">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/20 px-3 mb-1.5">{group.label}</p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = activeTab === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 text-left relative ${
+                        isActive
+                          ? "bg-primary/15 text-primary"
+                          : "text-white/45 hover:bg-white/[0.04] hover:text-white/70"
+                      }`}
+                    >
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />
+                      )}
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </nav>
 
-        {/* Bottom actions */}
-        <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
+        {/* Bottom section */}
+        <div className="px-3 pb-4 pt-2 border-t border-white/[0.06] space-y-1">
+          <Link
+            to="/dashboard"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/45 hover:bg-white/[0.04] hover:text-white/70 transition-all"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Ir ao Dashboard
+          </Link>
+          <Link
+            to="/"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/45 hover:bg-white/[0.04] hover:text-white/70 transition-all"
+          >
+            <Globe className="w-4 h-4" />
+            Ver o Site
+          </Link>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-red-400 transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/30 hover:bg-red-500/10 hover:text-red-400 transition-all"
           >
             <LogOut className="w-4 h-4" />
             Sair
@@ -458,76 +528,135 @@ function AdminContent() {
       {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-30">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-secondary transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-primary" />
-            <span className="font-bold text-sm">Painel Admin</span>
+        <header className="lg:hidden sticky top-0 z-30 border-b border-border"
+          style={{ background: "linear-gradient(135deg, hsl(var(--background)) 0%, hsl(24 20% 97%) 100%)" }}
+        >
+          <div className="px-4 py-3 flex items-center justify-between">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <img src={logoIcon} alt="" className="w-6 h-6 rounded-lg" />
+              <span className="font-bold text-sm">TrendFood Admin</span>
+            </div>
+            <div className="w-9" />
           </div>
-          <div className="w-9" />
         </header>
 
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
           {/* ── Home Tab ── */}
           {activeTab === "home" && (
             <div className="space-y-8">
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Greeting header */}
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+                <div>
+                  <h1 className="text-xl font-bold text-foreground">{greeting}, Admin 👋</h1>
+                  <p className="text-sm text-muted-foreground capitalize mt-0.5">{todayFormatted}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5" />
+                    Dashboard do Lojista
+                    <ChevronRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* KPI cards - scrollable on mobile */}
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
                 <KpiCard
-                  icon={<DollarSign className="w-5 h-5" />}
-                  label="Receita Total Estimada"
+                  icon={<DollarSign className="w-4 h-4" />}
+                  label="Receita Estimada"
                   value={loading ? null : fmt(totalRevenue)}
-                  color="text-emerald-600 dark:text-emerald-400"
-                  bg="bg-emerald-500/10"
+                  iconBg="bg-emerald-500/10"
+                  iconColor="text-emerald-600 dark:text-emerald-400"
                 />
                 <KpiCard
-                  icon={<TrendingUp className="w-5 h-5" />}
-                  label="MRR (Receita Recorrente)"
+                  icon={<TrendingUp className="w-4 h-4" />}
+                  label="MRR"
                   value={loading ? null : fmt(mrr)}
-                  color="text-blue-600 dark:text-blue-400"
-                  bg="bg-blue-500/10"
+                  iconBg="bg-blue-500/10"
+                  iconColor="text-blue-600 dark:text-blue-400"
                 />
                 <KpiCard
-                  icon={<CalendarPlus className="w-5 h-5" />}
+                  icon={<CalendarPlus className="w-4 h-4" />}
                   label="A Receber (Mês)"
                   value={loading ? null : fmt(mrr)}
-                  color="text-violet-600 dark:text-violet-400"
-                  bg="bg-violet-500/10"
+                  iconBg="bg-violet-500/10"
+                  iconColor="text-violet-600 dark:text-violet-400"
                 />
                 <KpiCard
-                  icon={<Store className="w-5 h-5" />}
-                  label="Lojas Cadastradas"
+                  icon={<Store className="w-4 h-4" />}
+                  label="Total Lojas"
                   value={loading ? null : orgs.length.toString()}
-                  color="text-cyan-600 dark:text-cyan-400"
-                  bg="bg-cyan-500/10"
+                  iconBg="bg-cyan-500/10"
+                  iconColor="text-cyan-600 dark:text-cyan-400"
+                  trend={newLastMonth > 0 ? Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100) : undefined}
                 />
                 <KpiCard
-                  icon={<Users className="w-5 h-5" />}
-                  label="Assinantes Ativos"
+                  icon={<Users className="w-4 h-4" />}
+                  label="Assinantes"
                   value={loading ? null : payingOrgs.length.toString()}
-                  color="text-orange-600 dark:text-orange-400"
-                  bg="bg-orange-500/10"
+                  iconBg="bg-orange-500/10"
+                  iconColor="text-orange-600 dark:text-orange-400"
                 />
                 <KpiCard
-                  icon={<Sparkles className="w-5 h-5" />}
-                  label="Trials Ativos"
+                  icon={<Sparkles className="w-4 h-4" />}
+                  label="Trials"
                   value={loading ? null : trialCount.toString()}
-                  color="text-amber-600 dark:text-amber-400"
-                  bg="bg-amber-500/10"
+                  iconBg="bg-amber-500/10"
+                  iconColor="text-amber-600 dark:text-amber-400"
                 />
               </div>
+
+              {/* Quick actions */}
+              {!loading && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setActiveTab("lojas")}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    Ver Lojas
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("ativacoes")}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                  >
+                    <ScrollText className="w-3.5 h-3.5" />
+                    Ver Ativações
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("logs")}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Logs de Erros
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("vendas")}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Chat de Vendas
+                  </button>
+                </div>
+              )}
+
               {!loading && <GrowthCharts orgs={orgs} />}
 
-              {/* ── Detalhamento de Assinantes ── */}
+              {/* ── Subscriber details ── */}
               {!loading && (
                 <section>
                   <div className="flex items-center gap-2 mb-4">
-                    <Crown className="w-4 h-4 text-muted-foreground" />
-                    <h2 className="text-sm font-semibold text-foreground">Detalhamento de Assinantes</h2>
+                    <Crown className="w-4 h-4 text-primary/60" />
+                    <h2 className="text-sm font-bold text-foreground">Detalhamento de Assinantes</h2>
                   </div>
                   {subscriberDetails.length === 0 ? (
                     <div className="bg-card border border-border rounded-2xl p-8 text-center">
@@ -538,31 +667,42 @@ function AdminContent() {
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="border-b border-border">
-                              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Loja</th>
-                              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Plano</th>
-                              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Valor/mês</th>
-                              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Meses Ativos</th>
-                              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground">Total Estimado</th>
+                            <tr className="border-b border-border bg-muted/30">
+                              <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Loja</th>
+                              <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Plano</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Valor/mês</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Meses</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Estimado</th>
                             </tr>
                           </thead>
                           <tbody>
                             {subscriberDetails.map((s) => (
-                              <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                                <td className="px-4 py-3 font-medium">{s.emoji} {s.name}</td>
-                                <td className="px-4 py-3">
-                                  <Badge variant="secondary" className="text-xs capitalize">{s.subscription_plan}</Badge>
+                              <tr key={s.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
+                                <td className="px-5 py-3.5">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-7 h-7 rounded-lg ${getAvatarColor(s.name)} flex items-center justify-center text-white text-xs font-bold`}>
+                                      {s.emoji !== "🍽️" ? s.emoji : s.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="font-medium text-foreground">{s.name}</span>
+                                  </div>
                                 </td>
-                                <td className="px-4 py-3 text-right tabular-nums">{fmt(s.planValue)}</td>
-                                <td className="px-4 py-3 text-right tabular-nums">{s.monthsActive}</td>
-                                <td className="px-4 py-3 text-right tabular-nums font-medium">{fmt(s.totalEstimated)}</td>
+                                <td className="px-5 py-3.5">
+                                  <Badge className={`text-[10px] px-2 py-0.5 rounded-full border-0 font-bold uppercase tracking-wider ${
+                                    s.subscription_plan === "enterprise" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400" : "bg-primary/15 text-primary"
+                                  }`}>
+                                    {s.subscription_plan}
+                                  </Badge>
+                                </td>
+                                <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{fmt(s.planValue)}</td>
+                                <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{s.monthsActive}</td>
+                                <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">{fmt(s.totalEstimated)}</td>
                               </tr>
                             ))}
                           </tbody>
                           <tfoot>
-                            <tr className="bg-muted/30">
-                              <td colSpan={4} className="px-4 py-3 text-xs font-semibold text-muted-foreground text-right">Total</td>
-                              <td className="px-4 py-3 text-right font-bold tabular-nums">{fmt(totalRevenue)}</td>
+                            <tr className="bg-primary/[0.03]">
+                              <td colSpan={4} className="px-5 py-3 text-xs font-bold text-muted-foreground text-right uppercase tracking-wider">Total</td>
+                              <td className="px-5 py-3 text-right font-bold tabular-nums text-foreground">{fmt(totalRevenue)}</td>
                             </tr>
                           </tfoot>
                         </table>
@@ -578,14 +718,16 @@ function AdminContent() {
           {activeTab === "lojas" && (
             <section className="space-y-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                  Lojas da Plataforma
-                </h2>
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">Lojas da Plataforma</h2>
+                  {!loading && (
+                    <p className="text-sm text-muted-foreground mt-0.5">{orgs.length} lojas cadastradas</p>
+                  )}
+                </div>
                 {!loading && filteredOrgs.length > 0 && (
                   <button
                     onClick={exportStoresCSV}
-                    className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full bg-muted hover:bg-muted/80"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Exportar CSV
@@ -616,15 +758,15 @@ function AdminContent() {
 
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground font-medium shrink-0">Status:</span>
+                      <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider shrink-0">Status:</span>
                       {(["all", "active", "trial"] as const).map((v) => (
                         <button
                           key={v}
                           onClick={() => setStatusFilter(v)}
-                          className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
                             statusFilter === v
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "bg-muted/60 text-muted-foreground hover:bg-muted"
                           }`}
                         >
                           {v === "all" ? "Todos" : v === "active" ? "Ativo" : "Trial"}
@@ -633,15 +775,15 @@ function AdminContent() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground font-medium shrink-0">Endereço:</span>
+                      <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider shrink-0">Endereço:</span>
                       {(["all", "with", "without"] as const).map((v) => (
                         <button
                           key={v}
                           onClick={() => setAddressFilter(v)}
-                          className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
                             addressFilter === v
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "bg-muted/60 text-muted-foreground hover:bg-muted"
                           }`}
                         >
                           {v === "all" ? "Todos" : v === "with" ? "Com endereço" : "Sem endereço"}
@@ -649,7 +791,7 @@ function AdminContent() {
                       ))}
                     </div>
 
-                    <span className="ml-auto text-xs text-muted-foreground shrink-0">
+                    <span className="ml-auto text-xs font-medium text-muted-foreground shrink-0">
                       {filteredOrgs.length === orgs.length
                         ? `${orgs.length} lojas`
                         : `${filteredOrgs.length} de ${orgs.length}`}
@@ -691,7 +833,6 @@ function AdminContent() {
             </section>
           )}
 
-          {/* ── Config Tab ── */}
           {activeTab === "config" && (
             <div className="space-y-6">
               <PlansConfigSection />
@@ -701,12 +842,11 @@ function AdminContent() {
             </div>
           )}
 
-          {/* ── Features Tab ── */}
           {activeTab === "features" && (
             <section>
               <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-foreground">Funcionalidades da Plataforma</h2>
+                <Sparkles className="w-4 h-4 text-primary/60" />
+                <h2 className="text-sm font-bold text-foreground">Funcionalidades da Plataforma</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {FEATURES.map((f) => (
@@ -716,24 +856,12 @@ function AdminContent() {
             </section>
           )}
 
-          {/* ── Vendas Tab ── */}
           {activeTab === "vendas" && <SalesChatTab />}
-
-          {/* ── Logs Tab ── */}
           {activeTab === "logs" && <ErrorLogsTab />}
-
-          {/* ── Ativações Tab ── */}
           {activeTab === "ativacoes" && <ActivationLogsTab />}
-
-          {/* ── WhatsApp Tab ── */}
           {activeTab === "whatsapp" && <WhatsAppConnectTab />}
-
-          {/* ── Indicações Tab ── */}
           {activeTab === "indicacoes" && <ReferralsTab />}
-
-          {/* ── Guia Tab ── */}
           {activeTab === "guia" && <AdminGuideTab />}
-
         </main>
 
         {deleteTarget && (
@@ -753,27 +881,36 @@ function AdminContent() {
   );
 }
 
-/* ── KPI Card ── */
+/* ── KPI Card — compact with trend indicator ── */
 function KpiCard({
-  icon, label, value, color, bg,
+  icon, label, value, iconBg, iconColor, trend,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | null;
-  color: string;
-  bg: string;
+  iconBg: string;
+  iconColor: string;
+  trend?: number;
 }) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3">
-      <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center ${color}`}>
-        {icon}
+    <div className="min-w-[140px] bg-card border border-border rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-md hover:border-border/80 transition-all duration-200 group">
+      <div className="flex items-center justify-between">
+        <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-105 transition-transform`}>
+          {icon}
+        </div>
+        {trend !== undefined && trend !== 0 && (
+          <div className={`flex items-center gap-0.5 text-[11px] font-bold ${trend > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
+            {trend > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+            {Math.abs(trend)}%
+          </div>
+        )}
       </div>
       {value === null ? (
-        <Skeleton className="h-7 w-16" />
+        <Skeleton className="h-6 w-14" />
       ) : (
-        <p className="text-2xl font-bold text-foreground leading-none">{value}</p>
+        <p className="text-lg font-bold text-foreground leading-none">{value}</p>
       )}
-      <p className="text-xs text-muted-foreground leading-snug">{label}</p>
+      <p className="text-[11px] text-muted-foreground leading-snug font-medium">{label}</p>
     </div>
   );
 }
@@ -790,11 +927,11 @@ function SetupScore({ org }: { org: OrgRow }) {
   const pct = score * 25;
   return (
     <div className="px-5 pb-4 space-y-1.5">
-      <div className="flex justify-between text-xs text-muted-foreground">
+      <div className="flex justify-between text-[11px] text-muted-foreground font-medium">
         <span>Setup</span>
-        <span className={pct === 100 ? "text-emerald-600 dark:text-emerald-400 font-medium" : ""}>{pct}%</span>
+        <span className={pct === 100 ? "text-emerald-600 dark:text-emerald-400 font-bold" : ""}>{pct}%</span>
       </div>
-      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="h-1 bg-muted rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${
             pct === 100 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-rose-400"
@@ -806,7 +943,7 @@ function SetupScore({ org }: { org: OrgRow }) {
   );
 }
 
-/* ── Store Card ── */
+/* ── Store Card — refined ── */
 function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void }) {
   const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
@@ -841,7 +978,6 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
         notes: "Ativação rápida 30d",
       });
 
-      // ── Referral bonus ──
       await processReferralBonusClient(org.id, org.name);
 
       setLocalOrg((prev) => ({
@@ -860,10 +996,10 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+    <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg hover:border-border/80 transition-all duration-200 flex flex-col group">
       <div className="p-5 flex items-start gap-3 flex-1">
         <div
-          className={`w-11 h-11 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-lg shrink-0`}
+          className={`w-10 h-10 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-base shrink-0 group-hover:scale-105 transition-transform`}
         >
           {org.emoji !== "🍽️" ? org.emoji : initial}
         </div>
@@ -872,7 +1008,7 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="font-semibold text-sm text-foreground truncate">{org.name}</p>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">
+              <p className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
                 /unidade/{org.slug}
               </p>
             </div>
@@ -880,16 +1016,16 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
               href={`/unidade/${org.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              className="shrink-0 text-muted-foreground hover:text-primary transition-colors p-1 rounded-lg hover:bg-primary/10"
               title="Abrir loja"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
 
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <Badge
-              className={`text-xs px-2 py-0.5 rounded-full border-0 font-medium ${
+              className={`text-[10px] px-2 py-0.5 rounded-full border-0 font-bold ${
                 isActive
                   ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
                   : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
@@ -898,23 +1034,23 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
               {isActive ? "Ativo" : "Trial"}
             </Badge>
             {org.store_address ? (
-              <Badge className="text-xs px-2 py-0.5 rounded-full border-0 font-medium bg-blue-500/10 text-blue-700 dark:text-blue-400 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                Endereço OK
+              <Badge className="text-[10px] px-2 py-0.5 rounded-full border-0 font-medium bg-blue-500/10 text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                <CheckCircle2 className="w-2.5 h-2.5" />
+                Endereço
               </Badge>
             ) : (
-              <Badge className="text-xs px-2 py-0.5 rounded-full border-0 font-medium bg-muted text-muted-foreground flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                Sem endereço
+              <Badge className="text-[10px] px-2 py-0.5 rounded-full border-0 font-medium bg-muted text-muted-foreground flex items-center gap-1">
+                <AlertCircle className="w-2.5 h-2.5" />
+                Sem end.
               </Badge>
             )}
-            <Badge className={`text-xs px-2 py-0.5 rounded-full border-0 font-medium ${
+            <Badge className={`text-[10px] px-2 py-0.5 rounded-full border-0 font-bold uppercase tracking-wider ${
               localOrg.subscription_plan === "lifetime" ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" :
               localOrg.subscription_plan === "enterprise" ? "bg-violet-500/15 text-violet-700 dark:text-violet-400" :
               localOrg.subscription_plan === "pro" ? "bg-primary/15 text-primary" :
               "bg-muted text-muted-foreground"
             }`}>
-              {localOrg.subscription_plan === "lifetime" ? "Vitalício" : localOrg.subscription_plan === "enterprise" ? "Enterprise" : localOrg.subscription_plan === "pro" ? "Pro" : "Free"}
+              {localOrg.subscription_plan === "lifetime" ? "Vitalício" : localOrg.subscription_plan}
             </Badge>
           </div>
         </div>
@@ -922,54 +1058,46 @@ function StoreCard({ org, onPlanChange, onDelete }: { org: OrgRow; onPlanChange:
 
       <SetupScore org={org} />
 
-      <div className="border-t border-border px-5 py-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <Crown className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Plano: <span className="font-medium text-foreground capitalize">{localOrg.subscription_plan}</span></span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={quickActivate}
-              disabled={activating || localOrg.subscription_plan === "pro"}
-              className="text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
-            >
-              {activating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              Ativar Pro 30d
-            </button>
-            <ManageSubscriptionDialog
-              org={localOrg}
-              onSaved={(updated) => {
-                setLocalOrg((prev) => ({ ...prev, ...updated }));
-                onPlanChange(org.id, updated.subscription_plan);
-              }}
-            />
-          </div>
+      <div className="border-t border-border px-5 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={quickActivate}
+            disabled={activating || localOrg.subscription_plan === "pro"}
+            className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+          >
+            {activating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            Ativar 30d
+          </button>
+          <ManageSubscriptionDialog
+            org={localOrg}
+            onSaved={(updated) => {
+              setLocalOrg((prev) => ({ ...prev, ...updated }));
+              onPlanChange(org.id, updated.subscription_plan);
+            }}
+          />
         </div>
         {localOrg.trial_ends_at && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">
-              Trial até {new Date(localOrg.trial_ends_at).toLocaleDateString("pt-BR")}
-            </span>
-          </div>
+          <span className="text-[10px] text-muted-foreground">
+            até {new Date(localOrg.trial_ends_at).toLocaleDateString("pt-BR")}
+          </span>
         )}
       </div>
 
-      <div className="border-t border-border px-5 py-3 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
+      <div className="border-t border-border/50 px-5 py-2.5 flex items-center justify-between bg-muted/20">
+        <span className="text-[10px] text-muted-foreground">
           Desde {new Date(org.created_at).toLocaleDateString("pt-BR")}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => onDelete(org.id, org.name)}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Excluir loja"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3 h-3" />
           </button>
           <Link
             to={`/unidade/${org.slug}`}
-            className="text-xs text-primary hover:underline font-medium"
+            className="text-[11px] text-primary hover:underline font-medium"
           >
             Ver loja →
           </Link>
@@ -986,16 +1114,16 @@ function FeatureCard({ feature }: { feature: Feature }) {
   const isActionable = feature.status === "available" || feature.status === "beta";
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 hover:shadow-sm transition-shadow">
+    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 hover:shadow-md hover:border-border/80 transition-all duration-200">
       <div className="flex items-start justify-between gap-3">
         <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shrink-0">
           {feature.icon}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${planBadge.className}`}>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${planBadge.className}`}>
             {planBadge.label}
           </span>
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${className}`}>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${className}`}>
             {label}
           </span>
         </div>
