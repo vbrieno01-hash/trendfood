@@ -1,0 +1,1 @@
+ALTER TABLE public.menu_items ADD COLUMN hide_global_addons boolean NOT NULL DEFAULT false;

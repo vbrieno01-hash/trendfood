@@ -12,6 +12,7 @@ export interface MenuItem {
   category: string;
   image_url: string | null;
   available: boolean;
+  hide_global_addons: boolean;
   created_at: string;
 }
 
@@ -50,7 +51,7 @@ export function useMenuItems(orgId: string | undefined, sortOrder: SortOrder = "
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("menu_items")
-        .select("id, organization_id, name, price, description, category, image_url, available, created_at")
+        .select("id, organization_id, name, price, description, category, image_url, available, hide_global_addons, created_at")
         .eq("organization_id", orgId)
         .order("created_at", { ascending: sortOrder === "oldest" });
       if (error) throw error;

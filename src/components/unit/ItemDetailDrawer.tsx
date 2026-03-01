@@ -37,9 +37,10 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensA
 
   const addonsLoading = itemAddonsLoading || globalAddonsLoading || exclusionsLoading;
 
-  // Filter out excluded global addons, then merge with item-specific (no duplicates by name)
+  // Filter out excluded global addons (or all if hide_global_addons is set)
+  const hideAllGlobals = !!(item as any)?.hide_global_addons;
   const excludedIds = new Set(exclusions.map((e) => e.global_addon_id));
-  const filteredGlobals = globalAddons.filter((a) => !excludedIds.has(a.id));
+  const filteredGlobals = hideAllGlobals ? [] : globalAddons.filter((a) => !excludedIds.has(a.id));
   const seenNames = new Set<string>();
   const addons = [
     ...filteredGlobals.map((a) => { seenNames.add(a.name.toLowerCase()); return a; }),

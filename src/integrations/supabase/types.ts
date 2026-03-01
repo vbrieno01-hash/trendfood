@@ -651,6 +651,7 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          hide_global_addons: boolean
           id: string
           image_url: string | null
           name: string
@@ -662,6 +663,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          hide_global_addons?: boolean
           id?: string
           image_url?: string | null
           name: string
@@ -673,6 +675,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          hide_global_addons?: boolean
           id?: string
           image_url?: string | null
           name?: string
