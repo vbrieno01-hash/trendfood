@@ -1,16 +1,12 @@
 
 
-## Efeito Neon no Card de Estoque Baixo
+## Reordenar itens do menu OPERACIONAL
 
-O `animate-pulse` do Tailwind apenas altera opacidade, o que é sutil demais. A solução é criar uma animação customizada com `box-shadow` neon vermelho pulsante.
+Alterar a ordem dos itens no array `sidebarGroups[0].items` em `src/pages/DashboardPage.tsx` (linhas 557-563):
 
-### Alterações
+**Ordem atual:** Gestão de Pedidos → Mesas & Comandas → Cozinha (KDS) → Histórico → Motoboys
 
-**1. `tailwind.config.ts`** — Adicionar keyframe e animation customizados:
-- Keyframe `neon-pulse`: alterna entre `box-shadow` vermelho intenso (glow expandido) e glow reduzido
-- Animation `animate-neon-pulse`: aplica o keyframe em loop infinito de ~1.5s
+**Nova ordem:** Mesas & Comandas → Cozinha (KDS) → Gestão de Pedidos → Motoboys → Histórico
 
-**2. `src/components/dashboard/HomeTab.tsx`** — Trocar `animate-pulse` por `animate-neon-pulse` e adicionar `shadow-lg shadow-red-500/30` como base no card quando `lowStockCount > 0`.
-
-O resultado será um brilho vermelho neon pulsante ao redor do card, muito mais visível que a animação anterior.
+Apenas uma troca de linhas, sem alteração de lógica.
 
