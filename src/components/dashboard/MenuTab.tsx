@@ -459,9 +459,15 @@ interface PendingAddon {
 function PendingAddonsSection({
   pending,
   onChange,
+  hideGlobalAddons,
+  onToggleHideGlobal,
+  hasGlobalAddons,
 }: {
   pending: PendingAddon[];
   onChange: (next: PendingAddon[]) => void;
+  hideGlobalAddons: boolean;
+  onToggleHideGlobal: (val: boolean) => void;
+  hasGlobalAddons: boolean;
 }) {
   const [newName, setNewName] = useState("");
   const [newPrice, setNewPrice] = useState(0);
@@ -479,6 +485,17 @@ function PendingAddonsSection({
         <Plus className="w-4 h-4 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Adicionais / Complementos</p>
       </div>
+
+      {hasGlobalAddons && (
+        <div className="flex items-center gap-2 px-2.5 py-1.5 bg-muted/50 rounded">
+          <Switch
+            checked={hideGlobalAddons}
+            onCheckedChange={onToggleHideGlobal}
+            className="scale-75"
+          />
+          <span className="text-sm text-foreground">Ocultar todos os adicionais fixos deste produto</span>
+        </div>
+      )}
 
       {pending.length > 0 && (
         <div className="space-y-1">
@@ -567,6 +584,8 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [submitting, setSubmitting] = useState(false);
   const [pendingIngredients, setPendingIngredients] = useState<PendingIngredient[]>([]);
   const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
+  const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
+  const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
   const fileRef = useRef<HTMLInputElement>(null);
   // Track object URLs for cleanup
@@ -660,6 +679,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setImagePreview(null);
     setPendingIngredients([]);
     setPendingAddons([]);
+    setPendingHideGlobalAddons(false);
     setModalOpen(true);
   };
 
@@ -689,6 +709,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setImagePreview(null);
     setPendingIngredients([]);
     setPendingAddons([]);
+    setPendingHideGlobalAddons(false);
     clearDraft(organization.id);
     // Cleanup object URL
     if (objectUrlRef.current) {
@@ -737,7 +758,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       if (editItem) {
         await updateMutation.mutateAsync({ id: editItem.id, input: payload });
       } else {
-        const created = await addMutation.mutateAsync(payload);
+        const created = await addMutation.mutateAsync({ ...payload, hide_global_addons: pendingHideGlobalAddons });
         // Save pending ingredients after creation
         if (pendingIngredients.length > 0 && created?.id) {
           for (const pi of pendingIngredients) {
@@ -1109,6 +1130,9 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                   <PendingAddonsSection
                     pending={pendingAddons}
                     onChange={setPendingAddons}
+                    hideGlobalAddons={pendingHideGlobalAddons}
+                    onToggleHideGlobal={setPendingHideGlobalAddons}
+                    hasGlobalAddons={globalAddonsForCreate.filter(g => g.available).length > 0}
                   />
                 )
               ) : (

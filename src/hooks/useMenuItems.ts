@@ -24,6 +24,7 @@ export interface MenuItemInput {
   image_url?: string | null;
   available: boolean;
   imageFile?: File | null;
+  hide_global_addons?: boolean;
 }
 
 export const CATEGORIES = [
@@ -99,6 +100,7 @@ export function useAddMenuItem(orgId: string) {
           category: input.category,
           available: input.available,
           image_url: input.image_url ?? null,
+          hide_global_addons: input.hide_global_addons ?? false,
         })
         .select()
         .single();
