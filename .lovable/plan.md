@@ -1,14 +1,16 @@
 
 
-## Card "Estoque Baixo" com animação pulsante
+## Efeito Neon no Card de Estoque Baixo
 
-O card atualmente apenas muda de verde para vermelho quando há insumos baixos. A proposta é adicionar uma animação de pulso (blink/pulsing) ao card quando `lowStockCount > 0`, chamando mais atenção visual.
+O `animate-pulse` do Tailwind apenas altera opacidade, o que é sutil demais. A solução é criar uma animação customizada com `box-shadow` neon vermelho pulsante.
 
-### Alteração
+### Alterações
 
-**Arquivo:** `src/components/dashboard/HomeTab.tsx` (linha 250)
+**1. `tailwind.config.ts`** — Adicionar keyframe e animation customizados:
+- Keyframe `neon-pulse`: alterna entre `box-shadow` vermelho intenso (glow expandido) e glow reduzido
+- Animation `animate-neon-pulse`: aplica o keyframe em loop infinito de ~1.5s
 
-Adicionar a classe `animate-pulse` do Tailwind ao container do card quando `lowStockCount > 0`. Isso fará o card inteiro piscar suavemente (opacidade alternando), criando urgência visual sem ser intrusivo.
+**2. `src/components/dashboard/HomeTab.tsx`** — Trocar `animate-pulse` por `animate-neon-pulse` e adicionar `shadow-lg shadow-red-500/30` como base no card quando `lowStockCount > 0`.
 
-A classe nativa `animate-pulse` do Tailwind já está disponível e aplica uma animação de opacidade `2s cubic-bezier(0.4, 0, 0.6, 1) infinite`.
+O resultado será um brilho vermelho neon pulsante ao redor do card, muito mais visível que a animação anterior.
 
