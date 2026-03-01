@@ -4,7 +4,7 @@ import type { Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode, Flame } from "lucide-react";
-import { printOrder } from "@/lib/printOrder";
+import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
 import KitchenTab from "@/components/dashboard/KitchenTab";
 
@@ -52,7 +52,6 @@ interface WaiterTabProps {
   orgName?: string;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
   pixKey?: string | null;
-  // KDS modal props
   storeAddress?: string | null;
   courierConfig?: { base_fee: number; per_km: number } | null;
   printMode?: 'browser' | 'desktop' | 'bluetooth';
@@ -65,13 +64,15 @@ interface WaiterTabProps {
   onToggleAutoPrint: (val: boolean) => void;
   notificationsEnabled: boolean;
   onToggleNotifications: (val: boolean) => void;
+  embedded?: boolean;
 }
 
 export default function WaiterTab({
   orgId, whatsapp, orgName, pixConfirmationMode, pixKey,
-  storeAddress, courierConfig, printMode, printerWidth, btDevice,
+  storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null,
   onPairBluetooth, btConnected, btSupported,
   autoPrint, onToggleAutoPrint, notificationsEnabled, onToggleNotifications,
+  embedded = false,
 }: WaiterTabProps) {
   const [showKds, setShowKds] = useState(false);
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
@@ -84,6 +85,12 @@ export default function WaiterTab({
   const [loadingDeliver, setLoadingDeliver] = useState<Set<string>>(new Set());
   const [loadingPay, setLoadingPay] = useState<Set<string>>(new Set());
   const [loadingConfirmPix, setLoadingConfirmPix] = useState<Set<string>>(new Set());
+
+  const handlePrintOrder = (order: Order) => {
+    const total = calcTotal(order);
+    const pix = pixKey && total > 0 ? buildPixPayload(pixKey, total, orgName ?? "LOJA") : undefined;
+    printOrderByMode(order, orgName, printMode, orgId, btDevice, pix, printerWidth);
+  };
 
   const handleDeliver = (id: string) => {
     if (loadingDeliver.has(id)) return;
@@ -292,11 +299,7 @@ export default function WaiterTab({
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() => {
-                        const total = calcTotal(order);
-                        const pix = pixKey && total > 0 ? buildPixPayload(pixKey, total, orgName ?? "LOJA") : undefined;
-                        printOrder(order, orgName, pix);
-                      }}
+                      onClick={() => handlePrintOrder(order)}
                       title="Imprimir comanda"
                     >
                       <Printer className="w-3.5 h-3.5" />
@@ -363,7 +366,6 @@ export default function WaiterTab({
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                     </div>
-                    {/* Total em destaque */}
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">Total</p>
                       <p className="font-black text-yellow-700 text-2xl leading-tight">{fmtBRL(total)}</p>
@@ -393,30 +395,23 @@ export default function WaiterTab({
                     </div>
                   )}
 
-                  {/* Formas aceitas */}
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span>💳</span>
                     <span>Dinheiro · Pix · Cartão</span>
                   </div>
 
                   <div className="flex gap-2 flex-wrap">
-                    {/* Imprimir comanda */}
                     <Button
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() => {
-                        const total = calcTotal(order);
-                        const pix = pixKey && total > 0 ? buildPixPayload(pixKey, total, orgName ?? "LOJA") : undefined;
-                        printOrder(order, orgName, pix);
-                      }}
+                      onClick={() => handlePrintOrder(order)}
                       title="Imprimir comanda com QR Pix"
                     >
                       <Printer className="w-3.5 h-3.5" />
                       Imprimir
                     </Button>
 
-                    {/* Enviar conta via WhatsApp */}
                     <a
                       href={waUrl}
                       target="_blank"
@@ -427,7 +422,6 @@ export default function WaiterTab({
                       Enviar Conta
                     </a>
 
-                    {/* Confirmar pagamento */}
                     <Button
                       className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold"
                       disabled={busyPay}
@@ -450,43 +444,48 @@ export default function WaiterTab({
         )}
       </div>
 
-      {/* Botão flutuante — Monitor da Cozinha */}
-      <Button
-        onClick={() => setShowKds(true)}
-        className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 h-auto text-sm font-semibold"
-      >
-        <Flame className="w-4 h-4" />
-        Monitor da Cozinha
-      </Button>
+      {/* Botão flutuante — Monitor da Cozinha (hidden when embedded) */}
+      {!embedded && (
+        <Button
+          onClick={() => setShowKds(true)}
+          className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 h-auto text-sm font-semibold"
+        >
+          <Flame className="w-4 h-4" />
+          Monitor da Cozinha
+        </Button>
+      )}
 
-      {/* Dialog fullscreen com KDS */}
-      <Dialog open={showKds} onOpenChange={setShowKds}>
-        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-orange-500" />
-              Monitor da Cozinha
-            </DialogTitle>
-          </DialogHeader>
-          <KitchenTab
-            orgId={orgId}
-            orgName={orgName}
-            storeAddress={storeAddress}
-            courierConfig={courierConfig}
-            printMode={printMode}
-            printerWidth={printerWidth}
-            btDevice={btDevice}
-            pixKey={pixKey}
-            onPairBluetooth={onPairBluetooth}
-            btConnected={btConnected}
-            btSupported={btSupported}
-            autoPrint={autoPrint}
-            onToggleAutoPrint={onToggleAutoPrint}
-            notificationsEnabled={notificationsEnabled}
-            onToggleNotifications={onToggleNotifications}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Dialog fullscreen com KDS (hidden when embedded) */}
+      {!embedded && (
+        <Dialog open={showKds} onOpenChange={setShowKds}>
+          <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Flame className="w-5 h-5 text-orange-500" />
+                Monitor da Cozinha
+              </DialogTitle>
+            </DialogHeader>
+            <KitchenTab
+              orgId={orgId}
+              orgName={orgName}
+              storeAddress={storeAddress}
+              courierConfig={courierConfig}
+              printMode={printMode}
+              printerWidth={printerWidth}
+              btDevice={btDevice}
+              pixKey={pixKey}
+              onPairBluetooth={onPairBluetooth}
+              btConnected={btConnected}
+              btSupported={btSupported}
+              autoPrint={autoPrint}
+              onToggleAutoPrint={onToggleAutoPrint}
+              notificationsEnabled={notificationsEnabled}
+              onToggleNotifications={onToggleNotifications}
+              embedded
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
