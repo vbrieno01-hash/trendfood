@@ -1,52 +1,31 @@
 
 
-## Problemas encontrados no fluxo anual
+## Plano: Termos de Uso + Checkbox de Aceite no Checkout
 
-Analisei todo o fluxo de ponta a ponta e encontrei **2 bugs** que precisam ser corrigidos:
+### 1. Atualizar `/termos` com o novo conteúdo
+- Reescrever `src/pages/TermsPage.tsx` com o texto fornecido (5 seções: O Serviço, Planos e Pagamentos, Política de Reembolso, Indisponibilidade, Isenção de Responsabilidade).
 
-### Bug 1: `create-mp-subscription` — valor e frequência incorretos
+### 2. Criar tabela `terms_acceptances` no banco
+- Colunas: `id`, `organization_id`, `user_id`, `ip_address`, `accepted_at`, `user_agent`
+- RLS: owner pode inserir e ler, admin pode ler
 
-No código atual (linha 134-136):
-```
-frequency: isAnnual ? 12 : 1,
-frequency_type: "months",
-transaction_amount: isAnnual ? amount / 12 : amount,
-```
+### 3. Criar edge function `get-client-ip`
+- Retorna o IP do request (`request.headers.get("x-forwarded-for")` ou similar)
+- Necessário porque o frontend não tem acesso ao IP real do usuário
 
-Isso diz ao Mercado Pago: "cobre R$ 82,50 a cada 12 meses" — ou seja, o cliente pagaria R$ 82,50 por **ano**. O correto é uma das duas abordagens:
+### 4. Adicionar checkbox + modal de termos no `CardPaymentForm.tsx`
+- Estado `termsAccepted` (boolean) e `termsDialogOpen` (boolean)
+- Antes do botão "Assinar", adicionar checkbox com texto: "Li e concordo com os **Termos de Uso**" onde "Termos de Uso" é um link que abre um Dialog/ScrollArea com o conteúdo completo dos termos (sem navegar para outra página)
+- Botão de submit fica `disabled` enquanto `!termsAccepted`
+- No `handleSubmit`, antes de processar pagamento: chamar `get-client-ip`, depois inserir registro em `terms_acceptances` com org_id, user_id, ip e timestamp
 
-- **Opção A** (cobrar o valor cheio anual de uma vez): `frequency: 12, transaction_amount: 990`
-- **Opção B** (cobrar mensalmente o equivalente): `frequency: 1, transaction_amount: 82.50` — mas aí não é realmente "anual"
+### 5. Mesmo checkbox no `PixPaymentTab.tsx`
+- Mesma lógica: checkbox obrigatório + modal dos termos
+- Botão "Pagar via PIX" fica disabled sem aceite
+- Registra aceite no banco antes de gerar o PIX
 
-**Correção recomendada (Opção A):** Cobrar o valor cheio a cada 12 meses:
-```
-frequency: isAnnual ? 12 : 1,
-frequency_type: "months",
-transaction_amount: amount,  // sem dividir por 12
-```
-
-### Bug 2: `mp-webhook` — renovação de dias fixa em +35 para qualquer ciclo
-
-Quando o webhook recebe a aprovação da assinatura ou pagamento recorrente, ele sempre concede **+35 dias**. Para assinaturas anuais, deveria conceder **+370 dias** (365 + margem de segurança).
-
-**Correção:** No `mp-webhook`, ao ativar a assinatura (preapproval authorized) e ao renovar (payment approved), consultar o `billing_cycle` da org e usar:
-- `monthly` → +35 dias
-- `annual` → +370 dias
-
-### Alterações necessárias
-
-1. **`supabase/functions/create-mp-subscription/index.ts`** (linha 136):
-   - Remover a divisão `amount / 12` — usar `amount` diretamente
-
-2. **`supabase/functions/mp-webhook/index.ts`**:
-   - Nas 3 ocorrências onde calcula `trialEnds` (+35 dias), adicionar leitura do `billing_cycle` da org e usar +370 dias se anual
-   - Ajustar a query `select` da org para incluir `billing_cycle`
-
-### Resumo
-
-| Aspecto | Antes (bug) | Depois (corrigido) |
-|---|---|---|
-| Valor cobrado anual MP | R$ 82,50/12 meses | R$ 990/12 meses |
-| Dias concedidos mensal | +35 dias | +35 dias (sem mudança) |
-| Dias concedidos anual | +35 dias | +370 dias |
+### Detalhes Técnicos
+- O conteúdo dos termos será extraído para um componente reutilizável `TermsContent` usado tanto na página `/termos` quanto nos modais do checkout
+- A edge function `get-client-ip` é simples: lê `x-forwarded-for` ou `x-real-ip` dos headers e retorna como JSON
+- O insert em `terms_acceptances` usa o Supabase client autenticado (o usuário já está logado no checkout de assinatura)
 
