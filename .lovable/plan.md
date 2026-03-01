@@ -1,22 +1,32 @@
 
 
-## Plano: Esconder botão "Plano atual" no plano Grátis
+## Diagnóstico
 
-### Problema
-Quando uma loja cria uma conta, o plano Grátis é o padrão. O botão "Plano atual" no card Grátis deve ficar **invisível** (não renderizado), já que não faz sentido mostrar — o usuário nunca vai "assinar" o Grátis.
+Analisei o código atual do `PlanCard.tsx` e a lógica **já está correta**:
 
-### Correção
-
-**Arquivo: `src/components/pricing/PlanCard.tsx`**
-- Na seção do botão, quando `currentPlan === true` **e** o preço for "Grátis" (ou `price === "Grátis"`), não renderizar nenhum botão (retornar `null`)
-- Para os demais planos pagos que sejam o plano atual, continuar mostrando o botão "Plano atual" desabilitado como já está
-
-Lógica:
+```tsx
+// Linha 105 atual:
+{currentPlan && price === "Grátis" ? null : currentPlan ? (
+  <Button disabled>Plano atual</Button>
+) : ...}
 ```
-if (currentPlan && price === "Grátis") → null (sem botão)
-if (currentPlan) → Button disabled "Plano atual"
-else if (onSelect) → Button com onClick
-else if (external) → <a>
-else → <Link>
-```
+
+Essa lógica faz exatamente o que você pediu:
+- Quando `currentPlan === true` e `price === "Grátis"` → **nenhum botão** (null)
+- Na landing page (Index.tsx), `currentPlan` não é passado → botão aparece normal
+
+### Onde o PlanCard é usado:
+
+| Local | `currentPlan` passado? | Resultado para Free |
+|-------|----------------------|---------------------|
+| **Landing page** (`Index.tsx`) | Não | Botão visível ("Ver detalhes") |
+| **Página de preços** (`PricingPage.tsx`) | Sim (se logado) | Botão **escondido** |
+| **Aba Assinatura** (`SubscriptionTab.tsx`) | Sim | Botão **escondido** |
+| **Dialog Upgrade** (`UpgradeDialog.tsx`) | Sim | Botão **escondido** |
+
+### Conclusão
+
+A mudança já foi aplicada corretamente no último edit. O que você viu no screenshot pode ter sido o preview **antes do build completar**. Não há nenhuma alteração adicional necessária — o botão "Plano atual" do plano Grátis já está invisível para qualquer loja com conta criada.
+
+Se ainda estiver aparecendo, recarregue a página do preview para forçar o novo build.
 
