@@ -476,72 +476,7 @@ const DashboardPage = () => {
     }
   }, [location.search, navigate, refreshOrganization]);
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="space-y-3 w-64">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!organization) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="text-center max-w-sm">
-          <p className="text-4xl mb-4">🏪</p>
-          <h1 className="font-bold text-xl mb-2">Nenhuma loja vinculada</h1>
-          <p className="text-muted-foreground text-sm mb-6">
-            {isAdmin
-              ? "Você está logado como administrador da plataforma."
-              : "Sua conta ainda não tem uma loja configurada."}
-          </p>
-          <div className="flex gap-2 justify-center">
-            {isAdmin && (
-              <Button asChild>
-                <Link to="/admin">Acessar Painel Admin</Link>
-              </Button>
-            )}
-            <Button variant="outline" onClick={signOut}>Sair</Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const subscriptionStatus = (organization as { subscription_status?: string }).subscription_status ?? "active";
-
-  if (subscriptionStatus === "inactive") {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="text-center max-w-sm bg-card border border-border rounded-2xl p-8 shadow-sm">
-          <p className="text-5xl mb-4">🔒</p>
-          <h1 className="font-bold text-foreground text-xl mb-2">Sua assinatura está inativa</h1>
-          <p className="text-muted-foreground text-sm mb-6">
-            Para continuar usando o painel, ative seu plano. Entre em contato conosco.
-          </p>
-          <div className="flex flex-col gap-3">
-            <a
-              href="https://wa.me/5511999999999?text=Quero+reativar+minha+assinatura+TrendFood"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white font-semibold text-sm"
-              style={{ backgroundColor: "#25D366" }}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.940 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-              </svg>
-              Falar no WhatsApp
-            </a>
-            <Button onClick={signOut} variant="outline">Sair</Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const subscriptionStatus = (organization as { subscription_status?: string })?.subscription_status ?? "active";
 
   const lockedFeatures = useMemo(() => ({
     coupons: !planLimits.canAccess("cupons"),
@@ -605,6 +540,71 @@ const DashboardPage = () => {
       return targetId ? { [targetId]: true } : {};
     });
   }, [activeTab, sidebarGroups]);
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="space-y-3 w-64">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!organization) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <p className="text-4xl mb-4">🏪</p>
+          <h1 className="font-bold text-xl mb-2">Nenhuma loja vinculada</h1>
+          <p className="text-muted-foreground text-sm mb-6">
+            {isAdmin
+              ? "Você está logado como administrador da plataforma."
+              : "Sua conta ainda não tem uma loja configurada."}
+          </p>
+          <div className="flex gap-2 justify-center">
+            {isAdmin && (
+              <Button asChild>
+                <Link to="/admin">Acessar Painel Admin</Link>
+              </Button>
+            )}
+            <Button variant="outline" onClick={signOut}>Sair</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (subscriptionStatus === "inactive") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center max-w-sm bg-card border border-border rounded-2xl p-8 shadow-sm">
+          <p className="text-5xl mb-4">🔒</p>
+          <h1 className="font-bold text-foreground text-xl mb-2">Sua assinatura está inativa</h1>
+          <p className="text-muted-foreground text-sm mb-6">
+            Para continuar usando o painel, ative seu plano. Entre em contato conosco.
+          </p>
+          <div className="flex flex-col gap-3">
+            <a
+              href="https://wa.me/5511999999999?text=Quero+reativar+minha+assinatura+TrendFood"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white font-semibold text-sm"
+              style={{ backgroundColor: "#25D366" }}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.940 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              Falar no WhatsApp
+            </a>
+            <Button onClick={signOut} variant="outline">Sair</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSignOut = async () => {
     await signOut();
