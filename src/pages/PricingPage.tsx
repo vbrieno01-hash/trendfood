@@ -212,6 +212,15 @@ const PricingPage = () => {
               ? `Equivalente a R$ ${((plan.annual_price_cents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
               : undefined;
             const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+            const billingCycle = organization?.billing_cycle || "monthly";
+            const isSamePlan = !!user && currentPlan === plan.key;
+            const billingMismatch = isSamePlan && (
+              (isAnnual && billingCycle !== "annual") ||
+              (!isAnnual && billingCycle === "annual")
+            );
+            const ctaText = billingMismatch
+              ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
+              : plan.cta;
             return (
               <PlanCard
                 key={plan.name}
@@ -220,9 +229,15 @@ const PricingPage = () => {
                 period={period}
                 subtitle={subtitle}
                 savingsBadge={savingsBadge}
-                currentPlan={!!user && currentPlan === plan.key}
+                cta={ctaText}
+                currentPlan={isSamePlan}
+                billingMismatch={billingMismatch}
                 loading={false}
-                onSelect={plan.key !== "free" ? () => handleSelectPlan(plan.key) : undefined}
+                onSelect={
+                  (plan.key !== "free" && (!isSamePlan || billingMismatch))
+                    ? () => handleSelectPlan(plan.key)
+                    : undefined
+                }
                 external={false}
                 ctaLink={plan.ctaLink}
               />
