@@ -47,10 +47,11 @@ import PrinterTab from "@/components/dashboard/PrinterTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
 import StockTab from "@/components/dashboard/StockTab";
+import ReferralSection from "@/components/dashboard/ReferralSection";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -586,6 +587,7 @@ const DashboardPage = () => {
         { key: "subscription", icon: <Rocket className="w-4 h-4" />, label: "Assinatura / Plano" },
         { key: "printer", icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
         { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
+        { key: "referral", icon: <Share2 className="w-4 h-4" />, label: "Ganhe Desconto" },
         { key: "guide", icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
         { key: "settings", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
       ],
@@ -948,6 +950,7 @@ const DashboardPage = () => {
           {activeTab === "stock" && (lockedFeatures.stock
             ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <StockTab orgId={organization.id} />)}
+          {activeTab === "referral" && <ReferralSection orgId={organization.id} />}
           </ErrorBoundary>
         </main>
 
