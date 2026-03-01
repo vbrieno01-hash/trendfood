@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
@@ -176,6 +177,7 @@ interface PlanRow {
   key: string;
   description: string | null;
   price_cents: number;
+  annual_price_cents: number | null;
   features: string[];
   highlighted: boolean;
   badge: string | null;
@@ -187,6 +189,7 @@ interface PlanRow {
 const Index = () => {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const [isAnnual, setIsAnnual] = useState(false);
 
   useEffect(() => {
     supabase
@@ -430,25 +433,47 @@ const Index = () => {
               Comece grátis e evolua conforme sua operação cresce
             </p>
           </div>
+
+          {/* Billing Toggle */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
+            <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+            <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+              Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
+            </span>
+          </div>
+
           {loadingPlans ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
             <div className="grid md:grid-cols-3 gap-6 items-stretch">
-              {plans.map((plan) => (
-                <PlanCard
-                  key={plan.id}
-                  name={plan.name}
-                  price={formatPrice(plan.price_cents)}
-                  description={plan.description ?? ""}
-                  features={Array.isArray(plan.features) ? plan.features : []}
-                  cta="Ver detalhes"
-                  ctaLink="/planos"
-                  highlighted={plan.highlighted}
-                  badge={plan.badge ?? undefined}
-                />
-              ))}
+              {plans.map((plan) => {
+                const showAnnual = isAnnual && (plan.annual_price_cents ?? 0) > 0;
+                const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents!) : formatPrice(plan.price_cents);
+                const period = showAnnual ? "/ano" : "/mês";
+                const subtitle = showAnnual
+                  ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês`
+                  : undefined;
+                const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+                return (
+                  <PlanCard
+                    key={plan.id}
+                    name={plan.name}
+                    price={displayPrice}
+                    period={period}
+                    subtitle={subtitle}
+                    savingsBadge={savingsBadge}
+                    description={plan.description ?? ""}
+                    features={Array.isArray(plan.features) ? plan.features : []}
+                    cta="Ver detalhes"
+                    ctaLink="/planos"
+                    highlighted={plan.highlighted}
+                    badge={plan.badge ?? undefined}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
