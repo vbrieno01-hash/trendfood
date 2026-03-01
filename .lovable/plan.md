@@ -1,58 +1,60 @@
 
 
-## Plano: Cancelamento inteligente com distinção mensal/anual e acesso até expiração
+## Plano: Redesign Completo do Painel Admin TrendFood
 
-### Problemas atuais
-1. O modal de cancelamento não diferencia plano mensal de anual -- mostra sempre a mesma mensagem
-2. A edge function reverte imediatamente para `subscription_plan: "free"`, removendo acesso na hora
-3. O texto diz "funcionalidades serão desativadas imediatamente" -- errado para planos anuais
+### Visão Geral
+Modernizar o painel admin com um design mais profissional, limpo e conectado à identidade TrendFood. O painel é o centro de controle do SaaS e precisa refletir isso.
 
 ### Alterações
 
-**1. Frontend: `src/components/dashboard/SubscriptionTab.tsx`**
-- Detectar `billing_cycle` da organização (`organization.billing_cycle`)
-- Se `billing_cycle === "annual"`: mostrar modal diferente com aviso de multa de 20% e que o acesso continua até o fim do período pago
-- Se `billing_cycle === "monthly"`: manter modal atual mas ajustar texto para dizer que acesso continua até a data de expiração (não "imediatamente")
-- Passar `billing_cycle` para a edge function no body da requisição
+**1. Sidebar Modernizada (`AdminPage.tsx`)**
+- Gradiente escuro premium (de `#111` para gradiente com tons de laranja sutil)
+- Logo maior com texto "TrendFood Admin" estilizado
+- Badge "Admin" com glow sutil na cor primária
+- Agrupamento visual das seções de navegação (Visão Geral, Gestão, Sistema)
+- Separadores entre grupos com labels discretos
+- Ícone ativo com background arredondado e borda lateral (indicator bar)
+- Botão de ir ao Dashboard do lojista na sidebar
 
-**2. Edge Function: `supabase/functions/cancel-mp-subscription/index.ts`**
-- Receber `billing_cycle` no body (ou ler da org no banco)
-- Cancelar no Mercado Pago (já funciona)
-- **Não** mudar `subscription_plan` para "free" imediatamente
-- Em vez disso: mudar apenas `subscription_status` para `"cancelled"` e manter o plano atual + `trial_ends_at` intacto
-- O sistema de `usePlanLimits` já reverte automaticamente para "free" quando `trial_ends_at` expira (via `subscriptionExpired`)
+**2. Home Tab - Dashboard Executivo**
+- Header com saudação "Bom dia, Admin" + data atual
+- KPI cards redesenhados: mais compactos, com sparkline micro ou % de variação
+- Cards com hover effect sutil e transição suave
+- Gráficos de crescimento com área preenchida (AreaChart) em vez de linha simples
+- Seção "Ações Rápidas" com botões de atalho (Ativar loja, Ver logs, Gerar link)
+- Tabela de assinantes com avatares coloridos e status pills mais refinados
 
-**3. Frontend: Ajustar toast de sucesso**
-- Trocar "Seu plano foi revertido para Grátis" por "Sua assinatura foi cancelada. O acesso continua até {data de expiração}."
+**3. Lojas Tab - Lista Aprimorada**
+- Cards de loja com layout mais limpo e informações hierarquizadas
+- Barra de filtros com design pill/chip mais moderno
+- Contador de resultados mais visível
+- Quick-actions inline (ativar, gerenciar, abrir loja) com ícones
 
-### Modal para plano anual (texto)
-```
-Atenção: Seu plano anual possui multa de rescisão de 20% 
-sobre o saldo restante, conforme os Termos de Uso. 
-O acesso continuará disponível até o fim do período já pago.
-```
+**4. Gráficos (`GrowthCharts.tsx`)**
+- Trocar LineChart por AreaChart com gradiente de preenchimento
+- Tooltip customizado mais bonito
+- Labels mais legíveis
 
-### Modal para plano mensal (texto)
-```
-Ao cancelar, a cobrança recorrente será interrompida. 
-Você continuará com acesso aos recursos até o fim do 
-período atual.
-```
+**5. KPI Card Component**
+- Redesenhar com micro-trend indicator (seta ↑↓ ou %)
+- Ícone com background mais suave e arredondado
+- Tipografia: valor grande em destaque, label abaixo em muted
 
-### Lógica resumida da edge function
-```
-// Antes: subscription_plan = "free" (acesso perdido imediatamente)
-// Depois: subscription_status = "cancelled" (acesso mantido até trial_ends_at)
+**6. Mobile Experience**
+- Header mobile com gradiente matching a sidebar
+- Bottom sheet menu em vez de sidebar deslizante (mais nativo)
+- Cards KPI em scroll horizontal no mobile
 
-await supabaseAdmin
-  .from("organizations")
-  .update({
-    subscription_status: "cancelled",
-    mp_subscription_id: null,
-    // NÃO muda subscription_plan -- mantém pro/enterprise
-  })
-  .eq("id", org_id);
-```
+**7. Conexão com Dashboard do Lojista**
+- Botão "Ir ao Dashboard" na sidebar que leva a `/dashboard`
+- Link "Ir ao site" que leva a `/`
 
-O `usePlanLimits` já cuida de revogar acesso quando `trial_ends_at` expirar, pois `subscriptionExpired` retorna `true` e `effectivePlan` vira `"free"`.
+### Componentes afetados
+- `src/pages/AdminPage.tsx` — rewrite completo do layout, sidebar, home tab e store cards
+- `src/components/admin/GrowthCharts.tsx` — AreaChart + gradientes + tooltip melhorado
+
+### O que NÃO muda
+- Lógica de negócio (KPIs, filtros, ativação, etc.)
+- Componentes de sub-tabs existentes (PlansConfig, ErrorLogs, ActivationLogs, etc.)
+- Rotas e autenticação
 
