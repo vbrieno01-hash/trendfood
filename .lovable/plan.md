@@ -1,30 +1,20 @@
 
 
-## Plano: Botão "Plano atual" desabilitado para todos os planos
+## Plano: Card do plano atual com aparência desabilitada (incluindo Grátis)
 
 ### Problema
-Quando `currentPlan` é `true` mas `onSelect` é `undefined`, o `PlanCard` cai no branch do `Link` ou `external`, renderizando um botão clicável em vez de um botão desabilitado. Isso afeta o plano Grátis e qualquer plano ativo.
+Atualmente só o **botão** fica com `opacity-60` quando é o plano atual. O card inteiro continua com aparência normal, o que não deixa claro visualmente que aquele plano já está ativo. Isso precisa valer para **todos** os planos, incluindo o Grátis (que é o padrão após criar conta ou após reembolso/cancelamento).
 
 ### Correção
 
 **Arquivo: `src/components/pricing/PlanCard.tsx`**
-- Reorganizar a lógica de renderização do botão: se `currentPlan === true`, sempre renderizar um `Button` desabilitado com texto "Plano atual" e aparência semi-transparente (`opacity-60`), independente de `onSelect` estar definido ou não.
-- Mover a checagem de `currentPlan` para ser a PRIMEIRA condição, antes de `onSelect`, `external` e `Link`.
+- Adicionar `opacity-60 pointer-events-none` no container do card (`<div>`) quando `currentPlan` é `true`
+- Isso faz o card inteiro ficar semi-transparente e não-interativo
+- O botão "Plano atual" continua desabilitado como já está
+- Manter o badge "Seu plano" e o `ring-2 ring-primary` para identificação visual
 
-### Detalhes Técnicos
-A mudança é apenas no componente `PlanCard.tsx`. A lógica do botão passará de:
-```
-if (onSelect) → Button com onClick
-else if (external) → <a>
-else → <Link>
-```
-Para:
-```
-if (currentPlan) → Button disabled + opacity-60 + "Plano atual"
-else if (onSelect) → Button com onClick
-else if (external) → <a>
-else → <Link>
-```
-
-Nenhuma alteração em `SubscriptionTab`, `PricingPage`, `Index` ou banco de dados.
+### Resultado esperado
+- Plano Grátis: card transparente + botão "Plano atual" desabilitado quando o lojista está no free
+- Plano Pro/Enterprise: mesma aparência quando ativo
+- Após reembolso/cancelamento: volta para free e o card Grátis fica com essa aparência automaticamente
 
