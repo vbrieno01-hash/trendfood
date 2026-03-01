@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, Image as ImageIcon } from "lucide-react";
+import { Loader2, Upload, Trash2, Image as ImageIcon, BookOpen } from "lucide-react";
 import {
   Home, UtensilsCrossed, TableProperties, History, Tag,
   BarChart2, Flame, BellRing, Wallet, Store, Settings, Plus, Truck,
@@ -54,7 +54,6 @@ export default function AdminGuideTab() {
       const ext = file.name.split(".").pop() || "png";
       const path = `${sectionId}.${ext}`;
 
-      // Delete old file if exists
       await supabase.storage.from("guide-images").remove([path]);
 
       const { error: uploadErr } = await supabase.storage
@@ -65,7 +64,6 @@ export default function AdminGuideTab() {
       const { data: urlData } = supabase.storage.from("guide-images").getPublicUrl(path);
       const imageUrl = urlData.publicUrl + "?t=" + Date.now();
 
-      // Upsert in guide_screenshots
       const { error: dbErr } = await supabase
         .from("guide_screenshots")
         .upsert({ section_id: sectionId, image_url: imageUrl, updated_at: new Date().toISOString() }, { onConflict: "section_id" });
@@ -83,7 +81,6 @@ export default function AdminGuideTab() {
   async function handleDelete(sectionId: string) {
     setUploading(sectionId);
     try {
-      // Try to remove common extensions
       await supabase.storage.from("guide-images").remove([
         `${sectionId}.png`, `${sectionId}.jpg`, `${sectionId}.jpeg`, `${sectionId}.webp`,
       ]);
@@ -110,16 +107,21 @@ export default function AdminGuideTab() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h2 className="text-lg font-bold text-foreground">Screenshots do Guia</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Faça upload de screenshots para cada seção do guia. As imagens aparecerão para os usuários automaticamente.
-        </p>
+    <div className="space-y-6 max-w-3xl animate-admin-fade-in">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+          <BookOpen className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Screenshots do Guia</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Faça upload de screenshots para cada seção. As imagens aparecerão para os usuários automaticamente.
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        {SECTIONS.map((section) => (
+      <div className="space-y-2.5">
+        {SECTIONS.map((section, i) => (
           <SectionRow
             key={section.id}
             section={section}
@@ -127,6 +129,7 @@ export default function AdminGuideTab() {
             uploading={uploading === section.id}
             onUpload={(file) => handleUpload(section.id, file)}
             onDelete={() => handleDelete(section.id)}
+            index={i}
           />
         ))}
       </div>
@@ -138,7 +141,7 @@ function AdminThumb({ src, alt }: { src: string; alt: string }) {
   const [error, setError] = useState(false);
   if (error) {
     return (
-      <div className="w-16 h-10 rounded-md border border-border bg-muted flex items-center justify-center">
+      <div className="w-16 h-10 rounded-lg border border-border bg-muted flex items-center justify-center">
         <ImageIcon className="w-4 h-4 text-muted-foreground" />
       </div>
     );
@@ -147,7 +150,7 @@ function AdminThumb({ src, alt }: { src: string; alt: string }) {
     <img
       src={src}
       alt={alt}
-      className="w-16 h-10 object-cover rounded-md border border-border"
+      className="w-16 h-10 object-cover rounded-lg border border-border shadow-sm"
       onError={() => setError(true)}
     />
   );
@@ -159,22 +162,27 @@ function SectionRow({
   uploading,
   onUpload,
   onDelete,
+  index,
 }: {
   section: GuideSection;
   imageUrl?: string;
   uploading: boolean;
   onUpload: (file: File) => void;
   onDelete: () => void;
+  index: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
-      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+    <div
+      className="admin-glass rounded-2xl p-4 flex items-center gap-4 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in"
+      style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}
+    >
+      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:scale-110 transition-transform duration-200">
         {section.icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{section.title}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{section.title}</p>
       </div>
 
       {imageUrl ? (
@@ -183,14 +191,14 @@ function SectionRow({
           <button
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50"
+            className="text-xs px-2.5 py-1.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:scale-105 transition-all disabled:opacity-50"
           >
             {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
           </button>
           <button
             onClick={onDelete}
             disabled={uploading}
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+            className="text-xs px-2.5 py-1.5 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 hover:scale-105 transition-all disabled:opacity-50"
           >
             <Trash2 className="w-3 h-3" />
           </button>
@@ -199,7 +207,7 @@ function SectionRow({
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105 transition-all font-bold disabled:opacity-50"
         >
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
           Upload

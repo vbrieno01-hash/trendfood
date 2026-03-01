@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Download, Smartphone, Monitor } from "lucide-react";
+import { Loader2, Upload, Download, Smartphone, Monitor, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminDownloadsSection() {
@@ -13,7 +13,6 @@ export default function AdminDownloadsSection() {
   const apkRef = useRef<HTMLInputElement>(null);
   const exeRef = useRef<HTMLInputElement>(null);
 
-  // Load current URLs from platform_config
   useState(() => {
     supabase
       .from("platform_config")
@@ -71,19 +70,31 @@ export default function AdminDownloadsSection() {
   if (!loaded) return null;
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
-      <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
-        <Download className="w-3.5 h-3.5 text-muted-foreground" />
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Downloads Globais (APK / EXE)
-        </p>
+    <section className="animate-admin-fade-in admin-delay-4">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-xl bg-violet-500/15 flex items-center justify-center">
+          <Download className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+        </div>
+        <h2 className="text-sm font-bold text-foreground">Downloads Globais (APK / EXE)</h2>
       </div>
-      <div className="px-4 py-4 grid gap-3 sm:grid-cols-2">
-        {/* APK */}
-        <div className="rounded-lg border border-border p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Smartphone className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">App Android (.apk)</span>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* APK Card */}
+        <div className="admin-glass rounded-2xl p-5 space-y-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+              <Smartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">App Android</p>
+              <p className="text-[11px] text-muted-foreground">.apk</p>
+            </div>
+            {apkUrl && (
+              <div className="ml-auto flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-[11px] font-semibold">Disponível</span>
+              </div>
+            )}
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Envie o APK que ficará disponível para todas as lojas baixarem.
@@ -103,7 +114,7 @@ export default function AdminDownloadsSection() {
             <Button
               variant="outline"
               size="sm"
-              className="h-9 gap-2 flex-1"
+              className="h-9 gap-2 flex-1 rounded-xl hover:scale-105 transition-transform"
               disabled={apkLoading}
               onClick={() => apkRef.current?.click()}
             >
@@ -114,21 +125,31 @@ export default function AdminDownloadsSection() {
               <Button
                 variant="secondary"
                 size="sm"
-                className="h-9 gap-2"
+                className="h-9 gap-2 rounded-xl hover:scale-105 transition-transform"
                 onClick={() => window.open(apkUrl, "_blank", "noopener,noreferrer")}
               >
                 <Download className="w-4 h-4" />
               </Button>
             )}
           </div>
-          {apkUrl && <p className="text-xs text-green-600">✓ APK disponível</p>}
         </div>
 
-        {/* EXE */}
-        <div className="rounded-lg border border-border p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Monitor className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Programa Desktop (.exe)</span>
+        {/* EXE Card */}
+        <div className="admin-glass rounded-2xl p-5 space-y-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/15 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+              <Monitor className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Programa Desktop</p>
+              <p className="text-[11px] text-muted-foreground">.exe</p>
+            </div>
+            {exeUrl && (
+              <div className="ml-auto flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-4 h-4" />
+                <span className="text-[11px] font-semibold">Disponível</span>
+              </div>
+            )}
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Envie o EXE que ficará disponível para todas as lojas baixarem.
@@ -148,7 +169,7 @@ export default function AdminDownloadsSection() {
             <Button
               variant="outline"
               size="sm"
-              className="h-9 gap-2 flex-1"
+              className="h-9 gap-2 flex-1 rounded-xl hover:scale-105 transition-transform"
               disabled={exeLoading}
               onClick={() => exeRef.current?.click()}
             >
@@ -159,16 +180,15 @@ export default function AdminDownloadsSection() {
               <Button
                 variant="secondary"
                 size="sm"
-                className="h-9 gap-2"
+                className="h-9 gap-2 rounded-xl hover:scale-105 transition-transform"
                 onClick={() => window.open(exeUrl, "_blank", "noopener,noreferrer")}
               >
                 <Download className="w-4 h-4" />
               </Button>
             )}
           </div>
-          {exeUrl && <p className="text-xs text-green-600">✓ EXE disponível</p>}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

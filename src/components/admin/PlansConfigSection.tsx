@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   CreditCard,
@@ -14,7 +15,9 @@ import {
   Save,
   X,
   Loader2,
-  GripVertical,
+  Crown,
+  Sparkles,
+  Star,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -57,10 +60,22 @@ const emptyPlan: Omit<PlanRow, "id" | "created_at"> = {
   active: true,
 };
 
+const PLAN_ICONS: Record<string, React.ReactNode> = {
+  free: <Star className="w-4 h-4" />,
+  pro: <Sparkles className="w-4 h-4" />,
+  enterprise: <Crown className="w-4 h-4" />,
+};
+
+const PLAN_COLORS: Record<string, string> = {
+  free: "bg-muted text-muted-foreground",
+  pro: "bg-primary/15 text-primary",
+  enterprise: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+};
+
 export default function PlansConfigSection() {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null); // plan id or "new"
+  const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<PlanRow, "id" | "created_at">>(emptyPlan);
   const [featuresText, setFeaturesText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -157,23 +172,25 @@ export default function PlansConfigSection() {
   if (loading) return null;
 
   return (
-    <section>
+    <section className="animate-admin-fade-in admin-delay-1">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">Planos e Checkout</h2>
+          <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center">
+            <CreditCard className="w-4 h-4 text-primary" />
+          </div>
+          <h2 className="text-sm font-bold text-foreground">Planos e Checkout</h2>
+          <Badge variant="secondary" className="text-[10px] font-bold">{plans.length}</Badge>
         </div>
         {!editing && (
-          <Button size="sm" variant="outline" onClick={startNew}>
-            <Plus className="w-4 h-4 mr-1" /> Adicionar Plano
+          <Button size="sm" variant="outline" onClick={startNew} className="gap-1.5 rounded-xl hover:scale-105 transition-transform">
+            <Plus className="w-4 h-4" /> Adicionar
           </Button>
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        {/* Existing plans list */}
-        {plans.map((plan) => (
-          <div key={plan.id} className="border-b border-border last:border-b-0">
+      <div className="admin-glass rounded-2xl overflow-hidden">
+        {plans.map((plan, i) => (
+          <div key={plan.id} className={`border-b border-border/50 last:border-b-0 ${editing !== plan.id ? 'hover:bg-gradient-to-r hover:from-primary/[0.03] hover:to-transparent transition-all duration-200' : ''}`}>
             {editing === plan.id ? (
               <PlanForm
                 form={form}
@@ -185,41 +202,44 @@ export default function PlansConfigSection() {
                 onCancel={cancelEdit}
               />
             ) : (
-              <div className="flex items-center gap-3 px-5 py-4">
-                <GripVertical className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+              <div className="flex items-center gap-3 px-5 py-4 animate-admin-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                <div className={`w-9 h-9 rounded-xl ${PLAN_COLORS[plan.key] ?? 'bg-muted text-muted-foreground'} flex items-center justify-center shrink-0`}>
+                  {PLAN_ICONS[plan.key] ?? <Star className="w-4 h-4" />}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-foreground">{plan.name}</span>
-                    <span className="text-xs text-muted-foreground">({plan.key})</span>
+                    <span className="text-[11px] text-muted-foreground font-mono">({plan.key})</span>
                     {plan.highlighted && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">
+                      <Badge className="text-[10px] bg-primary/15 text-primary px-2 py-0.5 rounded-full font-bold border-0">
                         {plan.badge || "Destaque"}
-                      </span>
+                      </Badge>
                     )}
                     {!plan.active && (
-                      <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                      <Badge variant="secondary" className="text-[10px] px-2 py-0.5 rounded-full font-medium">
                         Inativo
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {fmtPrice(plan.price_cents)}/mês · {plan.features.length} features
+                    <span className="font-semibold">{fmtPrice(plan.price_cents)}</span>/mês · {plan.features.length} features
                   </p>
                 </div>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(plan)}>
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(plan.id)}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-lg hover:scale-110 transition-all" onClick={() => startEdit(plan)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-lg hover:scale-110 transition-all" onClick={() => setDeleteId(plan.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         ))}
 
-        {/* New plan form */}
         {editing === "new" && (
-          <div className="border-t border-border">
+          <div className="border-t border-border/50">
             <PlanForm
               form={form}
               setForm={setForm}
@@ -233,13 +253,13 @@ export default function PlansConfigSection() {
         )}
 
         {plans.length === 0 && !editing && (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            Nenhum plano cadastrado.
+          <div className="text-center py-12 animate-admin-fade-in">
+            <CreditCard className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">Nenhum plano cadastrado.</p>
           </div>
         )}
       </div>
 
-      {/* Delete confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -278,106 +298,63 @@ function PlanForm({
   onCancel: () => void;
 }) {
   return (
-    <div className="p-5 space-y-4 bg-muted/30">
+    <div className="p-5 space-y-4 bg-gradient-to-br from-primary/[0.03] to-transparent">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div>
-          <Label className="text-xs">Key (identificador)</Label>
-          <Input
-            value={form.key}
-            onChange={(e) => setForm((p) => ({ ...p, key: e.target.value }))}
-            placeholder="pro"
-            className="h-9 text-sm mt-1"
-          />
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Key (identificador)</Label>
+          <Input value={form.key} onChange={(e) => setForm((p) => ({ ...p, key: e.target.value }))} placeholder="pro" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
-        <div>
-          <Label className="text-xs">Nome</Label>
-          <Input
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            placeholder="Pro"
-            className="h-9 text-sm mt-1"
-          />
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Nome</Label>
+          <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="Pro" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
-        <div>
-          <Label className="text-xs">Preço (centavos)</Label>
-          <Input
-            type="number"
-            value={form.price_cents}
-            onChange={(e) => setForm((p) => ({ ...p, price_cents: parseInt(e.target.value) || 0 }))}
-            className="h-9 text-sm mt-1"
-          />
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço (centavos)</Label>
+          <Input type="number" value={form.price_cents} onChange={(e) => setForm((p) => ({ ...p, price_cents: parseInt(e.target.value) || 0 }))} className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
       </div>
 
-      <div>
-        <Label className="text-xs">Descrição</Label>
-        <Input
-          value={form.description ?? ""}
-          onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-          placeholder="Para negócios que querem crescer"
-          className="h-9 text-sm mt-1"
-        />
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Descrição</Label>
+        <Input value={form.description ?? ""} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Para negócios que querem crescer" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
       </div>
 
-      <div>
-        <Label className="text-xs">Features (uma por linha)</Label>
-        <Textarea
-          value={featuresText}
-          onChange={(e) => setFeaturesText(e.target.value)}
-          rows={4}
-          className="text-sm mt-1"
-          placeholder={"Itens ilimitados\nPainel de Produção (KDS)\nCupons de desconto"}
-        />
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Features (uma por linha)</Label>
+        <Textarea value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} rows={4} className="text-sm bg-muted/40 border-0 focus-visible:ring-1" placeholder={"Itens ilimitados\nPainel de Produção (KDS)\nCupons de desconto"} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div>
-          <Label className="text-xs">Ordem</Label>
-          <Input
-            type="number"
-            value={form.sort_order}
-            onChange={(e) => setForm((p) => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))}
-            className="h-9 text-sm mt-1"
-          />
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Ordem</Label>
+          <Input type="number" value={form.sort_order} onChange={(e) => setForm((p) => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))} className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div>
-          <Label className="text-xs">Badge</Label>
-          <Input
-            value={form.badge ?? ""}
-            onChange={(e) => setForm((p) => ({ ...p, badge: e.target.value }))}
-            placeholder="Recomendado"
-            className="h-9 text-sm mt-1"
-          />
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Badge</Label>
+          <Input value={form.badge ?? ""} onChange={(e) => setForm((p) => ({ ...p, badge: e.target.value }))} placeholder="Recomendado" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
         <div className="flex items-center gap-3 pt-5">
-          <Switch
-            checked={form.highlighted}
-            onCheckedChange={(v) => setForm((p) => ({ ...p, highlighted: v }))}
-          />
-          <Label className="text-xs">Destaque</Label>
+          <Switch checked={form.highlighted} onCheckedChange={(v) => setForm((p) => ({ ...p, highlighted: v }))} />
+          <Label className="text-xs font-medium">Destaque</Label>
         </div>
         <div className="flex items-center gap-3 pt-5">
-          <Switch
-            checked={form.active}
-            onCheckedChange={(v) => setForm((p) => ({ ...p, active: v }))}
-          />
-          <Label className="text-xs">Ativo</Label>
+          <Switch checked={form.active} onCheckedChange={(v) => setForm((p) => ({ ...p, active: v }))} />
+          <Label className="text-xs font-medium">Ativo</Label>
         </div>
       </div>
 
       <div className="flex gap-2 pt-2">
-        <Button size="sm" onClick={onSave} disabled={saving}>
+        <Button size="sm" onClick={onSave} disabled={saving} className="gap-2 rounded-xl">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar
         </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
-          <X className="w-4 h-4 mr-1" /> Cancelar
+        <Button size="sm" variant="ghost" onClick={onCancel} className="gap-1 rounded-xl">
+          <X className="w-4 h-4" /> Cancelar
         </Button>
       </div>
     </div>
   );
 }
-

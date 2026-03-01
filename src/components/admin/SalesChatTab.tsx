@@ -324,7 +324,7 @@ export default function SalesChatTab() {
 
   return (
     <>
-      <div className="h-[calc(100vh-8rem)] flex rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="h-[calc(100vh-8rem)] flex rounded-2xl overflow-hidden admin-glass">
         {(!isMobile || showList) && (
           <div className={`${isMobile ? "w-full" : "w-72 border-r border-border"} shrink-0`}>
             {/* Conversation List */}
