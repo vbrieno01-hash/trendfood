@@ -26,6 +26,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import UpgradeDialog from "@/components/dashboard/UpgradeDialog";
 import logoDashboard from "@/assets/logo-dashboard.png";
+import ThemeToggle from "@/components/ThemeToggle";
 import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getStoredDeviceId } from "@/lib/bluetoothPrinter";
 
 import HomeTab from "@/components/dashboard/HomeTab";
@@ -798,13 +799,16 @@ const DashboardPage = () => {
             <ExternalLink className="w-4 h-4" />
             Ver página pública
           </a>
-          <button
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-red-400 transition-all duration-150"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="text-white/50 hover:text-white hover:bg-white/10" />
+            <button
+              onClick={handleSignOut}
+              className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-red-400 transition-all duration-150"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </button>
+          </div>
         </div>
       </aside>
 

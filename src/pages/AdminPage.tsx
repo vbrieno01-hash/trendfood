@@ -20,6 +20,7 @@ import ReferralsTab from "@/components/admin/ReferralsTab";
 import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import logoDashboard from "@/assets/logo-dashboard.png";
+import ThemeToggle from "@/components/ThemeToggle";
 import {
   Store,
   ShieldAlert,
@@ -522,13 +523,16 @@ function AdminContent() {
             <span className="group-hover/nav:scale-110 transition-transform"><Globe className="w-4 h-4" /></span>
             Ver o Site
           </Link>
-          <button
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/30 hover:bg-red-500/10 hover:text-red-400 transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle className="text-white/50 hover:text-white hover:bg-white/10" />
+            <button
+              onClick={handleSignOut}
+              className="flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-white/30 hover:bg-red-500/10 hover:text-red-400 transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </button>
+          </div>
         </div>
       </aside>
 

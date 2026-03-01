@@ -1,4 +1,5 @@
 import { useEffect, lazy, Suspense } from "react";
+import { ThemeProvider } from "next-themes";
 import { logClientError, isIgnorableError } from "@/lib/errorLogger";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -134,7 +135,9 @@ const AppInner = () => {
 
 const App = () => (
   <ErrorBoundary>
-    <AppInner />
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <AppInner />
+    </ThemeProvider>
   </ErrorBoundary>
 );
 
