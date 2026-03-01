@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -543,7 +543,7 @@ const DashboardPage = () => {
     );
   }
 
-  const lockedFeatures: Record<string, boolean> = {
+  const lockedFeatures = useMemo(() => ({
     coupons: !planLimits.canAccess("cupons"),
     bestsellers: !planLimits.canAccess("bestsellers"),
     kitchen: !planLimits.canAccess("kds"),
@@ -551,58 +551,60 @@ const DashboardPage = () => {
     caixa: !planLimits.canAccess("caixa"),
     reports: !planLimits.canAccess("reports"),
     stock: !planLimits.canAccess("stock_ingredients"),
-  };
+  }), [planLimits.effectivePlan]);
 
-  const sidebarGroups: { id: string; emoji: string; title: string; items: { key: TabKey; icon: React.ReactNode; label: string; locked?: boolean }[] }[] = [
+  const sidebarGroups = useMemo(() => [
     {
       id: "operacional", emoji: "⚡", title: "OPERACIONAL",
       items: [
-        { key: "tables", icon: <TableProperties className="w-4 h-4" />, label: "Mesas & Comandas" },
-        { key: "kitchen", icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
-        { key: "waiter", icon: <BellRing className="w-4 h-4" />, label: "Gestão de Pedidos", locked: lockedFeatures.waiter },
-        { key: "courier", icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
-        { key: "history", icon: <History className="w-4 h-4" />, label: "Histórico" },
+        { key: "tables" as TabKey, icon: <TableProperties className="w-4 h-4" />, label: "Mesas & Comandas" },
+        { key: "kitchen" as TabKey, icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
+        { key: "waiter" as TabKey, icon: <BellRing className="w-4 h-4" />, label: "Gestão de Pedidos", locked: lockedFeatures.waiter },
+        { key: "courier" as TabKey, icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
+        { key: "history" as TabKey, icon: <History className="w-4 h-4" />, label: "Histórico" },
       ],
     },
     {
       id: "logistica", emoji: "📦", title: "LOGÍSTICA",
       items: [
-        { key: "menu", icon: <UtensilsCrossed className="w-4 h-4" />, label: "Cardápio (Menu)" },
-        { key: "stock", icon: <Package className="w-4 h-4" />, label: "Estoque & Insumos", locked: lockedFeatures.stock },
+        { key: "menu" as TabKey, icon: <UtensilsCrossed className="w-4 h-4" />, label: "Cardápio (Menu)" },
+        { key: "stock" as TabKey, icon: <Package className="w-4 h-4" />, label: "Estoque & Insumos", locked: lockedFeatures.stock },
       ],
     },
     {
       id: "financeiro", emoji: "💰", title: "FINANCEIRO",
       items: [
-        { key: "caixa", icon: <Wallet className="w-4 h-4" />, label: "Fluxo de Caixa", locked: lockedFeatures.caixa },
-        { key: "reports", icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
-        { key: "coupons", icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
-        { key: "bestsellers", icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
+        { key: "caixa" as TabKey, icon: <Wallet className="w-4 h-4" />, label: "Fluxo de Caixa", locked: lockedFeatures.caixa },
+        { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
+        { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
+        { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
       ],
     },
     {
       id: "ajustes", emoji: "⚙️", title: "AJUSTES",
       items: [
-        { key: "profile", icon: <Store className="w-4 h-4" />, label: "Dados da Loja" },
-        { key: "subscription", icon: <Rocket className="w-4 h-4" />, label: "Assinatura / Plano" },
-        { key: "printer", icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
-        { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
-        { key: "referral", icon: <Share2 className="w-4 h-4" />, label: "Ganhe Desconto" },
-        { key: "guide", icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
-        { key: "settings", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
+        { key: "profile" as TabKey, icon: <Store className="w-4 h-4" />, label: "Dados da Loja" },
+        { key: "subscription" as TabKey, icon: <Rocket className="w-4 h-4" />, label: "Assinatura / Plano" },
+        { key: "printer" as TabKey, icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
+        { key: "features" as TabKey, icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
+        { key: "referral" as TabKey, icon: <Share2 className="w-4 h-4" />, label: "Ganhe Desconto" },
+        { key: "guide" as TabKey, icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
+        { key: "settings" as TabKey, icon: <Settings className="w-4 h-4" />, label: "Configurações" },
       ],
     },
-  ];
+  ], [lockedFeatures]);
 
   // Accordion único: abre o grupo da aba ativa automaticamente
   useEffect(() => {
     const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
-    if (parentGroup) {
-      setOpenGroups({ [parentGroup.id]: true });
-    } else {
-      setOpenGroups({});
-    }
-  }, [activeTab]);
+    const targetId = parentGroup?.id;
+    setOpenGroups(prev => {
+      const keys = Object.keys(prev);
+      if (targetId && keys.length === 1 && prev[targetId]) return prev;
+      if (!targetId && keys.length === 0) return prev;
+      return targetId ? { [targetId]: true } : {};
+    });
+  }, [activeTab, sidebarGroups]);
 
   const handleSignOut = async () => {
     await signOut();
