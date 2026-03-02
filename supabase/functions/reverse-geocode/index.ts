@@ -48,12 +48,35 @@ Deno.serve(async (req) => {
     const stateName = (addr.state || '').toLowerCase();
     const uf = stateToUf[stateName] || addr.state_code?.toUpperCase() || addr['ISO3166-2-lvl4']?.replace('BR-', '') || '';
 
+    const street = addr.road || addr.pedestrian || '';
+    const neighborhood = addr.suburb || addr.neighbourhood || addr.city_district || '';
+    const city = addr.city || addr.town || addr.village || addr.municipality || '';
+    const cepNominatim = (addr.postcode || '').replace(/\D/g, '');
+
+    // Try ViaCEP for precise CEP + bairro
+    let finalCep = cepNominatim;
+    let finalNeighborhood = neighborhood;
+
+    if (uf && city && street && street.length >= 3) {
+      try {
+        const viaUrl = `https://viacep.com.br/ws/${encodeURIComponent(uf)}/${encodeURIComponent(city)}/${encodeURIComponent(street)}/json/`;
+        const viaRes = await fetch(viaUrl);
+        const viaData = await viaRes.json();
+        if (Array.isArray(viaData) && viaData.length > 0 && viaData[0].cep) {
+          finalCep = viaData[0].cep.replace(/\D/g, '');
+          finalNeighborhood = viaData[0].bairro || finalNeighborhood;
+        }
+      } catch {
+        // ViaCEP failed, keep Nominatim values
+      }
+    }
+
     const result = {
-      street: addr.road || addr.pedestrian || '',
-      neighborhood: addr.suburb || addr.neighbourhood || addr.city_district || '',
-      city: addr.city || addr.town || addr.village || addr.municipality || '',
+      street,
+      neighborhood: finalNeighborhood,
+      city,
       state: uf,
-      cep: (addr.postcode || '').replace(/\D/g, ''),
+      cep: finalCep,
     };
 
     return new Response(JSON.stringify(result), {
