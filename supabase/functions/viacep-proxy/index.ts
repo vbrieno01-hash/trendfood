@@ -89,12 +89,17 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Search 3: by neighborhood (if still ≤1 result)
-      if (results.length <= 1 && bairro.length >= 3) {
-        const bairroResults = await viacepSearch(data.uf, data.localidade, bairro);
-        if (bairroResults.length > results.length) {
-          results = bairroResults;
+      // Search 3: ALWAYS search by neighborhood and merge
+      if (bairro.length >= 3) {
+        let bairroResults = await viacepSearch(data.uf, data.localidade, bairro);
+        // If full neighborhood name returns nothing, try first word
+        if (bairroResults.length === 0) {
+          const firstWordBairro = bairro.split(' ')[0];
+          if (firstWordBairro.length >= 3 && firstWordBairro !== bairro) {
+            bairroResults = await viacepSearch(data.uf, data.localidade, firstWordBairro);
+          }
         }
+        results = [...results, ...bairroResults];
       }
 
       nearby = buildNearby(results, street);
