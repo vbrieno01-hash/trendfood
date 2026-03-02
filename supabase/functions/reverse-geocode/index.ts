@@ -108,12 +108,17 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Search 3: by neighborhood
-      if (results.length <= 1 && neighborhood.length >= 3) {
-        const nResults = await viacepSearch(uf, city, neighborhood);
-        if (nResults.length > results.length) {
-          results = nResults;
+      // Search 3: ALWAYS search by neighborhood and merge
+      if (neighborhood.length >= 3) {
+        let nResults = await viacepSearch(uf, city, neighborhood);
+        // If full neighborhood name returns nothing, try first word
+        if (nResults.length === 0) {
+          const firstWordN = neighborhood.split(' ')[0];
+          if (firstWordN.length >= 3 && firstWordN !== neighborhood) {
+            nResults = await viacepSearch(uf, city, firstWordN);
+          }
         }
+        results = [...results, ...nResults];
       }
 
       if (results.length > 0 && results[0].cep) {
