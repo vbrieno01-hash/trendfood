@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MapPin, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, Loader2, LocateFixed } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface AddressData {
@@ -49,6 +50,8 @@ interface Props {
 export default function AddressFields({ value, onChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [cepError, setCepError] = useState("");
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState("");
 
   const update = useCallback(
     (field: keyof AddressData, val: string) => {
@@ -56,6 +59,49 @@ export default function AddressFields({ value, onChange }: Props) {
     },
     [value, onChange],
   );
+
+  const handleGetLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGpsError("Seu navegador não suporta geolocalização.");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("reverse-geocode", {
+            body: { lat: pos.coords.latitude, lon: pos.coords.longitude },
+          });
+          if (error || data?.error) {
+            setGpsError(data?.error || "Não foi possível obter o endereço.");
+            return;
+          }
+          onChange({
+            ...value,
+            cep: data.cep ? formatCep(data.cep) : value.cep,
+            street: data.street || value.street,
+            neighborhood: data.neighborhood || value.neighborhood,
+            city: data.city || value.city,
+            state: data.state || value.state,
+          });
+        } catch {
+          setGpsError("Erro ao buscar endereço pela localização.");
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      (err) => {
+        setGpsLoading(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsError("Permissão de localização negada.");
+        } else {
+          setGpsError("Não foi possível obter sua localização.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  }, [value, onChange]);
 
   // Auto-fetch when CEP has 8 digits
   useEffect(() => {
@@ -95,6 +141,23 @@ export default function AddressFields({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
+      {/* GPS Button */}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full gap-2"
+        onClick={handleGetLocation}
+        disabled={gpsLoading}
+      >
+        {gpsLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <LocateFixed className="w-4 h-4" />
+        )}
+        {gpsLoading ? "Buscando localização..." : "Usar minha localização"}
+      </Button>
+      {gpsError && <p className="text-xs text-destructive">{gpsError}</p>}
+
       {/* CEP */}
       <div className="space-y-1.5">
         <Label htmlFor="ck-cep" className="flex items-center gap-1.5">
