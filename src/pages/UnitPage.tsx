@@ -362,7 +362,7 @@ const UnitPage = () => {
     setCepFetchFailed(false);
 
     try {
-      let data: Record<string, string>;
+      let data: Record<string, any>;
       const { data: proxyData, error: proxyError } = await supabase.functions.invoke("viacep-proxy", { body: { cep: cleaned } });
       if (proxyError || proxyData?.error) throw new Error("proxy failed");
       data = proxyData;
@@ -375,6 +375,13 @@ const UnitPage = () => {
         city: data.localidade || prev.city,
         state: data.uf || prev.state,
       }));
+      // Populate nearby address candidates if available
+      const nearby = Array.isArray(data.nearby) ? data.nearby : [];
+      if (nearby.length > 1) {
+        setAddressCandidates(nearby);
+      } else {
+        setAddressCandidates([]);
+      }
     } catch {
       // ViaCEP failed — pre-fill state from CEP prefix and ask user for city
       const inferredState = getStateFromCep(cleaned);
@@ -1133,33 +1140,37 @@ const UnitPage = () => {
                   </button>
                   {gpsError && <p className="text-destructive text-xs">{gpsError}</p>}
 
-                  {/* Address candidates from GPS */}
+                  {/* Address candidates (nearby neighborhoods) */}
                   {addressCandidates.length > 1 && (
-                    <div>
-                      <Label className="text-xs font-medium mb-1 block">Selecione seu endereço</Label>
-                      <Select
-                        value={customerAddress.cep}
-                        onValueChange={(cep) => {
-                          const candidate = addressCandidates.find((c) => c.cep === cep);
-                          if (candidate) {
-                            setCustomerAddress((prev) => ({
-                              ...prev,
-                              cep: candidate.cep,
-                              street: candidate.street,
-                              neighborhood: candidate.neighborhood,
-                            }));
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Escolha o endereço correto..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {addressCandidates.map((c) => (
-                            <SelectItem key={c.cep} value={c.cep}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium block">📍 Selecione seu endereço</Label>
+                      <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto">
+                        {addressCandidates.map((c) => {
+                          const isSelected = customerAddress.cep === c.cep && customerAddress.neighborhood === c.neighborhood;
+                          return (
+                            <button
+                              key={`${c.cep}-${c.neighborhood}`}
+                              type="button"
+                              onClick={() => {
+                                setCustomerAddress((prev) => ({
+                                  ...prev,
+                                  cep: c.cep,
+                                  street: c.street,
+                                  neighborhood: c.neighborhood,
+                                }));
+                              }}
+                              className={`w-full text-left rounded-lg border px-3 py-2 text-xs transition-all ${
+                                isSelected
+                                  ? "border-primary bg-primary/10 ring-1 ring-primary"
+                                  : "border-border bg-card hover:bg-accent"
+                              }`}
+                            >
+                              <span className="font-semibold text-foreground">{c.street}, {c.neighborhood}</span>
+                              <span className="block text-muted-foreground mt-0.5">{c.cep}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   <div>
@@ -1176,6 +1187,7 @@ const UnitPage = () => {
                           setCustomerAddress((p) => ({ ...p, cep: val }));
                           setAddressError(false);
                           setCepError("");
+                          setAddressCandidates([]);
                           const cleaned = val.replace(/\D/g, "");
                           if (cleaned.length === 8) fetchCustomerCep(val);
                         }}
