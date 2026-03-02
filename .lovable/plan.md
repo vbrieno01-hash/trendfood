@@ -1,35 +1,22 @@
 
 
-## Plano: Botão "Usar minha localização" (GPS) no Checkout
+## Problema encontrado
 
-### Problema
-Alguns clientes não sabem o CEP nem o endereço completo de onde moram. A busca por CEP não resolve se a pessoa simplesmente não sabe o CEP.
+O botão "Usar minha localização" foi adicionado ao componente `AddressFields.tsx`, que é usado pelo `CheckoutPage.tsx`. Porém, o checkout **real** que o cliente vê é o drawer dentro do `UnitPage.tsx` (rota `/unidade/:slug`), que tem seus próprios campos de endereço inline -- sem usar `AddressFields`. O `CheckoutPage.tsx` **não é importado em nenhum lugar da aplicação**.
 
-### Solução
-Adicionar um botão **"Usar minha localização"** no `AddressFields` que usa a **Geolocation API** do navegador para pegar as coordenadas GPS do cliente e faz **geocodificação reversa** (coordenadas → endereço) via Nominatim na edge function, preenchendo todos os campos automaticamente.
+Ou seja, o botão GPS existe no código mas **nunca aparece** para o cliente.
+
+## Solução
+
+Adicionar o botão "Usar minha localização" diretamente na seção de endereço do `UnitPage.tsx`, dentro do bloco `{orderType === "Entrega" && (...)}`, reutilizando a edge function `reverse-geocode` que já está deployada.
 
 ### Alterações
 
-**1. Nova edge function `reverse-geocode/index.ts`**
-- Recebe `{ lat, lon }` no body
-- Chama Nominatim reverse geocoding: `https://nominatim.openstreetmap.org/reverse?lat=X&lon=Y&format=json`
-- Extrai rua, bairro, cidade, estado e CEP do resultado
-- Retorna os campos estruturados para o frontend
+**`src/pages/UnitPage.tsx`**:
+1. Adicionar estados `gpsLoading` e `gpsError`
+2. Criar função `handleGetLocation()` que chama `navigator.geolocation.getCurrentPosition()` → `reverse-geocode` → preenche `customerAddress`
+3. Adicionar botão "Usar minha localização" com ícone `LocateFixed` logo antes do campo CEP (dentro do bloco de Entrega, linha ~1052)
+4. Importar `LocateFixed` do lucide-react
 
-**2. Atualizar `src/components/checkout/AddressFields.tsx`**
-- Adicionar botão "Usar minha localização" com ícone `Navigation`/`LocateFixed` acima ou ao lado do campo CEP
-- Ao clicar: `navigator.geolocation.getCurrentPosition()` → pega lat/lon → chama a edge function `reverse-geocode` → preenche todos os campos (rua, bairro, cidade, estado, CEP)
-- Estados de loading e erro (permissão negada, GPS indisponível)
-- O cliente pode editar/corrigir os campos preenchidos depois
-
-### Fluxo do usuário
-1. Cliente abre checkout → clica "Usar minha localização"
-2. Navegador pede permissão de localização
-3. GPS retorna coordenadas → edge function faz reverse geocoding
-4. Campos de endereço são preenchidos automaticamente
-5. Cliente ajusta número/complemento se necessário
-
-### Componentes afetados
-- `src/components/checkout/AddressFields.tsx` — botão GPS + lógica de geolocation
-- `supabase/functions/reverse-geocode/index.ts` — nova edge function
+A lógica é idêntica à do `AddressFields.tsx` -- chamar a edge function e mapear o resultado para o estado `customerAddress`.
 
