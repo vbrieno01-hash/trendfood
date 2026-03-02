@@ -1,43 +1,40 @@
 
 
-## Plano: Frete por km individual (1km a 5km) editável
+## Plano: Mostrar cards de bairros próximos ao buscar endereço
 
-### O que muda
+### Problema
 
-Trocar o sistema atual de 3 faixas (tier1/tier2/tier3) por taxas individuais por km: `fee_1km`, `fee_2km`, `fee_3km`, `fee_4km`, `fee_5km` + `free_above`. Cada km tem seu valor editável.
+Hoje os candidatos de endereço só aparecem quando o GPS é usado. Quem digita o CEP ou usa o GPS não vê opções de bairros próximos se o ViaCEP retornar múltiplos resultados. Muitos clientes não sabem exatamente em qual bairro moram.
 
-### Arquivos afetados
+### Solução
 
-**1. `src/hooks/useDeliveryFee.ts`** — Nova interface e lógica:
-```typescript
-export interface DeliveryConfig {
-  fee_1km: number;  // até 1km
-  fee_2km: number;  // até 2km
-  fee_3km: number;  // até 3km
-  fee_4km: number;  // até 4km
-  fee_5km: number;  // acima de 4km
-  free_above: number;
-}
+Mostrar os candidatos de endereço (cards clicáveis com rua + bairro + CEP) também quando o CEP é digitado, não só pelo GPS. Trocar o Select por **cards visuais** mais intuitivos.
+
+### Alterações
+
+**1. `supabase/functions/viacep-proxy/index.ts`**
+- Quando o CEP é consultado, buscar também endereços vizinhos usando a API de busca do ViaCEP (`/{UF}/{cidade}/{logradouro}/json/`) se o logradouro estiver disponível
+- Retornar um campo `nearby` com até 5 resultados próximos (CEP, rua, bairro, label)
+
+**2. `src/pages/UnitPage.tsx`**
+- Na `fetchCustomerCep`: se o retorno incluir `nearby`, popular `addressCandidates`
+- Trocar o `Select` por **cards clicáveis** (botões estilizados) mostrando rua, bairro e CEP de cada candidato
+- O card selecionado fica com borda colorida (estilo similar ao seletor de tipo de pedido)
+- Ao clicar, preenche automaticamente CEP, rua e bairro
+- Limpar candidatos quando o usuário muda o CEP manualmente
+
+### UI dos cards
+
+```text
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
 ```
-`applyFeeTable` passa a usar `Math.ceil(distanceKm)` para determinar a faixa (1→fee_1km, 2→fee_2km, etc., ≥5→fee_5km).
 
-**2. `src/hooks/useOrganization.ts`** — Atualizar a interface `DeliveryConfig` para os mesmos campos.
-
-**3. `src/components/dashboard/StoreProfileTab.tsx`** — Substituir os 6 inputs atuais (faixa1/limite1/faixa2/limite2/faixa3/frete grátis) por 6 inputs simples:
-- Até 1km → R$ ___
-- Até 2km → R$ ___
-- Até 3km → R$ ___
-- Até 4km → R$ ___
-- Acima de 4km → R$ ___
-- Frete grátis acima de → R$ ___
-
-Preview atualizado igual à imagem do usuário.
-
-**4. `src/components/admin/PlatformConfigSection.tsx`** — Mesma lógica para o admin.
-
-**5. `src/hooks/usePlatformDeliveryConfig.ts`** — Já usa spread com DEFAULT, funciona automaticamente.
-
-### Compatibilidade
-
-Os dados existentes no banco (`delivery_config` JSON) continuam funcionando — campos antigos são ignorados e os novos usam os defaults até serem salvos.
+Cards aparecem logo abaixo do botão GPS (ou do campo CEP quando preenchido), antes dos campos de endereço.
 
