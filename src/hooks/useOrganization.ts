@@ -13,11 +13,11 @@ export interface BusinessHours {
 }
 
 export interface DeliveryConfig {
-  fee_tier1: number;
-  fee_tier2: number;
-  fee_tier3: number;
-  tier1_km: number;
-  tier2_km: number;
+  fee_1km: number;
+  fee_2km: number;
+  fee_3km: number;
+  fee_4km: number;
+  fee_5km: number;
   free_above: number;
 }
 

@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const FIELDS: { key: keyof DeliveryConfig; label: string; prefix?: string; suffix?: string }[] = [
-  { key: "fee_tier1", label: "Taxa Faixa 1", prefix: "R$" },
-  { key: "tier1_km", label: "Até (km)", suffix: "km" },
-  { key: "fee_tier2", label: "Taxa Faixa 2", prefix: "R$" },
-  { key: "tier2_km", label: "Até (km)", suffix: "km" },
-  { key: "fee_tier3", label: "Taxa Faixa 3", prefix: "R$" },
+  { key: "fee_1km", label: "Até 1 km", prefix: "R$" },
+  { key: "fee_2km", label: "Até 2 km", prefix: "R$" },
+  { key: "fee_3km", label: "Até 3 km", prefix: "R$" },
+  { key: "fee_4km", label: "Até 4 km", prefix: "R$" },
+  { key: "fee_5km", label: "Acima de 4 km", prefix: "R$" },
   { key: "free_above", label: "Frete grátis acima de", prefix: "R$" },
 ];
 
