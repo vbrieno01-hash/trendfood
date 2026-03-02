@@ -1,36 +1,51 @@
 
 
-## Plano: Sempre buscar pelo bairro e mesclar resultados
+## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
 
 ### Problema
 
-A lógica atual só busca pelo bairro (Search 3) quando as buscas anteriores retornam ≤1 resultado. Para Cubatão, a busca pela primeira palavra "Jaime" retorna 2 resultados, então a busca por bairro nunca é acionada. Resultado: apenas 2 cards em vez de 5.
-
-### Solução
-
-Mudar a lógica para **sempre executar a busca por bairro** e mesclar os resultados com os da busca por rua, em vez de usar como fallback condicional. Isso garante mais diversidade de bairros nos cards.
+Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
 
 ### Alterações
 
-**1. `supabase/functions/viacep-proxy/index.ts`**
-- Remover a condição `results.length <= 1` da busca por bairro (Search 3)
-- Sempre executar a busca por bairro quando `bairro.length >= 3`
-- Concatenar os resultados das buscas por rua e por bairro antes de deduplicar com `buildNearby`
+**1. `src/components/checkout/AddressFields.tsx`**
+- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
+- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
+- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
+- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
+- Ao clicar num card: preencher CEP, rua e bairro automaticamente
+- Limpar candidatos quando o CEP muda manualmente
 
-**2. `supabase/functions/reverse-geocode/index.ts`**
-- Mesma mudança: sempre buscar pelo bairro e mesclar com os resultados da rua
-- Concatenar antes de chamar `buildCandidates`
+**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
+- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
+- Não alterar neste momento
 
-### Lógica atualizada
+**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
+- Mesma situação do StoreProfileTab — configuração pontual
+- Não alterar neste momento
+
+### UI no Checkout
 
 ```text
-Busca 1: /{UF}/{cidade}/{rua sem prefixo}/json/
-Busca 2: (se ≤1) /{UF}/{cidade}/{primeira palavra}/json/
-Busca 3: (SEMPRE) /{UF}/{cidade}/{bairro}/json/
-→ Mesclar resultados de (1 ou 2) + (3), deduplicar, limitar a 5
+[ 📍 Usar minha localização ]
+
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
+
+CEP: [_________]
+Rua: [_________]
+...
 ```
 
-### Resultado esperado
+### Escopo
 
-Para CEP 11510-170 (Cubatão, Vila Couto): de 2 cards para 5 cards com bairros diversos (Vila Couto, Jardim Costa e Silva, Jardim São Francisco, Vila Paulista, etc).
+- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
+- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
+- Apenas mudanças no frontend
 
