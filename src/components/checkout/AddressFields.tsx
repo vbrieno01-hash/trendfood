@@ -1,9 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { MapPin, Loader2, LocateFixed } from "lucide-react";
+import { MapPin, Loader2, LocateFixed, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+interface AddressCandidate {
+  cep: string;
+  street: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+}
 
 export interface AddressData {
   cep: string;
@@ -52,10 +60,35 @@ export default function AddressFields({ value, onChange }: Props) {
   const [cepError, setCepError] = useState("");
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  const [candidates, setCandidates] = useState<AddressCandidate[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const skipCandidateClear = useRef(false);
 
   const update = useCallback(
     (field: keyof AddressData, val: string) => {
       onChange({ ...value, [field]: val });
+      // Clear candidates when user manually changes CEP
+      if (field === "cep" && !skipCandidateClear.current) {
+        setCandidates([]);
+        setSelectedIdx(null);
+      }
+    },
+    [value, onChange],
+  );
+
+  const handleSelectCandidate = useCallback(
+    (candidate: AddressCandidate, idx: number) => {
+      skipCandidateClear.current = true;
+      setSelectedIdx(idx);
+      onChange({
+        ...value,
+        cep: formatCep(candidate.cep),
+        street: candidate.street || value.street,
+        neighborhood: candidate.neighborhood || value.neighborhood,
+        city: candidate.city || value.city,
+        state: candidate.state || value.state,
+      });
+      setTimeout(() => { skipCandidateClear.current = false; }, 100);
     },
     [value, onChange],
   );
@@ -77,6 +110,7 @@ export default function AddressFields({ value, onChange }: Props) {
             setGpsError(data?.error || "Não foi possível obter o endereço.");
             return;
           }
+          skipCandidateClear.current = true;
           onChange({
             ...value,
             cep: data.cep ? formatCep(data.cep) : value.cep,
@@ -85,6 +119,18 @@ export default function AddressFields({ value, onChange }: Props) {
             city: data.city || value.city,
             state: data.state || value.state,
           });
+          setTimeout(() => { skipCandidateClear.current = false; }, 100);
+          // Populate candidates from reverse-geocode
+          if (data.candidates && Array.isArray(data.candidates) && data.candidates.length > 1) {
+            setCandidates(data.candidates.slice(0, 5).map((c: any) => ({
+              cep: c.cep || "",
+              street: c.street || c.logradouro || "",
+              neighborhood: c.neighborhood || c.bairro || "",
+              city: c.city || data.city || "",
+              state: c.state || data.state || "",
+            })));
+            setSelectedIdx(null);
+          }
         } catch {
           setGpsError("Erro ao buscar endereço pela localização.");
         } finally {
@@ -121,6 +167,7 @@ export default function AddressFields({ value, onChange }: Props) {
           setCepError(data?.error || "CEP não encontrado");
           return;
         }
+        skipCandidateClear.current = true;
         onChange({
           ...value,
           street: data.logradouro || value.street,
@@ -128,6 +175,18 @@ export default function AddressFields({ value, onChange }: Props) {
           city: data.localidade || value.city,
           state: data.uf || value.state,
         });
+        setTimeout(() => { skipCandidateClear.current = false; }, 100);
+        // Populate candidates from viacep-proxy nearby
+        if (data.nearby && Array.isArray(data.nearby) && data.nearby.length > 1) {
+          setCandidates(data.nearby.slice(0, 5).map((n: any) => ({
+            cep: n.cep || "",
+            street: n.street || n.logradouro || "",
+            neighborhood: n.neighborhood || n.bairro || "",
+            city: n.city || data.localidade || "",
+            state: n.state || data.uf || "",
+          })));
+          setSelectedIdx(null);
+        }
       } catch {
         if (!cancelled) setCepError("Erro ao buscar CEP");
       } finally {
@@ -157,6 +216,39 @@ export default function AddressFields({ value, onChange }: Props) {
         {gpsLoading ? "Buscando localização..." : "Usar minha localização"}
       </Button>
       {gpsError && <p className="text-xs text-destructive">{gpsError}</p>}
+
+      {/* Candidate cards */}
+      {candidates.length > 1 && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">Selecione o endereço correto:</p>
+          <div className="grid gap-2">
+            {candidates.map((c, idx) => {
+              const isSelected = selectedIdx === idx;
+              return (
+                <button
+                  key={`${c.cep}-${c.neighborhood}-${idx}`}
+                  type="button"
+                  onClick={() => handleSelectCandidate(c, idx)}
+                  className={`relative flex items-start gap-2 rounded-xl border p-3 text-left transition-colors ${
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
+                      {c.street ? `${c.street}, ${c.neighborhood}` : c.neighborhood}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{formatCep(c.cep)}</p>
+                  </div>
+                  {isSelected && <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* CEP */}
       <div className="space-y-1.5">
