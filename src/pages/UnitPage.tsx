@@ -107,6 +107,8 @@ const UnitPage = () => {
   const [cepFetchFailed, setCepFetchFailed] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  type AddressCandidate = { cep: string; street: string; neighborhood: string; label: string };
+  const [addressCandidates, setAddressCandidates] = useState<AddressCandidate[]>([]);
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -125,14 +127,33 @@ const UnitPage = () => {
             setGpsError(data?.error || "Não foi possível obter o endereço.");
             return;
           }
-          setCustomerAddress((prev) => ({
-            ...prev,
-            cep: data.cep || prev.cep,
-            street: data.street || prev.street,
-            neighborhood: data.neighborhood || prev.neighborhood,
-            city: data.city || prev.city,
-            state: data.state || prev.state,
-          }));
+
+          const candidates: AddressCandidate[] = data.candidates || [];
+
+          if (candidates.length > 1) {
+            // Multiple candidates — show Select for user to choose
+            setAddressCandidates(candidates);
+            // Pre-fill with first candidate
+            setCustomerAddress((prev) => ({
+              ...prev,
+              cep: candidates[0].cep || prev.cep,
+              street: candidates[0].street || prev.street,
+              neighborhood: candidates[0].neighborhood || prev.neighborhood,
+              city: data.city || prev.city,
+              state: data.state || prev.state,
+            }));
+          } else {
+            // Single or no candidates — fill directly (current behavior)
+            setAddressCandidates([]);
+            setCustomerAddress((prev) => ({
+              ...prev,
+              cep: data.cep || prev.cep,
+              street: data.street || prev.street,
+              neighborhood: data.neighborhood || prev.neighborhood,
+              city: data.city || prev.city,
+              state: data.state || prev.state,
+            }));
+          }
           setAddressError(false);
         } catch {
           setGpsError("Erro ao buscar endereço pela localização.");
@@ -1112,7 +1133,35 @@ const UnitPage = () => {
                   </button>
                   {gpsError && <p className="text-destructive text-xs">{gpsError}</p>}
 
-                  {/* CEP */}
+                  {/* Address candidates from GPS */}
+                  {addressCandidates.length > 1 && (
+                    <div>
+                      <Label className="text-xs font-medium mb-1 block">Selecione seu endereço</Label>
+                      <Select
+                        value={customerAddress.cep}
+                        onValueChange={(cep) => {
+                          const candidate = addressCandidates.find((c) => c.cep === cep);
+                          if (candidate) {
+                            setCustomerAddress((prev) => ({
+                              ...prev,
+                              cep: candidate.cep,
+                              street: candidate.street,
+                              neighborhood: candidate.neighborhood,
+                            }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Escolha o endereço correto..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {addressCandidates.map((c) => (
+                            <SelectItem key={c.cep} value={c.cep}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div>
                     <Label htmlFor="buyer-cep" className="text-xs font-medium mb-1 block">
                       CEP <span className="text-destructive">*</span>

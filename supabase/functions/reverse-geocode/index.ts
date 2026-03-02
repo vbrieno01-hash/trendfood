@@ -53,9 +53,10 @@ Deno.serve(async (req) => {
     const city = addr.city || addr.town || addr.village || addr.municipality || '';
     const cepNominatim = (addr.postcode || '').replace(/\D/g, '');
 
-    // Try ViaCEP for precise CEP + bairro
+    // Try ViaCEP for precise CEP + bairro + multiple candidates
     let finalCep = cepNominatim;
     let finalNeighborhood = neighborhood;
+    let candidates: Array<{ cep: string; street: string; neighborhood: string; label: string }> = [];
 
     if (uf && city && street && street.length >= 3) {
       try {
@@ -65,6 +66,18 @@ Deno.serve(async (req) => {
         if (Array.isArray(viaData) && viaData.length > 0 && viaData[0].cep) {
           finalCep = viaData[0].cep.replace(/\D/g, '');
           finalNeighborhood = viaData[0].bairro || finalNeighborhood;
+
+          // Build candidates list (up to 5)
+          candidates = viaData.slice(0, 5).map((v: any) => {
+            const cepClean = (v.cep || '').replace(/\D/g, '');
+            const cepFmt = cepClean.length === 8 ? `${cepClean.slice(0,5)}-${cepClean.slice(5)}` : cepClean;
+            return {
+              cep: cepClean,
+              street: v.logradouro || street,
+              neighborhood: v.bairro || neighborhood,
+              label: `${v.logradouro || street}, ${v.bairro || neighborhood} - ${cepFmt}`,
+            };
+          });
         }
       } catch {
         // ViaCEP failed, keep Nominatim values
@@ -77,6 +90,7 @@ Deno.serve(async (req) => {
       city,
       state: uf,
       cep: finalCep,
+      candidates,
     };
 
     return new Response(JSON.stringify(result), {
