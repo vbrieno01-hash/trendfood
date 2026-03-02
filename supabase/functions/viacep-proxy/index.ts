@@ -3,6 +3,45 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+/** Strip common Brazilian street prefixes so ViaCEP search is broader */
+function stripStreetPrefix(street: string): string {
+  return street.replace(/^(Rua|Avenida|Av\.|Travessa|Trav\.|Alameda|Al\.|Praça|Pc\.|Rodovia|Rod\.|Estrada|Est\.)\s+/i, '').trim();
+}
+
+/** Search ViaCEP and return parsed array (empty on failure) */
+async function viacepSearch(uf: string, city: string, term: string): Promise<any[]> {
+  if (!term || term.length < 3) return [];
+  try {
+    const res = await fetch(
+      `https://viacep.com.br/ws/${encodeURIComponent(uf)}/${encodeURIComponent(city)}/${encodeURIComponent(term)}/json/`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Deduplicate and build nearby array from ViaCEP results */
+function buildNearby(results: any[], fallbackStreet: string): Array<{ cep: string; street: string; neighborhood: string; label: string }> {
+  const nearby: Array<{ cep: string; street: string; neighborhood: string; label: string }> = [];
+  const seen = new Set<string>();
+  for (const item of results) {
+    const key = `${item.cep}-${item.bairro}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    nearby.push({
+      cep: item.cep,
+      street: item.logradouro || fallbackStreet,
+      neighborhood: item.bairro || '',
+      label: `${item.logradouro || fallbackStreet}, ${item.bairro || 'S/N'} — ${item.cep}`,
+    });
+    if (nearby.length >= 5) break;
+  }
+  return nearby;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,42 +68,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Try to fetch nearby addresses using ViaCEP search API
     let nearby: Array<{ cep: string; street: string; neighborhood: string; label: string }> = [];
 
-    if (data.logradouro && data.uf && data.localidade) {
-      try {
-        // Extract first word of the street name for broader search
-        const streetWords = data.logradouro.replace(/^(Rua|Avenida|Av\.|Travessa|Alameda|Praça)\s+/i, '').trim();
-        const searchTerm = streetWords.split(' ').slice(0, 2).join(' ');
+    if (data.uf && data.localidade) {
+      const street = data.logradouro || '';
+      const bairro = data.bairro || '';
+      const stripped = stripStreetPrefix(street);
 
-        if (searchTerm.length >= 3) {
-          const searchRes = await fetch(
-            `https://viacep.com.br/ws/${encodeURIComponent(data.uf)}/${encodeURIComponent(data.localidade)}/${encodeURIComponent(searchTerm)}/json/`
-          );
-          if (searchRes.ok) {
-            const searchData = await searchRes.json();
-            if (Array.isArray(searchData)) {
-              // Filter unique neighborhoods and limit to 5
-              const seen = new Set<string>();
-              for (const item of searchData) {
-                const key = `${item.cep}-${item.bairro}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                nearby.push({
-                  cep: item.cep,
-                  street: item.logradouro || data.logradouro,
-                  neighborhood: item.bairro || '',
-                  label: `${item.logradouro || data.logradouro}, ${item.bairro || 'S/N'} — ${item.cep}`,
-                });
-                if (nearby.length >= 5) break;
-              }
-            }
-          }
-        }
-      } catch {
-        // Ignore nearby search errors — main result is still valid
+      // Search 1: full street name (without prefix)
+      let results: any[] = [];
+      if (stripped.length >= 3) {
+        results = await viacepSearch(data.uf, data.localidade, stripped);
       }
+
+      // Search 2: first word only (if ≤1 result)
+      if (results.length <= 1 && stripped.length >= 3) {
+        const firstWord = stripped.split(' ')[0];
+        if (firstWord.length >= 3 && firstWord !== stripped) {
+          results = await viacepSearch(data.uf, data.localidade, firstWord);
+        }
+      }
+
+      // Search 3: by neighborhood (if still ≤1 result)
+      if (results.length <= 1 && bairro.length >= 3) {
+        const bairroResults = await viacepSearch(data.uf, data.localidade, bairro);
+        if (bairroResults.length > results.length) {
+          results = bairroResults;
+        }
+      }
+
+      nearby = buildNearby(results, street);
     }
 
     return new Response(JSON.stringify({ ...data, nearby }), {
