@@ -3,20 +3,20 @@ import { Organization } from "@/hooks/useOrganization";
 import { calculateDistanceViaEdge } from "@/lib/geocode";
 
 export interface DeliveryConfig {
-  fee_tier1: number;
-  fee_tier2: number;
-  fee_tier3: number;
-  tier1_km: number;
-  tier2_km: number;
+  fee_1km: number;
+  fee_2km: number;
+  fee_3km: number;
+  fee_4km: number;
+  fee_5km: number;
   free_above: number;
 }
 
 export const DEFAULT_DELIVERY_CONFIG: DeliveryConfig = {
-  fee_tier1: 5,
-  fee_tier2: 8,
-  fee_tier3: 12,
-  tier1_km: 2,
-  tier2_km: 5,
+  fee_1km: 3,
+  fee_2km: 5,
+  fee_3km: 7,
+  fee_4km: 10,
+  fee_5km: 12,
   free_above: 100,
 };
 
@@ -31,9 +31,12 @@ interface UseDeliveryFeeResult {
 
 function applyFeeTable(distanceKm: number, subtotal: number, config: DeliveryConfig): { fee: number; freeShipping: boolean } {
   if (subtotal >= config.free_above) return { fee: 0, freeShipping: true };
-  if (distanceKm <= config.tier1_km) return { fee: config.fee_tier1, freeShipping: false };
-  if (distanceKm <= config.tier2_km) return { fee: config.fee_tier2, freeShipping: false };
-  return { fee: config.fee_tier3, freeShipping: false };
+  const bucket = Math.ceil(distanceKm);
+  if (bucket <= 1) return { fee: config.fee_1km, freeShipping: false };
+  if (bucket <= 2) return { fee: config.fee_2km, freeShipping: false };
+  if (bucket <= 3) return { fee: config.fee_3km, freeShipping: false };
+  if (bucket <= 4) return { fee: config.fee_4km, freeShipping: false };
+  return { fee: config.fee_5km, freeShipping: false };
 }
 
 export function useDeliveryFee(

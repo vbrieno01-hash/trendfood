@@ -910,78 +910,37 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         <div className="mt-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Taxas de Frete</p>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-medium mb-1 block">
-                Faixa 1 (R$) <span className="text-muted-foreground font-normal">até {deliveryConfig.tier1_km} km</span>
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step={0.5}
-                value={deliveryConfig.fee_tier1}
-                onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier1: parseFloat(e.target.value) || 0 }))}
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-medium mb-1 block">Limite faixa 1 (km)</Label>
-              <Input
-                type="number"
-                min={1}
-                step={1}
-                value={deliveryConfig.tier1_km}
-                onChange={(e) => setDeliveryConfig((p) => ({ ...p, tier1_km: parseFloat(e.target.value) || 2 }))}
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-medium mb-1 block">
-                Faixa 2 (R$) <span className="text-muted-foreground font-normal">{deliveryConfig.tier1_km}–{deliveryConfig.tier2_km} km</span>
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step={0.5}
-                value={deliveryConfig.fee_tier2}
-                onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier2: parseFloat(e.target.value) || 0 }))}
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-medium mb-1 block">Limite faixa 2 (km)</Label>
-              <Input
-                type="number"
-                min={1}
-                step={1}
-                value={deliveryConfig.tier2_km}
-                onChange={(e) => setDeliveryConfig((p) => ({ ...p, tier2_km: parseFloat(e.target.value) || 5 }))}
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-medium mb-1 block">
-                Faixa 3 (R$) <span className="text-muted-foreground font-normal">acima de {deliveryConfig.tier2_km} km</span>
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step={0.5}
-                value={deliveryConfig.fee_tier3}
-                onChange={(e) => setDeliveryConfig((p) => ({ ...p, fee_tier3: parseFloat(e.target.value) || 0 }))}
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-medium mb-1 block">Frete grátis acima de (R$)</Label>
-              <Input
-                type="number"
-                min={0}
-                step={5}
-                value={deliveryConfig.free_above}
-                onChange={(e) => setDeliveryConfig((p) => ({ ...p, free_above: parseFloat(e.target.value) || 0 }))}
-              />
-            </div>
+            {([
+              { key: "fee_1km" as const, label: "Até 1 km" },
+              { key: "fee_2km" as const, label: "Até 2 km" },
+              { key: "fee_3km" as const, label: "Até 3 km" },
+              { key: "fee_4km" as const, label: "Até 4 km" },
+              { key: "fee_5km" as const, label: "Acima de 4 km" },
+              { key: "free_above" as const, label: "Frete grátis acima de" },
+            ]).map((f) => (
+              <div key={f.key}>
+                <Label className="text-xs font-medium mb-1 block">{f.label}</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={deliveryConfig[f.key]}
+                    onChange={(e) => setDeliveryConfig((p) => ({ ...p, [f.key]: parseFloat(e.target.value) || 0 }))}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
           <div className="bg-secondary/60 rounded-xl p-3 text-xs space-y-1 mt-3">
             <p className="font-semibold text-foreground mb-1">Preview:</p>
-            <p className="text-muted-foreground">📍 Até <strong>{deliveryConfig.tier1_km} km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_tier1.toFixed(2).replace(".", ",")}</strong></p>
-            <p className="text-muted-foreground">📍 <strong>{deliveryConfig.tier1_km}–{deliveryConfig.tier2_km} km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_tier2.toFixed(2).replace(".", ",")}</strong></p>
-            <p className="text-muted-foreground">📍 Acima de <strong>{deliveryConfig.tier2_km} km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_tier3.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">📍 Até <strong>1 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_1km.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">📍 Até <strong>2 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_2km.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">📍 Até <strong>3 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_3km.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">📍 Até <strong>4 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_4km.toFixed(2).replace(".", ",")}</strong></p>
+            <p className="text-muted-foreground">📍 Acima de <strong>4 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_5km.toFixed(2).replace(".", ",")}</strong></p>
             <p className="text-muted-foreground">🎁 Acima de <strong>R$ {deliveryConfig.free_above.toFixed(2).replace(".", ",")}</strong> → <strong className="text-foreground">Frete grátis</strong></p>
           </div>
         </div>
