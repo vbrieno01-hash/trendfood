@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  ShoppingCart, ShoppingBag, Loader2, Search,
+  ShoppingCart, ShoppingBag, Loader2, Search, LocateFixed,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -105,6 +105,52 @@ const UnitPage = () => {
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState("");
   const [cepFetchFailed, setCepFetchFailed] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState("");
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError("Seu navegador não suporta geolocalização.");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("reverse-geocode", {
+            body: { lat: pos.coords.latitude, lon: pos.coords.longitude },
+          });
+          if (error || data?.error) {
+            setGpsError(data?.error || "Não foi possível obter o endereço.");
+            return;
+          }
+          setCustomerAddress((prev) => ({
+            ...prev,
+            cep: data.cep || prev.cep,
+            street: data.street || prev.street,
+            neighborhood: data.neighborhood || prev.neighborhood,
+            city: data.city || prev.city,
+            state: data.state || prev.state,
+          }));
+          setAddressError(false);
+        } catch {
+          setGpsError("Erro ao buscar endereço pela localização.");
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      (err) => {
+        setGpsLoading(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsError("Permissão de localização negada.");
+        } else {
+          setGpsError("Não foi possível obter sua localização.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
 
   // Full address (with complement) for WhatsApp/order notes display
   const fullCustomerAddressDisplay = [
@@ -1050,6 +1096,22 @@ const UnitPage = () => {
 
               {orderType === "Entrega" && (
                 <div ref={addressRef} className="space-y-3">
+                  {/* GPS Button */}
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
+                    onClick={handleGetLocation}
+                    disabled={gpsLoading}
+                  >
+                    {gpsLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <LocateFixed className="w-4 h-4" />
+                    )}
+                    {gpsLoading ? "Buscando localização..." : "Usar minha localização"}
+                  </button>
+                  {gpsError && <p className="text-destructive text-xs">{gpsError}</p>}
+
                   {/* CEP */}
                   <div>
                     <Label htmlFor="buyer-cep" className="text-xs font-medium mb-1 block">
