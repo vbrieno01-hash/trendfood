@@ -1,31 +1,35 @@
 
 
-## Plano: Busca por CEP no Checkout
+## Plano: Botão "Usar minha localização" (GPS) no Checkout
 
 ### Problema
-O campo de endereço no checkout (`CheckoutPage.tsx`) é texto livre — o cliente pode errar ou não saber o endereço completo. A `UnitPage` já tem busca por CEP via `viacep-proxy`, mas o checkout não.
+Alguns clientes não sabem o CEP nem o endereço completo de onde moram. A busca por CEP não resolve se a pessoa simplesmente não sabe o CEP.
 
 ### Solução
-Substituir o campo único de endereço por campos estruturados com busca automática por CEP, igual ao que já existe na `UnitPage`:
+Adicionar um botão **"Usar minha localização"** no `AddressFields` que usa a **Geolocation API** do navegador para pegar as coordenadas GPS do cliente e faz **geocodificação reversa** (coordenadas → endereço) via Nominatim na edge function, preenchendo todos os campos automaticamente.
 
-1. **Novo estado estruturado** no `CheckoutPage`: `{ cep, street, number, complement, neighborhood, city, state }` em vez de um único `address` string.
+### Alterações
 
-2. **Campo CEP com auto-preenchimento**: ao digitar 8 dígitos, chama `viacep-proxy` e preenche rua, bairro, cidade e estado automaticamente. O cliente só precisa digitar o número e complemento.
+**1. Nova edge function `reverse-geocode/index.ts`**
+- Recebe `{ lat, lon }` no body
+- Chama Nominatim reverse geocoding: `https://nominatim.openstreetmap.org/reverse?lat=X&lon=Y&format=json`
+- Extrai rua, bairro, cidade, estado e CEP do resultado
+- Retorna os campos estruturados para o frontend
 
-3. **Layout dos campos**:
-   - CEP (com loading spinner e máscara `00000-000`)
-   - Rua (preenchida automaticamente, editável)
-   - Número + Complemento (lado a lado)
-   - Bairro (preenchido automaticamente, editável)
-   - Cidade + Estado (preenchidos, read-only ou editáveis)
+**2. Atualizar `src/components/checkout/AddressFields.tsx`**
+- Adicionar botão "Usar minha localização" com ícone `Navigation`/`LocateFixed` acima ou ao lado do campo CEP
+- Ao clicar: `navigator.geolocation.getCurrentPosition()` → pega lat/lon → chama a edge function `reverse-geocode` → preenche todos os campos (rua, bairro, cidade, estado, CEP)
+- Estados de loading e erro (permissão negada, GPS indisponível)
+- O cliente pode editar/corrigir os campos preenchidos depois
 
-4. **Montagem do endereço final**: ao confirmar, concatena os campos em uma string formatada igual à `UnitPage` (`Rua X, 123, Bairro, Cidade, Estado, CEP, Brasil`) para manter compatibilidade com o `onConfirm` e o cálculo de frete.
-
-5. **Validação**: exigir CEP, rua, número, cidade e estado preenchidos antes de permitir o envio.
+### Fluxo do usuário
+1. Cliente abre checkout → clica "Usar minha localização"
+2. Navegador pede permissão de localização
+3. GPS retorna coordenadas → edge function faz reverse geocoding
+4. Campos de endereço são preenchidos automaticamente
+5. Cliente ajusta número/complemento se necessário
 
 ### Componentes afetados
-- `src/components/checkout/CheckoutPage.tsx` — substituir campo livre por campos estruturados com busca CEP
-
-### Referência
-A lógica de `fetchCustomerCep` da `UnitPage.tsx` (linhas ~289-314) será replicada.
+- `src/components/checkout/AddressFields.tsx` — botão GPS + lógica de geolocation
+- `supabase/functions/reverse-geocode/index.ts` — nova edge function
 
