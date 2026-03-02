@@ -1,44 +1,43 @@
 
 
-## Plano: Seletor de endereços após GPS (estilo Select)
+## Plano: Frete por km individual (1km a 5km) editável
 
-### Ideia
+### O que muda
 
-Quando o GPS localizar o usuário, a edge function `reverse-geocode` já consulta o ViaCEP e pode retornar **múltiplos resultados** (várias ruas/CEPs próximos). Hoje só usamos o primeiro. A ideia é retornar **todos** os resultados e mostrar um Select para o cliente escolher o endereço correto -- igual ao campo de UF que já usa Select.
+Trocar o sistema atual de 3 faixas (tier1/tier2/tier3) por taxas individuais por km: `fee_1km`, `fee_2km`, `fee_3km`, `fee_4km`, `fee_5km` + `free_above`. Cada km tem seu valor editável.
 
-### Alterações
+### Arquivos afetados
 
-**1. Edge function `reverse-geocode/index.ts`**
-- Retornar um array `candidates` com até 5 resultados do ViaCEP (cada um com `cep`, `street`, `neighborhood`, `city`, `state`)
-- Manter o campo `street`, `cep`, etc. de nível raiz como o primeiro resultado (compatibilidade)
-- Formato: `{ street, neighborhood, city, state, cep, candidates: [{ cep, street, neighborhood, label }, ...] }`
-- O campo `label` será algo como `"Rua X, Bairro Y - 01234-567"` para exibição no Select
-
-**2. `src/pages/UnitPage.tsx`**
-- Novo estado `addressCandidates: Array<{ cep, street, neighborhood, label }>` (inicialmente vazio)
-- Quando `handleGetLocation` receber `data.candidates`, armazenar no estado
-- Mostrar um Select logo abaixo do botão GPS com as opções (visível só quando `candidates.length > 1`)
-- Ao selecionar uma opção, preencher `customerAddress` com os dados daquele candidato
-- Se houver só 1 resultado, preencher direto sem mostrar Select (comportamento atual)
-
-### Fluxo do usuário
-
-```text
-[Usar minha localização] → GPS → reverse-geocode → ViaCEP retorna 3 resultados
-                                                          ↓
-                                              ┌─────────────────────────┐
-                                              │ Selecione seu endereço: │
-                                              │ ▼ Rua A, Centro - 11111 │
-                                              │   Rua A, Vila X - 11112 │
-                                              │   Rua B, Centro - 11113 │
-                                              └─────────────────────────┘
-                                                          ↓
-                                              Campos preenchidos automaticamente
+**1. `src/hooks/useDeliveryFee.ts`** — Nova interface e lógica:
+```typescript
+export interface DeliveryConfig {
+  fee_1km: number;  // até 1km
+  fee_2km: number;  // até 2km
+  fee_3km: number;  // até 3km
+  fee_4km: number;  // até 4km
+  fee_5km: number;  // acima de 4km
+  free_above: number;
+}
 ```
+`applyFeeTable` passa a usar `Math.ceil(distanceKm)` para determinar a faixa (1→fee_1km, 2→fee_2km, etc., ≥5→fee_5km).
 
-### Detalhes técnicos
+**2. `src/hooks/useOrganization.ts`** — Atualizar a interface `DeliveryConfig` para os mesmos campos.
 
-- O ViaCEP já retorna um array quando buscamos por `/{UF}/{cidade}/{rua}/json/` -- hoje descartamos tudo exceto `[0]`
-- Limitar a 5 candidatos para não poluir a UI
-- O Select usa os mesmos componentes Radix já importados no UnitPage
+**3. `src/components/dashboard/StoreProfileTab.tsx`** — Substituir os 6 inputs atuais (faixa1/limite1/faixa2/limite2/faixa3/frete grátis) por 6 inputs simples:
+- Até 1km → R$ ___
+- Até 2km → R$ ___
+- Até 3km → R$ ___
+- Até 4km → R$ ___
+- Acima de 4km → R$ ___
+- Frete grátis acima de → R$ ___
+
+Preview atualizado igual à imagem do usuário.
+
+**4. `src/components/admin/PlatformConfigSection.tsx`** — Mesma lógica para o admin.
+
+**5. `src/hooks/usePlatformDeliveryConfig.ts`** — Já usa spread com DEFAULT, funciona automaticamente.
+
+### Compatibilidade
+
+Os dados existentes no banco (`delivery_config` JSON) continuam funcionando — campos antigos são ignorados e os novos usam os defaults até serem salvos.
 
