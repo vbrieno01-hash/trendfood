@@ -1,22 +1,27 @@
 
 
-## Problema encontrado
+## Problema
 
-O botão "Usar minha localização" foi adicionado ao componente `AddressFields.tsx`, que é usado pelo `CheckoutPage.tsx`. Porém, o checkout **real** que o cliente vê é o drawer dentro do `UnitPage.tsx` (rota `/unidade/:slug`), que tem seus próprios campos de endereço inline -- sem usar `AddressFields`. O `CheckoutPage.tsx` **não é importado em nenhum lugar da aplicação**.
-
-Ou seja, o botão GPS existe no código mas **nunca aparece** para o cliente.
+A edge function `reverse-geocode` usa o Nominatim para geocodificação reversa. O Nominatim retorna a **rua** corretamente, mas o **CEP** e **bairro** frequentemente são imprecisos para endereços brasileiros (postcode genérico da região, suburb/neighbourhood incorreto).
 
 ## Solução
 
-Adicionar o botão "Usar minha localização" diretamente na seção de endereço do `UnitPage.tsx`, dentro do bloco `{orderType === "Entrega" && (...)}`, reutilizando a edge function `reverse-geocode` que já está deployada.
+Após obter rua, cidade e estado do Nominatim, fazer uma segunda chamada ao **ViaCEP** para buscar o CEP e bairro corretos baseados no logradouro. A API de busca do ViaCEP aceita `/{UF}/{cidade}/{logradouro}/json/` e retorna os dados precisos.
 
-### Alterações
+### Alteração em `supabase/functions/reverse-geocode/index.ts`
 
-**`src/pages/UnitPage.tsx`**:
-1. Adicionar estados `gpsLoading` e `gpsError`
-2. Criar função `handleGetLocation()` que chama `navigator.geolocation.getCurrentPosition()` → `reverse-geocode` → preenche `customerAddress`
-3. Adicionar botão "Usar minha localização" com ícone `LocateFixed` logo antes do campo CEP (dentro do bloco de Entrega, linha ~1052)
-4. Importar `LocateFixed` do lucide-react
+1. Após extrair `street`, `city` e `state` do Nominatim, chamar ViaCEP: `https://viacep.com.br/ws/{UF}/{cidade}/{logradouro}/json/`
+2. Se ViaCEP retornar resultados, usar o `cep` e `bairro` do primeiro resultado
+3. Manter os valores do Nominatim como fallback caso o ViaCEP falhe ou não encontre
 
-A lógica é idêntica à do `AddressFields.tsx` -- chamar a edge function e mapear o resultado para o estado `customerAddress`.
+```text
+Fluxo atualizado:
+GPS coords → Nominatim (rua, cidade, estado) → ViaCEP (CEP + bairro precisos) → resposta
+```
+
+### Detalhes técnicos
+
+- A busca do ViaCEP por endereço exige no mínimo 3 caracteres no logradouro
+- O estado precisa estar no formato UF (2 letras) -- já temos o mapeamento
+- Se o ViaCEP não encontrar ou falhar, mantemos os dados originais do Nominatim
 
