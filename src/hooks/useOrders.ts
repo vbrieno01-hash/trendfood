@@ -453,6 +453,8 @@ export const useCancelOrder = (organizationId: string) => {
       await qc.refetchQueries({ queryKey: ["orders", organizationId] });
       await qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] });
       await qc.invalidateQueries({ queryKey: ["orders-awaiting-payment", organizationId] });
+      // Invalidate courier/delivery queries so cancelled deliveries vanish from motoboy panel
+      await qc.invalidateQueries({ queryKey: ["deliveries"] });
       toast({ title: "❌ Pedido cancelado com sucesso." });
     },
     onError: (e: Error) => toast({ title: "Erro ao cancelar", description: e.message, variant: "destructive" }),
