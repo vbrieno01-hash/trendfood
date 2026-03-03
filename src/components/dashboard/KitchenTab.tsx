@@ -4,7 +4,12 @@ import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, Flame, Printer, BellRing } from "lucide-react";
+import { Loader2, Flame, Printer, BellRing, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import WaiterTab from "@/components/dashboard/WaiterTab";
 import { printOrderByMode } from "@/lib/printOrder";
@@ -332,6 +337,35 @@ export default function KitchenTab({
                     <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Cancelar pedido"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Não</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleUpdateStatus(order.id, "cancelled" as Order["status"])}
+                          >
+                            Sim, cancelar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Button
                       variant="ghost"
                       size="icon"

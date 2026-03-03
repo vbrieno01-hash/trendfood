@@ -20,7 +20,7 @@ export interface Order {
   id: string;
   organization_id: string;
   table_number: number;
-  status: "pending" | "preparing" | "ready" | "delivered";
+  status: "pending" | "preparing" | "ready" | "delivered" | "cancelled";
   notes: string | null;
   created_at: string;
   paid: boolean;
