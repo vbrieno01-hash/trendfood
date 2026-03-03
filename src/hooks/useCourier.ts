@@ -135,6 +135,9 @@ export function useAvailableDeliveries(organizationId: string | undefined) {
       return (data ?? []) as unknown as Delivery[];
     },
     enabled: !!organizationId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 }
 
@@ -169,6 +172,9 @@ export function useMyDeliveries(courierId: string | null) {
       return (data ?? []) as unknown as Delivery[];
     },
     enabled: !!courierId,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 }
 
