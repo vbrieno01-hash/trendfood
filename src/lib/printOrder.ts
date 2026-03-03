@@ -88,6 +88,9 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): stri
   let trocoHtml = "";
   if (data.troco) {
     trocoHtml = `<div class="troco-line">Troco para: ${data.troco}</div>`;
+    if (data.trocoChange != null && data.trocoChange > 0) {
+      trocoHtml += `<div class="troco-line" style="font-weight:bold;">Levar de troco: R$ ${fmt(data.trocoChange)}</div>`;
+    }
   }
 
   return `<!DOCTYPE html>
