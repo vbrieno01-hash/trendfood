@@ -8,11 +8,17 @@ import {
   useMarkAsPaid,
   useAwaitingPaymentOrders,
   useConfirmPixPayment,
+  useCancelOrder,
   Order,
 } from "@/hooks/useOrders";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode } from "lucide-react";
+import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { printOrder } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
 
@@ -85,6 +91,7 @@ export default function WaiterPage() {
   const updateStatus = useUpdateOrderStatus(orgId ?? "", ["ready"]);
   const markAsPaid = useMarkAsPaid(orgId ?? "");
   const confirmPix = useConfirmPixPayment(orgId ?? "");
+  const cancelOrder = useCancelOrder(orgId ?? "");
 
   const [loadingDeliver, setLoadingDeliver] = useState<Set<string>>(new Set());
   const [loadingPay, setLoadingPay] = useState<Set<string>>(new Set());
@@ -340,6 +347,24 @@ export default function WaiterPage() {
                         <Printer className="w-3.5 h-3.5" />
                         Imprimir
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="flex items-center gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Cancelar
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                            <AlertDialogDescription>Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Voltar</AlertDialogCancel>
+                            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => cancelOrder.mutate(order.id)}>Sim, cancelar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                       <Button
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                         disabled={busy}
@@ -449,6 +474,24 @@ export default function WaiterPage() {
                         <Printer className="w-3.5 h-3.5" />
                         Imprimir
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="flex items-center gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Cancelar
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                            <AlertDialogDescription>Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Voltar</AlertDialogCancel>
+                            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => cancelOrder.mutate(order.id)}>Sim, cancelar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
                       <a
                         href={waUrl}
