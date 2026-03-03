@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
+import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -88,6 +88,7 @@ export default function KitchenTab({
 }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
+  const cancelOrder = useCancelOrder(orgId);
   const qc = useQueryClient();
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
@@ -361,7 +362,7 @@ export default function KitchenTab({
                           <AlertDialogCancel>Não</AlertDialogCancel>
                           <AlertDialogAction
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleUpdateStatus(order.id, "cancelled" as Order["status"])}
+                            onClick={() => cancelOrder.mutate(order.id)}
                           >
                             Sim, cancelar
                           </AlertDialogAction>

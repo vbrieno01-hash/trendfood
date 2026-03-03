@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { enqueuePrint } from "@/lib/printQueue";
+import { enqueuePrint, cancelPendingPrints } from "@/lib/printQueue";
 import { formatReceiptText, stripFormatMarkers } from "@/lib/formatReceiptText";
 import type { PrintableOrder } from "@/lib/printOrder";
 
@@ -419,5 +419,42 @@ export const useOrderHistory = (
       return data as Order[];
     },
     enabled: !!organizationId,
+  });
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Cancel Order (with print queue + delivery cleanup)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const useCancelOrder = (organizationId: string) => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      // 1. Update order status to cancelled
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "cancelled" } as never)
+        .eq("id", orderId);
+      if (error) throw error;
+
+      // 2. Cancel pending print jobs
+      await cancelPendingPrints(orderId);
+
+      // 3. Cancel associated delivery (if any)
+      await supabase
+        .from("deliveries")
+        .update({ status: "cancelado" } as never)
+        .eq("order_id", orderId)
+        .in("status", ["pendente", "em_rota"]);
+    },
+    onSuccess: async () => {
+      // Invalidate all order-related queries
+      await qc.refetchQueries({ queryKey: ["orders", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["orders-awaiting-payment", organizationId] });
+      toast({ title: "❌ Pedido cancelado com sucesso." });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao cancelar", description: e.message, variant: "destructive" }),
   });
 };
