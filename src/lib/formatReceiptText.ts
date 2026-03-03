@@ -44,8 +44,23 @@ export function parseNotes(notes: string): ParsedNotes {
   };
 }
 
-function stripDiacritics(text: string): string {
-  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/**
+ * Sanitize text for thermal printers:
+ * 1. Strip diacritics (á→a, ç→c, etc.)
+ * 2. Remove format markers (##BOLD##, ##CENTER##)
+ * 3. Uppercase everything
+ * 4. Keep only A-Z, 0-9, spaces, and essential punctuation
+ */
+export function sanitizeThermalText(text: string): string {
+  return text
+    // Strip diacritics
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    // Remove format markers before uppercasing
+    .replace(/##CENTER##/g, "").replace(/##BOLD##/g, "")
+    // Uppercase
+    .toUpperCase()
+    // Keep only safe chars: letters, digits, spaces, and essential punctuation
+    .replace(/[^A-Z0-9 :$,.\-*/()@#\n]/g, "");
 }
 
 const MAX_COLS = 32;
@@ -192,7 +207,7 @@ function formatFromData(data: ReceiptData): string {
   lines.push("");
   lines.push(center("Powered By: TrendFood"));
   lines.push(center("Acesse: https://trendfood.lovable.app/"));
-  return stripDiacritics(lines.join("\n"));
+  return sanitizeThermalText(lines.join("\n"));
 }
 
 export function formatReceiptText(
