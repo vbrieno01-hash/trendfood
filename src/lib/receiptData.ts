@@ -158,7 +158,7 @@ export function calcOrderTotals(
         deliveryFee = parsed;
         deliveryFeeLabel = `R$ ${deliveryFee.toFixed(2).replace(".", ",")}`;
       } else {
-        deliveryFeeLabel = freteString || "A combinar";
+        deliveryFeeLabel = freteString || "Sob consulta";
       }
     }
   }

@@ -191,7 +191,7 @@ function formatFromData(data: ReceiptData): string {
   lines.push(center("Bom apetite!!!"));
   lines.push("");
   lines.push(center("Powered By: TrendFood"));
-  lines.push(center("Acesse: https://trendfood.lovable.app/"));
+  lines.push(center("Acesse: https://trendfood.com.br"));
   return stripDiacritics(lines.join("\n"));
 }
 
