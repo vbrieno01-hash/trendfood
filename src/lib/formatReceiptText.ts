@@ -108,7 +108,9 @@ function formatFromData(data: ReceiptData): string {
   }
 
   // ── ITEMS
+  lines.push("");
   lines.push(divider());
+  lines.push("");
   for (const item of data.items) {
     const nameWithCustomer = item.customerName
       ? `${item.baseName} - ${item.customerName}`
@@ -146,7 +148,9 @@ function formatFromData(data: ReceiptData): string {
 
   // ── CUSTOMER
   if (data.customer) {
+    lines.push("");
     lines.push(divider());
+    lines.push("");
     if (data.customer.name) lines.push(...wrapLine(`Nome: ${data.customer.name}`, cols));
     if (data.customer.phone) lines.push(...wrapLine(`Tel: ${data.customer.phone}`, cols));
     if (data.customer.doc) lines.push(...wrapLine(`CPF/CNPJ: ${data.customer.doc}`, cols));
@@ -156,7 +160,9 @@ function formatFromData(data: ReceiptData): string {
   }
 
   // ── PAYMENT & TOTALS
+  lines.push("");
   lines.push(divider());
+  lines.push("");
   if (data.paymentMethod) {
     lines.push(center(`Pgto: ${data.paymentMethod}`));
     if (data.showChargeNotice) {
@@ -179,11 +185,13 @@ function formatFromData(data: ReceiptData): string {
   }
 
   // ── FOOTER
+  lines.push("");
   lines.push(divider());
+  lines.push("");
   lines.push(center("Bom apetite!!!"));
   lines.push("");
   lines.push(center("Powered By: TrendFood"));
-
+  lines.push(center("Acesse: https://trendfood.lovable.app/"));
   return stripDiacritics(lines.join("\n"));
 }
 

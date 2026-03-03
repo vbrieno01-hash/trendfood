@@ -35,7 +35,7 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       )}
 
       {/* ── ITENS ── */}
-      <div className="border-t border-dashed border-black my-1" />
+      <div className="border-t border-dashed border-black my-2 pt-1" />
       {data.items.map((item) => (
         <div key={item.index}>
           <div>
@@ -59,7 +59,7 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       {/* ── DADOS DO CLIENTE ── */}
       {data.customer && (
         <>
-          <div className="border-t border-dashed border-black my-1" />
+          <div className="border-t border-dashed border-black my-2 pt-1" />
           {data.customer.name && <div>Nome: {data.customer.name}</div>}
           {data.customer.phone && <div>Tel: {data.customer.phone}</div>}
           {data.customer.doc && <div>CPF/CNPJ: {data.customer.doc}</div>}
@@ -72,7 +72,7 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       )}
 
       {/* ── PAGAMENTO & TOTAIS ── */}
-      <div className="border-t border-dashed border-black my-1" />
+      <div className="border-t border-dashed border-black my-2 pt-1" />
       {data.paymentMethod && (
         <>
           <div className="text-center">Pgto: {data.paymentMethod}</div>
@@ -95,9 +95,10 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       {data.troco && <div className="text-right">Troco para: {data.troco}</div>}
 
       {/* ── RODAPÉ ── */}
-      <div className="border-t border-dashed border-black my-1" />
+      <div className="border-t border-dashed border-black my-2 pt-1" />
       <div className="text-center font-bold">Bom apetite!!!</div>
       <div className="text-center mt-1">Powered By: TrendFood</div>
+      <div className="text-center text-[10px] mt-1">Acesse: https://trendfood.lovable.app/</div>
     </div>
   );
 }

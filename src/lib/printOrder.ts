@@ -104,7 +104,7 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): stri
     }
     .center { text-align: center; }
     .bold { font-weight: bold; }
-    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+    .divider { border-top: 1px dashed #000; margin: 10px 0; padding-top: 4px; }
     .location { font-size: ${is58 ? '16px' : '20px'}; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-bottom: 4px; }
     .datetime { text-align: center; font-size: 12px; }
     .eta { text-align: center; font-size: 11px; margin: 2px 0; }
@@ -166,6 +166,7 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): stri
   <div class="divider"></div>
   <div class="footer">Bom apetite!!!</div>
   <div class="footer-brand">Powered By: TrendFood</div>
+  <div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.lovable.app/</div>
 </body>
 </html>`;
 }
