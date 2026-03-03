@@ -29,3 +29,16 @@ export async function markAsPrinted(printId: string): Promise<void> {
     throw error;
   }
 }
+
+/** Cancel all pending print jobs for a given order */
+export async function cancelPendingPrints(orderId: string): Promise<void> {
+  const { error } = await supabase
+    .from("fila_impressao" as any)
+    .update({ status: "cancelado" } as any)
+    .eq("order_id", orderId)
+    .eq("status", "pendente");
+
+  if (error) {
+    console.error("Failed to cancel pending prints for order:", orderId, error);
+  }
+}

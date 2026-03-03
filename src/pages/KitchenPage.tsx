@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useOrders, useUpdateOrderStatus, Order } from "@/hooks/useOrders";
+import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -75,6 +75,7 @@ export default function KitchenPage() {
 
   const { data: orders = [], isLoading } = useOrders(org?.id, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(org?.id ?? "", ["pending", "preparing"]);
+  const cancelOrder = useCancelOrder(org?.id ?? "");
   const qc = useQueryClient();
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
@@ -415,7 +416,7 @@ export default function KitchenPage() {
                             <AlertDialogCancel>Não</AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => handleUpdateStatus(order.id, "cancelled" as Order["status"])}
+                              onClick={() => cancelOrder.mutate(order.id)}
                             >
                               Sim, cancelar
                             </AlertDialogAction>
