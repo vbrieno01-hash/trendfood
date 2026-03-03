@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { formatReceiptText, stripFormatMarkers } from "./formatReceiptText";
+import { formatReceiptText, stripFormatMarkers, extractDeliveryFee } from "./formatReceiptText";
 import { enqueuePrint } from "./printQueue";
 import { sendToBluetoothPrinter } from "./bluetoothPrinter";
 import { toast } from "sonner";
@@ -111,13 +111,20 @@ export async function printOrder(
     ? (parsed?.tipo === "Retirada" ? "RETIRADA" : "ENTREGA")
     : `MESA ${order.table_number}`;
 
-  const total = items.reduce((sum, item) => {
+  const subtotal = items.reduce((sum, item) => {
     return sum + (item.price != null ? item.quantity * item.price : 0);
   }, 0);
 
-  const hasTotal = total > 0;
+  const deliveryFeeValue = extractDeliveryFee(order.notes);
+  const grandTotal = subtotal + deliveryFeeValue;
+
+  const hasTotal = subtotal > 0;
   const totalHtml = hasTotal
-    ? `<div class="total">TOTAL: R$ ${total.toFixed(2).replace(".", ",")}</div>`
+    ? (deliveryFeeValue > 0
+      ? `<div class="subtotal" style="text-align:right;font-size:12px;color:#333;">SUBTOTAL: R$ ${subtotal.toFixed(2).replace(".", ",")}</div>
+         <div class="subtotal" style="text-align:right;font-size:12px;color:#333;">FRETE: R$ ${deliveryFeeValue.toFixed(2).replace(".", ",")}</div>
+         <div class="total">TOTAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}</div>`
+      : `<div class="total">TOTAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}</div>`)
     : "";
 
   let pixHtml = "";
