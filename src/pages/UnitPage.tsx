@@ -460,7 +460,7 @@ const UnitPage = () => {
           : orderType === "Entrega" && freeShipping
             ? "FRETE:Grátis"
             : orderType === "Entrega" && feeError
-              ? "FRETE:A combinar"
+              ? "FRETE:Sob consulta"
               : null;
 
         const noteParts: string[] = [
@@ -508,7 +508,7 @@ const UnitPage = () => {
         : deliveryFee > 0
           ? fmt(deliveryFee)
           : feeError
-            ? "A combinar"
+            ? "Sob consulta"
             : null;
 
     const lines = [
@@ -548,8 +548,8 @@ const UnitPage = () => {
         ? `FRETE:${fmt(deliveryFee)}`
         : orderType === "Entrega" && freeShipping
           ? "FRETE:Grátis"
-          : orderType === "Entrega" && feeError
-            ? "FRETE:A combinar"
+            : orderType === "Entrega" && feeError
+              ? "FRETE:Sob consulta"
             : null;
 
       const noteParts: string[] = [
@@ -618,7 +618,7 @@ const UnitPage = () => {
           : deliveryFee > 0
             ? fmt(deliveryFee)
             : feeError
-              ? "A combinar"
+              ? "Sob consulta"
               : null;
 
       const pixStatus = paid ? "✅ PIX Confirmado" : "⏳ PIX Aguardando confirmação";
@@ -1040,14 +1040,14 @@ const UnitPage = () => {
                       )}
                     </span>
                     {noStoreAddress ? (
-                      <span className="text-xs text-muted-foreground italic">A combinar via WhatsApp</span>
+                      <span className="text-xs text-muted-foreground italic">Sob consulta</span>
                     ) : feeLoading ? (
                       <span className="flex items-center gap-1">
                         <Loader2 className="w-3 h-3 animate-spin" />
                         Calculando...
                       </span>
                     ) : feeError ? (
-                      <span className="text-xs text-muted-foreground italic">A combinar via WhatsApp</span>
+                      <span className="text-xs text-muted-foreground italic">Sob consulta</span>
                     ) : freeShipping ? (
                       <span className="text-green-600 font-medium">Grátis</span>
                     ) : fullCustomerAddress.length >= 8 ? (
