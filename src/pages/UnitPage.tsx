@@ -367,8 +367,21 @@ const UnitPage = () => {
       const { data: proxyData, error: proxyError } = await supabase.functions.invoke("viacep-proxy", { body: { cep: cleaned } });
       if (proxyError || proxyData?.error) throw new Error("proxy failed");
       data = proxyData;
-      if (data.erro) { setCepError("CEP não encontrado"); return; }
+      if (data.erro) {
+        // CEP format valid but not found — soft hint, allow manual fill
+        setCepFetchFailed(true);
+        setCepError("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
+        const inferredState = getStateFromCep(cleaned);
+        setCustomerAddress((prev) => ({
+          ...prev,
+          cep: cleaned,
+          state: inferredState || prev.state,
+        }));
+        return;
+      }
       setCepFetchFailed(false);
+      const hasStreet = !!data.logradouro;
+      const hasNeighborhood = !!data.bairro;
       setCustomerAddress((prev) => ({
         ...prev,
         street: data.logradouro || prev.street,
@@ -376,6 +389,12 @@ const UnitPage = () => {
         city: data.localidade || prev.city,
         state: data.uf || prev.state,
       }));
+      // City with unique CEP (no street/neighborhood) — soft hint + focus street
+      if (!hasStreet && !hasNeighborhood && data.localidade) {
+        setCepFetchFailed(true);
+        setCepError("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
+        setTimeout(() => document.getElementById("buyer-street")?.focus(), 150);
+      }
       // Populate nearby address candidates if available
       const nearby = Array.isArray(data.nearby) ? data.nearby : [];
       if (nearby.length > 1) {
@@ -384,15 +403,16 @@ const UnitPage = () => {
         setAddressCandidates([]);
       }
     } catch {
-      // ViaCEP failed — pre-fill state from CEP prefix and ask user for city
+      // Network/API error — don't block, soft hint + infer state
       const inferredState = getStateFromCep(cleaned);
       setCepFetchFailed(true);
-      setCepError("Erro ao buscar CEP. Preencha cidade e estado manualmente.");
+      setCepError("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
       setCustomerAddress((prev) => ({
         ...prev,
         cep: cleaned,
         state: inferredState || prev.state,
       }));
+      setTimeout(() => document.getElementById("buyer-street")?.focus(), 150);
     } finally {
       setCepLoading(false);
     }
@@ -1203,7 +1223,7 @@ const UnitPage = () => {
                       />
                       {cepLoading && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />}
                     </div>
-                    {cepError && <p className="text-destructive text-xs mt-1">{cepError}</p>}
+                    {cepError && <p className="text-amber-600 dark:text-amber-400 text-xs mt-1">{cepError}</p>}
                   </div>
 
                   {/* Logradouro + Número */}
