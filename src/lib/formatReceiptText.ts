@@ -1,6 +1,16 @@
-import type { PrintableOrder } from "./printOrder";
+/**
+ * formatReceiptText — generates plain-text receipt for Bluetooth & Desktop queue.
+ * Uses the SHARED receiptData model for calculations (Single Source of Truth).
+ */
 
-interface ParsedNotes {
+import type { PrintableOrder } from "./receiptData";
+import { buildReceiptData, type ReceiptData } from "./receiptData";
+import type { StoreInfo } from "./receiptData";
+
+// Re-export for backward compatibility
+export type { StoreInfo };
+
+export interface ParsedNotes {
   tipo?: string;
   name?: string;
   phone?: string;
@@ -52,7 +62,6 @@ function divider(): string {
   return "-".repeat(MAX_COLS);
 }
 
-/** Wrap a string into multiple lines of at most maxCols visible characters. */
 function wrapLine(text: string, maxCols: number = MAX_COLS): string[] {
   if (text.length <= maxCols) return [text];
   const result: string[] = [];
@@ -71,37 +80,111 @@ function rightAlign(text: string, cols: number = MAX_COLS): string {
   return " ".repeat(Math.max(0, cols - text.length)) + text;
 }
 
-/** Parse item name to separate base name, addons, and per-item obs */
-function parseItemName(name: string): { baseName: string; addons: string[]; itemObs?: string } {
-  let baseName = name;
-  let itemObs: string | undefined;
-  const addons: string[] = [];
+const fmt = (n: number) => n.toFixed(2).replace(".", ",");
 
-  // Extract per-item obs: " | Obs: ..."
-  const obsMatch = baseName.match(/\s*\|\s*Obs:\s*(.+)$/i);
-  if (obsMatch) {
-    itemObs = obsMatch[1].trim();
-    baseName = baseName.slice(0, obsMatch.index).trim();
+/**
+ * Generate plain-text receipt from shared ReceiptData.
+ * This ensures text output matches the visual ThermalReceipt component exactly.
+ */
+function formatFromData(data: ReceiptData): string {
+  const cols = MAX_COLS;
+  const lines: string[] = [];
+
+  // ── HEADER
+  lines.push(center(bold(data.locationLabel)));
+  lines.push("");
+  lines.push(center(`${data.date} ${data.time}`));
+  if (data.showEta && data.eta1 && data.eta2) {
+    lines.push(center(`Previsao: ${data.eta1} - ${data.eta2}`));
+  }
+  lines.push("");
+  lines.push(center(bold(data.storeName.toUpperCase())));
+  if (data.storeAddress) lines.push(center(data.storeAddress));
+  if (data.storeContact) lines.push(center(data.storeContact));
+  if (data.cnpj) lines.push(center(`CNPJ: ${data.cnpj}`));
+  if (data.orderNumber) {
+    lines.push("");
+    lines.push(center(bold(`PEDIDO #${data.orderNumber}`)));
   }
 
-  // Extract addons in parentheses: "(+ Bacon, + Cheddar)"
-  const addonMatch = baseName.match(/\s*\(([^)]+)\)\s*$/);
-  if (addonMatch) {
-    baseName = baseName.slice(0, addonMatch.index).trim();
-    addonMatch[1].split(",").forEach((a) => {
-      const cleaned = a.trim().replace(/^\+\s*/, "").trim();
-      if (cleaned) addons.push(cleaned);
-    });
+  // ── ITEMS
+  lines.push(divider());
+  for (const item of data.items) {
+    const nameWithCustomer = item.customerName
+      ? `${item.baseName} - ${item.customerName}`
+      : item.baseName;
+    const left = `${item.index}) ${nameWithCustomer}`;
+    const price = item.lineTotal > 0 ? `R$ ${fmt(item.lineTotal)}` : "";
+
+    if (!price) {
+      lines.push(...wrapLine(left, cols));
+    } else {
+      const minDots = 3;
+      const available = cols - left.length - price.length;
+      if (available >= minDots) {
+        lines.push(left + ".".repeat(available) + price);
+      } else if (left.length + 1 + price.length <= cols) {
+        lines.push(left + " ".repeat(Math.max(1, cols - left.length - price.length)) + price);
+      } else {
+        lines.push(...wrapLine(left, cols));
+        lines.push(rightAlign(price, cols));
+      }
+    }
+    for (const addon of item.addons) {
+      lines.push(`   - ${addon}`);
+    }
+    if (item.itemObs) {
+      lines.push(...wrapLine(`   Obs: ${item.itemObs}`, cols));
+    }
   }
 
-  return { baseName, addons, itemObs };
-}
+  // ── OBS
+  if (data.generalObs) {
+    lines.push("");
+    lines.push(...wrapLine(`Obs: ${data.generalObs}`, cols));
+  }
 
-export interface StoreInfo {
-  name: string;
-  address?: string;
-  contact?: string;
-  cnpj?: string;
+  // ── CUSTOMER
+  if (data.customer) {
+    lines.push(divider());
+    if (data.customer.name) lines.push(...wrapLine(`Nome: ${data.customer.name}`, cols));
+    if (data.customer.phone) lines.push(...wrapLine(`Tel: ${data.customer.phone}`, cols));
+    if (data.customer.doc) lines.push(...wrapLine(`CPF/CNPJ: ${data.customer.doc}`, cols));
+    if (data.customer.address) lines.push(...wrapLine(`End.: ${data.customer.address}`, cols));
+    if (data.customer.bairro) lines.push(`Bairro: ${data.customer.bairro}`);
+    if (data.customer.reference) lines.push(bold(`Ref.: ${data.customer.reference}`));
+  }
+
+  // ── PAYMENT & TOTALS
+  lines.push(divider());
+  if (data.paymentMethod) {
+    lines.push(center(`Pgto: ${data.paymentMethod}`));
+    if (data.showChargeNotice) {
+      lines.push(center(bold("* Cobrar do cliente *")));
+    }
+    lines.push("");
+  }
+
+  const { subtotal, deliveryFee, deliveryFeeLabel, grandTotal } = data.totals;
+  if (subtotal > 0) {
+    if (deliveryFee > 0 || deliveryFeeLabel) {
+      lines.push(rightAlign(`Subtotal: R$ ${fmt(subtotal)}`, cols));
+      lines.push(rightAlign(`Tx Entrega: ${deliveryFeeLabel}`, cols));
+    }
+    lines.push(bold(rightAlign(`TOTAL: R$ ${fmt(grandTotal)}`, cols)));
+  }
+
+  if (data.troco) {
+    lines.push(rightAlign(`Troco para: ${data.troco}`, cols));
+  }
+
+  // ── FOOTER
+  lines.push(divider());
+  lines.push(center("Bom apetite!!!"));
+  lines.push("");
+  lines.push(center("Powered By: TrendFood"));
+
+  return stripDiacritics(lines.join("\n"));
 }
 
 export function formatReceiptText(
@@ -109,172 +192,8 @@ export function formatReceiptText(
   storeInfo: StoreInfo | string = "Cozinha",
   _printerWidth: "58mm" | "80mm" = "58mm"
 ): string {
-  const cols = MAX_COLS;
-  const lines: string[] = [];
-  const info: StoreInfo = typeof storeInfo === "string" ? { name: storeInfo } : storeInfo;
-  const parsed = order.notes ? parseNotes(order.notes) : null;
-
-  // ── HEADER ──────────────────────────────────────────
-  const locationLabel =
-    order.table_number === 0
-      ? parsed?.tipo === "Retirada"
-        ? "RETIRADA"
-        : "PARA ENTREGA"
-      : `MESA ${order.table_number}`;
-
-  lines.push(center(bold(locationLabel)));
-  lines.push("");
-
-  // Date & time
-  const dt = new Date(order.created_at);
-  const date = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const time = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  lines.push(center(`${date} ${time}`));
-
-  // Estimated delivery (30-40 min)
-  if (parsed?.tipo !== "Retirada" && order.table_number === 0) {
-    const eta1 = new Date(dt.getTime() + 30 * 60000);
-    const eta2 = new Date(dt.getTime() + 40 * 60000);
-    const fmt = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    lines.push(center(`Previsao: ${fmt(eta1)} - ${fmt(eta2)}`));
-  }
-
-  lines.push("");
-  lines.push(center(bold(info.name.toUpperCase())));
-  if (info.address) lines.push(center(info.address));
-  if (info.contact) lines.push(center(info.contact));
-  if (info.cnpj) lines.push(center(`CNPJ: ${info.cnpj}`));
-
-  // Order number (big)
-  if (order.order_number) {
-    lines.push("");
-    lines.push(center(bold(`PEDIDO #${order.order_number}`)));
-  }
-
-  // ── ITEMS ───────────────────────────────────────────
-  lines.push(divider());
-  const items = order.order_items ?? [];
-  items.forEach((item, idx) => {
-    const { baseName, addons, itemObs } = parseItemName(item.name);
-    const price =
-      item.price != null
-        ? `R$ ${(item.quantity * item.price).toFixed(2).replace(".", ",")}`
-        : "";
-
-    const num = `${idx + 1})`;
-    const nameWithCustomer = item.customer_name
-      ? `${baseName} - ${item.customer_name}`
-      : baseName;
-    const left = `${num} ${nameWithCustomer}`;
-
-    if (price === "") {
-      lines.push(...wrapLine(left, cols));
-    } else {
-      // Try to fit "1) Item Name ..... R$ 10,00" with dots
-      const minDots = 3;
-      const available = cols - left.length - price.length;
-      if (available >= minDots) {
-        const dots = ".".repeat(available);
-        lines.push(left + dots + price);
-      } else if (left.length + 1 + price.length <= cols) {
-        const gap = cols - left.length - price.length;
-        lines.push(left + " ".repeat(Math.max(1, gap)) + price);
-      } else {
-        lines.push(...wrapLine(left, cols));
-        lines.push(rightAlign(price, cols));
-      }
-    }
-
-    // Addons with indent
-    for (const addon of addons) {
-      lines.push(`   - ${addon}`);
-    }
-    // Per-item observations with indent
-    if (itemObs) {
-      lines.push(...wrapLine(`   Obs: ${itemObs}`, cols));
-    }
-  });
-
-  // General observations
-  if (parsed?.obs) {
-    lines.push("");
-    lines.push(...wrapLine(`Obs: ${parsed.obs}`, cols));
-  }
-  if (parsed?.raw) {
-    lines.push("");
-    lines.push(...wrapLine(`Obs: ${parsed.raw}`, cols));
-  }
-
-  // ── CUSTOMER & DELIVERY ─────────────────────────────
-  if (parsed && !parsed.raw) {
-    lines.push(divider());
-    if (parsed.name) lines.push(...wrapLine(`Nome: ${parsed.name}`, cols));
-    if (parsed.phone) lines.push(...wrapLine(`Tel: ${parsed.phone}`, cols));
-    if (parsed.doc) lines.push(...wrapLine(`CPF/CNPJ: ${parsed.doc}`, cols));
-
-    if (parsed.address) {
-      lines.push(...wrapLine(`End.: ${parsed.address}`, cols));
-
-      // Extract neighborhood/city from address for emphasis
-      const addrParts = parsed.address.split(",").map((p) => p.trim());
-      // Typical: Rua X, 123, Compl, Bairro, Cidade, UF, CEP, Brasil
-      if (addrParts.length >= 5) {
-        const bairro = addrParts[3] || "";
-        const cidade = addrParts[4] || "";
-        if (bairro || cidade) {
-          lines.push(`Bairro: ${bairro}${cidade ? ` - ${cidade}` : ""}`);
-        }
-      }
-    }
-  }
-
-  // ── PAYMENT & TOTALS ────────────────────────────────
-  lines.push(divider());
-
-  if (parsed?.payment) {
-    lines.push(center(`Pgto: ${parsed.payment}`));
-    lines.push(center(bold("* Cobrar do cliente *")));
-    lines.push("");
-  }
-
-  const subtotal = items.reduce(
-    (sum, item) => sum + (item.price != null ? item.quantity * item.price : 0),
-    0
-  );
-
-  let deliveryFeeValue = 0;
-  if (parsed?.frete) {
-    const freteCleaned = parsed.frete.replace(/[^\d,\.]/g, "").replace(",", ".");
-    const parsedFee = parseFloat(freteCleaned);
-    if (!isNaN(parsedFee)) deliveryFeeValue = parsedFee;
-  }
-
-  const grandTotal = subtotal + deliveryFeeValue;
-
-  if (subtotal > 0) {
-    if (deliveryFeeValue > 0 || parsed?.frete) {
-      lines.push(rightAlign(`Subtotal: R$ ${subtotal.toFixed(2).replace(".", ",")}`, cols));
-      const freteLabel = parsed?.frete?.toLowerCase() === "gratis" || parsed?.frete?.toLowerCase() === "grátis"
-        ? "Gratis"
-        : deliveryFeeValue > 0
-          ? `R$ ${deliveryFeeValue.toFixed(2).replace(".", ",")}`
-          : parsed?.frete || "A combinar";
-      lines.push(rightAlign(`Tx Entrega: ${freteLabel}`, cols));
-    }
-    lines.push(bold(rightAlign(`TOTAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}`, cols)));
-  }
-
-  if (parsed?.troco) {
-    lines.push(rightAlign(`Troco para: ${parsed.troco}`, cols));
-  }
-
-  // ── FOOTER ──────────────────────────────────────────
-  lines.push(divider());
-  lines.push(center("Bom apetite!!!"));
-  lines.push("");
-  lines.push(center("Powered By: TrendFood"));
-
-  return stripDiacritics(lines.join("\n"));
+  const data = buildReceiptData(order, storeInfo);
+  return formatFromData(data);
 }
 
 /** Remove ##CENTER## and ##BOLD## markers for printers that don't support them. */
