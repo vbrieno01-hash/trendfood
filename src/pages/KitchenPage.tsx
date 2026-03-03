@@ -495,6 +495,39 @@ export default function KitchenPage() {
                       )}
                     </Button>
                   </div>
+
+                  {/* Cancel button */}
+                  <div className="flex justify-center pt-1">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                          disabled={isOrderLoading}
+                        >
+                          Cancelar Pedido
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Deseja cancelar este pedido? Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Não</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleUpdateStatus(order.id, "cancelled" as Order["status"])}
+                          >
+                            Sim, cancelar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               );
             })}
