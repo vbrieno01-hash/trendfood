@@ -13,7 +13,7 @@ interface ParsedNotes {
   raw?: string;
 }
 
-function parseNotes(notes: string): ParsedNotes {
+export function parseNotes(notes: string): ParsedNotes {
   if (!notes.includes("|")) return { raw: notes };
   const parts = Object.fromEntries(
     notes.split("|").map((part) => {
@@ -155,15 +155,31 @@ export function formatReceiptText(
     lines.push(...wrapLine(`Obs: ${parsed.raw}`, cols));
   }
 
-  // Total
-  const total = items.reduce(
+  // Subtotal (items only)
+  const subtotal = items.reduce(
     (sum, item) => sum + (item.price != null ? item.quantity * item.price : 0),
     0
   );
 
-  if (total > 0) {
+  // Parse delivery fee from notes
+  let deliveryFeeValue = 0;
+  if (parsed?.frete) {
+    const freteCleaned = parsed.frete.replace(/[^\d,\.]/g, "").replace(",", ".");
+    const parsedFee = parseFloat(freteCleaned);
+    if (!isNaN(parsedFee)) deliveryFeeValue = parsedFee;
+  }
+
+  const grandTotal = subtotal + deliveryFeeValue;
+
+  if (subtotal > 0) {
     lines.push(divider());
-    const totalStr = `TOTAL: R$ ${total.toFixed(2).replace(".", ",")}`;
+    if (deliveryFeeValue > 0) {
+      const subStr = `SUBTOTAL: R$ ${subtotal.toFixed(2).replace(".", ",")}`;
+      lines.push(" ".repeat(Math.max(0, cols - subStr.length)) + subStr);
+      const freteStr = `FRETE: R$ ${deliveryFeeValue.toFixed(2).replace(".", ",")}`;
+      lines.push(" ".repeat(Math.max(0, cols - freteStr.length)) + freteStr);
+    }
+    const totalStr = `TOTAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}`;
     lines.push("##BOLD##" + " ".repeat(Math.max(0, cols - totalStr.length)) + totalStr);
   }
 
@@ -198,4 +214,14 @@ export function formatReceiptText(
 /** Remove ##CENTER## and ##BOLD## markers for printers that don't support them (e.g. desktop). */
 export function stripFormatMarkers(text: string): string {
   return text.replace(/##CENTER##/g, "").replace(/##BOLD##/g, "");
+}
+
+/** Extract numeric delivery fee from order notes string. Returns 0 if no fee found. */
+export function extractDeliveryFee(notes: string | null | undefined): number {
+  if (!notes) return 0;
+  const parsed = parseNotes(notes);
+  if (!parsed.frete) return 0;
+  const cleaned = parsed.frete.replace(/[^\d,\.]/g, "").replace(",", ".");
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
 }

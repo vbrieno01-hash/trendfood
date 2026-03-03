@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useOrderHistory } from "@/hooks/useOrders";
+import { extractDeliveryFee } from "@/lib/formatReceiptText";
 
 interface HistoryTabProps {
   orgId: string;
@@ -70,8 +71,11 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
     return true;
   });
 
+  const orderTotal = (o: any) =>
+    (o.order_items ?? []).reduce((s: number, i: any) => s + i.price * i.quantity, 0) + extractDeliveryFee(o.notes);
+
   const totalRevenue = filtered.reduce((sum, order) => {
-    return sum + (order.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
+    return sum + orderTotal(order);
   }, 0);
 
   return (
@@ -90,7 +94,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
             onClick={() => {
               const header = "Data,Mesa/Tipo,Itens,Valor,Status Pagamento,Observações";
               const rows = filtered.map((order) => {
-                const total = (order.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
+                const total = orderTotal(order);
                 const items = (order.order_items ?? []).map((i) => `${i.quantity}x ${i.name}`).join("; ");
                 const mesa = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
                 const pago = order.paid ? "Pago" : "Não pago";
@@ -220,10 +224,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
       ) : (
         <div className="space-y-3">
           {filtered.map((order) => {
-            const total = (order.order_items ?? []).reduce(
-              (s, i) => s + i.price * i.quantity,
-              0
-            );
+            const total = orderTotal(order);
             return (
               <div
                 key={order.id}
