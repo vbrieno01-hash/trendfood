@@ -41,7 +41,7 @@ export function buildAddressString(a: AddressData): string {
 }
 
 export function isAddressValid(a: AddressData): boolean {
-  return !!(a.cep.replace(/\D/g, "").length === 8 && a.street.trim() && a.number.trim() && a.city.trim() && a.state.trim());
+  return !!(a.cep.replace(/\D/g, "").length === 8 && a.street.trim() && a.number.trim() && a.neighborhood.trim() && a.city.trim() && a.state.trim());
 }
 
 const formatCep = (value: string) => {
@@ -57,12 +57,13 @@ interface Props {
 
 export default function AddressFields({ value, onChange }: Props) {
   const [loading, setLoading] = useState(false);
-  const [cepError, setCepError] = useState("");
+  const [cepHint, setCepHint] = useState("");
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [candidates, setCandidates] = useState<AddressCandidate[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const skipCandidateClear = useRef(false);
+  const streetRef = useRef<HTMLInputElement>(null);
 
   const update = useCallback(
     (field: keyof AddressData, val: string) => {
@@ -157,17 +158,21 @@ export default function AddressFields({ value, onChange }: Props) {
     let cancelled = false;
     const fetchCep = async () => {
       setLoading(true);
-      setCepError("");
+      setCepHint("");
       try {
         const { data, error } = await supabase.functions.invoke("viacep-proxy", {
           body: { cep: digits },
         });
         if (cancelled) return;
         if (error || data?.error) {
-          setCepError(data?.error || "CEP não encontrado");
+          // Don't block — just show soft hint and let user fill manually
+          setCepHint("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
+          setTimeout(() => streetRef.current?.focus(), 150);
           return;
         }
         skipCandidateClear.current = true;
+        const hasStreet = !!data.logradouro;
+        const hasNeighborhood = !!data.bairro;
         onChange({
           ...value,
           street: data.logradouro || value.street,
@@ -176,6 +181,11 @@ export default function AddressFields({ value, onChange }: Props) {
           state: data.uf || value.state,
         });
         setTimeout(() => { skipCandidateClear.current = false; }, 100);
+        // City with unique CEP (no street/neighborhood returned) — focus street
+        if (!hasStreet && !hasNeighborhood && data.localidade) {
+          setCepHint("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
+          setTimeout(() => streetRef.current?.focus(), 150);
+        }
         // Populate candidates from viacep-proxy nearby
         if (data.nearby && Array.isArray(data.nearby) && data.nearby.length > 1) {
           setCandidates(data.nearby.slice(0, 5).map((n: any) => ({
@@ -188,7 +198,11 @@ export default function AddressFields({ value, onChange }: Props) {
           setSelectedIdx(null);
         }
       } catch {
-        if (!cancelled) setCepError("Erro ao buscar CEP");
+        // Network error — don't block, let user fill manually
+        if (!cancelled) {
+          setCepHint("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
+          setTimeout(() => streetRef.current?.focus(), 150);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -267,13 +281,14 @@ export default function AddressFields({ value, onChange }: Props) {
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
           )}
         </div>
-        {cepError && <p className="text-xs text-destructive">{cepError}</p>}
+        {cepHint && <p className="text-xs text-amber-600 dark:text-amber-400">{cepHint}</p>}
       </div>
 
       {/* Rua */}
       <div className="space-y-1.5">
         <Label htmlFor="ck-street">Rua</Label>
         <Input
+          ref={streetRef}
           id="ck-street"
           placeholder="Nome da rua"
           value={value.street}
