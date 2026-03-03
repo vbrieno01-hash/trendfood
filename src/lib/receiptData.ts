@@ -97,6 +97,7 @@ export interface ReceiptData {
   showChargeNotice: boolean;
   totals: ReceiptTotals;
   troco?: string;
+  trocoChange?: number; // calculated: (troco) - grandTotal
 }
 
 export interface StoreInfo {
@@ -265,6 +266,14 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
     showChargeNotice: !!parsed?.payment,
     totals,
     troco: parsed?.troco,
+    trocoChange: (() => {
+      if (!parsed?.troco) return undefined;
+      const cleaned = parsed.troco.replace(/[^\d,\.]/g, "").replace(",", ".");
+      const trocoVal = parseFloat(cleaned);
+      if (isNaN(trocoVal) || trocoVal <= 0) return undefined;
+      const change = trocoVal - totals.grandTotal;
+      return change > 0 ? change : undefined;
+    })(),
   };
 }
 
@@ -309,5 +318,6 @@ export function buildDemoReceiptData(storeInfo: StoreInfo): ReceiptData {
       grandTotal: 41.00,
     },
     troco: "R$ 50,00",
+    trocoChange: 9.00,
   };
 }

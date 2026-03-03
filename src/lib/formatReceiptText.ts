@@ -197,6 +197,9 @@ function formatFromData(data: ReceiptData): string {
 
   if (data.troco) {
     lines.push(rightAlign(`Troco para: ${data.troco}`, cols));
+    if (data.trocoChange != null && data.trocoChange > 0) {
+      lines.push(bold(rightAlign(`Levar de troco: R$ ${fmt(data.trocoChange)}`, cols)));
+    }
   }
 
   // ── FOOTER

@@ -97,6 +97,9 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
         </>
       )}
       {data.troco && <div className="text-right">{san(`Troco para: ${data.troco}`)}</div>}
+      {data.trocoChange != null && data.trocoChange > 0 && (
+        <div className="text-right font-bold">LEVAR DE TROCO: R$ {fmt(data.trocoChange)}</div>
+      )}
 
       {/* ── RODAPE ── */}
       <div className="border-t border-dashed border-black my-2 pt-1" />
