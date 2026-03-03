@@ -98,7 +98,7 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       <div className="border-t border-dashed border-black my-2 pt-1" />
       <div className="text-center font-bold">Bom apetite!!!</div>
       <div className="text-center mt-1">Powered By: TrendFood</div>
-      <div className="text-center text-[10px] mt-1">Acesse: https://trendfood.com.br</div>
+      <div className="text-center text-[10px] mt-1">Acesse: https://trendfood.lovable.app/</div>
     </div>
   );
 }

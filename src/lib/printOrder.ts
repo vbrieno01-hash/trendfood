@@ -166,7 +166,7 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): stri
   <div class="divider"></div>
   <div class="footer">Bom apetite!!!</div>
   <div class="footer-brand">Powered By: TrendFood</div>
-  <div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.com.br</div>
+  <div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.lovable.app/</div>
 </body>
 </html>`;
 }
