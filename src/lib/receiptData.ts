@@ -79,7 +79,8 @@ export interface ReceiptTotals {
 }
 
 export interface ReceiptData {
-  locationLabel: string; // "PARA ENTREGA" | "RETIRADA" | "MESA 5"
+  locationLabel: string; // "PARA ENTREGA" | "RETIRADA NO LOCAL" | "MESA 5"
+  isPickup: boolean; // true when "Retirada" — hides address & delivery fee
   date: string;
   time: string;
   showEta: boolean;
@@ -178,10 +179,11 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
   const info: StoreInfo = typeof storeInfo === "string" ? { name: storeInfo } : storeInfo;
   const parsed = order.notes ? parseNotesInternal(order.notes) : null;
 
+  const isPickup = parsed?.tipo === "Retirada";
   const locationLabel =
     order.table_number === 0
-      ? parsed?.tipo === "Retirada"
-        ? "RETIRADA"
+      ? isPickup
+        ? "RETIRADA NO LOCAL"
         : "PARA ENTREGA"
       : `MESA ${order.table_number}`;
 
@@ -189,7 +191,7 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
   const date = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   const time = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  const showEta = parsed?.tipo !== "Retirada" && order.table_number === 0;
+  const showEta = !isPickup && order.table_number === 0;
   let eta1: string | undefined;
   let eta2: string | undefined;
   if (showEta) {
@@ -244,11 +246,14 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
   if (parsed?.obs) generalObs = parsed.obs;
   else if (parsed?.raw) generalObs = parsed.raw;
 
-  // Totals (SINGLE calculation)
-  const totals = calcOrderTotals(rawItems, parsed?.frete);
+  // For pickup, zero out delivery fee
+  const totals = isPickup
+    ? { ...calcOrderTotals(rawItems, undefined), deliveryFeeLabel: "" }
+    : calcOrderTotals(rawItems, parsed?.frete);
 
   return {
     locationLabel,
+    isPickup,
     date,
     time,
     showEta,
@@ -261,7 +266,9 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
     orderNumber: order.order_number,
     items,
     generalObs,
-    customer,
+    customer: isPickup
+      ? customer ? { name: customer.name, phone: customer.phone, doc: customer.doc } : undefined
+      : customer,
     paymentMethod: parsed?.payment,
     showChargeNotice: !!parsed?.payment,
     totals,
@@ -287,6 +294,7 @@ export function buildDemoReceiptData(storeInfo: StoreInfo): ReceiptData {
 
   return {
     locationLabel: "PARA ENTREGA",
+    isPickup: false,
     date,
     time,
     showEta: true,
