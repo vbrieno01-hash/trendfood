@@ -40,27 +40,61 @@ function stripDiacritics(text: string): string {
 
 const MAX_COLS = 32;
 
-function center(text: string, _cols: number): string {
+function center(text: string): string {
   return "##CENTER##" + text;
+}
+
+function bold(text: string): string {
+  return "##BOLD##" + text;
 }
 
 function divider(): string {
   return "-".repeat(MAX_COLS);
 }
 
-/** Wrap a string into multiple lines of at most maxCols visible characters, breaking at spaces when possible. */
+/** Wrap a string into multiple lines of at most maxCols visible characters. */
 function wrapLine(text: string, maxCols: number = MAX_COLS): string[] {
   if (text.length <= maxCols) return [text];
   const result: string[] = [];
   let remaining = text;
   while (remaining.length > maxCols) {
     let breakAt = remaining.lastIndexOf(" ", maxCols);
-    if (breakAt <= 0) breakAt = maxCols; // no space found, hard break
+    if (breakAt <= 0) breakAt = maxCols;
     result.push(remaining.slice(0, breakAt));
     remaining = remaining.slice(breakAt).trimStart();
   }
   if (remaining.length > 0) result.push(remaining);
   return result;
+}
+
+function rightAlign(text: string, cols: number = MAX_COLS): string {
+  return " ".repeat(Math.max(0, cols - text.length)) + text;
+}
+
+/** Parse item name to separate base name, addons, and per-item obs */
+function parseItemName(name: string): { baseName: string; addons: string[]; itemObs?: string } {
+  let baseName = name;
+  let itemObs: string | undefined;
+  const addons: string[] = [];
+
+  // Extract per-item obs: " | Obs: ..."
+  const obsMatch = baseName.match(/\s*\|\s*Obs:\s*(.+)$/i);
+  if (obsMatch) {
+    itemObs = obsMatch[1].trim();
+    baseName = baseName.slice(0, obsMatch.index).trim();
+  }
+
+  // Extract addons in parentheses: "(+ Bacon, + Cheddar)"
+  const addonMatch = baseName.match(/\s*\(([^)]+)\)\s*$/);
+  if (addonMatch) {
+    baseName = baseName.slice(0, addonMatch.index).trim();
+    addonMatch[1].split(",").forEach((a) => {
+      const cleaned = a.trim().replace(/^\+\s*/, "").trim();
+      if (cleaned) addons.push(cleaned);
+    });
+  }
+
+  return { baseName, addons, itemObs };
 }
 
 export interface StoreInfo {
@@ -77,91 +111,137 @@ export function formatReceiptText(
 ): string {
   const cols = MAX_COLS;
   const lines: string[] = [];
-
-  // Normalize storeInfo
   const info: StoreInfo = typeof storeInfo === "string" ? { name: storeInfo } : storeInfo;
-
-  // Header — store info
-  lines.push(center(info.name.toUpperCase(), cols));
-  if (info.address) lines.push(center(info.address, cols));
-  if (info.contact) lines.push(center(info.contact, cols));
-  if (info.cnpj) lines.push(center(info.cnpj, cols));
-  lines.push(divider());
-
-  // Sub-header
   const parsed = order.notes ? parseNotes(order.notes) : null;
 
-  const date = new Date(order.created_at).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-  const time = new Date(order.created_at).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  lines.push(center(`${date} ${time}`, cols));
-  lines.push(center("SIMPLES CONFERENCIA DA CONTA", cols));
-  lines.push(center("RELATORIO GERENCIAL", cols));
-  lines.push(center("* * * NAO E DOCUMENTO FISCAL * * *", cols));
-
+  // ── HEADER ──────────────────────────────────────────
   const locationLabel =
     order.table_number === 0
       ? parsed?.tipo === "Retirada"
         ? "RETIRADA"
-        : "ENTREGA"
+        : "PARA ENTREGA"
       : `MESA ${order.table_number}`;
 
-  lines.push(divider());
-  lines.push(`##BOLD##${locationLabel}`);
-  if (order.order_number) {
-    lines.push(center(`Pedido #${order.order_number}`, cols));
+  lines.push(center(bold(locationLabel)));
+  lines.push("");
+
+  // Date & time
+  const dt = new Date(order.created_at);
+  const date = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const time = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  lines.push(center(`${date} ${time}`));
+
+  // Estimated delivery (30-40 min)
+  if (parsed?.tipo !== "Retirada" && order.table_number === 0) {
+    const eta1 = new Date(dt.getTime() + 30 * 60000);
+    const eta2 = new Date(dt.getTime() + 40 * 60000);
+    const fmt = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    lines.push(center(`Previsao: ${fmt(eta1)} - ${fmt(eta2)}`));
   }
 
-  // Items
+  lines.push("");
+  lines.push(center(bold(info.name.toUpperCase())));
+  if (info.address) lines.push(center(info.address));
+  if (info.contact) lines.push(center(info.contact));
+  if (info.cnpj) lines.push(center(`CNPJ: ${info.cnpj}`));
+
+  // Order number (big)
+  if (order.order_number) {
+    lines.push("");
+    lines.push(center(bold(`PEDIDO #${order.order_number}`)));
+  }
+
+  // ── ITEMS ───────────────────────────────────────────
+  lines.push(divider());
   const items = order.order_items ?? [];
-  for (const item of items) {
-    const qty = `${item.quantity}x`;
+  items.forEach((item, idx) => {
+    const { baseName, addons, itemObs } = parseItemName(item.name);
     const price =
       item.price != null
         ? `R$ ${(item.quantity * item.price).toFixed(2).replace(".", ",")}`
         : "";
-    const nameStr = item.customer_name
-      ? `${item.name} - ${item.customer_name}`
-      : item.name;
 
-    const left = `${qty} ${nameStr}`;
+    const num = `${idx + 1})`;
+    const nameWithCustomer = item.customer_name
+      ? `${baseName} - ${item.customer_name}`
+      : baseName;
+    const left = `${num} ${nameWithCustomer}`;
+
     if (price === "") {
-      // No price — just wrap the name
       lines.push(...wrapLine(left, cols));
     } else {
-      const fullLine = left + " " + price;
-      if (fullLine.length <= cols) {
-        // Fits in one line — right-align price
+      // Try to fit "1) Item Name ..... R$ 10,00" with dots
+      const minDots = 3;
+      const available = cols - left.length - price.length;
+      if (available >= minDots) {
+        const dots = ".".repeat(available);
+        lines.push(left + dots + price);
+      } else if (left.length + 1 + price.length <= cols) {
         const gap = cols - left.length - price.length;
         lines.push(left + " ".repeat(Math.max(1, gap)) + price);
       } else {
-        // Split: name on first line(s), price right-aligned on next
         lines.push(...wrapLine(left, cols));
-        lines.push(" ".repeat(cols - price.length) + price);
+        lines.push(rightAlign(price, cols));
       }
     }
-  }
 
-  // Notes
+    // Addons with indent
+    for (const addon of addons) {
+      lines.push(`   - ${addon}`);
+    }
+    // Per-item observations with indent
+    if (itemObs) {
+      lines.push(...wrapLine(`   Obs: ${itemObs}`, cols));
+    }
+  });
+
+  // General observations
+  if (parsed?.obs) {
+    lines.push("");
+    lines.push(...wrapLine(`Obs: ${parsed.obs}`, cols));
+  }
   if (parsed?.raw) {
     lines.push("");
     lines.push(...wrapLine(`Obs: ${parsed.raw}`, cols));
   }
 
-  // Subtotal (items only)
+  // ── CUSTOMER & DELIVERY ─────────────────────────────
+  if (parsed && !parsed.raw) {
+    lines.push(divider());
+    if (parsed.name) lines.push(...wrapLine(`Nome: ${parsed.name}`, cols));
+    if (parsed.phone) lines.push(...wrapLine(`Tel: ${parsed.phone}`, cols));
+    if (parsed.doc) lines.push(...wrapLine(`CPF/CNPJ: ${parsed.doc}`, cols));
+
+    if (parsed.address) {
+      lines.push(...wrapLine(`End.: ${parsed.address}`, cols));
+
+      // Extract neighborhood/city from address for emphasis
+      const addrParts = parsed.address.split(",").map((p) => p.trim());
+      // Typical: Rua X, 123, Compl, Bairro, Cidade, UF, CEP, Brasil
+      if (addrParts.length >= 5) {
+        const bairro = addrParts[3] || "";
+        const cidade = addrParts[4] || "";
+        if (bairro || cidade) {
+          lines.push(`Bairro: ${bairro}${cidade ? ` - ${cidade}` : ""}`);
+        }
+      }
+    }
+  }
+
+  // ── PAYMENT & TOTALS ────────────────────────────────
+  lines.push(divider());
+
+  if (parsed?.payment) {
+    lines.push(center(`Pgto: ${parsed.payment}`));
+    lines.push(center(bold("* Cobrar do cliente *")));
+    lines.push("");
+  }
+
   const subtotal = items.reduce(
     (sum, item) => sum + (item.price != null ? item.quantity * item.price : 0),
     0
   );
 
-  // Parse delivery fee from notes
   let deliveryFeeValue = 0;
   if (parsed?.frete) {
     const freteCleaned = parsed.frete.replace(/[^\d,\.]/g, "").replace(",", ".");
@@ -172,46 +252,32 @@ export function formatReceiptText(
   const grandTotal = subtotal + deliveryFeeValue;
 
   if (subtotal > 0) {
-    lines.push(divider());
-    if (deliveryFeeValue > 0) {
-      const subStr = `SUBTOTAL: R$ ${subtotal.toFixed(2).replace(".", ",")}`;
-      lines.push(" ".repeat(Math.max(0, cols - subStr.length)) + subStr);
-      const freteStr = `FRETE: R$ ${deliveryFeeValue.toFixed(2).replace(".", ",")}`;
-      lines.push(" ".repeat(Math.max(0, cols - freteStr.length)) + freteStr);
+    if (deliveryFeeValue > 0 || parsed?.frete) {
+      lines.push(rightAlign(`Subtotal: R$ ${subtotal.toFixed(2).replace(".", ",")}`, cols));
+      const freteLabel = parsed?.frete?.toLowerCase() === "gratis" || parsed?.frete?.toLowerCase() === "grátis"
+        ? "Gratis"
+        : deliveryFeeValue > 0
+          ? `R$ ${deliveryFeeValue.toFixed(2).replace(".", ",")}`
+          : parsed?.frete || "A combinar";
+      lines.push(rightAlign(`Tx Entrega: ${freteLabel}`, cols));
     }
-    const totalStr = `TOTAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}`;
-    lines.push("##BOLD##" + " ".repeat(Math.max(0, cols - totalStr.length)) + totalStr);
+    lines.push(bold(rightAlign(`TOTAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}`, cols)));
   }
 
-  // Customer info
-  if (parsed && !parsed.raw) {
-    lines.push(divider());
-    const fields: [string, string | undefined][] = [
-      ["Nome: ", parsed.name],
-      ["CPF/CNPJ: ", parsed.doc],
-      ["Tel: ", parsed.phone],
-      ["End.: ", parsed.address],
-      ["Pgto: ", parsed.payment],
-      ["Troco p/: ", parsed.troco],
-      ["Frete: ", parsed.frete],
-      ["Obs: ", parsed.obs],
-    ];
-    for (const [label, value] of fields) {
-      if (value) {
-        lines.push(...wrapLine(`${label}${value}`, cols));
-      }
-    }
+  if (parsed?.troco) {
+    lines.push(rightAlign(`Troco para: ${parsed.troco}`, cols));
   }
 
+  // ── FOOTER ──────────────────────────────────────────
   lines.push(divider());
-  lines.push(center("* Obrigado pela preferencia *", cols));
-  lines.push(center("Volte sempre!", cols));
-  lines.push(center("TrendFood", cols));
+  lines.push(center("Bom apetite!!!"));
+  lines.push("");
+  lines.push(center("Powered By: TrendFood"));
 
   return stripDiacritics(lines.join("\n"));
 }
 
-/** Remove ##CENTER## and ##BOLD## markers for printers that don't support them (e.g. desktop). */
+/** Remove ##CENTER## and ##BOLD## markers for printers that don't support them. */
 export function stripFormatMarkers(text: string): string {
   return text.replace(/##CENTER##/g, "").replace(/##BOLD##/g, "");
 }
