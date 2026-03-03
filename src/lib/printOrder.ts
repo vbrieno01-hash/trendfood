@@ -1,179 +1,98 @@
 import QRCode from "qrcode";
-import { formatReceiptText, stripFormatMarkers, extractDeliveryFee, parseNotes } from "./formatReceiptText";
+import { formatReceiptText, stripFormatMarkers } from "./formatReceiptText";
+import { buildReceiptData, type ReceiptData, type PrintableOrder } from "./receiptData";
 import { enqueuePrint } from "./printQueue";
 import { sendToBluetoothPrinter } from "./bluetoothPrinter";
 import { toast } from "sonner";
 
-export interface PrintableOrder {
-  id: string;
-  table_number: number;
-  created_at: string;
-  notes?: string | null;
-  order_number?: number;
-  order_items?: Array<{ id: string; name: string; quantity: number; price?: number; customer_name?: string | null }>;
-}
+// Re-export for backward compatibility
+export type { PrintableOrder };
 
-/** Parse item name to separate base name, addons, and per-item obs (for HTML rendering) */
-function parseItemNameHtml(name: string): { baseName: string; addons: string[]; itemObs?: string } {
-  let baseName = name;
-  let itemObs: string | undefined;
-  const addons: string[] = [];
+const fmt = (n: number) => n.toFixed(2).replace(".", ",");
 
-  const obsMatch = baseName.match(/\s*\|\s*Obs:\s*(.+)$/i);
-  if (obsMatch) {
-    itemObs = obsMatch[1].trim();
-    baseName = baseName.slice(0, obsMatch.index).trim();
-  }
-
-  const addonMatch = baseName.match(/\s*\(([^)]+)\)\s*$/);
-  if (addonMatch) {
-    baseName = baseName.slice(0, addonMatch.index).trim();
-    addonMatch[1].split(",").forEach((a) => {
-      const cleaned = a.trim().replace(/^\+\s*/, "").trim();
-      if (cleaned) addons.push(cleaned);
-    });
-  }
-
-  return { baseName, addons, itemObs };
-}
-
-export async function printOrder(
-  order: PrintableOrder,
-  storeName = "Cozinha",
-  pixPayload?: string | null,
-  printerWidth: '58mm' | '80mm' = '58mm'
-) {
-  const is58 = printerWidth === '58mm';
-  const win = window.open("", "_blank", "width=400,height=700");
-  if (!win) return;
-
-  const dt = new Date(order.created_at);
-  const date = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const time = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-  const items = order.order_items ?? [];
-  const parsed = order.notes ? parseNotes(order.notes) : null;
-
-  const locationLabel =
-    order.table_number === 0
-      ? (parsed?.tipo === "Retirada" ? "RETIRADA" : "PARA ENTREGA")
-      : `MESA ${order.table_number}`;
-
-  // Estimated delivery time
-  let etaHtml = "";
-  if (parsed?.tipo !== "Retirada" && order.table_number === 0) {
-    const eta1 = new Date(dt.getTime() + 30 * 60000);
-    const eta2 = new Date(dt.getTime() + 40 * 60000);
-    const fmt = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    etaHtml = `<div class="eta">Previsão: ${fmt(eta1)} - ${fmt(eta2)}</div>`;
-  }
-
+/**
+ * Generate HTML for browser print from the SHARED ReceiptData model.
+ * This ensures the browser-printed receipt matches the ThermalReceipt component.
+ */
+function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): string {
   // Items HTML
-  const itemsHtml = items.map((item, idx) => {
-    const { baseName, addons, itemObs } = parseItemNameHtml(item.name);
-    const nameWithCustomer = item.customer_name ? `${baseName} - ${item.customer_name}` : baseName;
-    const price = item.price != null ? `R$ ${(item.quantity * item.price).toFixed(2).replace(".", ",")}` : "";
-    
+  const itemsHtml = data.items.map((item) => {
+    const nameWithCustomer = item.customerName ? `${item.baseName} - ${item.customerName}` : item.baseName;
+    const price = item.lineTotal > 0 ? `R$ ${fmt(item.lineTotal)}` : "";
+
     let html = `<tr>
-      <td class="num">${idx + 1})</td>
+      <td class="num">${item.index})</td>
       <td class="name">${nameWithCustomer}</td>
       <td class="dots"></td>
       <td class="price">${price}</td>
     </tr>`;
 
-    for (const addon of addons) {
+    for (const addon of item.addons) {
       html += `<tr><td></td><td class="addon" colspan="3">- ${addon}</td></tr>`;
     }
-    if (itemObs) {
-      html += `<tr><td></td><td class="item-obs" colspan="3">Obs: ${itemObs}</td></tr>`;
+    if (item.itemObs) {
+      html += `<tr><td></td><td class="item-obs" colspan="3">Obs: ${item.itemObs}</td></tr>`;
     }
     return html;
   }).join("");
 
-  // Customer section
+  // Obs HTML
+  let obsHtml = "";
+  if (data.generalObs) {
+    obsHtml = `<div class="obs-line">Obs: ${data.generalObs}</div>`;
+  }
+
+  // Customer HTML
   let customerHtml = "";
-  if (parsed && !parsed.raw) {
+  if (data.customer) {
     const rows: string[] = [];
-    if (parsed.name) rows.push(`<tr><td class="cl">Nome:</td><td class="cv">${parsed.name}</td></tr>`);
-    if (parsed.phone) rows.push(`<tr><td class="cl">Tel:</td><td class="cv">${parsed.phone}</td></tr>`);
-    if (parsed.doc) rows.push(`<tr><td class="cl">CPF/CNPJ:</td><td class="cv">${parsed.doc}</td></tr>`);
-    if (parsed.address) {
-      rows.push(`<tr><td class="cl">End.:</td><td class="cv">${parsed.address}</td></tr>`);
-      // Extract bairro/cidade
-      const addrParts = parsed.address.split(",").map((p) => p.trim());
-      if (addrParts.length >= 5) {
-        const bairro = addrParts[3] || "";
-        const cidade = addrParts[4] || "";
-        if (bairro || cidade) {
-          rows.push(`<tr><td class="cl">Bairro:</td><td class="cv">${bairro}${cidade ? ` - ${cidade}` : ""}</td></tr>`);
-        }
-      }
-    }
+    if (data.customer.name) rows.push(`<tr><td class="cl">Nome:</td><td class="cv">${data.customer.name}</td></tr>`);
+    if (data.customer.phone) rows.push(`<tr><td class="cl">Tel:</td><td class="cv">${data.customer.phone}</td></tr>`);
+    if (data.customer.doc) rows.push(`<tr><td class="cl">CPF/CNPJ:</td><td class="cv">${data.customer.doc}</td></tr>`);
+    if (data.customer.address) rows.push(`<tr><td class="cl">End.:</td><td class="cv">${data.customer.address}</td></tr>`);
+    if (data.customer.bairro) rows.push(`<tr><td class="cl">Bairro:</td><td class="cv">${data.customer.bairro}</td></tr>`);
+    if (data.customer.reference) rows.push(`<tr><td class="cl"><b>Ref.:</b></td><td class="cv"><b>${data.customer.reference}</b></td></tr>`);
     if (rows.length > 0) {
       customerHtml = `<div class="divider"></div><table class="client-table">${rows.join("")}</table>`;
     }
   }
 
-  // Payment & totals
-  const subtotal = items.reduce((sum, item) => sum + (item.price != null ? item.quantity * item.price : 0), 0);
-  const deliveryFeeValue = extractDeliveryFee(order.notes);
-  const grandTotal = subtotal + deliveryFeeValue;
-
-  let paymentHtml = "";
-  if (parsed?.payment) {
-    paymentHtml = `<div class="payment-label">Pgto: ${parsed.payment}</div>
-                   <div class="charge-notice">* Cobrar do cliente *</div>`;
+  // ETA
+  let etaHtml = "";
+  if (data.showEta && data.eta1 && data.eta2) {
+    etaHtml = `<div class="eta">Previsão: ${data.eta1} - ${data.eta2}</div>`;
   }
 
-  let totalHtml = "";
-  if (subtotal > 0) {
-    if (deliveryFeeValue > 0 || parsed?.frete) {
-      const freteLabel = parsed?.frete?.toLowerCase() === "gratis" || parsed?.frete?.toLowerCase() === "grátis"
-        ? "Grátis"
-        : deliveryFeeValue > 0
-          ? `R$ ${deliveryFeeValue.toFixed(2).replace(".", ",")}`
-          : parsed?.frete || "A combinar";
-      totalHtml += `<div class="subtotal-line">Subtotal: R$ ${subtotal.toFixed(2).replace(".", ",")}</div>`;
-      totalHtml += `<div class="subtotal-line">Tx Entrega: ${freteLabel}</div>`;
+  // Payment
+  let paymentHtml = "";
+  if (data.paymentMethod) {
+    paymentHtml = `<div class="payment-label">Pgto: ${data.paymentMethod}</div>`;
+    if (data.showChargeNotice) {
+      paymentHtml += `<div class="charge-notice">* Cobrar do cliente *</div>`;
     }
-    totalHtml += `<div class="total-line">TOTAL: R$ ${grandTotal.toFixed(2).replace(".", ",")}</div>`;
+  }
+
+  // Totals (from shared calculation)
+  let totalHtml = "";
+  const { subtotal, deliveryFee, deliveryFeeLabel, grandTotal } = data.totals;
+  if (subtotal > 0) {
+    if (deliveryFee > 0 || deliveryFeeLabel) {
+      totalHtml += `<div class="subtotal-line">Subtotal: R$ ${fmt(subtotal)}</div>`;
+      totalHtml += `<div class="subtotal-line">Tx Entrega: ${deliveryFeeLabel}</div>`;
+    }
+    totalHtml += `<div class="total-line">TOTAL: R$ ${fmt(grandTotal)}</div>`;
   }
 
   let trocoHtml = "";
-  if (parsed?.troco) {
-    trocoHtml = `<div class="troco-line">Troco para: ${parsed.troco}</div>`;
+  if (data.troco) {
+    trocoHtml = `<div class="troco-line">Troco para: ${data.troco}</div>`;
   }
 
-  // Observations
-  let obsHtml = "";
-  if (parsed?.obs) {
-    obsHtml = `<div class="obs-line">Obs: ${parsed.obs}</div>`;
-  } else if (parsed?.raw) {
-    obsHtml = `<div class="obs-line">Obs: ${parsed.raw}</div>`;
-  }
-
-  // PIX QR
-  let pixHtml = "";
-  if (pixPayload && subtotal > 0) {
-    try {
-      const qrDataUrl = await QRCode.toDataURL(pixPayload, {
-        width: is58 ? 150 : 200,
-        margin: 1,
-        errorCorrectionLevel: "M",
-      });
-      pixHtml = `<div class="divider"></div>
-        <div class="pix-section">
-          <img src="${qrDataUrl}" alt="QR Code PIX" class="qr-img" />
-          <p class="pix-label">Pague com Pix</p>
-        </div>`;
-    } catch { /* QR code generation failed */ }
-  }
-
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Pedido ${locationLabel}</title>
+  <title>Pedido ${data.locationLabel}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -181,8 +100,7 @@ export async function printOrder(
       font-size: ${is58 ? '12px' : '14px'};
       width: ${is58 ? '58mm' : '80mm'};
       padding: ${is58 ? '4mm 2mm' : '6mm 4mm'};
-      color: #000;
-      background: #fff;
+      color: #000; background: #fff;
     }
     .center { text-align: center; }
     .bold { font-weight: bold; }
@@ -223,36 +141,66 @@ export async function printOrder(
   </style>
 </head>
 <body>
-  <!-- HEADER -->
-  <div class="location">${locationLabel}</div>
-  <div class="datetime">${date} ${time}</div>
+  <div class="location">${data.locationLabel}</div>
+  <div class="datetime">${data.date} ${data.time}</div>
   ${etaHtml}
-  <div class="store-name">${storeName}</div>
-  ${order.order_number ? `<div class="order-number">PEDIDO #${order.order_number}</div>` : ''}
+  <div class="store-name">${data.storeName.toUpperCase()}</div>
+  ${data.storeAddress ? `<div class="store-detail">${data.storeAddress}</div>` : ''}
+  ${data.storeContact ? `<div class="store-detail">${data.storeContact}</div>` : ''}
+  ${data.cnpj ? `<div class="store-detail">CNPJ: ${data.cnpj}</div>` : ''}
+  ${data.orderNumber ? `<div class="order-number">PEDIDO #${data.orderNumber}</div>` : ''}
 
-  <!-- ITEMS -->
   <div class="divider"></div>
   <table class="items">${itemsHtml}</table>
   ${obsHtml}
 
-  <!-- CUSTOMER & DELIVERY -->
   ${customerHtml}
 
-  <!-- PAYMENT & TOTALS -->
   <div class="divider"></div>
   ${paymentHtml}
   ${totalHtml}
   ${trocoHtml}
 
-  <!-- PIX -->
   ${pixHtml}
 
-  <!-- FOOTER -->
   <div class="divider"></div>
   <div class="footer">Bom apetite!!!</div>
   <div class="footer-brand">Powered By: TrendFood</div>
 </body>
 </html>`;
+}
+
+export async function printOrder(
+  order: PrintableOrder,
+  storeName = "Cozinha",
+  pixPayload?: string | null,
+  printerWidth: '58mm' | '80mm' = '58mm'
+) {
+  const is58 = printerWidth === '58mm';
+  const win = window.open("", "_blank", "width=400,height=700");
+  if (!win) return;
+
+  // Build shared data model (SINGLE SOURCE OF TRUTH for calculations)
+  const data = buildReceiptData(order, storeName);
+
+  // PIX QR
+  let pixHtml = "";
+  if (pixPayload && data.totals.subtotal > 0) {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(pixPayload, {
+        width: is58 ? 150 : 200,
+        margin: 1,
+        errorCorrectionLevel: "M",
+      });
+      pixHtml = `<div class="divider"></div>
+        <div class="pix-section">
+          <img src="${qrDataUrl}" alt="QR Code PIX" class="qr-img" />
+          <p class="pix-label">Pague com Pix</p>
+        </div>`;
+    } catch { /* QR code generation failed */ }
+  }
+
+  const html = buildPrintHtml(data, is58, pixHtml);
 
   win.document.write(html);
   win.document.close();
