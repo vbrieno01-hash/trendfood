@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { useOrders, useUpdateOrderStatus, useDeliveredUnpaidOrders, useMarkAsPaid, useAwaitingPaymentOrders, useConfirmPixPayment } from "@/hooks/useOrders";
+import { useOrders, useUpdateOrderStatus, useDeliveredUnpaidOrders, useMarkAsPaid, useAwaitingPaymentOrders, useConfirmPixPayment, useCancelOrder } from "@/hooks/useOrders";
 import type { Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode, Flame } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode, Flame, Trash2 } from "lucide-react";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
 import KitchenTab from "@/components/dashboard/KitchenTab";
@@ -81,6 +86,7 @@ export default function WaiterTab({
   const updateStatus = useUpdateOrderStatus(orgId, ["ready"]);
   const markAsPaid = useMarkAsPaid(orgId);
   const confirmPix = useConfirmPixPayment(orgId);
+  const cancelOrder = useCancelOrder(orgId);
 
   const [loadingDeliver, setLoadingDeliver] = useState<Set<string>>(new Set());
   const [loadingPay, setLoadingPay] = useState<Set<string>>(new Set());
@@ -305,6 +311,24 @@ export default function WaiterTab({
                       <Printer className="w-3.5 h-3.5" />
                       Imprimir
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex items-center gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Cancelar
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                          <AlertDialogDescription>Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Voltar</AlertDialogCancel>
+                          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => cancelOrder.mutate(order.id)}>Sim, cancelar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Button
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                       disabled={busy}
@@ -411,6 +435,24 @@ export default function WaiterTab({
                       <Printer className="w-3.5 h-3.5" />
                       Imprimir
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex items-center gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Cancelar
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                          <AlertDialogDescription>Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Voltar</AlertDialogCancel>
+                          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => cancelOrder.mutate(order.id)}>Sim, cancelar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
 
                     <a
                       href={waUrl}
