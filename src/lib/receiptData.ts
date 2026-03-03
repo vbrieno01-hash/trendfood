@@ -74,7 +74,7 @@ export interface ReceiptCustomer {
 export interface ReceiptTotals {
   subtotal: number;
   deliveryFee: number;
-  deliveryFeeLabel: string; // "R$ 6,00" | "Grátis" | "A combinar"
+  deliveryFeeLabel: string; // "R$ 6,00" | "Grátis" | "Sob consulta"
   grandTotal: number;
 }
 
