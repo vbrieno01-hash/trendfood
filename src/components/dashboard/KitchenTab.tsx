@@ -152,8 +152,9 @@ export default function KitchenTab({
   };
 
   // ─── Realtime: bell, auto-print, push notifications ───
+  // When embedded inside DashboardPage, skip auto-print (parent handles it)
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId || embedded) return;
     const channel = supabase
       .channel(`kitchen-tab-bell-${orgId}`)
       .on(
@@ -180,10 +181,11 @@ export default function KitchenTab({
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [orgId, qc]);
+  }, [orgId, qc, embedded]);
 
-  // ─── Process pending auto-print queue ───
+  // ─── Process pending auto-print queue (skip when embedded) ───
   useEffect(() => {
+    if (embedded) return;
     if (pendingPrintIds.current.size === 0 || isPrintingRef.current) return;
     const toPrint = orders.filter(
       (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
@@ -202,7 +204,7 @@ export default function KitchenTab({
       }
       isPrintingRef.current = false;
     })();
-  }, [orders, orgName, printMode, orgId, btDevice, printerWidth, pixKey]);
+  }, [orders, orgName, printMode, orgId, btDevice, printerWidth, pixKey, embedded]);
 
   // ─── Mark existing orders as known on mount ───
   useEffect(() => {
