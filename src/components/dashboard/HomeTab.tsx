@@ -1,4 +1,5 @@
 import { useDeliveredOrders, useDeliveredUnpaidOrders, useOrders } from "@/hooks/useOrders";
+import { extractDeliveryFee } from "@/lib/formatReceiptText";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -77,17 +78,20 @@ export default function HomeTab({ organization }: { organization: Organization }
   const todayDelivered = delivered.filter((o) => isSameDay(new Date(o.created_at), today));
   const yesterdayDelivered = delivered.filter((o) => isSameDay(new Date(o.created_at), yesterday));
 
+  const orderTotal = (o: any) =>
+    (o.order_items ?? []).reduce((s: number, i: any) => s + i.price * i.quantity, 0) + extractDeliveryFee(o.notes);
+
   const totalRevenue = delivered
     .filter((o) => o.paid)
-    .reduce((acc, o) => acc + (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0), 0);
+    .reduce((acc, o) => acc + orderTotal(o), 0);
 
   const todayRevenue = todayDelivered
     .filter((o) => o.paid)
-    .reduce((acc, o) => acc + (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0), 0);
+    .reduce((acc, o) => acc + orderTotal(o), 0);
 
   const yesterdayRevenue = yesterdayDelivered
     .filter((o) => o.paid)
-    .reduce((acc, o) => acc + (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0), 0);
+    .reduce((acc, o) => acc + orderTotal(o), 0);
 
   const pendingPayment = unpaid.length;
 
@@ -115,7 +119,7 @@ export default function HomeTab({ organization }: { organization: Organization }
     const dayOrders = delivered.filter((o) => isSameDay(new Date(o.created_at), day));
     const revenue = dayOrders
       .filter((o) => o.paid)
-      .reduce((acc, o) => acc + (o.order_items ?? []).reduce((s, it) => s + it.price * it.quantity, 0), 0);
+      .reduce((acc, o) => acc + orderTotal(o), 0);
     return {
       dia: format(day, "EEE", { locale: ptBR }),
       pedidos: dayOrders.length,
@@ -130,7 +134,7 @@ export default function HomeTab({ organization }: { organization: Organization }
     const breakdown = { Dinheiro: 0, PIX: 0, Cartão: 0 };
     dayPaid.forEach((o) => {
       const cat = classifyPayment(o.payment_method);
-      const val = (o.order_items ?? []).reduce((s, it) => s + it.price * it.quantity, 0);
+      const val = orderTotal(o);
       breakdown[cat] += val;
     });
     return {
