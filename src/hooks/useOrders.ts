@@ -162,6 +162,11 @@ export const usePlaceOrder = () => {
       paymentMethod?: string;
       paid?: boolean;
     }) => {
+      // Guard: empty cart
+      if (!items || items.length === 0) {
+        throw new Error("Seu carrinho está vazio.");
+      }
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -185,7 +190,11 @@ export const usePlaceOrder = () => {
         customer_name: i.customer_name || null,
       }));
       const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        // Rollback: delete orphan order
+        await supabase.from("orders").delete().eq("id", order.id);
+        throw itemsError;
+      }
 
       // Sempre enfileirar na fila_impressao (fallback para polling caso Realtime/BLE falhe)
       try {
