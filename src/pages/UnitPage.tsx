@@ -426,7 +426,7 @@ const UnitPage = () => {
   };
 
   // WhatsApp checkout
-  const handleSendWhatsApp = (overridePayment?: string, overrideOrderId?: string) => {
+   const handleSendWhatsApp = (overridePayment?: string, overrideOrderId?: string) => {
    if (isSubmitting || placeOrder.isPending) return;
    if (cartItems.length === 0) {
      toast({ title: "Seu carrinho está vazio", variant: "destructive" });
@@ -436,6 +436,7 @@ const UnitPage = () => {
     setIsSubmitting(true);
     const effectivePayment = overridePayment || payment;
     let valid = true;
+    let hasAddressError = false;
     if (!orderType) { setOrderTypeError(true); valid = false; } else setOrderTypeError(false);
     if (!buyerName.trim()) { setNameError(true); valid = false; } else setNameError(false);
     if (buyerPhone.replace(/\D/g, "").length < 10) { setPhoneError(true); valid = false; } else setPhoneError(false);
@@ -443,7 +444,7 @@ const UnitPage = () => {
     if (effectivePayment === "Dinheiro" && changeFor > 0 && changeFor < grandTotal) { setChangeForError(true); valid = false; } else setChangeForError(false);
     if (orderType === "Entrega") {
       if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
-        setAddressError(true); valid = false;
+        setAddressError(true); hasAddressError = true; valid = false;
       } else {
         setAddressError(false);
       }
@@ -451,11 +452,12 @@ const UnitPage = () => {
       setAddressError(false);
     }
     if (!valid) {
+      setIsSubmitting(false);
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       const firstErrorRef = !orderType ? orderTypeRef
         : !buyerName.trim() ? nameRef
         : buyerPhone.replace(/\D/g, "").length < 10 ? phoneRef
-        : orderType === "Entrega" && addressError ? addressRef
+        : orderType === "Entrega" && hasAddressError ? addressRef
         : !effectivePayment ? paymentRef
         : null;
       firstErrorRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -504,6 +506,12 @@ const UnitPage = () => {
             onSuccess: (order) => {
               setPixOrderId(order.id);
               setShowPixScreen(true);
+              setIsSubmitting(false);
+            },
+            onError: (err) => {
+              console.error("[UnitPage] placeOrder PIX error:", err);
+              toast({ title: "Erro ao registrar pedido. Tente novamente.", description: String(err), variant: "destructive" });
+              setIsSubmitting(false);
             },
           }
         );
@@ -590,17 +598,26 @@ const UnitPage = () => {
           })),
         },
         {
+          onSuccess: () => {
+            console.info("[UnitPage] Order saved to DB successfully");
+            resetCheckout();
+          },
           onError: (err) => {
-            console.error("[UnitPage] placeOrder error:", err);
+            console.error("[UnitPage] placeOrder DB error:", err);
+            toast({ title: "Pedido enviado ao WhatsApp, mas houve erro ao salvar no sistema.", description: "Seu carrinho foi mantido. Tente novamente se necessário.", variant: "destructive" });
+            // Do NOT clear cart — WhatsApp was sent but DB failed
+            setCheckoutOpen(false);
           },
         }
       );
+    } else {
+      // No DB save needed (overrideOrderId provided), safe to reset
+      resetCheckout();
     }
-
-    // Reset
-    resetCheckout();
    } catch (err) {
-    console.error("[UnitPage] handleSendWhatsApp error:", err);
+    console.error("[UnitPage] handleSendWhatsApp critical error:", err);
+    toast({ title: "Erro inesperado ao finalizar pedido", description: "Seus itens foram mantidos no carrinho. Tente novamente.", variant: "destructive" });
+    // Do NOT clear cart on error
    } finally {
     setIsSubmitting(false);
    }
