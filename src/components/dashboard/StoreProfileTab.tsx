@@ -915,7 +915,13 @@ export default function StoreProfileTab({ organization }: { organization: Organi
               { key: "fee_2km" as const, label: "Até 2 km" },
               { key: "fee_3km" as const, label: "Até 3 km" },
               { key: "fee_4km" as const, label: "Até 4 km" },
-              { key: "fee_5km" as const, label: "Acima de 4 km" },
+              { key: "fee_5km" as const, label: "Até 5 km" },
+              { key: "fee_6km" as const, label: "Até 6 km" },
+              { key: "fee_7km" as const, label: "Até 7 km" },
+              { key: "fee_8km" as const, label: "Até 8 km" },
+              { key: "fee_9km" as const, label: "Até 9 km" },
+              { key: "fee_10km" as const, label: "Até 10 km" },
+              { key: "fee_above" as const, label: "Acima de 10 km" },
               { key: "free_above" as const, label: "Frete grátis acima de" },
             ]).map((f) => (
               <div key={f.key}>
@@ -936,11 +942,21 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           </div>
           <div className="bg-secondary/60 rounded-xl p-3 text-xs space-y-1 mt-3">
             <p className="font-semibold text-foreground mb-1">Preview:</p>
-            <p className="text-muted-foreground">📍 Até <strong>1 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_1km.toFixed(2).replace(".", ",")}</strong></p>
-            <p className="text-muted-foreground">📍 Até <strong>2 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_2km.toFixed(2).replace(".", ",")}</strong></p>
-            <p className="text-muted-foreground">📍 Até <strong>3 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_3km.toFixed(2).replace(".", ",")}</strong></p>
-            <p className="text-muted-foreground">📍 Até <strong>4 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_4km.toFixed(2).replace(".", ",")}</strong></p>
-            <p className="text-muted-foreground">📍 Acima de <strong>4 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_5km.toFixed(2).replace(".", ",")}</strong></p>
+            {([
+              { km: "1", fee: deliveryConfig.fee_1km },
+              { km: "2", fee: deliveryConfig.fee_2km },
+              { km: "3", fee: deliveryConfig.fee_3km },
+              { km: "4", fee: deliveryConfig.fee_4km },
+              { km: "5", fee: deliveryConfig.fee_5km },
+              { km: "6", fee: deliveryConfig.fee_6km },
+              { km: "7", fee: deliveryConfig.fee_7km },
+              { km: "8", fee: deliveryConfig.fee_8km },
+              { km: "9", fee: deliveryConfig.fee_9km },
+              { km: "10", fee: deliveryConfig.fee_10km },
+            ]).map((t) => (
+              <p key={t.km} className="text-muted-foreground">📍 Até <strong>{t.km} km</strong> → <strong className="text-foreground">R$ {t.fee.toFixed(2).replace(".", ",")}</strong></p>
+            ))}
+            <p className="text-muted-foreground">📍 Acima de <strong>10 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_above.toFixed(2).replace(".", ",")}</strong></p>
             <p className="text-muted-foreground">🎁 Acima de <strong>R$ {deliveryConfig.free_above.toFixed(2).replace(".", ",")}</strong> → <strong className="text-foreground">Frete grátis</strong></p>
           </div>
         </div>

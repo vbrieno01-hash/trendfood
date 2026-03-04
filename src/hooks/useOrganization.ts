@@ -18,6 +18,12 @@ export interface DeliveryConfig {
   fee_3km: number;
   fee_4km: number;
   fee_5km: number;
+  fee_6km: number;
+  fee_7km: number;
+  fee_8km: number;
+  fee_9km: number;
+  fee_10km: number;
+  fee_above: number;
   free_above: number;
 }
 

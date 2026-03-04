@@ -8,6 +8,12 @@ export interface DeliveryConfig {
   fee_3km: number;
   fee_4km: number;
   fee_5km: number;
+  fee_6km: number;
+  fee_7km: number;
+  fee_8km: number;
+  fee_9km: number;
+  fee_10km: number;
+  fee_above: number;
   free_above: number;
 }
 
@@ -17,6 +23,12 @@ export const DEFAULT_DELIVERY_CONFIG: DeliveryConfig = {
   fee_3km: 7,
   fee_4km: 10,
   fee_5km: 12,
+  fee_6km: 15,
+  fee_7km: 18,
+  fee_8km: 20,
+  fee_9km: 22,
+  fee_10km: 25,
+  fee_above: 30,
   free_above: 100,
 };
 
@@ -36,7 +48,13 @@ function applyFeeTable(distanceKm: number, subtotal: number, config: DeliveryCon
   if (bucket <= 2) return { fee: config.fee_2km, freeShipping: false };
   if (bucket <= 3) return { fee: config.fee_3km, freeShipping: false };
   if (bucket <= 4) return { fee: config.fee_4km, freeShipping: false };
-  return { fee: config.fee_5km, freeShipping: false };
+  if (bucket <= 5) return { fee: config.fee_5km, freeShipping: false };
+  if (bucket <= 6) return { fee: config.fee_6km, freeShipping: false };
+  if (bucket <= 7) return { fee: config.fee_7km, freeShipping: false };
+  if (bucket <= 8) return { fee: config.fee_8km, freeShipping: false };
+  if (bucket <= 9) return { fee: config.fee_9km, freeShipping: false };
+  if (bucket <= 10) return { fee: config.fee_10km, freeShipping: false };
+  return { fee: config.fee_above, freeShipping: false };
 }
 
 export function useDeliveryFee(
