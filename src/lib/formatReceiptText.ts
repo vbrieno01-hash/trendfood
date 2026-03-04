@@ -130,7 +130,7 @@ function formatFromData(data: ReceiptData): string {
     const nameWithCustomer = item.customerName
       ? `${item.baseName} - ${item.customerName}`
       : item.baseName;
-    const left = `${item.index}) ${nameWithCustomer}`;
+    const left = `${item.quantity}x ${nameWithCustomer}`;
     const price = item.lineTotal > 0 ? `R$ ${fmt(item.lineTotal)}` : "";
 
     if (!price) {
