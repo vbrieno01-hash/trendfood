@@ -421,6 +421,10 @@ const UnitPage = () => {
   // WhatsApp checkout
   const handleSendWhatsApp = (overridePayment?: string, overrideOrderId?: string) => {
    if (isSubmitting || placeOrder.isPending) return;
+   if (cartItems.length === 0) {
+     toast({ title: "Seu carrinho está vazio", variant: "destructive" });
+     return;
+   }
    try {
     setIsSubmitting(true);
     const effectivePayment = overridePayment || payment;
