@@ -306,7 +306,7 @@ export function buildDemoReceiptData(storeInfo: StoreInfo): ReceiptData {
     cnpj: storeInfo.cnpj,
     orderNumber: 42,
     items: [
-      { index: 1, baseName: "X-Burguer", addons: ["Bacon", "Cheddar"], quantity: 1, lineTotal: 25.00 },
+      { index: 1, baseName: "X-Burguer", addons: ["Bacon", "Cheddar"], quantity: 2, lineTotal: 50.00 },
       { index: 2, baseName: "Coca-Cola 600ml", addons: [], quantity: 1, lineTotal: 10.00 },
     ],
     generalObs: "Sem cebola",
@@ -320,12 +320,12 @@ export function buildDemoReceiptData(storeInfo: StoreInfo): ReceiptData {
     paymentMethod: "Dinheiro",
     showChargeNotice: true,
     totals: {
-      subtotal: 35.00,
+      subtotal: 60.00,
       deliveryFee: 6.00,
       deliveryFeeLabel: "R$ 6,00",
-      grandTotal: 41.00,
+      grandTotal: 66.00,
     },
-    troco: "R$ 50,00",
-    trocoChange: 9.00,
+    troco: "R$ 100,00",
+    trocoChange: 34.00,
   };
 }
