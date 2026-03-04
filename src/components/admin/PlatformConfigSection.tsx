@@ -11,7 +11,13 @@ const FIELDS: { key: keyof DeliveryConfig; label: string; prefix?: string; suffi
   { key: "fee_2km", label: "Até 2 km", prefix: "R$" },
   { key: "fee_3km", label: "Até 3 km", prefix: "R$" },
   { key: "fee_4km", label: "Até 4 km", prefix: "R$" },
-  { key: "fee_5km", label: "Acima de 4 km", prefix: "R$" },
+  { key: "fee_5km", label: "Até 5 km", prefix: "R$" },
+  { key: "fee_6km", label: "Até 6 km", prefix: "R$" },
+  { key: "fee_7km", label: "Até 7 km", prefix: "R$" },
+  { key: "fee_8km", label: "Até 8 km", prefix: "R$" },
+  { key: "fee_9km", label: "Até 9 km", prefix: "R$" },
+  { key: "fee_10km", label: "Até 10 km", prefix: "R$" },
+  { key: "fee_above", label: "Acima de 10 km", prefix: "R$" },
   { key: "free_above", label: "Frete grátis acima de", prefix: "R$" },
 ];
 
