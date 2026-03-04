@@ -235,21 +235,10 @@ export default function KitchenPage() {
     );
   };
 
-  // Print + Accept: prints the order, marks as printed, then moves to "preparing"
-  // Safety: if already printed, skip print and just accept
-  const handlePrintAndAccept = async (order: Order) => {
+  // Accept order: only moves to "preparing" — printing is handled by auto-print
+  const handleAcceptOrder = async (order: Order) => {
     if (loadingIds.has(order.id)) return;
     setLoadingIds((prev) => new Set(prev).add(order.id));
-    const alreadyPrinted = printedIds.has(order.id);
-    if (!alreadyPrinted) {
-      try {
-        await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
-        setPrintedIds((prev) => new Set(prev).add(order.id));
-      } catch (err) {
-        console.error("[KDS] Print failed:", err);
-        toast.error("Falha na impressão, mas o pedido será aceito.");
-      }
-    }
     updateStatus.mutate(
       { id: order.id, status: "preparing" },
       {
@@ -556,14 +545,14 @@ export default function KitchenPage() {
                             size="sm"
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                             disabled={isOrderLoading}
-                            onClick={() => handlePrintAndAccept(order)}
+                            onClick={() => handleAcceptOrder(order)}
                           >
                             {isOrderLoading ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <>
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                                {wasPrinted ? "Aceitar Pedido" : "Imprimir e Aceitar"}
+                                Aceitar Pedido
                               </>
                             )}
                           </Button>
