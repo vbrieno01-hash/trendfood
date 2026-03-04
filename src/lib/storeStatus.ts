@@ -46,9 +46,22 @@ export function getStoreStatus(
   const dayKey = DAY_MAP[now.getDay()];
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
+  // 1️⃣ Verificar se estamos DENTRO do turno do DIA ANTERIOR que cruza meia-noite
+  const prevDayIndex = (now.getDay() + 6) % 7; // dia anterior
+  const prevDayKey = DAY_MAP[prevDayIndex];
+  const prevDay = businessHours.schedule[prevDayKey];
+  if (prevDay && prevDay.open) {
+    const prevFrom = timeToMinutes(prevDay.from);
+    const prevTo = toMinutesClose(prevDay.to);
+    // Turno cruza meia-noite: prevFrom > prevTo (ex: 22:00 → 02:00 = 1320 → 120)
+    if (prevTo < prevFrom && currentMinutes < prevTo) {
+      return { open: true };
+    }
+  }
+
+  // 2️⃣ Verificar turno do dia atual
   const today = businessHours.schedule[dayKey];
   if (!today || !today.open) {
-    // Find next open day
     const nextOpenAt = findNextOpen(businessHours, now.getDay());
     return { open: false, opensAt: nextOpenAt };
   }
