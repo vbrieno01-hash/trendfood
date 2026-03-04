@@ -236,15 +236,19 @@ export default function KitchenPage() {
   };
 
   // Print + Accept: prints the order, marks as printed, then moves to "preparing"
+  // Safety: if already printed, skip print and just accept
   const handlePrintAndAccept = async (order: Order) => {
     if (loadingIds.has(order.id)) return;
     setLoadingIds((prev) => new Set(prev).add(order.id));
-    try {
-      await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
-      setPrintedIds((prev) => new Set(prev).add(order.id));
-    } catch (err) {
-      console.error("[KDS] Print failed:", err);
-      toast.error("Falha na impressão, mas o pedido será aceito.");
+    const alreadyPrinted = printedIds.has(order.id);
+    if (!alreadyPrinted) {
+      try {
+        await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
+        setPrintedIds((prev) => new Set(prev).add(order.id));
+      } catch (err) {
+        console.error("[KDS] Print failed:", err);
+        toast.error("Falha na impressão, mas o pedido será aceito.");
+      }
     }
     updateStatus.mutate(
       { id: order.id, status: "preparing" },
@@ -268,8 +272,13 @@ export default function KitchenPage() {
     );
   };
 
-  // Manual print only (without accepting)
+  // Manual print only (without accepting) — with reprint confirmation
   const handlePrintOnly = async (order: Order) => {
+    const alreadyPrinted = printedIds.has(order.id);
+    if (alreadyPrinted) {
+      const confirmed = window.confirm("Este pedido já foi impresso. Deseja imprimir uma segunda via?");
+      if (!confirmed) return;
+    }
     try {
       await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
       setPrintedIds((prev) => new Set(prev).add(order.id));
@@ -526,17 +535,22 @@ export default function KitchenPage() {
                           </div>
                         )}
 
+                        {/* Printed badge */}
+                        {wasPrinted && (
+                          <p className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2.5 py-0.5 w-fit">✓ Comanda já impressa</p>
+                        )}
+
                         {/* Action buttons for pending */}
                         <div className="flex gap-2 pt-1">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 text-muted-foreground border-border"
+                            className={`flex-1 ${wasPrinted ? "border-muted text-muted-foreground bg-muted/50" : "text-muted-foreground border-border"}`}
                             disabled={isOrderLoading}
                             onClick={() => handlePrintOnly(order)}
                           >
                             <Printer className="w-3.5 h-3.5 mr-1" />
-                            Imprimir
+                            {wasPrinted ? "Reimprimir" : "Imprimir"}
                           </Button>
                           <Button
                             size="sm"
@@ -549,14 +563,11 @@ export default function KitchenPage() {
                             ) : (
                               <>
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                                Imprimir e Aceitar
+                                {wasPrinted ? "Aceitar Pedido" : "Imprimir e Aceitar"}
                               </>
                             )}
                           </Button>
                         </div>
-                        {wasPrinted && (
-                          <p className="text-xs text-green-600 text-center">✓ Comanda já impressa</p>
-                        )}
                       </div>
                     );
                   })}
