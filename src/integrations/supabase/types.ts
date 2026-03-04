@@ -366,6 +366,44 @@ export type Database = {
           },
         ]
       }
+      delivery_neighborhoods: {
+        Row: {
+          active: boolean
+          created_at: string
+          fee: number
+          id: string
+          name: string
+          organization_id: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          fee?: number
+          id?: string
+          name: string
+          organization_id: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          fee?: number
+          id?: string
+          name?: string
+          organization_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_neighborhoods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_tokens: {
         Row: {
           created_at: string
