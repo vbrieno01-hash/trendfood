@@ -1,10 +1,22 @@
 import { useState } from "react";
-import { History, Search, Receipt, Download } from "lucide-react";
+import { History, Search, Receipt, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useOrderHistory } from "@/hooks/useOrders";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useOrderHistory, useDeleteOrder, useDeleteOldOrders } from "@/hooks/useOrders";
 import { extractDeliveryFee } from "@/lib/formatReceiptText";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HistoryTabProps {
   orgId: string;
@@ -48,6 +60,10 @@ const fmtDateTime = (iso: string) => {
 };
 
 export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) {
+  const { user, organization, isAdmin } = useAuth();
+  const isOwner = !!user && !!organization && organization.user_id === user.id;
+  const canDelete = isOwner || isAdmin;
+
   const periodOptions = restrictTo7Days
     ? allPeriodOptions.filter((o) => o.key === "today" || o.key === "7d")
     : allPeriodOptions;
@@ -57,6 +73,8 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
   const [search, setSearch] = useState("");
 
   const { data: orders = [], isLoading } = useOrderHistory(orgId, period);
+  const deleteOrder = useDeleteOrder(orgId);
+  const deleteOldOrders = useDeleteOldOrders(orgId);
 
   const filtered = orders.filter((order) => {
     if (typeFilter === "store" && order.table_number === 0) return false;
@@ -74,48 +92,75 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
   const orderTotal = (o: any) =>
     (o.order_items ?? []).reduce((s: number, i: any) => s + i.price * i.quantity, 0) + extractDeliveryFee(o.notes);
 
-  const totalRevenue = filtered.reduce((sum, order) => {
-    return sum + orderTotal(order);
-  }, 0);
+  const totalRevenue = filtered.reduce((sum, order) => sum + orderTotal(order), 0);
 
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <History className="w-5 h-5 text-primary" />
           <h2 className="font-bold text-foreground text-xl">Histórico de Pedidos</h2>
         </div>
-        {filtered.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              const header = "Data,Mesa/Tipo,Itens,Valor,Status Pagamento,Observações";
-              const rows = filtered.map((order) => {
-                const total = orderTotal(order);
-                const items = (order.order_items ?? []).map((i) => `${i.quantity}x ${i.name}`).join("; ");
-                const mesa = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
-                const pago = order.paid ? "Pago" : "Não pago";
-                const date = new Date(order.created_at).toLocaleString("pt-BR");
-                const obs = (order.notes || "").replace(/,/g, ";").replace(/\n/g, " ");
-                return `"${date}","${mesa}","${items}","${total.toFixed(2)}","${pago}","${obs}"`;
-              });
-              const csv = [header, ...rows].join("\n");
-              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="w-4 h-4" />
-            Exportar CSV
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4" />
+                  Limpar Histórico Antigo
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Limpar histórico antigo?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Essa ação excluirá permanentemente todos os pedidos entregues com mais de 30 dias. Essa ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => deleteOldOrders.mutate()}
+                  >
+                    Sim, excluir antigos
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {filtered.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                const header = "Data,Mesa/Tipo,Itens,Valor,Status Pagamento,Observações";
+                const rows = filtered.map((order) => {
+                  const total = orderTotal(order);
+                  const items = (order.order_items ?? []).map((i) => `${i.quantity}x ${i.name}`).join("; ");
+                  const mesa = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+                  const pago = order.paid ? "Pago" : "Não pago";
+                  const date = new Date(order.created_at).toLocaleString("pt-BR");
+                  const obs = (order.notes || "").replace(/,/g, ";").replace(/\n/g, " ");
+                  return `"${date}","${mesa}","${items}","${total.toFixed(2)}","${pago}","${obs}"`;
+                });
+                const csv = [header, ...rows].join("\n");
+                const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download className="w-4 h-4" />
+              Exportar CSV
+            </Button>
+          )}
+        </div>
       </div>
 
       {restrictTo7Days && (
@@ -127,7 +172,6 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        {/* Period */}
         <div className="flex gap-1 bg-secondary rounded-lg p-1">
           {periodOptions.map((opt) => (
             <button
@@ -143,8 +187,6 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
             </button>
           ))}
         </div>
-
-        {/* Paid filter */}
         <div className="flex gap-1 bg-secondary rounded-lg p-1">
           {paidOptions.map((opt) => (
             <button
@@ -160,8 +202,6 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
             </button>
           ))}
         </div>
-
-        {/* Type filter */}
         <div className="flex gap-1 bg-secondary rounded-lg p-1">
           {typeOptions.map((opt) => (
             <button
@@ -177,8 +217,6 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
             </button>
           ))}
         </div>
-
-        {/* Search */}
         <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
@@ -231,7 +269,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                 className="bg-card border border-border rounded-xl p-4 space-y-2"
               >
                 <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5">
                       <Receipt className="w-4 h-4 text-muted-foreground" />
                       <span className="font-bold text-foreground">
@@ -249,9 +287,40 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                       </Badge>
                     )}
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-foreground">{fmtBRL(total)}</p>
-                    <p className="text-xs text-muted-foreground">{fmtDateTime(order.created_at)}</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="text-right">
+                      <p className="font-bold text-foreground">{fmtBRL(total)}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDateTime(order.created_at)}</p>
+                    </div>
+                    {canDelete && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className="p-1.5 rounded-md text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            title="Excluir registro"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir registro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir permanentemente este registro do histórico? Essa ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => deleteOrder.mutate(order.id)}
+                            >
+                              Sim, excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
