@@ -43,7 +43,8 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       {data.items.map((item) => (
         <div key={item.index}>
           <div>
-            {item.quantity}x {san(item.customerName ? `${item.baseName} - ${item.customerName}` : item.baseName)}
+            <span className="font-bold text-[12px] tracking-wider">{item.quantity}x</span>{" "}
+            {san(item.customerName ? `${item.baseName} - ${item.customerName}` : item.baseName)}
             {item.lineTotal > 0 && `......R$ ${fmt(item.lineTotal)}`}
           </div>
           {item.addons.map((addon, i) => (
