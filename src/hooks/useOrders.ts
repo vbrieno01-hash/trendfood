@@ -460,3 +460,77 @@ export const useCancelOrder = (organizationId: string) => {
     onError: (e: Error) => toast({ title: "Erro ao cancelar", description: e.message, variant: "destructive" }),
   });
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Delete Order (permanent removal from history)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const useDeleteOrder = (organizationId: string) => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      // Delete order_items first (cascade not automatic via RLS)
+      await supabase.from("order_items").delete().eq("order_id", orderId);
+      // Delete associated deliveries
+      await supabase.from("deliveries").delete().eq("order_id", orderId);
+      // Delete print queue entries
+      await supabase.from("fila_impressao").delete().eq("order_id", orderId);
+      // Delete the order itself
+      const { error } = await supabase.from("orders").delete().eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders-history", organizationId] });
+      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+      toast({ title: "🗑️ Registro excluído do histórico." });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
+  });
+};
+
+export const useDeleteOldOrders = (organizationId: string) => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async () => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const cutoffISO = cutoff.toISOString();
+
+      // Get old order IDs first
+      const { data: oldOrders, error: fetchErr } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("status", "delivered")
+        .lt("created_at", cutoffISO);
+      if (fetchErr) throw fetchErr;
+      if (!oldOrders || oldOrders.length === 0) throw new Error("Nenhum pedido com mais de 30 dias encontrado.");
+
+      const ids = oldOrders.map((o) => o.id);
+
+      // Delete dependents in batches
+      for (const id of ids) {
+        await supabase.from("order_items").delete().eq("order_id", id);
+        await supabase.from("deliveries").delete().eq("order_id", id);
+        await supabase.from("fila_impressao").delete().eq("order_id", id);
+      }
+
+      // Delete orders
+      const { error } = await supabase
+        .from("orders")
+        .delete()
+        .in("id", ids);
+      if (error) throw error;
+
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries({ queryKey: ["orders-history", organizationId] });
+      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+      toast({ title: `🗑️ ${count} registros antigos excluídos.` });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao limpar histórico", description: e.message, variant: "destructive" }),
+  });
+};
