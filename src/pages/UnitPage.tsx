@@ -1027,18 +1027,21 @@ const UnitPage = () => {
                          <SelectTrigger className={addressError && !selectedNeighborhood ? "border-destructive" : ""}>
                            <SelectValue placeholder="Selecione seu bairro..." />
                          </SelectTrigger>
-                          <SelectContent>
-                            {neighborhoods.map((n) => (
-                              <SelectItem key={n.id} value={n.name}>
-                                {n.name} —{" "}
-                                {_totalPriceForFee >= freeAbove ? (
-                                  <span className="text-green-600 font-semibold">Frete Grátis</span>
-                                ) : (
-                                  fmt(n.fee)
-                                )}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
+                           <SelectContent>
+                             {neighborhoods.map((n) => (
+                               <SelectItem key={n.id} value={n.name}>
+                                 {n.name} —{" "}
+                                 {_totalPriceForFee >= freeAbove ? (
+                                   <span className="text-green-600 font-semibold">Frete Grátis</span>
+                                 ) : (
+                                   fmt(n.fee)
+                                 )}
+                               </SelectItem>
+                             ))}
+                             <SelectItem value="__outro__" className="text-muted-foreground italic border-t mt-1 pt-1">
+                               Outro bairro — <span className="text-xs">Sob consulta</span>
+                             </SelectItem>
+                           </SelectContent>
                        </Select>
                      ) : (
                        <p className="text-xs text-muted-foreground italic">
