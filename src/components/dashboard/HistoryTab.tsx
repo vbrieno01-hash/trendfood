@@ -14,6 +14,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useOrderHistory, useDeleteOrder, useDeleteOldOrders } from "@/hooks/useOrders";
 import { extractDeliveryFee } from "@/lib/formatReceiptText";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,6 +52,13 @@ const typeOptions: { key: TypeFilter; label: string }[] = [
   { key: "delivery", label: "Entregas" },
 ];
 
+const cleanupOptions: { label: string; daysAgo: number | null; description: string }[] = [
+  { label: "Mais de 24 horas", daysAgo: 1, description: "pedidos entregues com mais de 24 horas" },
+  { label: "Mais de 7 dias", daysAgo: 7, description: "pedidos entregues com mais de 7 dias" },
+  { label: "Mais de 30 dias", daysAgo: 30, description: "pedidos entregues com mais de 30 dias" },
+  { label: "Limpar Tudo", daysAgo: null, description: "todos os pedidos entregues do histórico" },
+];
+
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -71,6 +84,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
   const [paidFilter, setPaidFilter] = useState<PaidFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
+  const [cleanupConfirm, setCleanupConfirm] = useState<typeof cleanupOptions[0] | null>(null);
 
   const { data: orders = [], isLoading } = useOrderHistory(orgId, period);
   const deleteOrder = useDeleteOrder(orgId);
@@ -104,31 +118,25 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
         </div>
         <div className="flex items-center gap-2">
           {canDelete && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10">
                   <Trash2 className="w-4 h-4" />
-                  Limpar Histórico Antigo
+                  Limpar Histórico
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Limpar histórico antigo?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Essa ação excluirá permanentemente todos os pedidos entregues com mais de 30 dias. Essa ação não pode ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => deleteOldOrders.mutate()}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {cleanupOptions.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.label}
+                    onClick={() => setCleanupConfirm(opt)}
+                    className={opt.daysAgo === null ? "text-destructive font-medium" : ""}
                   >
-                    Sim, excluir antigos
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           {filtered.length > 0 && (
             <Button
@@ -162,6 +170,30 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
           )}
         </div>
       </div>
+
+      {/* Cleanup confirmation dialog */}
+      <AlertDialog open={!!cleanupConfirm} onOpenChange={(open) => !open && setCleanupConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar histórico?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação excluirá permanentemente {cleanupConfirm?.description}. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (cleanupConfirm) deleteOldOrders.mutate(cleanupConfirm.daysAgo);
+                setCleanupConfirm(null);
+              }}
+            >
+              Sim, excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {restrictTo7Days && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm text-muted-foreground">
