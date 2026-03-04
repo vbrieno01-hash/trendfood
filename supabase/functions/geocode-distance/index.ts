@@ -56,12 +56,42 @@ function buildAddressVariants(addr: string): string[] {
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Rate-limit safe fetch for Nominatim — checks status and retries on 429
+async function nominatimFetch(url: string, retries = 2): Promise<any[] | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) await delay(1200 * attempt); // exponential backoff
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "Accept-Language": "pt-BR",
+          "User-Agent": "TrendFood/1.0 (delivery-geocoding)",
+          "Accept": "application/json",
+        },
+      });
+      if (res.status === 429) {
+        console.warn(`[geocode] Rate limited (429), attempt ${attempt + 1}/${retries + 1}`);
+        continue;
+      }
+      if (!res.ok) {
+        console.warn(`[geocode] HTTP ${res.status} from Nominatim`);
+        continue;
+      }
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("json")) {
+        console.warn(`[geocode] Non-JSON response: ${contentType}`);
+        continue;
+      }
+      return await res.json();
+    } catch (e) {
+      console.warn(`[geocode] Fetch error attempt ${attempt + 1}:`, e);
+    }
+  }
+  return null;
+}
+
 async function tryGeocodeSingle(query: string): Promise<GeoCoord | null> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
-  const res = await fetch(url, {
-    headers: { "Accept-Language": "pt-BR", "User-Agent": "TrendFood/1.0 (delivery-geocoding)" },
-  });
-  const data = await res.json();
+  const data = await nominatimFetch(url);
   if (!data || data.length === 0) return null;
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
@@ -70,10 +100,7 @@ async function tryGeocodeStructured(street: string, city: string, state?: string
   const params = new URLSearchParams({ street, city, country: "Brazil", format: "json", limit: "1" });
   if (state) params.set("state", state);
   const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
-  const res = await fetch(url, {
-    headers: { "Accept-Language": "pt-BR", "User-Agent": "TrendFood/1.0 (delivery-geocoding)" },
-  });
-  const data = await res.json();
+  const data = await nominatimFetch(url);
   if (!data || data.length === 0) return null;
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
@@ -87,12 +114,14 @@ async function geocodeAddress(rawAddress: string): Promise<GeoCoord | null> {
   if (cep) {
     try {
       const viaRes = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const viaData = await viaRes.json();
-      if (!viaData.erro && viaData.localidade) {
-        // Use city + state from ViaCEP for more precise geocoding
-        const query = `${viaData.logradouro ? viaData.logradouro + ", " : ""}${viaData.localidade}, ${viaData.uf}, Brasil`;
-        const result = await tryGeocodeSingle(query);
-        if (result) return result;
+      if (viaRes.ok) {
+        const viaData = await viaRes.json();
+        if (!viaData.erro && viaData.localidade) {
+          const query = `${viaData.logradouro ? viaData.logradouro + ", " : ""}${viaData.localidade}, ${viaData.uf}, Brasil`;
+          const result = await tryGeocodeSingle(query);
+          if (result) return result;
+          await delay(1100); // Respect Nominatim 1 req/s
+        }
       }
     } catch (e) {
       console.warn(`[geocode] ViaCEP failed for ${cep}:`, e);
@@ -107,27 +136,29 @@ async function geocodeAddress(rawAddress: string): Promise<GeoCoord | null> {
     console.warn(`[geocode] Full text failed for "${cleaned}":`, e);
   }
 
+  await delay(1100); // Respect rate limit
+
   // 3. Structured search
   if (fields.street && fields.city) {
-    await delay(200);
     try {
       const result = await tryGeocodeStructured(fields.street, fields.city, fields.state);
       if (result) return result;
     } catch (e) {
       console.warn(`[geocode] Structured search failed:`, e);
     }
+    await delay(1100);
   }
 
   // 4. Simpler fallback variants
   const variants = buildAddressVariants(rawAddress);
   for (let i = 1; i < variants.length; i++) {
-    await delay(200);
     try {
       const result = await tryGeocodeSingle(variants[i]);
       if (result) return result;
     } catch (e) {
       console.warn(`[geocode] Failed for variant "${variants[i]}":`, e);
     }
+    await delay(1100);
   }
 
   console.error(`[geocode] All variants failed for address: "${rawAddress}"`);
@@ -150,6 +181,7 @@ async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number 
     if (attempt > 0) await delay(500);
     try {
       const res = await fetch(url);
+      if (!res.ok) continue;
       const data = await res.json();
       if (data.routes?.length > 0) return data.routes[0].distance / 1000;
     } catch (e) {
@@ -176,11 +208,8 @@ serve(async (req) => {
 
     console.log(`[geocode-distance] store="${store_address}" customer="${customer_address}"`);
 
-    // Geocode both addresses in PARALLEL
-    const [storeCoord, customerCoord] = await Promise.all([
-      geocodeAddress(store_address),
-      geocodeAddress(customer_address),
-    ]);
+    // Geocode SEQUENTIALLY to respect Nominatim 1 req/s rate limit
+    const storeCoord = await geocodeAddress(store_address);
 
     if (!storeCoord) {
       return new Response(
@@ -188,6 +217,10 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    await delay(1100); // Gap between store and customer geocoding
+
+    const customerCoord = await geocodeAddress(customer_address);
 
     if (!customerCoord) {
       return new Response(
