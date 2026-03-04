@@ -493,35 +493,32 @@ export const useDeleteOldOrders = (organizationId: string) => {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async () => {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - 30);
-      const cutoffISO = cutoff.toISOString();
-
-      // Get old order IDs first
-      const { data: oldOrders, error: fetchErr } = await supabase
+    mutationFn: async (daysAgo: number | null) => {
+      let query = supabase
         .from("orders")
         .select("id")
         .eq("organization_id", organizationId)
-        .eq("status", "delivered")
-        .lt("created_at", cutoffISO);
+        .eq("status", "delivered");
+
+      if (daysAgo !== null) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - daysAgo);
+        query = query.lt("created_at", cutoff.toISOString());
+      }
+
+      const { data: oldOrders, error: fetchErr } = await query;
       if (fetchErr) throw fetchErr;
-      if (!oldOrders || oldOrders.length === 0) throw new Error("Nenhum pedido com mais de 30 dias encontrado.");
+      if (!oldOrders || oldOrders.length === 0) throw new Error("__EMPTY__");
 
       const ids = oldOrders.map((o) => o.id);
 
-      // Delete dependents in batches
       for (const id of ids) {
         await supabase.from("order_items").delete().eq("order_id", id);
         await supabase.from("deliveries").delete().eq("order_id", id);
         await supabase.from("fila_impressao").delete().eq("order_id", id);
       }
 
-      // Delete orders
-      const { error } = await supabase
-        .from("orders")
-        .delete()
-        .in("id", ids);
+      const { error } = await supabase.from("orders").delete().in("id", ids);
       if (error) throw error;
 
       return ids.length;
@@ -529,8 +526,14 @@ export const useDeleteOldOrders = (organizationId: string) => {
     onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["orders-history", organizationId] });
       qc.invalidateQueries({ queryKey: ["orders", organizationId] });
-      toast({ title: `🗑️ ${count} registros antigos excluídos.` });
+      toast({ title: `🗑️ ${count} registros excluídos.` });
     },
-    onError: (e: Error) => toast({ title: "Erro ao limpar histórico", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => {
+      if (e.message === "__EMPTY__") {
+        toast({ title: "Nenhum pedido encontrado para o período selecionado." });
+      } else {
+        toast({ title: "Erro ao limpar histórico", description: e.message, variant: "destructive" });
+      }
+    },
   });
 };
