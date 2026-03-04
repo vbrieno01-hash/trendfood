@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Printer, Trash2 } from "lucide-react";
+import { Loader2, Printer, Trash2, Flame, CheckCircle2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -79,6 +79,7 @@ export default function KitchenPage() {
   const qc = useQueryClient();
 
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [printedIds, setPrintedIds] = useState<Set<string>>(new Set());
   const [autoPrint, setAutoPrint] = useState<boolean>(
     () => localStorage.getItem(AUTO_PRINT_KEY) !== "false"
   );
@@ -160,6 +161,31 @@ export default function KitchenPage() {
   useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
   useEffect(() => { notificationsRef.current = notificationsEnabled; }, [notificationsEnabled]);
 
+  // ─── Persistent bell: repeat every 8s while there are pending orders ───
+  const pendingOrders = orders.filter(o => o.status === "pending");
+  const hasPending = pendingOrders.length > 0;
+  const bellIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (hasPending) {
+      playBell();
+      bellIntervalRef.current = setInterval(() => {
+        playBell();
+      }, 8000);
+    } else {
+      if (bellIntervalRef.current) {
+        clearInterval(bellIntervalRef.current);
+        bellIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (bellIntervalRef.current) {
+        clearInterval(bellIntervalRef.current);
+        bellIntervalRef.current = null;
+      }
+    };
+  }, [hasPending]);
+
   const toggleAutoPrint = (val: boolean) => {
     setAutoPrint(val);
     localStorage.setItem(AUTO_PRINT_KEY, String(val));
@@ -209,6 +235,51 @@ export default function KitchenPage() {
     );
   };
 
+  // Print + Accept: prints the order, marks as printed, then moves to "preparing"
+  const handlePrintAndAccept = async (order: Order) => {
+    if (loadingIds.has(order.id)) return;
+    setLoadingIds((prev) => new Set(prev).add(order.id));
+    try {
+      await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
+      setPrintedIds((prev) => new Set(prev).add(order.id));
+    } catch (err) {
+      console.error("[KDS] Print failed:", err);
+      toast.error("Falha na impressão, mas o pedido será aceito.");
+    }
+    updateStatus.mutate(
+      { id: order.id, status: "preparing" },
+      {
+        onSuccess: () => {
+          if (order.table_number === 0) {
+            createDeliveryForOrder(order, org?.id ?? "", org?.store_address, org?.courier_config);
+          }
+          toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
+        },
+        onSettled: () => {
+          setTimeout(() => {
+            setLoadingIds((prev) => {
+              const next = new Set(prev);
+              next.delete(order.id);
+              return next;
+            });
+          }, 1000);
+        },
+      }
+    );
+  };
+
+  // Manual print only (without accepting)
+  const handlePrintOnly = async (order: Order) => {
+    try {
+      await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
+      setPrintedIds((prev) => new Set(prev).add(order.id));
+      toast.success("Comanda impressa!");
+    } catch (err) {
+      console.error("[KDS] Print failed:", err);
+      toast.error("Falha na impressão.");
+    }
+  };
+
   // Realtime: stable channel — uses refs to avoid restarting on toggle changes
   useEffect(() => {
     if (!org?.id) return;
@@ -222,10 +293,10 @@ export default function KitchenPage() {
           if (!knownIds.current.has(order.id)) {
             knownIds.current.add(order.id);
             playBell();
+            // Auto-print enqueues but does NOT auto-accept
             if (autoPrintRef.current) {
               pendingPrintIds.current.add(order.id);
             }
-            // Web Push Notification
             if (notificationsRef.current && Notification.permission === "granted") {
               const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
               new Notification(`🔔 Novo pedido! ${tableLabel}`, {
@@ -239,9 +310,9 @@ export default function KitchenPage() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [org?.id, qc]); // stable — no autoPrint/notificationsEnabled deps needed
+  }, [org?.id, qc]);
 
-  // Print pending orders once their items are loaded (with concurrency guard)
+  // ─── Process pending auto-print queue (prints only, does NOT change status) ───
   useEffect(() => {
     if (pendingPrintIds.current.size === 0 || isPrintingRef.current) return;
     const toPrint = orders.filter(
@@ -255,6 +326,7 @@ export default function KitchenPage() {
         pendingPrintIds.current.delete(order.id);
         try {
           await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
+          setPrintedIds((prev) => new Set(prev).add(order.id));
         } catch (err) {
           console.error("[KDS] Auto-print failed:", err);
         }
@@ -273,6 +345,8 @@ export default function KitchenPage() {
     const id = setInterval(() => forceRender((n) => n + 1), 5000);
     return () => clearInterval(id);
   }, []);
+
+  const preparingOrders = orders.filter(o => o.status === "preparing");
 
   if (!orgSlug) {
     return (
@@ -352,7 +426,7 @@ export default function KitchenPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 md:p-6">
+      <main className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
         {isLoading ? (
           <p className="text-muted-foreground animate-pulse text-center py-12">Carregando pedidos…</p>
         ) : orders.length === 0 ? (
@@ -362,177 +436,216 @@ export default function KitchenPage() {
             <p className="text-muted-foreground text-sm mt-1">Novos pedidos aparecerão aqui automaticamente.</p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {orders.map((order) => {
-              const isOrderNew = isNew(order.created_at);
-              const isOrderLoading = loadingIds.has(order.id);
-              return (
-                <div
-                  key={order.id}
-                  className={`rounded-2xl border-2 bg-card p-5 space-y-3 transition-all ${
-                    isOrderNew ? "border-orange-400 shadow-lg shadow-orange-100" : "border-border"
-                  }`}
-                >
-                  {/* Card header */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {isOrderNew && (
-                          <span className="text-xs font-bold bg-orange-500 text-white rounded-full px-2 py-0.5 animate-pulse">
-                            NOVO!
-                          </span>
+          <>
+            {/* ── NOVOS PEDIDOS (pending) ── */}
+            {pendingOrders.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+                  <h3 className="font-bold text-foreground text-lg">
+                    Novos Pedidos — Aguardando Aceitação
+                  </h3>
+                  <span className="text-sm font-semibold text-orange-700 bg-orange-100 border border-orange-200 rounded-full px-2.5 py-0.5">
+                    {pendingOrders.length}
+                  </span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {pendingOrders.map((order) => {
+                    const isOrderNew = isNew(order.created_at);
+                    const isOrderLoading = loadingIds.has(order.id);
+                    const wasPrinted = printedIds.has(order.id);
+                    return (
+                      <div
+                        key={order.id}
+                        className={`rounded-2xl border-2 bg-card p-5 space-y-3 transition-all ${
+                          isOrderNew ? "border-orange-400 shadow-lg shadow-orange-100 animate-pulse" : "border-orange-300"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold bg-orange-500 text-white rounded-full px-2.5 py-0.5 animate-pulse">
+                                🔔 NOVO
+                              </span>
+                              <span className="font-bold text-foreground text-lg">
+                                {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
+                                {order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
+                              </span>
+                              {(order as any).payment_method && (order as any).payment_method !== "pending" && (
+                                <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
+                                  (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                                }`}>
+                                  {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" title="Cancelar pedido">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                                  <AlertDialogDescription>Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Não</AlertDialogCancel>
+                                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => cancelOrder.mutate(order.id)}>
+                                    Sim, cancelar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+
+                        {/* Items */}
+                        <ul className="space-y-1">
+                          {(order.order_items ?? []).map((item) => (
+                            <li key={item.id} className="flex items-center gap-2 text-sm text-foreground">
+                              <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                {item.quantity}×
+                              </span>
+                              <span>{item.name}</span>
+                              {(item as any).customer_name && (
+                                <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+
+                        {/* Notes */}
+                        {order.notes && (
+                          <div className="bg-muted rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">Obs:</span> {order.notes}
+                          </div>
                         )}
-                        <span className="font-bold text-foreground text-lg">{order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}</span>
-                        {(order as any).payment_method && (order as any).payment_method !== "pending" && (
-                          <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
-                            (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
-                          }`}>
-                            {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
-                          </span>
+
+                        {/* Action buttons for pending */}
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 text-muted-foreground border-border"
+                            disabled={isOrderLoading}
+                            onClick={() => handlePrintOnly(order)}
+                          >
+                            <Printer className="w-3.5 h-3.5 mr-1" />
+                            Imprimir
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                            disabled={isOrderLoading}
+                            onClick={() => handlePrintAndAccept(order)}
+                          >
+                            {isOrderLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                Imprimir e Aceitar
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        {wasPrinted && (
+                          <p className="text-xs text-green-600 text-center">✓ Comanda já impressa</p>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Cancelar pedido"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Não</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => cancelOrder.mutate(order.id)}
-                            >
-                              Sim, cancelar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        title="Imprimir pedido"
-                        onClick={() => {
-                          printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
-                        }}
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </Button>
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-                        order.status === "preparing"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}>
-                        {order.status === "preparing" ? "Em Preparo" : "Pendente"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Items */}
-                  <ul className="space-y-1">
-                    {(order.order_items ?? []).map((item) => (
-                      <li key={item.id} className="flex items-center gap-2 text-sm text-foreground">
-                        <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
-                          {item.quantity}×
-                        </span>
-                        <span>{item.name}</span>
-                        {(item as any).customer_name && (
-                          <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Notes */}
-                  {order.notes && (
-                    <div className="bg-muted rounded-lg px-3 py-2 text-xs text-muted-foreground">
-                      <span className="font-semibold text-foreground">Obs:</span> {order.notes}
-                    </div>
-                  )}
-
-                  {/* Action buttons */}
-                  <div className="flex gap-2 pt-1">
-                    {order.status === "pending" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
-                        disabled={isOrderLoading}
-                        onClick={() => handleUpdateStatus(order.id, "preparing", order)}
-                      >
-                        {isOrderLoading ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          "Iniciar preparo"
-                        )}
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                      disabled={isOrderLoading}
-                      onClick={() => handleUpdateStatus(order.id, "ready", order)}
-                    >
-                      {isOrderLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        "✓ Marcar como Pronto"
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Cancel button */}
-                  <div className="flex justify-center pt-1">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                          disabled={isOrderLoading}
-                        >
-                          Cancelar Pedido
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Deseja cancelar este pedido? Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Não</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleUpdateStatus(order.id, "cancelled" as Order["status"])}
-                          >
-                            Sim, cancelar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            )}
+
+            {/* ── EM PREPARO (preparing) ── */}
+            {preparingOrders.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-5 h-5 text-blue-500" />
+                  <h3 className="font-bold text-foreground text-lg">Em Preparo</h3>
+                  <span className="text-sm font-semibold text-blue-700 bg-blue-100 border border-blue-200 rounded-full px-2.5 py-0.5">
+                    {preparingOrders.length}
+                  </span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {preparingOrders.map((order) => {
+                    const isOrderLoading = loadingIds.has(order.id);
+                    return (
+                      <div key={order.id} className="rounded-2xl border-2 border-blue-200 bg-card p-5 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold bg-blue-500 text-white rounded-full px-2.5 py-0.5">
+                                🍳 PREPARANDO
+                              </span>
+                              <span className="font-bold text-foreground text-lg">
+                                {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
+                                {order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              title="Reimprimir"
+                              onClick={() => handlePrintOnly(order)}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <ul className="space-y-1">
+                          {(order.order_items ?? []).map((item) => (
+                            <li key={item.id} className="flex items-center gap-2 text-sm text-foreground">
+                              <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                {item.quantity}×
+                              </span>
+                              <span>{item.name}</span>
+                              {(item as any).customer_name && (
+                                <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+
+                        {order.notes && (
+                          <div className="bg-muted rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">Obs:</span> {order.notes}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                            disabled={isOrderLoading}
+                            onClick={() => handleUpdateStatus(order.id, "ready", order)}
+                          >
+                            {isOrderLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              "✓ Marcar como Pronto"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
