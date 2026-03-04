@@ -530,7 +530,10 @@ export const useDeleteOldOrders = (organizationId: string) => {
     },
     onError: (e: Error) => {
       if (e.message === "__EMPTY__") {
-        toast({ title: "Nenhum pedido encontrado para o período selecionado." });
+        toast({
+          title: "⚠️ Nenhum pedido encontrado para o período selecionado.",
+          className: "border-yellow-400 bg-yellow-50 text-yellow-900 dark:border-yellow-600 dark:bg-yellow-950 dark:text-yellow-200",
+        });
       } else {
         toast({ title: "Erro ao limpar histórico", description: e.message, variant: "destructive" });
       }
