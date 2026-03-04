@@ -169,26 +169,60 @@ function areCoordsIdentical(a: GeoCoord, b: GeoCoord): boolean {
   return Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lon - b.lon) < 0.0001;
 }
 
+/** Haversine distance in km between two coordinates */
+function haversineKm(a: GeoCoord, b: GeoCoord): number {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLon = (b.lon - a.lon) * Math.PI / 180;
+  const lat1 = a.lat * Math.PI / 180;
+  const lat2 = b.lat * Math.PI / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 async function getRouteDistanceKm(from: GeoCoord, to: GeoCoord): Promise<number | null> {
   if (areCoordsIdentical(from, to)) {
     console.warn("[route] Identical coordinates — geocoding fell back to same centroid");
     return null;
   }
 
+  const straightLine = haversineKm(from, to);
+  console.log(`[route] Haversine straight-line: ${straightLine.toFixed(2)} km`);
+
   const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`;
 
+  let routeKm: number | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await delay(500);
     try {
       const res = await fetch(url);
       if (!res.ok) continue;
       const data = await res.json();
-      if (data.routes?.length > 0) return data.routes[0].distance / 1000;
+      if (data.routes?.length > 0) {
+        routeKm = data.routes[0].distance / 1000;
+        break;
+      }
     } catch (e) {
       console.warn(`[route] Attempt ${attempt + 1} failed:`, e);
     }
   }
-  return null;
+
+  // Sanity check: if OSRM route is more than 2.5x the straight-line distance,
+  // the geocoding likely placed one address at a wrong centroid.
+  // Use straight-line * 1.3 (road factor) as a more reasonable estimate.
+  if (routeKm !== null && straightLine > 0.1 && routeKm > straightLine * 2.5) {
+    const corrected = straightLine * 1.3;
+    console.warn(`[route] Route ${routeKm.toFixed(2)}km is ${(routeKm / straightLine).toFixed(1)}x straight-line ${straightLine.toFixed(2)}km — using corrected ${corrected.toFixed(2)}km`);
+    return corrected;
+  }
+
+  // If OSRM failed, use straight-line * 1.4 as fallback
+  if (routeKm === null && straightLine > 0.1) {
+    console.warn(`[route] OSRM failed, using haversine fallback: ${(straightLine * 1.4).toFixed(2)}km`);
+    return straightLine * 1.4;
+  }
+
+  return routeKm;
 }
 
 serve(async (req) => {
