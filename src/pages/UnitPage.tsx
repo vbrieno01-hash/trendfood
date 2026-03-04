@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, X, Minus, UtensilsCrossed,
-  ShoppingCart, ShoppingBag, Loader2, Search, LocateFixed,
+  ShoppingCart, ShoppingBag, Search,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -24,9 +24,9 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
 import { usePlaceOrder } from "@/hooks/useOrders";
-import { useDeliveryFee } from "@/hooks/useDeliveryFee";
+import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliveryNeighborhoods";
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
-import { getStateFromCep } from "@/lib/storeAddress";
+
 import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
@@ -101,108 +101,30 @@ const UnitPage = () => {
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Structured customer address
-  type CustomerAddress = { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string };
-  const emptyAddress: CustomerAddress = { cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" };
-  const [customerAddress, setCustomerAddress] = useState<CustomerAddress>(emptyAddress);
-  const [cepLoading, setCepLoading] = useState(false);
-  const [cepError, setCepError] = useState("");
-  const [cepFetchFailed, setCepFetchFailed] = useState(false);
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [gpsError, setGpsError] = useState("");
-  type AddressCandidate = { cep: string; street: string; neighborhood: string; label: string };
-  const [addressCandidates, setAddressCandidates] = useState<AddressCandidate[]>([]);
+   // Simplified address: neighborhood dropdown + street/number
+   const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
+   const [customerStreet, setCustomerStreet] = useState("");
+   const [customerNumber, setCustomerNumber] = useState("");
+   const [customerComplement, setCustomerComplement] = useState("");
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setGpsError("Seu navegador não suporta geolocalização.");
-      return;
-    }
-    setGpsLoading(true);
-    setGpsError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { data, error } = await supabase.functions.invoke("reverse-geocode", {
-            body: { lat: pos.coords.latitude, lon: pos.coords.longitude },
-          });
-          if (error || data?.error) {
-            setGpsError(data?.error || "Não foi possível obter o endereço.");
-            return;
-          }
+   // Neighborhoods for this org
+   const { data: neighborhoods = [] } = useDeliveryNeighborhoods(org?.id);
 
-          const candidates: AddressCandidate[] = data.candidates || [];
+   // Full address for WhatsApp/order notes display
+   const fullCustomerAddressDisplay = [
+     customerStreet, customerNumber, customerComplement, selectedNeighborhood
+   ].map((p) => p.trim()).filter(Boolean).join(", ");
 
-          if (candidates.length > 1) {
-            // Multiple candidates — show Select for user to choose
-            setAddressCandidates(candidates);
-            // Pre-fill with first candidate
-            setCustomerAddress((prev) => ({
-              ...prev,
-              cep: candidates[0].cep || prev.cep,
-              street: candidates[0].street || prev.street,
-              neighborhood: candidates[0].neighborhood || prev.neighborhood,
-              city: data.city || prev.city,
-              state: data.state || prev.state,
-            }));
-          } else {
-            // Single or no candidates — fill directly (current behavior)
-            setAddressCandidates([]);
-            setCustomerAddress((prev) => ({
-              ...prev,
-              cep: data.cep || prev.cep,
-              street: data.street || prev.street,
-              neighborhood: data.neighborhood || prev.neighborhood,
-              city: data.city || prev.city,
-              state: data.state || prev.state,
-            }));
-          }
-          setAddressError(false);
-        } catch {
-          setGpsError("Erro ao buscar endereço pela localização.");
-        } finally {
-          setGpsLoading(false);
-        }
-      },
-      (err) => {
-        setGpsLoading(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setGpsError("Permissão de localização negada.");
-        } else {
-          setGpsError("Não foi possível obter sua localização.");
-        }
-      },
-      { enableHighAccuracy: true, timeout: 15000 },
-    );
-  };
-
-  // Full address (with complement) for WhatsApp/order notes display
-  const fullCustomerAddressDisplay = [
-    customerAddress.street, customerAddress.number, customerAddress.complement,
-    customerAddress.neighborhood, customerAddress.city, customerAddress.state, "Brasil"
-  ].map((p) => p.trim()).filter(Boolean).join(", ");
-
-  // Include full address (street, number, neighborhood) for precise geocoding
-  const fullCustomerAddress = [
-    customerAddress.street,
-    customerAddress.number,
-    customerAddress.neighborhood,
-    customerAddress.city,
-    customerAddress.state,
-    customerAddress.cep,
-    "Brasil"
-  ].map(p => (p ?? "").trim()).filter(Boolean).join(", ");
-
-  // Delivery fee — must be before any early returns (Rules of Hooks)
-  // cart/totalPrice derived inline here so hook is always at top level
-  const _cartItemsForFee = Object.values(cart);
-  const _totalPriceForFee = _cartItemsForFee.reduce((s, i) => s + i.price * i.qty, 0);
-  const { fee: deliveryFee, freeShipping, loading: feeLoading, error: feeError, distanceKm, noStoreAddress } = useDeliveryFee(
-    fullCustomerAddress,
-    _totalPriceForFee,
-    org ?? null,
-    !!org && orderType === "Entrega" && checkoutOpen
-  );
+   // Delivery fee — neighborhood-based
+   const _cartItemsForFee = Object.values(cart);
+   const _totalPriceForFee = _cartItemsForFee.reduce((s, i) => s + i.price * i.qty, 0);
+   const freeAbove = ((org as any)?.delivery_config as any)?.free_above ?? 80;
+   const { fee: deliveryFee, freeShipping } = useNeighborhoodFee(
+     neighborhoods,
+     orderType === "Entrega" ? selectedNeighborhood : "",
+     _totalPriceForFee,
+     freeAbove
+   );
 
   useEffect(() => {
     if (!orgLoading && (isError || org === null)) navigate("/404");
@@ -356,75 +278,7 @@ const UnitPage = () => {
 
   const grandTotal = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
 
-  // getStateFromCep imported from shared utility
-
-
-
-
-  // CEP lookup (ViaCEP)
-  const fetchCustomerCep = async (cep: string) => {
-    const cleaned = cep.replace(/\D/g, "");
-    if (cleaned.length !== 8) return;
-    setCepLoading(true);
-    setCepError("");
-    setCepFetchFailed(false);
-
-    try {
-      let data: Record<string, any>;
-      const { data: proxyData, error: proxyError } = await supabase.functions.invoke("viacep-proxy", { body: { cep: cleaned } });
-      if (proxyError || proxyData?.error) throw new Error("proxy failed");
-      data = proxyData;
-      if (data.erro) {
-        // CEP format valid but not found — soft hint, allow manual fill
-        setCepFetchFailed(true);
-        setCepError("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
-        const inferredState = getStateFromCep(cleaned);
-        setCustomerAddress((prev) => ({
-          ...prev,
-          cep: cleaned,
-          state: inferredState || prev.state,
-        }));
-        return;
-      }
-      setCepFetchFailed(false);
-      const hasStreet = !!data.logradouro;
-      const hasNeighborhood = !!data.bairro;
-      setCustomerAddress((prev) => ({
-        ...prev,
-        street: data.logradouro || prev.street,
-        neighborhood: data.bairro || prev.neighborhood,
-        city: data.localidade || prev.city,
-        state: data.uf || prev.state,
-      }));
-      // City with unique CEP (no street/neighborhood) — soft hint + focus street
-      if (!hasStreet && !hasNeighborhood && data.localidade) {
-        setCepFetchFailed(true);
-        setCepError("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
-        setTimeout(() => document.getElementById("buyer-street")?.focus(), 150);
-      }
-      // Populate nearby address candidates if available
-      const nearby = Array.isArray(data.nearby) ? data.nearby : [];
-      if (nearby.length > 1) {
-        setAddressCandidates(nearby);
-      } else {
-        setAddressCandidates([]);
-      }
-    } catch {
-      // Network/API error — don't block, soft hint + infer state
-      const inferredState = getStateFromCep(cleaned);
-      setCepFetchFailed(true);
-      setCepError("Não encontramos sua rua automaticamente, por favor preencha abaixo.");
-      setCustomerAddress((prev) => ({
-        ...prev,
-        cep: cleaned,
-        state: inferredState || prev.state,
-      }));
-      setTimeout(() => document.getElementById("buyer-street")?.focus(), 150);
-    } finally {
-      setCepLoading(false);
-    }
-  };
-
+   // (no more CEP lookup needed — neighborhood-based delivery)
   // WhatsApp checkout
    const handleSendWhatsApp = (overridePayment?: string, overrideOrderId?: string) => {
    if (isSubmitting || placeOrder.isPending) return;
@@ -442,15 +296,15 @@ const UnitPage = () => {
     if (buyerPhone.replace(/\D/g, "").length < 10) { setPhoneError(true); valid = false; } else setPhoneError(false);
     if (!effectivePayment) { setPaymentError(true); valid = false; } else setPaymentError(false);
     if (effectivePayment === "Dinheiro" && changeFor > 0 && changeFor < grandTotal) { setChangeForError(true); valid = false; } else setChangeForError(false);
-    if (orderType === "Entrega") {
-      if (!customerAddress.cep.trim() || !customerAddress.street.trim() || !customerAddress.number.trim() || !customerAddress.city.trim() || !customerAddress.state.trim()) {
-        setAddressError(true); hasAddressError = true; valid = false;
-      } else {
-        setAddressError(false);
-      }
-    } else {
-      setAddressError(false);
-    }
+     if (orderType === "Entrega") {
+       if (!selectedNeighborhood || !customerStreet.trim() || !customerNumber.trim()) {
+         setAddressError(true); hasAddressError = true; valid = false;
+       } else {
+         setAddressError(false);
+       }
+     } else {
+       setAddressError(false);
+     }
     if (!valid) {
       setIsSubmitting(false);
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
@@ -468,13 +322,11 @@ const UnitPage = () => {
     // PIX Direto/Manual: treat like cash — order goes straight to WhatsApp, customer pays on delivery
     if (effectivePayment === "PIX" && !overridePayment && org?.pix_confirmation_mode === "automatic") {
       if (org?.id) {
-        const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
-          ? `FRETE:${fmt(deliveryFee)}`
-          : orderType === "Entrega" && freeShipping
-            ? "FRETE:Grátis"
-            : orderType === "Entrega" && feeError
-              ? "FRETE:Sob consulta"
-              : null;
+         const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
+           ? `FRETE:${fmt(deliveryFee)}`
+           : orderType === "Entrega" && freeShipping
+             ? "FRETE:Grátis"
+             : null;
 
         const noteParts: string[] = [
           `TIPO:${orderType}`,
@@ -521,14 +373,12 @@ const UnitPage = () => {
 
     const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
     const freightLabel = orderType === "Retirada"
-      ? "Grátis"
-      : freeShipping
-        ? "Grátis"
-        : deliveryFee > 0
-          ? fmt(deliveryFee)
-          : feeError
-            ? "Sob consulta"
-            : null;
+       ? "Grátis"
+       : freeShipping
+         ? "Grátis"
+         : deliveryFee > 0
+           ? fmt(deliveryFee)
+           : null;
 
     const lines = [
       `🍔 *Novo Pedido — ${org.name}*`,
@@ -563,13 +413,11 @@ const UnitPage = () => {
 
     // Save order to database em background (table_number=0 = delivery/pickup) — skip if already created (PIX flow)
     if (org?.id && !overrideOrderId) {
-      const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
-        ? `FRETE:${fmt(deliveryFee)}`
-        : orderType === "Entrega" && freeShipping
-          ? "FRETE:Grátis"
-            : orderType === "Entrega" && feeError
-              ? "FRETE:Sob consulta"
-            : null;
+       const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
+         ? `FRETE:${fmt(deliveryFee)}`
+         : orderType === "Entrega" && freeShipping
+           ? "FRETE:Grátis"
+           : null;
 
       const noteParts: string[] = [
         `TIPO:${orderType}`,
@@ -641,13 +489,11 @@ const UnitPage = () => {
       const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
       const freightLabel = orderType === "Retirada"
         ? "Grátis"
-        : freeShipping
-          ? "Grátis"
-          : deliveryFee > 0
-            ? fmt(deliveryFee)
-            : feeError
-              ? "Sob consulta"
-              : null;
+         : freeShipping
+           ? "Grátis"
+           : deliveryFee > 0
+             ? fmt(deliveryFee)
+             : null;
 
       const pixStatus = paid ? "✅ PIX Confirmado" : "⏳ PIX Aguardando confirmação";
 
@@ -695,7 +541,10 @@ const UnitPage = () => {
     setBuyerPhone("");
     setPhoneError(false);
     setBuyerDoc("");
-    setCustomerAddress(emptyAddress);
+     setSelectedNeighborhood("");
+     setCustomerStreet("");
+     setCustomerNumber("");
+     setCustomerComplement("");
     setPayment("");
     setChangeFor(0);
     setChangeForError(false);
@@ -1060,30 +909,18 @@ const UnitPage = () => {
                     <span className="text-green-600 font-medium">Grátis</span>
                   </div>
                 ) : orderType === "Entrega" ? (
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      🛵 Frete
-                      {distanceKm != null && (
-                        <span className="text-xs">({distanceKm.toFixed(1)} km)</span>
-                      )}
-                    </span>
-                    {noStoreAddress ? (
-                      <span className="text-xs text-muted-foreground italic">Sob consulta</span>
-                    ) : feeLoading ? (
-                      <span className="flex items-center gap-1">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Calculando...
-                      </span>
-                    ) : feeError ? (
-                      <span className="text-xs text-muted-foreground italic">Sob consulta</span>
-                    ) : freeShipping ? (
-                      <span className="text-green-600 font-medium">Grátis</span>
-                    ) : fullCustomerAddress.length >= 8 ? (
-                      <span className="font-medium text-foreground">{fmt(deliveryFee)}</span>
-                    ) : (
-                      <span className="text-xs italic">Digite seu endereço</span>
-                    )}
-                  </div>
+                   <div className="flex items-center justify-between text-sm text-muted-foreground">
+                     <span>🛵 Frete</span>
+                     {!selectedNeighborhood ? (
+                       <span className="text-xs italic">Selecione o bairro</span>
+                     ) : freeShipping ? (
+                       <span className="text-green-600 font-medium">Grátis</span>
+                     ) : deliveryFee > 0 ? (
+                       <span className="font-medium text-foreground">{fmt(deliveryFee)}</span>
+                     ) : (
+                       <span className="text-xs text-muted-foreground italic">Sob consulta</span>
+                     )}
+                   </div>
                 ) : null}
                 <div className="flex items-center justify-between pt-1 font-bold text-foreground border-t border-border/50">
                   <span>Total</span>
@@ -1175,178 +1012,82 @@ const UnitPage = () => {
                 />
               </div>
 
-              {orderType === "Entrega" && (
-                <div ref={addressRef} className="space-y-3">
-                  {/* GPS Button */}
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50"
-                    onClick={handleGetLocation}
-                    disabled={gpsLoading}
-                  >
-                    {gpsLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <LocateFixed className="w-4 h-4" />
-                    )}
-                    {gpsLoading ? "Buscando localização..." : "Usar minha localização"}
-                  </button>
-                  {gpsError && <p className="text-destructive text-xs">{gpsError}</p>}
+               {orderType === "Entrega" && (
+                 <div ref={addressRef} className="space-y-3">
+                   {/* Bairro — dropdown com os bairros cadastrados */}
+                   <div>
+                     <Label className="text-xs font-medium mb-1 block">
+                       Bairro <span className="text-destructive">*</span>
+                     </Label>
+                     {neighborhoods.length > 0 ? (
+                       <Select
+                         value={selectedNeighborhood}
+                         onValueChange={(v) => { setSelectedNeighborhood(v); setAddressError(false); }}
+                       >
+                         <SelectTrigger className={addressError && !selectedNeighborhood ? "border-destructive" : ""}>
+                           <SelectValue placeholder="Selecione seu bairro..." />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {neighborhoods.map((n) => (
+                             <SelectItem key={n.id} value={n.name}>
+                               {n.name} — {fmt(n.fee)}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     ) : (
+                       <p className="text-xs text-muted-foreground italic">
+                         Nenhum bairro cadastrado. Entre em contato com a loja.
+                       </p>
+                     )}
+                   </div>
 
-                  {/* Address candidates (nearby neighborhoods) */}
-                  {addressCandidates.length > 1 && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium block">📍 Selecione seu endereço</Label>
-                      <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto">
-                        {addressCandidates.map((c) => {
-                          const isSelected = customerAddress.cep === c.cep && customerAddress.neighborhood === c.neighborhood;
-                          return (
-                            <button
-                              key={`${c.cep}-${c.neighborhood}`}
-                              type="button"
-                              onClick={() => {
-                                setCustomerAddress((prev) => ({
-                                  ...prev,
-                                  cep: c.cep,
-                                  street: c.street,
-                                  neighborhood: c.neighborhood,
-                                }));
-                              }}
-                              className={`w-full text-left rounded-lg border px-3 py-2 text-xs transition-all ${
-                                isSelected
-                                  ? "border-primary bg-primary/10 ring-1 ring-primary"
-                                  : "border-border bg-card hover:bg-accent"
-                              }`}
-                            >
-                              <span className="font-semibold text-foreground">{c.street}, {c.neighborhood}</span>
-                              <span className="block text-muted-foreground mt-0.5">{c.cep}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <Label htmlFor="buyer-cep" className="text-xs font-medium mb-1 block">
-                      CEP <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="buyer-cep"
-                        placeholder="00000-000"
-                        value={customerAddress.cep}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setCustomerAddress((p) => ({ ...p, cep: val }));
-                          setAddressError(false);
-                          setCepError("");
-                          setAddressCandidates([]);
-                          const cleaned = val.replace(/\D/g, "");
-                          if (cleaned.length === 8) fetchCustomerCep(val);
-                        }}
-                        onBlur={(e) => fetchCustomerCep(e.target.value)}
-                        inputMode="numeric"
-                        maxLength={9}
-                        className={`${addressError && !customerAddress.cep ? "border-destructive" : ""} ${cepLoading ? "pr-9" : ""}`}
-                      />
-                      {cepLoading && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />}
-                    </div>
-                    {cepError && <p className="text-amber-600 dark:text-amber-400 text-xs mt-1">{cepError}</p>}
-                  </div>
+                   {/* Rua + Número */}
+                   <div className="grid grid-cols-3 gap-2">
+                     <div className="col-span-2">
+                       <Label htmlFor="buyer-street" className="text-xs font-medium mb-1 block">
+                         Rua <span className="text-destructive">*</span>
+                       </Label>
+                       <Input
+                         id="buyer-street"
+                         placeholder="Nome da rua"
+                         value={customerStreet}
+                         onChange={(e) => { setCustomerStreet(e.target.value); setAddressError(false); }}
+                         className={addressError && !customerStreet.trim() ? "border-destructive" : ""}
+                       />
+                     </div>
+                     <div>
+                       <Label htmlFor="buyer-number" className="text-xs font-medium mb-1 block">
+                         Nº <span className="text-destructive">*</span>
+                       </Label>
+                       <Input
+                         id="buyer-number"
+                         placeholder="123"
+                         value={customerNumber}
+                         onChange={(e) => { setCustomerNumber(e.target.value); setAddressError(false); }}
+                         className={addressError && !customerNumber.trim() ? "border-destructive" : ""}
+                       />
+                     </div>
+                   </div>
 
-                  {/* Logradouro + Número */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <Label htmlFor="buyer-street" className="text-xs font-medium mb-1 block">
-                        Logradouro <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="buyer-street"
-                        placeholder="Rua, Av., etc."
-                        value={customerAddress.street}
-                        onChange={(e) => { setCustomerAddress((p) => ({ ...p, street: e.target.value })); setAddressError(false); }}
-                        className={addressError && !customerAddress.street ? "border-destructive" : ""}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="buyer-number" className="text-xs font-medium mb-1 block">
-                        Número <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="buyer-number"
-                        placeholder="123"
-                        value={customerAddress.number}
-                        onChange={(e) => { setCustomerAddress((p) => ({ ...p, number: e.target.value })); setAddressError(false); }}
-                        className={addressError && !customerAddress.number ? "border-destructive" : ""}
-                      />
-                    </div>
-                  </div>
+                   {/* Complemento */}
+                   <div>
+                     <Label htmlFor="buyer-complement" className="text-xs font-medium mb-1 block">
+                       Complemento <span className="text-muted-foreground font-normal">(opcional)</span>
+                     </Label>
+                     <Input
+                       id="buyer-complement"
+                       placeholder="Apto, Bloco, Sala..."
+                       value={customerComplement}
+                       onChange={(e) => setCustomerComplement(e.target.value)}
+                     />
+                   </div>
 
-                  {/* Complemento */}
-                  <div>
-                    <Label htmlFor="buyer-complement" className="text-xs font-medium mb-1 block">
-                      Complemento <span className="text-muted-foreground font-normal">(opcional)</span>
-                    </Label>
-                    <Input
-                      id="buyer-complement"
-                      placeholder="Apto, Bloco, Sala..."
-                      value={customerAddress.complement}
-                      onChange={(e) => setCustomerAddress((p) => ({ ...p, complement: e.target.value }))}
-                    />
-                  </div>
-
-                  {/* Bairro + Cidade */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label htmlFor="buyer-neighborhood" className="text-xs font-medium mb-1 block">
-                        Bairro <span className="text-muted-foreground font-normal">(opcional)</span>
-                      </Label>
-                      <Input
-                        id="buyer-neighborhood"
-                        placeholder="Centro"
-                        value={customerAddress.neighborhood}
-                        onChange={(e) => setCustomerAddress((p) => ({ ...p, neighborhood: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="buyer-city" className="text-xs font-medium mb-1 block">
-                        Cidade <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="buyer-city"
-                        placeholder="Cubatão"
-                        value={customerAddress.city}
-                        onChange={(e) => { setCustomerAddress((p) => ({ ...p, city: e.target.value })); setAddressError(false); setCepFetchFailed(false); }}
-                        className={`${addressError && !customerAddress.city ? "border-destructive" : ""} ${cepFetchFailed && !customerAddress.city ? "border-yellow-400 ring-1 ring-yellow-400" : ""}`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Estado */}
-                  <div>
-                    <Label htmlFor="buyer-state" className="text-xs font-medium mb-1 block">
-                      Estado <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={customerAddress.state}
-                      onValueChange={(v) => { setCustomerAddress((p) => ({ ...p, state: v })); setAddressError(false); }}
-                    >
-                      <SelectTrigger id="buyer-state" className={`${addressError && !customerAddress.state ? "border-destructive" : ""} ${cepFetchFailed && !customerAddress.state ? "border-yellow-400 ring-1 ring-yellow-400" : ""}`}>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((uf) => (
-                          <SelectItem key={uf} value={uf}>{uf}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {addressError && (
-                    <p className="text-destructive text-xs">⚠ Preencha CEP, logradouro, número, cidade e estado</p>
-                  )}
-                </div>
-              )}
+                   {addressError && (
+                     <p className="text-destructive text-xs">⚠ Preencha bairro, rua e número</p>
+                   )}
+                 </div>
+               )}
 
               <div ref={paymentRef}>
                 <Label className="text-xs font-medium mb-1 block">

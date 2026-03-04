@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
 import { BusinessHours } from "@/hooks/useOrganization";
-import { DeliveryConfig, DEFAULT_DELIVERY_CONFIG } from "@/hooks/useDeliveryFee";
+import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 
 interface Organization {
   id: string;
@@ -25,7 +25,7 @@ interface Organization {
   business_hours?: BusinessHours | null;
   pix_key?: string | null;
   store_address?: string | null;
-  delivery_config?: DeliveryConfig | null;
+  delivery_config?: { free_above?: number } | null;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
   banner_url?: string | null;
 }
@@ -52,10 +52,9 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 export default function StoreProfileTab({ organization }: { organization: Organization }) {
   const { refreshOrganization, user, organizations } = useAuth();
-  const [deliveryConfig, setDeliveryConfig] = useState<DeliveryConfig>({
-    ...DEFAULT_DELIVERY_CONFIG,
-    ...(organization.delivery_config ?? undefined),
-  });
+  const [freeAbove, setFreeAbove] = useState<number>(
+    (organization.delivery_config as any)?.free_above ?? 80
+  );
   const [form, setForm] = useState({
     name: organization.name,
     description: organization.description ?? "",
@@ -133,7 +132,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         pix_confirmation_mode: form.pix_confirmation_mode,
         business_hours: businessHours as unknown as never,
         store_address: buildStoreAddress(addressFields) || null,
-        delivery_config: deliveryConfig as unknown as never,
+        delivery_config: { free_above: freeAbove } as unknown as never,
       };
 
       const { error } = await supabase
@@ -906,60 +905,24 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         </div>
 
 
-        {/* Taxas de frete editáveis por loja */}
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Taxas de Frete</p>
-          <div className="grid grid-cols-2 gap-3">
-            {([
-              { key: "fee_1km" as const, label: "Até 1 km" },
-              { key: "fee_2km" as const, label: "Até 2 km" },
-              { key: "fee_3km" as const, label: "Até 3 km" },
-              { key: "fee_4km" as const, label: "Até 4 km" },
-              { key: "fee_5km" as const, label: "Até 5 km" },
-              { key: "fee_6km" as const, label: "Até 6 km" },
-              { key: "fee_7km" as const, label: "Até 7 km" },
-              { key: "fee_8km" as const, label: "Até 8 km" },
-              { key: "fee_9km" as const, label: "Até 9 km" },
-              { key: "fee_10km" as const, label: "Até 10 km" },
-              { key: "fee_above" as const, label: "Acima de 10 km" },
-              { key: "free_above" as const, label: "Frete grátis acima de" },
-            ]).map((f) => (
-              <div key={f.key}>
-                <Label className="text-xs font-medium mb-1 block">{f.label}</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={deliveryConfig[f.key]}
-                    onChange={(e) => setDeliveryConfig((p) => ({ ...p, [f.key]: parseFloat(e.target.value) || 0 }))}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="bg-secondary/60 rounded-xl p-3 text-xs space-y-1 mt-3">
-            <p className="font-semibold text-foreground mb-1">Preview:</p>
-            {([
-              { km: "1", fee: deliveryConfig.fee_1km },
-              { km: "2", fee: deliveryConfig.fee_2km },
-              { km: "3", fee: deliveryConfig.fee_3km },
-              { km: "4", fee: deliveryConfig.fee_4km },
-              { km: "5", fee: deliveryConfig.fee_5km },
-              { km: "6", fee: deliveryConfig.fee_6km },
-              { km: "7", fee: deliveryConfig.fee_7km },
-              { km: "8", fee: deliveryConfig.fee_8km },
-              { km: "9", fee: deliveryConfig.fee_9km },
-              { km: "10", fee: deliveryConfig.fee_10km },
-            ]).map((t) => (
-              <p key={t.km} className="text-muted-foreground">📍 Até <strong>{t.km} km</strong> → <strong className="text-foreground">R$ {t.fee.toFixed(2).replace(".", ",")}</strong></p>
-            ))}
-            <p className="text-muted-foreground">📍 Acima de <strong>10 km</strong> → <strong className="text-foreground">R$ {deliveryConfig.fee_above.toFixed(2).replace(".", ",")}</strong></p>
-            <p className="text-muted-foreground">🎁 Acima de <strong>R$ {deliveryConfig.free_above.toFixed(2).replace(".", ",")}</strong> → <strong className="text-foreground">Frete grátis</strong></p>
-          </div>
-        </div>
+         {/* Frete grátis acima de */}
+         <div className="mt-4">
+           <Label className="text-xs font-medium mb-1 block">🎁 Frete grátis para pedidos acima de</Label>
+           <div className="relative w-40">
+             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+             <Input
+               type="number"
+               min={0}
+               step={1}
+               value={freeAbove}
+               onChange={(e) => setFreeAbove(parseFloat(e.target.value) || 0)}
+               className="pl-9"
+             />
+           </div>
+         </div>
+
+         {/* Bairros e taxas — gerenciado via componente dedicado */}
+         <NeighborhoodManager organizationId={organization.id} />
       </div>
 
       {/* ── SEÇÃO 6: Horário de Funcionamento ─────────────────────── */}
