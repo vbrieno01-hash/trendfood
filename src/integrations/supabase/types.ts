@@ -832,6 +832,7 @@ export type Database = {
           description: string | null
           emoji: string
           exe_url: string | null
+          force_open: boolean
           id: string
           logo_url: string | null
           mp_subscription_id: string | null
@@ -864,6 +865,7 @@ export type Database = {
           description?: string | null
           emoji?: string
           exe_url?: string | null
+          force_open?: boolean
           id?: string
           logo_url?: string | null
           mp_subscription_id?: string | null
@@ -896,6 +898,7 @@ export type Database = {
           description?: string | null
           emoji?: string
           exe_url?: string | null
+          force_open?: boolean
           id?: string
           logo_url?: string | null
           mp_subscription_id?: string | null

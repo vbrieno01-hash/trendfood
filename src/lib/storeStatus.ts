@@ -10,6 +10,13 @@ const DAY_MAP: Record<number, string> = {
   6: "sab",
 };
 
+/** Returns a Date object adjusted to Brasília Time (GMT-3), regardless of client timezone */
+function getNowInBrasilia(): Date {
+  const now = new Date();
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60_000;
+  return new Date(utcMs + (-3) * 3600_000);
+}
+
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
@@ -26,10 +33,16 @@ export type StoreStatus =
   | { open: true }
   | { open: false; opensAt: string | null };
 
-export function getStoreStatus(businessHours: BusinessHours | null | undefined): StoreStatus {
+export function getStoreStatus(
+  businessHours: BusinessHours | null | undefined,
+  forceOpen?: boolean,
+): StoreStatus {
+  // Se force_open estiver ativo, sempre retorna aberto
+  if (forceOpen) return { open: true };
+
   if (!businessHours || !businessHours.enabled) return null;
 
-  const now = new Date();
+  const now = getNowInBrasilia();
   const dayKey = DAY_MAP[now.getDay()];
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 

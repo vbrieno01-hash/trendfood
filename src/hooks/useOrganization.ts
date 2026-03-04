@@ -52,6 +52,7 @@ export interface Organization {
   courier_config?: { base_fee: number; per_km: number } | null;
   print_mode?: 'browser' | 'desktop' | 'bluetooth';
   cnpj?: string | null;
+  force_open?: boolean;
 }
 
 export const useOrganization = (slug: string | undefined) => {
@@ -61,7 +62,7 @@ export const useOrganization = (slug: string | undefined) => {
       if (!slug) throw new Error("No slug");
       const { data, error } = await supabase
         .from("organizations")
-        .select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, store_address, delivery_config, pix_confirmation_mode, paused, printer_width, banner_url, courier_config, print_mode, cnpj, subscription_status, subscription_plan, trial_ends_at")
+        .select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, store_address, delivery_config, pix_confirmation_mode, paused, printer_width, banner_url, courier_config, print_mode, cnpj, subscription_status, subscription_plan, trial_ends_at, force_open")
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;
