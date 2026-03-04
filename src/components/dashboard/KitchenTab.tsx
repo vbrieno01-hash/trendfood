@@ -181,15 +181,19 @@ export default function KitchenTab({
   };
 
   // Print + Accept: prints the order, marks as printed, then moves to "preparing"
+  // Safety: if already printed, skip print and just accept
   const handlePrintAndAccept = async (order: Order) => {
     if (loadingIds.has(order.id)) return;
     setLoadingIds((prev) => new Set(prev).add(order.id));
-    try {
-      await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
-      setPrintedIds((prev) => new Set(prev).add(order.id));
-    } catch (err) {
-      console.error("[KDS] Print failed:", err);
-      toast.error("Falha na impressão, mas o pedido será aceito.");
+    const alreadyPrinted = printedIds.has(order.id);
+    if (!alreadyPrinted) {
+      try {
+        await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
+        setPrintedIds((prev) => new Set(prev).add(order.id));
+      } catch (err) {
+        console.error("[KDS] Print failed:", err);
+        toast.error("Falha na impressão, mas o pedido será aceito.");
+      }
     }
     // Move to preparing
     updateStatus.mutate(
@@ -214,8 +218,13 @@ export default function KitchenTab({
     );
   };
 
-  // Manual print only (without accepting)
+  // Manual print only (without accepting) — with reprint confirmation
   const handlePrintOnly = async (order: Order) => {
+    const alreadyPrinted = printedIds.has(order.id);
+    if (alreadyPrinted) {
+      const confirmed = window.confirm("Este pedido já foi impresso. Deseja imprimir uma segunda via?");
+      if (!confirmed) return;
+    }
     try {
       await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
       setPrintedIds((prev) => new Set(prev).add(order.id));
@@ -480,17 +489,22 @@ export default function KitchenTab({
                         </div>
                       )}
 
+                      {/* Printed badge */}
+                      {wasPrinted && (
+                        <p className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2.5 py-0.5 w-fit">✓ Comanda já impressa</p>
+                      )}
+
                       {/* Action buttons: Print first, then Accept */}
                       <div className="flex gap-2 pt-1">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-1.5"
+                          className={`flex items-center gap-1.5 ${wasPrinted ? "border-muted text-muted-foreground bg-muted/50" : ""}`}
                           onClick={() => handlePrintOnly(order)}
                           disabled={isOrderLoading}
                         >
                           <Printer className="w-3.5 h-3.5" />
-                          Imprimir
+                          {wasPrinted ? "Reimprimir" : "Imprimir"}
                         </Button>
                         <Button
                           size="sm"
