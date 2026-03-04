@@ -69,5 +69,7 @@ export const useOrganization = (slug: string | undefined) => {
       return data as unknown as Organization | null;
     },
     enabled: !!slug,
+    refetchInterval: 5 * 60 * 1000, // Re-fetch a cada 5 min para atualizar status
+    staleTime: 2 * 60 * 1000,
   });
 };
