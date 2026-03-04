@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,6 +54,7 @@ const fmt = (v: number) =>
 const UnitPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: org, isLoading: orgLoading, isError } = useOrganization(slug);
   const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
@@ -295,7 +297,7 @@ const UnitPage = () => {
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
   // Store open/closed status
-  const storeStatus = getStoreStatus(org.business_hours);
+  const storeStatus = getStoreStatus(org.business_hours, (org as any).force_open);
   const isPaused = !!(org as any).paused;
   const isClosed = isPaused || (storeStatus !== null && !storeStatus.open);
   const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
@@ -305,13 +307,18 @@ const UnitPage = () => {
     const key = cartKey(item.id, addons);
     const unitPrice = item.price + addons.reduce((s, a) => s + a.price, 0);
     setCart((prev) => {
-      const existing = prev[key];
-      return {
+      const wasEmpty = Object.keys(prev).length === 0;
+      const next = {
         ...prev,
-        [key]: existing
-          ? { ...existing, qty: existing.qty + 1 }
+        [key]: prev[key]
+          ? { ...prev[key], qty: prev[key].qty + 1 }
           : { id: key, menuItemId: item.id, name: item.name, price: unitPrice, qty: 1, addons, notes: itemNotes },
       };
+      // Cache invalidation: re-fetch store status on first cart item (stale tab scenario)
+      if (wasEmpty) {
+        queryClient.invalidateQueries({ queryKey: ["organization", slug] });
+      }
+      return next;
     });
   };
 

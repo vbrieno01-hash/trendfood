@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -6,21 +6,57 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, organization: currentOrg, refreshOrganization } = useAuth();
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [forceOpen, setForceOpen] = useState(false);
+  const [forceOpenLoading, setForceOpenLoading] = useState(false);
+
+  // Load current force_open state
+  useEffect(() => {
+    if (currentOrg?.id) {
+      supabase
+        .from("organizations")
+        .select("force_open")
+        .eq("id", currentOrg.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setForceOpen(!!(data as any).force_open);
+        });
+    }
+  }, [currentOrg?.id]);
+
+  const handleToggleForceOpen = async (checked: boolean) => {
+    if (!currentOrg?.id) return;
+    setForceOpenLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ force_open: checked } as any)
+        .eq("id", currentOrg.id);
+      if (error) throw error;
+      setForceOpen(checked);
+      await refreshOrganization();
+      toast.success(checked ? "Loja forçada como ABERTA 24h." : "Horário de funcionamento normal restaurado.");
+    } catch {
+      toast.error("Erro ao alterar configuração.");
+    } finally {
+      setForceOpenLoading(false);
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +119,30 @@ export default function SettingsTab() {
         </div>
       </div>
 
+      {/* Force Open Toggle */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Store className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Controle manual</p>
+        </div>
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Forçar Loja Aberta</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
+                {forceOpen
+                  ? "A loja está aberta 24h, ignorando o horário programado."
+                  : "Ative para manter a loja aberta manualmente, ignorando qualquer regra de horário."}
+              </p>
+            </div>
+            <Switch
+              checked={forceOpen}
+              onCheckedChange={handleToggleForceOpen}
+              disabled={forceOpenLoading}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Change password */}
       <div className="rounded-xl border border-border overflow-hidden">
