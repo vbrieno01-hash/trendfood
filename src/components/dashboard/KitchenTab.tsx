@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
+import { parsePhoneFromNotes, notifyCustomerWhatsApp } from "@/lib/whatsappNotify";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -190,6 +191,11 @@ export default function KitchenTab({
         onSuccess: () => {
           if (order.table_number === 0) {
             createDeliveryForOrder(order, orgId, storeAddress, courierConfig);
+          }
+          // Notify customer via WhatsApp
+          const phone = parsePhoneFromNotes(order.notes);
+          if (phone) {
+            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), orgName);
           }
           toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
         },
