@@ -902,7 +902,7 @@ const UnitPage = () => {
       )}
 
       {/* ── CHECKOUT DRAWER ── */}
-      <Drawer open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+      <Drawer open={checkoutOpen} onOpenChange={(open) => { if (!open) { popDrawerState(); setCheckoutOpen(false); } }}>
         <DrawerContent className="max-h-[90dvh]">
           <DrawerHeader className="border-b border-border pb-3">
             <DrawerTitle className="flex items-center gap-2">
