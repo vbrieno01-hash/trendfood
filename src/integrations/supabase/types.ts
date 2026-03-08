@@ -1181,6 +1181,7 @@ export type Database = {
       }
       stock_items: {
         Row: {
+          cost_per_unit: number
           created_at: string
           id: string
           min_quantity: number
@@ -1190,6 +1191,7 @@ export type Database = {
           unit: string
         }
         Insert: {
+          cost_per_unit?: number
           created_at?: string
           id?: string
           min_quantity?: number
@@ -1199,6 +1201,7 @@ export type Database = {
           unit?: string
         }
         Update: {
+          cost_per_unit?: number
           created_at?: string
           id?: string
           min_quantity?: number
