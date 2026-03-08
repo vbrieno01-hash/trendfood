@@ -1,51 +1,29 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Capturar o cartão completo (logo + nome + QR) no download PNG
 
-### Problema
+O problema: o botão "Baixar PNG" captura apenas o SVG do QR Code. O cartão inteiro (logo, nome, texto "Escaneie...") é ignorado.
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+### Solução
 
-### Alterações
+Usar `html2canvas` (já instalado no projeto) para capturar o container `#qr-print-area` inteiro como imagem, em vez de serializar apenas o SVG.
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+### Alteração em `src/components/dashboard/StoreProfileTab.tsx`
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+1. Importar `html2canvas` no topo do arquivo
+2. Substituir a lógica do `onClick` do botão "Baixar PNG" (linhas 968-988) por:
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
-
-### UI no Checkout
-
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+```ts
+onClick={async () => {
+  const container = document.getElementById("qr-print-area");
+  if (!container) return;
+  const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff" });
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = `qrcode-${form.slug}.png`;
+  a.click();
+}}
 ```
 
-### Escopo
-
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+Isso captura todo o conteúdo visual do cartão — logo do chef, nome da loja, QR code e texto — em uma única imagem PNG.
 
