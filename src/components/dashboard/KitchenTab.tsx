@@ -427,8 +427,8 @@ export default function KitchenTab({
                   return (
                     <div
                       key={order.id}
-                      className={`rounded-2xl border-2 bg-card p-5 space-y-3 transition-all ${
-                        isOrderNew ? "border-orange-400 shadow-lg shadow-orange-100 animate-pulse" : "border-orange-300"
+                      className={`rounded-2xl border-2 dashboard-glass p-5 space-y-3 transition-all animate-dashboard-fade-in ${
+                        isOrderNew ? "border-primary shadow-lg shadow-primary/20 animate-pulse" : "border-primary/40"
                       }`}
                     >
                       <div className="flex items-start justify-between">
