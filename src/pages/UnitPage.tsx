@@ -103,7 +103,7 @@ const UnitPage = () => {
   };
 
   useEffect(() => {
-    const onPopState = (e: PopStateEvent) => {
+    const onPopState = (_e: PopStateEvent) => {
       const prev = historyStateRef.current;
       if (prev === "checkout") {
         historyStateRef.current = null;
