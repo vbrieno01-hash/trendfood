@@ -88,6 +88,7 @@ export default function StoreProfileTab({ organization }: { organization: Organi
   const [secretsLoading, setSecretsLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const bannerFileRef = useRef<HTMLInputElement>(null);
+  const qrRef = useRef<SVGSVGElement | null>(null);
 
   // Load existing gateway secrets
   useEffect(() => {
