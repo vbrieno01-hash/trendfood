@@ -884,7 +884,7 @@ const UnitPage = () => {
             </div>
           ) : (
             <button
-              onClick={() => setCheckoutOpen(true)}
+              onClick={() => { pushDrawerState("checkout"); setCheckoutOpen(true); }}
               className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95 animate-in slide-in-from-bottom-4 duration-300"
               style={{ backgroundColor: primaryColor }}
             >
