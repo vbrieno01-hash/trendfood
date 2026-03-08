@@ -286,7 +286,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando histórico…</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-2xl">
+        <div className="text-center py-16 dashboard-glass rounded-2xl">
           <p className="text-4xl mb-3">📋</p>
           <p className="font-semibold text-foreground">Nenhum pedido encontrado.</p>
           <p className="text-muted-foreground text-sm mt-1">Tente ajustar os filtros.</p>
