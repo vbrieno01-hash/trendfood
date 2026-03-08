@@ -86,12 +86,12 @@ export default function StockTab({ orgId }: StockTabProps) {
       </div>
 
       {items.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
+        <div className="dashboard-glass rounded-2xl">
+          <div className="py-12 text-center text-muted-foreground">
             <Package className="w-10 h-10 mx-auto mb-3 opacity-40" />
             <p className="font-medium">Nenhum insumo cadastrado</p>
             <p className="text-sm">Adicione ingredientes para controlar o estoque automaticamente.</p>
-          </CardContent>
+          </div>
         </Card>
       ) : (
         <Card>
