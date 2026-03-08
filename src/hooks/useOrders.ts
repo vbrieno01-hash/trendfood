@@ -130,8 +130,14 @@ export const useOrders = (
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setTimeout(() => {
+              qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+            }, 1500);
+          } else {
+            qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+          }
         }
       )
       .subscribe();
