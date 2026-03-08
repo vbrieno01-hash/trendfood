@@ -39,6 +39,7 @@ const BRAZIL_STATES = [
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
 ];
 
+import chefLogo from "@/assets/chef-logo.png";
 import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
 import { compressImage } from "@/lib/compressImage";
 
@@ -944,9 +945,10 @@ export default function StoreProfileTab({ organization }: { organization: Organi
           className="flex flex-col items-center gap-3 p-6 bg-white rounded-xl border border-border mx-auto"
           style={{ maxWidth: 320 }}
         >
-          <p className="text-lg font-bold text-gray-900">
-            {form.emoji} {form.name}
-          </p>
+          <div className="flex items-center gap-2">
+            <img src={chefLogo} alt="Logo" className="w-6 h-6 object-contain" />
+            <span className="text-lg font-bold text-gray-900">{form.name}</span>
+          </div>
           <QRCodeSVG
             ref={qrRef}
             value={publicUrl}
