@@ -8,6 +8,7 @@
  */
 
 import type { ReceiptData } from "@/lib/receiptData";
+import { QRCodeSVG } from "qrcode.react";
 
 interface ThermalReceiptProps {
   data: ReceiptData;
