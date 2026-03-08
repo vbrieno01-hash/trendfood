@@ -159,6 +159,25 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
         </div>
       </div>
 
+      {/* WhatsApp Group */}
+      <div className="flex gap-4 items-center rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-950/20 p-5">
+        <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
+          <MessageCircle className="w-6 h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-foreground">Comunidade TrendFood</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Troque ideias, tire dúvidas e fique por dentro das novidades!
+          </p>
+        </div>
+        <Button
+          className="shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white"
+          onClick={() => window.open("https://chat.whatsapp.com/EfyhyGDZPceEcIcu0gb8yq?mode=gi_t", "_blank")}
+        >
+          Entrar no Grupo
+        </Button>
+      </div>
+
       {/* Bonus history */}
       {bonuses.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
