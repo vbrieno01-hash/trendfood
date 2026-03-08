@@ -53,7 +53,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function StoreProfileTab({ organization }: { organization: Organization }) {
+export default function StoreProfileTab({ organization, effectivePlan = "free" }: { organization: Organization; effectivePlan?: string }) {
   const { refreshOrganization, user, organizations } = useAuth();
   const [freeAbove, setFreeAbove] = useState<number>(
     (organization.delivery_config as any)?.free_above ?? 80
