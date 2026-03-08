@@ -104,7 +104,7 @@ export default function SettingsTab() {
       </div>
 
       {/* Account info */}
-      <div className="rounded-xl border border-border overflow-hidden">
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-1">
         <div className="px-4 py-3 border-b border-border bg-secondary/30">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Informações da conta</p>
         </div>
