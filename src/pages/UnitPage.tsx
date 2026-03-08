@@ -62,12 +62,62 @@ const UnitPage = () => {
 
   const placeOrder = usePlaceOrder();
 
-  // Cart state
-  const [cart, setCart] = useState<Record<string, CartItem>>({});
+  // Cart state — persisted in localStorage so swipe-back gestures don't lose items
+  const cartStorageKey = `cart_${slug}`;
+  const [cart, setCart] = useState<Record<string, CartItem>>(() => {
+    try {
+      const saved = localStorage.getItem(cartStorageKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   // Item detail drawer
   const [selectedItem, setSelectedItem] = useState<typeof menuItems[0] | null>(null);
+
+  // Persist cart to localStorage on every change
+  useEffect(() => {
+    try {
+      if (Object.keys(cart).length > 0) {
+        localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+      } else {
+        localStorage.removeItem(cartStorageKey);
+      }
+    } catch { /* quota exceeded — ignore */ }
+  }, [cart, cartStorageKey]);
+
+  // Intercept back gesture: push history state when drawers open, pop closes them
+  const historyStateRef = useRef<string | null>(null);
+
+  const pushDrawerState = (drawer: string) => {
+    historyStateRef.current = drawer;
+    window.history.pushState({ drawer }, "");
+  };
+
+  const popDrawerState = () => {
+    if (historyStateRef.current) {
+      historyStateRef.current = null;
+      // Go back to remove the extra history entry we pushed
+      window.history.back();
+    }
+  };
+
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      const prev = historyStateRef.current;
+      if (prev === "checkout") {
+        historyStateRef.current = null;
+        setCheckoutOpen(false);
+        setShowPixScreen(false);
+      } else if (prev === "item") {
+        historyStateRef.current = null;
+        setSelectedItem(null);
+      }
+      // If no drawer was open, let normal navigation happen
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
