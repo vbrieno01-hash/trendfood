@@ -119,6 +119,9 @@ export default function StockTab({ orgId }: StockTabProps) {
                         </div>
                       </TableCell>
                       <TableCell>{item.unit}</TableCell>
+                      <TableCell className="text-right font-mono text-muted-foreground">
+                        {item.cost_per_unit > 0 ? `R$ ${item.cost_per_unit.toFixed(2).replace(".", ",")}` : "—"}
+                      </TableCell>
                       <TableCell className={`text-right font-mono ${isZero ? "text-destructive font-bold" : isLow ? "text-amber-600 font-semibold" : ""}`}>
                         {item.quantity}
                       </TableCell>
