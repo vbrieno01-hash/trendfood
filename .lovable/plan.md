@@ -1,51 +1,37 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Fix: Gesto de voltar reseta carrinho e fecha o app
 
 ### Problema
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+Em celulares modernos, o gesto de arrastar para voltar aciona `history.back()`. Como o carrinho e checkout vivem apenas em `useState`, qualquer navegação para trás destrói todo o estado — o cliente perde os itens e volta ao início.
 
-### Alterações
+### Solução (2 partes)
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+**1. Persistir carrinho em localStorage** (`src/pages/UnitPage.tsx`)
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+- Salvar `cart` em `localStorage` com chave `cart_{slug}` a cada alteração
+- Restaurar ao montar o componente
+- Limpar apenas no `resetCheckout` (após pedido confirmado)
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+Isso garante que mesmo se o cliente sair da página acidentalmente, ao voltar o carrinho estará intacto.
 
-### UI no Checkout
+**2. Interceptar gesto de voltar com history state** (`src/pages/UnitPage.tsx`)
 
-```text
-[ 📍 Usar minha localização ]
+- Quando o **checkout drawer** abre → `history.pushState({ drawer: "checkout" })`
+- Quando o **item detail drawer** abre → `history.pushState({ drawer: "item" })`
+- Listener de `popstate`: se o estado anterior era um drawer, apenas fecha o drawer em vez de navegar
+- Quando drawers fecham normalmente (pelo X ou arraste), remover a entrada extra do history
 
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
+Resultado: gesto de voltar fecha o drawer atual em vez de sair da página.
 
-CEP: [_________]
-Rua: [_________]
-...
-```
+**3. Proteção no DashboardPage** (`src/pages/DashboardPage.tsx`)
 
-### Escopo
+- Na montagem, se não há estado no history, fazer `pushState` para criar uma entrada
+- No `popstate`, se seria sair do dashboard, re-push e manter na página
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+### Arquivos a alterar
+
+1. `src/pages/UnitPage.tsx` — localStorage para cart + history state para drawers
+2. `src/pages/DashboardPage.tsx` — proteção contra saída acidental por gesto
 
