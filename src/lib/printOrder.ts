@@ -16,7 +16,7 @@ const san = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
  * Generate HTML for browser print from the SHARED ReceiptData model.
  * This ensures the browser-printed receipt matches the ThermalReceipt component.
  */
-function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): string {
+function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string, footerQrDataUrl?: string): string {
   // Items HTML
   const itemsHtml = data.items.map((item) => {
     const nameWithCustomer = san(item.customerName ? `${item.baseName} - ${item.customerName}` : item.baseName);
@@ -171,7 +171,7 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): stri
   <div class="divider"></div>
   <div class="footer">Bom apetite!!!</div>
   <div class="footer-brand">Powered By: TrendFood</div>
-  <div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.lovable.app/</div>
+  ${footerQrDataUrl ? `<div style="text-align:center;margin-top:6px;"><img src="${footerQrDataUrl}" alt="QR" style="width:80px;height:80px;display:inline-block;" /></div>` : '<div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.lovable.app/</div>'}
 </body>
 </html>`;
 }
@@ -206,7 +206,15 @@ export async function printOrder(
     } catch { /* QR code generation failed */ }
   }
 
-  const html = buildPrintHtml(data, is58, pixHtml);
+  // Footer QR code
+  let footerQrDataUrl: string | undefined;
+  try {
+    footerQrDataUrl = await QRCode.toDataURL("https://trendfood.lovable.app/", {
+      width: 80, margin: 1, errorCorrectionLevel: "L",
+    });
+  } catch { /* ignore */ }
+
+  const html = buildPrintHtml(data, is58, pixHtml, footerQrDataUrl);
 
   win.document.write(html);
   win.document.close();
