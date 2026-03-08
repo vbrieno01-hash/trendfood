@@ -204,7 +204,7 @@ export default function KitchenTab({
           // Notify customer via WhatsApp
           const phone = parsePhoneFromNotes(order.notes);
           if (phone) {
-            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), orgName);
+            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), orgName, order.notes);
           }
           toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
         },
