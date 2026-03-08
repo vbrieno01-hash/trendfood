@@ -137,10 +137,10 @@ export async function recalculateNullDistances(
     try {
       const result = await calculateDistanceViaEdge(storeAddress, d.customer_address, courierConfig ?? undefined);
 
-      if (result.distance_km !== null && result.fee !== null) {
+      if (result.distance_km !== null) {
         await supabase
           .from("deliveries")
-          .update({ distance_km: result.distance_km, fee: result.fee })
+          .update({ distance_km: result.distance_km })
           .eq("id", d.id);
         fixed++;
       }
