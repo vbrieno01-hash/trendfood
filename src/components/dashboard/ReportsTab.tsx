@@ -344,50 +344,42 @@ ${watermarkHtml}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <DollarSign className="w-4 h-4 text-emerald-600" />
-              </div>
-              <span className="text-xs text-muted-foreground">Faturamento</span>
+        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-1">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white">
+              <DollarSign className="w-4 h-4" />
             </div>
-            <p className="font-bold text-foreground text-xl">{fmtBRL(kpis.totalRevenue)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
-              </div>
-              <span className="text-xs text-muted-foreground">Ticket Médio</span>
+            <span className="text-xs text-muted-foreground">Faturamento</span>
+          </div>
+          <p className="font-bold text-foreground text-xl">{fmtBRL(kpis.totalRevenue)}</p>
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-2">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
+              <TrendingUp className="w-4 h-4" />
             </div>
-            <p className="font-bold text-foreground text-xl">{fmtBRL(kpis.avgTicket)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4 text-primary" />
-              </div>
-              <span className="text-xs text-muted-foreground">Total Pedidos</span>
+            <span className="text-xs text-muted-foreground">Ticket Médio</span>
+          </div>
+          <p className="font-bold text-foreground text-xl">{fmtBRL(kpis.avgTicket)}</p>
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white">
+              <ShoppingCart className="w-4 h-4" />
             </div>
-            <p className="font-bold text-foreground text-xl">{kpis.totalOrders}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-purple-600" />
-              </div>
-              <span className="text-xs text-muted-foreground">Pedidos/dia</span>
+            <span className="text-xs text-muted-foreground">Total Pedidos</span>
+          </div>
+          <p className="font-bold text-foreground text-xl">{kpis.totalOrders}</p>
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center text-white">
+              <Clock className="w-4 h-4" />
             </div>
-            <p className="font-bold text-foreground text-xl">{kpis.avgOrdersPerDay.toFixed(1)}</p>
-          </CardContent>
-        </Card>
+            <span className="text-xs text-muted-foreground">Pedidos/dia</span>
+          </div>
+          <p className="font-bold text-foreground text-xl">{kpis.avgOrdersPerDay.toFixed(1)}</p>
+        </div>
       </div>
 
       {/* Weekly comparison */}
