@@ -1,33 +1,51 @@
 
 
-## Plano: Usar taxa de frete do lojista (bairros) na entrega do motoboy
+## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
 
 ### Problema
-Quando uma delivery é criada, o sistema usa `courier_config.base_fee` e depois sobrescreve com cálculo de distância via geocoding. Mas o frete real já foi definido pelo lojista na tabela de bairros e está salvo nas `notes` do pedido como `FRETE:R$ 6,00`.
 
-### Solução
+Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
 
-**Arquivo: `src/hooks/useCreateDelivery.ts`**
+### Alterações
 
-1. Adicionar função `parseFreteFromNotes(notes)`:
-   - Extrai `FRETE:R$ X,XX` → retorna número (ex: 6.00)
-   - `FRETE:Grátis` → retorna 0
-   - Não encontrado → retorna `null` (fallback para base_fee)
+**1. `src/components/checkout/AddressFields.tsx`**
+- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
+- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
+- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
+- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
+- Ao clicar num card: preencher CEP, rua e bairro automaticamente
+- Limpar candidatos quando o CEP muda manualmente
 
-2. Em `createDeliveryForOrder`: usar o frete extraído das notes como `fee` no insert
+**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
+- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
+- Não alterar neste momento
 
-3. Em `calculateAndUpdateDelivery`: atualizar apenas `distance_km`, **não sobrescrever `fee`**
+**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
+- Mesma situação do StoreProfileTab — configuração pontual
+- Não alterar neste momento
 
-4. Em `recalculateNullDistances`: idem, atualizar só `distance_km`
-
-### Fluxo
+### UI no Checkout
 
 ```text
-Pedido notes: "...FRETE:R$ 6,00..."
-  → parseFreteFromNotes → 6.00
-  → INSERT delivery (fee = 6.00)
-  → Background geocoding → UPDATE distance_km only
+[ 📍 Usar minha localização ]
+
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
+
+CEP: [_________]
+Rua: [_________]
+...
 ```
 
-Um único arquivo modificado, sem migração.
+### Escopo
+
+- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
+- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
+- Apenas mudanças no frontend
 

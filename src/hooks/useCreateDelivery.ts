@@ -19,6 +19,21 @@ export function parsePhoneFromNotes(notes: string | null | undefined): string | 
 }
 
 /**
+ * Extract the delivery fee from notes (set by store owner via neighborhood pricing).
+ * Formats: "FRETE:R$ 6,00" → 6.00 | "FRETE:Grátis" → 0 | not found → null
+ */
+export function parseFreteFromNotes(notes: string | null | undefined): number | null {
+  if (!notes) return null;
+  const match = notes.match(/FRETE:([^|]+)/);
+  if (!match) return null;
+  const raw = match[1].trim();
+  if (/gr[aá]tis/i.test(raw)) return 0;
+  const numeric = raw.replace(/[^\d,\.]/g, "").replace(",", ".");
+  const val = parseFloat(numeric);
+  return isNaN(val) ? null : val;
+}
+
+/**
  * Create a delivery record for a delivery order marked as ready.
  * Distance/fee calculation runs in background via edge function.
  */
@@ -38,7 +53,10 @@ export async function createDeliveryForOrder(
 
   const customerAddress = parseAddressFromNotes(order.notes);
 
-  const baseFee = courierConfig?.base_fee ?? 3.0;
+  // Use the fee set by the store owner (from neighborhood pricing), fallback to courier base_fee
+  const ownerFee = parseFreteFromNotes(order.notes);
+  const fee = ownerFee !== null ? ownerFee : (courierConfig?.base_fee ?? 3.0);
+
   const { data: delivery, error } = await supabase
     .from("deliveries")
     .insert({
@@ -46,7 +64,7 @@ export async function createDeliveryForOrder(
       organization_id: organizationId,
       customer_address: customerAddress,
       status: "pendente",
-      fee: baseFee,
+      fee,
     })
     .select("id")
     .single();
@@ -81,12 +99,13 @@ async function calculateAndUpdateDelivery(
       return;
     }
 
+    // Only update distance_km — fee comes from the store owner's neighborhood pricing
     await supabase
       .from("deliveries")
-      .update({ distance_km: result.distance_km, fee: result.fee })
+      .update({ distance_km: result.distance_km })
       .eq("id", deliveryId);
 
-    console.log(`[delivery ${deliveryId}] Distance: ${result.distance_km.toFixed(2)} km, fee: R$ ${result.fee.toFixed(2)}`);
+    console.log(`[delivery ${deliveryId}] Distance: ${result.distance_km.toFixed(2)} km`);
   } catch (e) {
     console.error(`[delivery ${deliveryId}] Error calculating distance:`, e);
   }
@@ -118,10 +137,10 @@ export async function recalculateNullDistances(
     try {
       const result = await calculateDistanceViaEdge(storeAddress, d.customer_address, courierConfig ?? undefined);
 
-      if (result.distance_km !== null && result.fee !== null) {
+      if (result.distance_km !== null) {
         await supabase
           .from("deliveries")
-          .update({ distance_km: result.distance_km, fee: result.fee })
+          .update({ distance_km: result.distance_km })
           .eq("id", d.id);
         fixed++;
       }
