@@ -1,10 +1,9 @@
 import { toast } from "sonner";
 
-/**
 interface OpenWhatsAppOptions {
   /**
-   * 'operational' = order flow, courier notification — may try location.href in non-restricted contexts
-   * 'share' = sharing buttons inside dashboard — never navigate away
+   * 'operational' = order flow, courier notification
+   * 'share' = sharing buttons inside dashboard
    */
   mode?: "operational" | "share";
 }
@@ -12,8 +11,7 @@ interface OpenWhatsAppOptions {
 /**
  * Opens a WhatsApp URL with robust fallback:
  * 1. Tries window.open (new tab)
- * 2. If in unrestricted context + operational mode → tries location.href
- * 3. Always shows a manual toast if automatic methods fail
+ * 2. Shows a manual toast if popup was blocked — NEVER navigates away
  */
 export function openWhatsAppWithFallback(url: string, _options: OpenWhatsAppOptions = {}): void {
   // Step 1: try window.open
@@ -27,8 +25,7 @@ export function openWhatsAppWithFallback(url: string, _options: OpenWhatsAppOpti
 
   if (opened) return;
 
-  // Step 2: NEVER use location.href — it navigates away and destroys SPA state.
-  // Always show a manual fallback toast so the user stays on the page.
+  // Step 2: toast with manual link — keeps user on page, preserves SPA state
   toast.info("Toque no botão abaixo para abrir o WhatsApp.", {
     action: {
       label: "Abrir WhatsApp",
