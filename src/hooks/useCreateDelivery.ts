@@ -99,12 +99,13 @@ async function calculateAndUpdateDelivery(
       return;
     }
 
+    // Only update distance_km — fee comes from the store owner's neighborhood pricing
     await supabase
       .from("deliveries")
-      .update({ distance_km: result.distance_km, fee: result.fee })
+      .update({ distance_km: result.distance_km })
       .eq("id", deliveryId);
 
-    console.log(`[delivery ${deliveryId}] Distance: ${result.distance_km.toFixed(2)} km, fee: R$ ${result.fee.toFixed(2)}`);
+    console.log(`[delivery ${deliveryId}] Distance: ${result.distance_km.toFixed(2)} km`);
   } catch (e) {
     console.error(`[delivery ${deliveryId}] Error calculating distance:`, e);
   }
