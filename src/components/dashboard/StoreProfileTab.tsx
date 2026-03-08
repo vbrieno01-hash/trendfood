@@ -966,26 +966,14 @@ export default function StoreProfileTab({ organization }: { organization: Organi
             variant="outline"
             size="sm"
             className="gap-2"
-            onClick={() => {
+            onClick={async () => {
               const container = document.getElementById("qr-print-area");
-              const svg = container?.querySelector("svg");
-              if (!svg) return;
-              const canvas = document.createElement("canvas");
-              const ctx = canvas.getContext("2d")!;
-              const xml = new XMLSerializer().serializeToString(svg);
-              const img = new Image();
-              img.onload = () => {
-                canvas.width = img.width * 2;
-                canvas.height = img.height * 2;
-                ctx.fillStyle = "#fff";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                const a = document.createElement("a");
-                a.href = canvas.toDataURL("image/png");
-                a.download = `qrcode-${form.slug}.png`;
-                a.click();
-              };
-              img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
+              if (!container) return;
+              const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff" });
+              const a = document.createElement("a");
+              a.href = canvas.toDataURL("image/png");
+              a.download = `qrcode-${form.slug}.png`;
+              a.click();
             }}
           >
             <Download className="w-4 h-4" />
