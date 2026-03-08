@@ -171,7 +171,7 @@ export default function FeaturesTab({ effectivePlan }: FeaturesTabProps) {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="animate-dashboard-fade-in">
         <h1 className="text-xl font-bold text-foreground">Funcionalidades</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Veja todas as funcionalidades da plataforma e o que está disponível no seu plano.
