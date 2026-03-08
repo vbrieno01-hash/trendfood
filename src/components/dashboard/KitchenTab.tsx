@@ -319,9 +319,11 @@ export default function KitchenTab({
   return (
     <div className="space-y-6">
       {/* Section header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Flame className="w-5 h-5 text-orange-500" />
+      <div className="flex items-center justify-between flex-wrap gap-2 animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <Flame className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Cozinha (KDS)</h2>
           <span className="ml-1 text-sm text-muted-foreground">
             {orders.length} pedido{orders.length !== 1 ? "s" : ""}
