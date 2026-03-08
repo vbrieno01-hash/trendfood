@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Package, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const UNITS = ["un", "kg", "g", "L", "ml", "pct", "cx"];
 
