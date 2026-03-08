@@ -58,17 +58,17 @@ function MetricCard({
 }) {
   return (
     <div
-      className={`rounded-xl border p-4 flex flex-col gap-1 ${
+      className={`dashboard-glass rounded-2xl p-4 flex flex-col gap-1 ${
         highlight
-          ? "border-green-500/30 bg-green-500/10"
-          : "border-border bg-card"
+          ? "!border-emerald-500/30"
+          : ""
       }`}
     >
       <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
         <Icon className="w-3.5 h-3.5" />
         {label}
       </div>
-      <p className={`text-lg font-bold ${highlight ? "text-green-500" : "text-foreground"}`}>
+      <p className={`text-lg font-bold ${highlight ? "text-emerald-500" : "text-foreground"}`}>
         {value}
       </p>
     </div>
@@ -99,9 +99,9 @@ function CaixaFechado({
     <div className="space-y-8">
       {/* Open card */}
       <div className="max-w-sm mx-auto">
-        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm space-y-6">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Wallet className="w-7 h-7 text-primary" />
+        <div className="dashboard-glass rounded-2xl p-8 text-center space-y-6">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mx-auto text-white">
+            <Wallet className="w-7 h-7" />
           </div>
           <div>
             <h2 className="font-bold text-foreground text-xl">Caixa Fechado</h2>
@@ -139,7 +139,7 @@ function CaixaFechado({
             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : history.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+          <div className="dashboard-glass rounded-2xl p-6 text-center text-muted-foreground text-sm">
             Nenhum turno encerrado ainda
           </div>
         ) : (
@@ -244,7 +244,7 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
   return (
     <div className="space-y-6">
       {/* Hero card */}
-      <div className="rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-green-600/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="dashboard-glass rounded-2xl border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1.5">
             <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -281,7 +281,7 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
       <div className="space-y-3">
         <h3 className="font-semibold text-foreground text-base">Sangrias do turno</h3>
         {withdrawals.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-5 text-center text-muted-foreground text-sm">
+          <div className="dashboard-glass rounded-2xl p-5 text-center text-muted-foreground text-sm">
             Nenhuma sangria registrada neste turno
           </div>
         ) : (

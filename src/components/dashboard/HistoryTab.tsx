@@ -111,9 +111,11 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <History className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between flex-wrap gap-2 animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <History className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Histórico de Pedidos</h2>
         </div>
         <div className="flex items-center gap-2">
@@ -263,19 +265,19 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
       {/* Summary */}
       {!isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-1">
             <p className="text-xs text-muted-foreground">Pedidos</p>
             <p className="font-bold text-foreground text-2xl">{filtered.length}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-2">
             <p className="text-xs text-muted-foreground">Receita</p>
             <p className="font-bold text-foreground text-2xl">{fmtBRL(totalRevenue)}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-3">
             <p className="text-xs text-muted-foreground">🍽️ Loja</p>
             <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number > 0).length}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-4">
             <p className="text-xs text-muted-foreground">🛵 Entregas</p>
             <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number === 0).length}</p>
           </div>
@@ -286,7 +288,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando histórico…</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-2xl">
+        <div className="text-center py-16 dashboard-glass rounded-2xl">
           <p className="text-4xl mb-3">📋</p>
           <p className="font-semibold text-foreground">Nenhum pedido encontrado.</p>
           <p className="text-muted-foreground text-sm mt-1">Tente ajustar os filtros.</p>
@@ -298,7 +300,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
             return (
               <div
                 key={order.id}
-                className="bg-card border border-border rounded-xl p-4 space-y-2"
+                className="dashboard-glass rounded-xl p-4 space-y-2 dashboard-table-row"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">

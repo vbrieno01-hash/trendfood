@@ -1,7 +1,6 @@
 import { useDeliveredOrders, useDeliveredUnpaidOrders, useOrders } from "@/hooks/useOrders";
 import { extractDeliveryFee } from "@/lib/formatReceiptText";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend, BarChart,
 } from "recharts";
@@ -36,10 +35,8 @@ export default function HomeTab({ organization }: { organization: Organization }
   const { refreshOrganization } = useAuth();
   const [pauseLoading, setPauseLoading] = useState(false);
 
-  // Occupied tables: distinct table_number from active orders (excluding delivery = table 0)
   const occupiedTables = new Set(activeOrders.filter(o => o.table_number > 0).map(o => o.table_number)).size;
 
-  // Low stock alerts
   const { data: lowStockCount = 0 } = useQuery({
     queryKey: ["low_stock_count", organization.id],
     queryFn: async () => {
@@ -72,7 +69,6 @@ export default function HomeTab({ organization }: { organization: Organization }
 
   const isLoading = loadingDelivered || loadingUnpaid;
 
-  // ── Today's stats ──────────────────────────────────────────────
   const today = startOfDay(new Date());
   const yesterday = subDays(today, 1);
   const todayDelivered = delivered.filter((o) => isSameDay(new Date(o.created_at), today));
@@ -100,13 +96,11 @@ export default function HomeTab({ organization }: { organization: Organization }
       ? totalRevenue / delivered.filter((o) => o.paid).length
       : 0;
 
-  // Revenue trend vs yesterday
   const revenueDelta =
     yesterdayRevenue > 0
       ? Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100)
       : null;
 
-  // ── Last 7 days chart data ─────────────────────────────────────
   const classifyPayment = (method: string | null | undefined): "Dinheiro" | "PIX" | "Cartão" => {
     const m = (method ?? "").toLowerCase().trim();
     if (m === "pix") return "PIX";
@@ -127,7 +121,6 @@ export default function HomeTab({ organization }: { organization: Organization }
     };
   });
 
-  // ── Payment method chart data ──────────────────────────────────
   const paymentChartData = Array.from({ length: 7 }, (_, i) => {
     const day = subDays(new Date(), 6 - i);
     const dayPaid = delivered.filter((o) => o.paid && isSameDay(new Date(o.created_at), day));
@@ -153,37 +146,28 @@ export default function HomeTab({ organization }: { organization: Organization }
       label: "Faturamento total",
       value: fmtBRL(totalRevenue),
       icon: <DollarSign className="w-5 h-5" />,
-      color: "text-green-600 dark:text-green-400",
-      border: "border-green-200 dark:border-green-800",
-      bg: "bg-green-50 dark:bg-green-950/30",
+      gradient: "from-emerald-500 to-emerald-600",
     },
     {
       label: "Pedidos entregues hoje",
       value: todayDelivered.length,
       icon: <ShoppingBag className="w-5 h-5" />,
-      color: "text-blue-600 dark:text-blue-400",
-      border: "border-blue-200 dark:border-blue-800",
-      bg: "bg-blue-50 dark:bg-blue-950/30",
+      gradient: "from-blue-500 to-blue-600",
     },
     {
       label: "Aguardando pagamento",
       value: pendingPayment,
       icon: <Clock className="w-5 h-5" />,
-      color: "text-amber-600 dark:text-amber-400",
-      border: "border-amber-200 dark:border-amber-800",
-      bg: "bg-amber-50 dark:bg-amber-950/30",
+      gradient: "from-amber-500 to-amber-600",
     },
     {
       label: "Ticket médio",
       value: fmtBRL(avgTicket),
       icon: <TrendingUp className="w-5 h-5" />,
-      color: "text-purple-600 dark:text-purple-400",
-      border: "border-purple-200 dark:border-purple-800",
-      bg: "bg-purple-50 dark:bg-purple-950/30",
+      gradient: "from-violet-500 to-violet-600",
     },
   ];
 
-  // Date header
   const todayLabel = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
   const todayCapitalized = todayLabel.charAt(0).toUpperCase() + todayLabel.slice(1);
 
@@ -205,55 +189,61 @@ export default function HomeTab({ organization }: { organization: Organization }
   return (
     <div className="space-y-6">
       {/* ── Header ────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 animate-dashboard-fade-in">
         <div>
           <h1 className="text-3xl font-black text-foreground leading-tight tracking-tight">
             {organization.name}
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">{todayCapitalized}</p>
         </div>
-        {organization.subscription_status && (
-          <span
-            className={`mt-1 text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0 ${
-              organization.subscription_status === "active"
-                ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800"
+        <div className="flex items-center gap-2">
+          {organization.subscription_status && (
+            <span
+              className={`mt-1 text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0 ${
+                organization.subscription_status === "active"
+                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                  : organization.subscription_status === "inactive"
+                  ? "bg-destructive/10 text-destructive border-destructive/20"
+                  : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+              }`}
+            >
+              {organization.subscription_status === "active"
+                ? "✓ Plano Ativo"
                 : organization.subscription_status === "inactive"
-                ? "bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800"
-                : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800"
-            }`}
-          >
-            {organization.subscription_status === "active"
-              ? "✓ Plano Ativo"
-              : organization.subscription_status === "inactive"
-              ? "✗ Inativo"
-              : "Período de Teste"}
+                ? "✗ Inativo"
+                : "Período de Teste"}
+            </span>
+          )}
+          <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2.5 py-1 animate-admin-pulse-live">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            live
           </span>
-        )}
+        </div>
       </div>
 
       {/* ── Quick Summary ─────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50">
-            <ClipboardList className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-1">
+          <div className="dashboard-section-icon">
+            <ClipboardList className="w-5 h-5" />
           </div>
           <div>
             <p className="text-2xl font-black text-foreground leading-tight">{activeOrders.length}</p>
             <p className="text-xs text-muted-foreground font-medium">Pedidos Ativos</p>
           </div>
         </div>
-        <div className="rounded-xl border border-violet-200 bg-violet-50 dark:bg-violet-950/30 dark:border-violet-800 p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/50">
-            <LayoutGrid className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+        <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-2">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white flex items-center justify-center">
+            <LayoutGrid className="w-5 h-5" />
           </div>
           <div>
             <p className="text-2xl font-black text-foreground leading-tight">{occupiedTables}</p>
             <p className="text-xs text-muted-foreground font-medium">Mesas Ocupadas</p>
           </div>
         </div>
-        <div className={`rounded-xl border p-4 flex items-center gap-3 ${lowStockCount > 0 ? "border-red-400 bg-red-50 dark:bg-red-950/30 dark:border-red-600 animate-neon-pulse shadow-lg shadow-red-500/30" : "border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800"}`}>
-          <div className={`p-2 rounded-lg ${lowStockCount > 0 ? "bg-red-100 dark:bg-red-900/50" : "bg-green-100 dark:bg-green-900/50"}`}>
-            <AlertTriangle className={`w-5 h-5 ${lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`} />
+        <div className={`dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-3 ${lowStockCount > 0 ? "!border-destructive/40 animate-neon-pulse shadow-lg shadow-destructive/20" : ""}`}>
+          <div className={`p-2 rounded-xl flex items-center justify-center text-white ${lowStockCount > 0 ? "bg-gradient-to-br from-red-500 to-red-600" : "bg-gradient-to-br from-emerald-500 to-emerald-600"}`}>
+            <AlertTriangle className="w-5 h-5" />
           </div>
           <div>
             <p className="text-2xl font-black text-foreground leading-tight">{lowStockCount}</p>
@@ -263,12 +253,16 @@ export default function HomeTab({ organization }: { organization: Organization }
       </div>
 
       {/* ── Pause toggle ─────────────────────────────────── */}
-      <div className={`rounded-xl border p-4 flex items-center justify-between gap-3 ${organization.paused ? "border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700" : "border-border bg-card"}`}>
+      <div className={`dashboard-glass rounded-2xl p-4 flex items-center justify-between gap-3 animate-dashboard-fade-in dash-delay-4 ${organization.paused ? "!border-amber-500/30" : ""}`}>
         <div className="flex items-center gap-3">
           {organization.paused ? (
-            <PauseCircle className="w-5 h-5 text-amber-600" />
+            <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+              <PauseCircle className="w-5 h-5" />
+            </div>
           ) : (
-            <PlayCircle className="w-5 h-5 text-green-600" />
+            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+              <PlayCircle className="w-5 h-5" />
+            </div>
           )}
           <div>
             <p className="text-sm font-semibold text-foreground">
@@ -291,14 +285,13 @@ export default function HomeTab({ organization }: { organization: Organization }
 
       {/* ── Today revenue hero ────────────────────────────── */}
       <div
-        className="rounded-2xl text-white p-5 flex items-center justify-between shadow-lg overflow-hidden relative"
+        className="rounded-2xl text-white p-5 flex items-center justify-between shadow-lg overflow-hidden relative animate-dashboard-slide-up dash-delay-5"
         style={{
-          background: "linear-gradient(135deg, hsl(0 84% 46%), hsl(0 84% 35%))",
+          background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.75))",
         }}
       >
-        {/* Dot pattern overlay */}
         <div
-          className="absolute inset-0 opacity-10"
+          className="absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
             backgroundSize: "18px 18px",
@@ -336,12 +329,12 @@ export default function HomeTab({ organization }: { organization: Organization }
 
       {/* ── Stats cards ───────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat) => (
+        {stats.map((stat, idx) => (
           <div
             key={stat.label}
-            className={`rounded-xl border ${stat.border} ${stat.bg} p-4 flex flex-col gap-3`}
+            className={`dashboard-glass rounded-2xl p-4 flex flex-col gap-3 animate-dashboard-fade-in dash-delay-${idx + 1}`}
           >
-            <div className={`${stat.color}`}>
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.gradient} text-white flex items-center justify-center shadow-lg`}>
               {stat.icon}
             </div>
             <div>
@@ -353,8 +346,8 @@ export default function HomeTab({ organization }: { organization: Organization }
       </div>
 
       {/* ── Chart ─────────────────────────────────────────── */}
-      <Card className="border border-border shadow-sm">
-        <CardContent className="p-5">
+      <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-6">
+        <div className="p-5">
           <div className="mb-4">
             <h2 className="font-black text-foreground text-base">Últimos 7 dias</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -386,9 +379,10 @@ export default function HomeTab({ organization }: { organization: Organization }
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
+                    background: "hsl(var(--card) / 0.9)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid hsl(var(--border) / 0.5)",
+                    borderRadius: 12,
                     fontSize: 12,
                   }}
                   formatter={(value, name) => {
@@ -412,12 +406,12 @@ export default function HomeTab({ organization }: { organization: Organization }
               </ComposedChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* ── Payment method chart ──────────────────────────── */}
-      <Card className="border border-border shadow-sm">
-        <CardContent className="p-5">
+      <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-7">
+        <div className="p-5">
           <div className="mb-4">
             <h2 className="font-black text-foreground text-base">Faturamento por Método de Pagamento</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -441,9 +435,10 @@ export default function HomeTab({ organization }: { organization: Organization }
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
+                    background: "hsl(var(--card) / 0.9)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid hsl(var(--border) / 0.5)",
+                    borderRadius: 12,
                     fontSize: 12,
                   }}
                   formatter={(value: number, name: string) => [fmtBRL(value), name]}
@@ -455,8 +450,8 @@ export default function HomeTab({ organization }: { organization: Organization }
               </BarChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

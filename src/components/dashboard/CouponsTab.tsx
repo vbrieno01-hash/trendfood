@@ -79,15 +79,17 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <Tag className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <Tag className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Cupons de Desconto</h2>
           <span className="text-sm text-muted-foreground ml-1">
             {coupons.length} cupom{coupons.length !== 1 ? "ns" : ""}
           </span>
         </div>
-        <Button size="sm" onClick={() => { setForm(defaultForm); setDialogOpen(true); }}>
+        <Button size="sm" onClick={() => { setForm(defaultForm); setDialogOpen(true); }} className="shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4 mr-1.5" />
           Novo Cupom
         </Button>
@@ -97,7 +99,7 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando cupons…</p>
       ) : coupons.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-2xl">
+        <div className="text-center py-16 dashboard-glass rounded-2xl">
           <p className="text-4xl mb-3">🏷️</p>
           <p className="font-semibold text-foreground">Nenhum cupom criado ainda.</p>
           <p className="text-muted-foreground text-sm mt-1">Crie cupons de desconto para seus clientes.</p>
@@ -109,7 +111,7 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
             return (
               <div
                 key={coupon.id}
-                className="bg-card border border-border rounded-xl p-4 flex items-center gap-4"
+                className="dashboard-glass rounded-xl p-4 flex items-center gap-4 dashboard-table-row"
               >
                 {/* Code */}
                 <div className="flex-1 min-w-0">

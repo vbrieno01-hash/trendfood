@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStockItems, useAddStockItem, useUpdateStockItem, useDeleteStockItem, StockItem } from "@/hooks/useStockItems";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {} from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -73,27 +73,29 @@ export default function StockTab({ orgId }: StockTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Package className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <Package className="w-5 h-5" />
+          </div>
           <h2 className="text-lg font-bold">Estoque de Insumos</h2>
         </div>
-        <Button size="sm" onClick={openNew} className="gap-1.5">
+        <Button size="sm" onClick={openNew} className="gap-1.5 shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4" /> Novo Insumo
         </Button>
       </div>
 
       {items.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
+        <div className="dashboard-glass rounded-2xl">
+          <div className="py-12 text-center text-muted-foreground">
             <Package className="w-10 h-10 mx-auto mb-3 opacity-40" />
             <p className="font-medium">Nenhum insumo cadastrado</p>
             <p className="text-sm">Adicione ingredientes para controlar o estoque automaticamente.</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-slide-up">
+          <div className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -146,8 +148,8 @@ export default function StockTab({ orgId }: StockTabProps) {
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

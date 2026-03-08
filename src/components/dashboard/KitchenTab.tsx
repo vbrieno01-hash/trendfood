@@ -319,9 +319,11 @@ export default function KitchenTab({
   return (
     <div className="space-y-6">
       {/* Section header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Flame className="w-5 h-5 text-orange-500" />
+      <div className="flex items-center justify-between flex-wrap gap-2 animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <Flame className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Cozinha (KDS)</h2>
           <span className="ml-1 text-sm text-muted-foreground">
             {orders.length} pedido{orders.length !== 1 ? "s" : ""}
@@ -388,8 +390,8 @@ export default function KitchenTab({
               {btConnected ? "✓ Conectada" : "Parear impressora"}
             </Button>
           )}
-          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             ao vivo
           </span>
         </div>
@@ -425,8 +427,8 @@ export default function KitchenTab({
                   return (
                     <div
                       key={order.id}
-                      className={`rounded-2xl border-2 bg-card p-5 space-y-3 transition-all ${
-                        isOrderNew ? "border-orange-400 shadow-lg shadow-orange-100 animate-pulse" : "border-orange-300"
+                      className={`rounded-2xl border-2 dashboard-glass p-5 space-y-3 transition-all animate-dashboard-fade-in ${
+                        isOrderNew ? "border-primary shadow-lg shadow-primary/20 animate-pulse" : "border-primary/40"
                       }`}
                     >
                       <div className="flex items-start justify-between">

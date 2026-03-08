@@ -680,9 +680,9 @@ const DashboardPage = () => {
 
   // Sidebar nav button style helper
   const navBtnClass = (key: TabKey) =>
-    `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left ${
+    `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left hover:scale-[1.02] ${
       activeTab === key
-        ? "bg-primary text-white shadow-sm shadow-primary/30"
+        ? "bg-primary text-white shadow-md shadow-primary/30"
         : "text-white/60 hover:bg-white/10 hover:text-white"
     }`;
 
@@ -724,7 +724,7 @@ const DashboardPage = () => {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -733,11 +733,11 @@ const DashboardPage = () => {
       <aside
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
-          w-64 transform transition-transform duration-300
+          w-64 transform transition-transform duration-300 sidebar-glow
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
         `}
-        style={{ background: "hsl(220, 15%, 7%)" }}
+        style={{ background: "linear-gradient(180deg, hsl(220 15% 7%) 0%, hsl(25 20% 6%) 40%, hsl(220 15% 6%) 100%)" }}
       >
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/10">
@@ -853,7 +853,7 @@ const DashboardPage = () => {
       {/* ── Main Content ──────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden bg-card border-b border-border px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] flex items-center justify-between sticky top-0 z-30">
+        <header className="lg:hidden bg-card/80 backdrop-blur-lg border-b border-border px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] flex items-center justify-between sticky top-0 z-30">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-lg hover:bg-secondary transition-colors"
@@ -863,6 +863,10 @@ const DashboardPage = () => {
           <div className="flex items-center gap-2">
             <span className="text-xl">{organization.emoji}</span>
             <span className="font-bold text-sm">{organization.name}</span>
+            <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              live
+            </span>
           </div>
           <div className="w-9" />
         </header>

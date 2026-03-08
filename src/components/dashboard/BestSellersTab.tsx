@@ -52,9 +52,11 @@ export default function BestSellersTab({ orgId }: BestSellersTabProps) {
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <BarChart2 className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <BarChart2 className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Mais Vendidos</h2>
         </div>
 
@@ -79,11 +81,11 @@ export default function BestSellersTab({ orgId }: BestSellersTabProps) {
       {/* Summary */}
       {!isLoading && ranked.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-1">
             <p className="text-xs text-muted-foreground">Itens únicos</p>
             <p className="font-bold text-foreground text-2xl">{ranked.length}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-2">
             <p className="text-xs text-muted-foreground">Receita total</p>
             <p className="font-bold text-foreground text-2xl">{fmtBRL(totalRevenue)}</p>
           </div>
@@ -94,7 +96,7 @@ export default function BestSellersTab({ orgId }: BestSellersTabProps) {
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando dados…</p>
       ) : ranked.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-2xl">
+        <div className="text-center py-16 dashboard-glass rounded-2xl">
           <p className="text-4xl mb-3">📊</p>
           <p className="font-semibold text-foreground">Nenhum dado disponível.</p>
           <p className="text-muted-foreground text-sm mt-1">
@@ -102,8 +104,8 @@ export default function BestSellersTab({ orgId }: BestSellersTabProps) {
           </p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-[32px_1fr_72px_80px] gap-x-3 px-4 py-2.5 text-xs font-semibold text-muted-foreground border-b border-border bg-secondary/40">
+        <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-slide-up">
+          <div className="grid grid-cols-[32px_1fr_72px_80px] gap-x-3 px-4 py-2.5 text-xs font-semibold text-muted-foreground border-b border-border/50 bg-muted/30">
             <span>#</span>
             <span>Item</span>
             <span className="text-right">Qtd.</span>
