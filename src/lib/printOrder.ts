@@ -171,7 +171,7 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string, foote
   <div class="divider"></div>
   <div class="footer">Bom apetite!!!</div>
   <div class="footer-brand">Powered By: TrendFood</div>
-  <div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.lovable.app/</div>
+  ${footerQrDataUrl ? `<div style="text-align:center;margin-top:6px;"><img src="${footerQrDataUrl}" alt="QR" style="width:80px;height:80px;display:inline-block;" /></div>` : '<div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.lovable.app/</div>'}
 </body>
 </html>`;
 }
