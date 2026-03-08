@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Lock, Zap, MessageCircle, Printer, Wallet,
+  Lock, Zap, MessageCircle, Printer, Compass, Wallet,
   Flame, Tag, BarChart2, BellRing, Building2, UtensilsCrossed,
   TableProperties, History, ListPlus, CreditCard, Package, Bike,
 } from "lucide-react";
