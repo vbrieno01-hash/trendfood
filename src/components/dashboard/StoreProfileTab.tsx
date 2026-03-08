@@ -939,74 +939,85 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       {/* ── SEÇÃO 7: QR Code do Cardápio ─────────────────────── */}
       <div>
         <SectionHeader>QR Code do Cardápio</SectionHeader>
-        <p className="text-sm text-muted-foreground mb-4">
-          Imprima e coloque no balcão para que seus clientes acessem o cardápio digital.
-        </p>
-        <div
-          id="qr-print-area"
-          className="flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 shadow-lg mx-auto"
-          style={{ maxWidth: 360 }}
-        >
-          <div className="border border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center gap-4 w-full">
-            <div className="flex items-center gap-2">
-              <img src={chefLogo} alt="Logo" className="w-8 h-8 object-contain" />
-              <span className="text-xl font-extrabold text-gray-900">{form.name}</span>
-            </div>
-            <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-            <QRCodeSVG value={publicUrl} size={200} level="H" includeMargin />
-            <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-            <p className="text-sm text-gray-600 text-center font-medium">
-              Escaneie o QR Code para acessar<br/>nosso cardápio digital
+        {effectivePlan === "free" ? (
+          <UpgradePrompt
+            title="QR Code do Cardápio"
+            description="Gere e imprima QR Codes personalizados para seus clientes acessarem o cardápio digital. Disponível nos planos Pro e Enterprise."
+            orgId={organization.id}
+            currentPlan={organization.subscription_plan ?? "free"}
+          />
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground mb-4">
+              Imprima e coloque no balcão para que seus clientes acessem o cardápio digital.
             </p>
-            <p className="text-xs text-gray-400 text-center break-all">{publicUrl}</p>
-          </div>
-        </div>
-        <div className="flex gap-2 justify-center mt-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={async () => {
-              const container = document.getElementById("qr-print-area");
-              if (!container) return;
-              const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff" });
-              const a = document.createElement("a");
-              a.href = canvas.toDataURL("image/png");
-              a.download = `qrcode-${form.slug}.png`;
-              a.click();
-            }}
-          >
-            <Download className="w-4 h-4" />
-            Baixar PNG
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => {
-              const printArea = document.getElementById("qr-print-area");
-              if (!printArea) return;
-              const win = window.open("", "_blank")!;
-              win.document.write(`
-                <html><head><title>QR Code - ${form.name}</title>
-                <style>body{display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;font-family:sans-serif}
-                .card{text-align:center;padding:40px}
-                .name{font-size:24px;font-weight:bold;margin-bottom:16px}
-                .hint{font-size:14px;color:#666;margin-top:16px}
-                </style></head><body>
-                <div class="card">${printArea.innerHTML}</div>
-                <script>window.print();window.close();</script>
-                </body></html>
-              `);
-              win.document.close();
-            }}
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir
-          </Button>
-        </div>
+            <div
+              id="qr-print-area"
+              className="flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 shadow-lg mx-auto"
+              style={{ maxWidth: 360 }}
+            >
+              <div className="border border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center gap-4 w-full">
+                <div className="flex items-center gap-2">
+                  <img src={chefLogo} alt="Logo" className="w-8 h-8 object-contain" />
+                  <span className="text-xl font-extrabold text-gray-900">{form.name}</span>
+                </div>
+                <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+                <QRCodeSVG value={publicUrl} size={200} level="H" includeMargin />
+                <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+                <p className="text-sm text-gray-600 text-center font-medium">
+                  Escaneie o QR Code para acessar<br/>nosso cardápio digital
+                </p>
+                <p className="text-xs text-gray-400 text-center break-all">{publicUrl}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-center mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={async () => {
+                  const container = document.getElementById("qr-print-area");
+                  if (!container) return;
+                  const canvas = await html2canvas(container, { scale: 2, backgroundColor: "#ffffff" });
+                  const a = document.createElement("a");
+                  a.href = canvas.toDataURL("image/png");
+                  a.download = `qrcode-${form.slug}.png`;
+                  a.click();
+                }}
+              >
+                <Download className="w-4 h-4" />
+                Baixar PNG
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const printArea = document.getElementById("qr-print-area");
+                  if (!printArea) return;
+                  const win = window.open("", "_blank")!;
+                  win.document.write(`
+                    <html><head><title>QR Code - ${form.name}</title>
+                    <style>body{display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;font-family:sans-serif}
+                    .card{text-align:center;padding:40px}
+                    .name{font-size:24px;font-weight:bold;margin-bottom:16px}
+                    .hint{font-size:14px;color:#666;margin-top:16px}
+                    </style></head><body>
+                    <div class="card">${printArea.innerHTML}</div>
+                    <script>window.print();window.close();</script>
+                    </body></html>
+                  `);
+                  win.document.close();
+                }}
+              >
+                <Printer className="w-4 h-4" />
+                Imprimir
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       <Button type="submit" className="w-full h-10" disabled={saving}>
