@@ -140,11 +140,54 @@
 .admin-delay-6 { animation-delay: 0.3s; }
 
 /* Glassmorphism utility */
-.admin-glass {
+.admin-glass,
+.dashboard-glass {
   background: hsl(var(--card) / 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* Dashboard Premium Animations */
+.animate-dashboard-fade-in {
+  animation: admin-fade-in 0.5s ease-out both;
+}
+.animate-dashboard-slide-up {
+  animation: admin-slide-up 0.6s ease-out both;
+}
+
+/* Dashboard staggered delays */
+.dash-delay-1 { animation-delay: 0.05s; }
+.dash-delay-2 { animation-delay: 0.1s; }
+.dash-delay-3 { animation-delay: 0.15s; }
+.dash-delay-4 { animation-delay: 0.2s; }
+.dash-delay-5 { animation-delay: 0.25s; }
+.dash-delay-6 { animation-delay: 0.3s; }
+.dash-delay-7 { animation-delay: 0.35s; }
+.dash-delay-8 { animation-delay: 0.4s; }
+
+/* Dashboard table rows */
+.dashboard-table-row {
+  transition: background 0.15s ease;
+}
+.dashboard-table-row:hover {
+  background: linear-gradient(to right, hsl(var(--primary) / 0.03), transparent);
+}
+
+/* Dashboard section header */
+.dashboard-section-icon {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sidebar glow */
+.sidebar-glow {
+  box-shadow: inset -1px 0 0 0 hsl(var(--primary) / 0.15);
 }
 
 /* Hide Lovable badge */

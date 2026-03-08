@@ -853,7 +853,7 @@ const DashboardPage = () => {
       {/* ── Main Content ──────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden bg-card border-b border-border px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] flex items-center justify-between sticky top-0 z-30">
+        <header className="lg:hidden bg-card/80 backdrop-blur-lg border-b border-border px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] flex items-center justify-between sticky top-0 z-30">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-lg hover:bg-secondary transition-colors"
@@ -863,6 +863,10 @@ const DashboardPage = () => {
           <div className="flex items-center gap-2">
             <span className="text-xl">{organization.emoji}</span>
             <span className="font-bold text-sm">{organization.name}</span>
+            <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              live
+            </span>
           </div>
           <div className="w-9" />
         </header>
