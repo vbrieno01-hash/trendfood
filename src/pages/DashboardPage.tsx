@@ -970,7 +970,7 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Relatórios Avançados" description="Gráficos de faturamento, ticket médio, horários de pico e comparativos. Disponível nos planos Enterprise e Vitalício." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgEmoji={organization.emoji} />)}
           {activeTab === "guide" && <GuideTab />}
-          {activeTab === "profile" && <StoreProfileTab organization={organization} />}
+          {activeTab === "profile" && <StoreProfileTab organization={organization} effectivePlan={planLimits.effectivePlan} />}
           {activeTab === "printer" && <PrinterTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
