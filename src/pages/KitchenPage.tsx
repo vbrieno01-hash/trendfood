@@ -253,9 +253,6 @@ export default function KitchenPage() {
       { id: order.id, status: "preparing" },
       {
         onSuccess: () => {
-          if (order.table_number === 0) {
-            createDeliveryForOrder(order, org?.id ?? "", org?.store_address, org?.courier_config);
-          }
           // Notify customer via WhatsApp
           const phone = parsePhoneFromNotes(order.notes);
           if (phone) {

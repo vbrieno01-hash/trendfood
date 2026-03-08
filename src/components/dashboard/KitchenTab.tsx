@@ -198,9 +198,6 @@ export default function KitchenTab({
       { id: order.id, status: "preparing" },
       {
         onSuccess: () => {
-          if (order.table_number === 0) {
-            createDeliveryForOrder(order, orgId, storeAddress, courierConfig);
-          }
           // Notify customer via WhatsApp
           const phone = parsePhoneFromNotes(order.notes);
           if (phone) {
