@@ -81,6 +81,21 @@ const DashboardPage = () => {
   const retryRef = useRef(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ operacional: true });
 
+  // Prevent accidental exit via swipe-back gesture
+  useEffect(() => {
+    // Push a "guard" entry so the first back gesture stays on dashboard
+    if (!window.history.state?._dashGuard) {
+      window.history.replaceState({ _dashGuard: true }, "");
+      window.history.pushState({ _dashGuard: true }, "");
+    }
+    const onPopState = () => {
+      // Re-push to prevent leaving dashboard
+      window.history.pushState({ _dashGuard: true }, "");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
 
   // Bluetooth state lifted from SettingsTab
   const [btDevice, setBtDevice] = useState<any>(null);
