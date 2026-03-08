@@ -110,6 +110,7 @@ const CourierPage = () => {
   const registerMutation = useRegisterCourier();
   const loginMutation = useLoginCourier();
   const { data: available = [], isLoading: availableLoading } = useAvailableDeliveries(orgId ?? undefined);
+  useCleanupStaleDeliveries(orgId ?? undefined);
   const { data: myDeliveries = [] } = useMyDeliveries(courierId);
   const acceptMutation = useAcceptDelivery();
   const completeMutation = useCompleteDelivery();
