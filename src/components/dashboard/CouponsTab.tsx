@@ -99,7 +99,7 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando cupons…</p>
       ) : coupons.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-2xl">
+        <div className="text-center py-16 dashboard-glass rounded-2xl">
           <p className="text-4xl mb-3">🏷️</p>
           <p className="font-semibold text-foreground">Nenhum cupom criado ainda.</p>
           <p className="text-muted-foreground text-sm mt-1">Crie cupons de desconto para seus clientes.</p>
