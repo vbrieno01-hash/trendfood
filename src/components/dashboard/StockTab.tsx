@@ -25,11 +25,11 @@ export default function StockTab({ orgId }: StockTabProps) {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StockItem | null>(null);
-  const [form, setForm] = useState({ name: "", unit: "un", quantity: "", min_quantity: "" });
+  const [form, setForm] = useState({ name: "", unit: "un", quantity: "", min_quantity: "", cost_per_unit: 0 });
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", unit: "un", quantity: "", min_quantity: "0" });
+    setForm({ name: "", unit: "un", quantity: "", min_quantity: "0", cost_per_unit: 0 });
     setDialogOpen(true);
   };
 
@@ -40,6 +40,7 @@ export default function StockTab({ orgId }: StockTabProps) {
       unit: item.unit,
       quantity: String(item.quantity),
       min_quantity: String(item.min_quantity),
+      cost_per_unit: item.cost_per_unit,
     });
     setDialogOpen(true);
   };
@@ -50,6 +51,7 @@ export default function StockTab({ orgId }: StockTabProps) {
       unit: form.unit,
       quantity: Number(form.quantity) || 0,
       min_quantity: Number(form.min_quantity) || 0,
+      cost_per_unit: form.cost_per_unit,
     };
     if (!payload.name) return;
 
