@@ -104,6 +104,14 @@ export function useRegisterCourier() {
   });
 }
 
+function getTodayStartUTC(): string {
+  const now = new Date();
+  const brasiliaMs = now.getTime() + now.getTimezoneOffset() * 60_000 + (-3) * 3_600_000;
+  const todayBrasilia = new Date(brasiliaMs);
+  todayBrasilia.setHours(0, 0, 0, 0);
+  return new Date(todayBrasilia.getTime() + 3 * 3_600_000).toISOString();
+}
+
 export function useAvailableDeliveries(organizationId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -125,11 +133,13 @@ export function useAvailableDeliveries(organizationId: string | undefined) {
   return useQuery({
     queryKey: ["deliveries", organizationId, "pendente"],
     queryFn: async () => {
+      const todayStart = getTodayStartUTC();
       const { data, error } = await supabase
         .from("deliveries" as any)
         .select("*")
         .eq("organization_id", organizationId!)
         .eq("status", "pendente")
+        .gte("created_at", todayStart)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as Delivery[];
@@ -139,6 +149,20 @@ export function useAvailableDeliveries(organizationId: string | undefined) {
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
   });
+}
+
+export function useCleanupStaleDeliveries(organizationId: string | undefined) {
+  useEffect(() => {
+    if (!organizationId) return;
+    const todayStart = getTodayStartUTC();
+    supabase
+      .from("deliveries" as any)
+      .update({ status: "cancelada" } as any)
+      .eq("organization_id", organizationId)
+      .eq("status", "pendente")
+      .lt("created_at", todayStart)
+      .then(() => {});
+  }, [organizationId]);
 }
 
 export function useMyDeliveries(courierId: string | null) {
