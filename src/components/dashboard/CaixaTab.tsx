@@ -139,7 +139,7 @@ function CaixaFechado({
             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : history.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+          <div className="dashboard-glass rounded-2xl p-6 text-center text-muted-foreground text-sm">
             Nenhum turno encerrado ainda
           </div>
         ) : (
