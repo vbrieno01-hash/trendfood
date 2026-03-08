@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Gift, Users, CalendarPlus, Info, BadgeDollarSign, MessageCircle } from "lucide-react";
+import { Copy, Check, Gift, Users, CalendarPlus, Info, BadgeDollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 

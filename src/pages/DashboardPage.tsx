@@ -19,7 +19,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift,
+  BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
   ChevronDown,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
