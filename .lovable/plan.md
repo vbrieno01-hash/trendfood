@@ -1,51 +1,29 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Plano: Configurar dados de teste para o sistema de precificação
 
-### Problema
+Operações de dados (não requerem migração):
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+### 1. Atualizar custo dos insumos
 
-### Alterações
+| Insumo | ID | Custo atual | Novo custo |
+|--------|-----|------------|------------|
+| Água | `da7d5314-...` | R$ 0,00 | R$ 1,50 |
+| Refri (maiúsculo) | `b9663f60-...` | R$ 0,00 | R$ 3,50 |
+| refri (minúsculo) | `487be5f5-...` | R$ 7,99 | manter |
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+### 2. Vincular ingredientes ao "Duplo cheddar" (`5dae79f7-...`)
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+Atualmente o Duplo cheddar não tem ingredientes vinculados. Vamos vincular os insumos existentes como exemplo:
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+- **Refri** (stock `b9663f60-...`) — quantity_used: 1
 
-### UI no Checkout
+Nota: como só existem 3 insumos cadastrados (Água, Refri, refri), o vínculo será limitado. Para um teste mais realista, seria ideal cadastrar insumos como "Pão", "Hambúrguer", "Cheddar" primeiro.
 
-```text
-[ 📍 Usar minha localização ]
+### 3. Resultado esperado na aba Precificação
 
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
-```
-
-### Escopo
-
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+Após as alterações:
+- "Duplo cheddar" mostrará custo total baseado nos ingredientes vinculados
+- Margem será calculada: `(54,34 - custo) / 54,34 × 100`
+- Preço sugerido aparecerá baseado no slider de markup
 
