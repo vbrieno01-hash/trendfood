@@ -54,21 +54,42 @@ const CardPaymentForm = ({
 
   useEffect(() => {
     if (!open) return;
-    supabase.functions
-      .invoke("get-mp-public-key")
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[CardPaymentForm] get-mp-public-key error:", error);
-          toast.error("Erro ao carregar pagamento. Tente recarregar a página.");
+
+    const fetchPublicKey = async () => {
+      // Verify session before calling edge function
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        // Try refreshing
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (!refreshed?.session) {
+          toast.error("Sessão expirada. Faça login novamente.");
           return;
         }
-        if (!data?.public_key) {
-          console.error("[CardPaymentForm] public_key ausente na resposta:", data);
-          toast.error("Configuração de pagamento indisponível. Tente novamente.");
-          return;
-        }
-        setPublicKey(data.public_key);
-      });
+      }
+
+      const invoke = () => supabase.functions.invoke("get-mp-public-key");
+      let { data, error } = await invoke();
+
+      // Retry once on failure
+      if (error) {
+        console.warn("[CardPaymentForm] get-mp-public-key retry after error:", error);
+        ({ data, error } = await invoke());
+      }
+
+      if (error) {
+        console.error("[CardPaymentForm] get-mp-public-key error:", error);
+        toast.error("Erro ao carregar pagamento. Tente recarregar a página.");
+        return;
+      }
+      if (!data?.public_key) {
+        console.error("[CardPaymentForm] public_key ausente na resposta:", data);
+        toast.error("Configuração de pagamento indisponível. Tente novamente.");
+        return;
+      }
+      setPublicKey(data.public_key);
+    };
+
+    fetchPublicKey();
   }, [open]);
 
   useEffect(() => {
