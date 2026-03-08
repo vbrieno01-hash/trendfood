@@ -99,8 +99,8 @@ function CaixaFechado({
     <div className="space-y-8">
       {/* Open card */}
       <div className="max-w-sm mx-auto">
-        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm space-y-6">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+        <div className="dashboard-glass rounded-2xl p-8 text-center space-y-6">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mx-auto text-white">
             <Wallet className="w-7 h-7 text-primary" />
           </div>
           <div>
