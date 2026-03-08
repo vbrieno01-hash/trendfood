@@ -58,10 +58,10 @@ function MetricCard({
 }) {
   return (
     <div
-      className={`rounded-xl border p-4 flex flex-col gap-1 ${
+      className={`dashboard-glass rounded-2xl p-4 flex flex-col gap-1 ${
         highlight
-          ? "border-green-500/30 bg-green-500/10"
-          : "border-border bg-card"
+          ? "!border-emerald-500/30"
+          : ""
       }`}
     >
       <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
