@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
