@@ -1,51 +1,48 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Diagnóstico: Comanda imprime sem itens, sem preços e sem totais
 
-### Problema
+### Causa raiz identificada
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+O problema está no **DashboardPage.tsx** (linha 214-218). Quando o Realtime detecta um novo pedido, o auto-print busca os `order_items` diretamente no banco **imediatamente** — mas os itens ainda não foram inseridos (race condition). Resultado:
 
-### Alterações
+- `items` retorna `[]`
+- A comanda imprime com **0 itens**, **sem preços**, **sem totais**, **sem pagamento**
+- Apenas header (PARA ENTREGA, data, loja, #pedido) e dados do cliente (do campo `notes`) aparecem
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+O fix anterior (1.5s delay) foi aplicado apenas no `KitchenTab.tsx` e `KitchenPage.tsx`, mas o **DashboardPage.tsx** tem seu próprio auto-print que não recebeu a correção.
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+### Solução
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+Adicionar **retry com delay** na busca de `order_items` dentro do auto-print do `DashboardPage.tsx`. Em vez de buscar uma vez e imprimir (mesmo com 0 itens), fazer até 3 tentativas com intervalo de 1.5s:
 
-### UI no Checkout
+**`src/pages/DashboardPage.tsx`** — Modificar o bloco de auto-print (linhas 214-219):
 
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+```typescript
+printQueue.current.push(async () => {
+  // Retry up to 3 times with 1.5s delay to wait for order_items
+  let items: any[] = [];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+    const { data } = await supabase
+      .from("order_items")
+      .select("id, name, quantity, price, customer_name")
+      .eq("order_id", order.id);
+    items = data ?? [];
+    if (items.length > 0) break;
+  }
+  if (items.length === 0) {
+    console.warn("[AutoPrint] Pedido sem itens após 3 tentativas:", order.id);
+    return; // Don't print empty receipt
+  }
+  const fullOrder = { ...order, order_items: items };
+  // ... rest of print logic unchanged
 ```
 
-### Escopo
+Isso garante que:
+1. Espera até 4.5s para os itens aparecerem no banco
+2. Se após 3 tentativas não houver itens, **não imprime** (evita comanda em branco)
+3. Se os itens chegam na 1a tentativa (cenário normal), não há delay extra
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+Mesma lógica de retry será aplicada nos auto-prints do **KitchenTab.tsx** e **KitchenPage.tsx** que fazem busca direta similar.
 
