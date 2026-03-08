@@ -514,6 +514,7 @@ const DashboardPage = () => {
     caixa: !planLimits.canAccess("caixa"),
     reports: !planLimits.canAccess("reports"),
     stock: !planLimits.canAccess("stock_ingredients"),
+    pricing: !planLimits.canAccess("pricing"),
   }), [planLimits.effectivePlan]);
 
   const sidebarGroups = useMemo(() => [
