@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 type Plan = "free" | "pro" | "enterprise" | "lifetime";
 
-type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports" | "addons" | "stock_ingredients" | "online_payment";
+type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports" | "addons" | "stock_ingredients" | "online_payment" | "pricing";
 
 interface OrgLike {
   subscription_status?: string;
