@@ -407,11 +407,12 @@ const UnitPage = () => {
       .filter((l) => l !== null)
       .join("\n");
 
-    // Abrir WhatsApp com fallback robusto
-    const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-    openWhatsAppWithFallback(url, { mode: "operational" });
+    // Build WhatsApp URL (used after DB save succeeds)
+    const whatsappUrl = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
 
-    // Save order to database em background (table_number=0 = delivery/pickup) — skip if already created (PIX flow)
+    // Save order to database FIRST, then open WhatsApp only on success
+    // This prevents state loss if the browser blocks popups and the old code
+    // would have navigated away via location.href before saving.
     if (org?.id && !overrideOrderId) {
        const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
          ? `FRETE:${fmt(deliveryFee)}`
@@ -448,18 +449,20 @@ const UnitPage = () => {
         {
           onSuccess: () => {
             console.info("[UnitPage] Order saved to DB successfully");
+            openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
             resetCheckout();
           },
           onError: (err) => {
             console.error("[UnitPage] placeOrder DB error:", err);
-            toast({ title: "Pedido enviado ao WhatsApp, mas houve erro ao salvar no sistema.", description: "Seu carrinho foi mantido. Tente novamente se necessário.", variant: "destructive" });
-            // Do NOT clear cart — WhatsApp was sent but DB failed
+            toast({ title: "Erro ao salvar pedido. Tente novamente.", description: String(err), variant: "destructive" });
+            // Do NOT clear cart — DB failed, let user retry
             setCheckoutOpen(false);
           },
         }
       );
     } else {
-      // No DB save needed (overrideOrderId provided), safe to reset
+      // No DB save needed (overrideOrderId provided), open WhatsApp and reset
+      openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
       resetCheckout();
     }
    } catch (err) {
