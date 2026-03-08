@@ -185,7 +185,7 @@ export default function FeaturesTab({ effectivePlan }: FeaturesTabProps) {
           const statusCfg = STATUS_CONFIG[f.status];
 
           return (
-            <Card key={f.title} className={`relative overflow-hidden transition-all ${!unlocked ? "opacity-70" : ""}`}>
+            <Card key={f.title} className={`relative overflow-hidden transition-all hover:scale-[1.02] dashboard-glass !rounded-2xl ${!unlocked ? "opacity-70" : ""}`}>
               {!unlocked && (
                 <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
