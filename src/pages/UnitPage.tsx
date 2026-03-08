@@ -506,7 +506,7 @@ const UnitPage = () => {
             console.error("[UnitPage] placeOrder DB error:", err);
             toast({ title: "Erro ao salvar pedido. Tente novamente.", description: String(err), variant: "destructive" });
             // Do NOT clear cart — DB failed, let user retry
-            setCheckoutOpen(false);
+            popDrawerState(); setCheckoutOpen(false);
           },
         }
       );
