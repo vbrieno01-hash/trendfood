@@ -219,8 +219,17 @@ export default function KitchenPage() {
       { id, status },
       {
         onSuccess: () => {
-          if (status === "ready" && order && order.table_number === 0) {
-            createDeliveryForOrder(order, org?.id ?? "", org?.store_address, org?.courier_config);
+          if (status === "ready") {
+            if (order && order.table_number === 0) {
+              createDeliveryForOrder(order, org?.id ?? "", org?.store_address, org?.courier_config);
+            }
+            // WhatsApp notification for order ready
+            if (order) {
+              const phone = parsePhoneFromNotes(order.notes);
+              if (phone) {
+                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), org?.name);
+              }
+            }
           }
         },
         onSettled: () => {
