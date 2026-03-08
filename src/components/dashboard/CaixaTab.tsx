@@ -244,7 +244,7 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
   return (
     <div className="space-y-6">
       {/* Hero card */}
-      <div className="rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-green-600/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="dashboard-glass rounded-2xl border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1.5">
             <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
