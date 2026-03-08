@@ -227,7 +227,7 @@ export default function KitchenPage() {
             if (order) {
               const phone = parsePhoneFromNotes(order.notes);
               if (phone) {
-                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), org?.name);
+                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes);
               }
             }
           }
@@ -259,7 +259,7 @@ export default function KitchenPage() {
           // Notify customer via WhatsApp
           const phone = parsePhoneFromNotes(order.notes);
           if (phone) {
-            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), org?.name);
+            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes);
           }
           toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
         },
