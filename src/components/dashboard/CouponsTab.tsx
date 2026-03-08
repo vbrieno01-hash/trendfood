@@ -79,15 +79,17 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <Tag className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <Tag className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Cupons de Desconto</h2>
           <span className="text-sm text-muted-foreground ml-1">
             {coupons.length} cupom{coupons.length !== 1 ? "ns" : ""}
           </span>
         </div>
-        <Button size="sm" onClick={() => { setForm(defaultForm); setDialogOpen(true); }}>
+        <Button size="sm" onClick={() => { setForm(defaultForm); setDialogOpen(true); }} className="shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4 mr-1.5" />
           Novo Cupom
         </Button>
