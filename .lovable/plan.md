@@ -1,55 +1,51 @@
 
 
-## Plano: Atualizar Chat de Suporte, Guia "Como Usar" e Landing Page
+## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
 
-Três atualizações para refletir todas as funcionalidades atuais da plataforma.
+### Problema
 
----
+Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
 
-### 1. Chat de Suporte (`supabase/functions/support-chat/index.ts`)
+### Alterações
 
-O system prompt atual foca demais em planos/preços e falta orientação prática. Atualizar para:
+**1. `src/components/checkout/AddressFields.tsx`**
+- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
+- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
+- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
+- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
+- Ao clicar num card: preencher CEP, rua e bairro automaticamente
+- Limpar candidatos quando o CEP muda manualmente
 
-- **Priorizar ajuda operacional**: como cadastrar itens, configurar mesas, usar o KDS, configurar PIX, usar cupons, abrir/fechar caixa, etc.
-- **Adicionar funcionalidades que faltam**: Adicionais/Complementos, Gestão de Insumos (estoque de ingredientes com baixa automática), Precificação (ficha técnica + markup automático), Gestão de Motoboys, Pagamento Online (PIX + cartão via Mercado Pago), Multi-unidade, Onboarding guiado
-- **Adicionar seção de troubleshooting**: problemas comuns (pedido não aparece na cozinha, QR code não funciona, impressora não conecta, PIX não confirma)
-- **Reduzir peso da seção de planos**: manter info de planos mas não como foco principal
-- **Instruir a IA a ser mais tutorial**: quando o usuário perguntar "como faço X?", dar passo a passo em vez de só mencionar que existe
+**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
+- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
+- Não alterar neste momento
 
-### 2. Guia "Como Usar" (`src/components/dashboard/GuideTab.tsx`)
+**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
+- Mesma situação do StoreProfileTab — configuração pontual
+- Não alterar neste momento
 
-Adicionar seções que faltam no array `GUIDE_SECTIONS`:
+### UI no Checkout
 
-- **Precificação / Ficha Técnica** (Enterprise) — como usar a aba de precificação, cadastrar custos de insumos, ver margem e aplicar preço sugerido
-- **Gestão de Insumos / Estoque** (Enterprise) — como cadastrar ingredientes, vincular a itens do cardápio, acompanhar estoque
-- **Gestão de Motoboys** — como cadastrar motoboys, atribuir entregas
-- **Pagamento Online / PIX** (Pro) — como configurar PIX automático, Mercado Pago
-- **Funcionalidades** — menção à aba de funcionalidades para ver o que está disponível
-- **Assinatura** — como ver/gerenciar seu plano
+```text
+[ 📍 Usar minha localização ]
 
-### 3. Landing Page (`src/pages/Index.tsx`)
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
 
-Atualizar o array `features` para incluir funcionalidades novas que faltam:
+CEP: [_________]
+Rua: [_________]
+...
+```
 
-- **Gestão de Insumos**: controle de ingredientes com ficha técnica e baixa automática
-- **Precificação Inteligente**: cálculo automático de margem e preço sugerido por markup
-- Atualizar `benefitCards` para refletir melhor o produto atual
+### Escopo
 
-### 4. FeaturesTab (`src/components/dashboard/FeaturesTab.tsx`)
-
-Adicionar ao array `FEATURES`:
-
-- **Precificação / Ficha Técnica** (enterprise, available)
-- **Delivery Próprio** (pro, available) — já existe como "Integração com Delivery" mas marcado como `coming_soon` no enterprise; corrigir para refletir que delivery próprio já funciona no Pro
-
----
-
-### Arquivos modificados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/support-chat/index.ts` | Reescrever SYSTEM_PROMPT com foco em ajuda operacional |
-| `src/components/dashboard/GuideTab.tsx` | Adicionar ~5 seções ao GUIDE_SECTIONS |
-| `src/pages/Index.tsx` | Adicionar 2 features ao array, atualizar benefitCards |
-| `src/components/dashboard/FeaturesTab.tsx` | Adicionar Precificação, corrigir Delivery |
+- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
+- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
+- Apenas mudanças no frontend
 

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Home, UtensilsCrossed, TableProperties, History, Tag,
   BarChart2, Flame, BellRing, Wallet, Store, Settings, Plus, Truck,
+  CreditCard, Bike, Package, Zap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -205,6 +206,102 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Selecione a largura da impressora (58mm portátil ou 80mm padrão).",
       "Personalize a cor primária da sua loja.",
       "Ajuste preferências de notificações e modo de confirmação de pagamento.",
+    ],
+  },
+  {
+    id: "pix",
+    icon: <CreditCard className="w-4 h-4" />,
+    title: "Pagamento Online / PIX",
+    pro: true,
+    description: "Configure pagamento automático via PIX integrado com Mercado Pago ou PrimePag. O cliente paga direto no checkout e a confirmação é automática.",
+    steps: [
+      'Vá em "Configurações" > seção PIX.',
+      "Escolha o gateway de pagamento: Mercado Pago ou PrimePag.",
+      "Cole o token de acesso do seu gateway.",
+      "Pronto! O sistema gera QR Code PIX automaticamente no checkout do cliente.",
+      "A confirmação do pagamento é automática — sem precisar verificar manualmente.",
+    ],
+    tips: [
+      "Teste com um pagamento pequeno (R$1) para validar a integração.",
+      "Também é possível usar confirmação manual de PIX se preferir.",
+    ],
+  },
+  {
+    id: "couriers",
+    icon: <Bike className="w-4 h-4" />,
+    title: "Gestão de Motoboys",
+    pro: true,
+    description: "Cadastre seus motoboys, atribua entregas e acompanhe turnos de trabalho. O motoboy recebe o pedido no celular.",
+    steps: [
+      'Acesse a aba "Motoboys" no menu lateral.',
+      'Clique em "Adicionar motoboy" e preencha nome, telefone e placa.',
+      "Quando chegar um pedido de delivery, atribua ao motoboy disponível.",
+      "O motoboy acessa pelo link /motoboy no celular e pode aceitar/recusar entregas.",
+      "Acompanhe turnos e relatórios de entregas por motoboy.",
+    ],
+    tips: [
+      "Configure a chave PIX do motoboy para facilitar o acerto.",
+      "Use o relatório de entregas para controlar pagamentos.",
+    ],
+  },
+  {
+    id: "stock",
+    icon: <Package className="w-4 h-4" />,
+    title: "Gestão de Insumos / Estoque",
+    pro: true,
+    description: "Cadastre ingredientes com custo e estoque, vincule aos itens do cardápio e tenha baixa automática a cada venda. Quando um ingrediente zera, o item é desativado automaticamente.",
+    steps: [
+      'Acesse a aba "Insumos" no menu.',
+      'Clique em "Adicionar insumo" e preencha nome, unidade, quantidade e custo por unidade.',
+      "Defina o estoque mínimo para receber alertas visuais.",
+      'No item do cardápio, vá em "Ficha Técnica" e vincule os ingredientes usados.',
+      "Informe a quantidade usada de cada ingrediente por unidade do produto.",
+      "O sistema dá baixa automaticamente no estoque a cada venda paga.",
+    ],
+    tips: [
+      "Quando um ingrediente chega a zero, todos os itens que usam ele são desativados automaticamente.",
+      "Ao repor o estoque, os itens são reativados automaticamente.",
+    ],
+  },
+  {
+    id: "pricing",
+    icon: <BarChart2 className="w-4 h-4" />,
+    title: "Precificação / Ficha Técnica",
+    pro: true,
+    description: "Veja o custo total de ingredientes de cada item, a margem de lucro atual e receba sugestão de preço baseada no markup desejado.",
+    steps: [
+      'Acesse a aba "Precificação" no menu.',
+      "Veja todos os itens com custo total, margem atual e preço de venda.",
+      "A margem é calculada automaticamente: (preço - custo) / preço × 100.",
+      "Ajuste o slider de markup para ver o preço sugerido.",
+      'Clique em "Aplicar" para atualizar o preço do item automaticamente.',
+    ],
+    tips: [
+      "Itens sem ingredientes vinculados mostram '—' no custo. Vincule pela aba Insumos primeiro.",
+      "Use markup de 60-70% como referência para food service.",
+    ],
+  },
+  {
+    id: "features",
+    icon: <Zap className="w-4 h-4" />,
+    title: "Aba Funcionalidades",
+    description: "Veja todas as funcionalidades disponíveis na plataforma e descubra o que está incluído no seu plano atual.",
+    steps: [
+      'Acesse "Funcionalidades" no menu lateral.',
+      "Veja a lista completa de recursos com o plano mínimo necessário.",
+      "Funcionalidades bloqueadas mostram um cadeado — clique para ver como fazer upgrade.",
+    ],
+  },
+  {
+    id: "subscription",
+    icon: <CreditCard className="w-4 h-4" />,
+    title: "Assinatura / Plano",
+    description: "Veja seu plano atual, período de trial e faça upgrade para desbloquear mais funcionalidades.",
+    steps: [
+      'Acesse "Assinatura" no menu lateral.',
+      "Veja seu plano atual e data de vencimento do trial (se aplicável).",
+      'Clique em "Fazer upgrade" para ver os planos disponíveis.',
+      "O pagamento é feito via Mercado Pago com cobrança recorrente.",
     ],
   },
 ];

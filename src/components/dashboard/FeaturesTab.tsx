@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Lock, Zap, MessageCircle, Printer, Compass, Wallet,
   Flame, Tag, BarChart2, BellRing, Building2, UtensilsCrossed,
-  TableProperties, History, ListPlus, CreditCard, Package,
+  TableProperties, History, ListPlus, CreditCard, Package, Bike,
 } from "lucide-react";
 
 type MinPlan = "free" | "pro" | "enterprise" | "lifetime";
@@ -132,11 +132,18 @@ const FEATURES: FeatureItem[] = [
     status: "available",
   },
   {
-    icon: <Compass className="w-5 h-5" />,
-    title: "Integração com Delivery",
-    description: "Receba e gerencie pedidos de delivery diretamente pelo painel.",
+    icon: <Bike className="w-5 h-5" />,
+    title: "Delivery Próprio",
+    description: "Receba pedidos de delivery sem taxas de marketplace. Gestão de motoboys e rastreamento.",
+    minPlan: "pro",
+    status: "available",
+  },
+  {
+    icon: <BarChart2 className="w-5 h-5" />,
+    title: "Precificação / Ficha Técnica",
+    description: "Calcule custo de ingredientes, margem de lucro e aplique preço sugerido por markup.",
     minPlan: "enterprise",
-    status: "coming_soon",
+    status: "available",
   },
 ];
 
