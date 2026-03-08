@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
-import { parsePhoneFromNotes, notifyCustomerWhatsApp } from "@/lib/whatsappNotify";
+import { parsePhoneFromNotes, notifyCustomerWhatsApp, notifyCustomerReady } from "@/lib/whatsappNotify";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
