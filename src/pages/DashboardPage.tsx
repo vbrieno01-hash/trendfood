@@ -737,7 +737,13 @@ const DashboardPage = () => {
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
         `}
-        style={{ background: "hsl(220, 15%, 7%)" }}
+        style={{ background: "linear-gradient(180deg, hsl(220 15% 7%) 0%, hsl(25 20% 6%) 40%, hsl(220 15% 6%) 100%)" }}
+        className={`
+          fixed top-0 left-0 h-full z-50 flex flex-col
+          w-64 transform transition-transform duration-300 sidebar-glow
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:relative lg:translate-x-0 lg:z-auto
+        `}
       >
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/10">
