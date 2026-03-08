@@ -1,51 +1,61 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Verificação completa do fix de comandas sem itens
 
-### Problema
+### Status atual dos fixes
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+| Componente | Fix aplicado? | Mecanismo |
+|---|---|---|
+| `DashboardPage.tsx` auto-print | Sim | Retry 3x com 1.5s delay na busca direta de `order_items` |
+| `KitchenTab.tsx` Realtime | Sim | Delay 1.5s no `invalidateQueries` + retry auto-print |
+| `KitchenPage.tsx` Realtime | Sim | Delay 1.5s no `invalidateQueries` + retry auto-print |
+| `useOrders.ts` hook Realtime | **NÃO** | Invalidação imediata na linha 134 |
+| `usePlaceOrder` → `fila_impressao` | OK (sem bug) | Itens vêm do cliente, não do banco |
 
-### Alterações
+### Problema restante
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+O hook `useOrders.ts` (linha 134) é usado por **todos os componentes** que listam pedidos. Ele tem seu próprio canal Realtime que faz `invalidateQueries` **imediatamente** quando um pedido é inserido. Isso significa:
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+1. Pedido inserido → `useOrders` busca **imediatamente** (0 itens)
+2. Cache do React Query populado com pedido sem itens
+3. KitchenTab/KitchenPage auto-print vê 0 itens → entra em retry
+4. Após 1.5s, o delayed invalidation refaz a busca → agora com itens
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+O retry funciona, mas há uma janela onde a UI mostra o pedido sem itens por 1.5s. E se o retry falhar por qualquer motivo (tab em background, etc.), o pedido fica sem itens permanentemente na tela até refresh manual.
 
-### UI no Checkout
+### Solução: delay no hook central
 
-```text
-[ 📍 Usar minha localização ]
+Adicionar delay de 1.5s **apenas para eventos INSERT** no `useOrders.ts` (linha 133-135). Isso garante que **todos os clientes** (atuais e futuros) se beneficiem, pois o fix está na camada compartilhada.
 
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
+**`src/hooks/useOrders.ts`** — Modificar o Realtime handler (linhas 130-136):
 
-CEP: [_________]
-Rua: [_________]
-...
+```typescript
+.on(
+  "postgres_changes",
+  { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
+  (payload) => {
+    if (payload.eventType === "INSERT") {
+      // Delay for INSERT to let order_items be inserted first
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+      }, 1500);
+    } else {
+      qc.invalidateQueries({ queryKey: ["orders", organizationId] });
+    }
+  }
+)
 ```
 
-### Escopo
+Mesma lógica para os canais de `orders-unpaid` (linha 274) e `orders-awaiting-payment` (linha 336).
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+### Impacto
+
+- **Clientes existentes**: Sim, todos se beneficiam automaticamente pois o código é compartilhado
+- **Clientes futuros**: Sim, mesma base de código
+- **Todos os modos de impressão** (browser, bluetooth, desktop): Cobertos pelo fix no DashboardPage + hook central
+- **UI do KDS**: Pedidos aparecerão com itens desde o primeiro render (sem flash de "0 itens")
+
+### Arquivos a alterar
+
+1. `src/hooks/useOrders.ts` — Delay condicional no Realtime (INSERT only)
 
