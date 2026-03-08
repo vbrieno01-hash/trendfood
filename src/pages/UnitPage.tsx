@@ -1282,9 +1282,10 @@ const UnitPage = () => {
       {/* ── ITEM DETAIL DRAWER ── */}
       <ItemDetailDrawer
         item={selectedItem}
-        onClose={() => setSelectedItem(null)}
+        onClose={() => { popDrawerState(); setSelectedItem(null); }}
         onAdd={(item, addons, itemNotes, qty) => {
           addToCartWithQty(item, addons, itemNotes, qty);
+          popDrawerState();
           setSelectedItem(null);
         }}
         primaryColor={primaryColor}
