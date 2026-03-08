@@ -39,7 +39,7 @@ const BRAZIL_STATES = [
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
 ];
 
-import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
+import chefLogo from "@/assets/chef-logo.png";
 import { compressImage } from "@/lib/compressImage";
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
