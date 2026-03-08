@@ -277,7 +277,15 @@ export const useDeliveredUnpaidOrders = (organizationId: string | undefined) => 
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
-        () => { qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] }); }
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setTimeout(() => {
+              qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] });
+            }, 1500);
+          } else {
+            qc.invalidateQueries({ queryKey: ["orders-unpaid", organizationId] });
+          }
+        }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
