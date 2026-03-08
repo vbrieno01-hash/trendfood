@@ -1,51 +1,56 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Notificação WhatsApp automática quando pedido fica pronto
 
-### Problema
+### Situação atual
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+- Já existe `notifyCustomerWhatsApp()` que abre `wa.me` com mensagem pré-formatada
+- Ela é chamada apenas quando o pedido é **aceito** (pending → preparing)
+- Quando o pedido muda para **ready**, nenhuma notificação WhatsApp é enviada
 
 ### Alterações
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+**1. `src/lib/whatsappNotify.ts`** — Adicionar função `notifyCustomerReady` com mensagem específica para pedido pronto:
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
-
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
-
-### UI no Checkout
-
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+```typescript
+export function notifyCustomerReady(
+  phone: string,
+  orderNumber: number | string,
+  storeName?: string
+) {
+  const msg =
+    `✅ *Pedido #${orderNumber} pronto!*\n` +
+    `Seu pedido está pronto para retirada/entrega! 🎉` +
+    (storeName ? `\n\n— ${storeName}` : "");
+  // ... mesma lógica de wa.me
+}
 ```
 
-### Escopo
+**2. `src/components/dashboard/KitchenTab.tsx`** — No `onSuccess` do `handleUpdateStatus`, quando `status === "ready"`, extrair telefone do `notes` e chamar `notifyCustomerReady`:
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+```typescript
+onSuccess: () => {
+  if (status === "ready") {
+    // Delivery logic (existing)
+    if (order && order.table_number === 0) {
+      createDeliveryForOrder(...);
+    }
+    // WhatsApp notification (new)
+    if (order) {
+      const phone = parsePhoneFromNotes(order.notes);
+      if (phone) {
+        notifyCustomerReady(phone, order.order_number || order.id.slice(0, 6), orgName);
+      }
+    }
+  }
+}
+```
+
+**3. `src/pages/KitchenPage.tsx`** — Mesma alteração no `handleUpdateStatus` para manter paridade com o KitchenTab.
+
+### Impacto
+
+- Funciona para todos os clientes automaticamente
+- Só abre wa.me se o pedido tiver telefone no campo `notes` (pedidos de mesa não abrem)
+- Mesmo padrão já usado na aceitação — operador familiar com o comportamento
 
