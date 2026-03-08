@@ -539,6 +539,7 @@ const DashboardPage = () => {
       id: "financeiro", emoji: "💰", title: "FINANCEIRO",
       items: [
         { key: "caixa" as TabKey, icon: <Wallet className="w-4 h-4" />, label: "Fluxo de Caixa", locked: lockedFeatures.caixa },
+        { key: "pricing" as TabKey, icon: <Calculator className="w-4 h-4" />, label: "Precificação", locked: lockedFeatures.pricing },
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
         { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
         { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
