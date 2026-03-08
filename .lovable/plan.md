@@ -1,29 +1,55 @@
 
 
-## Plano: Configurar dados de teste para o sistema de precificação
+## Plano: Atualizar Chat de Suporte, Guia "Como Usar" e Landing Page
 
-Operações de dados (não requerem migração):
+Três atualizações para refletir todas as funcionalidades atuais da plataforma.
 
-### 1. Atualizar custo dos insumos
+---
 
-| Insumo | ID | Custo atual | Novo custo |
-|--------|-----|------------|------------|
-| Água | `da7d5314-...` | R$ 0,00 | R$ 1,50 |
-| Refri (maiúsculo) | `b9663f60-...` | R$ 0,00 | R$ 3,50 |
-| refri (minúsculo) | `487be5f5-...` | R$ 7,99 | manter |
+### 1. Chat de Suporte (`supabase/functions/support-chat/index.ts`)
 
-### 2. Vincular ingredientes ao "Duplo cheddar" (`5dae79f7-...`)
+O system prompt atual foca demais em planos/preços e falta orientação prática. Atualizar para:
 
-Atualmente o Duplo cheddar não tem ingredientes vinculados. Vamos vincular os insumos existentes como exemplo:
+- **Priorizar ajuda operacional**: como cadastrar itens, configurar mesas, usar o KDS, configurar PIX, usar cupons, abrir/fechar caixa, etc.
+- **Adicionar funcionalidades que faltam**: Adicionais/Complementos, Gestão de Insumos (estoque de ingredientes com baixa automática), Precificação (ficha técnica + markup automático), Gestão de Motoboys, Pagamento Online (PIX + cartão via Mercado Pago), Multi-unidade, Onboarding guiado
+- **Adicionar seção de troubleshooting**: problemas comuns (pedido não aparece na cozinha, QR code não funciona, impressora não conecta, PIX não confirma)
+- **Reduzir peso da seção de planos**: manter info de planos mas não como foco principal
+- **Instruir a IA a ser mais tutorial**: quando o usuário perguntar "como faço X?", dar passo a passo em vez de só mencionar que existe
 
-- **Refri** (stock `b9663f60-...`) — quantity_used: 1
+### 2. Guia "Como Usar" (`src/components/dashboard/GuideTab.tsx`)
 
-Nota: como só existem 3 insumos cadastrados (Água, Refri, refri), o vínculo será limitado. Para um teste mais realista, seria ideal cadastrar insumos como "Pão", "Hambúrguer", "Cheddar" primeiro.
+Adicionar seções que faltam no array `GUIDE_SECTIONS`:
 
-### 3. Resultado esperado na aba Precificação
+- **Precificação / Ficha Técnica** (Enterprise) — como usar a aba de precificação, cadastrar custos de insumos, ver margem e aplicar preço sugerido
+- **Gestão de Insumos / Estoque** (Enterprise) — como cadastrar ingredientes, vincular a itens do cardápio, acompanhar estoque
+- **Gestão de Motoboys** — como cadastrar motoboys, atribuir entregas
+- **Pagamento Online / PIX** (Pro) — como configurar PIX automático, Mercado Pago
+- **Funcionalidades** — menção à aba de funcionalidades para ver o que está disponível
+- **Assinatura** — como ver/gerenciar seu plano
 
-Após as alterações:
-- "Duplo cheddar" mostrará custo total baseado nos ingredientes vinculados
-- Margem será calculada: `(54,34 - custo) / 54,34 × 100`
-- Preço sugerido aparecerá baseado no slider de markup
+### 3. Landing Page (`src/pages/Index.tsx`)
+
+Atualizar o array `features` para incluir funcionalidades novas que faltam:
+
+- **Gestão de Insumos**: controle de ingredientes com ficha técnica e baixa automática
+- **Precificação Inteligente**: cálculo automático de margem e preço sugerido por markup
+- Atualizar `benefitCards` para refletir melhor o produto atual
+
+### 4. FeaturesTab (`src/components/dashboard/FeaturesTab.tsx`)
+
+Adicionar ao array `FEATURES`:
+
+- **Precificação / Ficha Técnica** (enterprise, available)
+- **Delivery Próprio** (pro, available) — já existe como "Integração com Delivery" mas marcado como `coming_soon` no enterprise; corrigir para refletir que delivery próprio já funciona no Pro
+
+---
+
+### Arquivos modificados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/support-chat/index.ts` | Reescrever SYSTEM_PROMPT com foco em ajuda operacional |
+| `src/components/dashboard/GuideTab.tsx` | Adicionar ~5 seções ao GUIDE_SECTIONS |
+| `src/pages/Index.tsx` | Adicionar 2 features ao array, atualizar benefitCards |
+| `src/components/dashboard/FeaturesTab.tsx` | Adicionar Precificação, corrigir Delivery |
 
