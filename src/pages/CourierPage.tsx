@@ -91,6 +91,8 @@ const CourierPage = () => {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [notFound, setNotFound] = useState(false);
+  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
+  const [forceOpen, setForceOpen] = useState(false);
 
   // Registration form
   const [name, setName] = useState("");
