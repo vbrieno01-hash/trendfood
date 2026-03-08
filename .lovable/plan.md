@@ -1,51 +1,35 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Diagnóstico: "Erro ao carregar pagamento"
 
-### Problema
+O toast "Erro ao carregar pagamento" vem do `CardPaymentForm.tsx` (linha 62) quando a chamada `supabase.functions.invoke("get-mp-public-key")` retorna erro. Os auth logs mostram múltiplos erros "Session not found" para uma sessão antiga, o que indica que o token JWT pode estar expirado/inválido no momento da chamada, fazendo a edge function retornar 401.
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+### Causa provável
 
-### Alterações
+Quando o usuário tem uma sessão expirada ou o auto-refresh falha, o `supabase.functions.invoke` envia um token inválido. A edge function `get-mp-public-key` faz `supabase.auth.getUser()` que falha, retornando 401. O `invoke` trata isso como `error`, disparando o toast.
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+### Correções
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+**1. `src/components/checkout/CardPaymentForm.tsx`**
+- Antes de chamar `get-mp-public-key`, verificar se existe uma sessão válida com `supabase.auth.getSession()`
+- Se a sessão estiver expirada, tentar `supabase.auth.refreshSession()` antes de invocar a function
+- Melhorar o log de erro para incluir detalhes (status, message) para debug futuro
+- Adicionar retry automático (1 tentativa) caso o primeiro invoke falhe
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+**2. `src/components/checkout/CardPaymentForm.tsx` (erro handling)**
+- Diferenciar erro de autenticação (sessão expirada) de erro de configuração (chave ausente)
+- Para erro de sessão: mostrar toast "Sessão expirada. Faça login novamente."
+- Para outros erros: manter a mensagem atual
 
-### UI no Checkout
+### Resumo da mudança
 
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+```tsx
+// Antes de invocar get-mp-public-key:
+const { data: sessionData } = await supabase.auth.getSession();
+if (!sessionData?.session) {
+  toast.error("Sessão expirada. Faça login novamente.");
+  return;
+}
+// Então invoca normalmente, com retry se falhar
 ```
-
-### Escopo
-
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
 
