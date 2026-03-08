@@ -218,7 +218,7 @@ const CourierPage = () => {
         } else {
           setOrgId(data.id);
           setOrgName(data.name);
-          setBusinessHours(data.business_hours as BusinessHours | null);
+          setBusinessHours(data.business_hours as unknown as BusinessHours | null);
           setForceOpen(data.force_open ?? false);
           saveOrgSlug(orgSlug);
         }
