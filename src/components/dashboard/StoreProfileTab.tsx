@@ -943,22 +943,22 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         </p>
         <div
           id="qr-print-area"
-          className="flex flex-col items-center gap-3 p-6 bg-white rounded-xl border border-border mx-auto"
-          style={{ maxWidth: 320 }}
+          className="flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 shadow-lg mx-auto"
+          style={{ maxWidth: 360 }}
         >
-          <div className="flex items-center gap-2">
-            <img src={chefLogo} alt="Logo" className="w-6 h-6 object-contain" />
-            <span className="text-lg font-bold text-gray-900">{form.name}</span>
+          <div className="border border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center gap-4 w-full">
+            <div className="flex items-center gap-2">
+              <img src={chefLogo} alt="Logo" className="w-8 h-8 object-contain" />
+              <span className="text-xl font-extrabold text-gray-900">{form.name}</span>
+            </div>
+            <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+            <QRCodeSVG value={publicUrl} size={200} level="H" includeMargin />
+            <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+            <p className="text-sm text-gray-600 text-center font-medium">
+              Escaneie o QR Code para acessar<br/>nosso cardápio digital
+            </p>
+            <p className="text-xs text-gray-400 text-center break-all">{publicUrl}</p>
           </div>
-          <QRCodeSVG
-            value={publicUrl}
-            size={200}
-            level="H"
-            includeMargin
-          />
-          <p className="text-sm text-gray-600 text-center">
-            Escaneie para ver o cardápio
-          </p>
         </div>
         <div className="flex gap-2 justify-center mt-4">
           <Button
