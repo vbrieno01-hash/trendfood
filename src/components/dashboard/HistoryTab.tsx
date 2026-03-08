@@ -263,19 +263,19 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
       {/* Summary */}
       {!isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-1">
             <p className="text-xs text-muted-foreground">Pedidos</p>
             <p className="font-bold text-foreground text-2xl">{filtered.length}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-2">
             <p className="text-xs text-muted-foreground">Receita</p>
             <p className="font-bold text-foreground text-2xl">{fmtBRL(totalRevenue)}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-3">
             <p className="text-xs text-muted-foreground">🍽️ Loja</p>
             <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number > 0).length}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-4">
             <p className="text-xs text-muted-foreground">🛵 Entregas</p>
             <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number === 0).length}</p>
           </div>
