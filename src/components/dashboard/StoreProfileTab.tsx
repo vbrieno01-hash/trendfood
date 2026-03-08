@@ -966,8 +966,9 @@ export default function StoreProfileTab({ organization }: { organization: Organi
             size="sm"
             className="gap-2"
             onClick={() => {
-              if (!qrRef.current) return;
-              const svg = qrRef.current;
+              const container = document.getElementById("qr-print-area");
+              const svg = container?.querySelector("svg");
+              if (!svg) return;
               const canvas = document.createElement("canvas");
               const ctx = canvas.getContext("2d")!;
               const xml = new XMLSerializer().serializeToString(svg);
