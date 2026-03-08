@@ -1,51 +1,36 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Substituir link do rodapé por QR Code na comanda
 
-### Problema
-
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+Trocar o texto "ACESSE: HTTPS://TRENDFOOD.LOVABLE.APP/" por um mini QR Code que aponta para o site, tornando o rodapé mais elegante e funcional.
 
 ### Alterações
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+**1. `src/components/shared/ThermalReceipt.tsx` (linha 109)**
+- Importar `QRCodeSVG` de `qrcode.react`
+- Substituir a linha de texto pela renderização de um QR Code pequeno (64x64px) centralizado, com o texto "POWERED BY: TRENDFOOD" acima
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+```tsx
+// Antes
+<div className="text-center text-[10px] mt-1">ACESSE: HTTPS://TRENDFOOD.LOVABLE.APP/</div>
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
-
-### UI no Checkout
-
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+// Depois
+<div className="flex justify-center mt-2">
+  <QRCodeSVG value="https://trendfood.lovable.app/" size={64} level="L" />
+</div>
 ```
 
-### Escopo
+**2. `src/lib/printOrder.ts` (linha 174)**
+- Já importa `QRCode` (lib `qrcode`) — usar para gerar um data URI do QR
+- Substituir o texto por uma `<img>` com o QR code gerado via `QRCode.toDataURL`
+- A função `buildPrintHtml` precisa ser `async` (ou gerar o QR antes e passar como parâmetro)
+- Tamanho pequeno: ~80px
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+**3. `src/lib/formatReceiptText.ts` (linha 212)**
+- Para impressoras Bluetooth/Desktop (texto puro), QR code não é viável
+- Manter o texto "Acesse: https://trendfood.lovable.app/" como fallback neste formato
+
+### Resumo
+- Preview e impressão browser: QR Code visual no rodapé
+- Impressão Bluetooth/Desktop (texto): mantém o link em texto (limitação do formato)
 
