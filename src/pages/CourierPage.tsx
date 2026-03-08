@@ -31,6 +31,8 @@ import {
 } from "@/hooks/useCourier";
 import { parsePhoneFromNotes } from "@/hooks/useCreateDelivery";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
+import { getStoreStatus } from "@/lib/storeStatus";
+import type { BusinessHours } from "@/hooks/useOrganization";
 
 function usePwaInstall() {
   const [prompt, setPrompt] = useState<any>(null);
@@ -89,6 +91,8 @@ const CourierPage = () => {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [notFound, setNotFound] = useState(false);
+  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
+  const [forceOpen, setForceOpen] = useState(false);
 
   // Registration form
   const [name, setName] = useState("");
@@ -205,7 +209,7 @@ const CourierPage = () => {
     if (!orgSlug) return;
     supabase
       .from("organizations")
-      .select("id, name")
+      .select("id, name, business_hours, force_open")
       .eq("slug", orgSlug)
       .single()
       .then(({ data, error }) => {
@@ -214,6 +218,8 @@ const CourierPage = () => {
         } else {
           setOrgId(data.id);
           setOrgName(data.name);
+          setBusinessHours(data.business_hours as unknown as BusinessHours | null);
+          setForceOpen(data.force_open ?? false);
           saveOrgSlug(orgSlug);
         }
       });
@@ -246,6 +252,20 @@ const CourierPage = () => {
     else { toast.success("Chave PIX salva! ✅"); }
   };
 
+  // Auto-end shift when store closes
+  useEffect(() => {
+    if (!activeShift || !businessHours) return;
+    const check = () => {
+      const status = getStoreStatus(businessHours, forceOpen);
+      if (status && !status.open) {
+        endShiftMutation.mutate(activeShift.id);
+        toast.info("Turno encerrado — loja fechou.");
+      }
+    };
+    check();
+    const interval = setInterval(check, 60_000);
+    return () => clearInterval(interval);
+  }, [activeShift, businessHours, forceOpen]);
 
   if (!orgSlug) {
     const normalizePhone = (p: string) => p.replace(/\D/g, "");

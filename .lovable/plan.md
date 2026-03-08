@@ -1,42 +1,51 @@
 
 
-## Plano: Encerrar turno do motoboy automaticamente quando a loja fechar
+## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
 
 ### Problema
-O motoboy inicia o turno e, quando a loja fecha (horário de funcionamento), o turno continua ativo indefinidamente. Deveria encerrar automaticamente.
 
-### Solução
-Adicionar um efeito no `CourierPage.tsx` que verifica periodicamente (a cada 60s) se a loja está fechada. Se estiver fechada e houver um turno ativo, encerra o turno automaticamente.
+Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
 
-### Mudanças
+### Alterações
 
-**1. `src/pages/CourierPage.tsx`**
-- Buscar `business_hours` e `force_open` da organização junto com `id` e `name` no useEffect que já faz fetch por slug (linhas ~204-220)
-- Importar `getStoreStatus` de `@/lib/storeStatus`
-- Adicionar um `useEffect` que roda a cada 60s: se `getStoreStatus()` retornar `{ open: false }` e existir `activeShift`, chamar `endShiftMutation.mutate(activeShift.id)` e mostrar um toast informando que o turno foi encerrado porque a loja fechou
-- Guardar `businessHours` e `forceOpen` em estados locais
+**1. `src/components/checkout/AddressFields.tsx`**
+- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
+- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
+- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
+- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
+- Ao clicar num card: preencher CEP, rua e bairro automaticamente
+- Limpar candidatos quando o CEP muda manualmente
 
-### Lógica do auto-encerramento
+**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
+- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
+- Não alterar neste momento
 
-```typescript
-useEffect(() => {
-  if (!activeShift || !businessHours) return;
-  const check = () => {
-    const status = getStoreStatus(businessHours, forceOpen);
-    if (status && !status.open) {
-      endShiftMutation.mutate(activeShift.id);
-      toast.info("Turno encerrado — loja fechou.");
-    }
-  };
-  check(); // verifica imediatamente
-  const interval = setInterval(check, 60_000);
-  return () => clearInterval(interval);
-}, [activeShift, businessHours, forceOpen]);
+**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
+- Mesma situação do StoreProfileTab — configuração pontual
+- Não alterar neste momento
+
+### UI no Checkout
+
+```text
+[ 📍 Usar minha localização ]
+
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
+
+CEP: [_________]
+Rua: [_________]
+...
 ```
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/CourierPage.tsx` | Fetch business_hours/force_open, importar getStoreStatus, useEffect de auto-encerramento |
+### Escopo
 
-Mudança isolada em um único arquivo.
+- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
+- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
+- Apenas mudanças no frontend
 
