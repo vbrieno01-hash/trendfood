@@ -162,17 +162,17 @@ const benefitCards = [
   {
     icon: <Smartphone className="w-7 h-7" />,
     title: "Cardápio Digital",
-    description: "Seu catálogo completo acessível por QR Code, sem app para baixar.",
+    description: "Catálogo completo com QR Code por mesa. Cliente pede sem app.",
   },
   {
     icon: <Package className="w-7 h-7" />,
-    title: "Controle de Estoque",
-    description: "Gerencie entradas, saídas e estoque mínimo com alertas automáticos.",
+    title: "Insumos + Precificação",
+    description: "Ficha técnica de ingredientes, baixa automática e margem calculada.",
   },
   {
     icon: <CreditCard className="w-7 h-7" />,
     title: "Pagamento Online",
-    description: "PIX integrado direto no pedido, sem maquininha.",
+    description: "PIX automático integrado. Confirma pagamento sem maquininha.",
   },
 ];
 

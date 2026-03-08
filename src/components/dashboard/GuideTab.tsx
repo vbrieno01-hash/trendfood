@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Home, UtensilsCrossed, TableProperties, History, Tag,
   BarChart2, Flame, BellRing, Wallet, Store, Settings, Plus, Truck,
+  CreditCard, Bike, Package, Zap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 

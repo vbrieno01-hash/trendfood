@@ -3,9 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Lock, Zap, MessageCircle, Printer, Compass, Wallet,
+  Lock, Zap, MessageCircle, Printer, Wallet,
   Flame, Tag, BarChart2, BellRing, Building2, UtensilsCrossed,
-  TableProperties, History, ListPlus, CreditCard, Package,
+  TableProperties, History, ListPlus, CreditCard, Package, Bike,
 } from "lucide-react";
 
 type MinPlan = "free" | "pro" | "enterprise" | "lifetime";
