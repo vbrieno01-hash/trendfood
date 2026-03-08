@@ -19,6 +19,21 @@ export function parsePhoneFromNotes(notes: string | null | undefined): string | 
 }
 
 /**
+ * Extract the delivery fee from notes (set by store owner via neighborhood pricing).
+ * Formats: "FRETE:R$ 6,00" → 6.00 | "FRETE:Grátis" → 0 | not found → null
+ */
+export function parseFreteFromNotes(notes: string | null | undefined): number | null {
+  if (!notes) return null;
+  const match = notes.match(/FRETE:([^|]+)/);
+  if (!match) return null;
+  const raw = match[1].trim();
+  if (/gr[aá]tis/i.test(raw)) return 0;
+  const numeric = raw.replace(/[^\d,\.]/g, "").replace(",", ".");
+  const val = parseFloat(numeric);
+  return isNaN(val) ? null : val;
+}
+
+/**
  * Create a delivery record for a delivery order marked as ready.
  * Distance/fee calculation runs in background via edge function.
  */
