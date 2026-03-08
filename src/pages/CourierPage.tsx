@@ -209,7 +209,7 @@ const CourierPage = () => {
     if (!orgSlug) return;
     supabase
       .from("organizations")
-      .select("id, name")
+      .select("id, name, business_hours, force_open")
       .eq("slug", orgSlug)
       .single()
       .then(({ data, error }) => {
@@ -218,6 +218,8 @@ const CourierPage = () => {
         } else {
           setOrgId(data.id);
           setOrgName(data.name);
+          setBusinessHours(data.business_hours as BusinessHours | null);
+          setForceOpen(data.force_open ?? false);
           saveOrgSlug(orgSlug);
         }
       });
