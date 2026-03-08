@@ -298,7 +298,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
             return (
               <div
                 key={order.id}
-                className="bg-card border border-border rounded-xl p-4 space-y-2"
+                className="dashboard-glass rounded-xl p-4 space-y-2 dashboard-table-row"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">

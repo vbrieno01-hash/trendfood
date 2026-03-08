@@ -383,8 +383,8 @@ ${watermarkHtml}
       </div>
 
       {/* Weekly comparison */}
-      <Card>
-        <CardContent className="p-5">
+      <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-5">
+        <div className="p-5">
           <h3 className="font-semibold text-foreground text-sm mb-4">Comparativo Semanal</h3>
           <div className="grid grid-cols-3 gap-4">
             <div>
@@ -401,20 +401,20 @@ ${watermarkHtml}
                 {weeklyComparison.change > 0 ? (
                   <ArrowUpRight className="w-4 h-4 text-emerald-600" />
                 ) : weeklyComparison.change < 0 ? (
-                  <ArrowDownRight className="w-4 h-4 text-red-500" />
+                  <ArrowDownRight className="w-4 h-4 text-destructive" />
                 ) : (
                   <Minus className="w-4 h-4 text-muted-foreground" />
                 )}
                 <p className={`font-bold text-lg ${
-                  weeklyComparison.change > 0 ? "text-emerald-600" : weeklyComparison.change < 0 ? "text-red-500" : "text-muted-foreground"
+                  weeklyComparison.change > 0 ? "text-emerald-600" : weeklyComparison.change < 0 ? "text-destructive" : "text-muted-foreground"
                 }`}>
                   {weeklyComparison.change > 0 ? "+" : ""}{weeklyComparison.change.toFixed(1)}%
                 </p>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Daily revenue chart */}
       <Card>

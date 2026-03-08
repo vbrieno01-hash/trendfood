@@ -186,7 +186,7 @@ export default function SettingsTab() {
       </div>
 
       {/* Danger zone */}
-      <div className="rounded-xl border border-destructive/40 overflow-hidden">
+      <div className="dashboard-glass rounded-2xl overflow-hidden !border-destructive/30 animate-dashboard-fade-in dash-delay-4">
         <div className="px-4 py-3 border-b border-destructive/20 bg-destructive/5 flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-destructive" />
           <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Zona de Perigo</p>

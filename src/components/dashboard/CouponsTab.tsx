@@ -111,7 +111,7 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
             return (
               <div
                 key={coupon.id}
-                className="bg-card border border-border rounded-xl p-4 flex items-center gap-4"
+                className="dashboard-glass rounded-xl p-4 flex items-center gap-4 dashboard-table-row"
               >
                 {/* Code */}
                 <div className="flex-1 min-w-0">

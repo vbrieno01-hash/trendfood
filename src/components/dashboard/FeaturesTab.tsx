@@ -201,7 +201,7 @@ export default function FeaturesTab({ effectivePlan }: FeaturesTabProps) {
               )}
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white shrink-0">
                     {f.icon}
                   </div>
                   <div className="flex gap-1.5 flex-wrap justify-end">

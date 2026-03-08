@@ -281,7 +281,7 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
       <div className="space-y-3">
         <h3 className="font-semibold text-foreground text-base">Sangrias do turno</h3>
         {withdrawals.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-5 text-center text-muted-foreground text-sm">
+          <div className="dashboard-glass rounded-2xl p-5 text-center text-muted-foreground text-sm">
             Nenhuma sangria registrada neste turno
           </div>
         ) : (
