@@ -1,51 +1,47 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Plano: Aplicar tema Premium em todas as abas restantes
 
-### Problema
+### Abas já atualizadas
+HomeTab, SettingsTab, BestSellersTab, CouponsTab, KitchenTab, HistoryTab, StockTab, ReportsTab, FeaturesTab, CaixaTab — todas já usam `dashboard-glass`, animações staggered e headers com ícone gradiente.
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+### Abas que faltam (10 arquivos)
+Cada uma receberá o mesmo padrão visual: header com `dashboard-section-icon`, containers `dashboard-glass rounded-2xl`, animações `animate-dashboard-fade-in` com delays staggered, e botões com `shadow-lg shadow-primary/20`.
 
-### Alterações
+| Arquivo | Mudanças |
+|---------|----------|
+| **TablesTab.tsx** | Header com ícone gradiente, lista de mesas em `dashboard-glass`, rows com `dashboard-table-row`, empty state glass |
+| **WaiterTab.tsx** | Seções (Prontos, Aguardando PIX, Aguardando Pagamento) com headers glass, cards de pedido com `dashboard-glass` + bordas coloridas por status, animações staggered |
+| **MenuTab.tsx** | Header com ícone gradiente, cards de item em `dashboard-glass`, modal de criação/edição mantém funcional, botão "Adicionar" com shadow primary |
+| **CourierDashboardTab.tsx** | Header glass, KPI summary cards com `dashboard-glass`, cards de entrega com bordas por status, seção config com glass |
+| **StoreProfileTab.tsx** | Cada seção (Identidade, Endereço, PIX, etc.) envolta em `dashboard-glass rounded-2xl`, header principal com ícone gradiente |
+| **PrinterTab.tsx** | Seções de config em `dashboard-glass`, header com ícone gradiente |
+| **PricingTab.tsx** | Substituir `<Card>` por `dashboard-glass rounded-2xl`, tabela com header `bg-muted/30` |
+| **GuideTab.tsx** | Header com ícone gradiente, accordion items com `dashboard-glass` em vez de `bg-card` |
+| **SubscriptionTab.tsx** | Card de plano atual em `dashboard-glass`, seção de pagamentos glass |
+| **ReferralSection.tsx** | Card principal em `dashboard-glass`, stats cards com glass, bonus history glass |
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+### Padrão aplicado (consistente com abas já feitas)
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+```
+// Header padrão
+<div className="flex items-center gap-3 animate-dashboard-fade-in">
+  <div className="dashboard-section-icon">
+    <Icon className="w-5 h-5" />
+  </div>
+  <h2 className="font-bold text-foreground text-xl">Título</h2>
+</div>
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
-
-### UI no Checkout
-
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+// Container padrão
+<div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-1">
+  ...
+</div>
 ```
 
-### Escopo
+### O que NÃO muda
+- Nenhuma lógica de negócio
+- Nenhuma prop ou hook
+- Apenas classes CSS e wrappers visuais
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+Total: 10 arquivos, mudanças puramente visuais.
 
