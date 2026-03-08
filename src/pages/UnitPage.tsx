@@ -825,7 +825,7 @@ const UnitPage = () => {
                                     </span>
                                   ) : qty === 0 ? (
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}
+                                      onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
                                       className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
                                       style={{ backgroundColor: primaryColor }}
                                     >
