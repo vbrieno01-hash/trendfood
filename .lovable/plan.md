@@ -1,51 +1,66 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Diagnóstico: Cliente online "volta pro começo" ao finalizar pedido
 
-### Problema
+### Causa raiz
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+O problema está em `src/lib/whatsappRedirect.ts` (linha 46-49). Quando `window.open` falha (popup bloqueado — comum em navegadores mobile), o fallback usa **`window.location.href`** para redirecionar a página inteira para a URL do WhatsApp. Isso:
 
-### Alterações
+1. **Navega a página inteira para fora** — o SPA perde todo o estado
+2. Quando o cliente volta (botão voltar ou troca de app), o carrinho está vazio, o checkout resetado
+3. Pior: como `openWhatsAppWithFallback` é chamado **antes** de `placeOrder.mutate`, o pedido **nem chega a ser salvo no banco**
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+Esse bug só ocorre em produção (`trendfood.lovable.app`) porque no preview do Lovable a página está dentro de um iframe (`isEmbeddedOrRestrictedContext() = true`), fazendo o código pular o `location.href`.
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+### Correções (2 arquivos)
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+**1. `src/lib/whatsappRedirect.ts`** — Remover o fallback `location.href` completamente. Manter apenas `window.open` + toast manual:
 
-### UI no Checkout
+```typescript
+export function openWhatsAppWithFallback(url: string, options: OpenWhatsAppOptions = {}): void {
+  // Step 1: try window.open
+  let opened = false;
+  try {
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (w) opened = true;
+  } catch { }
 
-```text
-[ 📍 Usar minha localização ]
+  if (opened) return;
 
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+  // Step 2: toast com link manual (NUNCA navegar a página atual)
+  toast.info("Toque no botão abaixo para abrir o WhatsApp.", {
+    action: {
+      label: "Abrir WhatsApp",
+      onClick: () => { window.open(url, "_blank"); },
+    },
+    duration: 30000,
+  });
+}
 ```
 
-### Escopo
+**2. `src/pages/UnitPage.tsx`** — Inverter a ordem: salvar pedido no banco **primeiro**, abrir WhatsApp apenas no `onSuccess`:
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+No fluxo não-PIX (linhas ~410-464), a lógica atual é:
+```
+openWhatsAppWithFallback(url)  ← abre WhatsApp (pode navegar fora)
+placeOrder.mutate(...)          ← salva no banco (pode nem executar)
+```
+
+Será invertido para:
+```
+placeOrder.mutate(...)
+  onSuccess: () => {
+    openWhatsAppWithFallback(url)  ← só abre após salvar
+    resetCheckout()
+  }
+```
+
+Isso garante que mesmo se o popup for bloqueado, o pedido já está salvo e o cliente vê o toast com link manual sem perder o estado.
+
+### Impacto
+
+- **Todos os clientes online** (atuais e futuros) se beneficiam
+- Pedidos nunca mais serão perdidos por navegação acidental
+- O carrinho só é limpo após confirmação de salvamento no banco
+- Funciona em qualquer navegador mobile (Chrome, Safari, in-app browsers)
 
