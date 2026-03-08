@@ -116,6 +116,8 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
           <div className="dashboard-section-icon">
             <History className="w-5 h-5" />
           </div>
+          <h2 className="font-bold text-foreground text-xl">Histórico de Pedidos</h2>
+        </div>
         <div className="flex items-center gap-2">
           {canDelete && (
             <DropdownMenu>
