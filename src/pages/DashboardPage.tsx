@@ -48,6 +48,7 @@ import PrinterTab from "@/components/dashboard/PrinterTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
 import StockTab from "@/components/dashboard/StockTab";
+import PricingTab from "@/components/dashboard/PricingTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
 
 
