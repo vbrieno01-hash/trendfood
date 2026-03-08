@@ -107,7 +107,9 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       <div className="border-t border-dashed border-black my-2 pt-1" />
       <div className="text-center font-bold">BOM APETITE</div>
       <div className="text-center mt-1">POWERED BY: TRENDFOOD</div>
-      <div className="text-center text-[10px] mt-1">ACESSE: HTTPS://TRENDFOOD.LOVABLE.APP/</div>
+      <div className="flex justify-center mt-2">
+        <QRCodeSVG value="https://trendfood.lovable.app/" size={64} level="L" />
+      </div>
     </div>
   );
 }

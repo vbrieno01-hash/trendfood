@@ -206,7 +206,15 @@ export async function printOrder(
     } catch { /* QR code generation failed */ }
   }
 
-  const html = buildPrintHtml(data, is58, pixHtml);
+  // Footer QR code
+  let footerQrDataUrl: string | undefined;
+  try {
+    footerQrDataUrl = await QRCode.toDataURL("https://trendfood.lovable.app/", {
+      width: 80, margin: 1, errorCorrectionLevel: "L",
+    });
+  } catch { /* ignore */ }
+
+  const html = buildPrintHtml(data, is58, pixHtml, footerQrDataUrl);
 
   win.document.write(html);
   win.document.close();
