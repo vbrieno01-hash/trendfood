@@ -20,7 +20,7 @@ import {
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
-  ChevronDown,
+  ChevronDown, Calculator,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -48,11 +48,12 @@ import PrinterTab from "@/components/dashboard/PrinterTab";
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
 import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
 import StockTab from "@/components/dashboard/StockTab";
+import PricingTab from "@/components/dashboard/PricingTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
 
 
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -513,6 +514,7 @@ const DashboardPage = () => {
     caixa: !planLimits.canAccess("caixa"),
     reports: !planLimits.canAccess("reports"),
     stock: !planLimits.canAccess("stock_ingredients"),
+    pricing: !planLimits.canAccess("pricing"),
   }), [planLimits.effectivePlan]);
 
   const sidebarGroups = useMemo(() => [
@@ -537,6 +539,7 @@ const DashboardPage = () => {
       id: "financeiro", emoji: "💰", title: "FINANCEIRO",
       items: [
         { key: "caixa" as TabKey, icon: <Wallet className="w-4 h-4" />, label: "Fluxo de Caixa", locked: lockedFeatures.caixa },
+        { key: "pricing" as TabKey, icon: <Calculator className="w-4 h-4" />, label: "Precificação", locked: lockedFeatures.pricing },
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
         { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
         { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
@@ -987,6 +990,9 @@ const DashboardPage = () => {
           {activeTab === "stock" && (lockedFeatures.stock
             ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
             : <StockTab orgId={organization.id} />)}
+          {activeTab === "pricing" && (lockedFeatures.pricing
+            ? <UpgradePrompt title="Precificação" description="Calcule custos, margens e preços sugeridos com base na ficha técnica dos seus produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
+            : <PricingTab orgId={organization.id} />)}
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           </ErrorBoundary>
         </main>

@@ -9,6 +9,7 @@ export interface StockItem {
   unit: string;
   quantity: number;
   min_quantity: number;
+  cost_per_unit: number;
   created_at: string;
 }
 
@@ -17,6 +18,7 @@ export interface StockItemInput {
   unit: string;
   quantity: number;
   min_quantity: number;
+  cost_per_unit: number;
 }
 
 export interface MenuItemIngredient {
@@ -56,6 +58,7 @@ export function useAddStockItem(orgId: string) {
           unit: input.unit,
           quantity: input.quantity,
           min_quantity: input.min_quantity,
+          cost_per_unit: input.cost_per_unit,
         })
         .select()
         .single();

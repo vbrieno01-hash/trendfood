@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Package, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const UNITS = ["un", "kg", "g", "L", "ml", "pct", "cx"];
 
@@ -24,11 +25,11 @@ export default function StockTab({ orgId }: StockTabProps) {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StockItem | null>(null);
-  const [form, setForm] = useState({ name: "", unit: "un", quantity: "", min_quantity: "" });
+  const [form, setForm] = useState({ name: "", unit: "un", quantity: "", min_quantity: "", cost_per_unit: 0 });
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", unit: "un", quantity: "", min_quantity: "0" });
+    setForm({ name: "", unit: "un", quantity: "", min_quantity: "0", cost_per_unit: 0 });
     setDialogOpen(true);
   };
 
@@ -39,6 +40,7 @@ export default function StockTab({ orgId }: StockTabProps) {
       unit: item.unit,
       quantity: String(item.quantity),
       min_quantity: String(item.min_quantity),
+      cost_per_unit: item.cost_per_unit,
     });
     setDialogOpen(true);
   };
@@ -49,6 +51,7 @@ export default function StockTab({ orgId }: StockTabProps) {
       unit: form.unit,
       quantity: Number(form.quantity) || 0,
       min_quantity: Number(form.min_quantity) || 0,
+      cost_per_unit: form.cost_per_unit,
     };
     if (!payload.name) return;
 
@@ -96,6 +99,7 @@ export default function StockTab({ orgId }: StockTabProps) {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Unidade</TableHead>
+                  <TableHead className="text-right">Custo/un</TableHead>
                   <TableHead className="text-right">Qtd. Atual</TableHead>
                   <TableHead className="text-right">Mín.</TableHead>
                   <TableHead className="w-20" />
@@ -115,6 +119,9 @@ export default function StockTab({ orgId }: StockTabProps) {
                         </div>
                       </TableCell>
                       <TableCell>{item.unit}</TableCell>
+                      <TableCell className="text-right font-mono text-muted-foreground">
+                        {item.cost_per_unit > 0 ? `R$ ${item.cost_per_unit.toFixed(2).replace(".", ",")}` : "—"}
+                      </TableCell>
                       <TableCell className={`text-right font-mono ${isZero ? "text-destructive font-bold" : isLow ? "text-amber-600 font-semibold" : ""}`}>
                         {item.quantity}
                       </TableCell>
@@ -171,6 +178,10 @@ export default function StockTab({ orgId }: StockTabProps) {
                 <Label>Mínimo</Label>
                 <Input type="number" min="0" step="0.01" value={form.min_quantity} onChange={(e) => setForm((f) => ({ ...f, min_quantity: e.target.value }))} />
               </div>
+            </div>
+            <div>
+              <Label>Custo por unidade (R$)</Label>
+              <CurrencyInput value={form.cost_per_unit} onChange={(v) => setForm((f) => ({ ...f, cost_per_unit: v }))} />
             </div>
           </div>
           <DialogFooter>
