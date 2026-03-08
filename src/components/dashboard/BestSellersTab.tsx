@@ -81,11 +81,11 @@ export default function BestSellersTab({ orgId }: BestSellersTabProps) {
       {/* Summary */}
       {!isLoading && ranked.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-1">
             <p className="text-xs text-muted-foreground">Itens únicos</p>
             <p className="font-bold text-foreground text-2xl">{ranked.length}</p>
           </div>
-          <div className="bg-card border border-border rounded-xl px-4 py-3">
+          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-2">
             <p className="text-xs text-muted-foreground">Receita total</p>
             <p className="font-bold text-foreground text-2xl">{fmtBRL(totalRevenue)}</p>
           </div>
