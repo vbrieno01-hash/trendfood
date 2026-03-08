@@ -16,7 +16,7 @@ const san = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
  * Generate HTML for browser print from the SHARED ReceiptData model.
  * This ensures the browser-printed receipt matches the ThermalReceipt component.
  */
-function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string): string {
+function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string, footerQrDataUrl?: string): string {
   // Items HTML
   const itemsHtml = data.items.map((item) => {
     const nameWithCustomer = san(item.customerName ? `${item.baseName} - ${item.customerName}` : item.baseName);
