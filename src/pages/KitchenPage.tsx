@@ -308,7 +308,10 @@ export default function KitchenPage() {
                 badge: "/pwa-192.png",
               });
             }
-            qc.invalidateQueries({ queryKey: ["orders", org.id, ["pending", "preparing"]] });
+            // Delay to let order_items be inserted before re-fetching
+            setTimeout(() => {
+              qc.invalidateQueries({ queryKey: ["orders", org.id, ["pending", "preparing"]] });
+            }, 1500);
           }
         }
       )
