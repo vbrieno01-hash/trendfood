@@ -148,8 +148,8 @@ export default function StockTab({ orgId }: StockTabProps) {
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
