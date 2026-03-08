@@ -212,11 +212,22 @@ const DashboardPage = () => {
             console.log("[AutoPrint] Novo pedido detectado:", order.id, "mesa:", order.table_number);
 
             printQueue.current.push(async () => {
-              const { data: items } = await supabase
-                .from("order_items")
-                .select("id, name, quantity, price, customer_name")
-                .eq("order_id", order.id);
-              const fullOrder = { ...order, order_items: items ?? [] };
+              // Retry up to 3 times with 1.5s delay to wait for order_items (race condition fix)
+              let items: any[] = [];
+              for (let attempt = 0; attempt < 3; attempt++) {
+                if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+                const { data } = await supabase
+                  .from("order_items")
+                  .select("id, name, quantity, price, customer_name")
+                  .eq("order_id", order.id);
+                items = data ?? [];
+                if (items.length > 0) break;
+              }
+              if (items.length === 0) {
+                console.warn("[AutoPrint] Pedido sem itens após 3 tentativas:", order.id);
+                return; // Don't print empty receipt
+              }
+              const fullOrder = { ...order, order_items: items };
 
               // Web: reconexao sob demanda
               if (!btDeviceRef.current && getStoredDeviceId()) {
