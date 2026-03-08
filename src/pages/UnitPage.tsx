@@ -784,7 +784,7 @@ const UnitPage = () => {
                           return (
                             <div
                               key={item.id}
-                              onClick={() => item.available && setSelectedItem(item)}
+                              onClick={() => { if (item.available) { pushDrawerState("item"); setSelectedItem(item); } }}
                               className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200 ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
                             >
                               {/* Foto quadrada + badge de qty */}
