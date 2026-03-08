@@ -933,6 +933,90 @@ export default function StoreProfileTab({ organization }: { organization: Organi
         <BusinessHoursSection value={businessHours} onChange={setBusinessHours} />
       </div>
 
+      {/* ── SEÇÃO 7: QR Code do Cardápio ─────────────────────── */}
+      <div>
+        <SectionHeader>QR Code do Cardápio</SectionHeader>
+        <p className="text-sm text-muted-foreground mb-4">
+          Imprima e coloque no balcão para que seus clientes acessem o cardápio digital.
+        </p>
+        <div
+          id="qr-print-area"
+          className="flex flex-col items-center gap-3 p-6 bg-white rounded-xl border border-border mx-auto"
+          style={{ maxWidth: 320 }}
+        >
+          <p className="text-lg font-bold text-gray-900">
+            {form.emoji} {form.name}
+          </p>
+          <QRCodeSVG
+            ref={qrRef}
+            value={publicUrl}
+            size={200}
+            level="H"
+            includeMargin
+          />
+          <p className="text-sm text-gray-600 text-center">
+            Escaneie para ver o cardápio
+          </p>
+        </div>
+        <div className="flex gap-2 justify-center mt-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              if (!qrRef.current) return;
+              const svg = qrRef.current;
+              const canvas = document.createElement("canvas");
+              const ctx = canvas.getContext("2d")!;
+              const xml = new XMLSerializer().serializeToString(svg);
+              const img = new Image();
+              img.onload = () => {
+                canvas.width = img.width * 2;
+                canvas.height = img.height * 2;
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const a = document.createElement("a");
+                a.href = canvas.toDataURL("image/png");
+                a.download = `qrcode-${form.slug}.png`;
+                a.click();
+              };
+              img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
+            }}
+          >
+            <Download className="w-4 h-4" />
+            Baixar PNG
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              const printArea = document.getElementById("qr-print-area");
+              if (!printArea) return;
+              const win = window.open("", "_blank")!;
+              win.document.write(`
+                <html><head><title>QR Code - ${form.name}</title>
+                <style>body{display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;font-family:sans-serif}
+                .card{text-align:center;padding:40px}
+                .name{font-size:24px;font-weight:bold;margin-bottom:16px}
+                .hint{font-size:14px;color:#666;margin-top:16px}
+                </style></head><body>
+                <div class="card">${printArea.innerHTML}</div>
+                <script>window.print();window.close();</script>
+                </body></html>
+              `);
+              win.document.close();
+            }}
+          >
+            <Printer className="w-4 h-4" />
+            Imprimir
+          </Button>
+        </div>
+      </div>
+
       <Button type="submit" className="w-full h-10" disabled={saving}>
         {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar alterações"}
       </Button>
