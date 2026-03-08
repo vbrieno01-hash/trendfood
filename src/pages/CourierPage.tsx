@@ -252,6 +252,20 @@ const CourierPage = () => {
     else { toast.success("Chave PIX salva! ✅"); }
   };
 
+  // Auto-end shift when store closes
+  useEffect(() => {
+    if (!activeShift || !businessHours) return;
+    const check = () => {
+      const status = getStoreStatus(businessHours, forceOpen);
+      if (status && !status.open) {
+        endShiftMutation.mutate(activeShift.id);
+        toast.info("Turno encerrado — loja fechou.");
+      }
+    };
+    check();
+    const interval = setInterval(check, 60_000);
+    return () => clearInterval(interval);
+  }, [activeShift, businessHours, forceOpen]);
 
   if (!orgSlug) {
     const normalizePhone = (p: string) => p.replace(/\D/g, "");
