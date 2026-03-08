@@ -68,7 +68,7 @@ function MetricCard({
         <Icon className="w-3.5 h-3.5" />
         {label}
       </div>
-      <p className={`text-lg font-bold ${highlight ? "text-green-500" : "text-foreground"}`}>
+      <p className={`text-lg font-bold ${highlight ? "text-emerald-500" : "text-foreground"}`}>
         {value}
       </p>
     </div>
