@@ -588,6 +588,8 @@ const UnitPage = () => {
 
   const resetCheckout = () => {
     setCart({});
+    try { localStorage.removeItem(cartStorageKey); } catch {}
+    popDrawerState();
     setCheckoutOpen(false);
     setOrderType("");
     setBuyerName("");
