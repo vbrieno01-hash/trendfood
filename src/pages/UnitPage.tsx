@@ -62,12 +62,62 @@ const UnitPage = () => {
 
   const placeOrder = usePlaceOrder();
 
-  // Cart state
-  const [cart, setCart] = useState<Record<string, CartItem>>({});
+  // Cart state — persisted in localStorage so swipe-back gestures don't lose items
+  const cartStorageKey = `cart_${slug}`;
+  const [cart, setCart] = useState<Record<string, CartItem>>(() => {
+    try {
+      const saved = localStorage.getItem(cartStorageKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   // Item detail drawer
   const [selectedItem, setSelectedItem] = useState<typeof menuItems[0] | null>(null);
+
+  // Persist cart to localStorage on every change
+  useEffect(() => {
+    try {
+      if (Object.keys(cart).length > 0) {
+        localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+      } else {
+        localStorage.removeItem(cartStorageKey);
+      }
+    } catch { /* quota exceeded — ignore */ }
+  }, [cart, cartStorageKey]);
+
+  // Intercept back gesture: push history state when drawers open, pop closes them
+  const historyStateRef = useRef<string | null>(null);
+
+  const pushDrawerState = (drawer: string) => {
+    historyStateRef.current = drawer;
+    window.history.pushState({ drawer }, "");
+  };
+
+  const popDrawerState = () => {
+    if (historyStateRef.current) {
+      historyStateRef.current = null;
+      // Go back to remove the extra history entry we pushed
+      window.history.back();
+    }
+  };
+
+  useEffect(() => {
+    const onPopState = (_e: PopStateEvent) => {
+      const prev = historyStateRef.current;
+      if (prev === "checkout") {
+        historyStateRef.current = null;
+        setCheckoutOpen(false);
+        setShowPixScreen(false);
+      } else if (prev === "item") {
+        historyStateRef.current = null;
+        setSelectedItem(null);
+      }
+      // If no drawer was open, let normal navigation happen
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -456,7 +506,7 @@ const UnitPage = () => {
             console.error("[UnitPage] placeOrder DB error:", err);
             toast({ title: "Erro ao salvar pedido. Tente novamente.", description: String(err), variant: "destructive" });
             // Do NOT clear cart — DB failed, let user retry
-            setCheckoutOpen(false);
+            popDrawerState(); setCheckoutOpen(false);
           },
         }
       );
@@ -538,6 +588,8 @@ const UnitPage = () => {
 
   const resetCheckout = () => {
     setCart({});
+    try { localStorage.removeItem(cartStorageKey); } catch {}
+    popDrawerState();
     setCheckoutOpen(false);
     setOrderType("");
     setBuyerName("");
@@ -734,7 +786,7 @@ const UnitPage = () => {
                           return (
                             <div
                               key={item.id}
-                              onClick={() => item.available && setSelectedItem(item)}
+                              onClick={() => { if (item.available) { pushDrawerState("item"); setSelectedItem(item); } }}
                               className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200 ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
                             >
                               {/* Foto quadrada + badge de qty */}
@@ -775,7 +827,7 @@ const UnitPage = () => {
                                     </span>
                                   ) : qty === 0 ? (
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}
+                                      onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
                                       className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
                                       style={{ backgroundColor: primaryColor }}
                                     >
@@ -834,7 +886,7 @@ const UnitPage = () => {
             </div>
           ) : (
             <button
-              onClick={() => setCheckoutOpen(true)}
+              onClick={() => { pushDrawerState("checkout"); setCheckoutOpen(true); }}
               className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95 animate-in slide-in-from-bottom-4 duration-300"
               style={{ backgroundColor: primaryColor }}
             >
@@ -852,7 +904,7 @@ const UnitPage = () => {
       )}
 
       {/* ── CHECKOUT DRAWER ── */}
-      <Drawer open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+      <Drawer open={checkoutOpen} onOpenChange={(open) => { if (!open) { popDrawerState(); setCheckoutOpen(false); } }}>
         <DrawerContent className="max-h-[90dvh]">
           <DrawerHeader className="border-b border-border pb-3">
             <DrawerTitle className="flex items-center gap-2">
@@ -1232,9 +1284,10 @@ const UnitPage = () => {
       {/* ── ITEM DETAIL DRAWER ── */}
       <ItemDetailDrawer
         item={selectedItem}
-        onClose={() => setSelectedItem(null)}
+        onClose={() => { popDrawerState(); setSelectedItem(null); }}
         onAdd={(item, addons, itemNotes, qty) => {
           addToCartWithQty(item, addons, itemNotes, qty);
+          popDrawerState();
           setSelectedItem(null);
         }}
         primaryColor={primaryColor}
