@@ -53,7 +53,10 @@ export async function createDeliveryForOrder(
 
   const customerAddress = parseAddressFromNotes(order.notes);
 
-  const baseFee = courierConfig?.base_fee ?? 3.0;
+  // Use the fee set by the store owner (from neighborhood pricing), fallback to courier base_fee
+  const ownerFee = parseFreteFromNotes(order.notes);
+  const fee = ownerFee !== null ? ownerFee : (courierConfig?.base_fee ?? 3.0);
+
   const { data: delivery, error } = await supabase
     .from("deliveries")
     .insert({
@@ -61,7 +64,7 @@ export async function createDeliveryForOrder(
       organization_id: organizationId,
       customer_address: customerAddress,
       status: "pendente",
-      fee: baseFee,
+      fee,
     })
     .select("id")
     .single();
