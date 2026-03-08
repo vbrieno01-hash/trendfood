@@ -99,6 +99,7 @@ export default function StockTab({ orgId }: StockTabProps) {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Unidade</TableHead>
+                  <TableHead className="text-right">Custo/un</TableHead>
                   <TableHead className="text-right">Qtd. Atual</TableHead>
                   <TableHead className="text-right">Mín.</TableHead>
                   <TableHead className="w-20" />
