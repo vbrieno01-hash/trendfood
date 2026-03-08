@@ -1,18 +1,6 @@
 import { toast } from "sonner";
 
 /**
- * Detects if the current window is inside an iframe or restricted context
- * where navigation to external URLs (like api.whatsapp.com) is likely to be blocked.
- */
-function isEmbeddedOrRestrictedContext(): boolean {
-  try {
-    return window.self !== window.top;
-  } catch {
-    // Cross-origin iframe — definitely restricted
-    return true;
-  }
-}
-
 interface OpenWhatsAppOptions {
   /**
    * 'operational' = order flow, courier notification — may try location.href in non-restricted contexts
