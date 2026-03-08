@@ -19,7 +19,7 @@ import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
-  BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift,
+  BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
   ChevronDown,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -816,6 +816,15 @@ const DashboardPage = () => {
             <Gift className="w-4 h-4" />
             Ganhe Desconto
           </button>
+          <a
+            href="https://chat.whatsapp.com/EfyhyGDZPceEcIcu0gb8yq?mode=gi_t"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/15 hover:text-emerald-300 transition-all duration-150"
+          >
+            <MessageCircle className="w-4 h-4" />
+            Comunidade WhatsApp
+          </a>
           <a
             href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
             target="_blank"
