@@ -179,6 +179,10 @@ export default function StockTab({ orgId }: StockTabProps) {
                 <Input type="number" min="0" step="0.01" value={form.min_quantity} onChange={(e) => setForm((f) => ({ ...f, min_quantity: e.target.value }))} />
               </div>
             </div>
+            <div>
+              <Label>Custo por unidade (R$)</Label>
+              <CurrencyInput value={form.cost_per_unit} onChange={(v) => setForm((f) => ({ ...f, cost_per_unit: v }))} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
