@@ -98,7 +98,7 @@ export default function SettingsTab() {
 
   return (
     <div className="space-y-6 max-w-lg">
-      <div>
+      <div className="animate-dashboard-fade-in">
         <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
         <p className="text-muted-foreground text-sm mt-0.5">Gerencie sua conta e segurança</p>
       </div>
