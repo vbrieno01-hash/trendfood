@@ -9,6 +9,7 @@ export interface StockItem {
   unit: string;
   quantity: number;
   min_quantity: number;
+  cost_per_unit: number;
   created_at: string;
 }
 
@@ -17,6 +18,7 @@ export interface StockItemInput {
   unit: string;
   quantity: number;
   min_quantity: number;
+  cost_per_unit: number;
 }
 
 export interface MenuItemIngredient {
