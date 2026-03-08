@@ -31,3 +31,22 @@ export function notifyCustomerWhatsApp(
   const url = `https://wa.me/${fullPhone}?text=${encoded}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
+
+/**
+ * Build a WhatsApp message for order ready and open wa.me link.
+ */
+export function notifyCustomerReady(
+  phone: string,
+  orderNumber: number | string,
+  storeName?: string
+) {
+  const msg =
+    `✅ *Pedido #${orderNumber} pronto!*\n` +
+    `Seu pedido está pronto para retirada/entrega! 🎉` +
+    (storeName ? `\n\n— ${storeName}` : "");
+
+  const encoded = encodeURIComponent(msg);
+  const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
+  const url = `https://wa.me/${fullPhone}?text=${encoded}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
