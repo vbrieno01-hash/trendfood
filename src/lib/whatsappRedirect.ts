@@ -27,10 +27,7 @@ interface OpenWhatsAppOptions {
  * 2. If in unrestricted context + operational mode → tries location.href
  * 3. Always shows a manual toast if automatic methods fail
  */
-export function openWhatsAppWithFallback(url: string, options: OpenWhatsAppOptions = {}): void {
-  const { mode = "operational" } = options;
-  const restricted = isEmbeddedOrRestrictedContext();
-
+export function openWhatsAppWithFallback(url: string, _options: OpenWhatsAppOptions = {}): void {
   // Step 1: try window.open
   let opened = false;
   try {
@@ -42,19 +39,9 @@ export function openWhatsAppWithFallback(url: string, options: OpenWhatsAppOptio
 
   if (opened) return;
 
-  // Step 2: only try location.href in non-restricted, operational contexts
-  if (!restricted && mode === "operational") {
-    try {
-      window.location.href = url;
-      return;
-    } catch {
-      // fall through to manual toast
-    }
-  }
-
-  // Step 3: always show manual fallback toast
-  toast.info("O navegador bloqueou a abertura automática.", {
-    description: "Toque no botão abaixo para abrir o WhatsApp.",
+  // Step 2: NEVER use location.href — it navigates away and destroys SPA state.
+  // Always show a manual fallback toast so the user stays on the page.
+  toast.info("Toque no botão abaixo para abrir o WhatsApp.", {
     action: {
       label: "Abrir WhatsApp",
       onClick: () => {
