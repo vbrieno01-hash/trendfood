@@ -73,12 +73,14 @@ export default function StockTab({ orgId }: StockTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Package className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <Package className="w-5 h-5" />
+          </div>
           <h2 className="text-lg font-bold">Estoque de Insumos</h2>
         </div>
-        <Button size="sm" onClick={openNew} className="gap-1.5">
+        <Button size="sm" onClick={openNew} className="gap-1.5 shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4" /> Novo Insumo
         </Button>
       </div>
