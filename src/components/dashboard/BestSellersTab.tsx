@@ -52,9 +52,11 @@ export default function BestSellersTab({ orgId }: BestSellersTabProps) {
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <BarChart2 className="w-5 h-5 text-primary" />
+      <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <BarChart2 className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Mais Vendidos</h2>
         </div>
 
