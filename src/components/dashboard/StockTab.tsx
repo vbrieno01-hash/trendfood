@@ -92,10 +92,10 @@ export default function StockTab({ orgId }: StockTabProps) {
             <p className="font-medium">Nenhum insumo cadastrado</p>
             <p className="text-sm">Adicione ingredientes para controlar o estoque automaticamente.</p>
           </div>
-        </Card>
+        </div>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-slide-up">
+          <div className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
