@@ -1,59 +1,51 @@
 
 
-## Diagnóstico: Comandas sem itens no KDS
+## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
 
-### Causa raiz
+### Problema
 
-Existe uma **condição de corrida (race condition)** no fluxo de criação de pedidos:
-
-1. `usePlaceOrder` insere o registro na tabela `orders` primeiro
-2. O Realtime dispara imediatamente um evento INSERT
-3. O KDS recebe o evento e faz `invalidateQueries`, que re-busca `orders` com `order_items(*)`
-4. Porém os `order_items` ainda **não foram inseridos** (são inseridos DEPOIS do order)
-5. Resultado: o KDS mostra o pedido com **lista de itens vazia**
-
-O auto-print do KDS também falha porque verifica `order_items?.length > 0` e pula pedidos sem itens.
-
-A comanda que vai para `fila_impressao` funciona corretamente porque é enfileirada pelo próprio cliente com os itens inline, sem depender da re-busca.
-
-### Solução
-
-Adicionar um **delay/retry** na invalidação do KDS quando um novo pedido chega, para dar tempo dos `order_items` serem inseridos antes de re-buscar.
+Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
 
 ### Alterações
 
-**1. `src/components/dashboard/KitchenTab.tsx` e `src/pages/KitchenPage.tsx`**
+**1. `src/components/checkout/AddressFields.tsx`**
+- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
+- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
+- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
+- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
+- Ao clicar num card: preencher CEP, rua e bairro automaticamente
+- Limpar candidatos quando o CEP muda manualmente
 
-No handler do Realtime (evento INSERT), trocar a invalidação imediata por uma invalidação com delay:
+**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
+- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
+- Não alterar neste momento
 
-```typescript
-// Antes:
-qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
+**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
+- Mesma situação do StoreProfileTab — configuração pontual
+- Não alterar neste momento
 
-// Depois:
-// Delay para aguardar order_items serem inseridos
-setTimeout(() => {
-  qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
-}, 1500);
+### UI no Checkout
+
+```text
+[ 📍 Usar minha localização ]
+
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
+
+CEP: [_________]
+Rua: [_________]
+...
 ```
 
-**2. Auto-print retry no mesmo arquivo**
+### Escopo
 
-No `useEffect` que processa `pendingPrintIds`, adicionar lógica de retry: se um pedido na fila tem 0 itens, não removê-lo da fila — aguardar o próximo ciclo de re-render quando os itens já terão sido carregados.
-
-```typescript
-// Não remover da fila se order_items está vazio — vai tentar de novo
-const toPrint = orders.filter(
-  (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
-);
-// Adicionar timeout para re-tentar caso itens ainda não chegaram
-const pendingWithoutItems = orders.filter(
-  (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) === 0
-);
-if (pendingWithoutItems.length > 0 && toPrint.length === 0) {
-  setTimeout(() => qc.invalidateQueries({ queryKey: ["orders", orgId] }), 2000);
-}
-```
-
-Ambos os arquivos (KitchenTab e KitchenPage) receberão as mesmas alterações para manter a paridade.
+- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
+- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
+- Apenas mudanças no frontend
 

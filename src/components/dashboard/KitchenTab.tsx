@@ -254,7 +254,10 @@ export default function KitchenTab({
                 badge: "/pwa-192.png",
               });
             }
-            qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
+            // Delay to let order_items be inserted before re-fetching
+            setTimeout(() => {
+              qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] });
+            }, 1500);
           }
         }
       )
@@ -269,6 +272,14 @@ export default function KitchenTab({
     const toPrint = orders.filter(
       (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
     );
+    // Retry: if pending orders have no items yet, schedule a re-fetch
+    const pendingWithoutItems = orders.filter(
+      (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) === 0
+    );
+    if (pendingWithoutItems.length > 0 && toPrint.length === 0) {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["orders", orgId, ["pending", "preparing"]] }), 2000);
+      return;
+    }
     if (toPrint.length === 0) return;
 
     isPrintingRef.current = true;
