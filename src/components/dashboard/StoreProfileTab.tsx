@@ -31,6 +31,7 @@ interface Organization {
   delivery_config?: { free_above?: number } | null;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
   banner_url?: string | null;
+  subscription_plan?: string;
 }
 
 
