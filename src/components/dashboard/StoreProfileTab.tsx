@@ -950,7 +950,6 @@ export default function StoreProfileTab({ organization }: { organization: Organi
             <span className="text-lg font-bold text-gray-900">{form.name}</span>
           </div>
           <QRCodeSVG
-            ref={qrRef}
             value={publicUrl}
             size={200}
             level="H"
