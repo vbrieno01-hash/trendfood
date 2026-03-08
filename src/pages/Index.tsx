@@ -138,6 +138,16 @@ const features = [
     title: "Gestão de Motoboys",
     description: "Cadastre motoboys, atribua entregas, acompanhe em tempo real e controle pagamentos.",
   },
+  {
+    icon: <Package className="w-5 h-5" />,
+    title: "Gestão de Insumos",
+    description: "Controle ingredientes com ficha técnica e baixa automática a cada venda.",
+  },
+  {
+    icon: <BarChart3 className="w-5 h-5" />,
+    title: "Precificação Inteligente",
+    description: "Cálculo automático de margem e preço sugerido por markup sobre custo.",
+  },
 ];
 
 const proofBadges = [
