@@ -152,9 +152,11 @@ export default function WaiterTab({
     <div className="space-y-8 max-w-4xl">
       {/* ── SEÇÃO: Aguardando Pagamento PIX (modo manual) ─────────── */}
       {showAwaitingSection && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-orange-600" />
+        <div className="space-y-4 animate-dashboard-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="dashboard-section-icon !bg-orange-500">
+              <QrCode className="w-5 h-5" />
+            </div>
             <h2 className="font-bold text-foreground text-xl">Aguardando PIX</h2>
             <span className="ml-1 text-sm font-semibold text-orange-700 bg-orange-100 border border-orange-200 rounded-full px-2.5 py-0.5">
               {awaitingOrders.length}
