@@ -1267,16 +1267,7 @@ const UnitPage = () => {
                   {isSubmitting || placeOrder.isPending ? "Enviando pedido…" : "Enviar Pedido pelo WhatsApp"}
                 </button>
               )
-            ) : (
-              <div className="bg-muted rounded-xl p-4 text-center">
-                <p className="text-muted-foreground text-sm">
-                  ⚠️ O WhatsApp do estabelecimento ainda não foi configurado.
-                </p>
-                <p className="text-muted-foreground text-xs mt-1">
-                  O lojista precisa cadastrar o número no painel.
-                </p>
-              </div>
-            )}
+            ) : null}
           </DrawerFooter>
         </DrawerContent>
       </Drawer>

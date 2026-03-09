@@ -128,6 +128,11 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const whatsappDigits = form.whatsapp.replace(/\D/g, "");
+    if (whatsappDigits.length < 10) {
+      toast.error("WhatsApp é obrigatório. Digite DDD + número (mín 10 dígitos).");
+      return;
+    }
     setSaving(true);
     try {
       const sharedFields = {
@@ -544,7 +549,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
         <div>
           <Label htmlFor="store-whatsapp" className="text-sm font-medium">
-            WhatsApp para pedidos <span className="text-muted-foreground font-normal">(opcional)</span>
+            WhatsApp para pedidos <span className="text-destructive font-normal">*</span>
           </Label>
           <div className="flex items-center mt-1 rounded-md border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
             <span className="px-3 py-2 text-xs text-muted-foreground bg-secondary border-r border-input shrink-0">
