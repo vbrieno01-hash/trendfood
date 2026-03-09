@@ -1,51 +1,23 @@
 
+## Plano: Tornar WhatsApp obrigatório e remover alerta da página pública
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+### Entendimento
+A página pública (UnitPage) mostra um aviso quando o lojista não configurou WhatsApp. O usuário quer:
+1. **Remover esse aviso** da página pública — não deve aparecer para clientes
+2. **Obrigar** os lojistas a cadastrarem WhatsApp — assim nunca terão lojas sem número
 
-### Problema
+### Mudanças
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+| Arquivo | Mudança |
+|---------|---------|
+| **UnitPage.tsx** | Remover o bloco de alerta (linhas 1270-1278) que exibe "WhatsApp não configurado". Se não houver WhatsApp, simplesmente não mostrar o botão de envio |
+| **StoreProfileTab.tsx** | Mudar label de "(opcional)" para "(obrigatório)" e adicionar validação no `handleSave` que impede salvar sem WhatsApp preenchido |
+| **OnboardingWizard.tsx** | Adicionar campo WhatsApp no Step 1 (Nome/Emoji → Nome/Emoji/WhatsApp). Validar que está preenchido antes de avançar |
 
-### Alterações
+### Validação do WhatsApp
+- Mínimo de 10 dígitos (DDD + número)
+- Toast de erro se tentar salvar sem preencher
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
-
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
-
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
-
-### UI no Checkout
-
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
-```
-
-### Escopo
-
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
-
+### Comportamento na Página Pública (pós-mudança)
+- Se loja não tiver WhatsApp: O botão de checkout fica desabilitado ou não aparece
+- Não será mais exibida a mensagem de erro para o cliente final
