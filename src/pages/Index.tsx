@@ -518,7 +518,7 @@ const Index = () => {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
-              <img src={logoDashboard} alt="TrendFood" className="w-7 h-7 rounded-md object-contain" />
+              <img src="/pwa-192.png" alt="TrendFood" className="w-7 h-7 rounded-md object-contain" />
               <span className="font-bold text-foreground text-lg tracking-tight">TrendFood</span>
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed mb-4">
