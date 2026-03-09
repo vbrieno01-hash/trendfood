@@ -1188,6 +1188,9 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
 
       {/* File input OUTSIDE modal — always in DOM, survives Android WebView lifecycle */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+
+      {/* Import Modal */}
+      <ImportMenuDialog open={importOpen} onOpenChange={setImportOpen} organization={organization} />
     </div>
   );
 }
