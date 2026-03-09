@@ -45,6 +45,7 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
   // Step 1 state
   const [name, setName] = useState(organization.name);
   const [emoji, setEmoji] = useState(organization.emoji);
+  const [whatsapp, setWhatsapp] = useState("");
 
   // Step 2 state — pre-populate from existing store_address
   const existingAddr = organization.store_address ? parseStoreAddress(organization.store_address) : null;
