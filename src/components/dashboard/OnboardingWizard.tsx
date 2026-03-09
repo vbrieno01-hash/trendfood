@@ -236,6 +236,18 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="store-whatsapp">WhatsApp para pedidos *</Label>
+                <Input
+                  id="store-whatsapp"
+                  placeholder="11999998888"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ""))}
+                  inputMode="tel"
+                  maxLength={11}
+                />
+                <p className="text-xs text-muted-foreground">DDD + número (ex: 11999998888). Obrigatório para receber pedidos.</p>
+              </div>
+              <div className="space-y-2">
                 <Label>Escolha um emoji</Label>
                 <div className="grid grid-cols-6 gap-2">
                   {EMOJIS.map((e) => (
