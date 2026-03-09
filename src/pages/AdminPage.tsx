@@ -448,7 +448,7 @@ function AdminContent() {
         <div className="px-5 py-5 border-b border-white/[0.06]">
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <img src={logoDashboard} alt="TrendFood" className="w-10 h-10 rounded-xl object-contain ring-1 ring-white/10 group-hover:ring-primary/40 transition-all duration-300 group-hover:scale-105" />
+              <img src="/pwa-192.png" alt="TrendFood" className="w-10 h-10 rounded-xl object-contain ring-1 ring-white/10 group-hover:ring-primary/40 transition-all duration-300 group-hover:scale-105" />
             </div>
             <div>
               <span className="font-extrabold text-white text-[15px] tracking-tight block leading-tight">TrendFood</span>
