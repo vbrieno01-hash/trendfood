@@ -476,8 +476,8 @@ const AuthPage = () => {
 
                     {/* WhatsApp */}
                     <div>
-                      <Label htmlFor="signup-whatsapp" className="text-sm font-medium mb-1.5 block">
-                        WhatsApp <span className="text-muted-foreground font-normal">(opcional)</span>
+                    <Label htmlFor="signup-whatsapp" className="text-sm font-medium mb-1.5 block">
+                      WhatsApp para pedidos *
                       </Label>
                       <div className="flex items-center rounded-lg border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 h-11">
                         <span className="px-3 text-xs text-muted-foreground bg-muted border-r border-input h-full flex items-center shrink-0">
