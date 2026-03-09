@@ -586,6 +586,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingIngredients, setPendingIngredients] = useState<PendingIngredient[]>([]);
   const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
   const fileRef = useRef<HTMLInputElement>(null);
