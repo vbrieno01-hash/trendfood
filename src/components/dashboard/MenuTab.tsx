@@ -1200,6 +1200,34 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete ALL confirmation */}
+      <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar cardápio inteiro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação vai remover <strong>{items.length}</strong> {items.length === 1 ? "item" : "itens"} permanentemente, incluindo fotos.
+              Não será possível desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                deleteAllMutation.mutate(items.map((i) => ({ id: i.id, image_url: i.image_url })));
+                setDeleteAllOpen(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAllMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : null}
+              Limpar tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* File input OUTSIDE modal — always in DOM, survives Android WebView lifecycle */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
 
