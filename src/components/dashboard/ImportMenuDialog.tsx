@@ -40,10 +40,19 @@ const SYSTEM_FIELDS = [
 type FieldKey = (typeof SYSTEM_FIELDS)[number]["value"];
 
 function parsePrice(raw: unknown): number | null {
-  const cleaned = String(raw ?? "")
-    .replace(/[R$\s.]/g, "")
-    .replace(",", ".");
-  const num = parseFloat(cleaned);
+  let s = String(raw ?? "").replace(/[R$\s]/g, "").trim();
+  if (!s) return null;
+  // If both . and , exist, the last one is the decimal separator
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma > lastDot) {
+    // e.g. "1.500,50" or "15,50" → remove dots (thousands), replace comma with dot
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (lastDot > lastComma) {
+    // e.g. "1,500.50" or "15.50" → remove commas (thousands)
+    s = s.replace(/,/g, "");
+  }
+  const num = parseFloat(s);
   return isNaN(num) || num <= 0 ? null : num;
 }
 
