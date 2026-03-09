@@ -1,51 +1,38 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Correção dos Logos Escuros da Plataforma
 
-### Problema
+### Problema Identificado
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+O arquivo `logo-dashboard.png` contém elementos **pretos** que ficam invisíveis em fundos escuros (sidebars do Dashboard e Admin). O mesmo logo é usado em 4 locais:
 
-### Alterações
+| Arquivo | Linha | Contexto | Problema |
+|---------|-------|----------|----------|
+| `DashboardPage.tsx` | 745 | Sidebar escura | Logo invisível |
+| `AdminPage.tsx` | 451 | Sidebar escura | Logo invisível |
+| `AdminPage.tsx` | 553 | Header mobile | Logo pouco visível |
+| `Index.tsx` | 238, 521 | Header + footer | OK (fundo escuro com texto branco) |
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+---
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+### Solução
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+Substituir `logoDashboard` pelo logo PWA (`/pwa-192.png`) que tem **chapéu branco sobre fundo laranja** — visível em qualquer fundo.
 
-### UI no Checkout
+### Arquivos a Modificar
 
-```text
-[ 📍 Usar minha localização ]
+1. **`src/pages/DashboardPage.tsx`** (linha 745)
+   - Trocar `logoDashboard` por `"/pwa-192.png"`
 
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
+2. **`src/pages/AdminPage.tsx`** (linhas 451 e 553)
+   - Trocar `logoDashboard` por `"/pwa-192.png"` nas duas ocorrências da sidebar
 
-CEP: [_________]
-Rua: [_________]
-...
-```
+3. **`src/pages/Index.tsx`** (linhas 238 e 521)
+   - Manter ou trocar para consistência visual
 
-### Escopo
+---
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+### Resultado Esperado
+
+Logos visíveis em todas as páginas, independente do tema ou fundo.
 
