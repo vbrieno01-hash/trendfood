@@ -212,14 +212,17 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <Bike className="w-5 h-5 text-primary" />
-          Motoboys & Entregas
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Acompanhe entregas em tempo real e gerencie seus motoboys.
-        </p>
+      {/* Header */}
+      <div className="flex items-center gap-3 animate-dashboard-fade-in">
+        <div className="dashboard-section-icon">
+          <Bike className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">Motoboys & Entregas</h2>
+          <p className="text-sm text-muted-foreground">
+            Acompanhe entregas em tempo real e gerencie seus motoboys.
+          </p>
+        </div>
       </div>
 
       {/* Date filter */}
