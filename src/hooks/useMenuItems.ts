@@ -173,3 +173,32 @@ export function useDeleteMenuItem(orgId: string) {
     },
   });
 }
+
+export function useDeleteAllMenuItems(orgId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (items: { id: string; image_url: string | null }[]) => {
+      // Remove images from storage
+      const imagePaths = items
+        .filter((i) => i.image_url)
+        .map((i) => i.image_url!.split("/menu-images/")[1]?.split("?")[0])
+        .filter(Boolean) as string[];
+      if (imagePaths.length > 0) {
+        await supabase.storage.from("menu-images").remove(imagePaths);
+      }
+      // Delete all items
+      const { error } = await supabase
+        .from("menu_items")
+        .delete()
+        .eq("organization_id", orgId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["menu_items", orgId] });
+      toast.success("Todos os itens foram removidos.");
+    },
+    onError: () => {
+      toast.error("Erro ao remover itens.");
+    },
+  });
+}

@@ -21,7 +21,7 @@ import {
   type StockItem,
 } from "@/hooks/useStockItems";
 import {
-  useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
+  useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem, useDeleteAllMenuItems,
   uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
 } from "@/hooks/useMenuItems";
 import {
@@ -587,8 +587,10 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
+  const deleteAllMutation = useDeleteAllMenuItems(organization.id);
   const fileRef = useRef<HTMLInputElement>(null);
   // Track object URLs for cleanup
   const objectUrlRef = useRef<string | null>(null);
@@ -845,6 +847,18 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Importar CSV/Excel</span>
           </Button>
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteAllOpen(true)}
+              title="Limpar cardápio"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Limpar</span>
+            </Button>
+          )}
           <Button onClick={openCreate} size="sm" className="gap-1.5 h-9" disabled={limitReached}>
             <Plus className="w-4 h-4" />
             Novo item
@@ -1181,6 +1195,34 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete ALL confirmation */}
+      <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar cardápio inteiro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação vai remover <strong>{items.length}</strong> {items.length === 1 ? "item" : "itens"} permanentemente, incluindo fotos.
+              Não será possível desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                deleteAllMutation.mutate(items.map((i) => ({ id: i.id, image_url: i.image_url })));
+                setDeleteAllOpen(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAllMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : null}
+              Limpar tudo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
