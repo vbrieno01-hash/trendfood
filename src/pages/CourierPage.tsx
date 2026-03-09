@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -88,11 +89,7 @@ const CourierPage = () => {
   const [searchParams] = useSearchParams();
   const orgSlugParam = searchParams.get("org") || "";
   const orgSlug = orgSlugParam || getSavedOrgSlug() || "";
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgName, setOrgName] = useState("");
   const [notFound, setNotFound] = useState(false);
-  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null);
-  const [forceOpen, setForceOpen] = useState(false);
 
   // Registration form
   const [name, setName] = useState("");
@@ -113,6 +110,32 @@ const CourierPage = () => {
   const { data: courier, isLoading: courierLoading } = useMyCourier();
   const registerMutation = useRegisterCourier();
   const loginMutation = useLoginCourier();
+
+  // Fetch org by slug with periodic refetch to detect store closing
+  const { data: orgData } = useQuery({
+    queryKey: ["courier-org", orgSlug],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name, business_hours, force_open")
+        .eq("slug", orgSlug)
+        .single();
+      if (error || !data) {
+        setNotFound(true);
+        return null;
+      }
+      saveOrgSlug(orgSlug);
+      return data;
+    },
+    enabled: !!orgSlug,
+    refetchInterval: 2 * 60_000,
+    staleTime: 60_000,
+  });
+
+  const orgId = orgData?.id ?? null;
+  const orgName = orgData?.name ?? "";
+  const businessHours = orgData?.business_hours as unknown as BusinessHours | null;
+  const forceOpen = orgData?.force_open ?? false;
   const { data: available = [], isLoading: availableLoading } = useAvailableDeliveries(orgId ?? undefined);
   useCleanupStaleDeliveries(orgId ?? undefined);
   const { data: myDeliveries = [] } = useMyDeliveries(courierId);
@@ -204,26 +227,6 @@ const CourierPage = () => {
       });
   }, [orgSlug, courierId]);
 
-  // Fetch org by slug and persist it
-  useEffect(() => {
-    if (!orgSlug) return;
-    supabase
-      .from("organizations")
-      .select("id, name, business_hours, force_open")
-      .eq("slug", orgSlug)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setNotFound(true);
-        } else {
-          setOrgId(data.id);
-          setOrgName(data.name);
-          setBusinessHours(data.business_hours as unknown as BusinessHours | null);
-          setForceOpen(data.force_open ?? false);
-          saveOrgSlug(orgSlug);
-        }
-      });
-  }, [orgSlug]);
 
   // Init pixKey from courier data
   useEffect(() => {
@@ -252,13 +255,19 @@ const CourierPage = () => {
     else { toast.success("Chave PIX salva! ✅"); }
   };
 
-  // Auto-end shift when store closes
+  // Auto-end shift when store closes (with guard against duplicate calls)
+  const endingRef = useRef(false);
   useEffect(() => {
     if (!activeShift || !businessHours) return;
+    endingRef.current = false;
     const check = () => {
+      if (endingRef.current) return;
       const status = getStoreStatus(businessHours, forceOpen);
       if (status && !status.open) {
-        endShiftMutation.mutate(activeShift.id);
+        endingRef.current = true;
+        endShiftMutation.mutate(activeShift.id, {
+          onError: () => { endingRef.current = false; },
+        });
         toast.info("Turno encerrado — loja fechou.");
       }
     };
