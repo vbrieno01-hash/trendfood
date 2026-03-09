@@ -1,64 +1,51 @@
 
 
-## Plano: Importação em Massa de Produtos via CSV/Excel
+## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
 
-### Resumo
-Criar um componente de importação CSV/XLSX no MenuTab do dashboard, com upload de arquivo, mapeamento manual de colunas, validação de preços e bulk insert na tabela `menu_items` usando o `organization_id` da loja logada.
+### Problema
 
-### Dependencias
-- Instalar `papaparse` (CSV parsing) e `xlsx` (Excel parsing) como dependencias do projeto.
+Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
 
-### Arquivos a Criar
+### Alterações
 
-#### 1. `src/components/dashboard/ImportMenuDialog.tsx`
-Componente modal com 3 etapas:
+**1. `src/components/checkout/AddressFields.tsx`**
+- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
+- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
+- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
+- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
+- Ao clicar num card: preencher CEP, rua e bairro automaticamente
+- Limpar candidatos quando o CEP muda manualmente
 
-**Etapa 1 - Upload**: Input de arquivo (.csv, .xlsx). Ao selecionar, parseia client-side com papaparse (CSV) ou xlsx (XLSX). Extrai headers e primeiras 3 linhas como preview.
+**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
+- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
+- Não alterar neste momento
 
-**Etapa 2 - Mapeamento de Colunas**: Exibe uma tabela mostrando cada coluna do arquivo com um `<Select>` ao lado para mapear para: Nome do Produto (obrigatório), Preço (obrigatório), Descrição (opcional), Categoria (opcional). Mostra preview dos dados mapeados. Botão "Importar" só ativa quando os 2 campos obrigatórios estão mapeados.
+**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
+- Mesma situação do StoreProfileTab — configuração pontual
+- Não alterar neste momento
 
-**Etapa 3 - Processamento e Resultado**: 
-- Limpa preços: remove "R$", espaços, troca "," por ".", `parseFloat`
-- Valida que cada linha tem nome não-vazio e preço numérico > 0
-- Linhas inválidas são ignoradas (mostrar contador)
-- Categoria padrão: "Outros" se não mapeada
-- Bulk insert via `supabase.from("menu_items").insert([...])` com `organization_id` injetado em todas as linhas
-- `available: true`, `hide_global_addons: false` como defaults
-- Toast de sucesso com contagem de itens importados
-- Invalida query cache `["menu_items", orgId]` para atualizar lista
-- Toast de erro se falhar
-
-### Arquivos a Modificar
-
-#### 2. `src/components/dashboard/MenuTab.tsx`
-- Importar `ImportMenuDialog`
-- Adicionar state `importOpen`
-- Adicionar botão "Importar Cardápio (CSV/Excel)" com icone `Upload` ao lado do botão "Novo item" (linha ~842)
-- Renderizar `<ImportMenuDialog open={importOpen} onOpenChange={setImportOpen} organization={organization} />`
-
-### Seguranca
-- O `organization_id` vem do state da org logada (já validado por auth)
-- RLS policy `menu_items_insert_owner` garante que só o dono pode inserir
-- Nenhuma alteracao de schema ou migracao necessaria
-- Nenhum dado existente sera apagado
-
-### Detalhes Tecnicos
+### UI no Checkout
 
 ```text
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  Upload File │───>│  Map Columns │───>│  Bulk Insert │
-│  .csv/.xlsx  │    │  Nome, Preço │    │  menu_items  │
-│  papaparse   │    │  Desc, Categ │    │  + org_id    │
-│  xlsx        │    │  Select UI   │    │  invalidate  │
-└──────────────┘    └──────────────┘    └──────────────┘
+[ 📍 Usar minha localização ]
+
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
+
+CEP: [_________]
+Rua: [_________]
+...
 ```
 
-Limpeza de preço:
-```typescript
-function parsePrice(raw: string): number | null {
-  const cleaned = String(raw).replace(/[R$\s]/g, "").replace(",", ".");
-  const num = parseFloat(cleaned);
-  return isNaN(num) || num <= 0 ? null : num;
-}
-```
+### Escopo
+
+- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
+- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
+- Apenas mudanças no frontend
 

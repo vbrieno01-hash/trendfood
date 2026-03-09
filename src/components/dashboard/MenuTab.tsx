@@ -13,8 +13,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload,
 } from "lucide-react";
+import ImportMenuDialog from "@/components/dashboard/ImportMenuDialog";
 import {
   useStockItems, useMenuItemIngredients, useAddMenuItemIngredient, useRemoveMenuItemIngredient,
   type StockItem,
@@ -585,6 +586,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingIngredients, setPendingIngredients] = useState<PendingIngredient[]>([]);
   const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -838,6 +840,10 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
           >
             <ArrowUpDown className="w-4 h-4" />
             <span className="hidden sm:inline text-xs">{sortOrder === "newest" ? "Recentes primeiro" : "Antigos primeiro"}</span>
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setImportOpen(true)}>
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Importar CSV/Excel</span>
           </Button>
           <Button onClick={openCreate} size="sm" className="gap-1.5 h-9" disabled={limitReached}>
             <Plus className="w-4 h-4" />
@@ -1182,6 +1188,9 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
 
       {/* File input OUTSIDE modal — always in DOM, survives Android WebView lifecycle */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+
+      {/* Import Modal */}
+      <ImportMenuDialog open={importOpen} onOpenChange={setImportOpen} organization={organization} />
     </div>
   );
 }
