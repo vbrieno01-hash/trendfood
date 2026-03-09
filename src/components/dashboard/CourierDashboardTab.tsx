@@ -304,17 +304,15 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
       </div>
 
       {/* Courier link */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-sm font-medium mb-1">Link para cadastro de motoboys:</p>
-          <div className="flex items-center gap-2">
-            <code className="text-xs bg-muted px-3 py-2 rounded-lg flex-1 break-all">{courierLink}</code>
-            <button onClick={() => { navigator.clipboard.writeText(courierLink); toast.success("Copiado!"); }} className="text-xs text-primary font-medium shrink-0 hover:underline">
-              Copiar
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-2">
+        <p className="text-sm font-medium mb-1">Link para cadastro de motoboys:</p>
+        <div className="flex items-center gap-2">
+          <code className="text-xs bg-muted px-3 py-2 rounded-lg flex-1 break-all">{courierLink}</code>
+          <button onClick={() => { navigator.clipboard.writeText(courierLink); toast.success("Copiado!"); }} className="text-xs text-primary font-medium shrink-0 hover:underline">
+            Copiar
+          </button>
+        </div>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
