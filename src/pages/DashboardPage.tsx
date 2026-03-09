@@ -742,7 +742,7 @@ const DashboardPage = () => {
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/10">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src={logoDashboard} alt="TrendFood" className="w-8 h-8 rounded-xl object-contain shadow-lg shadow-primary/30" />
+            <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-xl object-contain shadow-lg shadow-primary/30" />
             <span className="font-extrabold text-white text-base tracking-tight">TrendFood</span>
           </Link>
         </div>
