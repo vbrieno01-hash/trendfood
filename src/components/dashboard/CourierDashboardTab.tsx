@@ -278,32 +278,30 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
       </div>
 
       {/* Fee config */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Settings className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-semibold">Taxa do motoboy</p>
+      <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-1">
+        <div className="flex items-center gap-2 mb-3">
+          <Settings className="w-4 h-4 text-muted-foreground" />
+          <p className="text-sm font-semibold">Taxa do motoboy</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Taxa base (por corrida)</label>
+            <CurrencyInput value={baseFee} onChange={setBaseFee} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Taxa base (por corrida)</label>
-              <CurrencyInput value={baseFee} onChange={setBaseFee} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Valor por km rodado</label>
-              <CurrencyInput value={perKm} onChange={setPerKm} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Diária (por dia)</label>
-              <CurrencyInput value={dailyRate} onChange={setDailyRate} />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Valor por km rodado</label>
+            <CurrencyInput value={perKm} onChange={setPerKm} />
           </div>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="sm" className="mt-3">
-            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar
-          </Button>
-        </CardContent>
-      </Card>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Diária (por dia)</label>
+            <CurrencyInput value={dailyRate} onChange={setDailyRate} />
+          </div>
+        </div>
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="sm" className="mt-3">
+          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Salvar
+        </Button>
+      </div>
 
       {/* Courier link */}
       <Card>
