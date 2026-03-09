@@ -254,13 +254,19 @@ const CourierPage = () => {
     else { toast.success("Chave PIX salva! ✅"); }
   };
 
-  // Auto-end shift when store closes
+  // Auto-end shift when store closes (with guard against duplicate calls)
+  const endingRef = useRef(false);
   useEffect(() => {
     if (!activeShift || !businessHours) return;
+    endingRef.current = false;
     const check = () => {
+      if (endingRef.current) return;
       const status = getStoreStatus(businessHours, forceOpen);
       if (status && !status.open) {
-        endShiftMutation.mutate(activeShift.id);
+        endingRef.current = true;
+        endShiftMutation.mutate(activeShift.id, {
+          onError: () => { endingRef.current = false; },
+        });
         toast.info("Turno encerrado — loja fechou.");
       }
     };
