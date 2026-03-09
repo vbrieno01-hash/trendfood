@@ -235,7 +235,7 @@ const Index = () => {
         <header className="relative z-10 border-b border-white/[0.06]">
           <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
             <div className="flex items-center gap-2.5">
-              <img src={logoDashboard} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
+              <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
               <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
             </div>
             <div className="hidden md:flex items-center gap-6 mr-auto ml-10">
