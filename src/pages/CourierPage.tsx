@@ -110,6 +110,32 @@ const CourierPage = () => {
   const { data: courier, isLoading: courierLoading } = useMyCourier();
   const registerMutation = useRegisterCourier();
   const loginMutation = useLoginCourier();
+
+  // Fetch org by slug with periodic refetch to detect store closing
+  const { data: orgData } = useQuery({
+    queryKey: ["courier-org", orgSlug],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name, business_hours, force_open")
+        .eq("slug", orgSlug)
+        .single();
+      if (error || !data) {
+        setNotFound(true);
+        return null;
+      }
+      saveOrgSlug(orgSlug);
+      return data;
+    },
+    enabled: !!orgSlug,
+    refetchInterval: 2 * 60_000,
+    staleTime: 60_000,
+  });
+
+  const orgId = orgData?.id ?? null;
+  const orgName = orgData?.name ?? "";
+  const businessHours = orgData?.business_hours as unknown as BusinessHours | null;
+  const forceOpen = orgData?.force_open ?? false;
   const { data: available = [], isLoading: availableLoading } = useAvailableDeliveries(orgId ?? undefined);
   useCleanupStaleDeliveries(orgId ?? undefined);
   const { data: myDeliveries = [] } = useMyDeliveries(courierId);
