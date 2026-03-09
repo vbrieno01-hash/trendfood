@@ -106,10 +106,12 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
 
   const saveStep1 = async () => {
     if (!name.trim()) { toast.error("Digite o nome da loja."); return false; }
+    const whatsappDigits = whatsapp.replace(/\D/g, "");
+    if (whatsappDigits.length < 10) { toast.error("WhatsApp obrigatório. Digite DDD + número (mín 10 dígitos)."); return false; }
     setSaving(true);
     const { error } = await supabase
       .from("organizations")
-      .update({ name: name.trim(), emoji })
+      .update({ name: name.trim(), emoji, whatsapp: whatsappDigits })
       .eq("id", organization.id);
     setSaving(false);
     if (error) { toast.error("Erro ao salvar."); return false; }
