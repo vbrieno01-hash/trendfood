@@ -351,12 +351,14 @@ export default function WaiterTab({
       </div>
 
       {/* ── SEÇÃO: Aguardando Pagamento ───────────────────────────── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-yellow-600" />
+      <div className="space-y-4 animate-dashboard-fade-in dash-delay-2">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon !bg-yellow-500">
+            <Clock className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Aguardando Pagamento</h2>
           {unpaidOrders.length > 0 && (
-            <span className="ml-1 text-sm font-semibold text-yellow-700 bg-yellow-100 border border-yellow-200 rounded-full px-2.5 py-0.5">
+            <span className="text-sm font-semibold text-yellow-700 bg-yellow-100 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-full px-2.5 py-0.5">
               {unpaidOrders.length}
             </span>
           )}

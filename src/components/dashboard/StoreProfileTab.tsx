@@ -314,9 +314,15 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
   return (
     <form onSubmit={handleSave} className="space-y-8 max-w-lg">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Perfil da Loja</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Personalize como sua lanchonete aparece para os clientes</p>
+      {/* Header */}
+      <div className="flex items-center gap-3 animate-dashboard-fade-in">
+        <div className="dashboard-section-icon">
+          <Store className="w-5 h-5" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Perfil da Loja</h1>
+          <p className="text-muted-foreground text-sm">Personalize como sua lanchonete aparece para os clientes</p>
+        </div>
       </div>
 
       {/* ── SEÇÃO 1: Identidade ────────────────────────────────────────── */}

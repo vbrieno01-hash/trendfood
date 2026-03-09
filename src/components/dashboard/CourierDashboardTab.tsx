@@ -340,23 +340,21 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
 
       {/* Day summary */}
       {summary.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-semibold text-sm mb-3">📊 Resumo do Dia</h3>
-            <div className="space-y-2">
-              {summary.map((s, i) => (
-                <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-muted-foreground">{s.count} entregas · {s.km.toFixed(1)} km · <span className="text-primary font-semibold">R$ {s.fee.toFixed(2)}</span></span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between text-sm font-bold pt-1">
-                <span>Total</span>
-                <span>{totalSummary.count} entregas · {totalSummary.km.toFixed(1)} km · <span className="text-primary">R$ {totalSummary.fee.toFixed(2)}</span></span>
+        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-4">
+          <h3 className="font-semibold text-sm mb-3">📊 Resumo do Dia</h3>
+          <div className="space-y-2">
+            {summary.map((s, i) => (
+              <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
+                <span className="font-medium">{s.name}</span>
+                <span className="text-muted-foreground">{s.count} entregas · {s.km.toFixed(1)} km · <span className="text-primary font-semibold">R$ {s.fee.toFixed(2)}</span></span>
               </div>
+            ))}
+            <div className="flex items-center justify-between text-sm font-bold pt-1">
+              <span>Total</span>
+              <span>{totalSummary.count} entregas · {totalSummary.km.toFixed(1)} km · <span className="text-primary">R$ {totalSummary.fee.toFixed(2)}</span></span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Active deliveries */}
