@@ -13,8 +13,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload,
 } from "lucide-react";
+import ImportMenuDialog from "@/components/dashboard/ImportMenuDialog";
 import {
   useStockItems, useMenuItemIngredients, useAddMenuItemIngredient, useRemoveMenuItemIngredient,
   type StockItem,
