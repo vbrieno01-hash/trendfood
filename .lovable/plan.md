@@ -1,51 +1,72 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Plano: Corrigir auto-encerramento de turno do motoboy quando a loja fecha
 
-### Problema
+### Problema identificado
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+O `businessHours` e `forceOpen` são carregados **uma única vez** no mount da página (useEffect linha 208-226). Isso significa que:
+1. Se o dono alterar `force_open` ou o horário de funcionamento enquanto o motoboy está online, a mudança não é detectada
+2. A mutação `endShiftMutation.mutate()` pode ser chamada várias vezes seguidas (a cada 60s) antes do `activeShift` ser invalidado, causando toasts duplicados e chamadas repetidas
+3. Não há log ou tratamento de erro se a mutação falhar silenciosamente
 
-### Alterações
+### Correção
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+**`src/pages/CourierPage.tsx`** — 3 ajustes:
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+1. **Refetch periódico dos dados da org**: Trocar o fetch único por um `useQuery` com `refetchInterval` de 2 minutos (ou re-fetch inline no interval) para capturar mudanças em `business_hours` e `force_open`
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+2. **Guard contra chamadas duplicadas**: Usar uma ref `endingRef` para evitar que `endShiftMutation.mutate()` seja disparado mais de uma vez
 
-### UI no Checkout
+3. **Tratar erro na mutação**: Se falhar, logar e tentar novamente no próximo ciclo
 
-```text
-[ 📍 Usar minha localização ]
+### Código da correção
 
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
+Substituir o fetch único da org (linhas 208-226) por um que use `useQuery` com refetch:
 
-CEP: [_________]
-Rua: [_________]
-...
+```typescript
+// Replace one-time fetch with periodic query
+const { data: orgData } = useQuery({
+  queryKey: ["courier-org", orgSlug],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("id, name, business_hours, force_open")
+      .eq("slug", orgSlug)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  enabled: !!orgSlug,
+  refetchInterval: 2 * 60_000, // Re-fetch every 2 min
+  staleTime: 60_000,
+});
 ```
 
-### Escopo
+E derivar `orgId`, `orgName`, `businessHours`, `forceOpen` do `orgData` em vez de estados separados.
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+Corrigir o useEffect do auto-end shift:
+
+```typescript
+useEffect(() => {
+  if (!activeShift || !businessHours) return;
+  let ended = false;
+  const check = () => {
+    if (ended) return;
+    const status = getStoreStatus(businessHours, forceOpen);
+    if (status && !status.open) {
+      ended = true;
+      endShiftMutation.mutate(activeShift.id, {
+        onError: () => { ended = false; }, // retry next cycle
+      });
+      toast.info("Turno encerrado — loja fechou.");
+    }
+  };
+  check();
+  const interval = setInterval(check, 60_000);
+  return () => clearInterval(interval);
+}, [activeShift, businessHours, forceOpen]);
+```
+
+### Arquivos alterados
+- `src/pages/CourierPage.tsx`
 
