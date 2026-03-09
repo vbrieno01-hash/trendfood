@@ -315,27 +315,27 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><CardContent className="p-4 text-center">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-dashboard-fade-in dash-delay-3">
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <Users className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
           <p className="text-2xl font-bold">{couriers.length}</p>
           <p className="text-xs text-muted-foreground">Motoboys</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <Clock className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
           <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "pendente").length}</p>
           <p className="text-xs text-muted-foreground">Pendentes</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <Navigation className="w-5 h-5 text-blue-500 mx-auto mb-1" />
           <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "em_rota").length}</p>
           <p className="text-xs text-muted-foreground">Em rota</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-1" />
           <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "entregue").length}</p>
           <p className="text-xs text-muted-foreground">Entregues</p>
-        </CardContent></Card>
+        </div>
       </div>
 
       {/* Day summary */}
