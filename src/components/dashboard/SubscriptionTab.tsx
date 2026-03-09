@@ -184,8 +184,14 @@ const SubscriptionTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-foreground">Gerenciar Assinatura</h1>
+      {/* Header */}
+      <div className="text-center space-y-2 animate-dashboard-fade-in">
+        <div className="flex items-center justify-center gap-3">
+          <div className="dashboard-section-icon">
+            <CreditCard className="w-5 h-5" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Gerenciar Assinatura</h1>
+        </div>
         <p className="text-muted-foreground text-sm">
           Assinando para:{" "}
           <span className="font-medium text-foreground">{organization?.name}</span>
@@ -194,7 +200,7 @@ const SubscriptionTab = () => {
 
       {/* Current subscription status */}
       {(isPaid || isLifetime) && (
-        <div className="max-w-md mx-auto bg-card border border-border rounded-2xl p-5 space-y-3">
+        <div className="max-w-md mx-auto dashboard-glass rounded-2xl p-5 space-y-3 animate-dashboard-fade-in dash-delay-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4 text-primary" />
@@ -314,7 +320,7 @@ const SubscriptionTab = () => {
       )}
 
       {/* Billing Toggle */}
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-3 animate-dashboard-fade-in dash-delay-2">
         <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
         <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
         <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -323,7 +329,7 @@ const SubscriptionTab = () => {
       </div>
 
       {/* Plan cards */}
-      <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto">
+      <div className="grid gap-6 md:grid-cols-3 max-w-4xl mx-auto animate-dashboard-fade-in dash-delay-3">
         {loadingPlans ? (
           <div className="col-span-full flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

@@ -212,14 +212,17 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <Bike className="w-5 h-5 text-primary" />
-          Motoboys & Entregas
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Acompanhe entregas em tempo real e gerencie seus motoboys.
-        </p>
+      {/* Header */}
+      <div className="flex items-center gap-3 animate-dashboard-fade-in">
+        <div className="dashboard-section-icon">
+          <Bike className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">Motoboys & Entregas</h2>
+          <p className="text-sm text-muted-foreground">
+            Acompanhe entregas em tempo real e gerencie seus motoboys.
+          </p>
+        </div>
       </div>
 
       {/* Date filter */}
@@ -275,89 +278,83 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
       </div>
 
       {/* Fee config */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Settings className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm font-semibold">Taxa do motoboy</p>
+      <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-1">
+        <div className="flex items-center gap-2 mb-3">
+          <Settings className="w-4 h-4 text-muted-foreground" />
+          <p className="text-sm font-semibold">Taxa do motoboy</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Taxa base (por corrida)</label>
+            <CurrencyInput value={baseFee} onChange={setBaseFee} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Taxa base (por corrida)</label>
-              <CurrencyInput value={baseFee} onChange={setBaseFee} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Valor por km rodado</label>
-              <CurrencyInput value={perKm} onChange={setPerKm} />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Diária (por dia)</label>
-              <CurrencyInput value={dailyRate} onChange={setDailyRate} />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Valor por km rodado</label>
+            <CurrencyInput value={perKm} onChange={setPerKm} />
           </div>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="sm" className="mt-3">
-            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar
-          </Button>
-        </CardContent>
-      </Card>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Diária (por dia)</label>
+            <CurrencyInput value={dailyRate} onChange={setDailyRate} />
+          </div>
+        </div>
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="sm" className="mt-3">
+          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Salvar
+        </Button>
+      </div>
 
       {/* Courier link */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-sm font-medium mb-1">Link para cadastro de motoboys:</p>
-          <div className="flex items-center gap-2">
-            <code className="text-xs bg-muted px-3 py-2 rounded-lg flex-1 break-all">{courierLink}</code>
-            <button onClick={() => { navigator.clipboard.writeText(courierLink); toast.success("Copiado!"); }} className="text-xs text-primary font-medium shrink-0 hover:underline">
-              Copiar
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-2">
+        <p className="text-sm font-medium mb-1">Link para cadastro de motoboys:</p>
+        <div className="flex items-center gap-2">
+          <code className="text-xs bg-muted px-3 py-2 rounded-lg flex-1 break-all">{courierLink}</code>
+          <button onClick={() => { navigator.clipboard.writeText(courierLink); toast.success("Copiado!"); }} className="text-xs text-primary font-medium shrink-0 hover:underline">
+            Copiar
+          </button>
+        </div>
+      </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><CardContent className="p-4 text-center">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-dashboard-fade-in dash-delay-3">
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <Users className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
           <p className="text-2xl font-bold">{couriers.length}</p>
           <p className="text-xs text-muted-foreground">Motoboys</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <Clock className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
           <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "pendente").length}</p>
           <p className="text-xs text-muted-foreground">Pendentes</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <Navigation className="w-5 h-5 text-blue-500 mx-auto mb-1" />
           <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "em_rota").length}</p>
           <p className="text-xs text-muted-foreground">Em rota</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 text-center">
           <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-1" />
           <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "entregue").length}</p>
           <p className="text-xs text-muted-foreground">Entregues</p>
-        </CardContent></Card>
+        </div>
       </div>
 
       {/* Day summary */}
       {summary.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-semibold text-sm mb-3">📊 Resumo do Dia</h3>
-            <div className="space-y-2">
-              {summary.map((s, i) => (
-                <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-muted-foreground">{s.count} entregas · {s.km.toFixed(1)} km · <span className="text-primary font-semibold">R$ {s.fee.toFixed(2)}</span></span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between text-sm font-bold pt-1">
-                <span>Total</span>
-                <span>{totalSummary.count} entregas · {totalSummary.km.toFixed(1)} km · <span className="text-primary">R$ {totalSummary.fee.toFixed(2)}</span></span>
+        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-4">
+          <h3 className="font-semibold text-sm mb-3">📊 Resumo do Dia</h3>
+          <div className="space-y-2">
+            {summary.map((s, i) => (
+              <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
+                <span className="font-medium">{s.name}</span>
+                <span className="text-muted-foreground">{s.count} entregas · {s.km.toFixed(1)} km · <span className="text-primary font-semibold">R$ {s.fee.toFixed(2)}</span></span>
               </div>
+            ))}
+            <div className="flex items-center justify-between text-sm font-bold pt-1">
+              <span>Total</span>
+              <span>{totalSummary.count} entregas · {totalSummary.km.toFixed(1)} km · <span className="text-primary">R$ {totalSummary.fee.toFixed(2)}</span></span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Active deliveries */}

@@ -1,49 +1,51 @@
 
-## Plano: Aplicar tema Premium Live em 10 abas do Dashboard
 
-Vou aplicar o padrão glassmorphism (`dashboard-glass`) e animações staggered em todas as abas pendentes.
+## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
 
-### Padrão Visual a Aplicar
+### Problema
 
-```tsx
-// Header premium com ícone gradiente
-<div className="flex items-center gap-3 animate-dashboard-fade-in">
-  <div className="dashboard-section-icon">
-    <Icon className="w-5 h-5" />
-  </div>
-  <div>
-    <h1 className="text-xl font-bold">Título</h1>
-    <p className="text-sm text-muted-foreground">Subtítulo</p>
-  </div>
-</div>
+Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
 
-// Containers com glass effect
-<div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-1">
-  {/* conteúdo */}
-</div>
+### Alterações
+
+**1. `src/components/checkout/AddressFields.tsx`**
+- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
+- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
+- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
+- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
+- Ao clicar num card: preencher CEP, rua e bairro automaticamente
+- Limpar candidatos quando o CEP muda manualmente
+
+**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
+- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
+- Não alterar neste momento
+
+**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
+- Mesma situação do StoreProfileTab — configuração pontual
+- Não alterar neste momento
+
+### UI no Checkout
+
+```text
+[ 📍 Usar minha localização ]
+
+┌─────────────────────────────┐
+│ 📍 Rua X, Vila Couto        │
+│    11740-000                 │
+└─────────────────────────────┘
+┌─────────────────────────────┐
+│ 📍 Rua X, Jardim Casqueiro   │
+│    11533-050                 │
+└─────────────────────────────┘
+
+CEP: [_________]
+Rua: [_________]
+...
 ```
 
-### Arquivos e Mudanças
+### Escopo
 
-| Arquivo | Mudanças |
-|---------|----------|
-| **TablesTab.tsx** | Header com `Grid3X3` + section-icon, lista em `dashboard-glass`, empty state glass |
-| **PricingTab.tsx** | Remover `Card/CardContent`, usar `dashboard-glass` nos controls e table containers |
-| **WaiterTab.tsx** | Seção headers com section-icon, cards de pedido já têm bordas coloridas (manter), envolver seções em glass |
-| **MenuTab.tsx** | Header premium, seção global addons e lista de itens em glass containers |
-| **CourierDashboardTab.tsx** | Header com `Bike` + section-icon, KPIs e configs em `dashboard-glass`, remover `Card/CardContent` |
-| **StoreProfileTab.tsx** | Seções em glass containers, header premium |
-| **PrinterTab.tsx** | Já usa `rounded-xl border`, converter para `dashboard-glass` |
-| **GuideTab.tsx** | Header premium, accordion items em glass background |
-| **SubscriptionTab.tsx** | Card de status atual em `dashboard-glass`, header com section-icon |
-| **ReferralSection.tsx** | Header com section-icon, referral card e stats em `dashboard-glass` |
+- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
+- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
+- Apenas mudanças no frontend
 
-### Detalhes Técnicos
-
-1. **Remover imports não usados**: `Card`, `CardContent` em arquivos que passarão a usar apenas classes CSS
-2. **Manter funcionalidade**: Não alterar lógica, apenas visual
-3. **Animações staggered**: `dash-delay-1` até `dash-delay-4` para containers em sequência
-4. **Consistência**: Mesmo padrão de header usado nas abas já atualizadas (HomeTab, SettingsTab, etc.)
-
-### Resultado Esperado
-Dashboard 100% consistente com identidade "Premium Live" — glassmorphism, animações suaves e indicadores visuais modernos em todas as 10 abas.

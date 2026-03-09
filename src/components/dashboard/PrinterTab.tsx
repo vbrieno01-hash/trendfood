@@ -143,14 +143,20 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
 
   return (
     <div className="space-y-6 max-w-lg">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Impressora Térmica</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Configure o modo e hardware de impressão</p>
+      {/* Header */}
+      <div className="flex items-center gap-3 animate-dashboard-fade-in">
+        <div className="dashboard-section-icon">
+          <Printer className="w-5 h-5" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Impressora Térmica</h1>
+          <p className="text-muted-foreground text-sm">Configure o modo e hardware de impressão</p>
+        </div>
       </div>
 
       {/* Print mode & width */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-1">
+        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
           <Printer className="w-3.5 h-3.5 text-muted-foreground" />
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Impressora</p>
         </div>
@@ -264,8 +270,8 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
 
       {/* Downloads */}
       {(globalApkUrl || globalExeUrl) && (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+        <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+          <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
             <Download className="w-3.5 h-3.5 text-muted-foreground" />
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Downloads</p>
           </div>
@@ -315,8 +321,8 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       )}
 
       {/* Print setup */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-3">
+        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
           <Printer className="w-3.5 h-3.5 text-muted-foreground" />
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Configuração de Impressão Desktop</p>
         </div>
@@ -364,8 +370,8 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       </div>
 
       {/* Comanda */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-4">
+        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
           <FileText className="w-3.5 h-3.5 text-muted-foreground" />
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comanda</p>
         </div>

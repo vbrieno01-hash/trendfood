@@ -152,9 +152,11 @@ export default function WaiterTab({
     <div className="space-y-8 max-w-4xl">
       {/* ── SEÇÃO: Aguardando Pagamento PIX (modo manual) ─────────── */}
       {showAwaitingSection && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-orange-600" />
+        <div className="space-y-4 animate-dashboard-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="dashboard-section-icon !bg-orange-500">
+              <QrCode className="w-5 h-5" />
+            </div>
             <h2 className="font-bold text-foreground text-xl">Aguardando PIX</h2>
             <span className="ml-1 text-sm font-semibold text-orange-700 bg-orange-100 border border-orange-200 rounded-full px-2.5 py-0.5">
               {awaitingOrders.length}
@@ -227,16 +229,20 @@ export default function WaiterTab({
       )}
 
       {/* ── SEÇÃO: Prontos para entrega ───────────────────────────── */}
-      <div className="space-y-4">
+      <div className="space-y-4 animate-dashboard-fade-in dash-delay-1">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BellRing className="w-5 h-5 text-green-600" />
-            <h2 className="font-bold text-foreground text-xl">Prontos para Entrega</h2>
-            <span className="ml-1 text-sm text-muted-foreground">
-              {readyOrders.length} pedido{readyOrders.length !== 1 ? "s" : ""}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="dashboard-section-icon !bg-green-500">
+              <BellRing className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-foreground text-xl">Prontos para Entrega</h2>
+              <span className="text-sm text-muted-foreground">
+                {readyOrders.length} pedido{readyOrders.length !== 1 ? "s" : ""}
+              </span>
+            </div>
           </div>
-          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             ao vivo
           </span>
@@ -345,12 +351,14 @@ export default function WaiterTab({
       </div>
 
       {/* ── SEÇÃO: Aguardando Pagamento ───────────────────────────── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-yellow-600" />
+      <div className="space-y-4 animate-dashboard-fade-in dash-delay-2">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon !bg-yellow-500">
+            <Clock className="w-5 h-5" />
+          </div>
           <h2 className="font-bold text-foreground text-xl">Aguardando Pagamento</h2>
           {unpaidOrders.length > 0 && (
-            <span className="ml-1 text-sm font-semibold text-yellow-700 bg-yellow-100 border border-yellow-200 rounded-full px-2.5 py-0.5">
+            <span className="text-sm font-semibold text-yellow-700 bg-yellow-100 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-full px-2.5 py-0.5">
               {unpaidOrders.length}
             </span>
           )}

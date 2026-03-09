@@ -70,12 +70,17 @@ export default function TablesTab({ organization, tableLimit }: Props) {
   return (
     <div className="max-w-3xl space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Mesas</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {tables.length} {tables.length === 1 ? "mesa configurada" : "mesas configuradas"}{tableLimit != null ? ` / ${tableLimit}` : ""}
-          </p>
+      <div className="flex items-center justify-between animate-dashboard-fade-in">
+        <div className="flex items-center gap-3">
+          <div className="dashboard-section-icon">
+            <Grid3X3 className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Mesas</h1>
+            <p className="text-sm text-muted-foreground">
+              {tables.length} {tables.length === 1 ? "mesa configurada" : "mesas configuradas"}{tableLimit != null ? ` / ${tableLimit}` : ""}
+            </p>
+          </div>
         </div>
         <Button onClick={() => { if (tableLimitReached) { toast({ title: "Limite de mesas atingido", description: "Faça upgrade para criar mais mesas.", variant: "destructive" }); return; } setAddOpen(true); }} size="sm" className="gap-1.5 h-9" disabled={tableLimitReached}>
           <Plus className="w-4 h-4" />
@@ -86,9 +91,9 @@ export default function TablesTab({ organization, tableLimit }: Props) {
 
       {/* Tables list */}
       {isLoading ? (
-        <div className="text-muted-foreground text-sm">Carregando mesas…</div>
+        <div className="text-muted-foreground text-sm animate-dashboard-fade-in dash-delay-1">Carregando mesas…</div>
       ) : tables.length === 0 ? (
-        <div className="text-center py-14 border border-dashed border-border rounded-xl">
+        <div className="dashboard-glass rounded-2xl text-center py-14 animate-dashboard-fade-in dash-delay-1">
           <Grid3X3 className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
           <p className="font-semibold text-foreground text-sm">Nenhuma mesa cadastrada</p>
           <p className="text-muted-foreground text-xs mt-1">
@@ -96,12 +101,13 @@ export default function TablesTab({ organization, tableLimit }: Props) {
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
-          {tables.map((t) => (
+        <div className="dashboard-glass rounded-2xl overflow-hidden divide-y divide-border animate-dashboard-fade-in dash-delay-1">
+          {tables.map((t, idx) => (
             <div
               key={t.id}
               onClick={() => navigate(`/unidade/${organization.slug}/mesa/${t.number}`, { state: { from: "dashboard" } })}
-              className="flex items-center gap-3 px-4 py-3 bg-card hover:bg-secondary/40 transition-colors cursor-pointer"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors cursor-pointer"
+              style={{ animationDelay: `${(idx + 2) * 50}ms` }}
             >
               <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
                 {t.number}
