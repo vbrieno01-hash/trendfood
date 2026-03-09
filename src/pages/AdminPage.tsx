@@ -19,7 +19,7 @@ import WhatsAppConnectTab from "@/components/admin/WhatsAppConnectTab";
 import ReferralsTab from "@/components/admin/ReferralsTab";
 import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
-import logoDashboard from "@/assets/logo-dashboard.png";
+
 import ThemeToggle from "@/components/ThemeToggle";
 import {
   Store,
@@ -448,7 +448,7 @@ function AdminContent() {
         <div className="px-5 py-5 border-b border-white/[0.06]">
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <img src={logoDashboard} alt="TrendFood" className="w-10 h-10 rounded-xl object-contain ring-1 ring-white/10 group-hover:ring-primary/40 transition-all duration-300 group-hover:scale-105" />
+              <img src="/pwa-192.png" alt="TrendFood" className="w-10 h-10 rounded-xl object-contain ring-1 ring-white/10 group-hover:ring-primary/40 transition-all duration-300 group-hover:scale-105" />
             </div>
             <div>
               <span className="font-extrabold text-white text-[15px] tracking-tight block leading-tight">TrendFood</span>
@@ -550,7 +550,7 @@ function AdminContent() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <img src={logoDashboard} alt="" className="w-7 h-7 rounded-lg" />
+              <img src="/pwa-192.png" alt="" className="w-7 h-7 rounded-lg" />
               <span className="font-bold text-sm">TrendFood</span>
               <span className="relative flex h-2 w-2">
                 <span className="animate-admin-pulse-live absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
