@@ -841,6 +841,10 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
             <ArrowUpDown className="w-4 h-4" />
             <span className="hidden sm:inline text-xs">{sortOrder === "newest" ? "Recentes primeiro" : "Antigos primeiro"}</span>
           </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setImportOpen(true)}>
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Importar CSV/Excel</span>
+          </Button>
           <Button onClick={openCreate} size="sm" className="gap-1.5 h-9" disabled={limitReached}>
             <Plus className="w-4 h-4" />
             Novo item
