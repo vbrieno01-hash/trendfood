@@ -1,51 +1,50 @@
 
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+## Correções Seguras (Sem Tocar em Dados)
 
-### Problema
+Entendi sua preocupação! **Todas as correções serão apenas em código TypeScript/React** — nenhuma migração de banco ou alteração de dados.
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+---
 
-### Alterações
+### O Que Vou Corrigir
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+| Correção | Tipo | Risco aos Dados |
+|----------|------|-----------------|
+| Warning de `forwardRef` no AlertDialogFooter | Código React | ❌ Zero |
+| Melhorar tipagem em componentes | Código TypeScript | ❌ Zero |
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+---
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+### Arquivo a Modificar
 
-### UI no Checkout
+**`src/components/ui/alert-dialog.tsx`** (linhas 51-54)
 
-```text
-[ 📍 Usar minha localização ]
+Converter `AlertDialogFooter` de function component simples para `React.forwardRef` para eliminar o warning no console.
 
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
+**Antes:**
+```tsx
+const AlertDialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
+);
 ```
 
-### Escopo
+**Depois:**
+```tsx
+const AlertDialogFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
+));
+AlertDialogFooter.displayName = "AlertDialogFooter";
+```
 
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
+---
+
+### Garantias
+
+1. **Nenhuma migração SQL** será executada
+2. **Nenhum dado será deletado** ou modificado
+3. Apenas arquivos `.tsx` serão editados
+4. As políticas RLS permanecem intactas
 
