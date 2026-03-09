@@ -847,6 +847,18 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Importar CSV/Excel</span>
           </Button>
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteAllOpen(true)}
+              title="Limpar cardápio"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Limpar</span>
+            </Button>
+          )}
           <Button onClick={openCreate} size="sm" className="gap-1.5 h-9" disabled={limitReached}>
             <Plus className="w-4 h-4" />
             Novo item
