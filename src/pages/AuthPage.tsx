@@ -80,6 +80,11 @@ const AuthPage = () => {
       toast.error("As senhas não coincidem.");
       return;
     }
+    const whatsappDigits = signupData.whatsapp.replace(/\D/g, "");
+    if (whatsappDigits.length < 10) {
+      toast.error("Informe o WhatsApp com DDD (mín 10 dígitos) para receber pedidos.");
+      return;
+    }
     if (!signupData.slug.trim()) {
       toast.error("Informe o slug da sua lanchonete.");
       return;
