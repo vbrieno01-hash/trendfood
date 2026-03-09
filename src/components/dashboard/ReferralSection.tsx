@@ -73,18 +73,21 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Gift className="w-5 h-5 text-primary" />
-          Ganhe Desconto
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Indique amigos para o TrendFood e ganhe benefícios!
-        </p>
+      {/* Header */}
+      <div className="flex items-center gap-3 animate-dashboard-fade-in">
+        <div className="dashboard-section-icon">
+          <Gift className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Ganhe Desconto</h2>
+          <p className="text-sm text-muted-foreground">
+            Indique amigos para o TrendFood e ganhe benefícios!
+          </p>
+        </div>
       </div>
 
       {/* Referral card */}
-      <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+      <div className="dashboard-glass rounded-2xl p-6 space-y-5 animate-dashboard-fade-in dash-delay-1">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
             <Gift className="w-6 h-6 text-primary" />
@@ -149,7 +152,7 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
       </div>
 
       {/* How it works */}
-      <div className="flex gap-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+      <div className="flex gap-3 dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-2">
         <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-semibold text-foreground">Como funciona?</p>
@@ -161,7 +164,7 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
 
       {/* Bonus history */}
       {bonuses.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="dashboard-glass rounded-2xl p-6 space-y-4 animate-dashboard-fade-in dash-delay-3">
           <h3 className="font-bold text-foreground flex items-center gap-2">
             <CalendarPlus className="w-5 h-5 text-primary" />
             Bônus recebidos

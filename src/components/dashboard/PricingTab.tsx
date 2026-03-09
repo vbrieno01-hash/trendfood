@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { usePricingData, useUpdateMenuPrice } from "@/hooks/usePricingData";
-import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,130 +55,128 @@ export default function PricingTab({ orgId }: PricingTabProps) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Calculator className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-bold">Precificação</h2>
+      <div className="flex items-center gap-3 animate-dashboard-fade-in">
+        <div className="dashboard-section-icon">
+          <Calculator className="w-5 h-5" />
+        </div>
+        <h2 className="text-xl font-bold">Precificação</h2>
       </div>
 
       {/* Controls */}
-      <Card>
-        <CardContent className="pt-5 space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Margem desejada: <span className="text-primary font-bold">{markup}%</span>
-            </label>
-            <Slider
-              value={[markup]}
-              onValueChange={([v]) => setMarkup(v)}
-              min={20}
-              max={90}
-              step={1}
-              className="w-full max-w-md"
-            />
-          </div>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <span className="text-muted-foreground">
-              Custo médio: <strong className="text-foreground">{fmt(avgCost)}</strong>
+      <div className="dashboard-glass rounded-2xl p-5 space-y-4 animate-dashboard-fade-in dash-delay-1">
+        <div>
+          <label className="text-sm font-medium mb-2 block">
+            Margem desejada: <span className="text-primary font-bold">{markup}%</span>
+          </label>
+          <Slider
+            value={[markup]}
+            onValueChange={([v]) => setMarkup(v)}
+            min={20}
+            max={90}
+            step={1}
+            className="w-full max-w-md"
+          />
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm">
+          <span className="text-muted-foreground">
+            Custo médio: <strong className="text-foreground">{fmt(avgCost)}</strong>
+          </span>
+          <span className="text-muted-foreground">
+            Margem média: <strong className="text-foreground">{avgMargin.toFixed(1)}%</strong>
+          </span>
+          {withoutIngredients.length > 0 && (
+            <span className="text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              {withoutIngredients.length} {withoutIngredients.length === 1 ? "item" : "itens"} sem ficha técnica
             </span>
-            <span className="text-muted-foreground">
-              Margem média: <strong className="text-foreground">{avgMargin.toFixed(1)}%</strong>
-            </span>
-            {withoutIngredients.length > 0 && (
-              <span className="text-amber-600 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                {withoutIngredients.length} {withoutIngredients.length === 1 ? "item" : "itens"} sem ficha técnica
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          )}
+        </div>
+      </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right">Custo</TableHead>
-                <TableHead className="text-right">Preço Atual</TableHead>
-                <TableHead className="text-right">Margem</TableHead>
-                <TableHead className="text-right">Sugerido</TableHead>
-                <TableHead className="w-20" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => {
-                const sp = suggestedPrice(item.totalCost);
-                const marginColor = item.margin === null
-                  ? ""
-                  : item.margin > 50
-                    ? "text-green-600"
-                    : item.margin >= 30
-                      ? "text-amber-600"
-                      : "text-destructive";
-                const marginBadge = item.margin === null
-                  ? null
-                  : item.margin > 50
-                    ? "default"
-                    : item.margin >= 30
-                      ? "secondary"
-                      : "destructive";
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div>
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2">{item.category}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {item.hasIngredients ? fmt(item.totalCost) : <span className="text-muted-foreground text-xs">—</span>}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-medium">
-                      {fmt(item.currentPrice)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {item.margin !== null ? (
-                        <Badge variant={marginBadge as any} className="font-mono">
-                          {item.margin.toFixed(0)}%
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {item.hasIngredients && sp > 0 ? (
-                        <span className={marginColor}>{fmt(sp)}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {item.hasIngredients && sp > 0 && Math.abs(sp - item.currentPrice) > 0.01 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleApply(item.id, sp)}
-                          disabled={updatePrice.isPending}
-                          title="Aplicar preço sugerido"
-                        >
-                          <Check className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Item</TableHead>
+              <TableHead className="text-right">Custo</TableHead>
+              <TableHead className="text-right">Preço Atual</TableHead>
+              <TableHead className="text-right">Margem</TableHead>
+              <TableHead className="text-right">Sugerido</TableHead>
+              <TableHead className="w-20" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item, idx) => {
+              const sp = suggestedPrice(item.totalCost);
+              const marginColor = item.margin === null
+                ? ""
+                : item.margin > 50
+                  ? "text-green-600"
+                  : item.margin >= 30
+                    ? "text-amber-600"
+                    : "text-destructive";
+              const marginBadge = item.margin === null
+                ? null
+                : item.margin > 50
+                  ? "default"
+                  : item.margin >= 30
+                    ? "secondary"
+                    : "destructive";
+              return (
+                <TableRow key={item.id} style={{ animationDelay: `${(idx + 3) * 50}ms` }}>
+                  <TableCell>
+                    <div>
+                      <span className="font-medium">{item.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{item.category}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {item.hasIngredients ? fmt(item.totalCost) : <span className="text-muted-foreground text-xs">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-medium">
+                    {fmt(item.currentPrice)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {item.margin !== null ? (
+                      <Badge variant={marginBadge as any} className="font-mono">
+                        {item.margin.toFixed(0)}%
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {item.hasIngredients && sp > 0 ? (
+                      <span className={marginColor}>{fmt(sp)}</span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {item.hasIngredients && sp > 0 && Math.abs(sp - item.currentPrice) > 0.01 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleApply(item.id, sp)}
+                        disabled={updatePrice.isPending}
+                        title="Aplicar preço sugerido"
+                      >
+                        <Check className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Apply all */}
       {withIngredients.length > 0 && (
-        <Button onClick={handleApplyAll} disabled={updatePrice.isPending} className="gap-2">
+        <Button onClick={handleApplyAll} disabled={updatePrice.isPending} className="gap-2 animate-dashboard-fade-in dash-delay-3">
           <CheckCheck className="w-4 h-4" />
           Aplicar Todos os Preços Sugeridos
         </Button>

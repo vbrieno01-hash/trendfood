@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Home, UtensilsCrossed, TableProperties, History, Tag,
   BarChart2, Flame, BellRing, Wallet, Store, Settings, Plus, Truck,
-  CreditCard, Bike, Package, Zap,
+  CreditCard, Bike, Package, Zap, BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -347,16 +347,27 @@ export default function GuideTab() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Como Usar</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Guia completo de cada seção do app. Clique para expandir e ver o passo a passo.
-        </p>
+      {/* Header */}
+      <div className="flex items-center gap-3 animate-dashboard-fade-in">
+        <div className="dashboard-section-icon">
+          <BookOpen className="w-5 h-5" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Como Usar</h1>
+          <p className="text-sm text-muted-foreground">
+            Guia completo de cada seção do app. Clique para expandir e ver o passo a passo.
+          </p>
+        </div>
       </div>
 
-      <Accordion type="multiple" className="space-y-2">
-        {GUIDE_SECTIONS.map((section) => (
-          <AccordionItem key={section.id} value={section.id} className="border rounded-xl px-4 bg-card">
+      <Accordion type="multiple" className="space-y-2 animate-dashboard-fade-in dash-delay-1">
+        {GUIDE_SECTIONS.map((section, idx) => (
+          <AccordionItem 
+            key={section.id} 
+            value={section.id} 
+            className="dashboard-glass rounded-2xl px-4"
+            style={{ animationDelay: `${(idx + 2) * 50}ms` }}
+          >
             <AccordionTrigger className="hover:no-underline gap-3">
               <div className="flex items-center gap-3 flex-1 text-left">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
