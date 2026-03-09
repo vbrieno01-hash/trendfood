@@ -8,7 +8,7 @@ import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
 import PlanCard from "@/components/pricing/PlanCard";
 import { supabase } from "@/integrations/supabase/client";
-import logoDashboard from "@/assets/logo-dashboard.png";
+
 import {
   BarChart3,
   Zap,
