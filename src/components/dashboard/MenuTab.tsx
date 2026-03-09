@@ -21,7 +21,7 @@ import {
   type StockItem,
 } from "@/hooks/useStockItems";
 import {
-  useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem,
+  useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem, useDeleteAllMenuItems,
   uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
 } from "@/hooks/useMenuItems";
 import {
