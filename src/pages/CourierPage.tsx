@@ -201,26 +201,31 @@ const CourierPage = () => {
       });
   }, [orgSlug, courierId]);
 
-  // Fetch org by slug and persist it
-  useEffect(() => {
-    if (!orgSlug) return;
-    supabase
-      .from("organizations")
-      .select("id, name, business_hours, force_open")
-      .eq("slug", orgSlug)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setNotFound(true);
-        } else {
-          setOrgId(data.id);
-          setOrgName(data.name);
-          setBusinessHours(data.business_hours as unknown as BusinessHours | null);
-          setForceOpen(data.force_open ?? false);
-          saveOrgSlug(orgSlug);
-        }
-      });
-  }, [orgSlug]);
+  // Fetch org by slug with periodic refetch to detect store closing
+  const { data: orgData } = useQuery({
+    queryKey: ["courier-org", orgSlug],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("id, name, business_hours, force_open")
+        .eq("slug", orgSlug)
+        .single();
+      if (error || !data) {
+        setNotFound(true);
+        return null;
+      }
+      saveOrgSlug(orgSlug);
+      return data;
+    },
+    enabled: !!orgSlug,
+    refetchInterval: 2 * 60_000,
+    staleTime: 60_000,
+  });
+
+  const orgId = orgData?.id ?? null;
+  const orgName = orgData?.name ?? "";
+  const businessHours = orgData?.business_hours as unknown as BusinessHours | null;
+  const forceOpen = orgData?.force_open ?? false;
 
   // Init pixKey from courier data
   useEffect(() => {
