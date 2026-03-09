@@ -229,16 +229,20 @@ export default function WaiterTab({
       )}
 
       {/* ── SEÇÃO: Prontos para entrega ───────────────────────────── */}
-      <div className="space-y-4">
+      <div className="space-y-4 animate-dashboard-fade-in dash-delay-1">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BellRing className="w-5 h-5 text-green-600" />
-            <h2 className="font-bold text-foreground text-xl">Prontos para Entrega</h2>
-            <span className="ml-1 text-sm text-muted-foreground">
-              {readyOrders.length} pedido{readyOrders.length !== 1 ? "s" : ""}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="dashboard-section-icon !bg-green-500">
+              <BellRing className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-foreground text-xl">Prontos para Entrega</h2>
+              <span className="text-sm text-muted-foreground">
+                {readyOrders.length} pedido{readyOrders.length !== 1 ? "s" : ""}
+              </span>
+            </div>
           </div>
-          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             ao vivo
           </span>
