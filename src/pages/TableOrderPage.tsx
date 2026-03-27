@@ -95,6 +95,10 @@ export default function TableOrderPage() {
 
   const tableNum = parseInt(tableNumber || "0", 10);
 
+  // Store status check
+  const storeStatus = org ? getStoreStatus(org.business_hours, org.force_open) : null;
+  const isClosed = org?.paused || (storeStatus !== null && !storeStatus.open);
+
   // Helper: get max available for a menu item considering stock
   const getMaxAvailable = (menuItemId: string): number => {
     // If no ingredients linked, stockMap won't have the key → Infinity (no limit)
