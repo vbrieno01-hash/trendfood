@@ -8,10 +8,11 @@ import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
 import type { Coupon } from "@/hooks/useCoupons";
 import { useGeneratePixPayload } from "@/hooks/useGeneratePixPayload";
 import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation";
+import { getStoreStatus } from "@/lib/storeStatus";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode, Loader2, Users } from "lucide-react";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode, Loader2, Users, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
@@ -93,6 +94,10 @@ export default function TableOrderPage() {
   }, [success, org?.id, orderTotal, paymentMethod, pixMode]);
 
   const tableNum = parseInt(tableNumber || "0", 10);
+
+  // Store status check
+  const storeStatus = org ? getStoreStatus(org.business_hours, org.force_open) : null;
+  const isClosed = org?.paused || (storeStatus !== null && !storeStatus.open);
 
   // Helper: get max available for a menu item considering stock
   const getMaxAvailable = (menuItemId: string): number => {
@@ -683,6 +688,25 @@ export default function TableOrderPage() {
         </div>
       </div>
 
+      {/* Closed banner */}
+      {isClosed && (
+        <div className="max-w-lg mx-auto px-4 pt-4">
+          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-3">
+            <Clock className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-destructive text-sm">Loja fechada</p>
+              <p className="text-xs text-muted-foreground">
+                {org?.paused
+                  ? "A loja está temporariamente pausada."
+                  : storeStatus && !storeStatus.open && (storeStatus as { open: false; opensAt: string | null }).opensAt
+                    ? `Abre às ${(storeStatus as { open: false; opensAt: string | null }).opensAt}`
+                    : "Pedidos só podem ser feitos no horário de funcionamento."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Menu */}
       <div className="max-w-lg mx-auto px-4 py-4 space-y-6">
         {Object.keys(byCategory).length === 0 ? (
@@ -874,7 +898,7 @@ export default function TableOrderPage() {
             <Button
               className="w-full h-14 text-base font-bold"
               onClick={handleFinish}
-              disabled={placeOrder.isPending}
+              disabled={placeOrder.isPending || isClosed}
             >
               {placeOrder.isPending ? (
                 "Enviando pedido…"
