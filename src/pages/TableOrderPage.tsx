@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useMenuItems } from "@/hooks/useMenuItems";
@@ -688,6 +688,25 @@ export default function TableOrderPage() {
         </div>
       </div>
 
+      {/* Closed banner */}
+      {isClosed && (
+        <div className="max-w-lg mx-auto px-4 pt-4">
+          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-3">
+            <Clock className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-destructive text-sm">Loja fechada</p>
+              <p className="text-xs text-muted-foreground">
+                {org?.paused
+                  ? "A loja está temporariamente pausada."
+                  : storeStatus && !storeStatus.open && (storeStatus as { open: false; opensAt: string | null }).opensAt
+                    ? `Abre às ${(storeStatus as { open: false; opensAt: string | null }).opensAt}`
+                    : "Pedidos só podem ser feitos no horário de funcionamento."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Menu */}
       <div className="max-w-lg mx-auto px-4 py-4 space-y-6">
         {Object.keys(byCategory).length === 0 ? (
@@ -879,7 +898,7 @@ export default function TableOrderPage() {
             <Button
               className="w-full h-14 text-base font-bold"
               onClick={handleFinish}
-              disabled={placeOrder.isPending}
+              disabled={placeOrder.isPending || isClosed}
             >
               {placeOrder.isPending ? (
                 "Enviando pedido…"
