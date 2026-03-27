@@ -1,51 +1,67 @@
 
+## Plano de correção: bloquear pedidos fora do horário (todas as lojas antigas e novas)
 
-## Plano: Adicionar cards de bairros próximos ao Checkout (AddressFields)
+### 1) Diagnóstico do problema atual
+- O bloqueio de horário está **incompleto**:
+  - `UnitPage` já calcula fechado/aberto, mas depende de cache de dados.
+  - `TableOrderPage` finaliza pedido sem validar horário da loja.
+  - `usePlaceOrder` grava direto no banco sem validação de loja aberta.
+  - No backend, `orders` ainda aceita `INSERT` público sem regra de horário.
+- Resultado: em alguns fluxos (principalmente mesa/fluxos com dados defasados), pedido passa mesmo com loja fechada.
 
-### Problema
+### 2) Correção obrigatória no backend (fonte da verdade global)
+Criar migration com validação de horário no banco para impedir qualquer pedido fora de horário, independente da tela:
+1. **Função de validação** (considerando `paused`, `force_open`, `business_hours`, horário de Brasília e turno cruzando meia-noite).
+2. **Trigger `BEFORE INSERT` em `orders`** chamando essa função e lançando erro amigável quando a loja estiver fechada.
+3. Mensagem de erro padronizada para a UI:  
+   `Loja fechada no momento. Pedidos só podem ser feitos no horário de funcionamento.`
 
-Os cards de seleção de bairro só existem no `UnitPage.tsx`. O componente `AddressFields.tsx` (usado no checkout do cliente) busca o CEP e GPS mas não mostra opções de bairros próximos. O cliente pode ficar com o bairro errado sem ter como corrigir facilmente.
+Isso garante cobertura para:
+- lojas antigas,
+- lojas novas,
+- qualquer fluxo atual/futuro que tente inserir em `orders`.
 
-### Alterações
+### 3) Atualização de dados para lojas antigas e padrão para novas
+Na mesma migration:
+1. **Backfill para lojas antigas** com `business_hours` nulo:
+   - preencher com grade padrão semanal.
+   - deixar `enabled: true` para já entrar no controle de horário.
+2. **Default para novas lojas**:
+   - definir `DEFAULT` de `business_hours` com a mesma grade padrão (`enabled: true`), para novas contas já nascerem com controle ativo.
 
-**1. `src/components/checkout/AddressFields.tsx`**
-- Adicionar estado `addressCandidates` (mesmo tipo do UnitPage)
-- No `fetchCep` (useEffect): ler `data.nearby` e popular os candidatos se `nearby.length > 1`
-- No `handleGetLocation`: ler `data.candidates` do reverse-geocode e popular os candidatos
-- Renderizar cards clicáveis (mesmo estilo do UnitPage) entre o botão GPS e os campos de endereço
-- Ao clicar num card: preencher CEP, rua e bairro automaticamente
-- Limpar candidatos quando o CEP muda manualmente
+> Não criaremos novas tabelas nem mudaremos colunas existentes; apenas regra de validação + default/backfill.
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`** (opcional, baixa prioridade)
-- O dono da loja configura o endereço uma única vez, cards são menos necessários aqui
-- Não alterar neste momento
+### 4) Ajustes no frontend para UX consistente
+#### 4.1 `usePlaceOrder` (camada comum dos pedidos)
+- Antes do insert, fazer **revalidação rápida** da organização (aberta/fechada).
+- Se fechada, abortar com erro amigável (sem tentar inserir).
+- Se backend bloquear (trigger), mapear erro para toast legível.
 
-**3. `src/components/dashboard/OnboardingWizard.tsx`** (opcional, baixa prioridade)
-- Mesma situação do StoreProfileTab — configuração pontual
-- Não alterar neste momento
+#### 4.2 `TableOrderPage`
+- Implementar a mesma lógica visual de status da loja:
+  - calcular `isClosed` com `getStoreStatus(...)` + `paused`.
+  - desabilitar botão “Finalizar Pedido” quando fechada.
+  - mostrar aviso “Loja fechada” com horário de próxima abertura quando existir.
+- Isso evita tentativa desnecessária e alinha comportamento com `UnitPage`.
 
-### UI no Checkout
+### 5) Arquivos que serão alterados
+- `supabase/migrations/<nova_migration>.sql`  
+  (função + trigger + backfill + default)
+- `src/hooks/useOrders.ts`  
+  (revalidação pré-insert + tratamento de erro de loja fechada)
+- `src/pages/TableOrderPage.tsx`  
+  (bloqueio visual e de ação ao finalizar pedido)
+- (opcional, se necessário) `src/lib/storeStatus.ts`  
+  (extração de helper compartilhado para evitar duplicação de regra)
 
-```text
-[ 📍 Usar minha localização ]
-
-┌─────────────────────────────┐
-│ 📍 Rua X, Vila Couto        │
-│    11740-000                 │
-└─────────────────────────────┘
-┌─────────────────────────────┐
-│ 📍 Rua X, Jardim Casqueiro   │
-│    11533-050                 │
-└─────────────────────────────┘
-
-CEP: [_________]
-Rua: [_________]
-...
-```
-
-### Escopo
-
-- Foco no **checkout** (`AddressFields.tsx`) que é o fluxo do cliente final
-- Backend já está pronto (viacep-proxy e reverse-geocode já retornam `nearby`/`candidates`)
-- Apenas mudanças no frontend
-
+### 6) Validação final (E2E)
+1. Loja com horário configurado para fechar em 1–2 min:
+   - `UnitPage`: botão deve bloquear ao fechar.
+   - `TableOrderPage`: botão deve bloquear ao fechar.
+2. Tentar forçar insert de pedido fora do horário:
+   - backend deve rejeitar.
+3. Loja com `force_open = true`:
+   - pedido deve continuar permitido.
+4. Loja `paused = true`:
+   - pedido sempre bloqueado.
+5. Conferir uma loja antiga (com backfill aplicado) e uma conta nova (default novo) para garantir cobertura total.
