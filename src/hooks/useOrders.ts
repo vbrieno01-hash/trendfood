@@ -173,6 +173,31 @@ export const usePlaceOrder = () => {
         throw new Error("Seu carrinho está vazio.");
       }
 
+      // Pre-check: revalidate store status before inserting
+      const { data: freshOrg, error: orgErr } = await supabase
+        .from("organizations")
+        .select("business_hours, force_open, paused")
+        .eq("id", organizationId)
+        .single();
+
+      if (!orgErr && freshOrg) {
+        if (freshOrg.paused) {
+          throw new Error("Loja pausada no momento. Pedidos não podem ser feitos.");
+        }
+        if (!freshOrg.force_open && freshOrg.business_hours) {
+          // Dynamic import to avoid circular deps
+          const { getStoreStatus } = await import("@/lib/storeStatus");
+          const bh = freshOrg.business_hours as import("@/hooks/useOrganization").BusinessHours;
+          const status = getStoreStatus(bh, false);
+          if (status && !status.open) {
+            const msg = status.opensAt
+              ? `Loja fechada no momento. Abre às ${status.opensAt}.`
+              : "Loja fechada no momento. Pedidos só podem ser feitos no horário de funcionamento.";
+            throw new Error(msg);
+          }
+        }
+      }
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -185,7 +210,13 @@ export const usePlaceOrder = () => {
         })
         .select()
         .single();
-      if (orderError) throw orderError;
+      if (orderError) {
+        // Map trigger error to friendly message
+        if (orderError.message?.includes("Loja fechada") || orderError.message?.includes("Loja pausada")) {
+          throw new Error(orderError.message);
+        }
+        throw orderError;
+      }
 
       const orderItems = items.map((i) => ({
         order_id: order.id,

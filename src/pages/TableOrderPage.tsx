@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useMenuItems } from "@/hooks/useMenuItems";
@@ -8,10 +8,11 @@ import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
 import type { Coupon } from "@/hooks/useCoupons";
 import { useGeneratePixPayload } from "@/hooks/useGeneratePixPayload";
 import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation";
+import { getStoreStatus } from "@/lib/storeStatus";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode, Loader2, Users } from "lucide-react";
+import { Minus, Plus, ShoppingCart, CheckCircle, ArrowLeft, Tag, X, User, Copy, CreditCard, QrCode, Loader2, Users, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
