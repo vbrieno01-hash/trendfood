@@ -1,67 +1,64 @@
 
-## Plano de correção: bloquear pedidos fora do horário (todas as lojas antigas e novas)
 
-### 1) Diagnóstico do problema atual
-- O bloqueio de horário está **incompleto**:
-  - `UnitPage` já calcula fechado/aberto, mas depende de cache de dados.
-  - `TableOrderPage` finaliza pedido sem validar horário da loja.
-  - `usePlaceOrder` grava direto no banco sem validação de loja aberta.
-  - No backend, `orders` ainda aceita `INSERT` público sem regra de horário.
-- Resultado: em alguns fluxos (principalmente mesa/fluxos com dados defasados), pedido passa mesmo com loja fechada.
+## Plano: Quantidade por Adicional (suporte a 1, 2, 3+ do mesmo adicional)
 
-### 2) Correção obrigatória no backend (fonte da verdade global)
-Criar migration com validação de horário no banco para impedir qualquer pedido fora de horário, independente da tela:
-1. **Função de validação** (considerando `paused`, `force_open`, `business_hours`, horário de Brasília e turno cruzando meia-noite).
-2. **Trigger `BEFORE INSERT` em `orders`** chamando essa função e lançando erro amigável quando a loja estiver fechada.
-3. Mensagem de erro padronizada para a UI:  
-   `Loja fechada no momento. Pedidos só podem ser feitos no horário de funcionamento.`
+### Problema
+Hoje os adicionais funcionam como checkbox (ligado/desligado). O cliente não consegue pedir "3x Bacon" — só "Bacon". Na comanda/impressão, aparece apenas "- BACON" sem indicar quantidade, causando perda de informação em pedidos grandes.
 
-Isso garante cobertura para:
-- lojas antigas,
-- lojas novas,
-- qualquer fluxo atual/futuro que tente inserir em `orders`.
+### Alterações
 
-### 3) Atualização de dados para lojas antigas e padrão para novas
-Na mesma migration:
-1. **Backfill para lojas antigas** com `business_hours` nulo:
-   - preencher com grade padrão semanal.
-   - deixar `enabled: true` para já entrar no controle de horário.
-2. **Default para novas lojas**:
-   - definir `DEFAULT` de `business_hours` com a mesma grade padrão (`enabled: true`), para novas contas já nascerem com controle ativo.
+**1. Tipo `CartItemAddon`** — adicionar campo `qty`
 
-> Não criaremos novas tabelas nem mudaremos colunas existentes; apenas regra de validação + default/backfill.
+Atualizar em `ItemDetailDrawer.tsx` e `UnitPage.tsx`:
+```typescript
+type CartItemAddon = { id: string; name: string; price: number; qty: number };
+```
 
-### 4) Ajustes no frontend para UX consistente
-#### 4.1 `usePlaceOrder` (camada comum dos pedidos)
-- Antes do insert, fazer **revalidação rápida** da organização (aberta/fechada).
-- Se fechada, abortar com erro amigável (sem tentar inserir).
-- Se backend bloquear (trigger), mapear erro para toast legível.
+**2. `ItemDetailDrawer.tsx`** — trocar checkbox por seletor +/- de quantidade
 
-#### 4.2 `TableOrderPage`
-- Implementar a mesma lógica visual de status da loja:
-  - calcular `isClosed` com `getStoreStatus(...)` + `paused`.
-  - desabilitar botão “Finalizar Pedido” quando fechada.
-  - mostrar aviso “Loja fechada” com horário de próxima abertura quando existir.
-- Isso evita tentativa desnecessária e alinha comportamento com `UnitPage`.
+- Substituir o `Checkbox` por botões `+` e `-` para cada adicional
+- Ao clicar `+` pela primeira vez, adiciona com `qty: 1`; cliques subsequentes incrementam
+- Botão `-` decrementa; ao chegar em 0, remove do array
+- O preço exibido ao lado mostra `qty × preço_unitário`
+- O total do item reflete a soma: `item.price + Σ(addon.price × addon.qty)`
 
-### 5) Arquivos que serão alterados
-- `supabase/migrations/<nova_migration>.sql`  
-  (função + trigger + backfill + default)
-- `src/hooks/useOrders.ts`  
-  (revalidação pré-insert + tratamento de erro de loja fechada)
-- `src/pages/TableOrderPage.tsx`  
-  (bloqueio visual e de ação ao finalizar pedido)
-- (opcional, se necessário) `src/lib/storeStatus.ts`  
-  (extração de helper compartilhado para evitar duplicação de regra)
+**3. `UnitPage.tsx`** — propagar qty nos nomes e cálculos
 
-### 6) Validação final (E2E)
-1. Loja com horário configurado para fechar em 1–2 min:
-   - `UnitPage`: botão deve bloquear ao fechar.
-   - `TableOrderPage`: botão deve bloquear ao fechar.
-2. Tentar forçar insert de pedido fora do horário:
-   - backend deve rejeitar.
-3. Loja com `force_open = true`:
-   - pedido deve continuar permitido.
-4. Loja `paused = true`:
-   - pedido sempre bloqueado.
-5. Conferir uma loja antiga (com backfill aplicado) e uma conta nova (default novo) para garantir cobertura total.
+- **Nome no banco**: mudar de `(+ Bacon, + Cheddar)` para `(+ 3x Bacon, + 1x Cheddar)` — sempre incluir quantidade
+- **Preço unitário**: já calcula `item.price + addons.reduce(...)`, ajustar para `addon.price * addon.qty`
+- **Cart key**: incluir qty no hash para diferenciar "1x Bacon" de "2x Bacon"
+- **WhatsApp message**: mesma lógica de `3x Bacon`
+
+**4. `receiptData.ts` → `parseItemName`** — parsear quantidade dos adicionais
+
+Atualizar o regex para extrair `3x Bacon` dos parênteses:
+```typescript
+// Antes: "Bacon" → addon "Bacon"
+// Depois: "3x Bacon" → addon "3x Bacon" (mantém como string na comanda)
+```
+Na prática, como o nome já virá com "3x" do UnitPage, o `parseItemName` já funciona — os addons são strings livres.
+
+**5. `ThermalReceipt.tsx`** — já exibe addons como strings, funciona automaticamente
+
+O componente mostra `- {san(addon)}` para cada addon na lista. Como agora virá "3X BACON", a comanda mostrará corretamente sem mudança no componente.
+
+### Fluxo visual no drawer
+
+```text
+┌─────────────────────────────────┐
+│ Adicionais                      │
+│                                 │
+│  Bacon           [-] 2 [+]  +R$ 6,00 │
+│  Cheddar         [-] 1 [+]  +R$ 3,00 │
+│  Ovo                   [+]  +R$ 2,00 │
+└─────────────────────────────────┘
+```
+
+- Addon sem seleção: mostra só o botão `[+]` e preço unitário
+- Addon com qty > 0: mostra `[-] qty [+]` e preço total (qty × unit)
+
+### Arquivos alterados
+- `src/components/unit/ItemDetailDrawer.tsx` (UI de qty por addon)
+- `src/pages/UnitPage.tsx` (tipo CartItemAddon + nome com qty + preço com qty)
+- `src/lib/receiptData.ts` (nenhuma mudança necessária — addons já são strings livres)
+
