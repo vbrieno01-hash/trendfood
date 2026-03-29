@@ -396,7 +396,7 @@ const UnitPage = () => {
             notes: noteParts.join("|"),
             items: cartItems.map((i) => ({
               menu_item_id: i.menuItemId,
-              name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.name}`).join(", ")})` : i.name,
+              name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})` : i.name,
               price: i.price,
               quantity: i.qty,
             })),
@@ -436,7 +436,7 @@ const UnitPage = () => {
       `📋 *Itens:*`,
       ...cartItems.map((i) => {
         let line = `• ${i.qty}x ${i.name}`;
-        if (i.addons.length > 0) line += ` (${i.addons.map(a => `+ ${a.name}`).join(", ")})`;
+        if (i.addons.length > 0) line += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})`;
         line += ` — ${fmt(i.price * i.qty)}`;
         if (i.notes.trim()) line += ` | Obs: ${i.notes.trim()}`;
         return line;
@@ -491,7 +491,7 @@ const UnitPage = () => {
           paid: false,
           items: cartItems.map((i) => ({
             menu_item_id: i.menuItemId,
-            name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.name}`).join(", ")})` : i.name,
+            name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})` : i.name,
             price: i.price,
             quantity: i.qty,
           })),
