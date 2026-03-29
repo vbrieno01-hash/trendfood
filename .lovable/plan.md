@@ -1,64 +1,52 @@
 
 
-## Plano: Quantidade por Adicional (suporte a 1, 2, 3+ do mesmo adicional)
+## Plano: Corrigir observações dos pedidos nas impressões
 
 ### Problema
-Hoje os adicionais funcionam como checkbox (ligado/desligado). O cliente não consegue pedir "3x Bacon" — só "Bacon". Na comanda/impressão, aparece apenas "- BACON" sem indicar quantidade, causando perda de informação em pedidos grandes.
+As observações por item **não estão sendo salvas** no banco de dados, então nunca aparecem na comanda impressa. No `UnitPage`, o campo `i.notes` (obs do item) é incluído na mensagem do WhatsApp mas **não** é anexado ao `name` do item ao salvar no banco. Como o sistema de impressão lê o nome do item e extrai a obs via `parseItemName` (padrão `| Obs: ...`), a obs simplesmente não existe no dado salvo.
 
-### Alterações
+### Correção
 
-**1. Tipo `CartItemAddon`** — adicionar campo `qty`
+**Arquivo: `src/pages/UnitPage.tsx`** — 1 alteração
 
-Atualizar em `ItemDetailDrawer.tsx` e `UnitPage.tsx`:
+Na linha ~494, onde os itens do carrinho são mapeados para o `placeOrder.mutate`, incluir a obs no nome do item:
+
 ```typescript
-type CartItemAddon = { id: string; name: string; price: number; qty: number };
+// ANTES (linha 492-497):
+items: cartItems.map((i) => ({
+  menu_item_id: i.menuItemId,
+  name: i.addons.length > 0 
+    ? `${i.name} (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})` 
+    : i.name,
+  price: i.price,
+  quantity: i.qty,
+})),
+
+// DEPOIS:
+items: cartItems.map((i) => {
+  let finalName = i.name;
+  if (i.addons.length > 0) {
+    finalName += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})`;
+  }
+  if (i.notes.trim()) {
+    finalName += ` | Obs: ${i.notes.trim()}`;
+  }
+  return {
+    menu_item_id: i.menuItemId,
+    name: finalName,
+    price: i.price,
+    quantity: i.qty,
+  };
+}),
 ```
 
-**2. `ItemDetailDrawer.tsx`** — trocar checkbox por seletor +/- de quantidade
+Isso aplica a mesma lógica que já funciona no WhatsApp (linhas 441, 561) ao nome salvo no banco. O `parseItemName` em `receiptData.ts` já sabe extrair `| Obs: ...` do nome (linhas 118-123), então a comanda passará a exibir as obs automaticamente em todos os modos de impressão (navegador, desktop, Bluetooth).
 
-- Substituir o `Checkbox` por botões `+` e `-` para cada adicional
-- Ao clicar `+` pela primeira vez, adiciona com `qty: 1`; cliques subsequentes incrementam
-- Botão `-` decrementa; ao chegar em 0, remove do array
-- O preço exibido ao lado mostra `qty × preço_unitário`
-- O total do item reflete a soma: `item.price + Σ(addon.price × addon.qty)`
-
-**3. `UnitPage.tsx`** — propagar qty nos nomes e cálculos
-
-- **Nome no banco**: mudar de `(+ Bacon, + Cheddar)` para `(+ 3x Bacon, + 1x Cheddar)` — sempre incluir quantidade
-- **Preço unitário**: já calcula `item.price + addons.reduce(...)`, ajustar para `addon.price * addon.qty`
-- **Cart key**: incluir qty no hash para diferenciar "1x Bacon" de "2x Bacon"
-- **WhatsApp message**: mesma lógica de `3x Bacon`
-
-**4. `receiptData.ts` → `parseItemName`** — parsear quantidade dos adicionais
-
-Atualizar o regex para extrair `3x Bacon` dos parênteses:
-```typescript
-// Antes: "Bacon" → addon "Bacon"
-// Depois: "3x Bacon" → addon "3x Bacon" (mantém como string na comanda)
-```
-Na prática, como o nome já virá com "3x" do UnitPage, o `parseItemName` já funciona — os addons são strings livres.
-
-**5. `ThermalReceipt.tsx`** — já exibe addons como strings, funciona automaticamente
-
-O componente mostra `- {san(addon)}` para cada addon na lista. Como agora virá "3X BACON", a comanda mostrará corretamente sem mudança no componente.
-
-### Fluxo visual no drawer
-
-```text
-┌─────────────────────────────────┐
-│ Adicionais                      │
-│                                 │
-│  Bacon           [-] 2 [+]  +R$ 6,00 │
-│  Cheddar         [-] 1 [+]  +R$ 3,00 │
-│  Ovo                   [+]  +R$ 2,00 │
-└─────────────────────────────────┘
-```
-
-- Addon sem seleção: mostra só o botão `[+]` e preço unitário
-- Addon com qty > 0: mostra `[-] qty [+]` e preço total (qty × unit)
+### Por que isso resolve para todas as lojas (antigas e novas)
+- **Lojas novas**: a partir da correção, todas as obs são salvas no nome do item
+- **Lojas antigas**: pedidos antigos sem obs no nome continuam funcionando (o parser simplesmente não encontra obs e segue normal)
+- A correção é no **ponto único de gravação** — não precisa mexer em receiptData, ThermalReceipt, nem formatReceiptText
 
 ### Arquivos alterados
-- `src/components/unit/ItemDetailDrawer.tsx` (UI de qty por addon)
-- `src/pages/UnitPage.tsx` (tipo CartItemAddon + nome com qty + preço com qty)
-- `src/lib/receiptData.ts` (nenhuma mudança necessária — addons já são strings livres)
+- `src/pages/UnitPage.tsx` (1 trecho ~6 linhas)
 
