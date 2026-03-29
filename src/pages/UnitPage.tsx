@@ -31,11 +31,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 
-type CartItemAddon = { id: string; name: string; price: number };
+type CartItemAddon = { id: string; name: string; price: number; qty: number };
 type CartItem = { id: string; menuItemId: string; name: string; price: number; qty: number; addons: CartItemAddon[]; notes: string };
 
 const cartKey = (menuItemId: string, addons: CartItemAddon[]) => {
-  const sortedIds = [...addons].sort((a, b) => a.id.localeCompare(b.id)).map(a => a.id).join(",");
+  const sortedIds = [...addons].sort((a, b) => a.id.localeCompare(b.id)).map(a => `${a.id}:${a.qty}`).join(",");
   return sortedIds ? `${menuItemId}__${sortedIds}` : menuItemId;
 };
 
@@ -277,7 +277,7 @@ const UnitPage = () => {
   // Cart helpers
   const addToCart = (item: { id: string; name: string; price: number }, addons: CartItemAddon[] = [], itemNotes: string = "") => {
     const key = cartKey(item.id, addons);
-    const unitPrice = item.price + addons.reduce((s, a) => s + a.price, 0);
+    const unitPrice = item.price + addons.reduce((s, a) => s + a.price * a.qty, 0);
     setCart((prev) => {
       const wasEmpty = Object.keys(prev).length === 0;
       const next = {
@@ -296,7 +296,7 @@ const UnitPage = () => {
 
   const addToCartWithQty = (item: { id: string; name: string; price: number }, addons: CartItemAddon[], itemNotes: string, qty: number) => {
     const key = cartKey(item.id, addons);
-    const unitPrice = item.price + addons.reduce((s, a) => s + a.price, 0);
+    const unitPrice = item.price + addons.reduce((s, a) => s + a.price * a.qty, 0);
     setCart((prev) => ({
       ...prev,
       [key]: { id: key, menuItemId: item.id, name: item.name, price: unitPrice, qty, addons, notes: itemNotes },
