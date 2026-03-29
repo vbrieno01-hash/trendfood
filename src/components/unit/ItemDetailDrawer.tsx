@@ -3,7 +3,6 @@ import { Plus, Minus, UtensilsCrossed } from "lucide-react";
 import {
   Drawer, DrawerContent,
 } from "@/components/ui/drawer";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMenuItemAddons } from "@/hooks/useMenuItemAddons";
@@ -11,7 +10,7 @@ import { useGlobalAddons } from "@/hooks/useGlobalAddons";
 import { useGlobalAddonExclusions } from "@/hooks/useGlobalAddonExclusions";
 import type { MenuItem } from "@/hooks/useMenuItems";
 
-type CartItemAddon = { id: string; name: string; price: number };
+type CartItemAddon = { id: string; name: string; price: number; qty: number };
 
 interface ItemDetailDrawerProps {
   item: MenuItem | null;
@@ -58,15 +57,24 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensA
 
   if (!item) return null;
 
-  const toggleAddon = (addon: { id: string; name: string; price_cents: number }) => {
+  const incrementAddon = (addon: { id: string; name: string; price_cents: number }) => {
     setSelectedAddons((prev) => {
       const exists = prev.find((a) => a.id === addon.id);
-      if (exists) return prev.filter((a) => a.id !== addon.id);
-      return [...prev, { id: addon.id, name: addon.name, price: addon.price_cents / 100 }];
+      if (exists) return prev.map((a) => a.id === addon.id ? { ...a, qty: a.qty + 1 } : a);
+      return [...prev, { id: addon.id, name: addon.name, price: addon.price_cents / 100, qty: 1 }];
     });
   };
 
-  const addonsTotal = selectedAddons.reduce((s, a) => s + a.price, 0);
+  const decrementAddon = (addonId: string) => {
+    setSelectedAddons((prev) => {
+      const exists = prev.find((a) => a.id === addonId);
+      if (!exists) return prev;
+      if (exists.qty <= 1) return prev.filter((a) => a.id !== addonId);
+      return prev.map((a) => a.id === addonId ? { ...a, qty: a.qty - 1 } : a);
+    });
+  };
+
+  const addonsTotal = selectedAddons.reduce((s, a) => s + a.price * a.qty, 0);
   const unitPrice = item.price + addonsTotal;
   const totalPrice = unitPrice * qty;
 
@@ -108,25 +116,42 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensA
               <h3 className="text-sm font-semibold text-foreground">Adicionais</h3>
               <div className="space-y-1.5">
                 {addons.map((addon) => {
-                  const isChecked = selectedAddons.some((a) => a.id === addon.id);
+                  const selected = selectedAddons.find((a) => a.id === addon.id);
+                  const addonQty = selected?.qty ?? 0;
                   return (
-                    <label
+                    <div
                       key={addon.id}
-                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
-                        isChecked ? "border-primary/50 bg-primary/5" : "border-border hover:bg-accent/50"
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-colors ${
+                        addonQty > 0 ? "border-primary/50 bg-primary/5" : "border-border"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={() => toggleAddon(addon)}
-                        />
-                        <span className="text-sm text-foreground">{addon.name}</span>
+                      <span className="text-sm text-foreground flex-1">{addon.name}</span>
+                      <div className="flex items-center gap-2">
+                        {addonQty > 0 ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => decrementAddon(addon.id)}
+                              className="w-6 h-6 rounded-full bg-background shadow flex items-center justify-center hover:bg-muted transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-5 text-center text-sm font-bold">{addonQty}</span>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => incrementAddon(addon)}
+                          className="w-6 h-6 rounded-full text-white shadow flex items-center justify-center transition-colors"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                        <span className="text-sm font-medium min-w-[60px] text-right" style={{ color: primaryColor }}>
+                          + {fmt(addonQty > 0 ? (addon.price_cents / 100) * addonQty : addon.price_cents / 100)}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium" style={{ color: primaryColor }}>
-                        + {fmt(addon.price_cents / 100)}
-                      </span>
-                    </label>
+                    </div>
                   );
                 })}
               </div>
