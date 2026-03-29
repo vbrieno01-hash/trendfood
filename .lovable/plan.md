@@ -1,52 +1,34 @@
 
 
-## Plano: Corrigir observações dos pedidos nas impressões
+## Plano: Adicionar Login com Google
 
-### Problema
-As observações por item **não estão sendo salvas** no banco de dados, então nunca aparecem na comanda impressa. No `UnitPage`, o campo `i.notes` (obs do item) é incluído na mensagem do WhatsApp mas **não** é anexado ao `name` do item ao salvar no banco. Como o sistema de impressão lê o nome do item e extrai a obs via `parseItemName` (padrão `| Obs: ...`), a obs simplesmente não existe no dado salvo.
+### Abordagem
+Este projeto usa Lovable Cloud, que já tem Google OAuth gerenciado automaticamente — não precisa configurar credenciais.
 
-### Correção
+### Alterações
 
-**Arquivo: `src/pages/UnitPage.tsx`** — 1 alteração
+**1. Configurar Social Auth** — usar a ferramenta `Configure Social Login` para gerar o módulo `src/integrations/lovable/` com suporte a Google OAuth.
 
-Na linha ~494, onde os itens do carrinho são mapeados para o `placeOrder.mutate`, incluir a obs no nome do item:
+**2. `src/pages/AuthPage.tsx`** — adicionar botão "Entrar com Google" nas duas abas (Login e Cadastro):
 
-```typescript
-// ANTES (linha 492-497):
-items: cartItems.map((i) => ({
-  menu_item_id: i.menuItemId,
-  name: i.addons.length > 0 
-    ? `${i.name} (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})` 
-    : i.name,
-  price: i.price,
-  quantity: i.qty,
-})),
+- Importar `lovable` de `@/integrations/lovable/index`
+- Criar função `handleGoogleLogin` que chama `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
+- Adicionar botão com ícone do Google antes dos formulários, com separador "ou"
+- Estilo: botão outline com ícone SVG do Google, texto "Continuar com Google"
 
-// DEPOIS:
-items: cartItems.map((i) => {
-  let finalName = i.name;
-  if (i.addons.length > 0) {
-    finalName += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})`;
-  }
-  if (i.notes.trim()) {
-    finalName += ` | Obs: ${i.notes.trim()}`;
-  }
-  return {
-    menu_item_id: i.menuItemId,
-    name: finalName,
-    price: i.price,
-    quantity: i.qty,
-  };
-}),
+**3. Tratamento pós-login Google** — no `useAuth.tsx`, o `onAuthStateChange` já detecta `SIGNED_IN` e busca a organização. Para novos usuários Google que não têm organização, o fluxo existente já lida (org fica null e o dashboard pode redirecionar para onboarding).
+
+### Layout do botão
+
+```text
+┌──────────────────────────────┐
+│  [G] Continuar com Google    │  ← botão outline
+└──────────────────────────────┘
+        ── ou ──
+  [formulário normal]
 ```
 
-Isso aplica a mesma lógica que já funciona no WhatsApp (linhas 441, 561) ao nome salvo no banco. O `parseItemName` em `receiptData.ts` já sabe extrair `| Obs: ...` do nome (linhas 118-123), então a comanda passará a exibir as obs automaticamente em todos os modos de impressão (navegador, desktop, Bluetooth).
-
-### Por que isso resolve para todas as lojas (antigas e novas)
-- **Lojas novas**: a partir da correção, todas as obs são salvas no nome do item
-- **Lojas antigas**: pedidos antigos sem obs no nome continuam funcionando (o parser simplesmente não encontra obs e segue normal)
-- A correção é no **ponto único de gravação** — não precisa mexer em receiptData, ThermalReceipt, nem formatReceiptText
-
 ### Arquivos alterados
-- `src/pages/UnitPage.tsx` (1 trecho ~6 linhas)
+- `src/integrations/lovable/` (gerado pela ferramenta)
+- `src/pages/AuthPage.tsx` (botão Google + handler)
 
