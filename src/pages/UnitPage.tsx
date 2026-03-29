@@ -394,12 +394,16 @@ const UnitPage = () => {
             organizationId: org.id,
             tableNumber: 0,
             notes: noteParts.join("|"),
-            items: cartItems.map((i) => ({
-              menu_item_id: i.menuItemId,
-              name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})` : i.name,
-              price: i.price,
-              quantity: i.qty,
-            })),
+            items: cartItems.map((i) => {
+              let finalName = i.name;
+              if (i.addons.length > 0) {
+                finalName += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})`;
+              }
+              if (i.notes.trim()) {
+                finalName += ` | Obs: ${i.notes.trim()}`;
+              }
+              return { menu_item_id: i.menuItemId, name: finalName, price: i.price, quantity: i.qty };
+            }),
             initialStatus: "awaiting_payment",
             paymentMethod: "pix",
             paid: false,
@@ -489,12 +493,16 @@ const UnitPage = () => {
           notes: noteParts.join("|"),
           paymentMethod: effectivePayment.toLowerCase(),
           paid: false,
-          items: cartItems.map((i) => ({
-            menu_item_id: i.menuItemId,
-            name: i.addons.length > 0 ? `${i.name} (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})` : i.name,
-            price: i.price,
-            quantity: i.qty,
-          })),
+          items: cartItems.map((i) => {
+            let finalName = i.name;
+            if (i.addons.length > 0) {
+              finalName += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})`;
+            }
+            if (i.notes.trim()) {
+              finalName += ` | Obs: ${i.notes.trim()}`;
+            }
+            return { menu_item_id: i.menuItemId, name: finalName, price: i.price, quantity: i.qty };
+          }),
         },
         {
           onSuccess: () => {
