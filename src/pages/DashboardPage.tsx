@@ -1010,7 +1010,7 @@ const DashboardPage = () => {
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgEmoji={organization.emoji} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
           {activeTab === "subscription" && <SubscriptionTab />}
           {activeTab === "stock" && (lockedFeatures.stock
-            ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
+            ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <StockTab orgId={organization.id} />)}
           {activeTab === "pricing" && (lockedFeatures.pricing
             ? <UpgradePrompt title="Precificação" description="Calcule custos, margens e preços sugeridos com base na ficha técnica dos seus produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
