@@ -1,30 +1,25 @@
 
 
-## Plano: Limpar dados órfãos de exclusões antigas
+## Plano: Melhorar robustez do envio WhatsApp (sem confirmação manual)
 
-### Situação
-O `DeleteUnitDialog.tsx` atual já está completo e correto — cobre todas as 24 tabelas + storage. Porém, exclusões feitas **antes** da correção deixaram resíduos:
+### Problema
+As funções `notifyCustomerWhatsApp` e `notifyCustomerReady` usam `window.open` direto, que falha silenciosamente quando o popup é bloqueado. O operador não sabe se funcionou ou não.
 
-| Tabela | Órfãos | Org IDs |
-|--------|--------|---------|
-| `courier_shifts` | 4 | `e75374b7-...` |
-| `terms_acceptances` | 2 | `8b558ccf-...` |
-| `activation_logs` | 10 | 5 orgs diferentes |
+### Solução
+Manter o fluxo atual (abrir wa.me), mas:
+1. Usar `openWhatsAppWithFallback` para detectar popup bloqueado e mostrar botão alternativo
+2. Mostrar toast de sucesso/fallback para o operador saber se abriu ou não
 
-### Ação
-Executar uma limpeza única via migration (DELETE) para remover os 16 registros órfãos:
+### Alterações
 
-```sql
-DELETE FROM courier_shifts WHERE NOT EXISTS (SELECT 1 FROM organizations WHERE id = courier_shifts.organization_id);
-DELETE FROM terms_acceptances WHERE NOT EXISTS (SELECT 1 FROM organizations WHERE id = terms_acceptances.organization_id);
-DELETE FROM activation_logs WHERE NOT EXISTS (SELECT 1 FROM organizations WHERE id = activation_logs.organization_id);
-```
+**`src/lib/whatsappNotify.ts`**
+- Importar `openWhatsAppWithFallback` de `./whatsappRedirect`
+- Substituir `window.open(url, "_blank", "noopener,noreferrer")` por `openWhatsAppWithFallback(url)` em ambas as funções (`notifyCustomerWhatsApp` e `notifyCustomerReady`)
+- Isso garante que se o popup for bloqueado, aparece um toast com botão "Abrir WhatsApp" em vez de falhar silenciosamente
 
 ### Resultado
-- Zero dados órfãos no banco
-- Código de exclusão já está robusto para futuras exclusões
-- Nenhuma alteração de código necessária
-
-### Arquivos alterados
-- Nenhum arquivo de código (apenas limpeza de dados no banco)
+- Zero mudança no fluxo do operador (continua abrindo wa.me automaticamente)
+- Se popup for bloqueado: toast com botão manual aparece por 30s
+- Operador sempre sabe se a mensagem foi aberta ou não
+- 1 arquivo alterado, 2 linhas substituídas
 
