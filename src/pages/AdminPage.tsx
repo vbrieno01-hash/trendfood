@@ -1166,6 +1166,13 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
           >
             <Trash2 className="w-3 h-3" />
           </button>
+          <button
+            onClick={() => onManage(org)}
+            className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-primary/15 text-primary hover:bg-primary/25 hover:scale-105 transition-all duration-200 flex items-center gap-1"
+          >
+            <Settings className="w-3 h-3" />
+            Gerenciar
+          </button>
           <Link
             to={`/unidade/${org.slug}`}
             className="text-[11px] text-primary hover:underline font-medium"
