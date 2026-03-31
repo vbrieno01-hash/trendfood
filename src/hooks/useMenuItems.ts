@@ -26,6 +26,7 @@ export interface MenuItemInput {
   available: boolean;
   imageFile?: File | null;
   hide_global_addons?: boolean;
+  available_days?: string[] | null;
 }
 
 export const CATEGORIES = [
