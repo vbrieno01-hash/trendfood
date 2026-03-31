@@ -232,12 +232,30 @@ const PricingPage = () => {
                 {...plan}
                 price={displayPrice}
                 period={period}
-                subtitle={subtitle}
+                subtitle={
+                  (promoEligible && !isAnnual && plan.price_cents > 0)
+                    ? "Depois: " + plan.price + "/mês"
+                    : subtitle
+                }
                 savingsBadge={savingsBadge}
-                cta={ctaText}
+                cta={
+                  (promoEligible && !isAnnual && plan.price_cents > 0 && (!isSamePlan || billingMismatch))
+                    ? "🔥 Aproveitar oferta"
+                    : ctaText
+                }
                 currentPlan={isSamePlan}
                 billingMismatch={billingMismatch}
                 loading={false}
+                promoPrice={
+                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                    ? `R$ ${(Math.round(plan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
+                    : undefined
+                }
+                originalPrice={
+                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                    ? plan.price
+                    : undefined
+                }
                 onSelect={
                   (plan.key !== "free" && (!isSamePlan || billingMismatch))
                     ? () => handleSelectPlan(plan.key)
