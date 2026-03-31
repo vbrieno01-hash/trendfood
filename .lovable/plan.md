@@ -1,22 +1,40 @@
 
 
-## Plano: Corrigir redirecionamento do link de redefinição de senha
+## Plano revisado: OG dinâmico — links antigos continuam funcionando
 
-### Problema
-Quando o cliente clica no link de redefinição de senha no e-mail, ele é redirecionado para a página de login do Lovable em vez da página `/redefinir-senha` do TrendFood. Isso acontece porque:
+### Preocupação
+Lojas já compartilharam links como `trendfood.lovable.app/unidade/slug` com seus clientes. Esses links **NÃO podem quebrar**.
 
-1. O `redirectTo` usa `window.location.origin` que no preview aponta para a URL de preview, não para `trendfood.lovable.app`
-2. A URL de redirect precisa estar na lista de URLs permitidas do Supabase Auth
+### Como funciona
+- Os links antigos (`/unidade/slug`) **continuam funcionando normalmente**. Nenhuma rota será removida ou alterada.
+- A única mudança é que, **a partir de agora**, quando o dono da loja clicar em "Copiar link" ou "Compartilhar", o sistema vai gerar um **novo link** que passa pela edge function de OG.
+- Esse novo link, quando aberto, **redireciona instantaneamente** para o mesmo `/unidade/slug` de sempre.
+- Clientes antigos com o link antigo salvo: tudo funciona igual, sem mudança.
+- Clientes novos recebem o link novo que mostra preview bonito no WhatsApp e redireciona para o mesmo lugar.
 
-### Solução
+```text
+Link antigo (continua funcionando):
+  trendfood.lovable.app/unidade/rei-do-burguer → abre a loja ✅
 
-**1. Fixar a URL de redirect para o domínio publicado** (`src/pages/AuthPage.tsx`)
-- Trocar `window.location.origin` por `https://trendfood.lovable.app` no `resetPasswordForEmail`
-- Isso garante que o link no e-mail sempre aponte para o site publicado
+Link novo (gerado a partir de agora no "Copiar link"):
+  edge-function/og-share/rei-do-burguer
+    → WhatsApp lê: logo + nome da loja (preview bonito)
+    → Usuário clica: redirecionado para trendfood.lovable.app/unidade/rei-do-burguer ✅
+```
 
-**2. Configurar redirect URLs no Supabase Auth**
-- Adicionar `https://trendfood.lovable.app/**` como URL de redirect permitida nas configurações de autenticação
+### O que será feito
 
-### Arquivos alterados
-- `src/pages/AuthPage.tsx` — fixar URL de redirect para o domínio publicado
+**1. Nova edge function `og-share`** — serve HTML com meta tags OG da loja e redireciona para a URL real
+
+**2. Helper `getShareableStoreUrl`** (`src/lib/shareUrl.ts`) — gera o novo link de compartilhamento
+
+**3. Atualizar botões "Copiar link"** no Dashboard e Courier — usar o novo link apenas para compartilhamento futuro
+
+### Nenhum link antigo será alterado ou removido. Zero risco para clientes existentes.
+
+### Arquivos
+- `supabase/functions/og-share/index.ts` — nova edge function
+- `src/lib/shareUrl.ts` — helper de URL (novo)
+- `src/pages/DashboardPage.tsx` — botão copiar link usa nova URL
+- `src/pages/CourierPage.tsx` — se aplicável
 
