@@ -11,170 +11,86 @@ import PlanCard from "@/components/pricing/PlanCard";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
-  BarChart3,
-  Zap,
-  ArrowRight,
-  QrCode,
-  UtensilsCrossed,
-  TrendingUp,
-  ChevronRight,
-  Flame,
-  BellRing,
-  Wallet,
-  Tag,
-  Printer,
-  BarChart2,
-  Bike,
-  MessageCircle,
-  Instagram,
-  Smartphone,
-  Package,
-  CreditCard,
-  Loader2,
+  BarChart3, Zap, ArrowRight, QrCode, UtensilsCrossed, TrendingUp,
+  ChevronRight, Flame, BellRing, Wallet, Tag, Printer, BarChart2,
+  Bike, MessageCircle, Instagram, Smartphone, Package, CreditCard, Loader2,
 } from "lucide-react";
 
-const problems = [
-  {
-    image: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=600&q=80",
-    alt: "Pedido em papel no atendimento",
-    title: "Pedido em papel e confusão no atendimento",
-    description:
-      "Pedido que chega por papelzinho e se perde — atendente sem saber a fila, item errado, cliente insatisfeito.",
-  },
-  {
-    image: "https://images.unsplash.com/photo-1559329007-40df8a9345d8?w=600&q=80",
-    alt: "Cliente esperando conta",
-    title: "Clientes esperando para pagar",
-    description:
-      "Fila parada esperando atendente com maquininha, sem conseguir fechar a conta. Rotatividade baixa, lucro menor.",
-  },
-  {
-    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80",
-    alt: "Taxas de marketplace",
-    title: "Pagando até 27% de comissão",
-    description:
-      "Cada venda no marketplace, desconto pesado. Final do mês, o lucro sumiu em taxas que você nem vê.",
-  },
+/* ── Default data (fallbacks when CMS is empty) ── */
+
+const defaultProblems = [
+  { image: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=600&q=80", title: "Pedido em papel e confusão no atendimento", description: "Pedido que chega por papelzinho e se perde — atendente sem saber a fila, item errado, cliente insatisfeito." },
+  { image: "https://images.unsplash.com/photo-1559329007-40df8a9345d8?w=600&q=80", title: "Clientes esperando para pagar", description: "Fila parada esperando atendente com maquininha, sem conseguir fechar a conta. Rotatividade baixa, lucro menor." },
+  { image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80", title: "Pagando até 27% de comissão", description: "Cada venda no marketplace, desconto pesado. Final do mês, o lucro sumiu em taxas que você nem vê." },
 ];
 
-const steps = [
-  {
-    number: "01",
-    icon: <UtensilsCrossed className="w-6 h-6" />,
-    title: "Crie seu catálogo online",
-    description:
-      "Monte categorias, preços e fotos em minutos. Seu catálogo fica disponível via link para qualquer dispositivo, sem precisar baixar nenhum app.",
-  },
-  {
-    number: "02",
-    icon: <QrCode className="w-6 h-6" />,
-    title: "Gere QR Codes para cada ponto de atendimento",
-    description:
-      "Cada ponto recebe um QR Code único. O cliente escaneia e faz o pedido direto pelo celular, sem precisar chamar o atendente.",
-  },
-  {
-    number: "03",
-    icon: <Flame className="w-6 h-6" />,
-    title: "Equipe recebe o pedido em tempo real",
-    description:
-      "O painel de produção (KDS) toca um alerta sonoro e imprime automaticamente cada pedido. A equipe acompanha tudo no painel.",
-  },
-  {
-    number: "04",
-    icon: <BarChart3 className="w-6 h-6" />,
-    title: "Feche o caixa com relatório completo",
-    description:
-      "Abertura e fechamento de turno, registro de sangrias e conferência de saldo. Veja faturamento e mais vendidos do dia.",
-  },
+const defaultSteps = [
+  { title: "Crie seu catálogo online", description: "Monte categorias, preços e fotos em minutos. Seu catálogo fica disponível via link para qualquer dispositivo, sem precisar baixar nenhum app." },
+  { title: "Gere QR Codes para cada ponto de atendimento", description: "Cada ponto recebe um QR Code único. O cliente escaneia e faz o pedido direto pelo celular, sem precisar chamar o atendente." },
+  { title: "Equipe recebe o pedido em tempo real", description: "O painel de produção (KDS) toca um alerta sonoro e imprime automaticamente cada pedido. A equipe acompanha tudo no painel." },
+  { title: "Feche o caixa com relatório completo", description: "Abertura e fechamento de turno, registro de sangrias e conferência de saldo. Veja faturamento e mais vendidos do dia." },
 ];
 
-const features = [
-  {
-    icon: <UtensilsCrossed className="w-5 h-5" />,
-    title: "Catálogo Digital",
-    description: "Monte seu catálogo com categorias, preços e fotos. Acessível via link ou QR Code.",
-  },
-  {
-    icon: <QrCode className="w-5 h-5" />,
-    title: "Pedidos por QR Code",
-    description: "Cada ponto de atendimento tem QR único. O cliente pede sem precisar de app.",
-  },
-  {
-    icon: <Flame className="w-5 h-5" />,
-    title: "Painel de Produção (KDS)",
-    description: "Tela dedicada ao atendimento com alerta sonoro e impressão automática.",
-  },
-  {
-    icon: <BellRing className="w-5 h-5" />,
-    title: "Painel do Atendente",
-    description: "Visão de todos os pedidos ativos e fechamento de conta com PIX integrado.",
-  },
-  {
-    icon: <Wallet className="w-5 h-5" />,
-    title: "Controle de Caixa",
-    description: "Abra e feche turnos, registre sangrias e confira o saldo ao final.",
-  },
-  {
-    icon: <BarChart2 className="w-5 h-5" />,
-    title: "Mais Vendidos",
-    description: "Ranking de produtos por período com receita gerada por cada item.",
-  },
-  {
-    icon: <Tag className="w-5 h-5" />,
-    title: "Cupons de Desconto",
-    description: "Crie promoções com valor fixo ou percentual e gerencie o uso.",
-  },
-  {
-    icon: <TrendingUp className="w-5 h-5" />,
-    title: "Faturamento em Tempo Real",
-    description: "Dashboard com gráfico dos últimos 7 dias, ticket médio e total do dia.",
-  },
-  {
-    icon: <Printer className="w-5 h-5" />,
-    title: "Impressora Térmica",
-    description: "Impressão automática 80mm com QR Code PIX no recibo do cliente.",
-  },
-  {
-    icon: <Bike className="w-5 h-5" />,
-    title: "Gestão de Motoboys",
-    description: "Cadastre motoboys, atribua entregas, acompanhe em tempo real e controle pagamentos.",
-  },
-  {
-    icon: <Package className="w-5 h-5" />,
-    title: "Gestão de Insumos",
-    description: "Controle ingredientes com ficha técnica e baixa automática a cada venda.",
-  },
-  {
-    icon: <BarChart3 className="w-5 h-5" />,
-    title: "Precificação Inteligente",
-    description: "Cálculo automático de margem e preço sugerido por markup sobre custo.",
-  },
+const defaultFeatures = [
+  { title: "Catálogo Digital", description: "Monte seu catálogo com categorias, preços e fotos. Acessível via link ou QR Code." },
+  { title: "Pedidos por QR Code", description: "Cada ponto de atendimento tem QR único. O cliente pede sem precisar de app." },
+  { title: "Painel de Produção (KDS)", description: "Tela dedicada ao atendimento com alerta sonoro e impressão automática." },
+  { title: "Painel do Atendente", description: "Visão de todos os pedidos ativos e fechamento de conta com PIX integrado." },
+  { title: "Controle de Caixa", description: "Abra e feche turnos, registre sangrias e confira o saldo ao final." },
+  { title: "Mais Vendidos", description: "Ranking de produtos por período com receita gerada por cada item." },
+  { title: "Cupons de Desconto", description: "Crie promoções com valor fixo ou percentual e gerencie o uso." },
+  { title: "Faturamento em Tempo Real", description: "Dashboard com gráfico dos últimos 7 dias, ticket médio e total do dia." },
+  { title: "Impressora Térmica", description: "Impressão automática 80mm com QR Code PIX no recibo do cliente." },
+  { title: "Gestão de Motoboys", description: "Cadastre motoboys, atribua entregas, acompanhe em tempo real e controle pagamentos." },
+  { title: "Gestão de Insumos", description: "Controle ingredientes com ficha técnica e baixa automática a cada venda." },
+  { title: "Precificação Inteligente", description: "Cálculo automático de margem e preço sugerido por markup sobre custo." },
 ];
 
-const proofBadges = [
-  "0% comissão",
-  "Motoboys próprios",
-  "Impressão térmica",
-  "PIX integrado",
-  "Sem app para baixar",
+const defaultBenefitCards = [
+  { title: "Cardápio Digital", description: "Catálogo completo com QR Code por mesa. Cliente pede sem app." },
+  { title: "Insumos + Precificação", description: "Ficha técnica de ingredientes, baixa automática e margem calculada." },
+  { title: "Pagamento Online", description: "PIX automático integrado. Confirma pagamento sem maquininha." },
 ];
 
-const benefitCards = [
-  {
-    icon: <Smartphone className="w-7 h-7" />,
-    title: "Cardápio Digital",
-    description: "Catálogo completo com QR Code por mesa. Cliente pede sem app.",
-  },
-  {
-    icon: <Package className="w-7 h-7" />,
-    title: "Insumos + Precificação",
-    description: "Ficha técnica de ingredientes, baixa automática e margem calculada.",
-  },
-  {
-    icon: <CreditCard className="w-7 h-7" />,
-    title: "Pagamento Online",
-    description: "PIX automático integrado. Confirma pagamento sem maquininha.",
-  },
+const defaultProofBadges = ["0% comissão", "Motoboys próprios", "Impressão térmica", "PIX integrado", "Sem app para baixar"];
+
+const defaultComparisonRows = [
+  { label: "Comissão por venda", marketplace: "12% a 27%", trendfood: "0%", badge: "Grátis" },
+  { label: "Dados dos clientes", marketplace: "Ficam com a plataforma", trendfood: "São seus" },
+  { label: "Cardápio", marketplace: "Padronizado", trendfood: "Personalizado" },
+  { label: "Delivery", marketplace: "Motoboy da plataforma (caro)", trendfood: "Seus motoboys, suas regras" },
+  { label: "Impressão de pedidos", marketplace: "Não tem", trendfood: "Impressora térmica integrada", badge: "Incluso" },
+  { label: "Controle de caixa", marketplace: "Não tem", trendfood: "Completo com abertura/fechamento", badge: "Incluso" },
+  { label: "Custo mensal", marketplace: "Comissão variável", trendfood: "A partir de R$ 0/mês", badge: "Grátis" },
+];
+
+/* ── Icon map for features ── */
+const featureIconMap: Record<string, React.ReactNode> = {
+  "Catálogo Digital": <UtensilsCrossed className="w-5 h-5" />,
+  "Pedidos por QR Code": <QrCode className="w-5 h-5" />,
+  "Painel de Produção (KDS)": <Flame className="w-5 h-5" />,
+  "Painel do Atendente": <BellRing className="w-5 h-5" />,
+  "Controle de Caixa": <Wallet className="w-5 h-5" />,
+  "Mais Vendidos": <BarChart2 className="w-5 h-5" />,
+  "Cupons de Desconto": <Tag className="w-5 h-5" />,
+  "Faturamento em Tempo Real": <TrendingUp className="w-5 h-5" />,
+  "Impressora Térmica": <Printer className="w-5 h-5" />,
+  "Gestão de Motoboys": <Bike className="w-5 h-5" />,
+  "Gestão de Insumos": <Package className="w-5 h-5" />,
+  "Precificação Inteligente": <BarChart3 className="w-5 h-5" />,
+};
+
+const stepIcons = [
+  <UtensilsCrossed className="w-6 h-6" />,
+  <QrCode className="w-6 h-6" />,
+  <Flame className="w-6 h-6" />,
+  <BarChart3 className="w-6 h-6" />,
+];
+
+const benefitIcons = [
+  <Smartphone className="w-7 h-7" />,
+  <Package className="w-7 h-7" />,
+  <CreditCard className="w-7 h-7" />,
 ];
 
 const formatPrice = (cents: number) => {
@@ -183,18 +99,10 @@ const formatPrice = (cents: number) => {
 };
 
 interface PlanRow {
-  id: string;
-  name: string;
-  key: string;
-  description: string | null;
-  price_cents: number;
-  annual_price_cents: number | null;
-  features: string[];
-  highlighted: boolean;
-  badge: string | null;
-  checkout_url: string | null;
-  sort_order: number;
-  active: boolean;
+  id: string; name: string; key: string; description: string | null;
+  price_cents: number; annual_price_cents: number | null;
+  features: string[]; highlighted: boolean; badge: string | null;
+  checkout_url: string | null; sort_order: number; active: boolean;
 }
 
 const Index = () => {
@@ -206,39 +114,21 @@ const Index = () => {
   const [displayCount, setDisplayCount] = useState(0);
 
   const c = (key: string, fallback: string) => (typeof cms[key] === "string" ? cms[key] : fallback);
-  const cArr = (key: string, fallback: string[]) => (Array.isArray(cms[key]) ? cms[key] : fallback);
+  const cArr = (key: string, fallback: any[]) => (Array.isArray(cms[key]) ? cms[key] : fallback);
 
   useEffect(() => {
-    supabase
-      .from("platform_plans")
-      .select("*")
-      .eq("active", true)
-      .order("sort_order")
-      .then(({ data }) => {
-        setPlans((data as unknown as PlanRow[]) ?? []);
-        setLoadingPlans(false);
-      });
+    supabase.from("platform_plans").select("*").eq("active", true).order("sort_order")
+      .then(({ data }) => { setPlans((data as unknown as PlanRow[]) ?? []); setLoadingPlans(false); });
 
-    // Fetch total order count
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .then(({ count }) => {
-        if (count) setOrderCount(count);
-      });
+    supabase.from("orders").select("*", { count: "exact", head: true })
+      .then(({ count }) => { if (count) setOrderCount(count); });
 
-    // Realtime subscription for new orders
-    const channel = supabase
-      .channel("landing-orders")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => {
-        setOrderCount((prev) => prev + 1);
-      })
+    const channel = supabase.channel("landing-orders")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => { setOrderCount((prev) => prev + 1); })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Animate count from 0 to orderCount
   useEffect(() => {
     if (orderCount === 0) return;
     const duration = 1500;
@@ -249,7 +139,7 @@ const Index = () => {
     const step = (now: number) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
       setDisplayCount(Math.round(from + (to - from) * eased));
       if (progress < 1) raf = requestAnimationFrame(step);
     };
@@ -257,25 +147,23 @@ const Index = () => {
     return () => cancelAnimationFrame(raf);
   }, [orderCount]);
 
+  const problemsData = cArr("problems_cards", defaultProblems);
+  const benefitsData = cArr("benefit_cards", defaultBenefitCards);
+  const stepsData = cArr("steps_cards", defaultSteps);
+  const featuresData = cArr("features_cards", defaultFeatures);
+  const comparisonData = cArr("comparison_rows", defaultComparisonRows);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden min-h-screen flex flex-col">
-        {/* Burger Background */}
         <img
           src={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
-          alt="Ambiente comercial de restaurante"
+          alt="Ambiente comercial"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to right, rgba(10,8,6,0.93) 0%, rgba(15,10,5,0.82) 45%, rgba(10,8,6,0.55) 100%)",
-          }}
-        />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(10,8,6,0.93) 0%, rgba(15,10,5,0.82) 45%, rgba(10,8,6,0.55) 100%)" }} />
 
-        {/* Header */}
         <header className="relative z-10 border-b border-white/[0.06]">
           <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
             <div className="flex items-center gap-2.5">
@@ -297,7 +185,6 @@ const Index = () => {
           </div>
         </header>
 
-        {/* Hero content */}
         <div className="relative z-10 flex-1 flex items-center">
           <div className="max-w-5xl mx-auto px-4 py-24 text-center w-full">
             <Badge className="mb-8 bg-white/[0.08] text-white/80 border-white/[0.1] hover:bg-white/[0.12] backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
@@ -321,27 +208,18 @@ const Index = () => {
             </p>
 
             <div className="flex justify-center">
-              <Link
-                to="/auth"
-                className="inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.6)] hover:scale-[1.03] transition-all duration-300"
-              >
+              <Link to="/auth" className="inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.6)] hover:scale-[1.03] transition-all duration-300">
                 {c("hero_cta_text", "Começar Grátis")}
                 <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
 
             <div className="mt-14 flex flex-wrap gap-2.5 justify-center">
-              {cArr("proof_badges", proofBadges).map((b: string) => (
-                <span
-                  key={b}
-                  className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium"
-                >
-                  {b}
-                </span>
+              {cArr("proof_badges", defaultProofBadges).map((b: string) => (
+                <span key={b} className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium">{b}</span>
               ))}
             </div>
 
-            {/* Live order counter */}
             {orderCount > 0 && (
               <div className="mt-8 flex justify-center animate-fade-in">
                 <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-300 text-sm font-semibold tracking-wide">
@@ -358,13 +236,10 @@ const Index = () => {
       <section className="py-16 px-4 bg-background border-b border-border/60">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-3 gap-6">
-            {benefitCards.map((card) => (
-              <div
-                key={card.title}
-                className="bg-card rounded-2xl p-6 border border-border hover:border-primary/40 hover:shadow-lg transition-all text-center"
-              >
+            {benefitsData.map((card: any, idx: number) => (
+              <div key={card.title} className="bg-card rounded-2xl p-6 border border-border hover:border-primary/40 hover:shadow-lg transition-all text-center">
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                  {card.icon}
+                  {benefitIcons[idx] || <Zap className="w-7 h-7" />}
                 </div>
                 <h3 className="font-bold text-foreground text-lg mb-2">{card.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">{card.description}</p>
@@ -378,24 +253,15 @@ const Index = () => {
       <section id="problemas" className="py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              O problema real
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-              {c("problems_title", "Você já passou por isso?")}
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              {c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}
-            </p>
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">O problema real</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">{c("problems_title", "Você já passou por isso?")}</h2>
+            <p className="text-muted-foreground text-lg">{c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {problems.map((p) => (
-              <div
-                key={p.title}
-                className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:border-primary/30 hover:shadow-md transition-all"
-              >
+            {problemsData.map((p: any) => (
+              <div key={p.title} className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:border-primary/30 hover:shadow-md transition-all">
                 <div className="h-44 overflow-hidden">
-                  <img src={p.image} alt={p.alt} className="w-full h-full object-cover" />
+                  <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
                 </div>
                 <div className="p-6">
                   <h3 className="font-bold text-foreground text-lg mb-2">{p.title}</h3>
@@ -413,35 +279,32 @@ const Index = () => {
       </section>
 
       {/* Comparison Section */}
-      <ComparisonSection />
+      <ComparisonSection rows={comparisonData} />
 
-      {/* Savings Calculator */}
       <SavingsCalculator />
 
       {/* How it works */}
       <section id="como-funciona" className="bg-secondary/40 border-y border-border/60 py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              Como funciona
-            </Badge>
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Como funciona</Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Quatro passos simples</h2>
             <p className="text-muted-foreground text-lg">Do cardápio ao fechamento do caixa, tudo integrado</p>
           </div>
           <div className="grid md:grid-cols-4 gap-4 md:gap-0 items-start">
-            {steps.map((step, idx) => (
-              <div key={step.number} className="flex md:contents">
+            {stepsData.map((step: any, idx: number) => (
+              <div key={step.title} className="flex md:contents">
                 <div className="bg-card rounded-2xl p-6 border border-border shadow-sm flex-1">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                      {step.icon}
+                      {stepIcons[idx] || <Zap className="w-6 h-6" />}
                     </div>
-                    <span className="text-4xl font-black text-border">{step.number}</span>
+                    <span className="text-4xl font-black text-border">{String(idx + 1).padStart(2, "0")}</span>
                   </div>
                   <h3 className="font-bold text-foreground text-base mb-2">{step.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
                 </div>
-                {idx < steps.length - 1 && (
+                {idx < stepsData.length - 1 && (
                   <div className="hidden md:flex items-center justify-center px-1 self-center">
                     <ChevronRight className="w-5 h-5 text-primary" />
                   </div>
@@ -458,22 +321,15 @@ const Index = () => {
       <section id="funcionalidades" className="py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              Tudo em um só lugar
-            </Badge>
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Tudo em um só lugar</Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Funcionalidades completas</h2>
-            <p className="text-muted-foreground text-lg">
-              Do cardápio digital ao controle de caixa — sem precisar de vários sistemas
-            </p>
+            <p className="text-muted-foreground text-lg">Do cardápio digital ao controle de caixa — sem precisar de vários sistemas</p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {features.map((f) => (
-              <div
-                key={f.title}
-                className="group bg-card rounded-2xl p-5 border border-border hover:border-primary/40 hover:shadow-md transition-all"
-              >
+            {featuresData.map((f: any) => (
+              <div key={f.title} className="group bg-card rounded-2xl p-5 border border-border hover:border-primary/40 hover:shadow-md transition-all">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  {f.icon}
+                  {featureIconMap[f.title] || <Zap className="w-5 h-5" />}
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">{f.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
@@ -487,18 +343,10 @@ const Index = () => {
       <section id="planos" className="py-20 px-4 bg-secondary/40 border-y border-border/60">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              Planos
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-              Escolha o plano ideal para seu negócio
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              Comece grátis e evolua conforme sua operação cresce
-            </p>
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Planos</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Escolha o plano ideal para seu negócio</h2>
+            <p className="text-muted-foreground text-lg">Comece grátis e evolua conforme sua operação cresce</p>
           </div>
-
-          {/* Billing Toggle */}
           <div className="flex items-center justify-center gap-3 mb-8">
             <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
             <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
@@ -506,35 +354,20 @@ const Index = () => {
               Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
             </span>
           </div>
-
           {loadingPlans ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
+            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
           ) : (
             <div className="grid md:grid-cols-3 gap-6 items-stretch">
               {plans.map((plan) => {
                 const showAnnual = isAnnual && (plan.annual_price_cents ?? 0) > 0;
                 const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents!) : formatPrice(plan.price_cents);
                 const period = showAnnual ? "/ano" : "/mês";
-                const subtitle = showAnnual
-                  ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês`
-                  : undefined;
+                const subtitle = showAnnual ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês` : undefined;
                 const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
                 return (
-                  <PlanCard
-                    key={plan.id}
-                    name={plan.name}
-                    price={displayPrice}
-                    period={period}
-                    subtitle={subtitle}
-                    savingsBadge={savingsBadge}
-                    description={plan.description ?? ""}
-                    features={Array.isArray(plan.features) ? plan.features : []}
-                    cta="Ver detalhes"
-                    ctaLink="/planos"
-                    highlighted={plan.highlighted}
-                    badge={plan.badge ?? undefined}
+                  <PlanCard key={plan.id} name={plan.name} price={displayPrice} period={period} subtitle={subtitle} savingsBadge={savingsBadge}
+                    description={plan.description ?? ""} features={Array.isArray(plan.features) ? plan.features : []}
+                    cta="Ver detalhes" ctaLink="/planos" highlighted={plan.highlighted} badge={plan.badge ?? undefined}
                   />
                 );
               })}
@@ -547,18 +380,14 @@ const Index = () => {
       <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
-            Pare de pagar comissão. Comece hoje.
+            {c("cta_title", "Pare de pagar comissão. Comece hoje.")}
           </h2>
           <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
-            Mesmo sistema, zero taxa. Configure em minutos e veja a diferença no seu caixa.
+            {c("cta_subtitle", "Mesmo sistema, zero taxa. Configure em minutos e veja a diferença no seu caixa.")}
           </p>
-          <Button
-            size="lg"
-            className="text-base font-bold gap-2 bg-white text-primary hover:bg-white/90 shadow-xl"
-            asChild
-          >
+          <Button size="lg" className="text-base font-bold gap-2 bg-white text-primary hover:bg-white/90 shadow-xl" asChild>
             <Link to="/auth">
-              Começar Grátis Agora
+              {c("cta_button_text", "Começar Grátis Agora")}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
@@ -569,26 +398,23 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border/60 bg-muted/50 pt-14 pb-8 px-4">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
-          {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
               <img src="/pwa-192.png" alt="TrendFood" className="w-7 h-7 rounded-md object-contain" />
               <span className="font-bold text-foreground text-lg tracking-tight">TrendFood</span>
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-              Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão.
+              {c("footer_description", "Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão.")}
             </p>
             <div className="flex items-center gap-3">
-              <a href="https://www.instagram.com/_trend.food?igsh=MTU4ZWdsY2hyMjE=" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href={c("footer_instagram_url", "https://www.instagram.com/_trend.food")} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="http://wa.me/message/H632HC5C5XX5C1" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
                 <MessageCircle className="w-5 h-5" />
               </a>
             </div>
           </div>
-
-          {/* Produto */}
           <div>
             <h4 className="font-semibold text-foreground text-sm mb-3">Produto</h4>
             <ul className="space-y-2 text-sm">
@@ -599,35 +425,29 @@ const Index = () => {
               <li><a href="#comparativo" className="text-muted-foreground hover:text-foreground transition-colors">Comparativo</a></li>
             </ul>
           </div>
-
-          {/* Suporte */}
           <div>
             <h4 className="font-semibold text-foreground text-sm mb-3">Suporte</h4>
             <ul className="space-y-2 text-sm">
               <li><Link to="/termos" className="text-muted-foreground hover:text-foreground transition-colors">Termos de Uso</Link></li>
               <li><Link to="/privacidade" className="text-muted-foreground hover:text-foreground transition-colors">Política de Privacidade</Link></li>
-              <li><a href="http://wa.me/message/H632HC5C5XX5C1" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
+              <li><a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
               <li><a href="#problemas" className="text-muted-foreground hover:text-foreground transition-colors">Perguntas Frequentes</a></li>
             </ul>
           </div>
-
-          {/* Contato */}
           <div>
             <h4 className="font-semibold text-foreground text-sm mb-3">Contato</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="mailto:contato@trendfood.com.br" className="text-muted-foreground hover:text-foreground transition-colors">contato@trendfood.com.br</a></li>
+              <li><a href={`mailto:${c("footer_email", "contato@trendfood.com.br")}`} className="text-muted-foreground hover:text-foreground transition-colors">{c("footer_email", "contato@trendfood.com.br")}</a></li>
               <li>
-                <a href="http://wa.me/message/H632HC5C5XX5C1" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                  <MessageCircle className="w-4 h-4" />
-                  Fale conosco
+                <a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <MessageCircle className="w-4 h-4" /> Fale conosco
                 </a>
               </li>
             </ul>
           </div>
         </div>
-
         <div className="max-w-5xl mx-auto border-t border-border/60 pt-6 text-center text-muted-foreground text-sm">
-          <p>TrendFood © 2026 - Todos os direitos reservados</p>
+          <p>{c("footer_copyright", "TrendFood © 2026 - Todos os direitos reservados")}</p>
         </div>
       </footer>
     </div>
