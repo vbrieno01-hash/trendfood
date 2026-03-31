@@ -143,7 +143,10 @@ const SubscriptionTab = () => {
     const planData = plans.find((p) => p.key === planKey);
     if (planData) {
       const showAnnual = isAnnual && planData.annualPriceCents > 0;
-      const displayPrice = showAnnual ? formatPrice(planData.annualPriceCents) : planData.price;
+      const showPromo = promoEligible && !isAnnual && planData.priceCents > 0;
+      const displayPrice = showPromo
+        ? `R$ ${(Math.round(planData.priceCents / 2) / 100).toFixed(2).replace(".", ",")}`
+        : showAnnual ? formatPrice(planData.annualPriceCents) : planData.price;
       setCardFormPlan({ key: planData.key, name: planData.name, price: displayPrice });
     }
   };

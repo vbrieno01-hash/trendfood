@@ -162,19 +162,25 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
         </DialogContent>
       </Dialog>
 
-      {selectedPlan && (
-        <CardPaymentForm
-          open={checkoutOpen}
-          onOpenChange={setCheckoutOpen}
-          orgId={orgId}
-          plan={selectedPlan.key}
-          planName={selectedPlan.name}
-          planPrice={isAnnual && selectedPlan.annual_price_cents > 0 ? formatPrice(selectedPlan.annual_price_cents) : formatPriceFull(selectedPlan.price_cents)}
-          billing={isAnnual && selectedPlan.annual_price_cents > 0 ? "annual" : "monthly"}
-          promo={promoEligible && !isAnnual}
-          onSuccess={handleSuccess}
-        />
-      )}
+      {selectedPlan && (() => {
+        const showPromoInCheckout = promoEligible && !isAnnual;
+        const checkoutPrice = showPromoInCheckout
+          ? `R$ ${(Math.round(selectedPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
+          : (isAnnual && selectedPlan.annual_price_cents > 0 ? formatPrice(selectedPlan.annual_price_cents) : formatPriceFull(selectedPlan.price_cents));
+        return (
+          <CardPaymentForm
+            open={checkoutOpen}
+            onOpenChange={setCheckoutOpen}
+            orgId={orgId}
+            plan={selectedPlan.key}
+            planName={selectedPlan.name}
+            planPrice={checkoutPrice}
+            billing={isAnnual && selectedPlan.annual_price_cents > 0 ? "annual" : "monthly"}
+            promo={showPromoInCheckout}
+            onSuccess={handleSuccess}
+          />
+        );
+      })()}
     </>
   );
 }
