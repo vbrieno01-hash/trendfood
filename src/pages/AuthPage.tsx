@@ -708,6 +708,7 @@ const AuthPage = () => {
               </form>
             </TabsContent>
           </Tabs>
+          )}
 
           <p className="text-center text-xs text-muted-foreground mt-8">
             Ao criar sua conta, você concorda com nossos{" "}
