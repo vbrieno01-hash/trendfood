@@ -1,29 +1,15 @@
 
 
-## Plano: Propagar promoção "1º mês pela metade" para TODOS os locais
+## Plano: Adicionar `promoEligible` ao UpgradePrompt do QR Code do Cardápio
 
 ### Problema
-A promoção só aparece na `PricingPage` e no `UpgradeDialog` (quando chamado do banner do Dashboard). Dois lugares não mostram a promo:
+O `UpgradePrompt` na seção "QR Code do Cardápio" dentro de `StoreProfileTab.tsx` (linha 957-962) não passa a prop `promoEligible`, então a promoção de 50% não aparece ali.
 
-1. **`SubscriptionTab`** (aba "Assinatura / Plano" dentro do dashboard) — renderiza os PlanCards sem `promoPrice`/`originalPrice` e sem `promo` no CardPaymentForm
-2. **`UpgradePrompt`** (tela de bloqueio de features como Cupons, KDS, Estoque, etc.) — não passa `promoEligible` para o `UpgradeDialog`
+### Correção
+**`src/components/dashboard/StoreProfileTab.tsx`** (linha ~957-962)
+- Adicionar `promoEligible={promoEligible}` ao `UpgradePrompt` do QR Code
+- Verificar se `promoEligible` já está disponível no componente via `usePlanLimits` (o hook já é usado, pois `effectivePlan` vem dele)
 
-### O que será feito
-
-**1. `src/components/dashboard/SubscriptionTab.tsx`**
-- Importar `usePlanLimits` (já importa) e extrair `promoEligible` dele
-- Na renderização dos PlanCards: quando `promoEligible && !isAnnual && plan.priceCents > 0`, passar `promoPrice`, `originalPrice`, `subtitle` promo e CTA "🔥 Aproveitar oferta"
-- No `CardPaymentForm`: passar `promo={promoEligible && !isAnnual}`
-
-**2. `src/components/dashboard/UpgradePrompt.tsx`**
-- Aceitar nova prop opcional `promoEligible?: boolean`
-- Repassar para `UpgradeDialog`
-
-**3. `src/pages/DashboardPage.tsx`**
-- Passar `promoEligible={planLimits.promoEligible}` em todas as instâncias de `<UpgradePrompt>`
-
-### Arquivos alterados
-- `src/components/dashboard/SubscriptionTab.tsx` — adicionar lógica promo nos PlanCards e CardPaymentForm
-- `src/components/dashboard/UpgradePrompt.tsx` — aceitar e repassar `promoEligible`
-- `src/pages/DashboardPage.tsx` — passar `promoEligible` para cada `UpgradePrompt`
+### Arquivo alterado
+- `src/components/dashboard/StoreProfileTab.tsx` — 1 linha adicionada
 
