@@ -20,6 +20,7 @@ import ReferralsTab from "@/components/admin/ReferralsTab";
 import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import AdminStoreManager from "@/components/admin/AdminStoreManager";
+import SiteContentTab from "@/components/admin/SiteContentTab";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -224,7 +225,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes" | "gerenciar";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes" | "gerenciar" | "site";
 
 interface NavGroup {
   label: string;
@@ -244,6 +245,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Gestão",
     items: [
       { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
+      { key: "site", icon: <Globe className="w-4 h-4" />, label: "Site & Conteúdo" },
       { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
       { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Chat de Vendas" },
       { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
@@ -890,6 +892,12 @@ function AdminContent() {
               <TrialConfigSection />
               <PlatformConfigSection />
               <AdminDownloadsSection />
+            </div>
+          )}
+
+          {activeTab === "site" && (
+            <div className="animate-admin-fade-in">
+              <SiteContentTab />
             </div>
           )}
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePlatformContent } from "@/hooks/usePlatformContent";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -197,11 +198,15 @@ interface PlanRow {
 }
 
 const Index = () => {
+  const { content: cms } = usePlatformContent();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [isAnnual, setIsAnnual] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [displayCount, setDisplayCount] = useState(0);
+
+  const c = (key: string, fallback: string) => (typeof cms[key] === "string" ? cms[key] : fallback);
+  const cArr = (key: string, fallback: string[]) => (Array.isArray(cms[key]) ? cms[key] : fallback);
 
   useEffect(() => {
     supabase
@@ -258,7 +263,7 @@ const Index = () => {
       <section className="relative overflow-hidden min-h-screen flex flex-col">
         {/* Burger Background */}
         <img
-          src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80"
+          src={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
           alt="Ambiente comercial de restaurante"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
@@ -297,22 +302,22 @@ const Index = () => {
           <div className="max-w-5xl mx-auto px-4 py-24 text-center w-full">
             <Badge className="mb-8 bg-white/[0.08] text-white/80 border-white/[0.1] hover:bg-white/[0.12] backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
               <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-              Zero taxas sobre vendas
+              {c("hero_badge_text", "Zero taxas sobre vendas")}
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
-              O Cardápio Digital que Profissionaliza seu Delivery
+              {c("hero_title", "O Cardápio Digital que Profissionaliza seu Delivery")}
               <br />
               <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-                Sem Taxas, Com Gestão Real.
+                {c("hero_title_highlight", "Sem Taxas, Com Gestão Real.")}
               </span>
             </h1>
 
             <p className="text-lg md:text-xl text-white/75 max-w-2xl mx-auto mb-4 leading-[1.8]">
-              Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.
+              {c("hero_subtitle", "Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.")}
             </p>
             <p className="text-sm md:text-base text-white/45 max-w-xl mx-auto mb-12 leading-relaxed">
-              Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.
+              {c("hero_subtitle2", "Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.")}
             </p>
 
             <div className="flex justify-center">
@@ -320,13 +325,13 @@ const Index = () => {
                 to="/auth"
                 className="inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.6)] hover:scale-[1.03] transition-all duration-300"
               >
-                Começar Grátis
+                {c("hero_cta_text", "Começar Grátis")}
                 <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
 
             <div className="mt-14 flex flex-wrap gap-2.5 justify-center">
-              {proofBadges.map((b) => (
+              {cArr("proof_badges", proofBadges).map((b: string) => (
                 <span
                   key={b}
                   className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium"
@@ -341,7 +346,7 @@ const Index = () => {
               <div className="mt-8 flex justify-center animate-fade-in">
                 <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-300 text-sm font-semibold tracking-wide">
                   <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
-                  +{displayCount.toLocaleString('pt-BR')} pedidos feitos no TrendFood
+                  +{displayCount.toLocaleString('pt-BR')} {c("order_counter_text", "pedidos feitos no TrendFood")}
                 </span>
               </div>
             )}
@@ -377,10 +382,10 @@ const Index = () => {
               O problema real
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-              Você já passou por isso?
+              {c("problems_title", "Você já passou por isso?")}
             </h2>
             <p className="text-muted-foreground text-lg">
-              Esses problemas custam dinheiro e clientes todo dia
+              {c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
