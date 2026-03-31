@@ -1,31 +1,62 @@
 
 
-## Plano: Contador ao vivo de pedidos na página inicial
+## Plano: Limpeza completa na exclusão de unidade
 
-### O que será feito
-Adicionar um contador animado na hero section mostrando o total de pedidos do sistema em tempo real. O número atualiza automaticamente via realtime subscription.
+### Problema
+O `DeleteUnitDialog` não apaga **7 tabelas** e **arquivos de storage**, deixando dados órfãos ocupando espaço.
 
-### Implementação
+### Tabelas faltando na exclusão
 
-**1. `src/pages/Index.tsx`**
+| Tabela | Campo | Status atual |
+|--------|-------|-------------|
+| `global_addons` | `organization_id` | Não apagada |
+| `global_addon_exclusions` | via `menu_item_id` | Não apagada |
+| `delivery_neighborhoods` | `organization_id` | Não apagada |
+| `referral_bonuses` | `referrer_org_id` / `referred_org_id` | Não apagada |
+| `terms_acceptances` | `organization_id` | Não apagada |
+| `activation_logs` | `organization_id` | Não apagada |
+| `client_error_logs` | `organization_id` | Não apagada |
 
-- Adicionar estado `orderCount` e buscar o total com `SELECT count(*) FROM orders` via Supabase no mount
-- Assinar canal realtime na tabela `orders` (evento `INSERT`) para incrementar o contador a cada novo pedido
-- Renderizar o contador entre os proof badges e o CTA, ou logo abaixo do subtítulo, com animação de contagem (incremento gradual)
-- Formato: `🔥 +12.345 pedidos feitos no TrendFood` com animação de número subindo
+### Storage faltando
 
-**2. Componente de animação**
-- Usar um efeito simples de `useEffect` que anima o número de 0 até o valor real usando `requestAnimationFrame` ou `setInterval` com easing
-- Formatar com separador de milhar (`toLocaleString('pt-BR')`)
+| Bucket | Caminho | O que guarda |
+|--------|---------|-------------|
+| `logos` | `{orgId}/logo.*` | Logo da loja |
+| `menu-images` | `{orgId}/*` | Imagens dos itens |
+| `menu-images` | `banners/{orgId}.*` | Banner da loja |
 
-**3. Realtime**
-- A tabela `orders` já tem RLS com SELECT público, então a subscription funciona
-- Já está no `supabase_realtime` publication (verificar, senão adicionar via migração)
+### Correção em `DeleteUnitDialog.tsx`
 
-### Posição na página
-Logo abaixo dos proof badges (linha ~289), como uma linha centralizada com destaque visual sutil.
+1. **Antes de deletar menu_items** — deletar `global_addon_exclusions` (depende de `menu_item_id`)
+2. **No bloco de Promise.all (step 5)** — adicionar:
+   - `global_addons` (por `organization_id`)
+   - `delivery_neighborhoods` (por `organization_id`)
+   - `referral_bonuses` (por `referrer_org_id` E `referred_org_id`)
+   - `terms_acceptances` (por `organization_id`)
+   - `activation_logs` (por `organization_id`)
+   - `client_error_logs` (por `organization_id`)
+3. **Storage cleanup** — antes de deletar a org:
+   - Listar e remover arquivos em `logos/{orgId}/`
+   - Listar e remover arquivos em `menu-images/{orgId}/`
+   - Remover `menu-images/banners/{orgId}.*`
+
+### Ordem de exclusão atualizada
+
+```text
+1. Fetch order IDs + menu_item IDs
+2. Delete order_items (via order IDs)
+3. Delete menu_item_addons + menu_item_ingredients + global_addon_exclusions (via menu_item IDs)
+4. Delete deliveries (via organization_id)
+5. Delete em paralelo: orders, menu_items, tables, cash_withdrawals, cash_sessions,
+   coupons, suggestions, organization_secrets, stock_items, courier_shifts,
+   couriers, fila_impressao, device_tokens, whatsapp_instances,
+   global_addons, delivery_neighborhoods, referral_bonuses (x2),
+   terms_acceptances, activation_logs, client_error_logs
+6. Limpar storage (logos, menu-images, banners)
+7. Delete organization
+8. Verificar exclusão
+```
 
 ### Arquivos alterados
-- `src/pages/Index.tsx` (estado + fetch + realtime + render do contador)
-- Possível migração: `ALTER PUBLICATION supabase_realtime ADD TABLE public.orders` (se ainda não estiver)
+- `src/components/dashboard/DeleteUnitDialog.tsx`
 
