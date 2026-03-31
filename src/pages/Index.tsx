@@ -314,10 +314,10 @@ const Index = () => {
             </h1>
 
             <p className="text-lg md:text-xl text-white/75 max-w-2xl mx-auto mb-4 leading-[1.8]">
-              Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.
+              {c("hero_subtitle", "Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.")}
             </p>
             <p className="text-sm md:text-base text-white/45 max-w-xl mx-auto mb-12 leading-relaxed">
-              Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.
+              {c("hero_subtitle2", "Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.")}
             </p>
 
             <div className="flex justify-center">
