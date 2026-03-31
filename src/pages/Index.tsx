@@ -263,7 +263,7 @@ const Index = () => {
       <section className="relative overflow-hidden min-h-screen flex flex-col">
         {/* Burger Background */}
         <img
-          src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80"
+          src={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
           alt="Ambiente comercial de restaurante"
           className="absolute inset-0 w-full h-full object-cover object-center"
         />
