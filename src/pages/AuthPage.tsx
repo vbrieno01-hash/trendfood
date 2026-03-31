@@ -386,6 +386,7 @@ const AuthPage = () => {
                 <h2 className="font-bold text-foreground text-2xl">Crie seu estabelecimento</h2>
                 <p className="text-muted-foreground text-sm mt-1">Pronto em menos de 2 minutos</p>
               </div>
+              <GoogleButton />
               <form onSubmit={handleSignup} className="space-y-4">
                 {/* Dados pessoais */}
                 <div>
