@@ -287,6 +287,7 @@ function AdminContent() {
   const [activeTab, setActiveTab] = useState<AdminTab>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<OrgRow | null>(null);
 
   useEffect(() => {
     async function load() {
