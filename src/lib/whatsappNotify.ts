@@ -44,7 +44,7 @@ export function notifyCustomerWhatsApp(
   const encoded = encodeURIComponent(msg);
   const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
   const url = `https://wa.me/${fullPhone}?text=${encoded}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  openWhatsAppWithFallback(url);
 }
 
 /**
