@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Plus, X, Minus, UtensilsCrossed,
+  Plus, X, Minus, UtensilsCrossed,
   ShoppingCart, ShoppingBag, Search,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
@@ -632,10 +632,6 @@ const UnitPage = () => {
       {/* Header */}
       <header className="bg-card sticky top-0 z-40 shadow-sm">
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Início</span>
-          </Link>
           <div className="flex items-center gap-2">
             {org.logo_url ? (
               <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" />
