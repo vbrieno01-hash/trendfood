@@ -620,7 +620,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       const draft: DraftState = {
         modalOpen: true,
         editItemId,
-        form: { name: form.name, description: form.description, price: form.price, category: form.category, available: form.available, image_url: form.image_url },
+        form: { name: form.name, description: form.description, price: form.price, category: form.category, available: form.available, image_url: form.image_url, available_days: form.available_days },
         imagePreview: form.image_url || null, // only persist remote URLs, not blob URLs
         ts: Date.now(),
       };
