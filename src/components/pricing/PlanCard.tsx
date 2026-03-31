@@ -68,12 +68,27 @@ const PlanCard = ({
       <div className="mb-6">
         <h3 className="text-lg font-bold text-foreground mb-1">{name}</h3>
         <p className="text-muted-foreground text-sm mb-4">{description}</p>
-        <div className="flex items-baseline gap-1">
-          <span className="text-4xl font-extrabold text-foreground">{price}</span>
-          {price !== "Grátis" && (
-            <span className="text-muted-foreground text-sm">{period}</span>
-          )}
-        </div>
+        {promoPrice ? (
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg line-through text-destructive font-semibold">{originalPrice || price}</span>
+              <span className="text-4xl font-extrabold text-primary">{promoPrice}</span>
+              {price !== "Grátis" && (
+                <span className="text-muted-foreground text-sm">{period}</span>
+              )}
+            </div>
+            <span className="inline-flex items-center gap-1 mt-2 bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full">
+              🔥 1º MÊS COM 50% OFF
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-extrabold text-foreground">{price}</span>
+            {price !== "Grátis" && (
+              <span className="text-muted-foreground text-sm">{period}</span>
+            )}
+          </div>
+        )}
         {subtitle && (
           <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
         )}
