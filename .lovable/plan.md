@@ -1,55 +1,51 @@
 
 
-## Plano: Dias selecionáveis por item do cardápio
+## Auditoria: Robustez da feature "Dias disponíveis"
 
-### O que muda
-Cada item do cardápio poderá ter dias da semana configurados (ex: "só segunda e quarta"). Quando o cliente acessa a loja, itens fora do dia ficam ocultos ou marcados como indisponíveis.
+### Cenários testados mentalmente
 
-### Alterações
+| # | Cenário | Resultado | Status |
+|---|---------|-----------|--------|
+| 1 | Item sem `available_days` (null) | Aparece sempre | ✅ OK |
+| 2 | Item com `available_days: ["seg"]` num dia diferente | Oculto | ✅ OK |
+| 3 | Item com `available_days: ["seg"]` na segunda | Visível | ✅ OK |
+| 4 | Banco retorna `available_days` como string JSON em vez de array | `Array.isArray()` retorna false → item aparece sempre | ⚠️ Seguro (fail-open) |
+| 5 | Banco retorna `available_days: []` (array vazio) | `[].includes(x)` = false → item nunca aparece | 🔴 Bug |
+| 6 | Dashboard: desmarcar todos os dias | Código impede: `next.length === 0 ? [d.key] : next` → sempre pelo menos 1 dia | ✅ OK |
+| 7 | Importação de cardápio ou INSERT direto com `[]` | Nenhuma proteção → item some para sempre | 🔴 Bug |
+| 8 | Fuso horário: cliente no Japão, loja em SP | `getNowInBrasiliaDay()` calcula BRT fixo | ✅ OK |
+| 9 | Editar item sem mudar dias | `'available_days' in input` check protege | ✅ OK |
+| 10 | `available_days` com valor inesperado (ex: `"seg"` como string) | `Array.isArray()` = false → fail-open | ✅ Seguro |
 
-**1. Migração — nova coluna `available_days`**
-```sql
-ALTER TABLE menu_items ADD COLUMN available_days jsonb DEFAULT NULL;
--- NULL = disponível todos os dias
--- Exemplo: ["seg","qua","sex"] = só nesses dias
+### Bug encontrado
+
+**Array vazio `[]`**: Se por qualquer motivo `available_days` for salvo como `[]` (via API, import, bug futuro), o item **desaparece para sempre** da loja. O filtro atual é:
+
+```typescript
+if (i.available_days && Array.isArray(i.available_days) && !i.available_days.includes(currentDayKey))
 ```
 
-**2. `src/hooks/useMenuItems.ts`**
-- Adicionar `available_days` ao tipo `MenuItem` e ao `select` da query
-- Adicionar `available_days` ao `MenuItemInput`
-- Incluir `available_days` no `insert` e `update`
+`[]` é truthy, é array, e `[].includes(x)` é sempre false → item nunca aparece.
 
-**3. `src/components/dashboard/MenuTab.tsx`** — formulário de criação/edição
-- Adicionar seção "Dias disponíveis" com 7 checkboxes (Seg–Dom)
-- Toggle "Todos os dias" (quando ativo, `available_days = null`)
-- Quando desativado, mostra os checkboxes dos dias
-- Salvar no `form` e enviar na mutação
+### Correção
 
-**4. `src/pages/UnitPage.tsx`** — filtragem no cliente
-- Usar `getNowInBrasilia()` (já existe em `storeStatus.ts`) para pegar o dia atual
-- No `filteredMenuItems`, esconder itens cujo `available_days` não inclui o dia atual
-- Itens com `available_days === null` sempre aparecem
+Adicionar check de `length > 0` no filtro do `UnitPage.tsx`:
 
-### Layout no dashboard
-
-```text
-┌─ Dias disponíveis ─────────────────────┐
-│ ☑ Todos os dias                        │
-│                                         │
-│  (quando desmarcado:)                   │
-│  ☐ Seg  ☐ Ter  ☑ Qua  ☐ Qui           │
-│  ☐ Sex  ☑ Sáb  ☐ Dom                   │
-└─────────────────────────────────────────┘
+```typescript
+if (i.available_days && Array.isArray(i.available_days) && i.available_days.length > 0 && !i.available_days.includes(currentDayKey)) {
+  return false;
+}
 ```
+
+Isso garante que `[]` é tratado como "todos os dias" (mesmo comportamento de `null`).
 
 ### Impacto
-- **Lojas existentes**: `available_days` começa null → todos os itens continuam visíveis, zero impacto
-- **Lojas novas**: podem configurar dias específicos por item
-- **Impressão/pedidos**: sem alteração — itens que não aparecem simplesmente não são pedidos
+- Uma linha alterada em `src/pages/UnitPage.tsx`
+- Zero risco de regressão — apenas adiciona mais uma condição de segurança
 
-### Arquivos alterados
-- Migração SQL (1 coluna)
-- `src/hooks/useMenuItems.ts` (tipo + queries)
-- `src/components/dashboard/MenuTab.tsx` (formulário)
-- `src/pages/UnitPage.tsx` (filtro por dia)
+### Veredicto
+A feature é sólida. O único edge case perigoso é o array vazio, e a correção é trivial. Todos os outros cenários (null, tipos inesperados, fusos horários, edição parcial) já estão protegidos.
+
+### Arquivo alterado
+- `src/pages/UnitPage.tsx` (1 linha)
 
