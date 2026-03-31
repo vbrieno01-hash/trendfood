@@ -337,21 +337,27 @@ const PricingPage = () => {
       </AlertDialog>
 
       {/* Card Payment Form */}
-      {organization && cardFormPlan && (
-        <CardPaymentForm
-          open={!!cardFormPlan}
-          onOpenChange={(v) => !v && setCardFormPlan(null)}
-          orgId={organization.id}
-          plan={cardFormPlan.key}
-          planName={cardFormPlan.name}
-          planPrice={isAnnual && cardFormPlan.annual_price_cents ? formatPrice(cardFormPlan.annual_price_cents) : cardFormPlan.price}
-          billing={isAnnual && cardFormPlan.annual_price_cents ? "annual" : "monthly"}
-          promo={promoEligible && !isAnnual}
-          onSuccess={() => {
-            navigate("/dashboard?tab=subscription");
-          }}
-        />
-      )}
+      {organization && cardFormPlan && (() => {
+        const showPromoInCheckout = promoEligible && !isAnnual && cardFormPlan.price_cents > 0;
+        const checkoutPrice = showPromoInCheckout
+          ? `R$ ${(Math.round(cardFormPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
+          : (isAnnual && cardFormPlan.annual_price_cents ? formatPrice(cardFormPlan.annual_price_cents) : cardFormPlan.price);
+        return (
+          <CardPaymentForm
+            open={!!cardFormPlan}
+            onOpenChange={(v) => !v && setCardFormPlan(null)}
+            orgId={organization.id}
+            plan={cardFormPlan.key}
+            planName={cardFormPlan.name}
+            planPrice={checkoutPrice}
+            billing={isAnnual && cardFormPlan.annual_price_cents ? "annual" : "monthly"}
+            promo={showPromoInCheckout}
+            onSuccess={() => {
+              navigate("/dashboard?tab=subscription");
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };

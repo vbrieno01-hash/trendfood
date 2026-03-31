@@ -373,6 +373,8 @@ const CardPaymentForm = ({
                 orgId={orgId}
                 plan={plan}
                 planPrice={planPrice}
+                billing={billing}
+                promo={promo}
                 onSuccess={onSuccess}
                 onClose={() => onOpenChange(false)}
               />

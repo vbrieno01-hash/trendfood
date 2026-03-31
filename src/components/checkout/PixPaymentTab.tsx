@@ -11,6 +11,8 @@ interface PixPaymentTabProps {
   orgId: string;
   plan: string;
   planPrice: string;
+  billing?: "monthly" | "annual";
+  promo?: boolean;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -30,7 +32,7 @@ const formatCpfCnpj = (value: string) => {
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 };
 
-const PixPaymentTab = ({ orgId, plan, planPrice, onSuccess, onClose }: PixPaymentTabProps) => {
+const PixPaymentTab = ({ orgId, plan, planPrice, billing = "monthly", promo, onSuccess, onClose }: PixPaymentTabProps) => {
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [pixData, setPixData] = useState<{
@@ -81,7 +83,7 @@ const PixPaymentTab = ({ orgId, plan, planPrice, onSuccess, onClose }: PixPaymen
       });
 
       const { data, error } = await supabase.functions.invoke("create-mp-payment", {
-        body: { org_id: orgId, plan, cpf_cnpj: cleanDoc, payment_method: "pix" },
+        body: { org_id: orgId, plan, cpf_cnpj: cleanDoc, payment_method: "pix", billing, promo: !!promo },
       });
 
       if (error) throw new Error(error.message);

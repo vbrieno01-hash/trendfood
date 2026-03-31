@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
     const userEmail = userData.user.email!;
 
-    const { org_id, plan, cpf_cnpj, payment_method, card_token } = await req.json();
+    const { org_id, plan, cpf_cnpj, payment_method, card_token, billing = "monthly", promo = false } = await req.json();
 
     if (!org_id || !plan || !cpf_cnpj || !payment_method) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -45,10 +45,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate org ownership
+    // Validate org ownership and get promo eligibility
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("id, name, user_id")
+      .select("id, name, user_id, used_first_month_promo")
       .eq("id", org_id)
       .single();
 
@@ -83,7 +83,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const amount = planRow.price_cents / 100;
+    // Apply promo: half price for first month if eligible
+    const promoApplied = promo && billing === "monthly" && !org.used_first_month_promo && planRow.price_cents > 0;
+    const finalCents = promoApplied ? Math.round(planRow.price_cents / 2) : planRow.price_cents;
+    const amount = finalCents / 100;
+
+    console.log(`[create-mp-payment] promoRequested=${promo} promoApplied=${promoApplied} base=${planRow.price_cents} final=${finalCents}`);
 
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!accessToken) {
@@ -109,6 +114,7 @@ Deno.serve(async (req) => {
         org_id,
         plan,
         user_id: userId,
+        promo_applied: promoApplied,
       },
     };
 
@@ -152,13 +158,16 @@ Deno.serve(async (req) => {
 
     // If card payment is approved immediately, update org
     if (mpData.status === "approved") {
+      const updateData: Record<string, unknown> = {
+        subscription_plan: plan,
+        subscription_status: "active",
+        trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      if (promoApplied) updateData.used_first_month_promo = true;
+
       await serviceClient
         .from("organizations")
-        .update({
-          subscription_plan: plan,
-          subscription_status: "active",
-          trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        })
+        .update(updateData)
         .eq("id", org_id);
 
       await serviceClient.from("activation_logs").insert({
