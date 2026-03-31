@@ -701,6 +701,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       available: item.available,
       imageFile: null,
       image_url: item.image_url,
+      available_days: item.available_days ?? null,
     });
     setImagePreview(item.image_url);
     setModalOpen(true);
