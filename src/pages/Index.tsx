@@ -302,7 +302,7 @@ const Index = () => {
           <div className="max-w-5xl mx-auto px-4 py-24 text-center w-full">
             <Badge className="mb-8 bg-white/[0.08] text-white/80 border-white/[0.1] hover:bg-white/[0.12] backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
               <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-              Zero taxas sobre vendas
+              {c("hero_badge_text", "Zero taxas sobre vendas")}
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
