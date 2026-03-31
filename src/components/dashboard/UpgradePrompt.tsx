@@ -35,6 +35,7 @@ export default function UpgradePrompt({ title, description, orgId, currentPlan, 
         onOpenChange={setDialogOpen}
         orgId={orgId}
         currentPlan={currentPlan}
+        promoEligible={promoEligible}
       />
     </div>
   );
