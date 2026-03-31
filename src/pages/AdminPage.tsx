@@ -1000,7 +1000,7 @@ function SetupScore({ org }: { org: OrgRow }) {
 }
 
 /* ── Store Card — premium with hover elevation ── */
-function StoreCard({ org, onPlanChange, onDelete, index }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void; index: number }) {
+function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void; onManage: (org: OrgRow) => void; index: number }) {
   const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
   const [activating, setActivating] = useState(false);
