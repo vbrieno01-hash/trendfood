@@ -130,16 +130,20 @@ export function useUpdateMenuItem(orgId: string) {
       id: string;
       input: Partial<MenuItemInput>;
     }) => {
-      const { error } = await supabase
-        .from("menu_items")
-        .update({
+      const updatePayload: any = {
           name: input.name,
           description: input.description ?? null,
           price: input.price,
           category: input.category,
           available: input.available,
           image_url: input.image_url ?? undefined,
-        })
+        };
+        if ('available_days' in input) {
+          updatePayload.available_days = input.available_days ?? null;
+        }
+        const { error } = await supabase
+        .from("menu_items")
+        .update(updatePayload)
         .eq("id", id);
       if (error) throw error;
     },
