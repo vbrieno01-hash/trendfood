@@ -73,6 +73,7 @@ const SubscriptionTab = () => {
   const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
   const planLimits = usePlanLimits(organization);
+  const promoEligible = planLimits.promoEligible;
 
   const currentPlan = organization?.subscription_plan || "free";
   const mpReturn = searchParams.get("mp_return");
@@ -338,9 +339,12 @@ const SubscriptionTab = () => {
           const showAnnual = isAnnual && plan.annualPriceCents > 0;
           const displayPrice = showAnnual ? formatPrice(plan.annualPriceCents) : plan.price;
           const period = showAnnual ? "/ano" : "/mês";
+          const showPromo = promoEligible && !isAnnual && plan.priceCents > 0;
           const subtitle = showAnnual
             ? `Equivalente a R$ ${((plan.annualPriceCents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
-            : undefined;
+            : showPromo
+              ? "Depois volta ao preço normal"
+              : undefined;
           const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
           const billingCycle = organization?.billing_cycle || "monthly";
           const isSamePlan = currentPlan === plan.key;
@@ -350,7 +354,7 @@ const SubscriptionTab = () => {
           );
           const ctaText = billingMismatch
             ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
-            : plan.cta;
+            : showPromo ? "🔥 Aproveitar oferta" : plan.cta;
           return (
             <PlanCard
               key={plan.key}
@@ -368,6 +372,8 @@ const SubscriptionTab = () => {
               currentPlan={isSamePlan}
               billingMismatch={billingMismatch}
               loading={false}
+              promoPrice={showPromo ? formatPrice(Math.round(plan.priceCents / 2)) : undefined}
+              originalPrice={showPromo ? plan.price : undefined}
               onSelect={
                 (!isSamePlan || billingMismatch) && !isLifetime
                   ? () => handleSubscribe(plan.key)
@@ -388,6 +394,7 @@ const SubscriptionTab = () => {
           planName={cardFormPlan.name}
           planPrice={cardFormPlan.price}
           billing={isAnnual ? "annual" : "monthly"}
+          promo={promoEligible && !isAnnual}
           onSuccess={() => setTimeout(() => window.location.reload(), 1500)}
         />
       )}
