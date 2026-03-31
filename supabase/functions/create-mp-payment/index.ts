@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
     const userEmail = userData.user.email!;
 
-    const { org_id, plan, cpf_cnpj, payment_method, card_token } = await req.json();
+    const { org_id, plan, cpf_cnpj, payment_method, card_token, billing = "monthly", promo = false } = await req.json();
 
     if (!org_id || !plan || !cpf_cnpj || !payment_method) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
