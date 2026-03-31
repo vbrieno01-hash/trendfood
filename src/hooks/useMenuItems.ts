@@ -13,6 +13,7 @@ export interface MenuItem {
   image_url: string | null;
   available: boolean;
   hide_global_addons: boolean;
+  available_days: string[] | null;
   created_at: string;
 }
 
@@ -25,6 +26,7 @@ export interface MenuItemInput {
   available: boolean;
   imageFile?: File | null;
   hide_global_addons?: boolean;
+  available_days?: string[] | null;
 }
 
 export const CATEGORIES = [
@@ -52,7 +54,7 @@ export function useMenuItems(orgId: string | undefined, sortOrder: SortOrder = "
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("menu_items")
-        .select("id, organization_id, name, price, description, category, image_url, available, hide_global_addons, created_at")
+        .select("id, organization_id, name, price, description, category, image_url, available, hide_global_addons, available_days, created_at")
         .eq("organization_id", orgId)
         .order("created_at", { ascending: sortOrder === "oldest" });
       if (error) throw error;
@@ -101,7 +103,8 @@ export function useAddMenuItem(orgId: string) {
           available: input.available,
           image_url: input.image_url ?? null,
           hide_global_addons: input.hide_global_addons ?? false,
-        })
+          available_days: input.available_days ?? null,
+        } as any)
         .select()
         .single();
       if (error) throw error;
@@ -127,16 +130,20 @@ export function useUpdateMenuItem(orgId: string) {
       id: string;
       input: Partial<MenuItemInput>;
     }) => {
-      const { error } = await supabase
-        .from("menu_items")
-        .update({
+      const updatePayload: any = {
           name: input.name,
           description: input.description ?? null,
           price: input.price,
           category: input.category,
           available: input.available,
           image_url: input.image_url ?? undefined,
-        })
+        };
+        if ('available_days' in input) {
+          updatePayload.available_days = input.available_days ?? null;
+        }
+        const { error } = await supabase
+        .from("menu_items")
+        .update(updatePayload)
         .eq("id", id);
       if (error) throw error;
     },

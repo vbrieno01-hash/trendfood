@@ -686,6 +686,7 @@ export type Database = {
       menu_items: {
         Row: {
           available: boolean
+          available_days: Json | null
           category: string
           created_at: string
           description: string | null
@@ -698,6 +699,7 @@ export type Database = {
         }
         Insert: {
           available?: boolean
+          available_days?: Json | null
           category?: string
           created_at?: string
           description?: string | null
@@ -710,6 +712,7 @@ export type Database = {
         }
         Update: {
           available?: boolean
+          available_days?: Json | null
           category?: string
           created_at?: string
           description?: string | null
