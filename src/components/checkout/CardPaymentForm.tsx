@@ -38,6 +38,7 @@ const CardPaymentForm = ({
   planName,
   planPrice,
   billing = "monthly",
+  promo,
   onSuccess,
 }: CardPaymentFormProps) => {
   const [sdkReady, setSdkReady] = useState(false);
