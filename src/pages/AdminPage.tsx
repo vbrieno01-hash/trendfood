@@ -913,6 +913,12 @@ function AdminContent() {
           {activeTab === "whatsapp" && <WhatsAppConnectTab />}
           {activeTab === "indicacoes" && <ReferralsTab />}
           {activeTab === "guia" && <AdminGuideTab />}
+          {activeTab === "gerenciar" && selectedOrg && (
+            <AdminStoreManager
+              org={selectedOrg}
+              onBack={() => { setSelectedOrg(null); setActiveTab("lojas"); }}
+            />
+          )}
         </main>
 
         {deleteTarget && (
