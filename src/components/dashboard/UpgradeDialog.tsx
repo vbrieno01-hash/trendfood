@@ -30,6 +30,7 @@ interface UpgradeDialogProps {
   onOpenChange: (open: boolean) => void;
   orgId: string;
   currentPlan: string;
+  promoEligible?: boolean;
 }
 
 export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan }: UpgradeDialogProps) {
