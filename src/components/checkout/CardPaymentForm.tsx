@@ -26,6 +26,7 @@ interface CardPaymentFormProps {
   planName: string;
   planPrice: string;
   billing?: "monthly" | "annual";
+  promo?: boolean;
   onSuccess: () => void;
 }
 
