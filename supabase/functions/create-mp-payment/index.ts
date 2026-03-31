@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
         org_id,
         plan,
         user_id: userId,
+        promo_applied: promoApplied,
       },
     };
 
