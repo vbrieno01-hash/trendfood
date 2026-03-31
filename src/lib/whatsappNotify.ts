@@ -1,3 +1,5 @@
+import { openWhatsAppWithFallback } from "./whatsappRedirect";
+
 /**
  * Parse structured notes field to extract customer phone.
  * Format: "TIPO:x|CLIENTE:y|TEL:z|..."
@@ -42,7 +44,7 @@ export function notifyCustomerWhatsApp(
   const encoded = encodeURIComponent(msg);
   const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
   const url = `https://wa.me/${fullPhone}?text=${encoded}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  openWhatsAppWithFallback(url);
 }
 
 /**
@@ -66,5 +68,5 @@ export function notifyCustomerReady(
   const encoded = encodeURIComponent(msg);
   const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
   const url = `https://wa.me/${fullPhone}?text=${encoded}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  openWhatsAppWithFallback(url);
 }
