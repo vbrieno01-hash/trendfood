@@ -1,40 +1,23 @@
 
 
-## Plano revisado: OG dinâmico — links antigos continuam funcionando
-
-### Preocupação
-Lojas já compartilharam links como `trendfood.lovable.app/unidade/slug` com seus clientes. Esses links **NÃO podem quebrar**.
-
-### Como funciona
-- Os links antigos (`/unidade/slug`) **continuam funcionando normalmente**. Nenhuma rota será removida ou alterada.
-- A única mudança é que, **a partir de agora**, quando o dono da loja clicar em "Copiar link" ou "Compartilhar", o sistema vai gerar um **novo link** que passa pela edge function de OG.
-- Esse novo link, quando aberto, **redireciona instantaneamente** para o mesmo `/unidade/slug` de sempre.
-- Clientes antigos com o link antigo salvo: tudo funciona igual, sem mudança.
-- Clientes novos recebem o link novo que mostra preview bonito no WhatsApp e redireciona para o mesmo lugar.
-
-```text
-Link antigo (continua funcionando):
-  trendfood.lovable.app/unidade/rei-do-burguer → abre a loja ✅
-
-Link novo (gerado a partir de agora no "Copiar link"):
-  edge-function/og-share/rei-do-burguer
-    → WhatsApp lê: logo + nome da loja (preview bonito)
-    → Usuário clica: redirecionado para trendfood.lovable.app/unidade/rei-do-burguer ✅
-```
+## Plano: Reverter links para o formato original (sem OG dinâmico)
 
 ### O que será feito
 
-**1. Nova edge function `og-share`** — serve HTML com meta tags OG da loja e redireciona para a URL real
+Reverter os 3 arquivos que foram alterados para usar `getShareableStoreUrl`, voltando ao link direto `https://trendfood.lovable.app/unidade/slug`:
 
-**2. Helper `getShareableStoreUrl`** (`src/lib/shareUrl.ts`) — gera o novo link de compartilhamento
+**1. `src/components/dashboard/StoreProfileTab.tsx`**
+- Remover import de `getShareableStoreUrl`
+- Remover variável `shareableUrl`
+- No `handleCopyLink`, copiar `publicUrl` em vez de `shareableUrl`
 
-**3. Atualizar botões "Copiar link"** no Dashboard e Courier — usar o novo link apenas para compartilhamento futuro
+**2. `src/pages/CourierPage.tsx`**
+- Remover import de `getShareableStoreUrl`
+- Na mensagem WhatsApp, trocar `getShareableStoreUrl(orgSlug)` por `https://trendfood.lovable.app/unidade/${orgSlug}`
 
-### Nenhum link antigo será alterado ou removido. Zero risco para clientes existentes.
+**3. Limpar arquivos do OG (opcional)**
+- `src/lib/shareUrl.ts` e `supabase/functions/og-share/index.ts` podem ser esvaziados/removidos já que não serão mais usados
 
-### Arquivos
-- `supabase/functions/og-share/index.ts` — nova edge function
-- `src/lib/shareUrl.ts` — helper de URL (novo)
-- `src/pages/DashboardPage.tsx` — botão copiar link usa nova URL
-- `src/pages/CourierPage.tsx` — se aplicável
+### Resultado
+Todos os botões "Copiar link" voltam a copiar o link direto da loja, como estava antes.
 
