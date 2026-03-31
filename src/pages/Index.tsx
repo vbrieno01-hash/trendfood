@@ -200,6 +200,8 @@ const Index = () => {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [isAnnual, setIsAnnual] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
+  const [displayCount, setDisplayCount] = useState(0);
 
   useEffect(() => {
     supabase
@@ -211,7 +213,44 @@ const Index = () => {
         setPlans((data as unknown as PlanRow[]) ?? []);
         setLoadingPlans(false);
       });
+
+    // Fetch total order count
+    supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .then(({ count }) => {
+        if (count) setOrderCount(count);
+      });
+
+    // Realtime subscription for new orders
+    const channel = supabase
+      .channel("landing-orders")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => {
+        setOrderCount((prev) => prev + 1);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
+  // Animate count from 0 to orderCount
+  useEffect(() => {
+    if (orderCount === 0) return;
+    const duration = 1500;
+    const start = performance.now();
+    const from = displayCount;
+    const to = orderCount;
+    let raf: number;
+    const step = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setDisplayCount(Math.round(from + (to - from) * eased));
+      if (progress < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [orderCount]);
 
   return (
     <div className="min-h-screen bg-background">
