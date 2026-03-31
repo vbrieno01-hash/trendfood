@@ -1,41 +1,58 @@
 
 
-## Plano: Corrigir Google Login — redirecionar após autenticação
+## Plano: Corrigir fluxo Google OAuth — redirect e "preso no onboarding"
 
-### Problema
-O login com Google funciona no backend (os logs confirmam login bem-sucedido via OIDC). Porém, o `AuthPage` **não tem nenhum `useEffect`** que observe o estado de autenticação. Após o OAuth completar e o `useAuth` detectar o `SIGNED_IN`, a página simplesmente não reage — o usuário fica preso na tela de login.
+### Problemas identificados
 
-Para login com email/senha, o redirect é feito manualmente após `signInWithPassword`. Mas no fluxo Google OAuth, o redirect acontece externamente (Google → callback → `setSession`), e quando a página recarrega, ninguém faz o `navigate()`.
+1. **Redirect para página inicial**: O `redirect_uri` está como `window.location.origin` (raiz `/`), então após o Google autenticar, o usuário volta para `/` (landing page) em vez de `/auth`. O `useEffect` que detecta `user && !organization` só existe no `AuthPage`, não na landing.
 
-Além disso, para **novos usuários Google** (sem organização), não há criação automática de organização — o usuário cairia no dashboard vazio.
+2. **Preso no "Complete seu cadastro"**: O estado `googleOnboarding` é local e nunca reseta. Não há botão "Voltar" nem mecanismo para fazer signOut e trocar de conta. Uma vez que `user && !organization` é true, o formulário fica travado.
 
-### Correção
+3. **Não consegue trocar de email**: Sem signOut, a sessão Google persiste e o estado de onboarding não limpa.
 
-**Arquivo: `src/pages/AuthPage.tsx`** — 2 alterações:
+### Correções
 
-**1) Adicionar `useEffect` para redirecionar quando `user` já está autenticado:**
+**Arquivo: `src/pages/AuthPage.tsx`** — 3 alterações:
 
+**1) Mudar `redirect_uri` para apontar para `/auth`:**
 ```typescript
-import { useState, useEffect } from "react";
-// ...
-const { user, organization, loading, refreshOrganizationForUser } = useAuth();
+await lovable.auth.signInWithOAuth("google", {
+  redirect_uri: `${window.location.origin}/auth`,
+});
+```
+Isso faz o callback do Google retornar para `/auth`, onde o `useEffect` pode capturar a sessão e redirecionar ou mostrar onboarding.
 
+**2) Vincular `googleOnboarding` ao `user.id`** — resetar quando user muda ou desloga:
+```typescript
 useEffect(() => {
-  if (loading) return;
-  if (user && organization) {
-    navigate(fullRedirect, { replace: true });
+  if (authLoading) return;
+  if (!user) {
+    setGoogleOnboarding(false);
+    return;
   }
-}, [user, organization, loading]);
+  if (organization) {
+    navigate(fullRedirect, { replace: true });
+    return;
+  }
+  // user exists, no org → onboarding
+  setGoogleOnboarding(true);
+}, [user?.id, organization?.id, authLoading]);
 ```
 
-Isso cobre:
-- Usuário Google existente (tem org) → redireciona ao dashboard
-- Página recarregada com sessão ativa → redireciona imediatamente
-
-**2) Para novos usuários Google (sem organização):**
-
-Quando `user` existe mas `organization` é null, exibir um formulário simplificado pedindo apenas nome da lanchonete e WhatsApp (os dados que faltam), e então criar a organização. Isso garante que novos usuários via Google também completem o onboarding.
+**3) Adicionar botão "Usar outro email" no formulário de onboarding Google:**
+```typescript
+const handleBackToAuth = async () => {
+  await supabase.auth.signOut();
+  setGoogleOnboarding(false);
+};
+```
+E no JSX do formulário de onboarding, após o botão "Criar lanchonete":
+```tsx
+<Button type="button" variant="ghost" className="w-full" onClick={handleBackToAuth}>
+  Usar outro e-mail
+</Button>
+```
 
 ### Arquivos alterados
-- `src/pages/AuthPage.tsx` (adicionar useEffect de redirect + formulário de onboarding Google)
+- `src/pages/AuthPage.tsx`
 
