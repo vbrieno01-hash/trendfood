@@ -967,7 +967,7 @@ const DashboardPage = () => {
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
           {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
           {activeTab === "coupons" && (lockedFeatures.coupons
-            ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
+            ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <CouponsTab orgId={organization.id} />)}
           {activeTab === "bestsellers" && (lockedFeatures.bestsellers
             ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
