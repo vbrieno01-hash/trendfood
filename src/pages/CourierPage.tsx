@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut, Key, Save, Phone } from "lucide-react";
+import { getShareableStoreUrl } from "@/lib/shareUrl";
 import {
   getSavedCourierId,
   saveCourierId,
@@ -569,7 +570,7 @@ const CourierPage = () => {
       const phone = parsePhoneFromNotes(result.notes);
       if (phone) {
         const msg = encodeURIComponent(
-          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | trendfood.lovable.app/unidade/${orgSlug}`
+          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | ${getShareableStoreUrl(orgSlug)}`
         );
         const url = `https://wa.me/55${phone}?text=${msg}`;
         openWhatsAppWithFallback(url, { mode: "operational" });
