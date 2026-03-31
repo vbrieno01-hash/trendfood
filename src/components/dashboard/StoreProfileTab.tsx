@@ -15,7 +15,7 @@ import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashb
 import { BusinessHours } from "@/hooks/useOrganization";
 import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
-import { getShareableStoreUrl } from "@/lib/shareUrl";
+
 
 interface Organization {
   id: string;
@@ -115,7 +115,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
   const PUBLIC_BASE_URL = "https://trendfood.lovable.app";
   const publicUrl = `${PUBLIC_BASE_URL}/unidade/${form.slug}`;
-  const shareableUrl = getShareableStoreUrl(form.slug);
+  
 
   // Helper: update shared fields across ALL user orgs (except current which is updated separately)
   const updateAllOrgs = async (sharedFields: Record<string, any>) => {
@@ -289,7 +289,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareableUrl);
+    navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success("Link copiado!");
