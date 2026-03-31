@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
         if (orgId) {
           const { data: org } = await supabase
             .from("organizations")
-            .select("subscription_plan, subscription_status, name, billing_cycle")
+            .select("subscription_plan, subscription_status, name, billing_cycle, used_first_month_promo")
             .eq("id", orgId)
             .single();
 
@@ -312,6 +312,45 @@ Deno.serve(async (req) => {
           });
 
           console.log("[mp-webhook] Recurring payment renewed org:", orgId);
+
+          // ── Promo: bump subscription to full price after first half-price payment ──
+          if (org?.used_first_month_promo && preapprovalId) {
+            try {
+              // Fetch plan to get full price
+              const { data: planRow } = await supabase
+                .from("platform_plans")
+                .select("price_cents, key")
+                .eq("key", org.subscription_plan)
+                .eq("active", true)
+                .single();
+
+              if (planRow) {
+                const fullAmount = planRow.price_cents / 100;
+                const paidAmount = mpData.transaction_amount || mpData.transaction_details?.total_paid_amount;
+                const halfAmount = Math.round(planRow.price_cents / 2) / 100;
+
+                // Only bump if paid amount matches half price (first promo payment)
+                if (paidAmount && Math.abs(paidAmount - halfAmount) < 1) {
+                  console.log(`[mp-webhook] Promo detected: paid ${paidAmount}, bumping to ${fullAmount}`);
+                  await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
+                    method: "PUT",
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      auto_recurring: {
+                        transaction_amount: fullAmount,
+                      },
+                    }),
+                  });
+                  console.log("[mp-webhook] Subscription bumped to full price:", fullAmount);
+                }
+              }
+            } catch (promoErr) {
+              console.error("[mp-webhook] Promo bump error (non-blocking):", promoErr);
+            }
+          }
 
           // ── Referral bonus (first payment) ──
           await processReferralBonus(supabase, orgId, accessToken);
