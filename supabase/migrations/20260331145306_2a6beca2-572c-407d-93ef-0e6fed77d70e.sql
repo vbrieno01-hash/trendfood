@@ -1,0 +1,1 @@
+ALTER TABLE menu_items ADD COLUMN available_days jsonb DEFAULT NULL;
