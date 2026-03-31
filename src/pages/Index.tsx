@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePlatformContent } from "@/hooks/usePlatformContent";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
