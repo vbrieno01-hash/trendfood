@@ -45,10 +45,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate org ownership
+    // Validate org ownership and get promo eligibility
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("id, name, user_id")
+      .select("id, name, user_id, used_first_month_promo")
       .eq("id", org_id)
       .single();
 
