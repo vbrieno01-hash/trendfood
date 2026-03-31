@@ -877,7 +877,7 @@ function AdminContent() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredOrgs.map((org, i) => (
-                    <StoreCard key={org.id} org={org} index={i} onPlanChange={handlePlanChange} onDelete={(id, name) => setDeleteTarget({ id, name })} />
+                    <StoreCard key={org.id} org={org} index={i} onPlanChange={handlePlanChange} onDelete={(id, name) => setDeleteTarget({ id, name })} onManage={(o) => { setSelectedOrg(o); setActiveTab("gerenciar"); }} />
                   ))}
                 </div>
               )}
