@@ -468,11 +468,10 @@ const UnitPage = () => {
     // This prevents state loss if the browser blocks popups and the old code
     // would have navigated away via location.href before saving.
     if (org?.id && !overrideOrderId) {
-       const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
-         ? `FRETE:${fmt(deliveryFee)}`
-         : orderType === "Entrega" && freeShipping
-           ? "FRETE:Grátis"
-           : null;
+       const freteNote = orderType !== "Entrega" ? null
+         : freeShipping ? "FRETE:Grátis"
+         : deliveryFee > 0 ? `FRETE:${fmt(deliveryFee)}`
+         : "FRETE:Sob consulta";
 
       const noteParts: string[] = [
         `TIPO:${orderType}`,
