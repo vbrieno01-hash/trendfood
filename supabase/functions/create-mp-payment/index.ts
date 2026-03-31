@@ -83,7 +83,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const amount = planRow.price_cents / 100;
+    // Apply promo: half price for first month if eligible
+    const promoApplied = promo && billing === "monthly" && !org.used_first_month_promo && planRow.price_cents > 0;
+    const finalCents = promoApplied ? Math.round(planRow.price_cents / 2) : planRow.price_cents;
+    const amount = finalCents / 100;
+
+    console.log(`[create-mp-payment] promoRequested=${promo} promoApplied=${promoApplied} base=${planRow.price_cents} final=${finalCents}`);
 
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!accessToken) {
