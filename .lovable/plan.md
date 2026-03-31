@@ -1,57 +1,29 @@
 
 
-## Plano: Corrigir frete não aparecendo nos pedidos
+## Plano: Corrigir links "Termos de Uso" em todas as páginas
 
 ### Problema
-Para pedidos de entrega, o frete só é salvo nas notas do pedido quando `deliveryFee > 0` ou `freeShipping === true`. Isso falha em três cenários:
+Há 3 locais com links para os Termos de Uso, e um deles não funciona:
 
-1. **"Outro bairro" selecionado** (`__outro__`) — `useNeighborhoodFee` não encontra match → `fee: 0, freeShipping: false` → nenhum FRETE salvo
-2. **Loja sem bairros cadastrados** — nenhum dropdown aparece, `selectedNeighborhood` fica vazio → fee 0 → sem FRETE
-3. **Endereço no display** — quando `selectedNeighborhood === "__outro__"`, esse valor bruto aparece literalmente no endereço do pedido
-
-Em todos esses casos, o pedido de entrega é salvo **sem campo FRETE** nas notas, então a comanda impressa não mostra frete e o cálculo de receita no dashboard ignora a taxa.
+1. **`src/pages/Index.tsx`** (footer) — `<Link to="/termos">` ✅ funciona
+2. **`src/pages/AuthPage.tsx`** (rodapé do form) — `<span>` sem link ❌ não abre nada
+3. **`src/components/checkout/TermsCheckbox.tsx`** (checkout) — abre Dialog inline ✅ funciona
+4. **`src/pages/TermsPage.tsx`** — página `/termos` ✅ existe e renderiza
 
 ### Correções
 
-**Arquivo: `src/pages/UnitPage.tsx`** — 3 alterações:
-
-**1) Corrigir construção do `freteNote`** — sempre incluir FRETE para entregas:
-```typescript
-const freteNote = orderType !== "Entrega" ? null
-  : freeShipping ? "FRETE:Grátis"
-  : deliveryFee > 0 ? `FRETE:${fmt(deliveryFee)}`
-  : "FRETE:Sob consulta";
-```
-Isso garante que TODA entrega tenha FRETE nas notas — seja valor, grátis ou "sob consulta".
-
-Aplicar nos **dois locais** onde `freteNote` é construído (PIX automático ~linha 375 e fluxo normal ~linha 471).
-
-**2) Corrigir `fullCustomerAddressDisplay`** — substituir `"__outro__"` por texto legível:
-```typescript
-const displayNeighborhood = selectedNeighborhood === "__outro__" 
-  ? "Outro bairro" 
-  : selectedNeighborhood;
-const fullCustomerAddressDisplay = [
-  customerStreet, customerNumber, customerComplement, displayNeighborhood
-].map((p) => p.trim()).filter(Boolean).join(", ");
+**1) `src/pages/AuthPage.tsx`** — trocar o `<span>` por um `<Link to="/termos">`:
+```tsx
+<p className="text-center text-xs text-muted-foreground mt-8">
+  Ao criar sua conta, você concorda com nossos{" "}
+  <Link to="/termos" target="_blank" className="underline hover:text-foreground transition-colors">
+    Termos de Uso
+  </Link>.
+</p>
 ```
 
-**3) Corrigir labels de frete no WhatsApp** — o `freightLabel` na mensagem do WhatsApp também ignora o caso `fee === 0 && !freeShipping`:
-```typescript
-const freightLabel = orderType === "Retirada" ? "Grátis"
-  : freeShipping ? "Grátis"
-  : deliveryFee > 0 ? fmt(deliveryFee)
-  : "Sob consulta";
-```
-Aplicar nos dois blocos de construção de mensagem WhatsApp (~linha 429 e ~linha 549).
-
-### Impacto
-- **Lojas com bairros configurados**: frete sempre aparece na comanda e no WhatsApp
-- **Lojas sem bairros**: entrega salva com "FRETE:Sob consulta" — pelo menos a informação existe
-- **"Outro bairro"**: endereço mostra "Outro bairro" em vez de `__outro__`
-- **Receita do dashboard**: `extractDeliveryFee` já trata "Sob consulta" como 0, sem quebrar
-- **Lojas antigas**: pedidos antigos sem FRETE continuam funcionando normalmente
+Isso é a única correção necessária. Os outros pontos já funcionam (Index usa `<Link to="/termos">`, TermsCheckbox abre Dialog).
 
 ### Arquivos alterados
-- `src/pages/UnitPage.tsx` (4 trechos: 2× freteNote, 1× fullCustomerAddressDisplay, 2× freightLabel)
+- `src/pages/AuthPage.tsx` (1 trecho — linha ~728-731)
 
