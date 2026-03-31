@@ -206,13 +206,15 @@ export async function printOrder(
     } catch { /* QR code generation failed */ }
   }
 
-  // Footer QR code
+  // Footer QR code — generate BEFORE writing to window to ensure it's ready
   let footerQrDataUrl: string | undefined;
   try {
     footerQrDataUrl = await QRCode.toDataURL("https://trendfood.lovable.app/", {
-      width: 80, margin: 1, errorCorrectionLevel: "L",
+      width: 120, margin: 1, errorCorrectionLevel: "M",
     });
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.error("[printOrder] Falha ao gerar QR code do footer:", err);
+  }
 
   const html = buildPrintHtml(data, is58, pixHtml, footerQrDataUrl);
 
