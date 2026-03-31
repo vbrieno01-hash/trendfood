@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
     const { data: org, error: orgError } = await supabaseAdmin
       .from("organizations")
-      .select("id, name, user_id, mp_subscription_id")
+      .select("id, name, user_id, mp_subscription_id, used_first_month_promo")
       .eq("id", org_id)
       .single();
 
