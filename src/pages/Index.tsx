@@ -200,6 +200,8 @@ const Index = () => {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [isAnnual, setIsAnnual] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
+  const [displayCount, setDisplayCount] = useState(0);
 
   useEffect(() => {
     supabase
@@ -211,7 +213,44 @@ const Index = () => {
         setPlans((data as unknown as PlanRow[]) ?? []);
         setLoadingPlans(false);
       });
+
+    // Fetch total order count
+    supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .then(({ count }) => {
+        if (count) setOrderCount(count);
+      });
+
+    // Realtime subscription for new orders
+    const channel = supabase
+      .channel("landing-orders")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => {
+        setOrderCount((prev) => prev + 1);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
+  // Animate count from 0 to orderCount
+  useEffect(() => {
+    if (orderCount === 0) return;
+    const duration = 1500;
+    const start = performance.now();
+    const from = displayCount;
+    const to = orderCount;
+    let raf: number;
+    const step = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setDisplayCount(Math.round(from + (to - from) * eased));
+      if (progress < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [orderCount]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -296,6 +335,16 @@ const Index = () => {
                 </span>
               ))}
             </div>
+
+            {/* Live order counter */}
+            {orderCount > 0 && (
+              <div className="mt-8 flex justify-center animate-fade-in">
+                <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-300 text-sm font-semibold tracking-wide">
+                  <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
+                  +{displayCount.toLocaleString('pt-BR')} pedidos feitos no TrendFood
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </section>
