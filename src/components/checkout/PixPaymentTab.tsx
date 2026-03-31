@@ -83,7 +83,7 @@ const PixPaymentTab = ({ orgId, plan, planPrice, billing = "monthly", promo, onS
       });
 
       const { data, error } = await supabase.functions.invoke("create-mp-payment", {
-        body: { org_id: orgId, plan, cpf_cnpj: cleanDoc, payment_method: "pix" },
+        body: { org_id: orgId, plan, cpf_cnpj: cleanDoc, payment_method: "pix", billing, promo: !!promo },
       });
 
       if (error) throw new Error(error.message);
