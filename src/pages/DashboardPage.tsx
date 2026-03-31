@@ -886,7 +886,25 @@ const DashboardPage = () => {
               </Button>
             </div>
           )}
-          {planLimits.trialExpired && planLimits.plan === "free" && (
+          {planLimits.trialExpired && planLimits.plan === "free" && planLimits.promoEligible && (
+            <div className="mb-4 rounded-xl bg-gradient-to-r from-primary/20 via-primary/10 to-amber-500/10 border border-primary/30 p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-primary shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-foreground">
+                    🔥 Oferta exclusiva: <span className="text-primary">50% OFF no primeiro mês!</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Assine agora pela metade do preço. Depois, valor normal. Sem fidelidade.
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90" onClick={() => setUpgradeOpen(true)}>
+                <Zap className="w-3.5 h-3.5" />Aproveitar oferta
+              </Button>
+            </div>
+          )}
+          {planLimits.trialExpired && planLimits.plan === "free" && !planLimits.promoEligible && (
             <div className="mb-4 rounded-xl bg-destructive/10 border border-destructive/30 p-4 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
