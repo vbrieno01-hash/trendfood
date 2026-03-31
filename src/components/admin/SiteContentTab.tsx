@@ -49,10 +49,16 @@ function ImageUploader({ value, onChange, label }: { value: string; onChange: (u
   async function handleFile(file: File) {
     setUploading(true);
     try {
+      // Apagar imagem antiga do storage
+      if (value && value.includes("/site-images/")) {
+        const oldPath = decodeURIComponent(value.split("/site-images/")[1]);
+        await supabase.storage.from("site-images").remove([oldPath]);
+      }
+
       const compressed = await compressImage(file, { maxWidth: 1920, quality: 0.85 });
       const ext = compressed.name.split(".").pop() || "webp";
-      const path = `cms/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("site-images").upload(path, compressed, { upsert: true });
+      const path = `cms/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("site-images").upload(path, compressed, { cacheControl: "0", upsert: false });
       if (error) throw error;
       const { data: pub } = supabase.storage.from("site-images").getPublicUrl(path);
       onChange(pub.publicUrl);
