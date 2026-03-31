@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  ArrowLeft, Plus, X, Minus, UtensilsCrossed,
+  Plus, X, Minus, UtensilsCrossed,
   ShoppingCart, ShoppingBag, Search,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
