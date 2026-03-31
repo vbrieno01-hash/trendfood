@@ -1,0 +1,28 @@
+
+-- Create site-images bucket
+INSERT INTO storage.buckets (id, name, public) VALUES ('site-images', 'site-images', true);
+
+-- RLS: public read
+CREATE POLICY "site_images_select_public" ON storage.objects FOR SELECT USING (bucket_id = 'site-images');
+
+-- RLS: admin upload/update/delete
+CREATE POLICY "site_images_insert_admin" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'site-images' AND public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "site_images_update_admin" ON storage.objects FOR UPDATE USING (bucket_id = 'site-images' AND public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "site_images_delete_admin" ON storage.objects FOR DELETE USING (bucket_id = 'site-images' AND public.has_role(auth.uid(), 'admin'));
+
+-- Seed hardcoded content into platform_content
+INSERT INTO public.platform_content (key, value) VALUES
+  ('problems_cards', '[{"image":"https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=600&q=80","title":"Pedido em papel e confusão no atendimento","description":"Pedido que chega por papelzinho e se perde — atendente sem saber a fila, item errado, cliente insatisfeito."},{"image":"https://images.unsplash.com/photo-1559329007-40df8a9345d8?w=600&q=80","title":"Clientes esperando para pagar","description":"Fila parada esperando atendente com maquininha, sem conseguir fechar a conta. Rotatividade baixa, lucro menor."},{"image":"https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80","title":"Pagando até 27% de comissão","description":"Cada venda no marketplace, desconto pesado. Final do mês, o lucro sumiu em taxas que você nem vê."}]'::jsonb),
+  ('benefit_cards', '[{"title":"Cardápio Digital","description":"Catálogo completo com QR Code por mesa. Cliente pede sem app."},{"title":"Insumos + Precificação","description":"Ficha técnica de ingredientes, baixa automática e margem calculada."},{"title":"Pagamento Online","description":"PIX automático integrado. Confirma pagamento sem maquininha."}]'::jsonb),
+  ('steps_cards', '[{"title":"Crie seu catálogo online","description":"Monte categorias, preços e fotos em minutos. Seu catálogo fica disponível via link para qualquer dispositivo, sem precisar baixar nenhum app."},{"title":"Gere QR Codes para cada ponto de atendimento","description":"Cada ponto recebe um QR Code único. O cliente escaneia e faz o pedido direto pelo celular, sem precisar chamar o atendente."},{"title":"Equipe recebe o pedido em tempo real","description":"O painel de produção (KDS) toca um alerta sonoro e imprime automaticamente cada pedido. A equipe acompanha tudo no painel."},{"title":"Feche o caixa com relatório completo","description":"Abertura e fechamento de turno, registro de sangrias e conferência de saldo. Veja faturamento e mais vendidos do dia."}]'::jsonb),
+  ('features_cards', '[{"title":"Catálogo Digital","description":"Monte seu catálogo com categorias, preços e fotos. Acessível via link ou QR Code."},{"title":"Pedidos por QR Code","description":"Cada ponto de atendimento tem QR único. O cliente pede sem precisar de app."},{"title":"Painel de Produção (KDS)","description":"Tela dedicada ao atendimento com alerta sonoro e impressão automática."},{"title":"Painel do Atendente","description":"Visão de todos os pedidos ativos e fechamento de conta com PIX integrado."},{"title":"Controle de Caixa","description":"Abra e feche turnos, registre sangrias e confira o saldo ao final."},{"title":"Mais Vendidos","description":"Ranking de produtos por período com receita gerada por cada item."},{"title":"Cupons de Desconto","description":"Crie promoções com valor fixo ou percentual e gerencie o uso."},{"title":"Faturamento em Tempo Real","description":"Dashboard com gráfico dos últimos 7 dias, ticket médio e total do dia."},{"title":"Impressora Térmica","description":"Impressão automática 80mm com QR Code PIX no recibo do cliente."},{"title":"Gestão de Motoboys","description":"Cadastre motoboys, atribua entregas, acompanhe em tempo real e controle pagamentos."},{"title":"Gestão de Insumos","description":"Controle ingredientes com ficha técnica e baixa automática a cada venda."},{"title":"Precificação Inteligente","description":"Cálculo automático de margem e preço sugerido por markup sobre custo."}]'::jsonb),
+  ('comparison_rows', '[{"label":"Comissão por venda","marketplace":"12% a 27%","trendfood":"0%","badge":"Grátis"},{"label":"Dados dos clientes","marketplace":"Ficam com a plataforma","trendfood":"São seus"},{"label":"Cardápio","marketplace":"Padronizado","trendfood":"Personalizado"},{"label":"Delivery","marketplace":"Motoboy da plataforma (caro)","trendfood":"Seus motoboys, suas regras"},{"label":"Impressão de pedidos","marketplace":"Não tem","trendfood":"Impressora térmica integrada","badge":"Incluso"},{"label":"Controle de caixa","marketplace":"Não tem","trendfood":"Completo com abertura/fechamento","badge":"Incluso"},{"label":"Custo mensal","marketplace":"Comissão variável","trendfood":"A partir de R$ 0/mês","badge":"Grátis"}]'::jsonb),
+  ('cta_title', '"Pare de pagar comissão. Comece hoje."'::jsonb),
+  ('cta_subtitle', '"Mesmo sistema, zero taxa. Configure em minutos e veja a diferença no seu caixa."'::jsonb),
+  ('cta_button_text', '"Começar Grátis Agora"'::jsonb),
+  ('footer_instagram_url', '"https://www.instagram.com/_trend.food?igsh=MTU4ZWdsY2hyMjE="'::jsonb),
+  ('footer_whatsapp_url', '"http://wa.me/message/H632HC5C5XX5C1"'::jsonb),
+  ('footer_email', '"contato@trendfood.com.br"'::jsonb),
+  ('footer_description', '"Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão."'::jsonb),
+  ('footer_copyright', '"TrendFood © 2026 - Todos os direitos reservados"'::jsonb)
+ON CONFLICT (key) DO NOTHING;

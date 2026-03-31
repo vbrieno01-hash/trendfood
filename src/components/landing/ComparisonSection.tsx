@@ -1,98 +1,58 @@
 import { Badge } from "@/components/ui/badge";
 import { Check, X } from "lucide-react";
 
-const rows = [
-  {
-    label: "Comissão por venda",
-    marketplace: "12% a 27%",
-    trendfood: "0%",
-    trendfoodBadge: "Grátis",
-  },
-  {
-    label: "Dados dos clientes",
-    marketplace: "Ficam com a plataforma",
-    trendfood: "São seus",
-  },
-  {
-    label: "Cardápio",
-    marketplace: "Padronizado",
-    trendfood: "Personalizado",
-  },
-  {
-    label: "Delivery",
-    marketplace: "Motoboy da plataforma (caro)",
-    trendfood: "Seus motoboys, suas regras",
-  },
-  {
-    label: "Impressão de pedidos",
-    marketplace: "Não tem",
-    trendfood: "Impressora térmica integrada",
-    trendfoodBadge: "Incluso",
-  },
-  {
-    label: "Controle de caixa",
-    marketplace: "Não tem",
-    trendfood: "Completo com abertura/fechamento",
-    trendfoodBadge: "Incluso",
-  },
-  {
-    label: "Custo mensal",
-    marketplace: "Comissão variável",
-    trendfood: "A partir de R$ 0/mês",
-    trendfoodBadge: "Grátis",
-  },
+interface ComparisonRow {
+  label: string;
+  marketplace: string;
+  trendfood: string;
+  badge?: string;
+}
+
+const defaultRows: ComparisonRow[] = [
+  { label: "Comissão por venda", marketplace: "12% a 27%", trendfood: "0%", badge: "Grátis" },
+  { label: "Dados dos clientes", marketplace: "Ficam com a plataforma", trendfood: "São seus" },
+  { label: "Cardápio", marketplace: "Padronizado", trendfood: "Personalizado" },
+  { label: "Delivery", marketplace: "Motoboy da plataforma (caro)", trendfood: "Seus motoboys, suas regras" },
+  { label: "Impressão de pedidos", marketplace: "Não tem", trendfood: "Impressora térmica integrada", badge: "Incluso" },
+  { label: "Controle de caixa", marketplace: "Não tem", trendfood: "Completo com abertura/fechamento", badge: "Incluso" },
+  { label: "Custo mensal", marketplace: "Comissão variável", trendfood: "A partir de R$ 0/mês", badge: "Grátis" },
 ];
 
-const ComparisonSection = () => {
+interface Props {
+  rows?: ComparisonRow[];
+}
+
+const ComparisonSection = ({ rows: propRows }: Props) => {
+  const rows = propRows && propRows.length > 0 ? propRows : defaultRows;
+
   return (
     <section id="comparativo" className="py-20 px-4 bg-background">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-            Compare e decida
-          </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-            TrendFood vs Marketplaces
-          </h2>
-          <p className="text-muted-foreground text-lg">
-            Veja por que centenas de negócios estão migrando
-          </p>
+          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Compare e decida</Badge>
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">TrendFood vs Marketplaces</h2>
+          <p className="text-muted-foreground text-lg">Veja por que centenas de negócios estão migrando</p>
         </div>
 
         {/* Desktop table (md+) */}
         <div className="hidden md:block rounded-2xl border border-border overflow-hidden shadow-sm">
           <div className="grid grid-cols-[1fr_1.2fr_1.3fr] bg-muted/60">
             <div className="p-4 font-semibold text-muted-foreground text-sm" />
-            <div className="p-4 text-center font-bold text-destructive text-sm border-l border-border">
-              Marketplaces
-            </div>
-            <div className="p-4 text-center font-bold text-primary text-sm border-l border-border">
-              TrendFood
-            </div>
+            <div className="p-4 text-center font-bold text-destructive text-sm border-l border-border">Marketplaces</div>
+            <div className="p-4 text-center font-bold text-primary text-sm border-l border-border">TrendFood</div>
           </div>
           {rows.map((row, i) => (
-            <div
-              key={row.label}
-              className={`grid grid-cols-[1fr_1.2fr_1.3fr] ${i < rows.length - 1 ? "border-b border-border" : ""}`}
-            >
-              <div className="p-4 font-medium text-foreground text-sm flex items-center">
-                {row.label}
-              </div>
+            <div key={row.label} className={`grid grid-cols-[1fr_1.2fr_1.3fr] ${i < rows.length - 1 ? "border-b border-border" : ""}`}>
+              <div className="p-4 font-medium text-foreground text-sm flex items-center">{row.label}</div>
               <div className="p-4 border-l border-border flex items-center justify-center gap-2 bg-destructive/5">
                 <X className="w-4 h-4 text-destructive shrink-0" />
-                <span className="text-sm text-muted-foreground text-center">
-                  {row.marketplace}
-                </span>
+                <span className="text-sm text-muted-foreground text-center">{row.marketplace}</span>
               </div>
               <div className="p-4 border-l border-border flex items-center justify-center gap-2 bg-orange-500/5">
                 <Check className="w-4 h-4 text-orange-500 shrink-0" />
-                <span className="text-sm text-foreground font-medium text-center">
-                  {row.trendfood}
-                </span>
-                {row.trendfoodBadge && (
-                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border-orange-200 shrink-0">
-                    {row.trendfoodBadge}
-                  </Badge>
+                <span className="text-sm text-foreground font-medium text-center">{row.trendfood}</span>
+                {row.badge && (
+                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border-orange-200 shrink-0">{row.badge}</Badge>
                 )}
               </div>
             </div>
@@ -103,27 +63,19 @@ const ComparisonSection = () => {
         <div className="md:hidden space-y-3">
           {rows.map((row) => (
             <div key={row.label} className="rounded-xl border border-border overflow-hidden shadow-sm">
-              <div className="p-3 bg-muted/60 font-semibold text-foreground text-sm">
-                {row.label}
-              </div>
+              <div className="p-3 bg-muted/60 font-semibold text-foreground text-sm">{row.label}</div>
               <div className="grid grid-cols-2">
                 <div className="p-3 bg-destructive/5 flex flex-col items-center gap-1">
                   <span className="text-xs font-bold text-destructive">Marketplaces</span>
                   <X className="w-4 h-4 text-destructive shrink-0" />
-                  <span className="text-xs text-muted-foreground text-center leading-tight">
-                    {row.marketplace}
-                  </span>
+                  <span className="text-xs text-muted-foreground text-center leading-tight">{row.marketplace}</span>
                 </div>
                 <div className="p-3 bg-orange-500/5 border-l border-border flex flex-col items-center gap-1">
                   <span className="text-xs font-bold text-primary">TrendFood</span>
                   <Check className="w-4 h-4 text-orange-500 shrink-0" />
-                  <span className="text-xs text-foreground font-medium text-center leading-tight">
-                    {row.trendfood}
-                  </span>
-                  {row.trendfoodBadge && (
-                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border-orange-200 mt-1">
-                      {row.trendfoodBadge}
-                    </Badge>
+                  <span className="text-xs text-foreground font-medium text-center leading-tight">{row.trendfood}</span>
+                  {row.badge && (
+                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border-orange-200 mt-1">{row.badge}</Badge>
                   )}
                 </div>
               </div>
