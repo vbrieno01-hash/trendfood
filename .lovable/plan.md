@@ -1,34 +1,41 @@
 
 
-## Plano: Adicionar Login com Google
+## Plano: Corrigir Google Login — redirecionar após autenticação
 
-### Abordagem
-Este projeto usa Lovable Cloud, que já tem Google OAuth gerenciado automaticamente — não precisa configurar credenciais.
+### Problema
+O login com Google funciona no backend (os logs confirmam login bem-sucedido via OIDC). Porém, o `AuthPage` **não tem nenhum `useEffect`** que observe o estado de autenticação. Após o OAuth completar e o `useAuth` detectar o `SIGNED_IN`, a página simplesmente não reage — o usuário fica preso na tela de login.
 
-### Alterações
+Para login com email/senha, o redirect é feito manualmente após `signInWithPassword`. Mas no fluxo Google OAuth, o redirect acontece externamente (Google → callback → `setSession`), e quando a página recarrega, ninguém faz o `navigate()`.
 
-**1. Configurar Social Auth** — usar a ferramenta `Configure Social Login` para gerar o módulo `src/integrations/lovable/` com suporte a Google OAuth.
+Além disso, para **novos usuários Google** (sem organização), não há criação automática de organização — o usuário cairia no dashboard vazio.
 
-**2. `src/pages/AuthPage.tsx`** — adicionar botão "Entrar com Google" nas duas abas (Login e Cadastro):
+### Correção
 
-- Importar `lovable` de `@/integrations/lovable/index`
-- Criar função `handleGoogleLogin` que chama `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
-- Adicionar botão com ícone do Google antes dos formulários, com separador "ou"
-- Estilo: botão outline com ícone SVG do Google, texto "Continuar com Google"
+**Arquivo: `src/pages/AuthPage.tsx`** — 2 alterações:
 
-**3. Tratamento pós-login Google** — no `useAuth.tsx`, o `onAuthStateChange` já detecta `SIGNED_IN` e busca a organização. Para novos usuários Google que não têm organização, o fluxo existente já lida (org fica null e o dashboard pode redirecionar para onboarding).
+**1) Adicionar `useEffect` para redirecionar quando `user` já está autenticado:**
 
-### Layout do botão
+```typescript
+import { useState, useEffect } from "react";
+// ...
+const { user, organization, loading, refreshOrganizationForUser } = useAuth();
 
-```text
-┌──────────────────────────────┐
-│  [G] Continuar com Google    │  ← botão outline
-└──────────────────────────────┘
-        ── ou ──
-  [formulário normal]
+useEffect(() => {
+  if (loading) return;
+  if (user && organization) {
+    navigate(fullRedirect, { replace: true });
+  }
+}, [user, organization, loading]);
 ```
 
+Isso cobre:
+- Usuário Google existente (tem org) → redireciona ao dashboard
+- Página recarregada com sessão ativa → redireciona imediatamente
+
+**2) Para novos usuários Google (sem organização):**
+
+Quando `user` existe mas `organization` é null, exibir um formulário simplificado pedindo apenas nome da lanchonete e WhatsApp (os dados que faltam), e então criar a organização. Isso garante que novos usuários via Google também completem o onboarding.
+
 ### Arquivos alterados
-- `src/integrations/lovable/` (gerado pela ferramenta)
-- `src/pages/AuthPage.tsx` (botão Google + handler)
+- `src/pages/AuthPage.tsx` (adicionar useEffect de redirect + formulário de onboarding Google)
 
