@@ -113,7 +113,8 @@ const AuthPage = () => {
   };
 
 
-    const [signupData, setSignupData] = useState({
+  const [signupData, setSignupData] = useState({
+    fullName: "",
     email: "",
     confirmEmail: "",
     password: "",
