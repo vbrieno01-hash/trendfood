@@ -803,7 +803,7 @@ const DashboardPage = () => {
         {/* Bottom actions */}
         <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
           <button
-            onClick={() => setActiveTab("referral")}
+            onClick={() => handleTabChange("referral")}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-all duration-150"
           >
             <Gift className="w-4 h-4" />
