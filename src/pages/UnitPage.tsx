@@ -161,8 +161,9 @@ const UnitPage = () => {
    const { data: neighborhoods = [] } = useDeliveryNeighborhoods(org?.id);
 
    // Full address for WhatsApp/order notes display
+   const displayNeighborhood = selectedNeighborhood === "__outro__" ? "Outro bairro" : selectedNeighborhood;
    const fullCustomerAddressDisplay = [
-     customerStreet, customerNumber, customerComplement, selectedNeighborhood
+     customerStreet, customerNumber, customerComplement, displayNeighborhood
    ].map((p) => p.trim()).filter(Boolean).join(", ");
 
    // Delivery fee — neighborhood-based
@@ -372,11 +373,10 @@ const UnitPage = () => {
     // PIX Direto/Manual: treat like cash — order goes straight to WhatsApp, customer pays on delivery
     if (effectivePayment === "PIX" && !overridePayment && org?.pix_confirmation_mode === "automatic") {
       if (org?.id) {
-         const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
-           ? `FRETE:${fmt(deliveryFee)}`
-           : orderType === "Entrega" && freeShipping
-             ? "FRETE:Grátis"
-             : null;
+         const freteNote = orderType !== "Entrega" ? null
+           : freeShipping ? "FRETE:Grátis"
+           : deliveryFee > 0 ? `FRETE:${fmt(deliveryFee)}`
+           : "FRETE:Sob consulta";
 
         const noteParts: string[] = [
           `TIPO:${orderType}`,
@@ -427,12 +427,12 @@ const UnitPage = () => {
 
     const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
     const freightLabel = orderType === "Retirada"
-       ? "Grátis"
+       ? null
        : freeShipping
          ? "Grátis"
          : deliveryFee > 0
            ? fmt(deliveryFee)
-           : null;
+           : "Sob consulta";
 
     const lines = [
       `🍔 *Novo Pedido — ${org.name}*`,
@@ -468,11 +468,10 @@ const UnitPage = () => {
     // This prevents state loss if the browser blocks popups and the old code
     // would have navigated away via location.href before saving.
     if (org?.id && !overrideOrderId) {
-       const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
-         ? `FRETE:${fmt(deliveryFee)}`
-         : orderType === "Entrega" && freeShipping
-           ? "FRETE:Grátis"
-           : null;
+       const freteNote = orderType !== "Entrega" ? null
+         : freeShipping ? "FRETE:Grátis"
+         : deliveryFee > 0 ? `FRETE:${fmt(deliveryFee)}`
+         : "FRETE:Sob consulta";
 
       const noteParts: string[] = [
         `TIPO:${orderType}`,
@@ -549,12 +548,12 @@ const UnitPage = () => {
     if (whatsapp) {
       const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
       const freightLabel = orderType === "Retirada"
-        ? "Grátis"
+        ? null
          : freeShipping
            ? "Grátis"
            : deliveryFee > 0
              ? fmt(deliveryFee)
-             : null;
+             : "Sob consulta";
 
       const pixStatus = paid ? "✅ PIX Confirmado" : "⏳ PIX Aguardando confirmação";
 
