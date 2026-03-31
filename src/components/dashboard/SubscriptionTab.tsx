@@ -73,6 +73,7 @@ const SubscriptionTab = () => {
   const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
   const [isAnnual, setIsAnnual] = useState(false);
   const planLimits = usePlanLimits(organization);
+  const promoEligible = planLimits.promoEligible;
 
   const currentPlan = organization?.subscription_plan || "free";
   const mpReturn = searchParams.get("mp_return");
