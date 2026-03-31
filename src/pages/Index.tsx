@@ -325,7 +325,7 @@ const Index = () => {
                 to="/auth"
                 className="inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.6)] hover:scale-[1.03] transition-all duration-300"
               >
-                Começar Grátis
+                {c("hero_cta_text", "Começar Grátis")}
                 <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
