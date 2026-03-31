@@ -1,23 +1,29 @@
 
 
-## Plano: QR Code do TrendFood nas comandas impressas
+## Plano: Redefinição de senha (Esqueci minha senha)
 
-### Situação atual
-- **Impressão browser** (`printOrder`): O QR code **já é gerado** via `QRCode.toDataURL("https://trendfood.lovable.app/")`, mas se o `try/catch` falhar silenciosamente, cai no fallback de texto puro ("Acesse: https://trendfood.lovable.app/").
-- **Impressão Bluetooth/Desktop** (`formatReceiptText`): **Não tem QR code nenhum** — só imprime a linha de texto "Acesse: https://trendfood.lovable.app/". Impressoras térmicas de texto puro não suportam imagens inline facilmente.
-- **Preview React** (`ThermalReceipt.tsx`): Usa `<QRCodeSVG>` e funciona corretamente no preview.
+### Problema
+Não existe nenhum fluxo de "Esqueci minha senha" no sistema. Se o dono da loja esquecer a senha, não tem como recuperar.
 
 ### O que será feito
 
-**1. Garantir QR code na impressão browser** (`printOrder.ts`)
-- Mover a geração do QR do footer para **antes** de abrir a janela, com log de erro se falhar
-- Aumentar tamanho do QR para melhor leitura (100px → 120px)
+**1. Link "Esqueci minha senha" na tela de login** (`src/pages/AuthPage.tsx`)
+- Adicionar link abaixo do campo de senha na aba "Entrar"
+- Ao clicar, exibe um mini-formulário pedindo o e-mail
+- Chama `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/redefinir-senha' })`
+- Mostra toast de sucesso: "Link de redefinição enviado para seu e-mail"
 
-**2. Impressão Bluetooth/Desktop — sem solução de QR**
-- Impressoras térmicas ESC/POS de texto puro não suportam imagens sem comandos ESC/POS específicos
-- Manter o link em texto: "ACESSE: HTTPS://TRENDFOOD.LOVABLE.APP/"
-- Isso já funciona e é a única opção sem API ESC/POS de imagem
+**2. Página `/redefinir-senha`** (`src/pages/ResetPasswordPage.tsx`)
+- Rota pública que detecta o token de recovery na URL (hash `type=recovery`)
+- Exibe formulário com "Nova senha" + "Confirmar nova senha"
+- Chama `supabase.auth.updateUser({ password })` para salvar
+- Após sucesso, redireciona para `/dashboard`
+
+**3. Rota no App.tsx**
+- Adicionar `<Route path="/redefinir-senha" element={<ResetPasswordPage />} />`
 
 ### Arquivos alterados
-- `src/lib/printOrder.ts` — garantir que o QR code do footer nunca falhe silenciosamente + aumentar tamanho
+- `src/pages/AuthPage.tsx` — link + formulário de "esqueci minha senha"
+- `src/pages/ResetPasswordPage.tsx` — nova página
+- `src/App.tsx` — nova rota
 
