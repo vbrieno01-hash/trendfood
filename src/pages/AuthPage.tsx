@@ -113,7 +113,7 @@ const AuthPage = () => {
   };
 
 
-    fullName: "",
+    const [signupData, setSignupData] = useState({
     email: "",
     confirmEmail: "",
     password: "",
