@@ -727,7 +727,7 @@ const AuthPage = () => {
 
           <p className="text-center text-xs text-muted-foreground mt-8">
             Ao criar sua conta, você concorda com nossos{" "}
-            <span className="underline cursor-pointer hover:text-foreground transition-colors">Termos de Uso</span>.
+            <Link to="/termos" target="_blank" className="underline cursor-pointer hover:text-foreground transition-colors">Termos de Uso</Link>.
           </p>
         </div>
       </div>
