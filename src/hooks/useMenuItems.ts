@@ -13,6 +13,7 @@ export interface MenuItem {
   image_url: string | null;
   available: boolean;
   hide_global_addons: boolean;
+  available_days: string[] | null;
   created_at: string;
 }
 
