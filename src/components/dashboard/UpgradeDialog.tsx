@@ -33,7 +33,7 @@ interface UpgradeDialogProps {
   promoEligible?: boolean;
 }
 
-export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan }: UpgradeDialogProps) {
+export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, promoEligible }: UpgradeDialogProps) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
