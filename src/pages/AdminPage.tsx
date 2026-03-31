@@ -19,6 +19,7 @@ import WhatsAppConnectTab from "@/components/admin/WhatsAppConnectTab";
 import ReferralsTab from "@/components/admin/ReferralsTab";
 import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
+import AdminStoreManager from "@/components/admin/AdminStoreManager";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
