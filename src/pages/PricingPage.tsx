@@ -346,6 +346,7 @@ const PricingPage = () => {
           planName={cardFormPlan.name}
           planPrice={isAnnual && cardFormPlan.annual_price_cents ? formatPrice(cardFormPlan.annual_price_cents) : cardFormPlan.price}
           billing={isAnnual && cardFormPlan.annual_price_cents ? "annual" : "monthly"}
+          promo={promoEligible && !isAnnual}
           onSuccess={() => {
             navigate("/dashboard?tab=subscription");
           }}
