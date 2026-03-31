@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS used_first_month_promo boolean NOT NULL DEFAULT false;
