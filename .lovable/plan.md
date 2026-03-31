@@ -1,77 +1,78 @@
 
 
-## Checklist de Auditoria do TrendFood — Erros Encontrados
+## Comparação: Dashboard da Loja vs Painel Admin
 
-Após varredura completa no código, encontrei os seguintes problemas:
+### O que o Dashboard da loja tem (20 abas):
 
----
+| Aba | Existe no Admin? |
+|-----|-----------------|
+| Home (resumo da loja) | ❌ |
+| Cardápio (CRUD itens, categorias, imagens, addons) | ❌ |
+| Mesas & Comandas | ❌ |
+| Cozinha (KDS) | ❌ |
+| Gestão de Pedidos (Garçom) | ❌ |
+| Motoboys (cadastro, entregas) | ❌ |
+| Histórico de pedidos | ❌ |
+| Estoque & Insumos | ❌ |
+| Fluxo de Caixa | ❌ |
+| Precificação | ❌ |
+| Relatórios | ❌ |
+| Cupons | ❌ |
+| Mais Vendidos | ❌ |
+| Dados da Loja (perfil, endereço, delivery, QR Code) | ❌ |
+| Assinatura / Plano | ✅ Parcial (ManageSubscriptionDialog) |
+| Impressora Térmica | ❌ |
+| Funcionalidades | ✅ (lista estática) |
+| Como Usar (Guia) | ✅ |
+| Configurações (PIX, horários) | ❌ |
+| Indicações | ✅ |
 
-### BUG CRÍTICO
+### O que falta no Admin — funcionalidades que te fariam parar de "ir até a loja":
 
-**1. Edge function inexistente sendo chamada**
-- `DashboardPage.tsx` linha 494 chama `supabase.functions.invoke("check-subscription")` — essa função **não existe** em `supabase/functions/`. Existe `check-subscription-pix`, mas não `check-subscription`. Isso gera erro silencioso no checkout por cartão (pós-checkout feedback).
-- **Correção:** Remover essa chamada ou substituir por lógica correta (já que o webhook `mp-webhook` cuida da ativação).
+1. **Visualizar/Editar o cardápio de qualquer loja** — adicionar, remover, reordenar itens, mudar preços, imagens
+2. **Ver pedidos e histórico de qualquer loja** — acompanhar em tempo real
+3. **Editar dados da loja** — nome, slug, endereço, WhatsApp, horário de funcionamento, delivery config, PIX
+4. **Gerenciar cupons** de qualquer loja
+5. **Ver relatórios e mais vendidos** de qualquer loja
+6. **Gerenciar mesas** de qualquer loja
+7. **Ver/Gerenciar estoque** de qualquer loja
+8. **Ver fluxo de caixa** de qualquer loja
 
----
+### Plano de implementação (priorizado pelo impacto)
 
-### BUGS MODERADOS
+**Fase 1 — Gestão direta de loja pelo Admin** (maior impacto)
 
-**2. WhatsApp placeholder genérico (5511999999999)**
-- Três lugares usam um número fake de WhatsApp:
-  - `DashboardPage.tsx` (tela de assinatura inativa, linha 621)
-  - `AdminPage.tsx` (link de suporte, linha 188)
-  - `DocsTerminalPage.tsx` (ajuda impressora, linha 624)
-- **Correção:** Substituir pelo número real de suporte do TrendFood.
+Criar uma nova aba no Admin: **"Gerenciar Loja"** — ao clicar em uma loja no grid, abre um painel com as abas mais úteis da loja, reutilizando os mesmos componentes do Dashboard:
 
-**3. `terms_acceptances` forçando `as any`**
-- `CardPaymentForm.tsx` e `PixPaymentTab.tsx` usam `supabase.from("terms_acceptances" as any)` — indica que a tabela não está no types.ts gerado. Funciona em runtime mas sem type-safety.
-- **Correção:** A tabela existe no banco. Basta garantir que o types.ts está atualizado (acontece automaticamente).
+- **`src/pages/AdminPage.tsx`**: Adicionar estado `selectedOrg` e nova aba `"gerenciar"` na sidebar
+- **Componente novo `src/components/admin/AdminStoreManager.tsx`**: Container que recebe a org selecionada e renderiza sub-abas usando os mesmos componentes existentes:
+  - `MenuTab` — editar cardápio
+  - `StoreProfileTab` — editar dados, endereço, delivery
+  - `HistoryTab` — ver pedidos
+  - `CouponsTab` — gerenciar cupons
+  - `BestSellersTab` — ver mais vendidos
+  - `TablesTab` — gerenciar mesas
+  - `StockTab` — ver estoque
+  - `CaixaTab` — ver caixa
+  - `SettingsTab` — configurações PIX/horários
 
-**4. `DeleteUnitDialog.tsx` deleta `terms_acceptances` sem `as any`**
-- Linha 76 — pode falhar com erro de tipo se types.ts não incluir a tabela. Inconsistência com os outros usos.
+**Mudanças técnicas necessárias:**
+- Os componentes do Dashboard já recebem `organization` ou `orgId` como prop — basta passar a org selecionada
+- Como o admin já tem RLS policy de admin em quase todas as tabelas, as operações de leitura funcionam. Para escrita, já existem policies de owner — o admin precisará das policies de UPDATE/DELETE com `has_role(auth.uid(), 'admin')` nas tabelas que ainda não têm (verificar caso a caso)
+- Adicionar botão "Gerenciar" no `StoreCard` existente
 
----
+**Fase 2 — Melhorias complementares**
+- Ver relatórios consolidados de todas as lojas (visão plataforma)
+- Painel de pedidos em tempo real de todas as lojas
 
-### AVISOS MENORES
+### Arquivos a criar/modificar
 
-**5. `useMemo` com dependência imprecisa**
-- `DashboardPage.tsx` linha 518: `lockedFeatures` usa `[planLimits.effectivePlan]` como dep, mas `canAccess` é o que realmente importa. Funciona porque `canAccess` deriva de `effectivePlan`, mas é frágil.
+| Arquivo | Ação |
+|---------|------|
+| `src/components/admin/AdminStoreManager.tsx` | **Criar** — container com sub-abas reutilizando componentes |
+| `src/pages/AdminPage.tsx` | Modificar — adicionar aba "gerenciar", estado selectedOrg, botão no StoreCard |
+| Migração SQL | Adicionar RLS policies de admin UPDATE/INSERT onde faltam (menu_items, orders, coupons, etc.) |
 
-**6. `useEffect` sem deps completas**
-- `SubscriptionTab.tsx` linha 114: `useEffect` com `[]` que usa `searchParams` e `setSearchParams` — React eslint avisaria, mas funciona na prática.
-
-**7. Sidebar "Ganhe Desconto" não usa `handleTabChange`**
-- Linha 816: `setActiveTab("referral")` direto, sem atualizar a URL. Se o usuário recarregar a página nessa aba, a URL não reflete a aba correta.
-
----
-
-### RESUMO VISUAL
-
-```text
-┌──────────────────────────────────────┬──────────┐
-│ Problema                             │ Risco    │
-├──────────────────────────────────────┼──────────┤
-│ Edge function "check-subscription"   │ CRÍTICO  │
-│ WhatsApp 5511999999999 placeholder   │ MODERADO │
-│ terms_acceptances "as any"           │ BAIXO    │
-│ Sidebar referral sem URL sync        │ BAIXO    │
-│ useMemo dep imprecisa                │ MÍNIMO   │
-│ useEffect deps incompletas           │ MÍNIMO   │
-└──────────────────────────────────────┴──────────┘
-```
-
-### Plano de Correção
-
-**Arquivo 1: `src/pages/DashboardPage.tsx`**
-- Remover bloco de checkout feedback que chama `check-subscription` (linhas 488-504) — o webhook já cuida disso
-- Linha 816: trocar `setActiveTab("referral")` por `handleTabChange("referral")`
-- Linha 621: substituir `5511999999999` pelo número real
-
-**Arquivo 2: `src/pages/AdminPage.tsx`**
-- Linha 188: substituir `5511999999999` pelo número real
-
-**Arquivo 3: `src/pages/DocsTerminalPage.tsx`**
-- Linha 624: substituir `5511999999999` pelo número real
-
-Preciso saber o **número real de WhatsApp do suporte TrendFood** para fazer a substituição.
+### Resultado
+Ao clicar em qualquer loja → abre painel completo com todas as abas da loja dentro do Admin. Você nunca mais precisa sair do painel admin para gerenciar uma loja.
 
