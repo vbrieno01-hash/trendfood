@@ -489,17 +489,7 @@ const DashboardPage = () => {
     const params = new URLSearchParams(location.search);
     if (params.get("checkout") === "success") {
       toast.success("Assinatura ativada com sucesso! Bem-vindo ao plano Pro 🎉");
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          supabase.functions.invoke("check-subscription", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }).then(() => refreshOrganization()).catch((err) => {
-            console.warn("[Dashboard] check-subscription failed:", err);
-          });
-        }
-      }).catch((err) => {
-        console.warn("[Dashboard] getSession failed:", err);
-      });
+      refreshOrganization();
       navigate("/dashboard", { replace: true });
     }
   }, [location.search, navigate, refreshOrganization]);
