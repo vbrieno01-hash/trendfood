@@ -895,6 +895,12 @@ function AdminContent() {
             </div>
           )}
 
+          {activeTab === "site" && (
+            <div className="animate-admin-fade-in">
+              <SiteContentTab />
+            </div>
+          )}
+
           {activeTab === "features" && (
             <section className="animate-admin-fade-in">
               <div className="flex items-center gap-2 mb-4">
