@@ -331,7 +331,7 @@ const Index = () => {
             </div>
 
             <div className="mt-14 flex flex-wrap gap-2.5 justify-center">
-              {proofBadges.map((b) => (
+              {cArr("proof_badges", proofBadges).map((b: string) => (
                 <span
                   key={b}
                   className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium"
