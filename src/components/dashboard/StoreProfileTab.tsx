@@ -289,7 +289,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareableUrl);
+    navigator.clipboard.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success("Link copiado!");

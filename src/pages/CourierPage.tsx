@@ -570,7 +570,7 @@ const CourierPage = () => {
       const phone = parsePhoneFromNotes(result.notes);
       if (phone) {
         const msg = encodeURIComponent(
-          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | ${getShareableStoreUrl(orgSlug)}`
+          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | https://trendfood.lovable.app/unidade/${orgSlug}`
         );
         const url = `https://wa.me/55${phone}?text=${msg}`;
         openWhatsAppWithFallback(url, { mode: "operational" });
