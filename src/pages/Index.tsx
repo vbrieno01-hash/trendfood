@@ -382,10 +382,10 @@ const Index = () => {
               O problema real
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-              Você já passou por isso?
+              {c("problems_title", "Você já passou por isso?")}
             </h2>
             <p className="text-muted-foreground text-lg">
-              Esses problemas custam dinheiro e clientes todo dia
+              {c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
