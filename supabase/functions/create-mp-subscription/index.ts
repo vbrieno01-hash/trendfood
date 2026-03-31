@@ -95,8 +95,11 @@ Deno.serve(async (req) => {
 
     const isAnnual = billing === "annual";
     const priceCents = isAnnual && planRow.annual_price_cents > 0 ? planRow.annual_price_cents : planRow.price_cents;
-    const amount = priceCents / 100;
     const billingCycle = isAnnual ? "annual" : "monthly";
+
+    // Promo: first month at half price (only monthly, only if not used before)
+    const isPromoEligible = promo === true && !isAnnual && !org.used_first_month_promo;
+    const amount = isPromoEligible ? Math.round(priceCents / 2) / 100 : priceCents / 100;
 
     // If there's already an active subscription, cancel it first
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
