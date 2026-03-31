@@ -8,6 +8,7 @@ interface OrgLike {
   subscription_status?: string;
   subscription_plan?: string;
   trial_ends_at?: string | null;
+  used_first_month_promo?: boolean;
 }
 
 interface PlanLimits {
