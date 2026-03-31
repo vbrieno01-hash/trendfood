@@ -103,7 +103,8 @@ export function useAddMenuItem(orgId: string) {
           available: input.available,
           image_url: input.image_url ?? null,
           hide_global_addons: input.hide_global_addons ?? false,
-        })
+          available_days: input.available_days ?? null,
+        } as any)
         .select()
         .single();
       if (error) throw error;
