@@ -49,17 +49,9 @@ export function usePlatformContentAdmin() {
   useEffect(() => { load(); }, []);
 
   async function upsert(key: string, value: any) {
-    // Try update first
-    const { error: updateError } = await (supabase.from("platform_content") as any)
-      .update({ value, updated_at: new Date().toISOString() })
-      .eq("key", key);
-
-    if (updateError) {
-      // If no row existed, insert
-      await (supabase.from("platform_content") as any)
-        .insert({ key, value });
-    }
-    // Bust cache
+    const { error } = await (supabase.from("platform_content") as any)
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (error) throw error;
     cache = null;
     cacheTime = 0;
     await load();
