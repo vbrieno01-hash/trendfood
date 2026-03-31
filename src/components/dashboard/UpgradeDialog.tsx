@@ -171,6 +171,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
           planName={selectedPlan.name}
           planPrice={isAnnual && selectedPlan.annual_price_cents > 0 ? formatPrice(selectedPlan.annual_price_cents) : formatPriceFull(selectedPlan.price_cents)}
           billing={isAnnual && selectedPlan.annual_price_cents > 0 ? "annual" : "monthly"}
+          promo={promoEligible && !isAnnual}
           onSuccess={handleSuccess}
         />
       )}
