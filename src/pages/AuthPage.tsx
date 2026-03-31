@@ -458,6 +458,17 @@ const AuthPage = () => {
                 {googleOnboardLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Criar lanchonete
               </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full h-11 text-sm text-muted-foreground"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  setGoogleOnboarding(false);
+                }}
+              >
+                Usar outro e-mail
+              </Button>
             </form>
           ) : (
           <Tabs defaultValue="signup">
