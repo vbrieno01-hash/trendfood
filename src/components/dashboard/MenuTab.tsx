@@ -1107,6 +1107,58 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                 />
               </div>
 
+              {/* Available days */}
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">Dias disponíveis</p>
+                  <Switch
+                    checked={!form.available_days}
+                    onCheckedChange={(allDays) => {
+                      setForm((p) => ({ ...p, available_days: allDays ? null : ["seg","ter","qua","qui","sex","sab","dom"] }));
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {!form.available_days ? "Todos os dias" : "Selecione os dias em que este item estará disponível"}
+                </p>
+                {form.available_days && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {([
+                      { key: "seg", label: "Seg" },
+                      { key: "ter", label: "Ter" },
+                      { key: "qua", label: "Qua" },
+                      { key: "qui", label: "Qui" },
+                      { key: "sex", label: "Sex" },
+                      { key: "sab", label: "Sáb" },
+                      { key: "dom", label: "Dom" },
+                    ] as const).map((d) => {
+                      const isActive = form.available_days!.includes(d.key);
+                      return (
+                        <button
+                          key={d.key}
+                          type="button"
+                          onClick={() => {
+                            setForm((p) => {
+                              const days = p.available_days ?? [];
+                              const next = isActive ? days.filter((x) => x !== d.key) : [...days, d.key];
+                              return { ...p, available_days: next.length === 0 ? [d.key] : next };
+                            });
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted hover:bg-muted/80 border-border text-muted-foreground"
+                          )}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Ingredients section */}
               {canAccessStockIngredients ? (
                 (editItem || editItemId) ? (

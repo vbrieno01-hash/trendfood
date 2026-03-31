@@ -614,13 +614,28 @@ const UnitPage = () => {
   };
 
 
-  // Filter menu items by search query
-  const filteredMenuItems = searchQuery.trim()
-    ? menuItems.filter((i) => {
-        const q = searchQuery.toLowerCase();
-        return i.name.toLowerCase().includes(q) || (i.description && i.description.toLowerCase().includes(q));
-      })
-    : menuItems;
+  // Filter menu items by search query AND available_days
+  const DAY_KEYS = ["dom","seg","ter","qua","qui","sex","sab"];
+  const getNowInBrasiliaDay = () => {
+    const now = new Date();
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60_000;
+    const brt = new Date(utcMs + (-3) * 3600_000);
+    return brt.getDay(); // 0=dom, 6=sab
+  };
+  const currentDayKey = DAY_KEYS[getNowInBrasiliaDay()];
+
+  const filteredMenuItems = menuItems.filter((i) => {
+    // Day filter: hide items not available today
+    if (i.available_days && Array.isArray(i.available_days) && !i.available_days.includes(currentDayKey)) {
+      return false;
+    }
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return i.name.toLowerCase().includes(q) || (i.description && i.description.toLowerCase().includes(q));
+    }
+    return true;
+  });
 
   // Group menu items by category (fixed + custom)
   const groupedMenu = buildGroups(filteredMenuItems);
