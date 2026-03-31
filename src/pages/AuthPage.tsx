@@ -148,7 +148,7 @@ const AuthPage = () => {
     setForgotLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-        redirectTo: `${window.location.origin}/redefinir-senha`,
+        redirectTo: 'https://trendfood.lovable.app/redefinir-senha',
       });
       if (error) throw error;
       toast.success("Link de redefinição enviado para seu e-mail! Verifique sua caixa de entrada.");
