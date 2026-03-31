@@ -489,17 +489,7 @@ const DashboardPage = () => {
     const params = new URLSearchParams(location.search);
     if (params.get("checkout") === "success") {
       toast.success("Assinatura ativada com sucesso! Bem-vindo ao plano Pro 🎉");
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          supabase.functions.invoke("check-subscription", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }).then(() => refreshOrganization()).catch((err) => {
-            console.warn("[Dashboard] check-subscription failed:", err);
-          });
-        }
-      }).catch((err) => {
-        console.warn("[Dashboard] getSession failed:", err);
-      });
+      refreshOrganization();
       navigate("/dashboard", { replace: true });
     }
   }, [location.search, navigate, refreshOrganization]);
@@ -618,7 +608,7 @@ const DashboardPage = () => {
           </p>
           <div className="flex flex-col gap-3">
             <a
-              href="https://wa.me/5511999999999?text=Quero+reativar+minha+assinatura+TrendFood"
+              href={`https://wa.me/${organization?.whatsapp || "5521992904508"}?text=Quero+reativar+minha+assinatura+TrendFood`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white font-semibold text-sm"
@@ -813,7 +803,7 @@ const DashboardPage = () => {
         {/* Bottom actions */}
         <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
           <button
-            onClick={() => setActiveTab("referral")}
+            onClick={() => handleTabChange("referral")}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-all duration-150"
           >
             <Gift className="w-4 h-4" />

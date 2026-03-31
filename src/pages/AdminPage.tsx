@@ -185,7 +185,7 @@ const FEATURES: Feature[] = [
     status: "available",
     minPlan: "free",
     actionLabel: "Abrir suporte",
-    actionHref: "https://wa.me/5511999999999?text=Olá%2C%20preciso%20de%20suporte%20com%20o%20TrendFood",
+    actionHref: "https://wa.me/5521992904508?text=Olá%2C%20preciso%20de%20suporte%20com%20o%20TrendFood",
   },
   {
     icon: <Printer className="w-5 h-5" />,
