@@ -361,9 +361,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Legacy one-time payment flow
+      // Legacy one-time payment flow (PIX or card via create-mp-payment)
       const orgId = mpData.metadata?.org_id;
       const plan = mpData.metadata?.plan;
+      const promoApplied = mpData.metadata?.promo_applied === true || mpData.metadata?.promo_applied === "true";
 
       if (!orgId || !plan) {
         console.log("[mp-webhook] Payment approved but no org_id/plan metadata — possibly external");
@@ -380,13 +381,17 @@ Deno.serve(async (req) => {
 
       const legacyDays = org?.billing_cycle === "annual" ? 370 : 30;
       const trialEnds = new Date(Date.now() + legacyDays * 24 * 60 * 60 * 1000).toISOString();
+
+      const updateData: Record<string, unknown> = {
+        subscription_plan: plan,
+        subscription_status: "active",
+        trial_ends_at: trialEnds,
+      };
+      if (promoApplied) updateData.used_first_month_promo = true;
+
       await supabase
         .from("organizations")
-        .update({
-          subscription_plan: plan,
-          subscription_status: "active",
-          trial_ends_at: trialEnds,
-        })
+        .update(updateData)
         .eq("id", orgId);
 
       await supabase.from("activation_logs").insert({

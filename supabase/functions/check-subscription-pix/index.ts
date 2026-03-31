@@ -88,13 +88,19 @@ Deno.serve(async (req) => {
     if (paid) {
       const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+      // Check if promo was applied in the payment metadata
+      const promoApplied = mpData.metadata?.promo_applied === true || mpData.metadata?.promo_applied === "true";
+
+      const updateData: Record<string, unknown> = {
+        subscription_plan: plan,
+        subscription_status: "active",
+        trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      if (promoApplied) updateData.used_first_month_promo = true;
+
       await serviceClient
         .from("organizations")
-        .update({
-          subscription_plan: plan,
-          subscription_status: "active",
-          trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        })
+        .update(updateData)
         .eq("id", org_id);
 
       await serviceClient.from("activation_logs").insert({
@@ -105,7 +111,7 @@ Deno.serve(async (req) => {
         old_status: null,
         new_status: "active",
         source: "mercadopago_pix",
-        notes: `PIX payment ${payment_id} approved`,
+        notes: `PIX payment ${payment_id} approved${promoApplied ? " (promo 50% off)" : ""}`,
       });
     }
 

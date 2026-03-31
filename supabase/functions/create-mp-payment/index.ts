@@ -158,13 +158,16 @@ Deno.serve(async (req) => {
 
     // If card payment is approved immediately, update org
     if (mpData.status === "approved") {
+      const updateData: Record<string, unknown> = {
+        subscription_plan: plan,
+        subscription_status: "active",
+        trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      if (promoApplied) updateData.used_first_month_promo = true;
+
       await serviceClient
         .from("organizations")
-        .update({
-          subscription_plan: plan,
-          subscription_status: "active",
-          trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        })
+        .update(updateData)
         .eq("id", org_id);
 
       await serviceClient.from("activation_logs").insert({
