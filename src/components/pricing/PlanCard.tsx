@@ -41,6 +41,8 @@ const PlanCard = ({
   billingMismatch,
   subtitle,
   savingsBadge,
+  promoPrice,
+  originalPrice,
 }: PlanCardProps) => {
   return (
     <div
