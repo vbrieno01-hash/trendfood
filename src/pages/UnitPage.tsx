@@ -373,11 +373,10 @@ const UnitPage = () => {
     // PIX Direto/Manual: treat like cash — order goes straight to WhatsApp, customer pays on delivery
     if (effectivePayment === "PIX" && !overridePayment && org?.pix_confirmation_mode === "automatic") {
       if (org?.id) {
-         const freteNote = orderType === "Entrega" && deliveryFee > 0 && !freeShipping
-           ? `FRETE:${fmt(deliveryFee)}`
-           : orderType === "Entrega" && freeShipping
-             ? "FRETE:Grátis"
-             : null;
+         const freteNote = orderType !== "Entrega" ? null
+           : freeShipping ? "FRETE:Grátis"
+           : deliveryFee > 0 ? `FRETE:${fmt(deliveryFee)}`
+           : "FRETE:Sob consulta";
 
         const noteParts: string[] = [
           `TIPO:${orderType}`,
