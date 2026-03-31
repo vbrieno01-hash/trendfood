@@ -198,11 +198,15 @@ interface PlanRow {
 }
 
 const Index = () => {
+  const { content: cms } = usePlatformContent();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [isAnnual, setIsAnnual] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [displayCount, setDisplayCount] = useState(0);
+
+  const c = (key: string, fallback: string) => (typeof cms[key] === "string" ? cms[key] : fallback);
+  const cArr = (key: string, fallback: string[]) => (Array.isArray(cms[key]) ? cms[key] : fallback);
 
   useEffect(() => {
     supabase
