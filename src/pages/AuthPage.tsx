@@ -135,6 +135,32 @@ const AuthPage = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      toast.error("Informe seu e-mail.");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      });
+      if (error) throw error;
+      toast.success("Link de redefinição enviado para seu e-mail! Verifique sua caixa de entrada.");
+      setForgotMode(false);
+      setForgotEmail("");
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error(error.message ?? "Erro ao enviar link de redefinição.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
@@ -720,7 +746,43 @@ const AuthPage = () => {
                     "Entrar no painel"
                   )}
                 </Button>
+                <button
+                  type="button"
+                  className="w-full text-sm text-primary hover:underline mt-2"
+                  onClick={() => {
+                    setForgotMode(true);
+                    setForgotEmail(loginData.email);
+                  }}
+                >
+                  Esqueci minha senha
+                </button>
               </form>
+
+              {forgotMode && (
+                <div className="mt-6 p-4 border border-border rounded-xl bg-muted/30 space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Redefinir senha</p>
+                  <p className="text-xs text-muted-foreground">Enviaremos um link para o seu e-mail.</p>
+                  <form onSubmit={handleForgotPassword} className="space-y-3">
+                    <Input
+                      type="email"
+                      placeholder="joao@email.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="h-11"
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1 h-10 text-sm font-semibold" disabled={forgotLoading}>
+                        {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                        Enviar link
+                      </Button>
+                      <Button type="button" variant="ghost" className="h-10 text-sm" onClick={() => setForgotMode(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
           )}

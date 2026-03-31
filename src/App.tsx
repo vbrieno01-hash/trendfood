@@ -21,6 +21,7 @@ import PricingPage from "./pages/PricingPage";
 import CourierPage from "./pages/CourierPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
@@ -122,6 +123,7 @@ const AppInner = () => {
               <Route path="/motoboy" element={<CourierPage />} />
               <Route path="/termos" element={<TermsPage />} />
               <Route path="/privacidade" element={<PrivacyPage />} />
+              <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
