@@ -46,6 +46,7 @@ const EMPTY_FORM: MenuItemInput = {
   available: true,
   imageFile: null,
   image_url: null,
+  available_days: null,
 };
 
 const SORT_KEY = "menu_sort_order";
