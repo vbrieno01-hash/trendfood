@@ -1,34 +1,47 @@
 
 
-## Bug encontrado: `upsert` falha silenciosamente para chaves novas
+## Plano: Apagar imagem antiga ao trocar no CMS
 
 ### Problema
-No `usePlatformContent.ts`, a função `upsert` faz:
-1. `.update({ value }).eq("key", key)` 
-2. Se `updateError` → faz `.insert()`
-
-O problema: quando a chave não existe, o Supabase **não retorna erro** no update — retorna sucesso com `count: 0`. Então o insert nunca executa, e a chave nova se perde silenciosamente.
+Quando troca uma imagem, o arquivo antigo permanece no storage. O browser/CDN cacheia a URL antiga e ela "pisca" brevemente ao recarregar.
 
 ### Correção
-Usar o método `.upsert()` nativo do Supabase, que faz INSERT ou UPDATE automaticamente baseado na constraint unique da coluna `key`.
+No `ImageUploader` (`SiteContentTab.tsx` linha 49-63):
 
-### Arquivo a modificar
+1. Antes de fazer upload da nova imagem, verificar se `value` (URL atual) aponta para o bucket `site-images`
+2. Se sim, extrair o path do arquivo e deletar com `supabase.storage.from("site-images").remove([path])`
+3. Usar `crypto.randomUUID()` no nome do arquivo novo (em vez de `Date.now()`) para garantir URL única
+4. Setar `cacheControl: "0"` no upload para evitar cache CDN
 
-**`src/hooks/usePlatformContent.ts`** — função `upsert` (linha 51-66):
+### Código da mudança
 
-Substituir a lógica atual por:
 ```typescript
-async function upsert(key: string, value: any) {
-  await (supabase.from("platform_content") as any)
-    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
-  cache = null;
-  cacheTime = 0;
-  await load();
+async function handleFile(file: File) {
+  setUploading(true);
+  try {
+    // Apagar imagem antiga do storage
+    if (value && value.includes("/site-images/")) {
+      const oldPath = decodeURIComponent(value.split("/site-images/")[1]);
+      await supabase.storage.from("site-images").remove([oldPath]);
+    }
+
+    const compressed = await compressImage(file, { maxWidth: 1920, quality: 0.85 });
+    const ext = compressed.name.split(".").pop() || "webp";
+    const path = `cms/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("site-images").upload(path, compressed, { cacheControl: "0", upsert: false });
+    if (error) throw error;
+    const { data: pub } = supabase.storage.from("site-images").getPublicUrl(path);
+    onChange(pub.publicUrl);
+    toast.success("Imagem enviada!");
+  } catch (err: any) {
+    toast.error("Erro no upload: " + err.message);
+  }
+  setUploading(false);
 }
 ```
 
-### Impacto
-- Corrige criação de novas chaves CMS pelo admin
-- Simplifica o código (de 10 linhas para 5)
-- Zero risco de quebrar chaves existentes
+### Arquivo modificado
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/admin/SiteContentTab.tsx` | Função `handleFile` — deletar arquivo antigo + UUID no nome + sem cache |
 
