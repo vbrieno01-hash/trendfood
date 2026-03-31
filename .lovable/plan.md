@@ -1,29 +1,22 @@
 
 
-## Plano: Redefinição de senha (Esqueci minha senha)
+## Plano: Corrigir redirecionamento do link de redefinição de senha
 
 ### Problema
-Não existe nenhum fluxo de "Esqueci minha senha" no sistema. Se o dono da loja esquecer a senha, não tem como recuperar.
+Quando o cliente clica no link de redefinição de senha no e-mail, ele é redirecionado para a página de login do Lovable em vez da página `/redefinir-senha` do TrendFood. Isso acontece porque:
 
-### O que será feito
+1. O `redirectTo` usa `window.location.origin` que no preview aponta para a URL de preview, não para `trendfood.lovable.app`
+2. A URL de redirect precisa estar na lista de URLs permitidas do Supabase Auth
 
-**1. Link "Esqueci minha senha" na tela de login** (`src/pages/AuthPage.tsx`)
-- Adicionar link abaixo do campo de senha na aba "Entrar"
-- Ao clicar, exibe um mini-formulário pedindo o e-mail
-- Chama `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/redefinir-senha' })`
-- Mostra toast de sucesso: "Link de redefinição enviado para seu e-mail"
+### Solução
 
-**2. Página `/redefinir-senha`** (`src/pages/ResetPasswordPage.tsx`)
-- Rota pública que detecta o token de recovery na URL (hash `type=recovery`)
-- Exibe formulário com "Nova senha" + "Confirmar nova senha"
-- Chama `supabase.auth.updateUser({ password })` para salvar
-- Após sucesso, redireciona para `/dashboard`
+**1. Fixar a URL de redirect para o domínio publicado** (`src/pages/AuthPage.tsx`)
+- Trocar `window.location.origin` por `https://trendfood.lovable.app` no `resetPasswordForEmail`
+- Isso garante que o link no e-mail sempre aponte para o site publicado
 
-**3. Rota no App.tsx**
-- Adicionar `<Route path="/redefinir-senha" element={<ResetPasswordPage />} />`
+**2. Configurar redirect URLs no Supabase Auth**
+- Adicionar `https://trendfood.lovable.app/**` como URL de redirect permitida nas configurações de autenticação
 
 ### Arquivos alterados
-- `src/pages/AuthPage.tsx` — link + formulário de "esqueci minha senha"
-- `src/pages/ResetPasswordPage.tsx` — nova página
-- `src/App.tsx` — nova rota
+- `src/pages/AuthPage.tsx` — fixar URL de redirect para o domínio publicado
 
