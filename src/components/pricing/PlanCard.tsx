@@ -20,6 +20,8 @@ export interface PlanCardProps {
   billingMismatch?: boolean;
   subtitle?: string;
   savingsBadge?: string;
+  promoPrice?: string;
+  originalPrice?: string;
 }
 
 const PlanCard = ({
