@@ -172,10 +172,12 @@ Deno.serve(async (req) => {
 
     console.log("[create-mp-subscription] Created:", mpData.id, "init_point:", mpData.init_point);
 
-    // Save subscription ID, plan metadata and billing cycle
+    // Save subscription ID, plan metadata, billing cycle and promo flag
+    const updatePayload: Record<string, unknown> = { mp_subscription_id: mpData.id, billing_cycle: billingCycle };
+    if (isPromoEligible) updatePayload.used_first_month_promo = true;
     await supabaseAdmin
       .from("organizations")
-      .update({ mp_subscription_id: mpData.id, billing_cycle: billingCycle })
+      .update(updatePayload)
       .eq("id", org_id);
 
     return new Response(
