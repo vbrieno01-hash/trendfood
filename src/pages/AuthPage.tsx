@@ -36,7 +36,7 @@ const generateSlug = (name: string) =>
 const AuthPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { refreshOrganizationForUser } = useAuth();
+  const { user, organization, loading: authLoading, refreshOrganizationForUser } = useAuth();
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   const planParam = searchParams.get("plan");
