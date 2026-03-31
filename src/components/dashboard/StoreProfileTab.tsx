@@ -114,9 +114,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
   const PUBLIC_BASE_URL = "https://trendfood.lovable.app";
   const publicUrl = `${PUBLIC_BASE_URL}/unidade/${form.slug}`;
-
-  // Shareable URL with dynamic OG tags for WhatsApp/social previews
-  const { getShareableStoreUrl } = await import("@/lib/shareUrl");
+  const shareableUrl = getShareableStoreUrl(form.slug);
 
   // Helper: update shared fields across ALL user orgs (except current which is updated separately)
   const updateAllOrgs = async (sharedFields: Record<string, any>) => {
