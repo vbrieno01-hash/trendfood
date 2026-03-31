@@ -23,6 +23,7 @@ interface PlanLimits {
   trialDaysLeft: number;
   subscriptionExpired: boolean;
   subscriptionDaysLeft: number;
+  promoEligible: boolean;
 }
 
 const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
