@@ -394,6 +394,7 @@ const SubscriptionTab = () => {
           planName={cardFormPlan.name}
           planPrice={cardFormPlan.price}
           billing={isAnnual ? "annual" : "monthly"}
+          promo={promoEligible && !isAnnual}
           onSuccess={() => setTimeout(() => window.location.reload(), 1500)}
         />
       )}
