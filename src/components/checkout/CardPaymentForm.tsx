@@ -187,7 +187,7 @@ const CardPaymentForm = ({
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ org_id: orgId, plan, card_token_id: tokenResult.id, billing }),
+          body: JSON.stringify({ org_id: orgId, plan, card_token_id: tokenResult.id, billing, promo: !!promo }),
         }
       );
 
