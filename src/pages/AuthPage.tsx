@@ -52,13 +52,17 @@ const AuthPage = () => {
 
   useEffect(() => {
     if (authLoading) return;
-    if (user && organization) {
-      navigate(fullRedirect, { replace: true });
-    } else if (user && !organization) {
-      // New Google user without org — show onboarding
-      setGoogleOnboarding(true);
+    if (!user) {
+      setGoogleOnboarding(false);
+      return;
     }
-  }, [user, organization, authLoading, navigate, fullRedirect]);
+    if (organization) {
+      navigate(fullRedirect, { replace: true });
+      return;
+    }
+    // user exists, no org → onboarding
+    setGoogleOnboarding(true);
+  }, [user?.id, organization?.id, authLoading, fullRedirect, navigate]);
 
   const handleGoogleOnboard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +140,7 @@ const AuthPage = () => {
     setGoogleLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}/auth`,
       });
       if (result?.error) {
         toast.error("Erro ao entrar com Google. Tente novamente.");
@@ -453,6 +457,17 @@ const AuthPage = () => {
               <Button type="submit" className="w-full h-11 font-semibold" disabled={googleOnboardLoading}>
                 {googleOnboardLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Criar lanchonete
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full h-11 text-sm text-muted-foreground"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  setGoogleOnboarding(false);
+                }}
+              >
+                Usar outro e-mail
               </Button>
             </form>
           ) : (
