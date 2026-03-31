@@ -1,78 +1,73 @@
 
 
-## Comparação: Dashboard da Loja vs Painel Admin
+## Plano: CMS Admin — Editar Conteúdo Sem Gastar Créditos
 
-### O que o Dashboard da loja tem (20 abas):
+### Situação Atual
+Quase todo o conteúdo do TrendFood está **hardcoded** nos arquivos:
+- **Página inicial** (Index.tsx): títulos, textos, imagens, features, badges, problemas — tudo fixo no código
+- **Admin configs**: lista de funcionalidades hardcoded, número de WhatsApp repetido em 3 arquivos
+- **Configurações da plataforma**: só tem taxas de entrega editáveis
 
-| Aba | Existe no Admin? |
-|-----|-----------------|
-| Home (resumo da loja) | ❌ |
-| Cardápio (CRUD itens, categorias, imagens, addons) | ❌ |
-| Mesas & Comandas | ❌ |
-| Cozinha (KDS) | ❌ |
-| Gestão de Pedidos (Garçom) | ❌ |
-| Motoboys (cadastro, entregas) | ❌ |
-| Histórico de pedidos | ❌ |
-| Estoque & Insumos | ❌ |
-| Fluxo de Caixa | ❌ |
-| Precificação | ❌ |
-| Relatórios | ❌ |
-| Cupons | ❌ |
-| Mais Vendidos | ❌ |
-| Dados da Loja (perfil, endereço, delivery, QR Code) | ❌ |
-| Assinatura / Plano | ✅ Parcial (ManageSubscriptionDialog) |
-| Impressora Térmica | ❌ |
-| Funcionalidades | ✅ (lista estática) |
-| Como Usar (Guia) | ✅ |
-| Configurações (PIX, horários) | ❌ |
-| Indicações | ✅ |
+### O que vamos criar
 
-### O que falta no Admin — funcionalidades que te fariam parar de "ir até a loja":
+**Uma nova aba "Site & Conteúdo" no Admin** com seções editáveis:
 
-1. **Visualizar/Editar o cardápio de qualquer loja** — adicionar, remover, reordenar itens, mudar preços, imagens
-2. **Ver pedidos e histórico de qualquer loja** — acompanhar em tempo real
-3. **Editar dados da loja** — nome, slug, endereço, WhatsApp, horário de funcionamento, delivery config, PIX
-4. **Gerenciar cupons** de qualquer loja
-5. **Ver relatórios e mais vendidos** de qualquer loja
-6. **Gerenciar mesas** de qualquer loja
-7. **Ver/Gerenciar estoque** de qualquer loja
-8. **Ver fluxo de caixa** de qualquer loja
+#### 1. Configurações Gerais da Plataforma
+- WhatsApp de suporte (atualmente hardcoded em 3 lugares)
+- Dias de trial padrão
+- Texto do contador de pedidos
+- Toggle da promoção de 50%
 
-### Plano de implementação (priorizado pelo impacto)
+#### 2. Editor do Hero da Landing Page
+- Título principal e subtítulo
+- Texto do botão CTA
+- URL da imagem de fundo
+- Badges de prova social (ex: "0% comissão", "PIX integrado")
 
-**Fase 1 — Gestão direta de loja pelo Admin** (maior impacto)
+#### 3. Editor de Seções da Landing Page
+- Cards de benefícios (título + descrição)
+- Cards de problemas (título + descrição + imagem)
+- Lista de features/recursos (título + descrição)
 
-Criar uma nova aba no Admin: **"Gerenciar Loja"** — ao clicar em uma loja no grid, abre um painel com as abas mais úteis da loja, reutilizando os mesmos componentes do Dashboard:
+### Implementação Técnica
 
-- **`src/pages/AdminPage.tsx`**: Adicionar estado `selectedOrg` e nova aba `"gerenciar"` na sidebar
-- **Componente novo `src/components/admin/AdminStoreManager.tsx`**: Container que recebe a org selecionada e renderiza sub-abas usando os mesmos componentes existentes:
-  - `MenuTab` — editar cardápio
-  - `StoreProfileTab` — editar dados, endereço, delivery
-  - `HistoryTab` — ver pedidos
-  - `CouponsTab` — gerenciar cupons
-  - `BestSellersTab` — ver mais vendidos
-  - `TablesTab` — gerenciar mesas
-  - `StockTab` — ver estoque
-  - `CaixaTab` — ver caixa
-  - `SettingsTab` — configurações PIX/horários
+**Tabela nova: `platform_content`**
+```sql
+CREATE TABLE platform_content (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,       -- ex: 'hero_title', 'support_whatsapp'
+  value JSONB NOT NULL,           -- texto, array, objeto
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+- RLS: leitura pública (landing page precisa ler), escrita só admin
+- Seed com valores atuais do código
 
-**Mudanças técnicas necessárias:**
-- Os componentes do Dashboard já recebem `organization` ou `orgId` como prop — basta passar a org selecionada
-- Como o admin já tem RLS policy de admin em quase todas as tabelas, as operações de leitura funcionam. Para escrita, já existem policies de owner — o admin precisará das policies de UPDATE/DELETE com `has_role(auth.uid(), 'admin')` nas tabelas que ainda não têm (verificar caso a caso)
-- Adicionar botão "Gerenciar" no `StoreCard` existente
+**Arquivos modificados:**
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/AdminPage.tsx` | Nova aba "Site" no menu |
+| `src/components/admin/SiteContentTab.tsx` | **Criar** — formulários para editar cada seção |
+| `src/hooks/usePlatformContent.ts` | **Criar** — hook para ler/salvar conteúdo |
+| `src/pages/Index.tsx` | Carregar textos do banco em vez de hardcoded |
+| `src/pages/DashboardPage.tsx` | Ler WhatsApp do banco |
+| `src/pages/DocsTerminalPage.tsx` | Ler WhatsApp do banco |
+| Migração SQL | Criar tabela + seed + RLS |
 
-**Fase 2 — Melhorias complementares**
-- Ver relatórios consolidados de todas as lojas (visão plataforma)
-- Painel de pedidos em tempo real de todas as lojas
+**Fluxo:**
+```text
+Admin edita texto no painel
+       ↓
+Salva no platform_content (banco)
+       ↓
+Landing page carrega do banco
+       ↓
+Visitante vê conteúdo atualizado
+```
 
-### Arquivos a criar/modificar
-
-| Arquivo | Ação |
-|---------|------|
-| `src/components/admin/AdminStoreManager.tsx` | **Criar** — container com sub-abas reutilizando componentes |
-| `src/pages/AdminPage.tsx` | Modificar — adicionar aba "gerenciar", estado selectedOrg, botão no StoreCard |
-| Migração SQL | Adicionar RLS policies de admin UPDATE/INSERT onde faltam (menu_items, orders, coupons, etc.) |
-
-### Resultado
-Ao clicar em qualquer loja → abre painel completo com todas as abas da loja dentro do Admin. Você nunca mais precisa sair do painel admin para gerenciar uma loja.
+### O que você ganha
+- Mudar textos da página inicial sem mexer no código
+- Mudar número de WhatsApp em um só lugar
+- Mudar imagens e badges sem créditos
+- Tudo centralizado no painel admin
 
