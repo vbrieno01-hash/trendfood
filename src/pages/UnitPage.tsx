@@ -161,8 +161,9 @@ const UnitPage = () => {
    const { data: neighborhoods = [] } = useDeliveryNeighborhoods(org?.id);
 
    // Full address for WhatsApp/order notes display
+   const displayNeighborhood = selectedNeighborhood === "__outro__" ? "Outro bairro" : selectedNeighborhood;
    const fullCustomerAddressDisplay = [
-     customerStreet, customerNumber, customerComplement, selectedNeighborhood
+     customerStreet, customerNumber, customerComplement, displayNeighborhood
    ].map((p) => p.trim()).filter(Boolean).join(", ");
 
    // Delivery fee — neighborhood-based
