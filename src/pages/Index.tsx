@@ -346,7 +346,7 @@ const Index = () => {
               <div className="mt-8 flex justify-center animate-fade-in">
                 <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-300 text-sm font-semibold tracking-wide">
                   <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
-                  +{displayCount.toLocaleString('pt-BR')} pedidos feitos no TrendFood
+                  +{displayCount.toLocaleString('pt-BR')} {c("order_counter_text", "pedidos feitos no TrendFood")}
                 </span>
               </div>
             )}
