@@ -427,12 +427,12 @@ const UnitPage = () => {
 
     const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
     const freightLabel = orderType === "Retirada"
-       ? "Grátis"
+       ? null
        : freeShipping
          ? "Grátis"
          : deliveryFee > 0
            ? fmt(deliveryFee)
-           : null;
+           : "Sob consulta";
 
     const lines = [
       `🍔 *Novo Pedido — ${org.name}*`,
