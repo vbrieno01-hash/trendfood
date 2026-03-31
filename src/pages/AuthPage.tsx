@@ -45,7 +45,74 @@ const AuthPage = () => {
     ? `${redirectTo}?plan=${planParam}`
     : redirectTo;
 
-  const [signupData, setSignupData] = useState({
+  // Redirect authenticated users (covers Google OAuth callback)
+  const [googleOnboarding, setGoogleOnboarding] = useState(false);
+  const [googleBiz, setGoogleBiz] = useState({ name: "", slug: "", whatsapp: "" });
+  const [googleOnboardLoading, setGoogleOnboardLoading] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user && organization) {
+      navigate(fullRedirect, { replace: true });
+    } else if (user && !organization) {
+      // New Google user without org — show onboarding
+      setGoogleOnboarding(true);
+    }
+  }, [user, organization, authLoading, navigate, fullRedirect]);
+
+  const handleGoogleOnboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleBiz.name.trim() || !googleBiz.slug.trim()) {
+      toast.error("Preencha o nome da lanchonete.");
+      return;
+    }
+    const whatsappDigits = googleBiz.whatsapp.replace(/\D/g, "");
+    if (whatsappDigits.length < 10) {
+      toast.error("Informe o WhatsApp com DDD (mín 10 dígitos).");
+      return;
+    }
+    setGoogleOnboardLoading(true);
+    try {
+      const orgPayload: any = {
+        user_id: user!.id,
+        name: googleBiz.name.trim(),
+        slug: googleBiz.slug.trim(),
+        emoji: "🍔",
+        description: "Bem-vindo à nossa loja!",
+        primary_color: "#f97316",
+        whatsapp: googleBiz.whatsapp || null,
+      };
+      if (refParam) orgPayload.referred_by_id = refParam;
+      const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
+      if (orgError) {
+        if (orgError.code === "23505") {
+          toast.error("Este slug já está em uso. Escolha outro nome.");
+        } else {
+          throw orgError;
+        }
+        return;
+      }
+      // Also create profile
+      await supabase.from("profiles").insert({
+        user_id: user!.id,
+        full_name: user!.user_metadata?.full_name || user!.email?.split("@")[0] || "",
+      }).then(() => {});
+      toast.success("Loja criada com sucesso! 🎉");
+      await refreshOrganizationForUser(user!.id);
+      navigate(fullRedirect, { replace: true });
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error(error.message ?? "Erro ao criar loja.");
+    } finally {
+      setGoogleOnboardLoading(false);
+    }
+  };
+
+  const handleGoogleBizNameChange = (name: string) => {
+    setGoogleBiz((prev) => ({ ...prev, name, slug: generateSlug(name) }));
+  };
+
+
     fullName: "",
     email: "",
     confirmEmail: "",
