@@ -306,10 +306,10 @@ const Index = () => {
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
-              O Cardápio Digital que Profissionaliza seu Delivery
+              {c("hero_title", "O Cardápio Digital que Profissionaliza seu Delivery")}
               <br />
               <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-                Sem Taxas, Com Gestão Real.
+                {c("hero_title_highlight", "Sem Taxas, Com Gestão Real.")}
               </span>
             </h1>
 
