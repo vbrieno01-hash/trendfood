@@ -1,3 +1,5 @@
+import { openWhatsAppWithFallback } from "./whatsappRedirect";
+
 /**
  * Parse structured notes field to extract customer phone.
  * Format: "TIPO:x|CLIENTE:y|TEL:z|..."
