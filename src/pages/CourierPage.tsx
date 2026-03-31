@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut, Key, Save, Phone } from "lucide-react";
+import { getShareableStoreUrl } from "@/lib/shareUrl";
 import {
   getSavedCourierId,
   saveCourierId,
