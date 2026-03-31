@@ -15,6 +15,7 @@ import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashb
 import { BusinessHours } from "@/hooks/useOrganization";
 import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 
 interface Organization {
