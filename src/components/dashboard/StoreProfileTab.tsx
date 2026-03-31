@@ -961,6 +961,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             description="Gere e imprima QR Codes personalizados para seus clientes acessarem o cardápio digital. Disponível nos planos Pro e Enterprise."
             orgId={organization.id}
             currentPlan={organization.subscription_plan ?? "free"}
+            promoEligible={promoEligible}
           />
         ) : (
           <>
