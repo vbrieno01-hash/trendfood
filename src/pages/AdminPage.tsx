@@ -19,6 +19,7 @@ import WhatsAppConnectTab from "@/components/admin/WhatsAppConnectTab";
 import ReferralsTab from "@/components/admin/ReferralsTab";
 import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
+import AdminStoreManager from "@/components/admin/AdminStoreManager";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -223,7 +224,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes" | "gerenciar";
 
 interface NavGroup {
   label: string;
@@ -286,6 +287,7 @@ function AdminContent() {
   const [activeTab, setActiveTab] = useState<AdminTab>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<OrgRow | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -875,7 +877,7 @@ function AdminContent() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredOrgs.map((org, i) => (
-                    <StoreCard key={org.id} org={org} index={i} onPlanChange={handlePlanChange} onDelete={(id, name) => setDeleteTarget({ id, name })} />
+                    <StoreCard key={org.id} org={org} index={i} onPlanChange={handlePlanChange} onDelete={(id, name) => setDeleteTarget({ id, name })} onManage={(o) => { setSelectedOrg(o); setActiveTab("gerenciar"); }} />
                   ))}
                 </div>
               )}
@@ -911,6 +913,12 @@ function AdminContent() {
           {activeTab === "whatsapp" && <WhatsAppConnectTab />}
           {activeTab === "indicacoes" && <ReferralsTab />}
           {activeTab === "guia" && <AdminGuideTab />}
+          {activeTab === "gerenciar" && selectedOrg && (
+            <AdminStoreManager
+              org={selectedOrg}
+              onBack={() => { setSelectedOrg(null); setActiveTab("lojas"); }}
+            />
+          )}
         </main>
 
         {deleteTarget && (
@@ -998,7 +1006,7 @@ function SetupScore({ org }: { org: OrgRow }) {
 }
 
 /* ── Store Card — premium with hover elevation ── */
-function StoreCard({ org, onPlanChange, onDelete, index }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void; index: number }) {
+function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgRow; onPlanChange: (id: string, plan: string) => void; onDelete: (id: string, name: string) => void; onManage: (org: OrgRow) => void; index: number }) {
   const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
   const [activating, setActivating] = useState(false);
@@ -1157,6 +1165,13 @@ function StoreCard({ org, onPlanChange, onDelete, index }: { org: OrgRow; onPlan
             title="Excluir loja"
           >
             <Trash2 className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onManage(org)}
+            className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-primary/15 text-primary hover:bg-primary/25 hover:scale-105 transition-all duration-200 flex items-center gap-1"
+          >
+            <Settings className="w-3 h-3" />
+            Gerenciar
           </button>
           <Link
             to={`/unidade/${org.slug}`}
