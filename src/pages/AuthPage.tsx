@@ -52,13 +52,17 @@ const AuthPage = () => {
 
   useEffect(() => {
     if (authLoading) return;
-    if (user && organization) {
-      navigate(fullRedirect, { replace: true });
-    } else if (user && !organization) {
-      // New Google user without org — show onboarding
-      setGoogleOnboarding(true);
+    if (!user) {
+      setGoogleOnboarding(false);
+      return;
     }
-  }, [user, organization, authLoading, navigate, fullRedirect]);
+    if (organization) {
+      navigate(fullRedirect, { replace: true });
+      return;
+    }
+    // user exists, no org → onboarding
+    setGoogleOnboarding(true);
+  }, [user?.id, organization?.id, authLoading, fullRedirect, navigate]);
 
   const handleGoogleOnboard = async (e: React.FormEvent) => {
     e.preventDefault();
