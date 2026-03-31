@@ -1064,6 +1064,7 @@ const DashboardPage = () => {
           onOpenChange={setUpgradeOpen}
           orgId={organization.id}
           currentPlan={planLimits.plan}
+          promoEligible={planLimits.promoEligible}
         />
       )}
     </div>

@@ -28,6 +28,7 @@ interface Organization {
   printer_width?: '58mm' | '80mm';
   print_mode?: 'browser' | 'desktop' | 'bluetooth';
   billing_cycle?: string;
+  used_first_month_promo?: boolean;
 }
 
 interface AuthContextType {
