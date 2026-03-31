@@ -15,6 +15,7 @@ import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashb
 import { BusinessHours } from "@/hooks/useOrganization";
 import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 
 interface Organization {
@@ -58,6 +59,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 export default function StoreProfileTab({ organization, effectivePlan = "free" }: { organization: Organization; effectivePlan?: string }) {
   const { refreshOrganization, user, organizations } = useAuth();
+  const { promoEligible } = usePlanLimits(organization);
   const [freeAbove, setFreeAbove] = useState<number>(
     (organization.delivery_config as any)?.free_above ?? 80
   );
@@ -959,6 +961,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             description="Gere e imprima QR Codes personalizados para seus clientes acessarem o cardápio digital. Disponível nos planos Pro e Enterprise."
             orgId={organization.id}
             currentPlan={organization.subscription_plan ?? "free"}
+            promoEligible={promoEligible}
           />
         ) : (
           <>
