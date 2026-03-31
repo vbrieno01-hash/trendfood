@@ -626,7 +626,7 @@ const UnitPage = () => {
 
   const filteredMenuItems = menuItems.filter((i) => {
     // Day filter: hide items not available today
-    if (i.available_days && Array.isArray(i.available_days) && !i.available_days.includes(currentDayKey)) {
+    if (i.available_days && Array.isArray(i.available_days) && i.available_days.length > 0 && !i.available_days.includes(currentDayKey)) {
       return false;
     }
     // Search filter
