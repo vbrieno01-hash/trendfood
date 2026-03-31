@@ -997,7 +997,7 @@ const DashboardPage = () => {
                 onToggleNotifications={(val) => { setNotificationsEnabled(val); localStorage.setItem(NOTIF_KEY_DASH, String(val)); }}
               />)}
           {activeTab === "caixa" && (lockedFeatures.caixa
-            ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} />
+            ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <CaixaTab orgId={organization.id} />)}
           {activeTab === "features" && <FeaturesTab effectivePlan={planLimits.effectivePlan} />}
           {activeTab === "reports" && (lockedFeatures.reports
