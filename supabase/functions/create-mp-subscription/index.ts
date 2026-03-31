@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const userEmail = user.email!;
     const userId = user.id;
 
-    const { org_id, plan, card_token_id, billing } = await req.json();
+    const { org_id, plan, card_token_id, billing, promo } = await req.json();
     if (!org_id || !plan) {
       return new Response(JSON.stringify({ error: "Missing org_id or plan" }), {
         status: 400,
