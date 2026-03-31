@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const userEmail = user.email!;
     const userId = user.id;
 
-    const { org_id, plan, card_token_id, billing } = await req.json();
+    const { org_id, plan, card_token_id, billing, promo } = await req.json();
     if (!org_id || !plan) {
       return new Response(JSON.stringify({ error: "Missing org_id or plan" }), {
         status: 400,
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
     const { data: org, error: orgError } = await supabaseAdmin
       .from("organizations")
-      .select("id, name, user_id, mp_subscription_id")
+      .select("id, name, user_id, mp_subscription_id, used_first_month_promo")
       .eq("id", org_id)
       .single();
 
@@ -95,8 +95,11 @@ Deno.serve(async (req) => {
 
     const isAnnual = billing === "annual";
     const priceCents = isAnnual && planRow.annual_price_cents > 0 ? planRow.annual_price_cents : planRow.price_cents;
-    const amount = priceCents / 100;
     const billingCycle = isAnnual ? "annual" : "monthly";
+
+    // Promo: first month at half price (only monthly, only if not used before)
+    const isPromoEligible = promo === true && !isAnnual && !org.used_first_month_promo;
+    const amount = isPromoEligible ? Math.round(priceCents / 2) / 100 : priceCents / 100;
 
     // If there's already an active subscription, cancel it first
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
@@ -169,10 +172,12 @@ Deno.serve(async (req) => {
 
     console.log("[create-mp-subscription] Created:", mpData.id, "init_point:", mpData.init_point);
 
-    // Save subscription ID, plan metadata and billing cycle
+    // Save subscription ID, plan metadata, billing cycle and promo flag
+    const updatePayload: Record<string, unknown> = { mp_subscription_id: mpData.id, billing_cycle: billingCycle };
+    if (isPromoEligible) updatePayload.used_first_month_promo = true;
     await supabaseAdmin
       .from("organizations")
-      .update({ mp_subscription_id: mpData.id, billing_cycle: billingCycle })
+      .update(updatePayload)
       .eq("id", org_id);
 
     return new Response(

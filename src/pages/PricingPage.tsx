@@ -99,6 +99,11 @@ const PricingPage = () => {
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [isAnnual, setIsAnnual] = useState(false);
 
+  // Promo eligibility
+  const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
+  const trialExpired = !!trialEndsAt && trialEndsAt <= new Date() && currentPlan === "free";
+  const promoEligible = trialExpired && !(organization as any)?.used_first_month_promo;
+
   useEffect(() => {
     supabase
       .from("platform_plans")
@@ -227,12 +232,30 @@ const PricingPage = () => {
                 {...plan}
                 price={displayPrice}
                 period={period}
-                subtitle={subtitle}
+                subtitle={
+                  (promoEligible && !isAnnual && plan.price_cents > 0)
+                    ? "Depois: " + plan.price + "/mês"
+                    : subtitle
+                }
                 savingsBadge={savingsBadge}
-                cta={ctaText}
+                cta={
+                  (promoEligible && !isAnnual && plan.price_cents > 0 && (!isSamePlan || billingMismatch))
+                    ? "🔥 Aproveitar oferta"
+                    : ctaText
+                }
                 currentPlan={isSamePlan}
                 billingMismatch={billingMismatch}
                 loading={false}
+                promoPrice={
+                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                    ? `R$ ${(Math.round(plan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
+                    : undefined
+                }
+                originalPrice={
+                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                    ? plan.price
+                    : undefined
+                }
                 onSelect={
                   (plan.key !== "free" && (!isSamePlan || billingMismatch))
                     ? () => handleSelectPlan(plan.key)
@@ -323,6 +346,7 @@ const PricingPage = () => {
           planName={cardFormPlan.name}
           planPrice={isAnnual && cardFormPlan.annual_price_cents ? formatPrice(cardFormPlan.annual_price_cents) : cardFormPlan.price}
           billing={isAnnual && cardFormPlan.annual_price_cents ? "annual" : "monthly"}
+          promo={promoEligible && !isAnnual}
           onSuccess={() => {
             navigate("/dashboard?tab=subscription");
           }}

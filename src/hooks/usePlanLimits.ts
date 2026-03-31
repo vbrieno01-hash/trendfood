@@ -8,6 +8,7 @@ interface OrgLike {
   subscription_status?: string;
   subscription_plan?: string;
   trial_ends_at?: string | null;
+  used_first_month_promo?: boolean;
 }
 
 interface PlanLimits {
@@ -22,6 +23,7 @@ interface PlanLimits {
   trialDaysLeft: number;
   subscriptionExpired: boolean;
   subscriptionDaysLeft: number;
+  promoEligible: boolean;
 }
 
 const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
@@ -50,6 +52,7 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
 export function usePlanLimits(organization: OrgLike | null | undefined): PlanLimits {
   const rawPlan = (organization?.subscription_plan ?? "free") as Plan;
   const trialEndsAtStr = organization?.trial_ends_at ?? null;
+  const usedPromo = organization?.used_first_month_promo ?? false;
 
   return useMemo(() => {
     const trialEndsAt = trialEndsAtStr ? new Date(trialEndsAtStr) : null;
@@ -77,6 +80,9 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
 
     const features = FEATURE_ACCESS[effectivePlan];
 
+    // Promo eligible: trial expired, free plan, never used promo before
+    const promoEligible = trialExpired && rawPlan === "free" && !usedPromo;
+
     return {
       plan: rawPlan,
       effectivePlan,
@@ -89,6 +95,7 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
       trialDaysLeft,
       subscriptionExpired,
       subscriptionDaysLeft,
+      promoEligible,
     };
-  }, [rawPlan, trialEndsAtStr]);
+  }, [rawPlan, trialEndsAtStr, usedPromo]);
 }

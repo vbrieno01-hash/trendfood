@@ -66,5 +66,3 @@ verify_jwt = false
 [functions.cleanup-phantom-orders]
 verify_jwt = false
 
-[functions.og-share]
-verify_jwt = false

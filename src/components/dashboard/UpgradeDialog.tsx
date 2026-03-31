@@ -30,9 +30,10 @@ interface UpgradeDialogProps {
   onOpenChange: (open: boolean) => void;
   orgId: string;
   currentPlan: string;
+  promoEligible?: boolean;
 }
 
-export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan }: UpgradeDialogProps) {
+export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, promoEligible }: UpgradeDialogProps) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -126,23 +127,33 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan }
                 const ctaText = billingMismatch
                   ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
                   : "Assinar agora";
+
+                // Promo pricing: half price for first month (monthly only)
+                const showPromo = promoEligible && !isAnnual && !isSamePlan;
+                const promoPrice = showPromo
+                  ? `R$ ${(Math.round(plan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
+                  : undefined;
+                const originalPrice = showPromo ? formatPriceFull(plan.price_cents) : undefined;
+
                 return (
                   <PlanCard
                     key={plan.id}
                     name={plan.name}
                     price={displayPrice}
                     period={period}
-                    subtitle={subtitle}
+                    subtitle={showPromo ? "Depois: " + formatPriceFull(plan.price_cents) + "/mês" : subtitle}
                     savingsBadge={savingsBadge}
                     description={plan.description || ""}
                     features={plan.features}
-                    cta={ctaText}
+                    cta={showPromo ? "🔥 Aproveitar oferta" : ctaText}
                     ctaLink="#"
                     highlighted={plan.highlighted}
                     badge={plan.badge || undefined}
                     currentPlan={isSamePlan}
                     billingMismatch={billingMismatch}
                     onSelect={() => handleSelect(plan)}
+                    promoPrice={promoPrice}
+                    originalPrice={originalPrice}
                   />
                 );
               })}
@@ -160,6 +171,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan }
           planName={selectedPlan.name}
           planPrice={isAnnual && selectedPlan.annual_price_cents > 0 ? formatPrice(selectedPlan.annual_price_cents) : formatPriceFull(selectedPlan.price_cents)}
           billing={isAnnual && selectedPlan.annual_price_cents > 0 ? "annual" : "monthly"}
+          promo={promoEligible && !isAnnual}
           onSuccess={handleSuccess}
         />
       )}
