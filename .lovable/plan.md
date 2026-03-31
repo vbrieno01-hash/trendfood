@@ -1,73 +1,70 @@
 
 
-## Plano: CMS Admin — Editar Conteúdo Sem Gastar Créditos
+## Plano: CMS 100% Editável com Upload de Imagens
 
-### Situação Atual
-Quase todo o conteúdo do TrendFood está **hardcoded** nos arquivos:
-- **Página inicial** (Index.tsx): títulos, textos, imagens, features, badges, problemas — tudo fixo no código
-- **Admin configs**: lista de funcionalidades hardcoded, número de WhatsApp repetido em 3 arquivos
-- **Configurações da plataforma**: só tem taxas de entrega editáveis
+### Problema Atual
+O `SiteContentTab` só permite editar textos via URL. Faltam:
+1. **Upload de imagens** — hoje é só colar URL, sem poder subir arquivo
+2. **Seções inteiras ainda hardcoded** no `Index.tsx`:
+   - Cards de problemas (3 cards com imagem + título + descrição)
+   - Cards de benefícios (3 cards com título + descrição)
+   - Passos "Como Funciona" (4 passos com título + descrição)
+   - Features/Funcionalidades (12 cards com título + descrição)
+   - Comparativo TrendFood vs Marketplace (7 linhas)
+   - CTA final (título + subtítulo + texto do botão)
+   - Footer (links do Instagram, WhatsApp, email, textos)
 
-### O que vamos criar
+### O que vamos fazer
 
-**Uma nova aba "Site & Conteúdo" no Admin** com seções editáveis:
+**1. Criar bucket de storage `site-images`** para uploads do CMS
 
-#### 1. Configurações Gerais da Plataforma
-- WhatsApp de suporte (atualmente hardcoded em 3 lugares)
-- Dias de trial padrão
-- Texto do contador de pedidos
-- Toggle da promoção de 50%
+**2. Expandir o `SiteContentTab.tsx`** com:
+- Componente `ImageUploader` — botão de upload que sobe para `site-images` bucket e salva a URL no `platform_content`
+- Substituir o campo "URL da Imagem de Fundo" por upload real
+- Novas seções editáveis:
+  - **Cards de Problemas** — 3 cards com upload de imagem + título + descrição (array de objetos no `platform_content`)
+  - **Cards de Benefícios** — 3 cards com título + descrição
+  - **Passos "Como Funciona"** — 4 passos com título + descrição
+  - **Features** — 12 cards com título + descrição (array editável)
+  - **Comparativo** — linhas da tabela editáveis
+  - **CTA Final** — título, subtítulo, texto do botão
+  - **Footer** — links de redes sociais, email, textos
 
-#### 2. Editor do Hero da Landing Page
-- Título principal e subtítulo
-- Texto do botão CTA
-- URL da imagem de fundo
-- Badges de prova social (ex: "0% comissão", "PIX integrado")
+**3. Atualizar `Index.tsx`** para ler todos esses dados do CMS com fallback para os valores atuais hardcoded
 
-#### 3. Editor de Seções da Landing Page
-- Cards de benefícios (título + descrição)
-- Cards de problemas (título + descrição + imagem)
-- Lista de features/recursos (título + descrição)
+**4. Atualizar `ComparisonSection.tsx`** para receber dados via props do CMS
 
-### Implementação Técnica
+**5. Seed dos dados atuais** — migração SQL que insere os valores hardcoded atuais na tabela `platform_content`
 
-**Tabela nova: `platform_content`**
+### Detalhes Técnicos
+
+**Bucket de storage:**
 ```sql
-CREATE TABLE platform_content (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT UNIQUE NOT NULL,       -- ex: 'hero_title', 'support_whatsapp'
-  value JSONB NOT NULL,           -- texto, array, objeto
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-```
-- RLS: leitura pública (landing page precisa ler), escrita só admin
-- Seed com valores atuais do código
-
-**Arquivos modificados:**
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/AdminPage.tsx` | Nova aba "Site" no menu |
-| `src/components/admin/SiteContentTab.tsx` | **Criar** — formulários para editar cada seção |
-| `src/hooks/usePlatformContent.ts` | **Criar** — hook para ler/salvar conteúdo |
-| `src/pages/Index.tsx` | Carregar textos do banco em vez de hardcoded |
-| `src/pages/DashboardPage.tsx` | Ler WhatsApp do banco |
-| `src/pages/DocsTerminalPage.tsx` | Ler WhatsApp do banco |
-| Migração SQL | Criar tabela + seed + RLS |
-
-**Fluxo:**
-```text
-Admin edita texto no painel
-       ↓
-Salva no platform_content (banco)
-       ↓
-Landing page carrega do banco
-       ↓
-Visitante vê conteúdo atualizado
+INSERT INTO storage.buckets (id, name, public) VALUES ('site-images', 'site-images', true);
+-- RLS: admin pode upload, público pode ler
 ```
 
-### O que você ganha
-- Mudar textos da página inicial sem mexer no código
-- Mudar número de WhatsApp em um só lugar
-- Mudar imagens e badges sem créditos
-- Tudo centralizado no painel admin
+**Componente ImageUploader:**
+- Input file → compressImage → upload para `site-images/{timestamp}.webp` → salva URL pública no campo
+
+**Estrutura dos dados no `platform_content`:**
+- `problems_cards` → `[{image, title, description}, ...]`
+- `benefit_cards` → `[{title, description}, ...]`
+- `steps_cards` → `[{title, description}, ...]`
+- `features_cards` → `[{title, description}, ...]`
+- `comparison_rows` → `[{label, marketplace, trendfood, badge?}, ...]`
+- `cta_title`, `cta_subtitle`, `cta_button_text`
+- `footer_instagram_url`, `footer_whatsapp_url`, `footer_email`, `footer_copyright`
+
+### Arquivos a criar/modificar
+
+| Arquivo | Ação |
+|---------|------|
+| Migração SQL | Criar bucket `site-images` + RLS + seed dados |
+| `src/components/admin/SiteContentTab.tsx` | Expandir com ImageUploader e todas as seções |
+| `src/pages/Index.tsx` | Ler problems, benefits, steps, features, CTA, footer do CMS |
+| `src/components/landing/ComparisonSection.tsx` | Receber rows via props do CMS |
+
+### Resultado
+Todo o conteúdo da landing page editável pelo admin, incluindo upload de imagens real — sem precisar gastar créditos no Lovable para mudar qualquer texto ou imagem.
 
