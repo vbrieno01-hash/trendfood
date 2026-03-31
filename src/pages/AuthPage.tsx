@@ -746,7 +746,43 @@ const AuthPage = () => {
                     "Entrar no painel"
                   )}
                 </Button>
+                <button
+                  type="button"
+                  className="w-full text-sm text-primary hover:underline mt-2"
+                  onClick={() => {
+                    setForgotMode(true);
+                    setForgotEmail(loginData.email);
+                  }}
+                >
+                  Esqueci minha senha
+                </button>
               </form>
+
+              {forgotMode && (
+                <div className="mt-6 p-4 border border-border rounded-xl bg-muted/30 space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Redefinir senha</p>
+                  <p className="text-xs text-muted-foreground">Enviaremos um link para o seu e-mail.</p>
+                  <form onSubmit={handleForgotPassword} className="space-y-3">
+                    <Input
+                      type="email"
+                      placeholder="joao@email.com"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="h-11"
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1 h-10 text-sm font-semibold" disabled={forgotLoading}>
+                        {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                        Enviar link
+                      </Button>
+                      <Button type="button" variant="ghost" className="h-10 text-sm" onClick={() => setForgotMode(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
           )}
