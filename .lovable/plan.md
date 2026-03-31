@@ -1,58 +1,57 @@
 
 
-## Plano: Corrigir fluxo Google OAuth — redirect e "preso no onboarding"
+## Plano: Corrigir frete não aparecendo nos pedidos
 
-### Problemas identificados
+### Problema
+Para pedidos de entrega, o frete só é salvo nas notas do pedido quando `deliveryFee > 0` ou `freeShipping === true`. Isso falha em três cenários:
 
-1. **Redirect para página inicial**: O `redirect_uri` está como `window.location.origin` (raiz `/`), então após o Google autenticar, o usuário volta para `/` (landing page) em vez de `/auth`. O `useEffect` que detecta `user && !organization` só existe no `AuthPage`, não na landing.
+1. **"Outro bairro" selecionado** (`__outro__`) — `useNeighborhoodFee` não encontra match → `fee: 0, freeShipping: false` → nenhum FRETE salvo
+2. **Loja sem bairros cadastrados** — nenhum dropdown aparece, `selectedNeighborhood` fica vazio → fee 0 → sem FRETE
+3. **Endereço no display** — quando `selectedNeighborhood === "__outro__"`, esse valor bruto aparece literalmente no endereço do pedido
 
-2. **Preso no "Complete seu cadastro"**: O estado `googleOnboarding` é local e nunca reseta. Não há botão "Voltar" nem mecanismo para fazer signOut e trocar de conta. Uma vez que `user && !organization` é true, o formulário fica travado.
-
-3. **Não consegue trocar de email**: Sem signOut, a sessão Google persiste e o estado de onboarding não limpa.
+Em todos esses casos, o pedido de entrega é salvo **sem campo FRETE** nas notas, então a comanda impressa não mostra frete e o cálculo de receita no dashboard ignora a taxa.
 
 ### Correções
 
-**Arquivo: `src/pages/AuthPage.tsx`** — 3 alterações:
+**Arquivo: `src/pages/UnitPage.tsx`** — 3 alterações:
 
-**1) Mudar `redirect_uri` para apontar para `/auth`:**
+**1) Corrigir construção do `freteNote`** — sempre incluir FRETE para entregas:
 ```typescript
-await lovable.auth.signInWithOAuth("google", {
-  redirect_uri: `${window.location.origin}/auth`,
-});
+const freteNote = orderType !== "Entrega" ? null
+  : freeShipping ? "FRETE:Grátis"
+  : deliveryFee > 0 ? `FRETE:${fmt(deliveryFee)}`
+  : "FRETE:Sob consulta";
 ```
-Isso faz o callback do Google retornar para `/auth`, onde o `useEffect` pode capturar a sessão e redirecionar ou mostrar onboarding.
+Isso garante que TODA entrega tenha FRETE nas notas — seja valor, grátis ou "sob consulta".
 
-**2) Vincular `googleOnboarding` ao `user.id`** — resetar quando user muda ou desloga:
+Aplicar nos **dois locais** onde `freteNote` é construído (PIX automático ~linha 375 e fluxo normal ~linha 471).
+
+**2) Corrigir `fullCustomerAddressDisplay`** — substituir `"__outro__"` por texto legível:
 ```typescript
-useEffect(() => {
-  if (authLoading) return;
-  if (!user) {
-    setGoogleOnboarding(false);
-    return;
-  }
-  if (organization) {
-    navigate(fullRedirect, { replace: true });
-    return;
-  }
-  // user exists, no org → onboarding
-  setGoogleOnboarding(true);
-}, [user?.id, organization?.id, authLoading]);
+const displayNeighborhood = selectedNeighborhood === "__outro__" 
+  ? "Outro bairro" 
+  : selectedNeighborhood;
+const fullCustomerAddressDisplay = [
+  customerStreet, customerNumber, customerComplement, displayNeighborhood
+].map((p) => p.trim()).filter(Boolean).join(", ");
 ```
 
-**3) Adicionar botão "Usar outro email" no formulário de onboarding Google:**
+**3) Corrigir labels de frete no WhatsApp** — o `freightLabel` na mensagem do WhatsApp também ignora o caso `fee === 0 && !freeShipping`:
 ```typescript
-const handleBackToAuth = async () => {
-  await supabase.auth.signOut();
-  setGoogleOnboarding(false);
-};
+const freightLabel = orderType === "Retirada" ? "Grátis"
+  : freeShipping ? "Grátis"
+  : deliveryFee > 0 ? fmt(deliveryFee)
+  : "Sob consulta";
 ```
-E no JSX do formulário de onboarding, após o botão "Criar lanchonete":
-```tsx
-<Button type="button" variant="ghost" className="w-full" onClick={handleBackToAuth}>
-  Usar outro e-mail
-</Button>
-```
+Aplicar nos dois blocos de construção de mensagem WhatsApp (~linha 429 e ~linha 549).
+
+### Impacto
+- **Lojas com bairros configurados**: frete sempre aparece na comanda e no WhatsApp
+- **Lojas sem bairros**: entrega salva com "FRETE:Sob consulta" — pelo menos a informação existe
+- **"Outro bairro"**: endereço mostra "Outro bairro" em vez de `__outro__`
+- **Receita do dashboard**: `extractDeliveryFee` já trata "Sob consulta" como 0, sem quebrar
+- **Lojas antigas**: pedidos antigos sem FRETE continuam funcionando normalmente
 
 ### Arquivos alterados
-- `src/pages/AuthPage.tsx`
+- `src/pages/UnitPage.tsx` (4 trechos: 2× freteNote, 1× fullCustomerAddressDisplay, 2× freightLabel)
 
