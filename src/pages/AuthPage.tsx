@@ -135,6 +135,32 @@ const AuthPage = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      toast.error("Informe seu e-mail.");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      });
+      if (error) throw error;
+      toast.success("Link de redefinição enviado para seu e-mail! Verifique sua caixa de entrada.");
+      setForgotMode(false);
+      setForgotEmail("");
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error(error.message ?? "Erro ao enviar link de redefinição.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
