@@ -99,6 +99,11 @@ const PricingPage = () => {
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [isAnnual, setIsAnnual] = useState(false);
 
+  // Promo eligibility
+  const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
+  const trialExpired = !!trialEndsAt && trialEndsAt <= new Date() && currentPlan === "free";
+  const promoEligible = trialExpired && !(organization as any)?.used_first_month_promo;
+
   useEffect(() => {
     supabase
       .from("platform_plans")
