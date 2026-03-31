@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Store, UtensilsCrossed, History, Tag, BarChart2, Grid3X3, Package, Wallet, Settings, FileText, MapPin } from "lucide-react";
+import { ArrowLeft, Store, UtensilsCrossed, History, Tag, BarChart2, Grid3X3, Package, Wallet, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
