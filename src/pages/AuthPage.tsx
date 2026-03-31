@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -36,7 +36,7 @@ const generateSlug = (name: string) =>
 const AuthPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { refreshOrganizationForUser } = useAuth();
+  const { user, organization, loading: authLoading, refreshOrganizationForUser } = useAuth();
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   const planParam = searchParams.get("plan");
@@ -44,6 +44,74 @@ const AuthPage = () => {
   const fullRedirect = planParam && redirectTo.includes("/planos")
     ? `${redirectTo}?plan=${planParam}`
     : redirectTo;
+
+  // Redirect authenticated users (covers Google OAuth callback)
+  const [googleOnboarding, setGoogleOnboarding] = useState(false);
+  const [googleBiz, setGoogleBiz] = useState({ name: "", slug: "", whatsapp: "" });
+  const [googleOnboardLoading, setGoogleOnboardLoading] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user && organization) {
+      navigate(fullRedirect, { replace: true });
+    } else if (user && !organization) {
+      // New Google user without org — show onboarding
+      setGoogleOnboarding(true);
+    }
+  }, [user, organization, authLoading, navigate, fullRedirect]);
+
+  const handleGoogleOnboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleBiz.name.trim() || !googleBiz.slug.trim()) {
+      toast.error("Preencha o nome da lanchonete.");
+      return;
+    }
+    const whatsappDigits = googleBiz.whatsapp.replace(/\D/g, "");
+    if (whatsappDigits.length < 10) {
+      toast.error("Informe o WhatsApp com DDD (mín 10 dígitos).");
+      return;
+    }
+    setGoogleOnboardLoading(true);
+    try {
+      const orgPayload: any = {
+        user_id: user!.id,
+        name: googleBiz.name.trim(),
+        slug: googleBiz.slug.trim(),
+        emoji: "🍔",
+        description: "Bem-vindo à nossa loja!",
+        primary_color: "#f97316",
+        whatsapp: googleBiz.whatsapp || null,
+      };
+      if (refParam) orgPayload.referred_by_id = refParam;
+      const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
+      if (orgError) {
+        if (orgError.code === "23505") {
+          toast.error("Este slug já está em uso. Escolha outro nome.");
+        } else {
+          throw orgError;
+        }
+        return;
+      }
+      // Also create profile
+      await supabase.from("profiles").insert({
+        user_id: user!.id,
+        full_name: user!.user_metadata?.full_name || user!.email?.split("@")[0] || "",
+      }).then(() => {});
+      toast.success("Loja criada com sucesso! 🎉");
+      await refreshOrganizationForUser(user!.id);
+      navigate(fullRedirect, { replace: true });
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error(error.message ?? "Erro ao criar loja.");
+    } finally {
+      setGoogleOnboardLoading(false);
+    }
+  };
+
+  const handleGoogleBizNameChange = (name: string) => {
+    setGoogleBiz((prev) => ({ ...prev, name, slug: generateSlug(name) }));
+  };
+
 
   const [signupData, setSignupData] = useState({
     fullName: "",
@@ -364,6 +432,30 @@ const AuthPage = () => {
         </div>
 
         <div className="w-full max-w-sm mx-auto">
+          {googleOnboarding ? (
+            <form onSubmit={handleGoogleOnboard} className="space-y-5">
+              <div className="mb-6">
+                <h2 className="font-bold text-foreground text-2xl">Complete seu cadastro</h2>
+                <p className="text-muted-foreground text-sm mt-1">Só falta criar sua lanchonete!</p>
+              </div>
+              <div>
+                <Label htmlFor="g-biz" className="text-sm font-medium mb-1.5 block">Nome da lanchonete</Label>
+                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11" required />
+              </div>
+              <div>
+                <Label htmlFor="g-slug" className="text-sm font-medium mb-1.5 block">Slug (URL)</Label>
+                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11" required />
+              </div>
+              <div>
+                <Label htmlFor="g-wpp" className="text-sm font-medium mb-1.5 block">WhatsApp (com DDD)</Label>
+                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11" required />
+              </div>
+              <Button type="submit" className="w-full h-11 font-semibold" disabled={googleOnboardLoading}>
+                {googleOnboardLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Criar lanchonete
+              </Button>
+            </form>
+          ) : (
           <Tabs defaultValue="signup">
             <TabsList className="w-full h-11 bg-muted/60 rounded-xl p-1 grid grid-cols-2 mb-8">
               <TabsTrigger
@@ -616,6 +708,7 @@ const AuthPage = () => {
               </form>
             </TabsContent>
           </Tabs>
+          )}
 
           <p className="text-center text-xs text-muted-foreground mt-8">
             Ao criar sua conta, você concorda com nossos{" "}
