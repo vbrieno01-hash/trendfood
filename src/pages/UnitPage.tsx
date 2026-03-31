@@ -548,12 +548,12 @@ const UnitPage = () => {
     if (whatsapp) {
       const deliveryEmoji = orderType === "Entrega" ? "🛵" : "🏃";
       const freightLabel = orderType === "Retirada"
-        ? "Grátis"
+        ? null
          : freeShipping
            ? "Grátis"
            : deliveryFee > 0
              ? fmt(deliveryFee)
-             : null;
+             : "Sob consulta";
 
       const pixStatus = paid ? "✅ PIX Confirmado" : "⏳ PIX Aguardando confirmação";
 
