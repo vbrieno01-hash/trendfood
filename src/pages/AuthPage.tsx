@@ -432,6 +432,30 @@ const AuthPage = () => {
         </div>
 
         <div className="w-full max-w-sm mx-auto">
+          {googleOnboarding ? (
+            <form onSubmit={handleGoogleOnboard} className="space-y-5">
+              <div className="mb-6">
+                <h2 className="font-bold text-foreground text-2xl">Complete seu cadastro</h2>
+                <p className="text-muted-foreground text-sm mt-1">Só falta criar sua lanchonete!</p>
+              </div>
+              <div>
+                <Label htmlFor="g-biz" className="text-sm font-medium mb-1.5 block">Nome da lanchonete</Label>
+                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11" required />
+              </div>
+              <div>
+                <Label htmlFor="g-slug" className="text-sm font-medium mb-1.5 block">Slug (URL)</Label>
+                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11" required />
+              </div>
+              <div>
+                <Label htmlFor="g-wpp" className="text-sm font-medium mb-1.5 block">WhatsApp (com DDD)</Label>
+                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11" required />
+              </div>
+              <Button type="submit" className="w-full h-11 font-semibold" disabled={googleOnboardLoading}>
+                {googleOnboardLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Criar lanchonete
+              </Button>
+            </form>
+          ) : (
           <Tabs defaultValue="signup">
             <TabsList className="w-full h-11 bg-muted/60 rounded-xl p-1 grid grid-cols-2 mb-8">
               <TabsTrigger
