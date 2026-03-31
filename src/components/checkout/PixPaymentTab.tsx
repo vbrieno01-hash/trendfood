@@ -32,7 +32,7 @@ const formatCpfCnpj = (value: string) => {
     .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 };
 
-const PixPaymentTab = ({ orgId, plan, planPrice, onSuccess, onClose }: PixPaymentTabProps) => {
+const PixPaymentTab = ({ orgId, plan, planPrice, billing = "monthly", promo, onSuccess, onClose }: PixPaymentTabProps) => {
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [pixData, setPixData] = useState<{
