@@ -565,6 +565,7 @@ const AuthPage = () => {
                 <h2 className="font-bold text-foreground text-2xl">Bem-vindo de volta</h2>
                 <p className="text-muted-foreground text-sm mt-1">Acesse seu painel de gestão</p>
               </div>
+              <GoogleButton />
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block">
