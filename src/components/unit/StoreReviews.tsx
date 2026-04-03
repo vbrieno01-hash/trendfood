@@ -45,29 +45,21 @@ const StoreReviews = ({ orgId, primaryColor }: StoreReviewsProps) => {
         <div className="mt-2 space-y-2">
           {displayReviews.map((review) => (
             <div key={review.id} className="bg-card border border-border/30 rounded-xl px-4 py-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        className="w-3 h-3"
-                        fill={s <= review.rating ? "#facc15" : "none"}
-                        stroke={s <= review.rating ? "#facc15" : "currentColor"}
-                      />
-                    ))}
-                  </div>
-                  {review.customer_name && (
-                    <span className="text-xs font-medium text-foreground">{review.customer_name}</span>
-                  )}
+              <div className="flex items-center justify-between">
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className="w-3 h-3"
+                      fill={s <= review.rating ? "#facc15" : "none"}
+                      stroke={s <= review.rating ? "#facc15" : "currentColor"}
+                    />
+                  ))}
                 </div>
                 <span className="text-[10px] text-muted-foreground">
                   {new Date(review.created_at).toLocaleDateString("pt-BR")}
                 </span>
               </div>
-              {review.comment && (
-                <p className="text-sm text-muted-foreground mt-1">{review.comment}</p>
-              )}
             </div>
           ))}
         </div>
