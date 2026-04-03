@@ -520,6 +520,7 @@ const DashboardPage = () => {
         { key: "courier" as TabKey, icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
         { key: "history" as TabKey, icon: <History className="w-4 h-4" />, label: "Histórico" },
         { key: "reviews" as TabKey, icon: <Star className="w-4 h-4" />, label: "Avaliações" },
+        { key: "loyalty" as TabKey, icon: <Gift className="w-4 h-4" />, label: "Fidelidade" },
       ],
     },
     {
