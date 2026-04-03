@@ -156,6 +156,7 @@ const UnitPage = () => {
   const [showPixScreen, setShowPixScreen] = useState(false);
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState("");
 
   // Loyalty
   const cleanPhoneForLoyalty = buyerPhone.replace(/\D/g, "");
@@ -304,6 +305,36 @@ const UnitPage = () => {
   const isClosed = isPaused || (storeStatus !== null && !storeStatus.open);
   const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
 
+  // Scheduling slots
+  const schedulingConfig = (org as any).scheduling_config as { enabled?: boolean; min_advance_minutes?: number } | null;
+  const schedulingActive = !!schedulingConfig?.enabled;
+  const generateTimeSlots = (): string[] => {
+    if (!schedulingActive || !org.business_hours) return [];
+    const bh = org.business_hours as any;
+    if (!bh?.enabled || !bh?.schedule) return [];
+    const DK = ["dom","seg","ter","qua","qui","sex","sab"];
+    const now = new Date();
+    const brt = new Date(now.getTime() + now.getTimezoneOffset() * 60_000 + (-3) * 3600_000);
+    const daySchedule = bh.schedule[DK[brt.getDay()]];
+    if (!daySchedule?.open) return [];
+    const [fH, fM] = (daySchedule.from || "08:00").split(":").map(Number);
+    const [tH, tM] = (daySchedule.to || "22:00").split(":").map(Number);
+    let fromMin = fH * 60 + fM;
+    let toMin = tH * 60 + tM;
+    if (toMin <= fromMin) toMin += 1440;
+    const currentMin = brt.getHours() * 60 + brt.getMinutes();
+    const earliest = currentMin + (schedulingConfig?.min_advance_minutes ?? 30);
+    const slots: string[] = [];
+    for (let m = fromMin; m < toMin; m += 30) {
+      if (m >= earliest) {
+        const em = m % 1440;
+        slots.push(`${String(Math.floor(em / 60)).padStart(2, "0")}:${String(em % 60).padStart(2, "0")}`);
+      }
+    }
+    return slots;
+  };
+  const timeSlots = schedulingActive && orderType ? generateTimeSlots() : [];
+
   // Cart helpers
   const addToCart = (item: { id: string; name: string; price: number }, addons: CartItemAddon[] = [], itemNotes: string = "") => {
     const key = cartKey(item.id, addons);
@@ -428,6 +459,7 @@ const UnitPage = () => {
           orderType === "Entrega" && fullCustomerAddressDisplay ? `END.:${fullCustomerAddressDisplay}` : null,
           freteNote,
           `PGTO:PIX`,
+          scheduledTime ? `AGENDADO:${scheduledTime}` : null,
           buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
           notes.trim() ? `OBS:${notes.trim()}` : null,
         ].filter(Boolean) as string[];
@@ -499,6 +531,7 @@ const UnitPage = () => {
       `💳 *Pagamento:* ${effectivePayment}`,
       effectivePayment === "Dinheiro" && changeFor > 0 ? `💵 *Troco para:* ${fmt(changeFor)}` : null,
       effectivePayment === "Dinheiro" && changeFor > 0 && changeFor > grandTotal ? `🔄 *Troco:* ${fmt(changeFor - grandTotal)}` : null,
+      scheduledTime ? `🕐 *Agendado para:* ${scheduledTime}` : null,
       notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
     ]
       .filter((l) => l !== null)
@@ -524,6 +557,7 @@ const UnitPage = () => {
         freteNote,
         `PGTO:${effectivePayment}`,
         effectivePayment === "Dinheiro" && changeFor > 0 ? `TROCO:${fmt(changeFor)}` : null,
+        scheduledTime ? `AGENDADO:${scheduledTime}` : null,
         buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
         notes.trim() ? `OBS:${notes.trim()}` : null,
       ].filter(Boolean) as string[];
@@ -653,6 +687,7 @@ const UnitPage = () => {
         `👤 *Nome:* ${buyerName.trim()}`,
         orderType === "Entrega" && fullCustomerAddressDisplay ? `🏠 *Endereço:* ${fullCustomerAddressDisplay}` : null,
         `💳 *Pagamento:* ${pixStatus}`,
+        scheduledTime ? `🕐 *Agendado para:* ${scheduledTime}` : null,
         notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
       ]
         .filter((l) => l !== null)
@@ -687,6 +722,7 @@ const UnitPage = () => {
     setChangeFor(0);
     setChangeForError(false);
     setNotes("");
+    setScheduledTime("");
     setLoyaltyRedeemed(false);
     setLoyaltyDiscount(0);
   };
@@ -1148,6 +1184,32 @@ const UnitPage = () => {
                 <p className="text-destructive text-xs">Selecione como quer receber o pedido</p>
               )}
             </div>
+
+            {/* Scheduling selector */}
+            {schedulingActive && orderType && timeSlots.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-foreground text-sm">🕐 Horário do pedido</h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScheduledTime("")}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${!scheduledTime ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                  >
+                    🕐 O mais rápido possível
+                  </button>
+                  {timeSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setScheduledTime(slot)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${scheduledTime === slot ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Customer info */}
             <div className="space-y-3">

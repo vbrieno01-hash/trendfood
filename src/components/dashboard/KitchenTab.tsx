@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
-import { parsePhoneFromNotes, notifyCustomerWhatsApp, notifyCustomerReady } from "@/lib/whatsappNotify";
+import { parsePhoneFromNotes, notifyCustomerWhatsApp, notifyCustomerReady, parseScheduledTimeFromNotes } from "@/lib/whatsappNotify";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -464,6 +464,11 @@ export default function KitchenTab({
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
+                          {parseScheduledTimeFromNotes(order.notes) && (
+                            <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5">
+                              🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
+                            </span>
+                          )}
                         </div>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -593,6 +598,11 @@ export default function KitchenTab({
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
+                          {parseScheduledTimeFromNotes(order.notes) && (
+                            <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5">
+                              🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <AlertDialog>

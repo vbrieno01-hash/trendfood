@@ -26,6 +26,7 @@ interface ParsedNotes {
   troco?: string;
   doc?: string;
   obs?: string;
+  agendado?: string;
   raw?: string;
 }
 
@@ -47,6 +48,7 @@ function parseNotesInternal(notes: string): ParsedNotes {
     troco: parts["TROCO"] || undefined,
     doc: parts["DOC"] || undefined,
     obs: parts["OBS"] || undefined,
+    agendado: parts["AGENDADO"] || undefined,
   };
 }
 
@@ -99,6 +101,7 @@ export interface ReceiptData {
   totals: ReceiptTotals;
   troco?: string;
   trocoChange?: number; // calculated: (troco) - grandTotal
+  scheduledTime?: string; // "HH:mm" if order is scheduled
 }
 
 export interface StoreInfo {
@@ -273,6 +276,7 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
     showChargeNotice: !!parsed?.payment,
     totals,
     troco: parsed?.troco,
+    scheduledTime: parsed?.agendado,
     trocoChange: (() => {
       if (!parsed?.troco) return undefined;
       const cleaned = parsed.troco.replace(/[^\d,\.]/g, "").replace(",", ".");

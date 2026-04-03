@@ -12,7 +12,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
@@ -24,17 +24,27 @@ export default function SettingsTab() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [forceOpen, setForceOpen] = useState(false);
   const [forceOpenLoading, setForceOpenLoading] = useState(false);
+  const [schedulingEnabled, setSchedulingEnabled] = useState(false);
+  const [minAdvance, setMinAdvance] = useState("30");
+  const [schedulingLoading, setSchedulingLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open")
+        .select("force_open, scheduling_config")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data) setForceOpen(!!(data as any).force_open);
+          if (data) {
+            setForceOpen(!!(data as any).force_open);
+            const sc = (data as any).scheduling_config as { enabled?: boolean; min_advance_minutes?: number } | null;
+            if (sc) {
+              setSchedulingEnabled(!!sc.enabled);
+              setMinAdvance(String(sc.min_advance_minutes ?? 30));
+            }
+          }
         });
     }
   }, [currentOrg?.id]);
@@ -55,6 +65,25 @@ export default function SettingsTab() {
       toast.error("Erro ao alterar configuração.");
     } finally {
       setForceOpenLoading(false);
+    }
+  };
+
+  const handleSaveScheduling = async () => {
+    if (!currentOrg?.id) return;
+    setSchedulingLoading(true);
+    try {
+      const config = { enabled: schedulingEnabled, min_advance_minutes: Math.max(15, parseInt(minAdvance) || 30) };
+      const { error } = await supabase
+        .from("organizations")
+        .update({ scheduling_config: config } as any)
+        .eq("id", currentOrg.id);
+      if (error) throw error;
+      await refreshOrganization();
+      toast.success("Configuração de agendamento salva!");
+    } catch {
+      toast.error("Erro ao salvar configuração de agendamento.");
+    } finally {
+      setSchedulingLoading(false);
     }
   };
 
@@ -141,6 +170,50 @@ export default function SettingsTab() {
               disabled={forceOpenLoading}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Scheduling config */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agendamento de pedidos</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Permitir agendamento</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
+                {schedulingEnabled
+                  ? "Clientes podem escolher um horário futuro para o pedido."
+                  : "Ative para permitir que clientes agendem horários de entrega/retirada."}
+              </p>
+            </div>
+            <Switch
+              checked={schedulingEnabled}
+              onCheckedChange={setSchedulingEnabled}
+            />
+          </div>
+          {schedulingEnabled && (
+            <div>
+              <Label htmlFor="min-advance" className="text-xs font-medium">Antecedência mínima (minutos)</Label>
+              <Input
+                id="min-advance"
+                type="number"
+                min={15}
+                max={180}
+                value={minAdvance}
+                onChange={(e) => setMinAdvance(e.target.value)}
+                className="mt-1 w-32"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Ex: 30 = o primeiro horário disponível será daqui a 30 min
+              </p>
+            </div>
+          )}
+          <Button onClick={handleSaveScheduling} disabled={schedulingLoading} size="sm" className="h-9">
+            {schedulingLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar agendamento"}
+          </Button>
         </div>
       </div>
 

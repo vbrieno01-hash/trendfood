@@ -20,6 +20,7 @@ export interface ParsedNotes {
   troco?: string;
   doc?: string;
   obs?: string;
+  agendado?: string;
   raw?: string;
 }
 
@@ -41,6 +42,7 @@ export function parseNotes(notes: string): ParsedNotes {
     troco: parts["TROCO"] || undefined,
     doc: parts["DOC"] || undefined,
     obs: parts["OBS"] || undefined,
+    agendado: parts["AGENDADO"] || undefined,
   };
 }
 
@@ -111,6 +113,9 @@ function formatFromData(data: ReceiptData): string {
   lines.push(center(`${data.date} ${data.time}`));
   if (data.showEta && data.eta1 && data.eta2) {
     lines.push(center(`Previsao: ${data.eta1} - ${data.eta2}`));
+  }
+  if (data.scheduledTime) {
+    lines.push(center(bold(`AGENDADO: ${data.scheduledTime}`)));
   }
   lines.push("");
   lines.push(center(bold(data.storeName.toUpperCase())));
