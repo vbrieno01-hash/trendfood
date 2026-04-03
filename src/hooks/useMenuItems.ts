@@ -47,6 +47,25 @@ const CATEGORY_ORDER = CATEGORIES.map((c) => c.value);
 
 export type SortOrder = "newest" | "oldest";
 
+/** Build a sorted list of category names from items, respecting custom order if provided */
+export function buildCategoryOrder(items: MenuItem[], customOrder?: string[] | null): string[] {
+  const defaultOrder = CATEGORIES.map((c) => c.value);
+  const allCats = [...new Set(items.map((i) => i.category))];
+
+  if (customOrder && customOrder.length > 0) {
+    // Use custom order, then append any new categories not in the saved order
+    const ordered = customOrder.filter((c) => allCats.includes(c));
+    const remaining = allCats.filter((c) => !customOrder.includes(c));
+    return [...ordered, ...remaining];
+  }
+
+  // Default: known categories first (in CATEGORIES order), then custom alphabetically
+  const knownSet = new Set(defaultOrder);
+  const known = defaultOrder.filter((c) => allCats.includes(c));
+  const custom = allCats.filter((c) => !knownSet.has(c)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return [...known, ...custom];
+}
+
 export function useMenuItems(orgId: string | undefined, sortOrder: SortOrder = "newest") {
   return useQuery({
     queryKey: ["menu_items", orgId, sortOrder],

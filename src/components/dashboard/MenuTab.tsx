@@ -37,6 +37,7 @@ interface Organization {
   id: string;
   name: string;
   slug: string;
+  category_order?: string[] | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
