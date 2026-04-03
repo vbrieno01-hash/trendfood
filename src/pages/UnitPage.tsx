@@ -29,6 +29,7 @@ import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 
 import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import StoreReviews from "@/components/unit/StoreReviews";
 
 
 type CartItemAddon = { id: string; name: string; price: number; qty: number };
