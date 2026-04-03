@@ -20,6 +20,7 @@ export interface ParsedNotes {
   troco?: string;
   doc?: string;
   obs?: string;
+  agendado?: string;
   raw?: string;
 }
 
