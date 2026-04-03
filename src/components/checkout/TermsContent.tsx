@@ -18,7 +18,16 @@ const TermsContent = () => (
     </div>
 
     <div>
-      <h3 className="font-semibold text-foreground mb-1">2. PLANOS E PAGAMENTOS</h3>
+      <h3 className="font-semibold text-foreground mb-1">2. RESPONSABILIDADE FISCAL</h3>
+      <p>
+        O TrendFood fornece dados de faturamento baseados nos pedidos realizados. A classificação fiscal
+        do estabelecimento (CPF, MEI, ME, etc.) e o cumprimento de seus respectivos limites de
+        faturamento são de responsabilidade exclusiva do usuário contratante.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-foreground mb-1">3. PLANOS E PAGAMENTOS</h3>
       <p className="mb-2">
         <strong>Plano Mensal:</strong> Cobrança recorrente a cada 30 dias. Pode ser cancelado a
         qualquer momento, interrompendo a próxima cobrança.

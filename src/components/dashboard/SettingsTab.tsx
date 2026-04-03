@@ -221,6 +221,51 @@ export default function SettingsTab() {
         </div>
       </div>
 
+      {/* Billing alert */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saúde Fiscal</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Aviso de Limite de Faturamento</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-sm">
+              Defina o limite mensal de faturamento do seu negócio (ex: R$ 6.750 para MEI). Você receberá um alerta no painel quando atingir 80% deste valor. Deixe R$ 0,00 para desativar.
+            </p>
+          </div>
+          <CurrencyInput
+            value={billingLimit}
+            onValueChange={(v) => setBillingLimit(v ?? 0)}
+            className="w-48"
+          />
+          <Button
+            size="sm"
+            className="h-9"
+            disabled={billingLoading}
+            onClick={async () => {
+              if (!currentOrg?.id) return;
+              setBillingLoading(true);
+              try {
+                const { error } = await supabase
+                  .from("organizations")
+                  .update({ billing_alert_limit: billingLimit || null } as any)
+                  .eq("id", currentOrg.id);
+                if (error) throw error;
+                await refreshOrganization();
+                toast.success("Limite de faturamento salvo!");
+              } catch {
+                toast.error("Erro ao salvar limite.");
+              } finally {
+                setBillingLoading(false);
+              }
+            }}
+          >
+            {billingLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar limite"}
+          </Button>
+        </div>
+      </div>
+
       {/* Change password */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-3">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">

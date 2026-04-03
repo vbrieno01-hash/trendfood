@@ -284,6 +284,41 @@ export default function HomeTab({ organization }: { organization: Organization }
         </div>
       </div>
 
+      {/* ── Billing Alert ─────────────────────────────────── */}
+      {(() => {
+        const limit = (organization as any).billing_alert_limit;
+        if (!limit || limit <= 0) return null;
+        const monthStart = startOfMonth(new Date());
+        const monthRevenue = delivered
+          .filter((o) => o.paid && new Date(o.created_at) >= monthStart)
+          .reduce((acc, o) => acc + orderTotal(o), 0);
+        const pct = Math.min(Math.round((monthRevenue / limit) * 100), 100);
+        const color = pct >= 80 ? "from-red-500 to-red-600" : pct >= 60 ? "from-amber-500 to-amber-600" : "from-emerald-500 to-emerald-600";
+        const barColor = pct >= 80 ? "[&>div]:bg-red-500" : pct >= 60 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500";
+        return (
+          <div className={`dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-4 ${pct >= 80 ? "!border-red-500/40" : ""}`}>
+            <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+              <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Limite de Faturamento Mensal</p>
+            </div>
+            <div className="px-4 py-4 space-y-3">
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm font-medium text-foreground">
+                  {fmtBRL(monthRevenue)} <span className="text-muted-foreground font-normal">de {fmtBRL(limit)}</span>
+                </p>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white bg-gradient-to-r ${color}`}>{pct}%</span>
+              </div>
+              <Progress value={pct} className={`h-2.5 ${barColor}`} />
+              {pct >= 80 && (
+                <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Atenção: próximo do limite definido
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Today revenue hero ────────────────────────────── */}
       <div
         className="rounded-2xl text-white p-5 flex items-center justify-between shadow-lg overflow-hidden relative animate-dashboard-slide-up dash-delay-5"
