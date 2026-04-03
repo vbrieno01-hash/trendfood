@@ -49,6 +49,7 @@ import {
   LogOut,
   Settings,
   ScrollText,
+  FileText,
   Smartphone,
   Trash2,
   LayoutDashboard,
