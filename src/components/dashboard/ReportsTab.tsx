@@ -176,7 +176,37 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       date: new Date(o.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
       total: (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0),
       paymentMethod: PAYMENT_LABELS[o.payment_method ?? "pending"] ?? o.payment_method ?? "—",
+      status: "Entregue",
     }));
+  }, [filteredOrders]);
+
+  // Payment method breakdown
+  const PAYMENT_COLORS: Record<string, string> = {
+    PIX: "#22c55e",
+    Crédito: "#3b82f6",
+    Débito: "#8b5cf6",
+    Dinheiro: "#eab308",
+    Pendente: "#9ca3af",
+  };
+
+  const paymentStats = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    filteredOrders.forEach((o) => {
+      const label = PAYMENT_LABELS[o.payment_method ?? "pending"] ?? o.payment_method ?? "Outro";
+      if (!map[label]) map[label] = { count: 0, total: 0 };
+      map[label].count += 1;
+      map[label].total += (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
+    });
+    const grandTotal = Object.values(map).reduce((s, v) => s + v.total, 0) || 1;
+    return Object.entries(map)
+      .sort(([, a], [, b]) => b.total - a.total)
+      .map(([method, data]) => ({
+        method,
+        count: data.count,
+        total: data.total,
+        pct: (data.total / grandTotal) * 100,
+        fill: PAYMENT_COLORS[method] || "#6b7280",
+      }));
   }, [filteredOrders]);
 
   const periodLabel = period === "custom" && customFrom && customTo
@@ -186,9 +216,9 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
   // ── CSV Export ──
   const handleDownloadCSV = () => {
     const BOM = "\uFEFF";
-    const header = "Pedido;Data;Valor;Pagamento\n";
+    const header = "Pedido;Data;Valor;Pagamento;Status\n";
     const rows = orderRows
-      .map((r) => `#${r.orderNumber};${r.date};${fmtBRL(r.total)};${r.paymentMethod}`)
+      .map((r) => `#${r.orderNumber};${r.date};${fmtBRL(r.total)};${r.paymentMethod};${r.status}`)
       .join("\n");
     const storeHeader = `${orgName}${orgCnpj ? ` — CNPJ: ${orgCnpj}` : ""}${orgAddress ? ` — ${orgAddress.replace(/\|/g, ", ")}` : ""}\nRelatório: ${periodLabel}\nEmitido em: ${new Date().toLocaleString("pt-BR")}\n\n`;
     const csv = BOM + storeHeader + header + rows;
@@ -216,7 +246,11 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       .join("");
 
     const orderDetailRows = orderRows
-      .map((r) => `<tr><td>#${r.orderNumber}</td><td>${r.date}</td><td>${fmtBRL(r.total)}</td><td>${r.paymentMethod}</td></tr>`)
+      .map((r) => `<tr><td>#${r.orderNumber}</td><td>${r.date}</td><td>${fmtBRL(r.total)}</td><td>${r.paymentMethod}</td><td>${r.status}</td></tr>`)
+      .join("");
+
+    const paymentBreakdownRows = paymentStats
+      .map((ps) => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ps.fill};margin-right:6px"></span>${ps.method}</td><td style="text-align:center">${ps.count}</td><td style="text-align:right">${fmtBRL(ps.total)}</td><td style="text-align:right">${ps.pct.toFixed(1)}%</td></tr>`)
       .join("");
 
     const trendfoodLogo = window.location.origin + "/logo-trendfood.png";
@@ -289,7 +323,9 @@ ${watermarkHtml}
 
   ${categoryRanking.length > 0 ? `<h2>Ranking por Item / Categoria</h2><table><thead><tr><th>#</th><th>Item</th><th>Receita</th><th>Qtd</th></tr></thead><tbody>${rankingRows}</tbody></table>` : ""}
 
-  ${orderRows.length > 0 ? `<h2>Detalhamento de Pedidos</h2><table><thead><tr><th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th></tr></thead><tbody>${orderDetailRows}</tbody></table>` : ""}
+  ${paymentStats.length > 0 ? `<h2>💳 Faturamento por Meio de Pagamento</h2><table><thead><tr><th>Meio</th><th style="text-align:center">Pedidos</th><th style="text-align:right">Faturamento</th><th style="text-align:right">%</th></tr></thead><tbody>${paymentBreakdownRows}</tbody></table>` : ""}
+
+  ${orderRows.length > 0 ? `<h2>Lista de Pedidos</h2><table><thead><tr><th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th><th>Status</th></tr></thead><tbody>${orderDetailRows}</tbody></table>` : ""}
 
   <div class="footer">Relatório gerado via TrendFood • ${emissionDate}</div>
 </div>
@@ -581,6 +617,67 @@ ${watermarkHtml}
         </CardContent>
       </Card>
 
+      {/* Payment method breakdown */}
+      {paymentStats.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="font-semibold text-foreground text-sm mb-4">💳 Faturamento por Meio de Pagamento</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Meio</TableHead>
+                      <TableHead className="text-center">Pedidos</TableHead>
+                      <TableHead className="text-right">Faturamento</TableHead>
+                      <TableHead className="text-right">%</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentStats.map((ps) => (
+                      <TableRow key={ps.method}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ps.fill }} />
+                            <span className="font-medium">{ps.method}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">{ps.count}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(ps.total)}</TableCell>
+                        <TableCell className="text-right">{ps.pct.toFixed(1)}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div>
+                <ResponsiveContainer width="100%" height={Math.max(paymentStats.length * 48, 120)}>
+                  <BarChart data={paymentStats} layout="vertical" margin={{ left: 10, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis type="category" dataKey="method" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" width={70} />
+                    <Tooltip
+                      formatter={(value: number) => [fmtBRL(value), "Faturamento"]}
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                    />
+                    <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                      {paymentStats.map((ps, i) => (
+                        <Cell key={i} fill={ps.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Category ranking */}
       {categoryRanking.length > 0 && (
         <Card>
@@ -622,7 +719,7 @@ ${watermarkHtml}
         <Card>
           <CardContent className="p-5">
             <h3 className="font-semibold text-foreground text-sm mb-4">
-              Detalhamento de Pedidos ({orderRows.length})
+              📋 Lista de Pedidos ({orderRows.length})
             </h3>
             <div className="rounded-md border">
               <Table>
@@ -632,6 +729,7 @@ ${watermarkHtml}
                     <TableHead>Data</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Pagamento</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -641,6 +739,11 @@ ${watermarkHtml}
                       <TableCell>{r.date}</TableCell>
                       <TableCell className="text-right">{fmtBRL(r.total)}</TableCell>
                       <TableCell>{r.paymentMethod}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          {r.status}
+                        </span>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
