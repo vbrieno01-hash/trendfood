@@ -54,7 +54,8 @@ export function notifyCustomerReady(
   phone: string,
   _orderNumber: number | string,
   storeName?: string,
-  notes?: string | null
+  notes?: string | null,
+  reviewUrl?: string
 ) {
   const tipo = parseOrderTypeFromNotes(notes ?? null);
   const isDelivery = tipo === "Entrega";
