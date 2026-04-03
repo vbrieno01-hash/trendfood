@@ -1008,6 +1008,7 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Precificação" description="Calcule custos, margens e preços sugeridos com base na ficha técnica dos seus produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <PricingTab orgId={organization.id} />)}
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
+          {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           </ErrorBoundary>
         </main>
 
