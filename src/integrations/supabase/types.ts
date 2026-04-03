@@ -1622,6 +1622,13 @@ export type Database = {
     }
     Functions: {
       calc_trial_ends_at: { Args: never; Returns: string }
+      get_order_immutable_fields: {
+        Args: { p_order_id: string }
+        Returns: {
+          organization_id: string
+          table_number: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
