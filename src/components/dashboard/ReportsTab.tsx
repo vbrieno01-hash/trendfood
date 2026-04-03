@@ -323,7 +323,9 @@ ${watermarkHtml}
 
   ${categoryRanking.length > 0 ? `<h2>Ranking por Item / Categoria</h2><table><thead><tr><th>#</th><th>Item</th><th>Receita</th><th>Qtd</th></tr></thead><tbody>${rankingRows}</tbody></table>` : ""}
 
-  ${orderRows.length > 0 ? `<h2>Detalhamento de Pedidos</h2><table><thead><tr><th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th></tr></thead><tbody>${orderDetailRows}</tbody></table>` : ""}
+  ${paymentStats.length > 0 ? `<h2>💳 Faturamento por Meio de Pagamento</h2><table><thead><tr><th>Meio</th><th style="text-align:center">Pedidos</th><th style="text-align:right">Faturamento</th><th style="text-align:right">%</th></tr></thead><tbody>${paymentBreakdownRows}</tbody></table>` : ""}
+
+  ${orderRows.length > 0 ? `<h2>Lista de Pedidos</h2><table><thead><tr><th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th><th>Status</th></tr></thead><tbody>${orderDetailRows}</tbody></table>` : ""}
 
   <div class="footer">Relatório gerado via TrendFood • ${emissionDate}</div>
 </div>
