@@ -1,25 +1,27 @@
 
 
-## Plano: Adicionar resumo por meio de pagamento nos exports (CSV e PDF/PNG)
+## Plano: Exibir período exato com datas no relatório
 
-### Mudança no arquivo `src/components/dashboard/ReportsTab.tsx`
+### Problema
+Quando o lojista seleciona "30 dias", o relatório mostra apenas "30 dias" tanto na tela quanto nos exports. Para declaração fiscal, ele precisa ver as datas exatas: "Período: 01/03/2026 a 31/03/2026".
 
-**1. CSV** — Após o cabeçalho da loja e antes da tabela de pedidos, inserir um bloco de resumo:
-```text
-Resumo por Meio de Pagamento
-PIX;45 pedidos;R$ 8.500,00;52%
-Dinheiro;20 pedidos;R$ 2.015,32;12%
-...
-(linha em branco)
-Pedido;Data;Valor;Pagamento;Status
-```
+### Mudança
 
-Usa o `paymentStats` já calculado para gerar as linhas.
+**Arquivo:** `src/components/dashboard/ReportsTab.tsx`
 
-**2. PDF/PNG (`buildReportHtml`)** — Mover a seção "Faturamento por Meio de Pagamento" para logo após os KPIs (antes do Comparativo Semanal), espelhando o layout da tela. Atualmente está após o Ranking; basta reordenar o bloco HTML na linha 326 para ficar entre os KPIs (linha 316) e o Comparativo Semanal (linha 318).
+**1. Atualizar `periodLabel`** (linha 212) para sempre incluir as datas reais:
+- Para "7d", "30d", "90d": calcular a data de início (hoje - N dias) e mostrar `"01/03/2026 a 31/03/2026 (30 dias)"`
+- Para "custom": já mostra as datas, manter como está
+- Isso afeta automaticamente a tela, o CSV, o PDF e o PNG, pois todos usam `periodLabel`
+
+**2. Adicionar linha de período visível na tela** abaixo do subtítulo "Análise completa..." (linha 404), exibindo `"Período: 01/03/2026 a 31/03/2026"` para que o lojista veja claramente o intervalo selecionado.
+
+### Resultado
+- Na tela: `Período: 01/03/2026 a 31/03/2026`
+- No CSV: `Relatório: 01/03/2026 a 31/03/2026 (30 dias)`
+- No PDF/PNG: `Relatório de Vendas — 01/03/2026 a 31/03/2026 (30 dias)`
 
 ### Detalhes
 - Apenas 1 arquivo editado
-- Zero lógica nova — reutiliza `paymentStats` existente
-- O resumo fica visível no topo do documento exportado, facilitando conferência bancária
+- Zero lógica nova — só reformatar a string `periodLabel` usando `subDays(new Date(), N)` e `format()`
 
