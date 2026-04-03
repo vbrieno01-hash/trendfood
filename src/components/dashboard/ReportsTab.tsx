@@ -413,6 +413,9 @@ ${watermarkHtml}
           <p className="text-sm text-muted-foreground mt-0.5">
             Análise completa do desempenho da sua operação.
           </p>
+          <p className="text-xs font-medium text-primary mt-1">
+            Período: {periodLabel}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-1 bg-secondary rounded-lg p-1">
