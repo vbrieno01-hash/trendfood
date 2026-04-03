@@ -959,7 +959,7 @@ const DashboardPage = () => {
           )}
 
           <ErrorBoundary>
-          {activeTab === "home" && <HomeTab organization={organization} />}
+          {activeTab === "home" && <HomeTab organization={organization} onNavigate={handleTabChange} />}
           {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} canAccessAddons={planLimits.canAccess("addons")} canAccessStockIngredients={planLimits.canAccess("stock_ingredients")} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
           {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
