@@ -12,7 +12,8 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
