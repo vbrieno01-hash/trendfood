@@ -247,6 +247,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "config", icon: <Settings className="w-4 h-4" />, label: "Configurações" },
       { key: "site", icon: <Globe className="w-4 h-4" />, label: "Site & Conteúdo" },
+      { key: "relatorios", icon: <FileText className="w-4 h-4" />, label: "Relatórios" },
       { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
       { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Chat de Vendas" },
       { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
