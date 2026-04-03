@@ -26,6 +26,7 @@ interface ParsedNotes {
   troco?: string;
   doc?: string;
   obs?: string;
+  agendado?: string;
   raw?: string;
 }
 
@@ -47,6 +48,7 @@ function parseNotesInternal(notes: string): ParsedNotes {
     troco: parts["TROCO"] || undefined,
     doc: parts["DOC"] || undefined,
     obs: parts["OBS"] || undefined,
+    agendado: parts["AGENDADO"] || undefined,
   };
 }
 
