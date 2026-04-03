@@ -50,6 +50,7 @@ const playBell = () => {
 interface KitchenTabProps {
   orgId: string;
   orgName?: string;
+  orgSlug?: string;
   storeAddress?: string | null;
   courierConfig?: { base_fee: number; per_km: number } | null;
   printMode?: 'browser' | 'desktop' | 'bluetooth';
