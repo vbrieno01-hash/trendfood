@@ -531,6 +531,7 @@ const UnitPage = () => {
       `💳 *Pagamento:* ${effectivePayment}`,
       effectivePayment === "Dinheiro" && changeFor > 0 ? `💵 *Troco para:* ${fmt(changeFor)}` : null,
       effectivePayment === "Dinheiro" && changeFor > 0 && changeFor > grandTotal ? `🔄 *Troco:* ${fmt(changeFor - grandTotal)}` : null,
+      scheduledTime ? `🕐 *Agendado para:* ${scheduledTime}` : null,
       notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
     ]
       .filter((l) => l !== null)
