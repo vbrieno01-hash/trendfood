@@ -766,6 +766,9 @@ const UnitPage = () => {
           )}
         </div>
 
+        {/* Reviews */}
+        <StoreReviews orgId={org.id} primaryColor={primaryColor} />
+
         {/* Menu */}
         <div>
             {menuLoading ? (
