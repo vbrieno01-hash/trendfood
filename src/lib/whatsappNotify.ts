@@ -23,6 +23,15 @@ export function parseOrderTypeFromNotes(notes: string | null): string | null {
 }
 
 /**
+ * Parse scheduled time from notes. Returns "HH:mm" or null.
+ */
+export function parseScheduledTimeFromNotes(notes: string | null): string | null {
+  if (!notes) return null;
+  const match = notes.match(/AGENDADO:([^|]+)/);
+  return match ? match[1].trim() : null;
+}
+
+/**
  * Build a WhatsApp message for order accepted and open wa.me link.
  */
 export function notifyCustomerWhatsApp(
