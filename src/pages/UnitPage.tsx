@@ -532,7 +532,16 @@ const UnitPage = () => {
             // Show review link toast
             toast({
               title: "Pedido enviado! 🎉",
-              description: `Avalie seu pedido: ${window.location.origin}/avaliar/${slug}/${order.id}`,
+              description: (
+                <a
+                  href={`/avaliar/${slug}/${order.id}`}
+                  className="underline font-semibold text-primary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Avalie seu pedido →
+                </a>
+              ),
               duration: 15000,
             });
             resetCheckout();
