@@ -132,6 +132,13 @@ const FEATURES: FeatureItem[] = [
     status: "available",
   },
   {
+    icon: <Heart className="w-5 h-5" />,
+    title: "Programa de Fidelidade",
+    description: "Sistema de pontos por compra. Clientes acumulam pontos e trocam por descontos automaticamente.",
+    minPlan: "pro",
+    status: "available",
+  },
+  {
     icon: <Bike className="w-5 h-5" />,
     title: "Delivery Próprio",
     description: "Receba pedidos de delivery sem taxas de marketplace. Gestão de motoboys e rastreamento.",

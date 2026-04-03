@@ -45,7 +45,7 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
   lifetime: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
     waiter: true, history_full: true, multi_unit: true, reports: true,
-    addons: true, stock_ingredients: true, online_payment: true, pricing: true,
+    addons: true, stock_ingredients: true, online_payment: true, pricing: true, loyalty: true,
   },
 };
 
