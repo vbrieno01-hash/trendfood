@@ -654,7 +654,6 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   }, [organization.id]);
 
   // Build category order using saved order or defaults
-  const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
   const categoryOrder = buildCategoryOrder(items, localCategoryOrder ?? organization.category_order);
 
   const grouped = categoryOrder.map((cat) => ({
