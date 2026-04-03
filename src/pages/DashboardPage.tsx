@@ -52,10 +52,11 @@ import StockTab from "@/components/dashboard/StockTab";
 import PricingTab from "@/components/dashboard/PricingTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
 import ReviewsTab from "@/components/dashboard/ReviewsTab";
+import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 
 
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
