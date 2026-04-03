@@ -910,11 +910,11 @@ const UnitPage = () => {
       )}
 
       {/* ── FLOATING BOTTOM BAR (Ajuda + Sacola) ── */}
-      {!checkoutOpen && !selectedItem && (org?.whatsapp || totalItems > 0) && (
+      {!checkoutOpen && !selectedItem && (whatsappValid || totalItems > 0) && (
         <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto animate-in slide-in-from-bottom-4 duration-300">
-          {org?.whatsapp && (
+          {whatsappValid && (
             <a
-              href={`https://wa.me/55${org.whatsapp}?text=${encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?")}`}
+              href={whatsappHelpUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-center gap-2 text-white font-semibold text-sm transition-transform active:scale-95"
