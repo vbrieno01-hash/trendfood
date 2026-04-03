@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Users, History } from "lucide-react";
+import { Gift, Users, History, Info } from "lucide-react";
 import { toast } from "sonner";
 import {
   useLoyaltyConfig,
@@ -172,6 +172,41 @@ export default function LoyaltyTab({ orgId }: Props) {
                 {upsert.isPending ? "Salvando..." : "Salvar configuração"}
               </Button>
             )}
+
+            <div className="bg-muted/50 border border-border rounded-lg p-4 mt-2 space-y-3 text-sm">
+              <h4 className="font-semibold text-foreground flex items-center gap-2">
+                <Info className="h-4 w-4 text-primary" />
+                Como funciona para seus clientes
+              </h4>
+              <ul className="space-y-2 text-muted-foreground list-none">
+                <li>1️⃣ O cliente faz um pedido e informa o <strong className="text-foreground">telefone</strong>.</li>
+                <li>2️⃣ A cada <strong className="text-foreground">R${spendPerPoint || "?"}</strong> gastos, ele ganha <strong className="text-foreground">1 ponto</strong> automaticamente.</li>
+                <li>3️⃣ Quando acumular <strong className="text-foreground">{pointsToRedeem || "?"} pontos</strong>, pode trocar por um desconto de <strong className="text-foreground">{rewardType === "percent" ? `${rewardValue || "?"}%` : `R$${rewardValue || "?"}`}</strong>.</li>
+                <li>4️⃣ O desconto é aplicado no <strong className="text-foreground">próximo pedido</strong>.</li>
+                <li>5️⃣ Os pontos são identificados pelo telefone — <strong className="text-foreground">sem cadastro extra</strong>.</li>
+              </ul>
+
+              {Number(spendPerPoint) > 0 && Number(pointsToRedeem) > 0 && Number(rewardValue) > 0 && (
+                <>
+                  <Separator />
+                  <div className="text-muted-foreground">
+                    <p className="font-medium text-foreground text-xs mb-1">📌 Exemplo prático:</p>
+                    <p>
+                      Se um cliente gastar{" "}
+                      <strong className="text-foreground">
+                        {fmt(Number(spendPerPoint) * Number(pointsToRedeem))}
+                      </strong>{" "}
+                      no total, ele acumula{" "}
+                      <strong className="text-foreground">{pointsToRedeem} pontos</strong> e pode resgatar um desconto de{" "}
+                      <strong className="text-foreground">
+                        {rewardType === "percent" ? `${rewardValue}%` : fmt(Number(rewardValue))}
+                      </strong>{" "}
+                      no próximo pedido.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
