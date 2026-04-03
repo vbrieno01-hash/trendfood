@@ -236,7 +236,7 @@ export default function SettingsTab() {
           </div>
           <CurrencyInput
             value={billingLimit}
-            onValueChange={(v) => setBillingLimit(v ?? 0)}
+            onChange={(v) => setBillingLimit(v ?? 0)}
             className="w-48"
           />
           <Button
