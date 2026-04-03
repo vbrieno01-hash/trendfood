@@ -114,6 +114,9 @@ function formatFromData(data: ReceiptData): string {
   if (data.showEta && data.eta1 && data.eta2) {
     lines.push(center(`Previsao: ${data.eta1} - ${data.eta2}`));
   }
+  if (data.scheduledTime) {
+    lines.push(center(bold(`AGENDADO: ${data.scheduledTime}`)));
+  }
   lines.push("");
   lines.push(center(bold(data.storeName.toUpperCase())));
   if (data.storeAddress) lines.push(center(data.storeAddress));
