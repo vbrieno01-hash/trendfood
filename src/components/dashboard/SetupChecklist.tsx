@@ -16,7 +16,6 @@ interface Props {
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
   orgLogoUrl?: string | null;
-  orgBusinessHours?: any;
   onNavigate: (tab: string) => void;
 }
 
