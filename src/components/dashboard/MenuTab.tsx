@@ -900,13 +900,31 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       )}
 
       {/* Grouped items — compact list */}
-      {!isLoading && grouped.map((group) => (
+      {!isLoading && grouped.map((group, groupIndex) => (
         <div key={group.value}>
           <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
             <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               {group.value}
             </span>
             <span className="text-xs text-muted-foreground/60">({group.items.length})</span>
+            <div className="flex items-center gap-0.5 ml-1">
+              <button
+                onClick={() => moveCategoryOrder(groupIndex, "up")}
+                disabled={groupIndex === 0}
+                className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
+                title="Mover para cima"
+              >
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => moveCategoryOrder(groupIndex, "down")}
+                disabled={groupIndex === grouped.length - 1}
+                className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
+                title="Mover para baixo"
+              >
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
             <div className="flex-1 h-px bg-border" />
           </div>
 
