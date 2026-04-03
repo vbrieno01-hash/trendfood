@@ -216,9 +216,9 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
   // ── CSV Export ──
   const handleDownloadCSV = () => {
     const BOM = "\uFEFF";
-    const header = "Pedido;Data;Valor;Pagamento\n";
+    const header = "Pedido;Data;Valor;Pagamento;Status\n";
     const rows = orderRows
-      .map((r) => `#${r.orderNumber};${r.date};${fmtBRL(r.total)};${r.paymentMethod}`)
+      .map((r) => `#${r.orderNumber};${r.date};${fmtBRL(r.total)};${r.paymentMethod};${r.status}`)
       .join("\n");
     const storeHeader = `${orgName}${orgCnpj ? ` — CNPJ: ${orgCnpj}` : ""}${orgAddress ? ` — ${orgAddress.replace(/\|/g, ", ")}` : ""}\nRelatório: ${periodLabel}\nEmitido em: ${new Date().toLocaleString("pt-BR")}\n\n`;
     const csv = BOM + storeHeader + header + rows;
