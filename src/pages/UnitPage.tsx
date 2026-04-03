@@ -21,7 +21,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
-import { useMenuItems, CATEGORIES } from "@/hooks/useMenuItems";
+import { useMenuItems, CATEGORIES, buildCategoryOrder } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliveryNeighborhoods";
