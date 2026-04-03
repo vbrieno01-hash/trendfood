@@ -60,10 +60,10 @@ export default function LoyaltyTab({ orgId }: Props) {
     const payload = {
       organization_id: orgId,
       enabled: effectiveEnabled,
-      spend_per_point: Number(effectiveSpend) || 50,
-      points_to_redeem: Number(effectivePoints) || 10,
-      reward_type: effectiveType,
-      reward_value: Number(effectiveValue) || 20,
+      spend_per_point: Number(spendPerPoint) || 50,
+      points_to_redeem: Number(pointsToRedeem) || 10,
+      reward_type: rewardType,
+      reward_value: Number(rewardValue) || 20,
     };
     try {
       await upsert.mutateAsync(payload);
