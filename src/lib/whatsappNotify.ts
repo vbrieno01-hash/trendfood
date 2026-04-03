@@ -29,16 +29,23 @@ export function notifyCustomerWhatsApp(
   phone: string,
   _orderNumber: number | string,
   storeName?: string,
-  notes?: string | null
+  notes?: string | null,
+  loyaltyInfo?: { earned: number; total: number } | null
 ) {
   const tipo = parseOrderTypeFromNotes(notes ?? null);
   const isDelivery = tipo === "Entrega";
+
+  const loyaltyLine =
+    loyaltyInfo && loyaltyInfo.earned > 0
+      ? `\n\n🎯 Você ganhou ${loyaltyInfo.earned} ${loyaltyInfo.earned === 1 ? "ponto" : "pontos"} de fidelidade! Saldo: ${loyaltyInfo.total} ${loyaltyInfo.total === 1 ? "ponto" : "pontos"}.`
+      : "";
 
   const msg =
     `🍳 *Pedido aceito!*\n` +
     (isDelivery
       ? `Estamos preparando seu pedido. Avisaremos quando o entregador sair! 😊`
       : `Estamos preparando seu pedido. Avisaremos quando estiver pronto para retirada! 😊`) +
+    loyaltyLine +
     (storeName ? `\n\n— ${storeName}` : "");
 
   const encoded = encodeURIComponent(msg);

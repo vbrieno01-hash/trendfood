@@ -199,11 +199,23 @@ export default function KitchenTab({
     updateStatus.mutate(
       { id: order.id, status: "preparing" },
       {
-        onSuccess: () => {
-          // Notify customer via WhatsApp
+        onSuccess: async () => {
+          // Notify customer via WhatsApp (with loyalty info if available)
           const phone = parsePhoneFromNotes(order.notes);
           if (phone) {
-            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), orgName, order.notes);
+            let loyaltyInfo: { earned: number; total: number } | null = null;
+            try {
+              const [{ data: lConfig }, { data: lPoints }] = await Promise.all([
+                supabase.from("loyalty_config").select("enabled, spend_per_point").eq("organization_id", orgId).maybeSingle(),
+                supabase.from("loyalty_points").select("points").eq("organization_id", orgId).eq("phone", phone.replace(/\D/g, "")).maybeSingle(),
+              ]);
+              if (lConfig?.enabled && lConfig.spend_per_point > 0 && lPoints) {
+                const orderTotal = (order.order_items ?? []).reduce((s, i) => s + (i.price ?? 0) * i.quantity, 0);
+                const earned = Math.floor(orderTotal / lConfig.spend_per_point);
+                if (earned > 0) loyaltyInfo = { earned, total: lPoints.points };
+              }
+            } catch { /* loyalty fetch failed, send without */ }
+            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), orgName, order.notes, loyaltyInfo);
           }
           toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
         },
