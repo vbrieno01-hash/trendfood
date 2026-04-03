@@ -516,8 +516,7 @@ const DashboardPage = () => {
       id: "operacional", emoji: "⚡", title: "OPERACIONAL",
       items: [
         { key: "tables" as TabKey, icon: <TableProperties className="w-4 h-4" />, label: "Mesas & Comandas" },
-        { key: "kitchen" as TabKey, icon: <Flame className="w-4 h-4" />, label: "Cozinha (KDS)", locked: lockedFeatures.kitchen },
-        { key: "waiter" as TabKey, icon: <BellRing className="w-4 h-4" />, label: "Gestão de Pedidos", locked: lockedFeatures.waiter },
+        { key: "operations" as TabKey, icon: <Flame className="w-4 h-4" />, label: "Cozinha & Pedidos", locked: lockedFeatures.kitchen || lockedFeatures.waiter },
         { key: "courier" as TabKey, icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
         { key: "history" as TabKey, icon: <History className="w-4 h-4" />, label: "Histórico" },
         { key: "reviews" as TabKey, icon: <Star className="w-4 h-4" />, label: "Avaliações" },
