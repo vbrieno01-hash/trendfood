@@ -990,9 +990,6 @@ const DashboardPage = () => {
                 whatsapp={organization.whatsapp}
                 pixConfirmationMode={organization.pix_confirmation_mode as any}
               />)}
-          {/* Legacy tab keys redirect */}
-          {activeTab === "kitchen" && (() => { handleTabChange("operations"); return null; })()}
-          {activeTab === "waiter" && (() => { handleTabChange("operations"); return null; })()}
           {activeTab === "caixa" && (lockedFeatures.caixa
             ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <CaixaTab orgId={organization.id} />)}
