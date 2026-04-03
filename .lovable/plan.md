@@ -1,45 +1,28 @@
 
 
-## Plano: Seção de Relatórios no Painel do Administrador
+## Plano: Melhorar Relatórios do Lojista com filtro por período customizado e exportação completa
 
-### Visão geral
-Adicionar uma nova aba "Relatórios" no painel admin com filtro por período (data início/fim), total faturado, tabela de pedidos e exportação em PDF/CSV. O documento serve como comprovante de faturamento.
+### Problema
+Atualmente o `ReportsTab` do lojista só permite 7, 30 ou 90 dias. Para declaração de imposto, o lojista precisa puxar relatórios de períodos maiores (6 meses, 1 ano). Além disso, falta exportação CSV e tabela detalhada com cada pedido individual.
 
 ### Mudanças
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/admin/AdminReportsTab.tsx` | **Novo** — Componente com: seletor de data início/fim, cards de KPI (total faturado, qtd pedidos), tabela com ID do pedido, data/hora, nome da loja, valor total, método de pagamento. Botões de exportar PDF e CSV |
-| `src/pages/AdminPage.tsx` | Adicionar item "Relatórios" (`relatorios`) no NAV_GROUPS sob "Gestão" e renderizar o componente na área de conteúdo |
+| `src/hooks/useOrders.ts` | Adicionar variante do `useOrderHistory` que aceita datas customizadas (from/to) sem limite de 500 rows — paginar se necessário. Remover `limit(500)` quando período é "custom" |
+| `src/components/dashboard/ReportsTab.tsx` | Adicionar opção "Personalizado" ao seletor de período, que abre dois date pickers (De / Até) sem limite de dias. Adicionar botão "Exportar CSV" no dropdown de download. Adicionar seção com tabela detalhada de pedidos (ID, data, valor, método de pagamento) abaixo dos gráficos existentes. No PDF/PNG exportado, incluir cabeçalho com dados da loja (nome, CNPJ, endereço) como comprovante formal de faturamento |
 
-### Layout da aba
-
-```text
-┌─────────────────────────────────────────────┐
-│  📊 Relatório de Faturamento                │
-│                                             │
-│  De: [__/__/____]  Até: [__/__/____]  [🔍]  │
-│                                             │
-│  ┌──────────┐  ┌──────────┐                 │
-│  │ R$12.450 │  │ 87       │                 │
-│  │ Total    │  │ Pedidos  │                 │
-│  └──────────┘  └──────────┘                 │
-│                                             │
-│  [Exportar CSV]  [Exportar PDF]             │
-│                                             │
-│  # │ Pedido  │ Loja   │ Data    │ Valor │Pgto│
-│  1 │ #42     │ Burger │ 03/04   │ R$85  │PIX │
-│  2 │ #41     │ Pizza  │ 02/04   │ R$120 │$   │
-│  ...                                        │
-└─────────────────────────────────────────────┘
-```
+### Fluxo do lojista
+1. Vai em "Relatórios" no dashboard
+2. Clica em "Personalizado" no seletor de período
+3. Escolhe data início e fim (sem limite — pode ser 1 ano inteiro)
+4. Vê KPIs, gráficos e tabela detalhada com todos os pedidos
+5. Exporta CSV ou PDF com cabeçalho da loja para fins fiscais
 
 ### Detalhes técnicos
-- Busca todos os pedidos de todas as orgs via `supabase.from("orders")` com `order_items` e join com `organizations` para nome da loja
-- Filtra por `created_at` entre as datas selecionadas
-- Valor total = soma de `price * quantity` dos `order_items`
-- Método de pagamento extraído do campo `payment_method` do pedido
-- CSV inclui BOM UTF-8 para compatibilidade com Excel
-- PDF abre em nova janela com `window.print()` (mesmo padrão do ReportsTab existente)
-- Documento inclui cabeçalho "TrendFood — Relatório de Faturamento" com período e data de emissão
+- O `useOrderHistory` passará a aceitar `{ from: string, to: string }` como período alternativo
+- Remove o `limit(500)` para períodos customizados — busca todos os pedidos entregues no intervalo
+- CSV inclui BOM UTF-8 e colunas: Pedido, Data, Valor, Pagamento
+- PDF inclui CNPJ da loja (campo `cnpj` já existe na tabela `organizations`) no cabeçalho
+- Tabela de pedidos detalhada aparece abaixo do ranking de categorias, com paginação visual (mostrar 50 por vez com botão "ver mais")
 
