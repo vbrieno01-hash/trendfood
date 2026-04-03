@@ -331,7 +331,7 @@ const UnitPage = () => {
 
    // (no more CEP lookup needed — neighborhood-based delivery)
   // WhatsApp checkout
-   const handleSendWhatsApp = (overridePayment?: string, overrideOrderId?: string) => {
+   const handleSendWhatsApp = async (overridePayment?: string, overrideOrderId?: string) => {
    if (isSubmitting || placeOrder.isPending) return;
    if (cartItems.length === 0) {
      toast({ title: "Seu carrinho está vazio", variant: "destructive" });
@@ -339,6 +339,19 @@ const UnitPage = () => {
    }
    try {
     setIsSubmitting(true);
+
+    // Real-time check: block if store was paused after page load
+    const { data: freshOrg } = await supabase
+      .from("organizations")
+      .select("paused")
+      .eq("id", org!.id)
+      .maybeSingle();
+    if (freshOrg?.paused) {
+      toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
+
     const effectivePayment = overridePayment || payment;
     let valid = true;
     let hasAddressError = false;
