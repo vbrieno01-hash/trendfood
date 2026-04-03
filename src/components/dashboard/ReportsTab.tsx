@@ -1,17 +1,23 @@
 import { useState, useMemo } from "react";
-import { useOrderHistory } from "@/hooks/useOrders";
+import { useOrderHistory, type CustomDateRange } from "@/hooks/useOrders";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  DollarSign, ShoppingCart, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Minus, Download, FileImage, FileText,
+  DollarSign, ShoppingCart, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Minus, Download, FileImage, FileText, CalendarIcon, FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format, startOfDay, endOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import html2canvas from "html2canvas";
 
 interface ReportsTabProps {
@@ -21,9 +27,10 @@ interface ReportsTabProps {
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
   orgEmoji: string;
+  orgCnpj?: string | null;
 }
 
-type Period = "7d" | "30d" | "90d";
+type Period = "7d" | "30d" | "90d" | "custom";
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -32,12 +39,30 @@ const PERIOD_OPTIONS: { key: Period; label: string }[] = [
   { key: "7d", label: "7 dias" },
   { key: "30d", label: "30 dias" },
   { key: "90d", label: "90 dias" },
+  { key: "custom", label: "Personalizado" },
 ];
 
-export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAddress, orgEmoji }: ReportsTabProps) {
+const PAYMENT_LABELS: Record<string, string> = {
+  pix: "PIX",
+  cash: "Dinheiro",
+  credit: "Crédito",
+  debit: "Débito",
+  pending: "Pendente",
+};
+
+export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAddress, orgEmoji, orgCnpj }: ReportsTabProps) {
   const [period, setPeriod] = useState<Period>("30d");
-  const queryPeriod = period === "90d" ? "all" : period;
-  const { data: orders = [], isLoading } = useOrderHistory(orgId, queryPeriod);
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
+  const [visibleOrders, setVisibleOrders] = useState(50);
+
+  const queryPeriod = period === "90d" ? "all" : period === "custom" ? "custom" as any : period;
+  const customRange: CustomDateRange | undefined =
+    period === "custom" && customFrom && customTo
+      ? { from: startOfDay(customFrom).toISOString(), to: endOfDay(customTo).toISOString() }
+      : undefined;
+
+  const { data: orders = [], isLoading } = useOrderHistory(orgId, queryPeriod, customRange);
 
   // Filter orders to selected period for 90d
   const filteredOrders = useMemo(() => {
@@ -55,10 +80,8 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
     );
     const totalOrders = filteredOrders.length;
     const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
     const days = new Set(filteredOrders.map((o) => o.created_at.slice(0, 10))).size || 1;
     const avgOrdersPerDay = totalOrders / days;
-
     return { totalRevenue, totalOrders, avgTicket, avgOrdersPerDay };
   }, [filteredOrders]);
 
@@ -125,7 +148,6 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       });
     });
 
-    // If no category data, group by item name instead
     if (Object.keys(map).length <= 1) {
       const itemMap: Record<string, { revenue: number; qty: number }> = {};
       filteredOrders.forEach((o) => {
@@ -146,7 +168,37 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       .map(([name, data]) => ({ name, ...data }));
   }, [filteredOrders]);
 
-  const periodLabel = PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
+  // Order detail rows for table
+  const orderRows = useMemo(() => {
+    return filteredOrders.map((o) => ({
+      id: o.id,
+      orderNumber: o.order_number ?? 0,
+      date: new Date(o.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      total: (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0),
+      paymentMethod: PAYMENT_LABELS[o.payment_method ?? "pending"] ?? o.payment_method ?? "—",
+    }));
+  }, [filteredOrders]);
+
+  const periodLabel = period === "custom" && customFrom && customTo
+    ? `${format(customFrom, "dd/MM/yyyy")} a ${format(customTo, "dd/MM/yyyy")}`
+    : PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
+
+  // ── CSV Export ──
+  const handleDownloadCSV = () => {
+    const BOM = "\uFEFF";
+    const header = "Pedido;Data;Valor;Pagamento\n";
+    const rows = orderRows
+      .map((r) => `#${r.orderNumber};${r.date};${fmtBRL(r.total)};${r.paymentMethod}`)
+      .join("\n");
+    const storeHeader = `${orgName}${orgCnpj ? ` — CNPJ: ${orgCnpj}` : ""}${orgAddress ? ` — ${orgAddress.replace(/\|/g, ", ")}` : ""}\nRelatório: ${periodLabel}\nEmitido em: ${new Date().toLocaleString("pt-BR")}\n\n`;
+    const csv = BOM + storeHeader + header + rows;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.download = `relatorio-${orgName.replace(/\s+/g, "-").toLowerCase()}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   const buildReportHtml = (forImage = false) => {
     const cleanAddress = orgAddress?.replace(/\|/g, ", ") ?? "";
@@ -163,12 +215,18 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       .map((c, i) => `<tr><td>${i + 1}</td><td>${c.name}</td><td>${fmtBRL(c.revenue)}</td><td>${c.qty}</td></tr>`)
       .join("");
 
+    const orderDetailRows = orderRows
+      .map((r) => `<tr><td>#${r.orderNumber}</td><td>${r.date}</td><td>${fmtBRL(r.total)}</td><td>${r.paymentMethod}</td></tr>`)
+      .join("");
+
     const trendfoodLogo = window.location.origin + "/logo-trendfood.png";
     const watermarkHtml = `<div style="position:${forImage ? "absolute" : "fixed"};top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${trendfoodLogo}" style="width:100%;height:auto" /></div>`;
 
     const headerLogoHtml = orgLogo
       ? `<img src="${orgLogo}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
       : "";
+
+    const cnpjLine = orgCnpj ? `<div class="store-info">CNPJ: ${orgCnpj}</div>` : "";
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas - ${orgName}</title>
 <style>
@@ -206,6 +264,7 @@ ${watermarkHtml}
     ${headerLogoHtml}
     <div>
       <div class="store-name">${orgEmoji} ${orgName}</div>
+      ${cnpjLine}
       <div class="store-info">
         ${cleanAddress ? cleanAddress : ""}${cleanAddress && formattedWhatsapp ? " &nbsp;•&nbsp; " : ""}${formattedWhatsapp ? "WhatsApp: " + formattedWhatsapp : ""}
       </div>
@@ -230,6 +289,8 @@ ${watermarkHtml}
 
   ${categoryRanking.length > 0 ? `<h2>Ranking por Item / Categoria</h2><table><thead><tr><th>#</th><th>Item</th><th>Receita</th><th>Qtd</th></tr></thead><tbody>${rankingRows}</tbody></table>` : ""}
 
+  ${orderRows.length > 0 ? `<h2>Detalhamento de Pedidos</h2><table><thead><tr><th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th></tr></thead><tbody>${orderDetailRows}</tbody></table>` : ""}
+
   <div class="footer">Relatório gerado via TrendFood • ${emissionDate}</div>
 </div>
 
@@ -237,7 +298,6 @@ ${watermarkHtml}
   };
 
   const handleDownloadPDF = async () => {
-    // Web: open in new window for printing
     const w = window.open("", "_blank");
     if (!w) return;
     const html = buildReportHtml(false);
@@ -305,12 +365,12 @@ ${watermarkHtml}
             Análise completa do desempenho da sua operação.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-1 bg-secondary rounded-lg p-1">
             {PERIOD_OPTIONS.map((opt) => (
               <button
                 key={opt.key}
-                onClick={() => setPeriod(opt.key)}
+                onClick={() => { setPeriod(opt.key); setVisibleOrders(50); }}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   period === opt.key
                     ? "bg-card text-foreground shadow-sm"
@@ -329,6 +389,10 @@ ${watermarkHtml}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDownloadCSV}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                CSV (Excel)
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadImage}>
                 <FileImage className="w-4 h-4 mr-2" />
                 Imagem (PNG)
@@ -341,6 +405,38 @@ ${watermarkHtml}
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Custom date pickers */}
+      {period === "custom" && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !customFrom && "text-muted-foreground")}>
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                {customFrom ? format(customFrom, "dd/MM/yyyy") : "Data início"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} disabled={(d) => d > new Date()} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+            </PopoverContent>
+          </Popover>
+          <span className="text-sm text-muted-foreground">até</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !customTo && "text-muted-foreground")}>
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                {customTo ? format(customTo, "dd/MM/yyyy") : "Data fim"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={customTo} onSelect={setCustomTo} disabled={(d) => d > new Date() || (customFrom ? d < customFrom : false)} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
+            </PopoverContent>
+          </Popover>
+          {(!customFrom || !customTo) && (
+            <span className="text-xs text-muted-foreground">Selecione as duas datas para carregar.</span>
+          )}
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -517,6 +613,46 @@ ${watermarkHtml}
                 );
               })}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Detailed orders table */}
+      {orderRows.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="font-semibold text-foreground text-sm mb-4">
+              Detalhamento de Pedidos ({orderRows.length})
+            </h3>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Pagamento</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orderRows.slice(0, visibleOrders).map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">#{r.orderNumber}</TableCell>
+                      <TableCell>{r.date}</TableCell>
+                      <TableCell className="text-right">{fmtBRL(r.total)}</TableCell>
+                      <TableCell>{r.paymentMethod}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {visibleOrders < orderRows.length && (
+              <div className="flex justify-center mt-4">
+                <Button variant="outline" size="sm" onClick={() => setVisibleOrders((v) => v + 50)}>
+                  Ver mais ({orderRows.length - visibleOrders} restantes)
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
