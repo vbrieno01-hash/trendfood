@@ -54,6 +54,7 @@ export interface Organization {
   cnpj?: string | null;
   force_open?: boolean;
   tax_regime?: string | null;
+  category_order?: string[] | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {
