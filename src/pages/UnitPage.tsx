@@ -687,6 +687,7 @@ const UnitPage = () => {
         `👤 *Nome:* ${buyerName.trim()}`,
         orderType === "Entrega" && fullCustomerAddressDisplay ? `🏠 *Endereço:* ${fullCustomerAddressDisplay}` : null,
         `💳 *Pagamento:* ${pixStatus}`,
+        scheduledTime ? `🕐 *Agendado para:* ${scheduledTime}` : null,
         notes.trim() ? `📝 *Obs:* ${notes.trim()}` : null,
       ]
         .filter((l) => l !== null)
