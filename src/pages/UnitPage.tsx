@@ -62,6 +62,11 @@ const UnitPage = () => {
   const planLimits = usePlanLimits(org);
 
   const placeOrder = usePlaceOrder();
+  const { data: loyaltyConfig } = useLoyaltyConfig(org?.id);
+  const accumulateLoyalty = useAccumulateLoyalty();
+  const redeemLoyalty = useRedeemLoyalty();
+  const [loyaltyRedeemed, setLoyaltyRedeemed] = useState(false);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
 
   // Cart state — persisted in localStorage so swipe-back gestures don't lose items
   const cartStorageKey = `cart_${slug}`;
