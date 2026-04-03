@@ -514,6 +514,29 @@ ${watermarkHtml}
         </div>
       </div>
 
+      {/* Payment method summary */}
+      {paymentStats.length > 0 && (
+        <div className="dashboard-glass rounded-2xl p-5 animate-dashboard-slide-up dash-delay-5">
+          <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+            💳 Resumo por Meio de Pagamento
+          </h3>
+          <div className="space-y-2">
+            {paymentStats.map((ps) => (
+              <div key={ps.method} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: ps.fill }} />
+                  <span className="text-sm text-foreground">{ps.method}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-foreground">{fmtBRL(ps.total)}</span>
+                  <span className="text-xs text-muted-foreground w-10 text-right">{ps.pct.toFixed(0)}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Weekly comparison */}
       <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-5">
         <div className="p-5">
