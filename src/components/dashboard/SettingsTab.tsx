@@ -33,11 +33,18 @@ export default function SettingsTab() {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open")
+        .select("force_open, scheduling_config")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data) setForceOpen(!!(data as any).force_open);
+          if (data) {
+            setForceOpen(!!(data as any).force_open);
+            const sc = (data as any).scheduling_config as { enabled?: boolean; min_advance_minutes?: number } | null;
+            if (sc) {
+              setSchedulingEnabled(!!sc.enabled);
+              setMinAdvance(String(sc.min_advance_minutes ?? 30));
+            }
+          }
         });
     }
   }, [currentOrg?.id]);
