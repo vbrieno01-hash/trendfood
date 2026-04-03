@@ -66,7 +66,7 @@ const TermsContent = () => (
     </div>
 
     <div>
-      <h3 className="font-semibold text-foreground mb-1">4. INDISPONIBILIDADE E SUPORTE</h3>
+      <h3 className="font-semibold text-foreground mb-1">5. INDISPONIBILIDADE E SUPORTE</h3>
       <p>
         Trabalhamos para manter o sistema online 24h por dia. Manutenções agendadas ou
         instabilidades rápidas não geram direito a indenizações. O suporte é feito via dashboard ou
