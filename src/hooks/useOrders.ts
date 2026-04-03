@@ -437,6 +437,11 @@ export const useDeliveredOrders = (organizationId: string | undefined) => {
 
 type HistoryPeriod = "today" | "7d" | "30d" | "all";
 
+export interface CustomDateRange {
+  from: string; // ISO date string
+  to: string;   // ISO date string
+}
+
 const getPeriodStart = (period: HistoryPeriod): string | null => {
   const now = new Date();
   if (period === "today") {
@@ -458,12 +463,28 @@ const getPeriodStart = (period: HistoryPeriod): string | null => {
 
 export const useOrderHistory = (
   organizationId: string | undefined,
-  period: HistoryPeriod = "7d"
+  period: HistoryPeriod = "7d",
+  customRange?: CustomDateRange
 ) => {
   return useQuery({
-    queryKey: ["orders-history", organizationId, period],
+    queryKey: ["orders-history", organizationId, period, customRange?.from, customRange?.to],
     queryFn: async () => {
       if (!organizationId) throw new Error("No org");
+
+      if (period === "custom" as string && customRange) {
+        // Custom range — no row limit, fetch all delivered orders in range
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*, order_items(*)")
+          .eq("organization_id", organizationId)
+          .eq("status", "delivered")
+          .gte("created_at", customRange.from)
+          .lte("created_at", customRange.to)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return data as Order[];
+      }
+
       let query = supabase
         .from("orders")
         .select("*, order_items(*)")
