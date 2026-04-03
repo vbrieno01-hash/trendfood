@@ -25,15 +25,7 @@ interface CartItem {
   customer_name: string;
 }
 
-const CATEGORY_ORDER = [
-  "Promoção do dia",
-  "Lanches com 1 hambúrguer e sem batata frita",
-  "Lanches com 2 hambúrgueres e batata frita",
-  "Hambúrgueres triplo",
-  "Combos com batata frita",
-  "Combos sem batata frita",
-  "Bebidas", "Porções", "Sobremesas", "Outros",
-];
+// Removed hardcoded CATEGORY_ORDER — now uses buildCategoryOrder from useMenuItems
 
 export default function TableOrderPage() {
   const { slug, tableNumber } = useParams<{ slug: string; tableNumber: string }>();
