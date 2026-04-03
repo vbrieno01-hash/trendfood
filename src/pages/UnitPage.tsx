@@ -688,6 +688,7 @@ const UnitPage = () => {
     setChangeFor(0);
     setChangeForError(false);
     setNotes("");
+    setScheduledTime("");
     setLoyaltyRedeemed(false);
     setLoyaltyDiscount(0);
   };
