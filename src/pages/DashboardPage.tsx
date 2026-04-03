@@ -53,6 +53,7 @@ import PricingTab from "@/components/dashboard/PricingTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
 import ReviewsTab from "@/components/dashboard/ReviewsTab";
 import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
+import OperationsTab from "@/components/dashboard/OperationsTab";
 
 
 
