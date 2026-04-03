@@ -49,11 +49,17 @@ export function notifyCustomerWhatsApp(
       ? `\n\n🎯 Você ganhou ${loyaltyInfo.earned} ${loyaltyInfo.earned === 1 ? "ponto" : "pontos"} de fidelidade! Saldo: ${loyaltyInfo.total} ${loyaltyInfo.total === 1 ? "ponto" : "pontos"}.`
       : "";
 
+  const scheduledTime = parseScheduledTimeFromNotes(notes ?? null);
+  const scheduledLine = scheduledTime
+    ? `\n\n🕐 Pedido agendado para *${scheduledTime}*.`
+    : "";
+
   const msg =
     `🍳 *Pedido aceito!*\n` +
     (isDelivery
       ? `Estamos preparando seu pedido. Avisaremos quando o entregador sair! 😊`
       : `Estamos preparando seu pedido. Avisaremos quando estiver pronto para retirada! 😊`) +
+    scheduledLine +
     loyaltyLine +
     (storeName ? `\n\n— ${storeName}` : "");
 
