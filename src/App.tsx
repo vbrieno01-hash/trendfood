@@ -23,6 +23,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ReviewPage from "./pages/ReviewPage";
+import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
