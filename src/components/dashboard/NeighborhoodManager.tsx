@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -76,8 +77,9 @@ export default function NeighborhoodManager({ organizationId }: { organizationId
       {neighborhoods.length > 0 && (
         <div className="space-y-2">
           {neighborhoods.map((n) => (
-            <div key={n.id} className="flex items-center gap-2">
+            <div key={n.id} className={`flex items-center gap-2 ${!n.active ? "opacity-50" : ""}`}>
               <span className="text-sm font-medium text-foreground flex-1 truncate">{n.name}</span>
+              {!n.active && <span className="text-xs text-muted-foreground italic">Pausado</span>}
               <div className="relative w-24">
                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                 <Input
@@ -92,6 +94,10 @@ export default function NeighborhoodManager({ organizationId }: { organizationId
                   className="pl-8 h-8 text-sm"
                 />
               </div>
+              <Switch
+                checked={n.active}
+                onCheckedChange={(active) => updateMutation.mutate({ id: n.id, active })}
+              />
               <Button
                 type="button"
                 variant="ghost"
