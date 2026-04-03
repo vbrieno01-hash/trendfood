@@ -598,11 +598,11 @@ export default function KitchenTab({
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
+                          {parseScheduledTimeFromNotes(order.notes) && (
+                            <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5">
+                              🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
+                            </span>
+                          )}
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
