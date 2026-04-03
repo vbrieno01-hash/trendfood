@@ -1,12 +1,10 @@
 
-
-## Plano: Remover comentários da vitrine pública — mostrar só estrelas
+## Plano: Simplificar avaliações na vitrine — só resumo com estrelas
 
 ### Mudança
-No componente `src/components/unit/StoreReviews.tsx`, remover a exibição de comentários e nomes de clientes na lista expandida. Manter apenas as estrelas, data e a média no resumo.
+Remover a funcionalidade de expandir/colapsar e a lista individual de avaliações. Manter apenas a barra de resumo estática com as estrelas, nota média e contagem.
 
 ### Arquivo modificado
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/unit/StoreReviews.tsx` | Remover `review.comment` e `review.customer_name` da renderização dos cards de avaliação |
-
+| `src/components/unit/StoreReviews.tsx` | Remover estado `expanded`, botão de toggle, ícones chevron e bloco de lista de reviews. Manter só o `div` estático com estrelas + média + contagem |
