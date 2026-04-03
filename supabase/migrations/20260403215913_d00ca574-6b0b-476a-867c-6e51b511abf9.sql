@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN category_order jsonb DEFAULT NULL;
