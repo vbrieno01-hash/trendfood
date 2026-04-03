@@ -156,7 +156,7 @@ export default function LoyaltyTab({ orgId }: Props) {
 
               <div className="space-y-1.5">
                 <Label className="text-xs">
-                  Valor do desconto {effectiveType === "percent" ? "(%)" : "(R$)"}
+                  Valor do desconto {rewardType === "percent" ? "(%)" : "(R$)"}
                 </Label>
                 <Input
                   type="number"
