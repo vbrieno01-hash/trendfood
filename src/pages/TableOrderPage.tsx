@@ -254,6 +254,16 @@ export default function TableOrderPage() {
   const handleFinish = async () => {
     if (!org || cartItems.length === 0) return;
 
+    // Real-time check: block if store was paused after page load
+    const { data: freshOrg } = await supabase
+      .from("organizations")
+      .select("paused")
+      .eq("id", org.id)
+      .maybeSingle();
+    if (freshOrg?.paused) {
+      toast.error("Esta loja pausou os pedidos no momento.");
+      return;
+    }
     try {
       let finalNotes = notes;
       if (appliedCoupon) {
