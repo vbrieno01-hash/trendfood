@@ -157,6 +157,21 @@ const UnitPage = () => {
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Loyalty
+  const cleanPhoneForLoyalty = buyerPhone.replace(/\D/g, "");
+  const { data: loyaltyPointsData, refetch: refetchLoyalty } = useLoyaltyPoints(
+    org?.id,
+    cleanPhoneForLoyalty.length >= 10 ? cleanPhoneForLoyalty : undefined
+  );
+  const loyaltyEnabled = loyaltyConfig?.enabled ?? false;
+  const canRedeem = loyaltyEnabled && loyaltyPointsData && loyaltyConfig
+    && loyaltyPointsData.points >= loyaltyConfig.points_to_redeem && !loyaltyRedeemed;
+  const loyaltyRewardLabel = loyaltyConfig
+    ? loyaltyConfig.reward_type === "percent"
+      ? `${loyaltyConfig.reward_value}%`
+      : fmt(loyaltyConfig.reward_value)
+    : "";
+
    // Simplified address: neighborhood dropdown + street/number
    const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
    const [customerStreet, setCustomerStreet] = useState("");
