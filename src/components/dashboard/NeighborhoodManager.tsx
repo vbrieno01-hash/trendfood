@@ -78,7 +78,15 @@ export default function NeighborhoodManager({ organizationId }: { organizationId
         <div className="space-y-2">
           {neighborhoods.map((n) => (
             <div key={n.id} className={`flex items-center gap-2 ${!n.active ? "opacity-50" : ""}`}>
-              <span className="text-sm font-medium text-foreground flex-1 truncate">{n.name}</span>
+              <Input
+                defaultValue={n.name}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== n.name) updateMutation.mutate({ id: n.id, name: v });
+                  else if (!v) e.target.value = n.name;
+                }}
+                className="h-8 text-sm flex-1"
+              />
               {!n.active && <span className="text-xs text-muted-foreground italic">Pausado</span>}
               <div className="relative w-24">
                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
