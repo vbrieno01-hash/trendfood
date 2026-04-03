@@ -27,12 +27,12 @@ interface Organization {
   logo_url: string | null;
   subscription_status?: string;
   paused?: boolean;
+  whatsapp?: string | null;
+  store_address?: string | null;
+  business_hours?: any;
 }
 
-const fmtBRL = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-export default function HomeTab({ organization }: { organization: Organization }) {
+export default function HomeTab({ organization, onNavigate }: { organization: Organization; onNavigate?: (tab: string) => void }) {
   const { data: delivered = [], isLoading: loadingDelivered } = useDeliveredOrders(organization.id);
   const { data: unpaid = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(organization.id);
   const { data: activeOrders = [] } = useOrders(organization.id, ["pending", "preparing"]);
