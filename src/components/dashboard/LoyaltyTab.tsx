@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -40,23 +40,30 @@ export default function LoyaltyTab({ orgId }: Props) {
   const [rewardType, setRewardType] = useState<"fixed" | "percent">("fixed");
   const [rewardValue, setRewardValue] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [synced, setSynced] = useState(false);
 
-  // Sync from server on load
-  const isReady = !isLoading && config !== undefined;
+  // Sync from server once on load
+  useEffect(() => {
+    if (config && !synced) {
+      setEnabled(config.enabled);
+      setSpendPerPoint(String(config.spend_per_point));
+      setPointsToRedeem(String(config.points_to_redeem));
+      setRewardType((config.reward_type as "fixed" | "percent") ?? "fixed");
+      setRewardValue(String(config.reward_value));
+      setSynced(true);
+    }
+  }, [config, synced]);
+
   const effectiveEnabled = enabled ?? config?.enabled ?? false;
-  const effectiveSpend = spendPerPoint || String(config?.spend_per_point ?? 50);
-  const effectivePoints = pointsToRedeem || String(config?.points_to_redeem ?? 10);
-  const effectiveType = dirty ? rewardType : (config?.reward_type as "fixed" | "percent") ?? "fixed";
-  const effectiveValue = rewardValue || String(config?.reward_value ?? 20);
 
   const handleSave = async () => {
     const payload = {
       organization_id: orgId,
       enabled: effectiveEnabled,
-      spend_per_point: Number(effectiveSpend) || 50,
-      points_to_redeem: Number(effectivePoints) || 10,
-      reward_type: effectiveType,
-      reward_value: Number(effectiveValue) || 20,
+      spend_per_point: Number(spendPerPoint) || 50,
+      points_to_redeem: Number(pointsToRedeem) || 10,
+      reward_type: rewardType,
+      reward_value: Number(rewardValue) || 20,
     };
     try {
       await upsert.mutateAsync(payload);
@@ -116,10 +123,10 @@ export default function LoyaltyTab({ orgId }: Props) {
                 <Input
                   type="number"
                   min={1}
-                  value={effectiveSpend}
+                  value={spendPerPoint}
                   onChange={(e) => { setSpendPerPoint(e.target.value); setDirty(true); }}
                 />
-                <p className="text-xs text-muted-foreground">Ex: a cada R${effectiveSpend}, ganha 1 ponto</p>
+                <p className="text-xs text-muted-foreground">Ex: a cada R${spendPerPoint || "?"}, ganha 1 ponto</p>
               </div>
 
               <div className="space-y-1.5">
@@ -127,7 +134,7 @@ export default function LoyaltyTab({ orgId }: Props) {
                 <Input
                   type="number"
                   min={1}
-                  value={effectivePoints}
+                  value={pointsToRedeem}
                   onChange={(e) => { setPointsToRedeem(e.target.value); setDirty(true); }}
                 />
                 <p className="text-xs text-muted-foreground">Quantidade de pontos para usar o desconto</p>
@@ -136,7 +143,7 @@ export default function LoyaltyTab({ orgId }: Props) {
               <div className="space-y-1.5">
                 <Label className="text-xs">Tipo de desconto</Label>
                 <Select
-                  value={effectiveType}
+                  value={rewardType}
                   onValueChange={(v: "fixed" | "percent") => { setRewardType(v); setDirty(true); }}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -149,12 +156,12 @@ export default function LoyaltyTab({ orgId }: Props) {
 
               <div className="space-y-1.5">
                 <Label className="text-xs">
-                  Valor do desconto {effectiveType === "percent" ? "(%)" : "(R$)"}
+                  Valor do desconto {rewardType === "percent" ? "(%)" : "(R$)"}
                 </Label>
                 <Input
                   type="number"
                   min={1}
-                  value={effectiveValue}
+                  value={rewardValue}
                   onChange={(e) => { setRewardValue(e.target.value); setDirty(true); }}
                 />
               </div>
