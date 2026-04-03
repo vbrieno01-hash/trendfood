@@ -1,57 +1,43 @@
 
 
-## Plano: Aviso de Limite de Faturamento Mensal + Cláusula nos Termos
+## Plano: Atualização Institucional, PDF e Termos de Uso
 
-### Visão geral
-Permitir que o lojista defina um limite de faturamento mensal (ex: R$ 6.750 para MEI). O sistema exibe uma barra de progresso no Dashboard principal mostrando quanto já faturou no mês vs. o limite. Se não houver valor definido, nada aparece. Também adiciona cláusula de isenção fiscal nos Termos de Uso.
+### O que já está implementado
+- Limite de faturamento mensal nas Configurações + barra de progresso no Dashboard ✅
+- Cláusula de responsabilidade fiscal nos Termos ✅
+- Resumo por meio de pagamento no PDF ✅
 
-### Mudanças
+### O que precisa ser feito
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/dashboard/SettingsTab.tsx` | Novo campo "Aviso de Limite de Faturamento" com input numérico, salvo em `organizations.billing_alert_limit` (jsonb no campo existente ou nova coluna) |
-| `src/components/dashboard/HomeTab.tsx` | Barra de progresso mostrando faturamento do mês atual vs. limite definido. Alerta visual quando ≥ 80% |
-| `src/components/checkout/TermsContent.tsx` | Nova cláusula de responsabilidade fiscal |
-| Migração | Adicionar coluna `billing_alert_limit` (numeric, nullable) na tabela `organizations` |
+| # | Arquivo | Mudança |
+|---|---------|---------|
+| 1 | `src/pages/Index.tsx` | Adicionar CNPJ e razão social no footer: "66.067.207/0001-91 - JACKSON BRENO FRANCELINO DA COSTA" |
+| 2 | `src/pages/TermsPage.tsx` | Adicionar CNPJ no footer |
+| 3 | `src/pages/PrivacyPage.tsx` | Adicionar CNPJ no footer |
+| 4 | `src/components/dashboard/ReportsTab.tsx` | Adicionar rodapé fixo em todas as páginas do PDF: "Este é um relatório gerencial. A emissão de documentos fiscais e o controle de limites tributários são de responsabilidade exclusiva do estabelecimento." |
+| 5 | `src/components/dashboard/SettingsTab.tsx` | Renomear seção de billing para "Gestão Fiscal" com ícone atualizado |
+| 6 | `src/components/checkout/TermsContent.tsx` | Reescrever termos enfatizando: TrendFood é SaaS, não retém valores, não processa pagamentos, não é responsável por contabilidade/impostos |
 
-### Detalhes por arquivo
+### Detalhes
 
-**1. Migração SQL**
-```sql
-ALTER TABLE public.organizations ADD COLUMN billing_alert_limit numeric DEFAULT NULL;
-```
+**1. Footer institucional (Index.tsx)** — Abaixo do copyright, adicionar linha com CNPJ e razão social. Links para Termos e Privacidade já existem.
 
-**2. SettingsTab.tsx** — Nova seção "Saúde Fiscal" entre Agendamento e Alterar Senha:
-- Input tipo moeda para o lojista digitar o limite (ex: R$ 6.750,00)
-- Botão "Salvar" que faz `update` na coluna `billing_alert_limit`
-- Texto explicativo: "Defina o limite mensal de faturamento do seu negócio. Você receberá um alerta no painel quando atingir 80% deste valor."
+**2-3. Footers das páginas de Termos e Privacidade** — Substituir "© 2025 TrendFood" por texto com CNPJ + razão social.
 
-**3. HomeTab.tsx** — Card de alerta condicional (só aparece se `billing_alert_limit > 0`):
-- Calcula faturamento do mês atual (pedidos pagos do mês corrente)
-- Barra de progresso (`Progress`) com percentual
-- Cores: verde (< 60%), amarelo (60-80%), vermelho (≥ 80%)
-- Texto: "R$ 5.400 de R$ 6.750 (80%)"
-- Se ≥ 80%: badge de alerta "Atenção: próximo do limite definido"
+**4. Rodapé no PDF** — No `buildReportHtml`, adicionar CSS `@bottom-center` para impressão e um `<div class="footer">` fixo com o aviso legal. Para o PNG (html2canvas), o footer já aparece no final do documento.
 
-**4. TermsContent.tsx** — Nova seção após "O SERVIÇO":
-> "O TrendFood fornece dados de faturamento baseados nos pedidos realizados. A classificação fiscal do estabelecimento (CPF, MEI, ME, etc.) e o cumprimento de seus respectivos limites de faturamento são de responsabilidade exclusiva do usuário contratante."
+**5. Gestão Fiscal** — Apenas renomear o header da seção de "Saúde Fiscal" para "Gestão Fiscal" e ajustar o texto explicativo para incluir menção a CPF/MEI/ME.
 
-### Layout do card no HomeTab
+**6. Termos de Uso** — Reescrever com ênfase em:
+- TrendFood é plataforma SaaS de gestão de pedidos
+- Não retém valores — dinheiro vai direto para o lojista
+- Não processa pagamentos (Pix do lojista, maquininha do lojista)
+- Não é responsável por contabilidade, impostos ou obrigações fiscais
+- Manter cláusulas existentes (reembolso, planos, LGPD)
 
-```text
-┌──────────────────────────────────────────────┐
-│  💰 Limite de Faturamento Mensal             │
-│                                              │
-│  R$ 5.400,00 de R$ 6.750,00                 │
-│  [████████████████████░░░░░] 80%             │
-│                                              │
-│  ⚠️ Atenção: próximo do limite definido      │
-└──────────────────────────────────────────────┘
-```
-
-### Detalhes técnicos
-- 1 migração (1 coluna nova)
-- 3 arquivos editados
-- Faturamento do mês = pedidos com `paid = true` e `created_at` no mês corrente (reutiliza dados já carregados no HomeTab)
-- `useOrganization` e `useAuth` já expõem os dados da org; basta adicionar `billing_alert_limit` ao select
+### Resultado
+- 6 arquivos editados, 0 migrações
+- Footer institucional com CNPJ em todas as páginas públicas
+- PDF com disclaimer legal no rodapé
+- Termos reforçados juridicamente
 
