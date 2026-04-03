@@ -246,7 +246,11 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       .join("");
 
     const orderDetailRows = orderRows
-      .map((r) => `<tr><td>#${r.orderNumber}</td><td>${r.date}</td><td>${fmtBRL(r.total)}</td><td>${r.paymentMethod}</td></tr>`)
+      .map((r) => `<tr><td>#${r.orderNumber}</td><td>${r.date}</td><td>${fmtBRL(r.total)}</td><td>${r.paymentMethod}</td><td>${r.status}</td></tr>`)
+      .join("");
+
+    const paymentBreakdownRows = paymentStats
+      .map((ps) => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ps.fill};margin-right:6px"></span>${ps.method}</td><td style="text-align:center">${ps.count}</td><td style="text-align:right">${fmtBRL(ps.total)}</td><td style="text-align:right">${ps.pct.toFixed(1)}%</td></tr>`)
       .join("");
 
     const trendfoodLogo = window.location.origin + "/logo-trendfood.png";
