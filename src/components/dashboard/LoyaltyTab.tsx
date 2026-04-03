@@ -123,10 +123,10 @@ export default function LoyaltyTab({ orgId }: Props) {
                 <Input
                   type="number"
                   min={1}
-                  value={effectiveSpend}
+                  value={spendPerPoint}
                   onChange={(e) => { setSpendPerPoint(e.target.value); setDirty(true); }}
                 />
-                <p className="text-xs text-muted-foreground">Ex: a cada R${effectiveSpend}, ganha 1 ponto</p>
+                <p className="text-xs text-muted-foreground">Ex: a cada R${spendPerPoint || "?"}, ganha 1 ponto</p>
               </div>
 
               <div className="space-y-1.5">
