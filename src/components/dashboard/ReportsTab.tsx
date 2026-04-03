@@ -15,7 +15,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import html2canvas from "html2canvas";
@@ -209,9 +209,19 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       }));
   }, [filteredOrders]);
 
-  const periodLabel = period === "custom" && customFrom && customTo
-    ? `${format(customFrom, "dd/MM/yyyy")} a ${format(customTo, "dd/MM/yyyy")}`
-    : PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
+  const periodLabel = (() => {
+    if (period === "custom" && customFrom && customTo) {
+      return `${format(customFrom, "dd/MM/yyyy")} a ${format(customTo, "dd/MM/yyyy")}`;
+    }
+    const daysMap: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
+    const days = daysMap[period];
+    if (days) {
+      const end = new Date();
+      const start = subDays(end, days);
+      return `${format(start, "dd/MM/yyyy")} a ${format(end, "dd/MM/yyyy")} (${days} dias)`;
+    }
+    return PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
+  })();
 
   // ── CSV Export ──
   const handleDownloadCSV = () => {
@@ -402,6 +412,9 @@ ${watermarkHtml}
           <h1 className="text-xl font-bold text-foreground">Relatórios Avançados</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Análise completa do desempenho da sua operação.
+          </p>
+          <p className="text-xs font-medium text-primary mt-1">
+            Período: {periodLabel}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
