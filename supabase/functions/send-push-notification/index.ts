@@ -20,20 +20,6 @@ function uint8ToBase64url(arr: Uint8Array): string {
   return btoa(b).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function importVapidPrivateKey(rawB64url: string): Promise<CryptoKey> {
-  const raw = base64urlToUint8Array(rawB64url);
-  // Build JWK from raw 32-byte private key
-  const jwk = {
-    kty: "EC",
-    crv: "P-256",
-    d: rawB64url,
-    // We need x,y — derive from private key by generating a temp keypair? 
-    // Actually we can import raw private as pkcs8... let's use JWK with x,y from public key
-  };
-  // Easier: import as raw PKCS8 is complex. Let's use the webcrypto ECDSA sign with JWK
-  // We'll derive x,y from the public key
-  return null as any; // placeholder — see full implementation below
-}
 
 // Simplified: use jwt.io style — create JWT manually and sign with ECDSA
 async function createVapidJWT(
