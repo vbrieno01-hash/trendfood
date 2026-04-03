@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN tax_regime text DEFAULT NULL;

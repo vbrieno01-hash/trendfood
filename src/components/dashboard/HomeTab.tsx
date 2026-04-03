@@ -6,7 +6,7 @@ import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend, BarChart,
 } from "recharts";
 import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet } from "lucide-react";
-import { subDays, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
+import { subDays, subMonths, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
@@ -312,6 +312,49 @@ export default function HomeTab({ organization }: { organization: Organization }
               {pct >= 80 && (
                 <p className="text-xs text-red-500 font-medium flex items-center gap-1">
                   <AlertTriangle className="w-3.5 h-3.5" /> Atenção: próximo do limite definido
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Annual Revenue Alert (tax regime) ─────────────── */}
+      {(() => {
+        const taxRegime = (organization as any).tax_regime as string | null;
+        if (!taxRegime) return null;
+        const annualLimits: Record<string, { limit: number; label: string }> = {
+          mei: { limit: 81000, label: "MEI" },
+          cpf: { limit: 27110.4, label: "CPF" },
+          me: { limit: 360000, label: "ME" },
+        };
+        const cfg = annualLimits[taxRegime];
+        if (!cfg) return null;
+        const twelveMonthsAgo = subMonths(new Date(), 12);
+        const yearRevenue = delivered
+          .filter((o) => o.paid && new Date(o.created_at) >= twelveMonthsAgo)
+          .reduce((acc, o) => acc + orderTotal(o), 0);
+        const pct = Math.min(Math.round((yearRevenue / cfg.limit) * 100), 100);
+        const color = pct >= 85 ? "from-red-500 to-red-600" : pct >= 70 ? "from-amber-500 to-amber-600" : "from-emerald-500 to-emerald-600";
+        const barColor = pct >= 85 ? "[&>div]:bg-red-500" : pct >= 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500";
+        return (
+          <div className={`dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-4 ${pct >= 85 ? "!border-red-500/40" : ""}`}>
+            <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Limite Anual — {cfg.label}</p>
+            </div>
+            <div className="px-4 py-4 space-y-3">
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm font-medium text-foreground">
+                  {fmtBRL(yearRevenue)} <span className="text-muted-foreground font-normal">de {fmtBRL(cfg.limit)}</span>
+                </p>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white bg-gradient-to-r ${color}`}>{pct}%</span>
+              </div>
+              <Progress value={pct} className={`h-2.5 ${barColor}`} />
+              <p className="text-[10px] text-muted-foreground">Faturamento dos últimos 12 meses (pedidos pagos)</p>
+              {pct >= 85 && (
+                <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Atenção: Você atingiu {pct}% do limite anual do {cfg.label}. Procure seu contador para evitar multas.
                 </p>
               )}
             </div>
