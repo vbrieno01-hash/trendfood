@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 interface Organization {
   id: string;
