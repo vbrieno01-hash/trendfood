@@ -545,12 +545,11 @@ const DashboardPage = () => {
     {
       id: "ajustes", emoji: "⚙️", title: "AJUSTES",
       items: [
+        { key: "guide" as TabKey, icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
         { key: "profile" as TabKey, icon: <Store className="w-4 h-4" />, label: "Dados da Loja" },
         { key: "subscription" as TabKey, icon: <Rocket className="w-4 h-4" />, label: "Assinatura / Plano" },
         { key: "printer" as TabKey, icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
         { key: "features" as TabKey, icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
-        
-        { key: "guide" as TabKey, icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
         { key: "settings" as TabKey, icon: <Settings className="w-4 h-4" />, label: "Configurações" },
       ],
     },
@@ -868,7 +867,7 @@ const DashboardPage = () => {
           <div className="w-9" />
         </header>
 
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-12">
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-32 lg:pb-12">
           {/* Trial banners */}
           {planLimits.trialActive && (
             <div className="mb-4 rounded-xl bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 p-4 flex items-center justify-between gap-3 flex-wrap">
@@ -959,7 +958,7 @@ const DashboardPage = () => {
           )}
 
           <ErrorBoundary>
-          {activeTab === "home" && <HomeTab organization={organization} />}
+          {activeTab === "home" && <HomeTab organization={organization} onNavigate={handleTabChange} />}
           {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} canAccessAddons={planLimits.canAccess("addons")} canAccessStockIngredients={planLimits.canAccess("stock_ingredients")} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
           {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
@@ -1026,8 +1025,32 @@ const DashboardPage = () => {
           </footer>
         </main>
 
+        {/* Mobile bottom navigation */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border flex items-center justify-around px-1 py-2 safe-area-pb">
+          {[
+            { key: "home" as TabKey, icon: <Home className="w-5 h-5" />, label: "Home" },
+            { key: "operations" as TabKey, icon: <Flame className="w-5 h-5" />, label: "Pedidos" },
+            { key: "menu" as TabKey, icon: <UtensilsCrossed className="w-5 h-5" />, label: "Cardápio" },
+            { key: "tables" as TabKey, icon: <TableProperties className="w-5 h-5" />, label: "Mesas" },
+            { key: "history" as TabKey, icon: <History className="w-5 h-5" />, label: "Histórico" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => handleTabChange(item.key)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg min-w-0 transition-colors ${
+                activeTab === item.key
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {item.icon}
+              <span className="text-[10px] font-medium leading-tight">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
         {/* Fixed status bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-3 py-1 flex items-center gap-2 text-[11px] overflow-x-auto">
+        <div className="hidden lg:flex fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-3 py-1 items-center gap-2 text-[11px] overflow-x-auto">
           <button
             onClick={() => toggleAutoPrint(!autoPrint)}
             className="flex items-center gap-1 hover:opacity-80 transition-opacity whitespace-nowrap"

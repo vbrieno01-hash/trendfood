@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend, BarChart,
 } from "recharts";
-import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight } from "lucide-react";
 import { subDays, subMonths, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import SetupChecklist from "@/components/dashboard/SetupChecklist";
 
 interface Organization {
   id: string;
@@ -26,12 +27,15 @@ interface Organization {
   logo_url: string | null;
   subscription_status?: string;
   paused?: boolean;
+  whatsapp?: string | null;
+  store_address?: string | null;
+  business_hours?: any;
 }
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function HomeTab({ organization }: { organization: Organization }) {
+export default function HomeTab({ organization, onNavigate }: { organization: Organization; onNavigate?: (tab: string) => void }) {
   const { data: delivered = [], isLoading: loadingDelivered } = useDeliveredOrders(organization.id);
   const { data: unpaid = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(organization.id);
   const { data: activeOrders = [] } = useOrders(organization.id, ["pending", "preparing"]);
@@ -264,6 +268,53 @@ export default function HomeTab({ organization }: { organization: Organization }
           </span>
         </div>
       </div>
+
+      {/* ── Setup Checklist ─────────────────────────────── */}
+      {onNavigate && (
+        <SetupChecklist
+          orgId={organization.id}
+          orgWhatsapp={organization.whatsapp}
+          orgAddress={organization.store_address}
+          orgLogoUrl={organization.logo_url}
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {/* ── Action Cards ──────────────────────────────────── */}
+      {(activeOrders.length > 0 || lowStockCount > 0) && onNavigate && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-dashboard-fade-in">
+          {activeOrders.length > 0 && (
+            <button
+              onClick={() => onNavigate("operations")}
+              className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors group"
+            >
+              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+                <ClipboardList className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">{activeOrders.length} pedido{activeOrders.length !== 1 ? "s" : ""} ativo{activeOrders.length !== 1 ? "s" : ""}</p>
+                <p className="text-xs text-muted-foreground">Toque para gerenciar</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+          {lowStockCount > 0 && (
+            <button
+              onClick={() => onNavigate("stock")}
+              className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors group border-destructive/30"
+            >
+              <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">{lowStockCount} item{lowStockCount !== 1 ? "ns" : ""} com estoque baixo</p>
+                <p className="text-xs text-muted-foreground">Toque para repor</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Quick Summary ─────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
