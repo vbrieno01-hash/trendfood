@@ -40,14 +40,21 @@ export default function LoyaltyTab({ orgId }: Props) {
   const [rewardType, setRewardType] = useState<"fixed" | "percent">("fixed");
   const [rewardValue, setRewardValue] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [synced, setSynced] = useState(false);
 
-  // Sync from server on load
-  const isReady = !isLoading && config !== undefined;
+  // Sync from server once on load
+  useEffect(() => {
+    if (config && !synced) {
+      setEnabled(config.enabled);
+      setSpendPerPoint(String(config.spend_per_point));
+      setPointsToRedeem(String(config.points_to_redeem));
+      setRewardType((config.reward_type as "fixed" | "percent") ?? "fixed");
+      setRewardValue(String(config.reward_value));
+      setSynced(true);
+    }
+  }, [config, synced]);
+
   const effectiveEnabled = enabled ?? config?.enabled ?? false;
-  const effectiveSpend = spendPerPoint || String(config?.spend_per_point ?? 50);
-  const effectivePoints = pointsToRedeem || String(config?.points_to_redeem ?? 10);
-  const effectiveType = dirty ? rewardType : (config?.reward_type as "fixed" | "percent") ?? "fixed";
-  const effectiveValue = rewardValue || String(config?.reward_value ?? 20);
 
   const handleSave = async () => {
     const payload = {
