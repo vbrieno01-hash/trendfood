@@ -21,6 +21,7 @@ import {
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
   ChevronDown, Calculator,
+  Star,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -50,10 +51,11 @@ import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
 import StockTab from "@/components/dashboard/StockTab";
 import PricingTab from "@/components/dashboard/PricingTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
+import ReviewsTab from "@/components/dashboard/ReviewsTab";
 
 
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -533,6 +535,7 @@ const DashboardPage = () => {
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
         { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
         { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
+        { key: "reviews" as TabKey, icon: <Star className="w-4 h-4" />, label: "Avaliações" },
       ],
     },
     {
@@ -1006,6 +1009,7 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Precificação" description="Calcule custos, margens e preços sugeridos com base na ficha técnica dos seus produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <PricingTab orgId={organization.id} />)}
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
+          {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           </ErrorBoundary>
         </main>
 

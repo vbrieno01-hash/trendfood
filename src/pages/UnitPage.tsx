@@ -29,6 +29,7 @@ import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 
 import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import StoreReviews from "@/components/unit/StoreReviews";
 
 
 type CartItemAddon = { id: string; name: string; price: number; qty: number };
@@ -525,9 +526,15 @@ const UnitPage = () => {
           }),
         },
         {
-          onSuccess: () => {
+          onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
             openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Show review link toast
+            toast({
+              title: "Pedido enviado! 🎉",
+              description: `Avalie seu pedido: ${window.location.origin}/avaliar/${slug}/${order.id}`,
+              duration: 15000,
+            });
             resetCheckout();
           },
           onError: (err) => {
@@ -764,6 +771,9 @@ const UnitPage = () => {
             </div>
           )}
         </div>
+
+        {/* Reviews */}
+        <StoreReviews orgId={org.id} primaryColor={primaryColor} />
 
         {/* Menu */}
         <div>
