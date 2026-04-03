@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Lock, Zap, MessageCircle, Printer, Compass, Wallet,
   Flame, Tag, BarChart2, BellRing, Building2, UtensilsCrossed,
-  TableProperties, History, ListPlus, CreditCard, Package, Bike,
+  TableProperties, History, ListPlus, CreditCard, Package, Bike, Heart,
 } from "lucide-react";
 
 type MinPlan = "free" | "pro" | "enterprise" | "lifetime";
