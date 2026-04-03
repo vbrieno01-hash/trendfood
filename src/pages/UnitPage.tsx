@@ -159,7 +159,7 @@ const UnitPage = () => {
 
   // Loyalty
   const cleanPhoneForLoyalty = buyerPhone.replace(/\D/g, "");
-  const { data: loyaltyPointsData, refetch: refetchLoyalty } = useLoyaltyPoints(
+  const { data: loyaltyPointsData } = useLoyaltyPoints(
     org?.id,
     cleanPhoneForLoyalty.length >= 10 ? cleanPhoneForLoyalty : undefined
   );
