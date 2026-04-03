@@ -52,8 +52,9 @@ const PrivacyPage = () => {
         </div>
       </main>
 
-      <footer className="border-t border-border py-6 text-center text-muted-foreground text-sm">
-        <p>© 2025 TrendFood. Todos os direitos reservados.</p>
+      <footer className="border-t border-border py-6 text-center text-muted-foreground text-sm space-y-1">
+        <p>© 2026 TrendFood. Todos os direitos reservados.</p>
+        <p className="text-xs">CNPJ 66.067.207/0001-91 — JACKSON BRENO FRANCELINO DA COSTA</p>
       </footer>
     </div>
   );
