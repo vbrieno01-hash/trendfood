@@ -32,6 +32,9 @@ interface Organization {
   business_hours?: any;
 }
 
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 export default function HomeTab({ organization, onNavigate }: { organization: Organization; onNavigate?: (tab: string) => void }) {
   const { data: delivered = [], isLoading: loadingDelivered } = useDeliveredOrders(organization.id);
   const { data: unpaid = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(organization.id);
