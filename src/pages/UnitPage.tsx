@@ -356,7 +356,8 @@ const UnitPage = () => {
 
   // (deliveryFee and related vars declared above, before early returns)
 
-  const grandTotal = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
+  const grandTotalBeforeLoyalty = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
+  const grandTotal = Math.max(0, grandTotalBeforeLoyalty - loyaltyDiscount);
 
    // (no more CEP lookup needed — neighborhood-based delivery)
   // WhatsApp checkout
