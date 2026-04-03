@@ -36,6 +36,7 @@ export default function HomeTab({ organization }: { organization: Organization }
   const { data: activeOrders = [] } = useOrders(organization.id, ["pending", "preparing"]);
   const { refreshOrganization } = useAuth();
   const [pauseLoading, setPauseLoading] = useState(false);
+  const { isSubscribed, isLoading: pushLoading, isSupported: pushSupported, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushSubscription(organization.id);
 
   const occupiedTables = new Set(activeOrders.filter(o => o.table_number > 0).map(o => o.table_number)).size;
 
