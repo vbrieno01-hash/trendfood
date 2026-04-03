@@ -967,30 +967,31 @@ const DashboardPage = () => {
           {activeTab === "bestsellers" && (lockedFeatures.bestsellers
             ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <BestSellersTab orgId={organization.id} />)}
-          {activeTab === "kitchen" && (lockedFeatures.kitchen
-            ? <UpgradePrompt title="Painel da Cozinha (KDS)" description="Gerencie pedidos em tempo real com o KDS. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
-            : <KitchenTab embedded orgId={organization.id} orgName={organization.name} orgSlug={organization.slug} storeAddress={organization.store_address} courierConfig={(organization as any).courier_config} printMode={(organization as any).print_mode ?? 'browser'} printerWidth={(organization as any).printer_width ?? '58mm'} pixKey={(organization as any).pix_key} btDevice={btDevice} onPairBluetooth={handlePairBluetooth} btConnected={btConnected} btSupported={btSupported} autoPrint={autoPrint} onToggleAutoPrint={toggleAutoPrint} notificationsEnabled={notificationsEnabled} onToggleNotifications={toggleNotifications} whatsapp={organization.whatsapp} pixConfirmationMode={organization.pix_confirmation_mode as any} />)}
-          {activeTab === "waiter" && (lockedFeatures.waiter
-            ? <UpgradePrompt title="Painel do Garçom" description="Controle pedidos e mesas com o painel do garçom. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
-            : <WaiterTab
+          {activeTab === "operations" && ((lockedFeatures.kitchen || lockedFeatures.waiter)
+            ? <UpgradePrompt title="Cozinha & Gestão de Pedidos" description="Gerencie pedidos em tempo real com o KDS e controle entregas. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            : <OperationsTab
                 orgId={organization.id}
-                whatsapp={organization.whatsapp}
                 orgName={organization.name}
-                pixConfirmationMode={(organization as any).pix_confirmation_mode ?? "direct"}
-                pixKey={(organization as any).pix_key}
+                orgSlug={organization.slug}
                 storeAddress={organization.store_address}
                 courierConfig={(organization as any).courier_config}
-                printMode={printMode}
-                printerWidth={printerWidth}
+                printMode={(organization as any).print_mode ?? 'browser'}
+                printerWidth={(organization as any).printer_width ?? '58mm'}
                 btDevice={btDevice}
+                pixKey={(organization as any).pix_key}
                 onPairBluetooth={handlePairBluetooth}
                 btConnected={btConnected}
                 btSupported={btSupported}
                 autoPrint={autoPrint}
-                onToggleAutoPrint={(val) => { setAutoPrint(val); localStorage.setItem(AUTO_PRINT_KEY, String(val)); }}
+                onToggleAutoPrint={toggleAutoPrint}
                 notificationsEnabled={notificationsEnabled}
-                onToggleNotifications={(val) => { setNotificationsEnabled(val); localStorage.setItem(NOTIF_KEY_DASH, String(val)); }}
+                onToggleNotifications={toggleNotifications}
+                whatsapp={organization.whatsapp}
+                pixConfirmationMode={organization.pix_confirmation_mode as any}
               />)}
+          {/* Legacy tab keys redirect */}
+          {activeTab === "kitchen" && (() => { handleTabChange("operations"); return null; })()}
+          {activeTab === "waiter" && (() => { handleTabChange("operations"); return null; })()}
           {activeTab === "caixa" && (lockedFeatures.caixa
             ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <CaixaTab orgId={organization.id} />)}
