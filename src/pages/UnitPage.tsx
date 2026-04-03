@@ -210,22 +210,15 @@ const UnitPage = () => {
     return () => { document.documentElement.style.removeProperty("--org-primary"); };
   }, [org?.primary_color]);
 
-  // Helper: build category groups dynamically (fixed + custom)
+  // Helper: build category groups dynamically using saved order or defaults
   const buildGroups = (sourceItems: typeof menuItems) => {
-    const knownSet = new Set(CATEGORIES.map((c) => c.value));
-    const knownGroups = CATEGORIES.map((cat) => ({
-      ...cat,
-      items: sourceItems.filter((i) => i.category === cat.value),
-    }));
-    const customValues = [...new Set(sourceItems.map((i) => i.category))]
-      .filter((c) => !knownSet.has(c))
-      .sort((a, b) => a.localeCompare(b, "pt-BR"));
-    const customGroups = customValues.map((value) => ({
-      value,
-      emoji: "🍽️",
-      items: sourceItems.filter((i) => i.category === value),
-    }));
-    return [...knownGroups, ...customGroups].filter((g) => g.items.length > 0);
+    const orderedCats = buildCategoryOrder(sourceItems as any, (org as any)?.category_order);
+    const emojiMap = new Map(CATEGORIES.map((c) => [c.value, c.emoji]));
+    return orderedCats.map((cat) => ({
+      value: cat,
+      emoji: emojiMap.get(cat) || "🍽️",
+      items: sourceItems.filter((i) => i.category === cat),
+    })).filter((g) => g.items.length > 0);
   };
 
   // IntersectionObserver: detect which category section is visible

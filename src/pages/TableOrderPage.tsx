@@ -105,7 +105,8 @@ export default function TableOrderPage() {
     return max > 0;
   });
 
-  const byCategory = CATEGORY_ORDER.reduce<Record<string, typeof available>>(
+  const orderedCats = buildCategoryOrder(available as any, (org as any)?.category_order);
+  const byCategory = orderedCats.reduce<Record<string, typeof available>>(
     (acc, cat) => {
       const filtered = available.filter((i) => i.category === cat);
       if (filtered.length) acc[cat] = filtered;
@@ -113,13 +114,6 @@ export default function TableOrderPage() {
     },
     {}
   );
-  const knownCats = new Set(CATEGORY_ORDER);
-  available.forEach((i) => {
-    if (!knownCats.has(i.category)) {
-      byCategory[i.category] = byCategory[i.category] || [];
-      byCategory[i.category].push(i);
-    }
-  });
 
   const cartItems = Object.values(cart);
   const totalItems = cartItems.reduce((s, i) => s + i.quantity, 0);
