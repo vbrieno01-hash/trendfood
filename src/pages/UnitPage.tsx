@@ -156,6 +156,7 @@ const UnitPage = () => {
   const [showPixScreen, setShowPixScreen] = useState(false);
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState("");
 
   // Loyalty
   const cleanPhoneForLoyalty = buyerPhone.replace(/\D/g, "");
