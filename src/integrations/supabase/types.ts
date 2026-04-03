@@ -988,6 +988,7 @@ export type Database = {
         Row: {
           apk_url: string | null
           banner_url: string | null
+          billing_alert_limit: number | null
           billing_cycle: string
           business_hours: Json | null
           cnpj: string | null
@@ -1023,6 +1024,7 @@ export type Database = {
         Insert: {
           apk_url?: string | null
           banner_url?: string | null
+          billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null
           cnpj?: string | null
@@ -1058,6 +1060,7 @@ export type Database = {
         Update: {
           apk_url?: string | null
           banner_url?: string | null
+          billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null
           cnpj?: string | null

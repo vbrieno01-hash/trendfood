@@ -12,7 +12,8 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "sonner";
 
 export default function SettingsTab() {
@@ -27,6 +28,8 @@ export default function SettingsTab() {
   const [schedulingEnabled, setSchedulingEnabled] = useState(false);
   const [minAdvance, setMinAdvance] = useState("30");
   const [schedulingLoading, setSchedulingLoading] = useState(false);
+  const [billingLimit, setBillingLimit] = useState(0);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
@@ -44,6 +47,7 @@ export default function SettingsTab() {
               setSchedulingEnabled(!!sc.enabled);
               setMinAdvance(String(sc.min_advance_minutes ?? 30));
             }
+            setBillingLimit((data as any).billing_alert_limit ?? 0);
           }
         });
     }
@@ -213,6 +217,51 @@ export default function SettingsTab() {
           )}
           <Button onClick={handleSaveScheduling} disabled={schedulingLoading} size="sm" className="h-9">
             {schedulingLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar agendamento"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Billing alert */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saúde Fiscal</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Aviso de Limite de Faturamento</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-sm">
+              Defina o limite mensal de faturamento do seu negócio (ex: R$ 6.750 para MEI). Você receberá um alerta no painel quando atingir 80% deste valor. Deixe R$ 0,00 para desativar.
+            </p>
+          </div>
+          <CurrencyInput
+            value={billingLimit}
+            onChange={(v) => setBillingLimit(v ?? 0)}
+            className="w-48"
+          />
+          <Button
+            size="sm"
+            className="h-9"
+            disabled={billingLoading}
+            onClick={async () => {
+              if (!currentOrg?.id) return;
+              setBillingLoading(true);
+              try {
+                const { error } = await supabase
+                  .from("organizations")
+                  .update({ billing_alert_limit: billingLimit || null } as any)
+                  .eq("id", currentOrg.id);
+                if (error) throw error;
+                await refreshOrganization();
+                toast.success("Limite de faturamento salvo!");
+              } catch {
+                toast.error("Erro ao salvar limite.");
+              } finally {
+                setBillingLoading(false);
+              }
+            }}
+          >
+            {billingLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar limite"}
           </Button>
         </div>
       </div>

@@ -18,7 +18,16 @@ const TermsContent = () => (
     </div>
 
     <div>
-      <h3 className="font-semibold text-foreground mb-1">2. PLANOS E PAGAMENTOS</h3>
+      <h3 className="font-semibold text-foreground mb-1">2. RESPONSABILIDADE FISCAL</h3>
+      <p>
+        O TrendFood fornece dados de faturamento baseados nos pedidos realizados. A classificação fiscal
+        do estabelecimento (CPF, MEI, ME, etc.) e o cumprimento de seus respectivos limites de
+        faturamento são de responsabilidade exclusiva do usuário contratante.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold text-foreground mb-1">3. PLANOS E PAGAMENTOS</h3>
       <p className="mb-2">
         <strong>Plano Mensal:</strong> Cobrança recorrente a cada 30 dias. Pode ser cancelado a
         qualquer momento, interrompendo a próxima cobrança.
@@ -32,7 +41,7 @@ const TermsContent = () => (
 
     <div>
       <h3 className="font-semibold text-foreground mb-1">
-        3. POLÍTICA DE REEMBOLSO E CANCELAMENTO (IMPORTANTE)
+        4. POLÍTICA DE REEMBOLSO E CANCELAMENTO (IMPORTANTE)
       </h3>
       <p className="mb-2">
         <strong>Arrependimento (7 dias):</strong> Conforme o Código de Defesa do Consumidor, você
@@ -57,7 +66,7 @@ const TermsContent = () => (
     </div>
 
     <div>
-      <h3 className="font-semibold text-foreground mb-1">4. INDISPONIBILIDADE E SUPORTE</h3>
+      <h3 className="font-semibold text-foreground mb-1">5. INDISPONIBILIDADE E SUPORTE</h3>
       <p>
         Trabalhamos para manter o sistema online 24h por dia. Manutenções agendadas ou
         instabilidades rápidas não geram direito a indenizações. O suporte é feito via dashboard ou
@@ -66,7 +75,7 @@ const TermsContent = () => (
     </div>
 
     <div>
-      <h3 className="font-semibold text-foreground mb-1">5. ISENÇÃO DE RESPONSABILIDADE</h3>
+      <h3 className="font-semibold text-foreground mb-1">6. ISENÇÃO DE RESPONSABILIDADE</h3>
       <p className="mb-2">A TrendFood não se responsabiliza por:</p>
       <ul className="list-disc pl-5 space-y-1">
         <li>Golpes aplicados por terceiros via Pix ou comprovantes falsos.</li>
