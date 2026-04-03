@@ -143,7 +143,7 @@ export default function LoyaltyTab({ orgId }: Props) {
               <div className="space-y-1.5">
                 <Label className="text-xs">Tipo de desconto</Label>
                 <Select
-                  value={effectiveType}
+                  value={rewardType}
                   onValueChange={(v: "fixed" | "percent") => { setRewardType(v); setDirty(true); }}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
