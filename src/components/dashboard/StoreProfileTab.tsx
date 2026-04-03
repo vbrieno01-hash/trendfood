@@ -1066,10 +1066,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         )}
       </div>
 
-      <Button type="submit" className="w-full h-10" disabled={saving}>
-        {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar alterações"}
-      </Button>
-    </form>
+    </div>
   );
 }
 
