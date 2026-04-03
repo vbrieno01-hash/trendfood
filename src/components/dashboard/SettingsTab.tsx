@@ -24,6 +24,9 @@ export default function SettingsTab() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [forceOpen, setForceOpen] = useState(false);
   const [forceOpenLoading, setForceOpenLoading] = useState(false);
+  const [schedulingEnabled, setSchedulingEnabled] = useState(false);
+  const [minAdvance, setMinAdvance] = useState("30");
+  const [schedulingLoading, setSchedulingLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
