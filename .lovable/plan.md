@@ -1,46 +1,33 @@
 
 
-## Plano: Atualizar funcionalidades nos planos (DB + Landing + FeaturesTab)
+## Plano: Melhorias de UX para o Dashboard
 
 ### Problema
-As listas de funcionalidades estão desatualizadas e inconsistentes entre 3 locais:
-1. **Banco de dados** (`platform_plans.features`) — faltam Delivery Próprio, Fidelidade, Precificação
-2. **Landing page** (`Index.tsx` `defaultFeatures`) — falta Delivery Próprio e Programa de Fidelidade
-3. **FeaturesTab** — já está atualizada (última edição adicionou Fidelidade)
+O dashboard tem 20+ abas e pode parecer complexo para novos lojistas. O guia está escondido, falta busca rápida e a Home é passiva (só mostra dados, não guia ações).
 
-### Mudanças
+### Mudanças propostas (por prioridade)
 
-| # | Local | O que |
-|---|-------|-------|
-| 1 | **Migração SQL** | Atualizar `platform_plans.features` para os 3 planos com as listas completas e atuais |
-| 2 | **`src/pages/Index.tsx`** | Adicionar "Delivery Próprio" e "Programa de Fidelidade" no `defaultFeatures` |
+| # | Melhoria | Impacto |
+|---|----------|---------|
+| 1 | **Checklist de configuração na Home** — barra de progresso "Sua loja está X% pronta" com itens como: adicionar item ao cardápio, configurar horários, adicionar WhatsApp, criar primeira mesa | Alto — dá sensação de progresso e guia o lojista |
+| 2 | **Cards de ação na Home** — "3 pedidos pendentes → Ver", "Estoque baixo → Repor", "Nenhum cupom ativo → Criar" | Alto — transforma Home de dashboard passivo em central de ações |
+| 3 | **Mover "Como Usar" para o topo** — mostrar como primeiro item do grupo Ajustes ou como ícone de ajuda (?) fixo no header | Médio — garante que novatos encontrem o guia |
+| 4 | **Bottom navigation no mobile** — 4-5 ícones fixos no rodapé (Home, Pedidos, Cardápio, Menu) substituindo o hamburger menu | Alto — padrão mobile universal, reduz cliques |
 
-### Novas listas de features por plano (banco de dados)
+### Arquivos afetados
 
-**Grátis** (sem mudanças):
-- Catálogo digital, Até 20 itens, 1 QR Code, Pedidos por QR Code, Link compartilhável, Pagamento apenas na entrega, Selo TrendFood
+- `src/components/dashboard/HomeTab.tsx` — adicionar checklist de progresso + cards de ação
+- `src/pages/DashboardPage.tsx` — reordenar sidebar, adicionar bottom nav mobile
+- Novo: `src/components/dashboard/SetupChecklist.tsx` — componente de checklist reutilizável
 
-**Pro** (adicionar 2 itens):
-- Tudo do plano Grátis
-- Itens ilimitados, QR Codes ilimitados, Adicionais ilimitados
-- Pagamento Online (PIX/Cartão), Retirada da marca TrendFood
-- KDS, Caixa, Cupons, Mais vendidos, Impressora térmica, Painel do Atendente
-- **+ Delivery Próprio**
-- **+ Programa de Fidelidade**
-
-**Enterprise** (adicionar 1 item):
-- Tudo do plano Pro
-- Múltiplas unidades, Gestão de Insumos/Ficha Técnica, Baixa automática de estoque
-- Relatórios avançados, Suporte prioritário, Gerente dedicado
-- **+ Precificação / Ficha Técnica**
-
-### Landing page (`defaultFeatures`)
-Adicionar 2 itens:
-- `{ title: "Delivery Próprio", description: "Receba pedidos de delivery sem taxas. Gestão de motoboys e rastreamento em tempo real." }`
-- `{ title: "Programa de Fidelidade", description: "Sistema de pontos por compra com troca automática por descontos." }`
+### Detalhes técnicos
+- Checklist consulta dados existentes (org tem whatsapp? tem itens no cardápio? tem mesas?) para calcular progresso
+- Cards de ação usam queries já existentes (useOrders, low_stock_count)
+- Bottom nav mobile usa `position: fixed; bottom` com z-index acima da status bar
+- Sem mudanças no banco de dados
 
 ### Resultado
-- 1 migração SQL (UPDATE nas features dos 3 planos)
-- 1 arquivo editado (`Index.tsx`)
-- Funcionalidades consistentes em todos os locais
+- Dashboard mais convidativo para novos lojistas
+- Home deixa de ser passiva e vira "centro de controle"
+- Mobile mais intuitivo com navegação nativa
 
