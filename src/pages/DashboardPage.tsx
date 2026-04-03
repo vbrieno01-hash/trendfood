@@ -57,7 +57,7 @@ import OperationsTab from "@/components/dashboard/OperationsTab";
 
 
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
