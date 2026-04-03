@@ -22,8 +22,9 @@ import {
 } from "@/hooks/useStockItems";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem, useDeleteAllMenuItems,
-  uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
+  uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder, buildCategoryOrder,
 } from "@/hooks/useMenuItems";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useAllMenuItemAddons, useAddMenuItemAddon, useUpdateMenuItemAddon, useDeleteMenuItemAddon,
   
