@@ -125,6 +125,7 @@ const AppInner = () => {
               <Route path="/termos" element={<TermsPage />} />
               <Route path="/privacidade" element={<PrivacyPage />} />
               <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+              <Route path="/avaliar/:slug/:orderId" element={<ReviewPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
