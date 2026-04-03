@@ -93,8 +93,11 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [gatewayProvider, setGatewayProvider] = useState("");
   const [gatewayToken, setGatewayToken] = useState("");
   const [secretsLoading, setSecretsLoading] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const fileRef = useRef<HTMLInputElement>(null);
   const bannerFileRef = useRef<HTMLInputElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const isFirstRender = useRef(true);
   
 
   // Load existing gateway secrets
