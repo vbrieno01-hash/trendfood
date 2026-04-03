@@ -269,6 +269,53 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
         </div>
       </div>
 
+      {/* ── Setup Checklist ─────────────────────────────── */}
+      {onNavigate && (
+        <SetupChecklist
+          orgId={organization.id}
+          orgWhatsapp={organization.whatsapp}
+          orgAddress={organization.store_address}
+          orgLogoUrl={organization.logo_url}
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {/* ── Action Cards ──────────────────────────────────── */}
+      {(activeOrders.length > 0 || lowStockCount > 0) && onNavigate && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-dashboard-fade-in">
+          {activeOrders.length > 0 && (
+            <button
+              onClick={() => onNavigate("operations")}
+              className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors group"
+            >
+              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+                <ClipboardList className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">{activeOrders.length} pedido{activeOrders.length !== 1 ? "s" : ""} ativo{activeOrders.length !== 1 ? "s" : ""}</p>
+                <p className="text-xs text-muted-foreground">Toque para gerenciar</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+          {lowStockCount > 0 && (
+            <button
+              onClick={() => onNavigate("stock")}
+              className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors group border-destructive/30"
+            >
+              <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">{lowStockCount} item{lowStockCount !== 1 ? "ns" : ""} com estoque baixo</p>
+                <p className="text-xs text-muted-foreground">Toque para repor</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Quick Summary ─────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
         <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-1">
