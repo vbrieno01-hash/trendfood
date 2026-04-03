@@ -1,27 +1,40 @@
 
 
-## Plano: Adicionar card de instalação do app no Dashboard
+## Plano: Corrigir erro ao salvar pedido
 
-### Situação atual
-- A página `/instalar` existe mas só é acessível por URL direta
-- O dashboard (`HomeTab`) não tem nenhum link ou card para ela
-- O lojista não sabe que pode instalar o app
+### Problema
+O trigger `notify_new_order` chama `extensions.http_post(...)` que **nao existe**. A funcao correta e `net.http_post(url, body)` com `body` do tipo `jsonb` (nao `text`).
 
-### O que será feito
+Isso faz o INSERT na tabela `orders` falhar com erro, impedindo qualquer pedido de ser criado.
 
-| # | Mudança |
-|---|---------|
-| 1 | Adicionar um card no `HomeTab.tsx` com ícone de celular, título "Instalar TrendFood" e botão que redireciona para `/instalar` |
-| 2 | O card só aparece quando o app **não** está em modo standalone (já instalado) |
-| 3 | Posicionar o card na área principal do dashboard, visível logo ao abrir |
+### Correcao
 
-### Detalhes técnicos
-- Detecta `display-mode: standalone` via `window.matchMedia` — se já instalado, esconde o card
-- Usa `useNavigate` para redirecionar ao `/instalar`
-- Card com visual destacado (borda primária, ícone de download)
+**1 migracao** que recria a funcao `notify_new_order` usando a assinatura correta:
+
+```sql
+CREATE OR REPLACE FUNCTION notify_new_order()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  IF NEW.status = 'pending' THEN
+    PERFORM net.http_post(
+      url := 'https://xrzudhylpphnzousilye.supabase.co/functions/v1/send-push-notification',
+      body := json_build_object(
+        'organization_id', NEW.organization_id,
+        'order_number', NEW.order_number
+      )::jsonb
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+```
+
+Diferencas:
+- `extensions.http_post` → `net.http_post`
+- `body` como `jsonb` em vez de `text`
+- Remove o parametro `headers` (o default ja e `application/json`)
 
 ### Resultado
-- 1 arquivo editado (`HomeTab.tsx`)
-- Lojista vê o convite para instalar direto no dashboard
-- Card desaparece automaticamente após instalação
+- 1 migracao
+- Pedidos voltam a funcionar imediatamente
 
