@@ -31,6 +31,8 @@ export default function SettingsTab() {
   const [schedulingLoading, setSchedulingLoading] = useState(false);
   const [billingLimit, setBillingLimit] = useState(0);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [taxRegime, setTaxRegime] = useState<string>("");
+  const [taxRegimeLoading, setTaxRegimeLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
