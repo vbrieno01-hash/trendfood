@@ -270,6 +270,61 @@ export default function SettingsTab() {
         </div>
       </div>
 
+      {/* Tax regime config */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Scale className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Configurações Fiscais</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Regime Tributário</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-sm">
+              Informe seu regime tributário para receber alertas personalizados de faturamento anual. Isso não altera nenhum cálculo.
+            </p>
+          </div>
+          <RadioGroup value={taxRegime} onValueChange={setTaxRegime} className="space-y-2">
+            {[
+              { value: "cpf", label: "CPF — Pessoa Física", desc: "Limite anual: R$ 27.110,40" },
+              { value: "mei", label: "MEI — Microempreendedor Individual", desc: "Limite anual: R$ 81.000,00" },
+              { value: "me", label: "ME — Microempresa", desc: "Limite anual: R$ 360.000,00" },
+            ].map((opt) => (
+              <label key={opt.value} className="flex items-start gap-3 cursor-pointer">
+                <RadioGroupItem value={opt.value} className="mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                </div>
+              </label>
+            ))}
+          </RadioGroup>
+          <Button
+            size="sm"
+            className="h-9"
+            disabled={taxRegimeLoading}
+            onClick={async () => {
+              if (!currentOrg?.id) return;
+              setTaxRegimeLoading(true);
+              try {
+                const { error } = await supabase
+                  .from("organizations")
+                  .update({ tax_regime: taxRegime || null } as any)
+                  .eq("id", currentOrg.id);
+                if (error) throw error;
+                await refreshOrganization();
+                toast.success("Regime tributário salvo!");
+              } catch {
+                toast.error("Erro ao salvar regime tributário.");
+              } finally {
+                setTaxRegimeLoading(false);
+              }
+            }}
+          >
+            {taxRegimeLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar regime"}
+          </Button>
+        </div>
+      </div>
+
       {/* Change password */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-3">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
