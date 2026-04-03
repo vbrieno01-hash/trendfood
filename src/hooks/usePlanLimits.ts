@@ -30,7 +30,7 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
   free: {
     kds: false, caixa: false, cupons: false, bestsellers: false,
     waiter: false, history_full: false, multi_unit: false, reports: false,
-    addons: false, stock_ingredients: false, online_payment: false, pricing: false,
+    addons: false, stock_ingredients: false, online_payment: false, pricing: false, loyalty: false,
   },
   pro: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
