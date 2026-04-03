@@ -53,6 +53,9 @@ export const useSubmitReview = () => {
       comment?: string;
       customer_name?: string;
     }) => {
+      if (review.rating < 1 || review.rating > 5) {
+        throw new Error("A nota deve ser entre 1 e 5 estrelas.");
+      }
       const { data, error } = await supabase
         .from("reviews")
         .insert(review)
