@@ -35,8 +35,6 @@ import MenuTab from "@/components/dashboard/MenuTab";
 import TablesTab from "@/components/dashboard/TablesTab";
 import StoreProfileTab from "@/components/dashboard/StoreProfileTab";
 import SettingsTab from "@/components/dashboard/SettingsTab";
-import KitchenTab from "@/components/dashboard/KitchenTab";
-import WaiterTab from "@/components/dashboard/WaiterTab";
 import HistoryTab from "@/components/dashboard/HistoryTab";
 import CouponsTab from "@/components/dashboard/CouponsTab";
 import BestSellersTab from "@/components/dashboard/BestSellersTab";
