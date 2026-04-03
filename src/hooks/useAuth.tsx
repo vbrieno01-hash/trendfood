@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const [{ data: orgData }, { data: roleData }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours, store_address, delivery_config, pix_confirmation_mode, banner_url, printer_width, courier_config, print_mode, cnpj, used_first_month_promo")
+          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours, store_address, delivery_config, pix_confirmation_mode, banner_url, printer_width, courier_config, print_mode, cnpj, used_first_month_promo, billing_alert_limit, tax_regime")
           .eq("user_id", userId),
         supabase
           .from("user_roles")
