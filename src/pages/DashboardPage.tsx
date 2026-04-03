@@ -1014,6 +1014,16 @@ const DashboardPage = () => {
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
           </ErrorBoundary>
+
+          {/* ── Rodapé institucional ─────────────────────────── */}
+          <footer className="mt-8 border-t border-border pt-4 pb-6 text-center">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              TrendFood © {new Date().getFullYear()} — CNPJ 66.067.207/0001-91
+            </p>
+            <p className="text-[10px] text-muted-foreground/70 mt-1 max-w-md mx-auto leading-relaxed">
+              O TrendFood é uma ferramenta de gestão. A emissão de documentos fiscais e o cumprimento de obrigações tributárias são de responsabilidade exclusiva do lojista.
+            </p>
+          </footer>
         </main>
 
         {/* Fixed status bar */}
