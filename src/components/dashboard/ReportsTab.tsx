@@ -719,7 +719,7 @@ ${watermarkHtml}
         <Card>
           <CardContent className="p-5">
             <h3 className="font-semibold text-foreground text-sm mb-4">
-              Detalhamento de Pedidos ({orderRows.length})
+              📋 Lista de Pedidos ({orderRows.length})
             </h3>
             <div className="rounded-md border">
               <Table>
@@ -729,6 +729,7 @@ ${watermarkHtml}
                     <TableHead>Data</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Pagamento</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -738,6 +739,11 @@ ${watermarkHtml}
                       <TableCell>{r.date}</TableCell>
                       <TableCell className="text-right">{fmtBRL(r.total)}</TableCell>
                       <TableCell>{r.paymentMethod}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          {r.status}
+                        </span>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
