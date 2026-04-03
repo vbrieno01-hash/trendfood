@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN billing_alert_limit numeric DEFAULT NULL;
