@@ -1,25 +1,31 @@
 
 
-## Plano: Adicionar seção explicativa no Programa de Fidelidade
+## Plano: Incluir pontos de fidelidade na mensagem WhatsApp de aceite
 
 ### Mudança
-Adicionar um bloco explicativo abaixo dos campos de configuração (após o botão Salvar) com um resumo dinâmico e claro de como o programa funciona, usando os valores configurados pelo lojista.
+Quando o lojista aceita o pedido e a mensagem WhatsApp é enviada ao cliente, incluir uma linha informando quantos pontos ele ganhou e seu saldo total — para que o cliente saiba mesmo sem voltar ao site.
 
-### Conteúdo da explicação
-Uma caixa com fundo sutil contendo:
+### Exemplo de mensagem
+```text
+🍳 *Pedido aceito!*
+Estamos preparando seu pedido. Avisaremos quando estiver pronto para retirada! 😊
 
-**"Como funciona para seus clientes"**
-1. O cliente faz um pedido e informa o telefone
-2. A cada R$X gastos, ele ganha 1 ponto automaticamente
-3. Quando acumular Y pontos, pode trocar por um desconto de R$Z (ou Z%)
-4. O desconto é aplicado no próximo pedido
-5. Os pontos são identificados pelo telefone — sem cadastro extra
+🎯 Você ganhou 3 pontos de fidelidade! Saldo: 8 pontos.
 
-**Exemplo prático** (dinâmico com os valores configurados):
-> "Se um cliente gastar R$150 em pedidos e você configurou R$30 por ponto, ele terá 5 pontos. Com 40 pontos para resgate, ele precisa gastar R$1.200 no total para ganhar um desconto de R$20."
+— Nome da Loja
+```
 
-### Arquivo modificado
+### Arquivos modificados
+
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/dashboard/LoyaltyTab.tsx` | Adicionar bloco explicativo após o botão Salvar, dentro do card de configuração, com texto dinâmico baseado nos valores dos inputs |
+| `src/lib/whatsappNotify.ts` | Adicionar parâmetro opcional `loyaltyInfo?: { earned: number; total: number }` na função `notifyCustomerWhatsApp`. Se presente, adiciona linha com pontos ganhos e saldo |
+| `src/components/dashboard/KitchenTab.tsx` | No `handleAcceptOrder`, antes de chamar `notifyCustomerWhatsApp`, buscar os pontos do cliente (via `supabase.from("loyalty_points")` usando o telefone extraído do `notes`) e a config de fidelidade da org. Calcular pontos ganhos com base no total do pedido e passar como `loyaltyInfo` |
+| `src/pages/KitchenPage.tsx` | Mesma lógica do `KitchenTab.tsx` — buscar pontos e passar `loyaltyInfo` ao `notifyCustomerWhatsApp` |
+
+### Detalhes técnicos
+- O telefone já é extraído via `parsePhoneFromNotes` — reutilizamos para buscar `loyalty_points` pelo `phone_normalized`
+- A config de fidelidade (`loyalty_config`) é buscada pelo `organization_id` para saber se o programa está ativo e o valor por ponto
+- Se o programa não estiver ativo ou não houver dados, a linha de pontos simplesmente não aparece (sem quebrar nada)
+- Os pontos já foram acumulados no momento do pedido (no checkout), então o saldo já está atualizado quando o lojista aceita
 
