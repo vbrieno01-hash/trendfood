@@ -296,6 +296,25 @@ export default function HomeTab({ organization }: { organization: Organization }
         </div>
       </div>
 
+      {/* ── Install App Card ──────────────────────────────── */}
+      {!isStandalone && (
+        <button
+          onClick={() => navigate("/instalar")}
+          className="w-full dashboard-glass rounded-2xl p-4 flex items-center justify-between gap-3 animate-dashboard-fade-in dash-delay-4 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Instalar TrendFood</p>
+              <p className="text-xs text-muted-foreground">Acesse direto da tela inicial do celular</p>
+            </div>
+          </div>
+          <Download className="w-5 h-5 text-primary flex-shrink-0" />
+        </button>
+      )}
+
       {/* ── Pause toggle ─────────────────────────────────── */}
       <div className={`dashboard-glass rounded-2xl p-4 flex items-center justify-between gap-3 animate-dashboard-fade-in dash-delay-4 ${organization.paused ? "!border-amber-500/30" : ""}`}>
         <div className="flex items-center gap-3">
