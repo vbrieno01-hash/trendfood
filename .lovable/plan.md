@@ -1,31 +1,26 @@
 
 
-## Plano: Adicionar botão Pausar/Ativar nos bairros de entrega
+## Plano: Editar nome do bairro inline
 
-### Problema
-O `NeighborhoodManager` não tem opção de pausar bairros — só deletar. A tabela já tem a coluna `active`, mas a UI não a utiliza para toggle.
-
-### Correção
+### Mudança
 
 **Arquivo: `src/components/dashboard/NeighborhoodManager.tsx`**
 
-1. Importar o componente `Switch` de `@/components/ui/switch`
-2. Em cada linha de bairro, adicionar um `Switch` antes do botão de deletar:
-   - `checked={n.active}`
-   - `onCheckedChange` chama `updateMutation.mutate({ id: n.id, active: !n.active })`
-3. Quando `active === false`, aplicar `opacity-50` na linha para indicar visualmente que está pausado
-4. Exibir tooltip ou texto pequeno indicando o estado (ex: "Pausado")
+Transformar o `<span>` com o nome do bairro em um `<Input>` editável inline (mesmo padrão usado para a taxa):
 
-### Visual final de cada linha
+- Trocar `<span className="text-sm font-medium...">{n.name}</span>` por um `<Input>` com `defaultValue={n.name}`
+- No `onBlur`, se o valor mudou, chamar `updateMutation.mutate({ id: n.id, name: novoNome.trim() })`
+- Validar que o nome não está vazio antes de salvar
+- Manter o estilo compacto (`h-8 text-sm`) consistente com o input da taxa
+
+### Resultado visual por linha
 
 ```text
-[Nome do Bairro]  [R$ ___]  [Switch ●]  [🗑]
+[___Nome editável___]  [Pausado?]  [R$ ___]  [Switch]  [🗑]
 ```
-
-Bairro pausado fica com opacidade reduzida e não aparece no checkout (já filtrado pelo hook `useDeliveryNeighborhoods` que filtra `active = true`).
 
 ### Arquivos modificados
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/dashboard/NeighborhoodManager.tsx` | Adicionar Switch de ativar/pausar em cada bairro |
+| `src/components/dashboard/NeighborhoodManager.tsx` | Trocar span do nome por Input editável com onBlur save |
 
