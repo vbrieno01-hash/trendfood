@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useMenuItems } from "@/hooks/useMenuItems";
+import { useMenuItems, buildCategoryOrder } from "@/hooks/useMenuItems";
 import { useMenuItemStock } from "@/hooks/useMenuItemStock";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
@@ -25,15 +25,7 @@ interface CartItem {
   customer_name: string;
 }
 
-const CATEGORY_ORDER = [
-  "Promoção do dia",
-  "Lanches com 1 hambúrguer e sem batata frita",
-  "Lanches com 2 hambúrgueres e batata frita",
-  "Hambúrgueres triplo",
-  "Combos com batata frita",
-  "Combos sem batata frita",
-  "Bebidas", "Porções", "Sobremesas", "Outros",
-];
+// Removed hardcoded CATEGORY_ORDER — now uses buildCategoryOrder from useMenuItems
 
 export default function TableOrderPage() {
   const { slug, tableNumber } = useParams<{ slug: string; tableNumber: string }>();
@@ -113,7 +105,8 @@ export default function TableOrderPage() {
     return max > 0;
   });
 
-  const byCategory = CATEGORY_ORDER.reduce<Record<string, typeof available>>(
+  const orderedCats = buildCategoryOrder(available as any, (org as any)?.category_order);
+  const byCategory = orderedCats.reduce<Record<string, typeof available>>(
     (acc, cat) => {
       const filtered = available.filter((i) => i.category === cat);
       if (filtered.length) acc[cat] = filtered;
@@ -121,13 +114,6 @@ export default function TableOrderPage() {
     },
     {}
   );
-  const knownCats = new Set(CATEGORY_ORDER);
-  available.forEach((i) => {
-    if (!knownCats.has(i.category)) {
-      byCategory[i.category] = byCategory[i.category] || [];
-      byCategory[i.category].push(i);
-    }
-  });
 
   const cartItems = Object.values(cart);
   const totalItems = cartItems.reduce((s, i) => s + i.quantity, 0);

@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload, ChevronUp, ChevronDown,
 } from "lucide-react";
 import ImportMenuDialog from "@/components/dashboard/ImportMenuDialog";
 import {
@@ -22,8 +22,9 @@ import {
 } from "@/hooks/useStockItems";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem, useDeleteAllMenuItems,
-  uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder,
+  uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder, buildCategoryOrder,
 } from "@/hooks/useMenuItems";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useAllMenuItemAddons, useAddMenuItemAddon, useUpdateMenuItemAddon, useDeleteMenuItemAddon,
   
@@ -36,6 +37,7 @@ interface Organization {
   id: string;
   name: string;
   slug: string;
+  category_order?: string[] | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
@@ -589,6 +591,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
   const deleteAllMutation = useDeleteAllMenuItems(organization.id);
@@ -650,22 +653,23 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [organization.id]);
 
-  // Collect custom categories not in CATEGORIES
-  const knownValues = new Set(CATEGORIES.map(c => c.value));
-  const customCats = [...new Set(items.map(i => i.category).filter(c => !knownValues.has(c)))].sort();
+  // Build category order using saved order or defaults
+  const categoryOrder = buildCategoryOrder(items, localCategoryOrder ?? organization.category_order);
 
-  // customCats used for grouping below
+  const grouped = categoryOrder.map((cat) => ({
+    value: cat,
+    items: items.filter((i) => i.category === cat),
+  })).filter((g) => g.items.length > 0);
 
-  const grouped = [
-    ...CATEGORIES.map((cat) => ({
-      value: cat.value,
-      items: items.filter((i) => i.category === cat.value),
-    })),
-    ...customCats.map((cat) => ({
-      value: cat,
-      items: items.filter((i) => i.category === cat),
-    })),
-  ].filter((g) => g.items.length > 0);
+  const moveCategoryOrder = async (index: number, direction: "up" | "down") => {
+    const currentOrder = grouped.map((g) => g.value);
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= currentOrder.length) return;
+    const newOrder = [...currentOrder];
+    [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+    setLocalCategoryOrder(newOrder);
+    await supabase.from("organizations").update({ category_order: newOrder } as any).eq("id", organization.id);
+  };
 
   const totalItems = items.length;
   const totalCategories = grouped.length;
@@ -896,13 +900,31 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       )}
 
       {/* Grouped items — compact list */}
-      {!isLoading && grouped.map((group) => (
+      {!isLoading && grouped.map((group, groupIndex) => (
         <div key={group.value}>
           <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
             <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               {group.value}
             </span>
             <span className="text-xs text-muted-foreground/60">({group.items.length})</span>
+            <div className="flex items-center gap-0.5 ml-1">
+              <button
+                onClick={() => moveCategoryOrder(groupIndex, "up")}
+                disabled={groupIndex === 0}
+                className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
+                title="Mover para cima"
+              >
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => moveCategoryOrder(groupIndex, "down")}
+                disabled={groupIndex === grouped.length - 1}
+                className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
+                title="Mover para baixo"
+              >
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
             <div className="flex-1 h-px bg-border" />
           </div>
 
