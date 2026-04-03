@@ -1025,6 +1025,30 @@ const DashboardPage = () => {
           </footer>
         </main>
 
+        {/* Mobile bottom navigation */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border flex items-center justify-around px-1 py-2 safe-area-pb">
+          {[
+            { key: "home" as TabKey, icon: <Home className="w-5 h-5" />, label: "Home" },
+            { key: "operations" as TabKey, icon: <Flame className="w-5 h-5" />, label: "Pedidos" },
+            { key: "menu" as TabKey, icon: <UtensilsCrossed className="w-5 h-5" />, label: "Cardápio" },
+            { key: "tables" as TabKey, icon: <TableProperties className="w-5 h-5" />, label: "Mesas" },
+            { key: "history" as TabKey, icon: <History className="w-5 h-5" />, label: "Histórico" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => handleTabChange(item.key)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg min-w-0 transition-colors ${
+                activeTab === item.key
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {item.icon}
+              <span className="text-[10px] font-medium leading-tight">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
         {/* Fixed status bar */}
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-3 py-1 flex items-center gap-2 text-[11px] overflow-x-auto">
           <button
