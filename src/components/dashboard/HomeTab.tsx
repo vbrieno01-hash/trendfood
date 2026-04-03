@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend, BarChart,
 } from "recharts";
-import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight, Flame, Tag, Package } from "lucide-react";
 import { subDays, subMonths, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
