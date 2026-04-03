@@ -68,6 +68,25 @@ export default function SettingsTab() {
     }
   };
 
+  const handleSaveScheduling = async () => {
+    if (!currentOrg?.id) return;
+    setSchedulingLoading(true);
+    try {
+      const config = { enabled: schedulingEnabled, min_advance_minutes: Math.max(15, parseInt(minAdvance) || 30) };
+      const { error } = await supabase
+        .from("organizations")
+        .update({ scheduling_config: config } as any)
+        .eq("id", currentOrg.id);
+      if (error) throw error;
+      await refreshOrganization();
+      toast.success("Configuração de agendamento salva!");
+    } catch {
+      toast.error("Erro ao salvar configuração de agendamento.");
+    } finally {
+      setSchedulingLoading(false);
+    }
+  };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
