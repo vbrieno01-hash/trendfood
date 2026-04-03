@@ -209,9 +209,19 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       }));
   }, [filteredOrders]);
 
-  const periodLabel = period === "custom" && customFrom && customTo
-    ? `${format(customFrom, "dd/MM/yyyy")} a ${format(customTo, "dd/MM/yyyy")}`
-    : PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
+  const periodLabel = (() => {
+    if (period === "custom" && customFrom && customTo) {
+      return `${format(customFrom, "dd/MM/yyyy")} a ${format(customTo, "dd/MM/yyyy")}`;
+    }
+    const daysMap: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
+    const days = daysMap[period];
+    if (days) {
+      const end = new Date();
+      const start = subDays(end, days);
+      return `${format(start, "dd/MM/yyyy")} a ${format(end, "dd/MM/yyyy")} (${days} dias)`;
+    }
+    return PERIOD_OPTIONS.find((o) => o.key === period)?.label ?? period;
+  })();
 
   // ── CSV Export ──
   const handleDownloadCSV = () => {
