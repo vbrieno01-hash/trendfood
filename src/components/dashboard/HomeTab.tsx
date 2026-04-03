@@ -200,6 +200,38 @@ export default function HomeTab({ organization }: { organization: Organization }
           <p className="text-muted-foreground text-sm mt-0.5">{todayCapitalized}</p>
         </div>
         <div className="flex items-center gap-2">
+          {pushSupported && (
+            <button
+              onClick={async () => {
+                if (isSubscribed) {
+                  await pushUnsubscribe();
+                  toast.success("Notificações desativadas");
+                } else {
+                  const ok = await pushSubscribe();
+                  if (ok) toast.success("Notificações ativadas! 🔔");
+                  else toast("Permissão de notificação negada", { description: "Ative nas configurações do navegador" });
+                }
+              }}
+              disabled={pushLoading}
+              className={`relative p-2 rounded-xl transition-colors ${
+                isSubscribed
+                  ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                  : "bg-muted text-muted-foreground border border-border hover:bg-accent"
+              }`}
+              title={isSubscribed ? "Notificações ativas" : "Ativar notificações"}
+            >
+              {pushLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isSubscribed ? (
+                <Bell className="w-4 h-4" />
+              ) : (
+                <BellOff className="w-4 h-4" />
+              )}
+              {isSubscribed && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500" />
+              )}
+            </button>
+          )}
           {organization.subscription_status && (
             <span
               className={`mt-1 text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0 ${
