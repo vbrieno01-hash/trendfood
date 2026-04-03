@@ -1,51 +1,27 @@
 
 
-## Plano: Salvar chaves VAPID + implementar push notifications completo
+## Plano: Adicionar card de instalação do app no Dashboard
 
-As chaves VAPID já foram geradas:
-- **Pública**: `BBATtReMYYfX0TzAWOBYZkVAZlvUZlQJGI-YRtlqpPRo3Y0enwYdArCVl4R1TzyoeJuPD8gbSlKippNGaim-6QM`
-- **Privada**: `8kLagAPawdpPp3WU6PFkCp1c__DMwhybPDD3VHlrqVw`
+### Situação atual
+- A página `/instalar` existe mas só é acessível por URL direta
+- O dashboard (`HomeTab`) não tem nenhum link ou card para ela
+- O lojista não sabe que pode instalar o app
 
-### Etapas
+### O que será feito
 
-| # | O que |
-|---|-------|
-| 1 | Salvar `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` nos secrets do projeto (automático, sem ação sua) |
-| 2 | Criar edge function `send-push-notification/index.ts` — busca subscriptions e envia push via Web Push protocol com VAPID |
-| 3 | Adicionar config `verify_jwt = false` no `config.toml` |
-| 4 | Migração para configurar `app.settings.supabase_url` e `app.settings.service_role_key` no banco (necessário para o trigger funcionar) |
-| 5 | Criar `public/sw-push.js` — service worker com listeners `push` e `notificationclick` |
-| 6 | Criar `src/hooks/usePushSubscription.ts` — pede permissão, registra SW, salva no banco |
-| 7 | Adicionar botão de sino no `HomeTab.tsx` para ativar/desativar notificações |
+| # | Mudança |
+|---|---------|
+| 1 | Adicionar um card no `HomeTab.tsx` com ícone de celular, título "Instalar TrendFood" e botão que redireciona para `/instalar` |
+| 2 | O card só aparece quando o app **não** está em modo standalone (já instalado) |
+| 3 | Posicionar o card na área principal do dashboard, visível logo ao abrir |
 
 ### Detalhes técnicos
-
-**Edge Function** (`send-push-notification`):
-- Recebe `{ organization_id, order_number }` do trigger
-- Busca todas subscriptions da org via service role key
-- Implementa Web Push protocol com ECDSA P-256 + HKDF + AES-128-GCM usando crypto nativo do Deno
-- Envia para cada endpoint registrado
-
-**Service Worker** (`sw-push.js`):
-- Evento `push`: mostra notificação com título e corpo
-- Evento `notificationclick`: abre o dashboard
-
-**Hook** (`usePushSubscription`):
-- Verifica suporte (`PushManager` + `serviceWorker`)
-- Pede `Notification.requestPermission()`
-- Registra subscription com `applicationServerKey` (VAPID public)
-- Upsert no banco `push_subscriptions`
-
-**Botão no Dashboard**:
-- Ícone de sino com indicador verde quando ativo
-- Toggle: ativa → pede permissão e salva; desativa → remove do banco
+- Detecta `display-mode: standalone` via `window.matchMedia` — se já instalado, esconde o card
+- Usa `useNavigate` para redirecionar ao `/instalar`
+- Card com visual destacado (borda primária, ícone de download)
 
 ### Resultado
-- 2 secrets salvos automaticamente
-- 1 edge function nova
-- 1 config.toml editado
-- 1 service worker novo
-- 1 hook novo
-- 1 componente editado (HomeTab)
-- 0 migrações adicionais (tabela e trigger já existem)
+- 1 arquivo editado (`HomeTab.tsx`)
+- Lojista vê o convite para instalar direto no dashboard
+- Card desaparece automaticamente após instalação
 
