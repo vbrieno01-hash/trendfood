@@ -1333,11 +1333,11 @@ const UnitPage = () => {
       />
 
       {/* ── WHATSAPP FAB ── */}
-      {organization?.whatsapp && !checkoutOpen && !selectedItem && (
+      {org?.whatsapp && !checkoutOpen && !selectedItem && (
         <button
           onClick={() => {
             const msg = encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?");
-            openWhatsAppWithFallback(`https://wa.me/55${organization.whatsapp}?text=${msg}`, { mode: "operational" });
+            openWhatsAppWithFallback(`https://wa.me/55${org.whatsapp}?text=${msg}`, { mode: "operational" });
           }}
           className="fixed bottom-5 left-5 z-40 h-12 w-12 rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
           style={{ backgroundColor: "#25D366" }}
