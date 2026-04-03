@@ -653,7 +653,8 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   }, [organization.id]);
 
   // Build category order using saved order or defaults
-  const categoryOrder = buildCategoryOrder(items, organization.category_order);
+  const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
+  const categoryOrder = buildCategoryOrder(items, localCategoryOrder ?? organization.category_order);
 
   const grouped = categoryOrder.map((cat) => ({
     value: cat,
@@ -666,9 +667,8 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     if (newIndex < 0 || newIndex >= currentOrder.length) return;
     const newOrder = [...currentOrder];
     [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+    setLocalCategoryOrder(newOrder);
     await supabase.from("organizations").update({ category_order: newOrder } as any).eq("id", organization.id);
-    // Optimistically update — refetch org
-    organization.category_order = newOrder;
   };
 
   const totalItems = items.length;
