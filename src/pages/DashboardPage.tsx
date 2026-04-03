@@ -536,7 +536,6 @@ const DashboardPage = () => {
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
         { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
         { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
-        { key: "reviews" as TabKey, icon: <Star className="w-4 h-4" />, label: "Avaliações" },
       ],
     },
     {
