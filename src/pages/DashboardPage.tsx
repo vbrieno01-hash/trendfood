@@ -1012,6 +1012,7 @@ const DashboardPage = () => {
             : <PricingTab orgId={organization.id} />)}
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
+          {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
           </ErrorBoundary>
         </main>
 
