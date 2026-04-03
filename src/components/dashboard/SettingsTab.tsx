@@ -173,6 +173,50 @@ export default function SettingsTab() {
         </div>
       </div>
 
+      {/* Scheduling config */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agendamento de pedidos</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Permitir agendamento</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
+                {schedulingEnabled
+                  ? "Clientes podem escolher um horário futuro para o pedido."
+                  : "Ative para permitir que clientes agendem horários de entrega/retirada."}
+              </p>
+            </div>
+            <Switch
+              checked={schedulingEnabled}
+              onCheckedChange={setSchedulingEnabled}
+            />
+          </div>
+          {schedulingEnabled && (
+            <div>
+              <Label htmlFor="min-advance" className="text-xs font-medium">Antecedência mínima (minutos)</Label>
+              <Input
+                id="min-advance"
+                type="number"
+                min={15}
+                max={180}
+                value={minAdvance}
+                onChange={(e) => setMinAdvance(e.target.value)}
+                className="mt-1 w-32"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Ex: 30 = o primeiro horário disponível será daqui a 30 min
+              </p>
+            </div>
+          )}
+          <Button onClick={handleSaveScheduling} disabled={schedulingLoading} size="sm" className="h-9">
+            {schedulingLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Salvar agendamento"}
+          </Button>
+        </div>
+      </div>
+
       {/* Change password */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-3">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
