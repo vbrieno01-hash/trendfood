@@ -341,6 +341,7 @@ ${watermarkHtml}
   ${orderRows.length > 0 ? `<h2>Lista de Pedidos</h2><table><thead><tr><th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th><th>Status</th></tr></thead><tbody>${orderDetailRows}</tbody></table>` : ""}
 
   <div class="footer">Relatório gerado via TrendFood • ${emissionDate}</div>
+  <div class="footer" style="margin-top:8px;font-size:9px;color:#aaa;text-align:center">Este é um relatório gerencial. A emissão de documentos fiscais e o controle de limites tributários são de responsabilidade exclusiva do estabelecimento.</div>
 </div>
 
 </body></html>`;

@@ -225,13 +225,13 @@ export default function SettingsTab() {
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
           <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saúde Fiscal</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gestão Fiscal</p>
         </div>
         <div className="px-4 py-4 space-y-4">
           <div>
             <p className="text-sm font-medium text-foreground">Aviso de Limite de Faturamento</p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed max-w-sm">
-              Defina o limite mensal de faturamento do seu negócio (ex: R$ 6.750 para MEI). Você receberá um alerta no painel quando atingir 80% deste valor. Deixe R$ 0,00 para desativar.
+              Defina o limite mensal de faturamento do seu negócio (ex: R$ 6.750 para MEI, R$ 2.259 para CPF, R$ 30.000 para ME). Você receberá um alerta no painel quando atingir 80% deste valor. Deixe R$ 0,00 para desativar.
             </p>
           </div>
           <CurrencyInput

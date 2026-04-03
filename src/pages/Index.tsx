@@ -446,8 +446,13 @@ const Index = () => {
             </ul>
           </div>
         </div>
-        <div className="max-w-5xl mx-auto border-t border-border/60 pt-6 text-center text-muted-foreground text-sm">
+        <div className="max-w-5xl mx-auto border-t border-border/60 pt-6 text-center text-muted-foreground text-sm space-y-1">
           <p>{c("footer_copyright", "TrendFood © 2026 - Todos os direitos reservados")}</p>
+          <p className="text-xs">CNPJ 66.067.207/0001-91 — JACKSON BRENO FRANCELINO DA COSTA</p>
+          <div className="flex justify-center gap-4 mt-2">
+            <Link to="/termos" className="hover:text-foreground transition-colors">Termos de Uso</Link>
+            <Link to="/privacidade" className="hover:text-foreground transition-colors">Política de Privacidade</Link>
+          </div>
         </div>
       </footer>
     </div>
