@@ -37,6 +37,14 @@ export default function HomeTab({ organization }: { organization: Organization }
   const { data: activeOrders = [] } = useOrders(organization.id, ["pending", "preparing"]);
   const { refreshOrganization } = useAuth();
   const [pauseLoading, setPauseLoading] = useState(false);
+  const navigate = useNavigate();
+  const [isStandalone, setIsStandalone] = useState(true);
+
+  useEffect(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches
+      || (navigator as any).standalone === true;
+    setIsStandalone(standalone);
+  }, []);
   const { isSubscribed, isLoading: pushLoading, isSupported: pushSupported, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushSubscription(organization.id);
 
   const occupiedTables = new Set(activeOrders.filter(o => o.table_number > 0).map(o => o.table_number)).size;
