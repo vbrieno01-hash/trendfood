@@ -1188,7 +1188,7 @@ const UnitPage = () => {
                 {loyaltyEnabled && cleanPhoneForLoyalty.length >= 10 && loyaltyPointsData && loyaltyPointsData.points > 0 && (
                   <div className="mt-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
                     <p className="text-xs font-medium text-primary flex items-center gap-1">
-                      🎁 Você tem <span className="font-bold">{loyaltyPointsData.points} pontos</span>!
+                      🎁 Você tem <span className="font-bold">{loyaltyPointsData.points} {loyaltyPointsData.points === 1 ? "ponto" : "pontos"}</span>!
                     </p>
                     {canRedeem && !loyaltyRedeemed && (
                       <button
