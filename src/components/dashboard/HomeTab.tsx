@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend, BarChart,
 } from "recharts";
-import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff } from "lucide-react";
 import { subDays, subMonths, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 interface Organization {
   id: string;
@@ -35,6 +36,7 @@ export default function HomeTab({ organization }: { organization: Organization }
   const { data: activeOrders = [] } = useOrders(organization.id, ["pending", "preparing"]);
   const { refreshOrganization } = useAuth();
   const [pauseLoading, setPauseLoading] = useState(false);
+  const { isSubscribed, isLoading: pushLoading, isSupported: pushSupported, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushSubscription(organization.id);
 
   const occupiedTables = new Set(activeOrders.filter(o => o.table_number > 0).map(o => o.table_number)).size;
 
@@ -198,6 +200,38 @@ export default function HomeTab({ organization }: { organization: Organization }
           <p className="text-muted-foreground text-sm mt-0.5">{todayCapitalized}</p>
         </div>
         <div className="flex items-center gap-2">
+          {pushSupported && (
+            <button
+              onClick={async () => {
+                if (isSubscribed) {
+                  await pushUnsubscribe();
+                  toast.success("Notificações desativadas");
+                } else {
+                  const ok = await pushSubscribe();
+                  if (ok) toast.success("Notificações ativadas! 🔔");
+                  else toast("Permissão de notificação negada", { description: "Ative nas configurações do navegador" });
+                }
+              }}
+              disabled={pushLoading}
+              className={`relative p-2 rounded-xl transition-colors ${
+                isSubscribed
+                  ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                  : "bg-muted text-muted-foreground border border-border hover:bg-accent"
+              }`}
+              title={isSubscribed ? "Notificações ativas" : "Ativar notificações"}
+            >
+              {pushLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isSubscribed ? (
+                <Bell className="w-4 h-4" />
+              ) : (
+                <BellOff className="w-4 h-4" />
+              )}
+              {isSubscribed && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500" />
+              )}
+            </button>
+          )}
           {organization.subscription_status && (
             <span
               className={`mt-1 text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0 ${
