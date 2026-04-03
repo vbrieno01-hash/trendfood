@@ -688,6 +688,9 @@ const UnitPage = () => {
             alt="Banner"
             className="w-full rounded-2xl object-cover"
             style={{ maxHeight: 180 }}
+            onError={(e) => {
+              (e.currentTarget.parentElement as HTMLElement | null)?.remove();
+            }}
           />
         </div>
       )}
