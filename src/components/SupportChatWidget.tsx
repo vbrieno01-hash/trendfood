@@ -118,7 +118,7 @@ const SupportChatWidget = () => {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+          className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
           aria-label="Abrir chat de suporte"
         >
           <MessageCircle className="h-6 w-6" />
@@ -127,7 +127,7 @@ const SupportChatWidget = () => {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-5 right-5 z-[9999] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl sm:w-[380px] animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl sm:w-[380px] animate-in slide-in-from-bottom-4 fade-in duration-200">
           {/* Header */}
           <div className="flex items-center justify-between rounded-t-2xl bg-primary px-4 py-3 text-primary-foreground">
             <div className="flex items-center gap-2">
