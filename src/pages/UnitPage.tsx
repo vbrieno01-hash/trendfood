@@ -687,6 +687,8 @@ const UnitPage = () => {
     setChangeFor(0);
     setChangeForError(false);
     setNotes("");
+    setLoyaltyRedeemed(false);
+    setLoyaltyDiscount(0);
   };
 
 
