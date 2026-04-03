@@ -318,6 +318,8 @@ ${watermarkHtml}
     <div class="kpi"><div class="label">Média Pedidos/dia</div><div class="value">${kpis.avgOrdersPerDay.toFixed(1)}</div></div>
   </div>
 
+  ${paymentStats.length > 0 ? `<h2>💳 Resumo por Meio de Pagamento</h2><table><thead><tr><th>Meio</th><th style="text-align:center">Pedidos</th><th style="text-align:right">Faturamento</th><th style="text-align:right">%</th></tr></thead><tbody>${paymentBreakdownRows}</tbody></table>` : ""}
+
   <h2>Comparativo Semanal</h2>
   <table><thead><tr><th>Semana Atual</th><th>Semana Anterior</th><th>Variação</th></tr></thead>
   <tbody><tr><td>${fmtBRL(weeklyComparison.thisWeek)}</td><td>${fmtBRL(weeklyComparison.lastWeek)}</td><td>${weeklyComparison.change > 0 ? "+" : ""}${weeklyComparison.change.toFixed(1)}%</td></tr></tbody></table>
@@ -325,8 +327,6 @@ ${watermarkHtml}
   ${dailyRevenue.length > 0 ? `<h2>Faturamento Diário</h2><table><thead><tr><th>Data</th><th>Receita</th></tr></thead><tbody>${dailyRows}</tbody></table>` : ""}
 
   ${categoryRanking.length > 0 ? `<h2>Ranking por Item / Categoria</h2><table><thead><tr><th>#</th><th>Item</th><th>Receita</th><th>Qtd</th></tr></thead><tbody>${rankingRows}</tbody></table>` : ""}
-
-  ${paymentStats.length > 0 ? `<h2>💳 Faturamento por Meio de Pagamento</h2><table><thead><tr><th>Meio</th><th style="text-align:center">Pedidos</th><th style="text-align:right">Faturamento</th><th style="text-align:right">%</th></tr></thead><tbody>${paymentBreakdownRows}</tbody></table>` : ""}
 
   ${orderRows.length > 0 ? `<h2>Lista de Pedidos</h2><table><thead><tr><th>Pedido</th><th>Data</th><th>Valor</th><th>Pagamento</th><th>Status</th></tr></thead><tbody>${orderDetailRows}</tbody></table>` : ""}
 
