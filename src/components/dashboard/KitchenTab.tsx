@@ -50,6 +50,7 @@ const playBell = () => {
 interface KitchenTabProps {
   orgId: string;
   orgName?: string;
+  orgSlug?: string;
   storeAddress?: string | null;
   courierConfig?: { base_fee: number; per_km: number } | null;
   printMode?: 'browser' | 'desktop' | 'bluetooth';
@@ -79,7 +80,7 @@ const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: 
 };
 
 export default function KitchenTab({
-  orgId, orgName, storeAddress, courierConfig,
+  orgId, orgName, orgSlug, storeAddress, courierConfig,
   printMode = 'browser', printerWidth = '58mm', btDevice = null, pixKey,
   onPairBluetooth, btConnected, btSupported,
   autoPrint, onToggleAutoPrint,
@@ -172,7 +173,8 @@ export default function KitchenTab({
             if (order) {
               const phone = parsePhoneFromNotes(order.notes);
               if (phone) {
-                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), orgName, order.notes);
+                const reviewUrl = orgSlug ? `${window.location.origin}/avaliar/${orgSlug}/${order.id}` : undefined;
+                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), orgName, order.notes, reviewUrl);
               }
             }
           }
