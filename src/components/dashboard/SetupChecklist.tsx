@@ -20,7 +20,7 @@ interface Props {
   onNavigate: (tab: string) => void;
 }
 
-export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogoUrl, orgBusinessHours, onNavigate }: Props) {
+export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogoUrl, onNavigate }: Props) {
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const [tableCount, setTableCount] = useState<number | null>(null);
 
