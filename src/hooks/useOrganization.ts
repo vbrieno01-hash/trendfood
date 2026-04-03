@@ -53,6 +53,7 @@ export interface Organization {
   print_mode?: 'browser' | 'desktop' | 'bluetooth';
   cnpj?: string | null;
   force_open?: boolean;
+  tax_regime?: string | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {
