@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN scheduling_config jsonb DEFAULT NULL;
