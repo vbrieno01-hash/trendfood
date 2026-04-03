@@ -1,40 +1,35 @@
 
 
-## Plano: Adicionar seção de Meios de Pagamento e tabela Lista de Pedidos
+## Plano: Resumo por Meio de Pagamento no topo (junto aos KPIs)
 
-### Mudanças no arquivo `src/components/dashboard/ReportsTab.tsx`
+### Mudança no arquivo `src/components/dashboard/ReportsTab.tsx`
 
-**1. Seção "Meios de Pagamento"** — Adicionar após o gráfico de Horários de Pico e antes do Ranking por Item:
-- Um `useMemo` que agrupa os pedidos por `payment_method` e calcula: quantidade de pedidos e faturamento total por método
-- Exibir como tabela estilizada com 4 colunas: Meio de Pagamento, Qtd Pedidos, Faturamento, % do Total
-- Incluir um mini gráfico de barras horizontal (recharts `BarChart` horizontal) mostrando a proporção visual de cada método
-- Cores distintas: PIX (verde), Crédito (azul), Débito (roxo), Dinheiro (amarelo), Pendente (cinza)
+Adicionar uma seção de **cards de resumo por meio de pagamento** logo abaixo dos 4 KPI cards (linha ~515), antes do Comparativo Semanal. Reutiliza o `paymentStats` já calculado.
 
-**2. Renomear "Detalhamento de Pedidos" para "Lista de Pedidos"** e adicionar coluna Status:
-- Adicionar coluna "Status" na tabela existente (todas serão "Entregue" pois o hook filtra `status: delivered`)
-- Manter as colunas existentes: Pedido, Data/Hora, Valor, Pagamento + nova coluna Status
-- Mover esta seção para ficar abaixo do Ranking (já está lá)
-
-**3. Atualizar `buildReportHtml`** para incluir a tabela de meios de pagamento nos exports PDF/PNG/CSV
-
-### Layout da seção de pagamento
+### Layout
 
 ```text
-┌──────────────────────────────────────────────┐
-│  💳 Faturamento por Meio de Pagamento        │
-│                                              │
-│  Meio        │ Pedidos │ Faturamento │ %     │
-│  PIX         │ 45      │ R$ 4.500    │ 52%   │
-│  Dinheiro    │ 20      │ R$ 2.100    │ 24%   │
-│  Crédito     │ 15      │ R$ 1.500    │ 17%   │
-│  Débito      │ 7       │ R$ 600      │  7%   │
-│                                              │
-│  [Gráfico barras horizontal com cores]       │
-└──────────────────────────────────────────────┘
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│ Faturamento │ │ Ticket Médio│ │ Tot Pedidos │ │ Pedidos/dia │
+└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  💳 Resumo por Meio de Pagamento                             │
+│                                                              │
+│  🟢 PIX           R$ 8.500,00  (52%)                        │
+│  🟡 Dinheiro      R$ 2.015,32  (12%)                        │
+│  🔵 Crédito       R$ 5.300,00  (32%)                        │
+│  🟣 Débito        R$ 600,00    (4%)                         │
+└──────────────────────────────────────────────────────────────┘
+
+[Comparativo Semanal]
+[Gráficos...]
 ```
 
 ### Detalhes
-- Nenhuma mudança de banco de dados necessária
 - Apenas 1 arquivo editado: `src/components/dashboard/ReportsTab.tsx`
-- Os dados de `payment_method` já existem nos pedidos retornados pelo hook
+- Reutiliza o `paymentStats` existente (linhas 192-210) — zero lógica nova
+- Cada método de pagamento exibido como uma linha com bolinha colorida, nome, valor formatado em BRL e percentual
+- Card estilizado com `dashboard-glass` consistente com os KPI cards existentes
+- A seção de pagamento detalhada que já existe mais abaixo (com gráfico de barras) permanece no lugar
 
