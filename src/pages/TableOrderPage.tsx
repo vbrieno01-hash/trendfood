@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useMenuItems } from "@/hooks/useMenuItems";
+import { useMenuItems, buildCategoryOrder } from "@/hooks/useMenuItems";
 import { useMenuItemStock } from "@/hooks/useMenuItemStock";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
