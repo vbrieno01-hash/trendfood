@@ -1158,6 +1158,42 @@ const UnitPage = () => {
                   className={phoneError ? "border-destructive" : ""}
                 />
                 {phoneError && <p className="text-destructive text-xs mt-1">Informe um telefone válido (mín. 10 dígitos)</p>}
+                {/* Loyalty badge */}
+                {loyaltyEnabled && cleanPhoneForLoyalty.length >= 10 && loyaltyPointsData && loyaltyPointsData.points > 0 && (
+                  <div className="mt-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
+                    <p className="text-xs font-medium text-primary flex items-center gap-1">
+                      🎁 Você tem <span className="font-bold">{loyaltyPointsData.points} pontos</span>!
+                    </p>
+                    {canRedeem && !loyaltyRedeemed && (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-primary underline"
+                        onClick={() => {
+                          if (!loyaltyConfig) return;
+                          const disc = loyaltyConfig.reward_type === "percent"
+                            ? (totalPrice * loyaltyConfig.reward_value) / 100
+                            : loyaltyConfig.reward_value;
+                          setLoyaltyDiscount(disc);
+                          setLoyaltyRedeemed(true);
+                        }}
+                      >
+                        Usar {loyaltyConfig!.points_to_redeem} pontos → desconto de {loyaltyRewardLabel}
+                      </button>
+                    )}
+                    {loyaltyRedeemed && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-green-600 font-medium">✅ Desconto de {fmt(loyaltyDiscount)} aplicado!</p>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground underline"
+                          onClick={() => { setLoyaltyRedeemed(false); setLoyaltyDiscount(0); }}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
