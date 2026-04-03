@@ -1,54 +1,18 @@
 
 
-## Plano: Rodapé no Dashboard, Configuração Fiscal e Alerta Anual MEI
+## Plano: Corrigir posição do rodapé institucional no Dashboard
 
-### Resumo
-Adicionar rodapé institucional no painel do lojista, permitir que ele informe seu regime tributário (CPF/MEI/ME), e implementar alerta inteligente de limite anual baseado no regime selecionado.
+### Problema
+O rodapé com CNPJ está posicionado como um terceiro filho do container `flex w-full` (linha 687), ficando ao lado do sidebar e do conteúdo principal em vez de ficar no final da página. Isso quebra o layout — o texto aparece flutuando à direita.
 
-### Mudanças
+### Correção
 
-| # | Arquivo | Mudança |
-|---|---------|---------|
-| 1 | Migração SQL | Adicionar coluna `tax_regime` (text, nullable) na tabela `organizations` |
-| 2 | `src/pages/DashboardPage.tsx` | Rodapé fixo institucional no final do layout |
-| 3 | `src/components/dashboard/SettingsTab.tsx` | Nova seção "Configurações Fiscais" com seletor de regime tributário (CPF/MEI/ME) |
-| 4 | `src/components/dashboard/HomeTab.tsx` | Alerta de limite anual baseado no regime: MEI = R$ 81.000, CPF = R$ 27.110, ME = R$ 360.000. Aviso ao atingir 85% |
+**Arquivo:** `src/pages/DashboardPage.tsx`
 
-### Detalhes
-
-**1. Migração**
-```sql
-ALTER TABLE public.organizations ADD COLUMN tax_regime text DEFAULT NULL;
-```
-Valores aceitos: `'cpf'`, `'mei'`, `'me'` ou `null` (não informado).
-
-**2. Rodapé no DashboardPage.tsx**
-Antes do `</div>` final, adicionar:
-```text
-TrendFood © 2026 - CNPJ 66.067.207/0001-91
-O TrendFood é uma ferramenta de gestão. A emissão de documentos fiscais
-e o cumprimento de obrigações tributárias são de responsabilidade exclusiva do lojista.
-```
-Estilo: texto pequeno, centralizado, cor `muted-foreground`, padding top/bottom.
-
-**3. Configurações Fiscais no SettingsTab**
-- Nova seção entre "Gestão Fiscal" (billing limit) e "Alterar senha"
-- RadioGroup com 3 opções: CPF (Pessoa Física), MEI (Microempreendedor Individual), ME (Microempresa)
-- Botão "Salvar" que grava `tax_regime` na tabela `organizations`
-- Texto explicativo: "Informe seu regime tributário para receber alertas personalizados de faturamento."
-
-**4. Alerta Anual no HomeTab**
-- Abaixo do alerta mensal existente (billing_alert_limit), adicionar alerta anual condicional
-- Limites por regime:
-  - MEI: R$ 81.000/ano (alerta em 85% = R$ 68.850)
-  - CPF: R$ 27.110,40/ano (alerta em 85% = R$ 23.043)
-  - ME: R$ 360.000/ano (alerta em 85% = R$ 306.000)
-- Calcula faturamento dos últimos 12 meses (pedidos pagos)
-- Se atingir 85%, exibe card com aviso: "Atenção: Você atingiu 85% do limite anual do [regime]. Procure seu contador para evitar multas."
-- Se `tax_regime` for null, não exibe nada
-- Barra de progresso com cores: verde < 70%, amarelo 70-85%, vermelho >= 85%
+Mover o bloco `<footer>` (linhas 1068-1076) para **dentro** do `<main>` (linha 869), no final do conteúdo principal — antes do fechamento `</main>`. Isso garante que o rodapé apareça abaixo de todo o conteúdo da aba ativa, dentro da área de scroll do painel.
 
 ### Resultado
-- 1 migração, 3 arquivos editados
-- O lojista configura seu regime uma vez e recebe alertas automáticos tanto mensais (billing_alert_limit manual) quanto anuais (baseado no regime)
+- O rodapé fica no final do conteúdo, centralizado e discreto
+- Nenhuma mudança visual além da correção de posicionamento
+- 1 arquivo editado, 0 migrações
 
