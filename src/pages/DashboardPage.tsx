@@ -1050,7 +1050,7 @@ const DashboardPage = () => {
         </nav>
 
         {/* Fixed status bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-3 py-1 flex items-center gap-2 text-[11px] overflow-x-auto">
+        <div className="hidden lg:flex fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-t border-border px-3 py-1 items-center gap-2 text-[11px] overflow-x-auto">
           <button
             onClick={() => toggleAutoPrint(!autoPrint)}
             className="flex items-center gap-1 hover:opacity-80 transition-opacity whitespace-nowrap"
