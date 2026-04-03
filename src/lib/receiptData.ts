@@ -274,6 +274,7 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
     showChargeNotice: !!parsed?.payment,
     totals,
     troco: parsed?.troco,
+    scheduledTime: parsed?.agendado,
     trocoChange: (() => {
       if (!parsed?.troco) return undefined;
       const cleaned = parsed.troco.replace(/[^\d,\.]/g, "").replace(",", ".");
