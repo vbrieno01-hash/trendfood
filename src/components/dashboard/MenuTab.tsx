@@ -591,6 +591,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
   const deleteAllMutation = useDeleteAllMenuItems(organization.id);
