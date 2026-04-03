@@ -75,7 +75,7 @@ const TermsContent = () => (
     </div>
 
     <div>
-      <h3 className="font-semibold text-foreground mb-1">5. ISENÇÃO DE RESPONSABILIDADE</h3>
+      <h3 className="font-semibold text-foreground mb-1">6. ISENÇÃO DE RESPONSABILIDADE</h3>
       <p className="mb-2">A TrendFood não se responsabiliza por:</p>
       <ul className="list-disc pl-5 space-y-1">
         <li>Golpes aplicados por terceiros via Pix ou comprovantes falsos.</li>
