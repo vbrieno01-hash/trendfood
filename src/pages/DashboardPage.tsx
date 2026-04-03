@@ -545,12 +545,11 @@ const DashboardPage = () => {
     {
       id: "ajustes", emoji: "⚙️", title: "AJUSTES",
       items: [
+        { key: "guide" as TabKey, icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
         { key: "profile" as TabKey, icon: <Store className="w-4 h-4" />, label: "Dados da Loja" },
         { key: "subscription" as TabKey, icon: <Rocket className="w-4 h-4" />, label: "Assinatura / Plano" },
         { key: "printer" as TabKey, icon: <Printer className="w-4 h-4" />, label: "Impressora Térmica" },
         { key: "features" as TabKey, icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
-        
-        { key: "guide" as TabKey, icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
         { key: "settings" as TabKey, icon: <Settings className="w-4 h-4" />, label: "Configurações" },
       ],
     },
