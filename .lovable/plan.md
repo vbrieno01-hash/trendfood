@@ -1,28 +1,40 @@
 
 
-## Plano: Melhorar Relatórios do Lojista com filtro por período customizado e exportação completa
+## Plano: Adicionar seção de Meios de Pagamento e tabela Lista de Pedidos
 
-### Problema
-Atualmente o `ReportsTab` do lojista só permite 7, 30 ou 90 dias. Para declaração de imposto, o lojista precisa puxar relatórios de períodos maiores (6 meses, 1 ano). Além disso, falta exportação CSV e tabela detalhada com cada pedido individual.
+### Mudanças no arquivo `src/components/dashboard/ReportsTab.tsx`
 
-### Mudanças
+**1. Seção "Meios de Pagamento"** — Adicionar após o gráfico de Horários de Pico e antes do Ranking por Item:
+- Um `useMemo` que agrupa os pedidos por `payment_method` e calcula: quantidade de pedidos e faturamento total por método
+- Exibir como tabela estilizada com 4 colunas: Meio de Pagamento, Qtd Pedidos, Faturamento, % do Total
+- Incluir um mini gráfico de barras horizontal (recharts `BarChart` horizontal) mostrando a proporção visual de cada método
+- Cores distintas: PIX (verde), Crédito (azul), Débito (roxo), Dinheiro (amarelo), Pendente (cinza)
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/hooks/useOrders.ts` | Adicionar variante do `useOrderHistory` que aceita datas customizadas (from/to) sem limite de 500 rows — paginar se necessário. Remover `limit(500)` quando período é "custom" |
-| `src/components/dashboard/ReportsTab.tsx` | Adicionar opção "Personalizado" ao seletor de período, que abre dois date pickers (De / Até) sem limite de dias. Adicionar botão "Exportar CSV" no dropdown de download. Adicionar seção com tabela detalhada de pedidos (ID, data, valor, método de pagamento) abaixo dos gráficos existentes. No PDF/PNG exportado, incluir cabeçalho com dados da loja (nome, CNPJ, endereço) como comprovante formal de faturamento |
+**2. Renomear "Detalhamento de Pedidos" para "Lista de Pedidos"** e adicionar coluna Status:
+- Adicionar coluna "Status" na tabela existente (todas serão "Entregue" pois o hook filtra `status: delivered`)
+- Manter as colunas existentes: Pedido, Data/Hora, Valor, Pagamento + nova coluna Status
+- Mover esta seção para ficar abaixo do Ranking (já está lá)
 
-### Fluxo do lojista
-1. Vai em "Relatórios" no dashboard
-2. Clica em "Personalizado" no seletor de período
-3. Escolhe data início e fim (sem limite — pode ser 1 ano inteiro)
-4. Vê KPIs, gráficos e tabela detalhada com todos os pedidos
-5. Exporta CSV ou PDF com cabeçalho da loja para fins fiscais
+**3. Atualizar `buildReportHtml`** para incluir a tabela de meios de pagamento nos exports PDF/PNG/CSV
 
-### Detalhes técnicos
-- O `useOrderHistory` passará a aceitar `{ from: string, to: string }` como período alternativo
-- Remove o `limit(500)` para períodos customizados — busca todos os pedidos entregues no intervalo
-- CSV inclui BOM UTF-8 e colunas: Pedido, Data, Valor, Pagamento
-- PDF inclui CNPJ da loja (campo `cnpj` já existe na tabela `organizations`) no cabeçalho
-- Tabela de pedidos detalhada aparece abaixo do ranking de categorias, com paginação visual (mostrar 50 por vez com botão "ver mais")
+### Layout da seção de pagamento
+
+```text
+┌──────────────────────────────────────────────┐
+│  💳 Faturamento por Meio de Pagamento        │
+│                                              │
+│  Meio        │ Pedidos │ Faturamento │ %     │
+│  PIX         │ 45      │ R$ 4.500    │ 52%   │
+│  Dinheiro    │ 20      │ R$ 2.100    │ 24%   │
+│  Crédito     │ 15      │ R$ 1.500    │ 17%   │
+│  Débito      │ 7       │ R$ 600      │  7%   │
+│                                              │
+│  [Gráfico barras horizontal com cores]       │
+└──────────────────────────────────────────────┘
+```
+
+### Detalhes
+- Nenhuma mudança de banco de dados necessária
+- Apenas 1 arquivo editado: `src/components/dashboard/ReportsTab.tsx`
+- Os dados de `payment_method` já existem nos pedidos retornados pelo hook
 
