@@ -176,7 +176,37 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       date: new Date(o.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
       total: (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0),
       paymentMethod: PAYMENT_LABELS[o.payment_method ?? "pending"] ?? o.payment_method ?? "—",
+      status: "Entregue",
     }));
+  }, [filteredOrders]);
+
+  // Payment method breakdown
+  const PAYMENT_COLORS: Record<string, string> = {
+    PIX: "#22c55e",
+    Crédito: "#3b82f6",
+    Débito: "#8b5cf6",
+    Dinheiro: "#eab308",
+    Pendente: "#9ca3af",
+  };
+
+  const paymentStats = useMemo(() => {
+    const map: Record<string, { count: number; total: number }> = {};
+    filteredOrders.forEach((o) => {
+      const label = PAYMENT_LABELS[o.payment_method ?? "pending"] ?? o.payment_method ?? "Outro";
+      if (!map[label]) map[label] = { count: 0, total: 0 };
+      map[label].count += 1;
+      map[label].total += (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
+    });
+    const grandTotal = Object.values(map).reduce((s, v) => s + v.total, 0) || 1;
+    return Object.entries(map)
+      .sort(([, a], [, b]) => b.total - a.total)
+      .map(([method, data]) => ({
+        method,
+        count: data.count,
+        total: data.total,
+        pct: (data.total / grandTotal) * 100,
+        fill: PAYMENT_COLORS[method] || "#6b7280",
+      }));
   }, [filteredOrders]);
 
   const periodLabel = period === "custom" && customFrom && customTo
