@@ -305,6 +305,36 @@ const UnitPage = () => {
   const isClosed = isPaused || (storeStatus !== null && !storeStatus.open);
   const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
 
+  // Scheduling slots
+  const schedulingConfig = (org as any).scheduling_config as { enabled?: boolean; min_advance_minutes?: number } | null;
+  const schedulingActive = !!schedulingConfig?.enabled;
+  const generateTimeSlots = (): string[] => {
+    if (!schedulingActive || !org.business_hours) return [];
+    const bh = org.business_hours as any;
+    if (!bh?.enabled || !bh?.schedule) return [];
+    const DK = ["dom","seg","ter","qua","qui","sex","sab"];
+    const now = new Date();
+    const brt = new Date(now.getTime() + now.getTimezoneOffset() * 60_000 + (-3) * 3600_000);
+    const daySchedule = bh.schedule[DK[brt.getDay()]];
+    if (!daySchedule?.open) return [];
+    const [fH, fM] = (daySchedule.from || "08:00").split(":").map(Number);
+    const [tH, tM] = (daySchedule.to || "22:00").split(":").map(Number);
+    let fromMin = fH * 60 + fM;
+    let toMin = tH * 60 + tM;
+    if (toMin <= fromMin) toMin += 1440;
+    const currentMin = brt.getHours() * 60 + brt.getMinutes();
+    const earliest = currentMin + (schedulingConfig?.min_advance_minutes ?? 30);
+    const slots: string[] = [];
+    for (let m = fromMin; m < toMin; m += 30) {
+      if (m >= earliest) {
+        const em = m % 1440;
+        slots.push(`${String(Math.floor(em / 60)).padStart(2, "0")}:${String(em % 60).padStart(2, "0")}`);
+      }
+    }
+    return slots;
+  };
+  const timeSlots = schedulingActive && orderType ? generateTimeSlots() : [];
+
   // Cart helpers
   const addToCart = (item: { id: string; name: string; price: number }, addons: CartItemAddon[] = [], itemNotes: string = "") => {
     const key = cartKey(item.id, addons);
