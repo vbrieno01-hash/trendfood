@@ -904,7 +904,21 @@ const UnitPage = () => {
             </div>
           ) : (
             <button
-              onClick={() => { pushDrawerState("checkout"); setCheckoutOpen(true); }}
+              onClick={async () => {
+                // Re-validate store status before opening checkout
+                await queryClient.invalidateQueries({ queryKey: ["organization", slug] });
+                const { data: freshOrg } = await supabase
+                  .from("organizations")
+                  .select("paused")
+                  .eq("slug", slug!)
+                  .maybeSingle();
+                if (freshOrg?.paused) {
+                  toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
+                  return;
+                }
+                pushDrawerState("checkout");
+                setCheckoutOpen(true);
+              }}
               className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95 animate-in slide-in-from-bottom-4 duration-300"
               style={{ backgroundColor: primaryColor }}
             >
