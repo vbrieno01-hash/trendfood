@@ -459,6 +459,7 @@ const UnitPage = () => {
           orderType === "Entrega" && fullCustomerAddressDisplay ? `END.:${fullCustomerAddressDisplay}` : null,
           freteNote,
           `PGTO:PIX`,
+          scheduledTime ? `AGENDADO:${scheduledTime}` : null,
           buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
           notes.trim() ? `OBS:${notes.trim()}` : null,
         ].filter(Boolean) as string[];
