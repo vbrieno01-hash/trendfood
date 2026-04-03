@@ -1331,6 +1331,23 @@ const UnitPage = () => {
         opensAt={opensAt}
         organizationId={org.id}
       />
+
+      {/* ── WHATSAPP FAB ── */}
+      {org?.whatsapp && !checkoutOpen && !selectedItem && (
+        <button
+          onClick={() => {
+            const msg = encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?");
+            openWhatsAppWithFallback(`https://wa.me/55${org.whatsapp}?text=${msg}`, { mode: "operational" });
+          }}
+          className="fixed bottom-5 left-5 z-40 h-12 w-12 rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+          style={{ backgroundColor: "#25D366" }}
+          aria-label="Falar com a loja pelo WhatsApp"
+        >
+          <svg viewBox="0 0 32 32" className="h-6 w-6 text-white fill-current">
+            <path d="M16.004 0h-.008C7.174 0 0 7.176 0 16.004c0 3.5 1.132 6.746 3.054 9.378L1.056 31.2l6.044-1.94a15.9 15.9 0 008.904 2.744C24.826 32.004 32 24.826 32 16.004 32 7.176 24.826 0 16.004 0zm9.314 22.612c-.39 1.1-2.284 2.1-3.15 2.154-.792.048-1.778.112-2.866-.288a26.3 26.3 0 01-2.594-1.104c-4.564-2.268-7.542-6.92-7.77-7.24-.228-.32-1.86-2.548-1.86-4.86 0-2.312 1.178-3.448 1.596-3.918.39-.438.856-.548 1.142-.548.286 0 .572.004.822.014.264.012.618-.1.966.758.362.886 1.228 3.088 1.336 3.312.108.224.18.488.036.788-.144.3-.216.488-.432.752-.216.264-.456.588-.652.79-.216.224-.44.468-.188.916.252.448 1.12 1.88 2.404 3.048 1.652 1.504 3.044 1.972 3.478 2.188.432.216.684.18.936-.108.252-.288 1.08-1.288 1.368-1.732.288-.444.576-.368.968-.22.392.148 2.496 1.212 2.924 1.432.428.22.712.332.82.516.108.184.108 1.068-.282 2.168z"/>
+          </svg>
+        </button>
+      )}
     </div>
   );
 };
