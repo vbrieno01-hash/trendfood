@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Check, ChevronRight, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 interface ChecklistItem {
   key: string;
