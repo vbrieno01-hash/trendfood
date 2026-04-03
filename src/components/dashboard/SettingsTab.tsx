@@ -28,6 +28,8 @@ export default function SettingsTab() {
   const [schedulingEnabled, setSchedulingEnabled] = useState(false);
   const [minAdvance, setMinAdvance] = useState("30");
   const [schedulingLoading, setSchedulingLoading] = useState(false);
+  const [billingLimit, setBillingLimit] = useState(0);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
