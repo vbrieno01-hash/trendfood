@@ -161,7 +161,7 @@ export default function LoyaltyTab({ orgId }: Props) {
                 <Input
                   type="number"
                   min={1}
-                  value={effectiveValue}
+                  value={rewardValue}
                   onChange={(e) => { setRewardValue(e.target.value); setDirty(true); }}
                 />
               </div>
