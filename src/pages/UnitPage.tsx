@@ -556,6 +556,7 @@ const UnitPage = () => {
         freteNote,
         `PGTO:${effectivePayment}`,
         effectivePayment === "Dinheiro" && changeFor > 0 ? `TROCO:${fmt(changeFor)}` : null,
+        scheduledTime ? `AGENDADO:${scheduledTime}` : null,
         buyerDoc.trim() ? `DOC:${buyerDoc.trim()}` : null,
         notes.trim() ? `OBS:${notes.trim()}` : null,
       ].filter(Boolean) as string[];
