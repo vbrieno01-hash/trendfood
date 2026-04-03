@@ -341,7 +341,17 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   };
 
   return (
-    <form onSubmit={handleSave} className="space-y-8 max-w-lg">
+    <div className="space-y-8 max-w-lg">
+      {/* Auto-save status indicator */}
+      {autoSaveStatus !== "idle" && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border shadow-lg text-sm animate-in fade-in slide-in-from-top-2">
+          {autoSaveStatus === "saving" ? (
+            <><Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> <span className="text-muted-foreground">Salvando...</span></>
+          ) : (
+            <><Check className="w-3.5 h-3.5 text-green-500" /> <span className="text-muted-foreground">Salvo</span></>
+          )}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3 animate-dashboard-fade-in">
         <div className="dashboard-section-icon">
