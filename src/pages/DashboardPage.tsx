@@ -483,7 +483,8 @@ const DashboardPage = () => {
   // Listen to popstate (browser back/forward) to update active tab
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const tabFromUrl = params.get("tab") as TabKey | null;
+    let tabFromUrl = params.get("tab") as TabKey | null;
+    if (tabFromUrl === "kitchen" || tabFromUrl === "waiter") tabFromUrl = "operations";
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
