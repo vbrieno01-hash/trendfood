@@ -867,7 +867,7 @@ const DashboardPage = () => {
           <div className="w-9" />
         </header>
 
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-12">
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-32 lg:pb-12">
           {/* Trial banners */}
           {planLimits.trialActive && (
             <div className="mb-4 rounded-xl bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 p-4 flex items-center justify-between gap-3 flex-wrap">
