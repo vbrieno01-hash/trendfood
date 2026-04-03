@@ -41,7 +41,7 @@ const TermsContent = () => (
 
     <div>
       <h3 className="font-semibold text-foreground mb-1">
-        3. POLÍTICA DE REEMBOLSO E CANCELAMENTO (IMPORTANTE)
+        4. POLÍTICA DE REEMBOLSO E CANCELAMENTO (IMPORTANTE)
       </h3>
       <p className="mb-2">
         <strong>Arrependimento (7 dias):</strong> Conforme o Código de Defesa do Consumidor, você
