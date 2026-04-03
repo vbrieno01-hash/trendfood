@@ -51,6 +51,7 @@ export default function SettingsTab() {
               setMinAdvance(String(sc.min_advance_minutes ?? 30));
             }
             setBillingLimit((data as any).billing_alert_limit ?? 0);
+            setTaxRegime((data as any).tax_regime ?? "");
           }
         });
     }
