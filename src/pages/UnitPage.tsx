@@ -1083,6 +1083,12 @@ const UnitPage = () => {
                      )}
                    </div>
                 ) : null}
+                {loyaltyRedeemed && loyaltyDiscount > 0 && (
+                  <div className="flex items-center justify-between text-sm text-green-600">
+                    <span>🎁 Fidelidade</span>
+                    <span className="font-medium">-{fmt(loyaltyDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-1 font-bold text-foreground border-t border-border/50">
                   <span>Total</span>
                   <span className="text-lg">{fmt(grandTotal)}</span>
