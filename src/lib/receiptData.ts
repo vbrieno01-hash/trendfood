@@ -99,6 +99,7 @@ export interface ReceiptData {
   totals: ReceiptTotals;
   troco?: string;
   trocoChange?: number; // calculated: (troco) - grandTotal
+  scheduledTime?: string; // "HH:mm" if order is scheduled
 }
 
 export interface StoreInfo {
