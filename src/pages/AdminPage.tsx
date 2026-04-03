@@ -21,6 +21,7 @@ import AdminGuideTab from "@/components/admin/AdminGuideTab";
 import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import AdminStoreManager from "@/components/admin/AdminStoreManager";
 import SiteContentTab from "@/components/admin/SiteContentTab";
+import AdminReportsTab from "@/components/admin/AdminReportsTab";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
