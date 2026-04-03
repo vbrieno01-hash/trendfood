@@ -134,7 +134,7 @@ export default function LoyaltyTab({ orgId }: Props) {
                 <Input
                   type="number"
                   min={1}
-                  value={effectivePoints}
+                  value={pointsToRedeem}
                   onChange={(e) => { setPointsToRedeem(e.target.value); setDirty(true); }}
                 />
                 <p className="text-xs text-muted-foreground">Quantidade de pontos para usar o desconto</p>
