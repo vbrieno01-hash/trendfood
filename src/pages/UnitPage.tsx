@@ -526,9 +526,15 @@ const UnitPage = () => {
           }),
         },
         {
-          onSuccess: () => {
+          onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
             openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Show review link toast
+            toast({
+              title: "Pedido enviado! 🎉",
+              description: `Avalie seu pedido: ${window.location.origin}/avaliar/${slug}/${order.id}`,
+              duration: 15000,
+            });
             resetCheckout();
           },
           onError: (err) => {
