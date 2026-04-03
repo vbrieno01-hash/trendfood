@@ -1,34 +1,25 @@
 
 
-## Plano: Bloquear pedidos em loja pausada de forma blindada
+## Plano: Botão flutuante de WhatsApp na página do cliente
 
-### Problema
-Quando a loja é pausada, o cliente pode ainda ter a página aberta com dados em cache (`staleTime: 2min`, `refetchInterval: 5min`). A UI mostra a loja como aberta e permite finalizar o pedido. Existem 3 camadas de proteção (UI, pre-check no hook, trigger no banco), mas a janela de cache permite que o cliente chegue até o envio.
+### Mudança
 
-### Correções
+**Arquivo: `src/pages/UnitPage.tsx`**
 
-**1. Reduzir cache do org para 30s** (`src/hooks/useOrganization.ts`)
-- `refetchInterval`: 5min → 60s
-- `staleTime`: 2min → 30s
-- Isso faz a UI atualizar muito mais rápido quando a loja é pausada
+1. Importar `openWhatsAppWithFallback` de `@/lib/whatsappRedirect`
+2. Adicionar um botão flutuante (`fixed bottom-5 left-5 z-40`) com ícone SVG do WhatsApp, cor `#25D366`, `rounded-full`, sombra
+3. Visível apenas se `organization?.whatsapp` existir e checkout/item drawer estiverem fechados
+4. `onClick` → `openWhatsAppWithFallback(`https://wa.me/55${org.whatsapp}?text=Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?`)`
 
-**2. Re-validar status ao abrir o checkout** (`src/pages/UnitPage.tsx`)
-- Quando o drawer de checkout abre, fazer `queryClient.invalidateQueries(["organization", slug])` para forçar re-fetch imediato
-- Se a loja estiver pausada no momento do re-fetch, fechar o drawer e mostrar toast
+### Resultado visual
+```text
+[Página da loja]
+                                    [🛒 Carrinho → canto direito]
+[💬 WhatsApp → canto esquerdo]
+```
 
-**3. Re-validar status ao clicar "Enviar Pedido"** (`src/pages/UnitPage.tsx`)
-- No `handleSendWhatsApp`, antes de chamar `placeOrder.mutate`, fazer um fetch direto do campo `paused` e bloquear se `true`
-- Mesmo padrão que já existe no `usePlaceOrder`, mas com feedback visual imediato
-
-**4. Mesma proteção no TableOrderPage** (`src/pages/TableOrderPage.tsx`)
-- Aplicar a mesma re-validação no `handleFinish` antes de enviar
-
-### Arquivos modificados
+### Arquivo modificado
 | Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/useOrganization.ts` | Reduzir `staleTime` e `refetchInterval` |
-| `src/pages/UnitPage.tsx` | Re-validar ao abrir checkout e ao enviar pedido |
-| `src/pages/TableOrderPage.tsx` | Re-validar ao clicar "Finalizar" |
+| `src/pages/UnitPage.tsx` | Adicionar FAB flutuante de WhatsApp no canto inferior esquerdo |
 
-### Resultado
-Mesmo que o cliente tenha a página aberta há horas, ao tentar enviar o pedido o sistema valida em tempo real. As 3 camadas ficam reforçadas: UI atualiza em 30s, checkout re-valida ao abrir, e o envio re-valida antes de inserir.
