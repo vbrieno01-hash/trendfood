@@ -1,43 +1,54 @@
 
 
-## Plano: Atualização Institucional, PDF e Termos de Uso
+## Plano: Rodapé no Dashboard, Configuração Fiscal e Alerta Anual MEI
 
-### O que já está implementado
-- Limite de faturamento mensal nas Configurações + barra de progresso no Dashboard ✅
-- Cláusula de responsabilidade fiscal nos Termos ✅
-- Resumo por meio de pagamento no PDF ✅
+### Resumo
+Adicionar rodapé institucional no painel do lojista, permitir que ele informe seu regime tributário (CPF/MEI/ME), e implementar alerta inteligente de limite anual baseado no regime selecionado.
 
-### O que precisa ser feito
+### Mudanças
 
 | # | Arquivo | Mudança |
 |---|---------|---------|
-| 1 | `src/pages/Index.tsx` | Adicionar CNPJ e razão social no footer: "66.067.207/0001-91 - JACKSON BRENO FRANCELINO DA COSTA" |
-| 2 | `src/pages/TermsPage.tsx` | Adicionar CNPJ no footer |
-| 3 | `src/pages/PrivacyPage.tsx` | Adicionar CNPJ no footer |
-| 4 | `src/components/dashboard/ReportsTab.tsx` | Adicionar rodapé fixo em todas as páginas do PDF: "Este é um relatório gerencial. A emissão de documentos fiscais e o controle de limites tributários são de responsabilidade exclusiva do estabelecimento." |
-| 5 | `src/components/dashboard/SettingsTab.tsx` | Renomear seção de billing para "Gestão Fiscal" com ícone atualizado |
-| 6 | `src/components/checkout/TermsContent.tsx` | Reescrever termos enfatizando: TrendFood é SaaS, não retém valores, não processa pagamentos, não é responsável por contabilidade/impostos |
+| 1 | Migração SQL | Adicionar coluna `tax_regime` (text, nullable) na tabela `organizations` |
+| 2 | `src/pages/DashboardPage.tsx` | Rodapé fixo institucional no final do layout |
+| 3 | `src/components/dashboard/SettingsTab.tsx` | Nova seção "Configurações Fiscais" com seletor de regime tributário (CPF/MEI/ME) |
+| 4 | `src/components/dashboard/HomeTab.tsx` | Alerta de limite anual baseado no regime: MEI = R$ 81.000, CPF = R$ 27.110, ME = R$ 360.000. Aviso ao atingir 85% |
 
 ### Detalhes
 
-**1. Footer institucional (Index.tsx)** — Abaixo do copyright, adicionar linha com CNPJ e razão social. Links para Termos e Privacidade já existem.
+**1. Migração**
+```sql
+ALTER TABLE public.organizations ADD COLUMN tax_regime text DEFAULT NULL;
+```
+Valores aceitos: `'cpf'`, `'mei'`, `'me'` ou `null` (não informado).
 
-**2-3. Footers das páginas de Termos e Privacidade** — Substituir "© 2025 TrendFood" por texto com CNPJ + razão social.
+**2. Rodapé no DashboardPage.tsx**
+Antes do `</div>` final, adicionar:
+```text
+TrendFood © 2026 - CNPJ 66.067.207/0001-91
+O TrendFood é uma ferramenta de gestão. A emissão de documentos fiscais
+e o cumprimento de obrigações tributárias são de responsabilidade exclusiva do lojista.
+```
+Estilo: texto pequeno, centralizado, cor `muted-foreground`, padding top/bottom.
 
-**4. Rodapé no PDF** — No `buildReportHtml`, adicionar CSS `@bottom-center` para impressão e um `<div class="footer">` fixo com o aviso legal. Para o PNG (html2canvas), o footer já aparece no final do documento.
+**3. Configurações Fiscais no SettingsTab**
+- Nova seção entre "Gestão Fiscal" (billing limit) e "Alterar senha"
+- RadioGroup com 3 opções: CPF (Pessoa Física), MEI (Microempreendedor Individual), ME (Microempresa)
+- Botão "Salvar" que grava `tax_regime` na tabela `organizations`
+- Texto explicativo: "Informe seu regime tributário para receber alertas personalizados de faturamento."
 
-**5. Gestão Fiscal** — Apenas renomear o header da seção de "Saúde Fiscal" para "Gestão Fiscal" e ajustar o texto explicativo para incluir menção a CPF/MEI/ME.
-
-**6. Termos de Uso** — Reescrever com ênfase em:
-- TrendFood é plataforma SaaS de gestão de pedidos
-- Não retém valores — dinheiro vai direto para o lojista
-- Não processa pagamentos (Pix do lojista, maquininha do lojista)
-- Não é responsável por contabilidade, impostos ou obrigações fiscais
-- Manter cláusulas existentes (reembolso, planos, LGPD)
+**4. Alerta Anual no HomeTab**
+- Abaixo do alerta mensal existente (billing_alert_limit), adicionar alerta anual condicional
+- Limites por regime:
+  - MEI: R$ 81.000/ano (alerta em 85% = R$ 68.850)
+  - CPF: R$ 27.110,40/ano (alerta em 85% = R$ 23.043)
+  - ME: R$ 360.000/ano (alerta em 85% = R$ 306.000)
+- Calcula faturamento dos últimos 12 meses (pedidos pagos)
+- Se atingir 85%, exibe card com aviso: "Atenção: Você atingiu 85% do limite anual do [regime]. Procure seu contador para evitar multas."
+- Se `tax_regime` for null, não exibe nada
+- Barra de progresso com cores: verde < 70%, amarelo 70-85%, vermelho >= 85%
 
 ### Resultado
-- 6 arquivos editados, 0 migrações
-- Footer institucional com CNPJ em todas as páginas públicas
-- PDF com disclaimer legal no rodapé
-- Termos reforçados juridicamente
+- 1 migração, 3 arquivos editados
+- O lojista configura seu regime uma vez e recebe alertas automáticos tanto mensais (billing_alert_limit manual) quanto anuais (baseado no regime)
 
