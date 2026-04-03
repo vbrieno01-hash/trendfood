@@ -133,14 +133,29 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       .in("id", otherOrgIds);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-save debounce
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setAutoSaveStatus("idle");
+    clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      doSave();
+    }, 1500);
+    return () => clearTimeout(saveTimeoutRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, businessHours, addressFields, freeAbove]);
+
+  const doSave = async () => {
     const whatsappDigits = form.whatsapp.replace(/\D/g, "");
-    if (whatsappDigits.length < 10) {
-      toast.error("WhatsApp é obrigatório. Digite DDD + número (mín 10 dígitos).");
+    if (form.whatsapp && whatsappDigits.length > 0 && whatsappDigits.length < 10) {
+      toast.error("WhatsApp: digite DDD + número (mín 10 dígitos).");
       return;
     }
     setSaving(true);
+    setAutoSaveStatus("saving");
     try {
       const sharedFields = {
         emoji: form.emoji,
@@ -169,13 +184,12 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         } else {
           throw error;
         }
+        setAutoSaveStatus("idle");
         return;
       }
 
-      // Replicate shared fields to all other orgs
       await updateAllOrgs(sharedFields);
 
-      // Save gateway secrets if automatic mode
       if (form.pix_confirmation_mode === "automatic" && gatewayProvider && gatewayToken) {
         const { data: existing } = await supabase
           .from("organization_secrets" as any)
@@ -203,9 +217,11 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       }
 
       await refreshOrganization();
-      toast.success("Perfil da loja atualizado!");
+      setAutoSaveStatus("saved");
+      setTimeout(() => setAutoSaveStatus((s) => s === "saved" ? "idle" : s), 2000);
     } catch {
       toast.error("Erro ao salvar perfil.");
+      setAutoSaveStatus("idle");
     } finally {
       setSaving(false);
     }
