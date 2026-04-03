@@ -221,7 +221,10 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
       .map((r) => `#${r.orderNumber};${r.date};${fmtBRL(r.total)};${r.paymentMethod};${r.status}`)
       .join("\n");
     const storeHeader = `${orgName}${orgCnpj ? ` — CNPJ: ${orgCnpj}` : ""}${orgAddress ? ` — ${orgAddress.replace(/\|/g, ", ")}` : ""}\nRelatório: ${periodLabel}\nEmitido em: ${new Date().toLocaleString("pt-BR")}\n\n`;
-    const csv = BOM + storeHeader + header + rows;
+    const paymentSummary = paymentStats.length > 0
+      ? "Resumo por Meio de Pagamento\n" + paymentStats.map((ps) => `${ps.method};${ps.count} pedidos;${fmtBRL(ps.total)};${ps.pct.toFixed(1)}%`).join("\n") + "\n\n"
+      : "";
+    const csv = BOM + storeHeader + paymentSummary + header + rows;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.download = `relatorio-${orgName.replace(/\s+/g, "-").toLowerCase()}.csv`;
