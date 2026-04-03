@@ -652,22 +652,24 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [organization.id]);
 
-  // Collect custom categories not in CATEGORIES
-  const knownValues = new Set(CATEGORIES.map(c => c.value));
-  const customCats = [...new Set(items.map(i => i.category).filter(c => !knownValues.has(c)))].sort();
+  // Build category order using saved order or defaults
+  const categoryOrder = buildCategoryOrder(items, organization.category_order);
 
-  // customCats used for grouping below
+  const grouped = categoryOrder.map((cat) => ({
+    value: cat,
+    items: items.filter((i) => i.category === cat),
+  })).filter((g) => g.items.length > 0);
 
-  const grouped = [
-    ...CATEGORIES.map((cat) => ({
-      value: cat.value,
-      items: items.filter((i) => i.category === cat.value),
-    })),
-    ...customCats.map((cat) => ({
-      value: cat,
-      items: items.filter((i) => i.category === cat),
-    })),
-  ].filter((g) => g.items.length > 0);
+  const moveCategoryOrder = async (index: number, direction: "up" | "down") => {
+    const currentOrder = grouped.map((g) => g.value);
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= currentOrder.length) return;
+    const newOrder = [...currentOrder];
+    [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+    await supabase.from("organizations").update({ category_order: newOrder } as any).eq("id", organization.id);
+    // Optimistically update — refetch org
+    organization.category_order = newOrder;
+  };
 
   const totalItems = items.length;
   const totalCategories = grouped.length;
