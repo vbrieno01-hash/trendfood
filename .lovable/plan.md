@@ -1,40 +1,25 @@
 
 
-## Plano: Corrigir erro ao salvar pedido
+## Plano: Corrigir mismatch de chaves VAPID
 
 ### Problema
-O trigger `notify_new_order` chama `extensions.http_post(...)` que **nao existe**. A funcao correta e `net.http_post(url, body)` com `body` do tipo `jsonb` (nao `text`).
+O cliente (`usePushSubscription.ts`) usa a chave VAPID pública **antiga** (`BL022VmP...`), mas os secrets do backend têm a chave **nova** (`BBATtReM...`). As subscriptions no navegador foram criadas com a chave antiga, então o push server (Google/Mozilla) rejeita com **403**.
 
-Isso faz o INSERT na tabela `orders` falhar com erro, impedindo qualquer pedido de ser criado.
+### Correção
 
-### Correcao
+| # | O que |
+|---|-------|
+| 1 | Atualizar `VAPID_PUBLIC_KEY` em `src/hooks/usePushSubscription.ts` para `BBATtReMYYfX0TzAWOBYZkVAZlvUZlQJGI-YRtlqpPRo3Y0enwYdArCVl4R1TzyoeJuPD8gbSlKippNGaim-6QM` |
+| 2 | Limpar subscriptions antigas do banco (foram criadas com chave errada) |
+| 3 | O lojista precisará reativar as notificações no dashboard (toggle do sino) para criar nova subscription com a chave correta |
 
-**1 migracao** que recria a funcao `notify_new_order` usando a assinatura correta:
-
-```sql
-CREATE OR REPLACE FUNCTION notify_new_order()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  IF NEW.status = 'pending' THEN
-    PERFORM net.http_post(
-      url := 'https://xrzudhylpphnzousilye.supabase.co/functions/v1/send-push-notification',
-      body := json_build_object(
-        'organization_id', NEW.organization_id,
-        'order_number', NEW.order_number
-      )::jsonb
-    );
-  END IF;
-  RETURN NEW;
-END;
-$$;
-```
-
-Diferencas:
-- `extensions.http_post` → `net.http_post`
-- `body` como `jsonb` em vez de `text`
-- Remove o parametro `headers` (o default ja e `application/json`)
+### Detalhes técnicos
+- A chave no cliente **deve** ser idêntica à `VAPID_PUBLIC_KEY` nos secrets do backend
+- Subscriptions existentes são inválidas porque o push service vincula a subscription à chave VAPID usada na criação
+- Migração SQL: `DELETE FROM push_subscriptions;` para limpar as subscriptions incompatíveis
 
 ### Resultado
-- 1 migracao
-- Pedidos voltam a funcionar imediatamente
+- 1 arquivo editado (`usePushSubscription.ts`)
+- 1 migração (limpar subscriptions antigas)
+- Push notifications funcionando após o lojista reativar o sino
 
