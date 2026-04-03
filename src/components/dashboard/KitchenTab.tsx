@@ -603,6 +603,11 @@ export default function KitchenTab({
                               🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
                             </span>
                           )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
