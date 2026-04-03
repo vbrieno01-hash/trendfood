@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import SetupChecklist from "@/components/dashboard/SetupChecklist";
 
 interface Organization {
   id: string;
