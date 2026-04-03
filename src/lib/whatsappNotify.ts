@@ -60,10 +60,14 @@ export function notifyCustomerReady(
   const tipo = parseOrderTypeFromNotes(notes ?? null);
   const isDelivery = tipo === "Entrega";
 
+  const reviewLine = reviewUrl ? `\n\n⭐ Avalie seu pedido: ${reviewUrl}` : "";
+
   const msg = isDelivery
     ? `✅ *Pedido saiu para entrega!*\nSeu pedido está a caminho! 🛵` +
+      reviewLine +
       (storeName ? `\n\n— ${storeName}` : "")
     : `✅ *Pedido pronto!*\nSeu pedido está pronto para retirada! 🎉` +
+      reviewLine +
       (storeName ? `\n\n— ${storeName}` : "");
 
   const encoded = encodeURIComponent(msg);
