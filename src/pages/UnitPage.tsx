@@ -901,53 +901,63 @@ const UnitPage = () => {
         </footer>
       )}
 
-      {/* ── FLOATING CART BAR ── */}
-      {totalItems > 0 && (
-        <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-center px-4">
-          {isClosed ? (
-            <div className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl font-semibold text-sm w-full max-w-sm justify-between bg-muted text-muted-foreground cursor-not-allowed animate-in slide-in-from-bottom-4 duration-300">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 opacity-50" />
-                <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                  {totalItems}
-                </span>
-                <span>🔒 Loja fechada</span>
-              </div>
-              <span className="opacity-50">{fmt(totalPrice)}</span>
-            </div>
-          ) : (
-            <button
-              onClick={async () => {
-                // Re-validate store status before opening checkout
-                await queryClient.invalidateQueries({ queryKey: ["organization", slug] });
-                const { data: freshOrg } = await supabase
-                  .from("organizations")
-                  .select("paused")
-                  .eq("slug", slug!)
-                  .maybeSingle();
-                if (freshOrg?.paused) {
-                  toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
-                  return;
-                }
-                pushDrawerState("checkout");
-                setCheckoutOpen(true);
-              }}
-              className="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-primary-foreground font-semibold text-sm w-full max-w-sm justify-between transition-transform active:scale-95 animate-in slide-in-from-bottom-4 duration-300"
-              style={{ backgroundColor: primaryColor }}
+      {/* ── FLOATING BOTTOM BAR (Ajuda + Sacola) ── */}
+      {!checkoutOpen && !selectedItem && (org?.whatsapp || totalItems > 0) && (
+        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto animate-in slide-in-from-bottom-4 duration-300">
+          {org?.whatsapp && (
+            <a
+              href={`https://wa.me/55${org.whatsapp}?text=${encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-center gap-2 text-white font-semibold text-sm transition-transform active:scale-95"
+              style={{ backgroundColor: "#25D366" }}
             >
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5" />
-                <span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                  {totalItems}
-                </span>
-                <span>{totalItems === 1 ? "1 item" : `${totalItems} itens`} · {fmt(totalPrice)}</span>
+              <svg viewBox="0 0 32 32" className="h-5 w-5 fill-current">
+                <path d="M16.004 0h-.008C7.174 0 0 7.176 0 16.004c0 3.5 1.132 6.746 3.054 9.378L1.056 31.2l6.044-1.94a15.9 15.9 0 008.904 2.744C24.826 32.004 32 24.826 32 16.004 32 7.176 24.826 0 16.004 0zm9.314 22.612c-.39 1.1-2.284 2.1-3.15 2.154-.792.048-1.778.112-2.866-.288a26.3 26.3 0 01-2.594-1.104c-4.564-2.268-7.542-6.92-7.77-7.24-.228-.32-1.86-2.548-1.86-4.86 0-2.312 1.178-3.448 1.596-3.918.39-.438.856-.548 1.142-.548.286 0 .572.004.822.014.264.012.618-.1.966.758.362.886 1.228 3.088 1.336 3.312.108.224.18.488.036.788-.144.3-.216.488-.432.752-.216.264-.456.588-.652.79-.216.224-.44.468-.188.916.252.448 1.12 1.88 2.404 3.048 1.652 1.504 3.044 1.972 3.478 2.188.432.216.684.18.936-.108.252-.288 1.08-1.288 1.368-1.732.288-.444.576-.368.968-.22.392.148 2.496 1.212 2.924 1.432.428.22.712.332.82.516.108.184.108 1.068-.282 2.168z"/>
+              </svg>
+              Ajuda
+            </a>
+          )}
+          {totalItems > 0 && (
+            isClosed ? (
+              <div className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-between px-4 bg-muted text-muted-foreground font-semibold text-sm cursor-not-allowed">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5 opacity-50" />
+                  <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{totalItems}</span>
+                  <span>🔒 Fechada</span>
+                </div>
+                <span className="opacity-50">{fmt(totalPrice)}</span>
               </div>
-              <span className="text-xs opacity-80">Ver sacola →</span>
-            </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  await queryClient.invalidateQueries({ queryKey: ["organization", slug] });
+                  const { data: freshOrg } = await supabase
+                    .from("organizations")
+                    .select("paused")
+                    .eq("slug", slug!)
+                    .maybeSingle();
+                  if (freshOrg?.paused) {
+                    toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
+                    return;
+                  }
+                  pushDrawerState("checkout");
+                  setCheckoutOpen(true);
+                }}
+                className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-between px-4 text-primary-foreground font-semibold text-sm transition-transform active:scale-95"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5" />
+                  <span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{totalItems}</span>
+                  <span>{totalItems === 1 ? "1 item" : `${totalItems} itens`} · {fmt(totalPrice)}</span>
+                </div>
+                <span className="text-xs opacity-80">Ver →</span>
+              </button>
+            )
           )}
         </div>
       )}
-
       {/* ── CHECKOUT DRAWER ── */}
       <Drawer open={checkoutOpen} onOpenChange={(open) => { if (!open) { popDrawerState(); setCheckoutOpen(false); setShowPixScreen(false); setPixOrderId(null); } }}>
         <DrawerContent className="max-h-[90dvh]">
