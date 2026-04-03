@@ -269,6 +269,14 @@ const UnitPage = () => {
   const primaryColor = org.primary_color || "#f97316";
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
+  // Sanitize WhatsApp number for reliable wa.me links
+  const rawWa = whatsapp?.replace(/\D/g, "") ?? "";
+  const cleanWa = rawWa.startsWith("55") ? rawWa : `55${rawWa}`;
+  const whatsappValid = cleanWa.length >= 12;
+  const whatsappHelpUrl = whatsappValid
+    ? `https://wa.me/${cleanWa}?text=${encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?")}`
+    : "";
+
   // Store open/closed status
   const storeStatus = getStoreStatus(org.business_hours, (org as any).force_open);
   const isPaused = !!(org as any).paused;
