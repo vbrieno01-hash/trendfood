@@ -550,6 +550,24 @@ const UnitPage = () => {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
             openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Loyalty: accumulate points + process redemption
+            if (loyaltyEnabled && org?.id && buyerPhone && loyaltyConfig) {
+              accumulateLoyalty.mutate({
+                orgId: org.id,
+                phone: buyerPhone,
+                orderTotal: totalPrice,
+                spendPerPoint: loyaltyConfig.spend_per_point,
+              });
+              if (loyaltyRedeemed && loyaltyDiscount > 0) {
+                redeemLoyalty.mutate({
+                  orgId: org.id,
+                  phone: buyerPhone,
+                  pointsUsed: loyaltyConfig.points_to_redeem,
+                  discountValue: loyaltyDiscount,
+                  orderId: order.id,
+                });
+              }
+            }
             // Show review link toast
             toast({
               title: "Pedido enviado! 🎉",
