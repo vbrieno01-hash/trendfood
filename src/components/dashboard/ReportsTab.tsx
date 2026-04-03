@@ -522,10 +522,10 @@ ${watermarkHtml}
           </h3>
           <div className="space-y-2">
             {paymentStats.map((ps) => (
-              <div key={ps.name} className="flex items-center justify-between">
+              <div key={ps.method} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: ps.color }} />
-                  <span className="text-sm text-foreground">{ps.name}</span>
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: ps.fill }} />
+                  <span className="text-sm text-foreground">{ps.method}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-foreground">{fmtBRL(ps.total)}</span>
