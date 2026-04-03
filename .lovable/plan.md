@@ -1,69 +1,51 @@
 
 
-## Plano: Notificações Push via PWA
+## Plano: Implementar Notificações Push Completas
 
-### Visão geral
-Quando um cliente faz um pedido, o lojista recebe uma notificação push no celular/desktop — mesmo com o navegador minimizado. Usa a Push API nativa do navegador com chaves VAPID (gratuito, sem custo).
+### Resumo
+Salvar chaves VAPID, criar tabela `push_subscriptions`, edge function para envio, trigger no banco, service worker customizado e botão no dashboard.
 
-### Arquitetura
-
-```text
-Cliente faz pedido
-  → INSERT na tabela orders
-  → Trigger no banco chama pg_net para invocar Edge Function
-  → Edge Function "send-push-notification" busca tokens do org_id
-  → Envia push via web-push (VAPID) para cada token
-  → Service Worker do lojista exibe a notificação
-```
-
-### Mudanças
+### Etapas
 
 | # | Tipo | O que |
 |---|------|-------|
-| 1 | Migração | Criar tabela `push_subscriptions` (org_id, user_id, endpoint, p256dh, auth, created_at) com RLS |
-| 2 | Migração | Criar trigger na tabela `orders` que chama pg_net HTTP POST para a edge function ao inserir pedido |
-| 3 | Edge Function | `send-push-notification` — recebe org_id + order info, busca subscriptions, envia via web-push |
-| 4 | Secrets | Gerar par VAPID (público/privado) e salvar como secrets `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` |
-| 5 | Hook | `usePushSubscription.ts` — pede permissão, registra subscription no banco, salva endpoint/keys |
-| 6 | Dashboard | Adicionar botão "Ativar notificações" no DashboardPage (ou HomeTab) que chama o hook |
-| 7 | Service Worker | Adicionar listener `push` e `notificationclick` no SW customizado |
+| 1 | Secrets | Salvar `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` (já geradas) |
+| 2 | Migração | Criar tabela `push_subscriptions` (organization_id, user_id, endpoint, p256dh, auth) com RLS + unique on endpoint |
+| 3 | Edge Function | `send-push-notification/index.ts` — recebe org_id + order info, busca subscriptions, envia via web-push VAPID |
+| 4 | Migração | Trigger na tabela `orders` que usa `pg_net` para chamar a edge function ao inserir pedido com status='pending' |
+| 5 | Service Worker | `public/sw-push.js` com listeners `push` e `notificationclick` |
+| 6 | Hook | `src/hooks/usePushSubscription.ts` — pede permissão, registra SW, salva subscription no banco |
+| 7 | Dashboard | Botão de sino no `HomeTab.tsx` para ativar/desativar notificações |
 
 ### Detalhes técnicos
 
 **Tabela `push_subscriptions`:**
-- `id`, `organization_id`, `user_id`, `endpoint` (text, unique), `p256dh` (text), `auth` (text), `created_at`
-- RLS: owner pode INSERT/SELECT/DELETE own, admin pode SELECT all
-
-**Trigger no banco (orders INSERT):**
-- Usa `pg_net` para fazer HTTP POST para a edge function com `organization_id` e `order_number`
-- Só dispara quando `status = 'pending'`
+- `id uuid PK`, `organization_id uuid`, `user_id uuid`, `endpoint text UNIQUE`, `p256dh text`, `auth text`, `created_at timestamptz`
+- RLS: owner INSERT/SELECT/DELETE own subs, admin SELECT all
 
 **Edge Function `send-push-notification`:**
-- Busca todas as subscriptions da org
-- Usa biblioteca `web-push` (npm) com VAPID keys dos secrets
-- Envia payload: `{ title: "Novo pedido!", body: "Pedido #123 recebido" }`
+- Cria cliente Supabase com service role key
+- Busca todas subscriptions da org
+- Usa crypto nativo do Deno para VAPID + web-push protocol (sem npm)
+- Payload: `{ title: "Novo pedido!", body: "Pedido #N recebido", data: { url: "/painel" } }`
 
-**Service Worker customizado:**
-- Arquivo `public/sw-push.js` com listeners `push` e `notificationclick`
-- O `notificationclick` abre o dashboard
+**Trigger (pg_net):**
+- `AFTER INSERT ON orders` quando `NEW.status = 'pending'`
+- POST para `{SUPABASE_URL}/functions/v1/send-push-notification` com `{ organization_id, order_number }`
+
+**Service Worker (`sw-push.js`):**
+- `push` → `self.registration.showNotification()`
+- `notificationclick` → `clients.openWindow(data.url || '/')`
 
 **Hook `usePushSubscription`:**
-- Verifica suporte (`'PushManager' in window`)
-- Pede `Notification.requestPermission()`
-- Registra no `serviceWorker` com `applicationServerKey` (VAPID public)
-- Salva endpoint + keys no banco
+- Verifica `'PushManager' in window` e `'serviceWorker' in navigator`
+- `Notification.requestPermission()` → registra SW → `subscribe({ applicationServerKey })` → upsert no banco
+- Retorna `{ isSubscribed, subscribe, unsubscribe, isSupported }`
 
 **Botão no Dashboard:**
-- Ícone de sino com estado (ativo/inativo)
-- Ao clicar: pede permissão → registra → salva
-- Se já registrado, mostra "Notificações ativas ✓"
+- Ícone de sino com badge verde quando ativo
+- Toggle: ativa → pede permissão e salva; desativa → remove do banco
 
 ### Resultado
-- 1 edge function nova
-- 2 migrações (tabela + trigger)
-- 2 secrets (VAPID keys)
-- 1 arquivo SW novo
-- 1 hook novo
-- 1 componente editado (Dashboard)
-- Lojista recebe push em tempo real quando pedido chega
+- 2 secrets, 2 migrações, 1 edge function, 1 SW, 1 hook, 1 componente editado
 
