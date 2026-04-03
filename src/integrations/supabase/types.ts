@@ -609,6 +609,130 @@ export type Database = {
         }
         Relationships: []
       }
+      loyalty_config: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          organization_id: string
+          points_to_redeem: number
+          reward_type: string
+          reward_value: number
+          spend_per_point: number
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          organization_id: string
+          points_to_redeem?: number
+          reward_type?: string
+          reward_value?: number
+          spend_per_point?: number
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          organization_id?: string
+          points_to_redeem?: number
+          reward_type?: string
+          reward_value?: number
+          spend_per_point?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_points: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          phone: string
+          points: number
+          total_spent: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          phone: string
+          points?: number
+          total_spent?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          phone?: string
+          points?: number
+          total_spent?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_points_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_redemptions: {
+        Row: {
+          created_at: string
+          discount_value: number
+          id: string
+          order_id: string | null
+          organization_id: string
+          phone: string
+          points_used: number
+        }
+        Insert: {
+          created_at?: string
+          discount_value: number
+          id?: string
+          order_id?: string | null
+          organization_id: string
+          phone: string
+          points_used: number
+        }
+        Update: {
+          created_at?: string
+          discount_value?: number
+          id?: string
+          order_id?: string | null
+          organization_id?: string
+          phone?: string
+          points_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_redemptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_item_addons: {
         Row: {
           available: boolean

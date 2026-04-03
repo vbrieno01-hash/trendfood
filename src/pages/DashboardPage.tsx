@@ -52,10 +52,11 @@ import StockTab from "@/components/dashboard/StockTab";
 import PricingTab from "@/components/dashboard/PricingTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
 import ReviewsTab from "@/components/dashboard/ReviewsTab";
+import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 
 
 
-type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews";
+type TabKey = "home" | "menu" | "tables" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -519,6 +520,7 @@ const DashboardPage = () => {
         { key: "courier" as TabKey, icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
         { key: "history" as TabKey, icon: <History className="w-4 h-4" />, label: "Histórico" },
         { key: "reviews" as TabKey, icon: <Star className="w-4 h-4" />, label: "Avaliações" },
+        { key: "loyalty" as TabKey, icon: <Gift className="w-4 h-4" />, label: "Fidelidade" },
       ],
     },
     {
@@ -1010,6 +1012,7 @@ const DashboardPage = () => {
             : <PricingTab orgId={organization.id} />)}
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
+          {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
           </ErrorBoundary>
         </main>
 

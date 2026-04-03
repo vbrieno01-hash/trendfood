@@ -30,7 +30,7 @@ import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
-
+import { useLoyaltyConfig, useLoyaltyPoints, useAccumulateLoyalty, useRedeemLoyalty } from "@/hooks/useLoyalty";
 
 type CartItemAddon = { id: string; name: string; price: number; qty: number };
 type CartItem = { id: string; menuItemId: string; name: string; price: number; qty: number; addons: CartItemAddon[]; notes: string };
@@ -62,6 +62,11 @@ const UnitPage = () => {
   const planLimits = usePlanLimits(org);
 
   const placeOrder = usePlaceOrder();
+  const { data: loyaltyConfig } = useLoyaltyConfig(org?.id);
+  const accumulateLoyalty = useAccumulateLoyalty();
+  const redeemLoyalty = useRedeemLoyalty();
+  const [loyaltyRedeemed, setLoyaltyRedeemed] = useState(false);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
 
   // Cart state — persisted in localStorage so swipe-back gestures don't lose items
   const cartStorageKey = `cart_${slug}`;
@@ -151,6 +156,21 @@ const UnitPage = () => {
   const [showPixScreen, setShowPixScreen] = useState(false);
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Loyalty
+  const cleanPhoneForLoyalty = buyerPhone.replace(/\D/g, "");
+  const { data: loyaltyPointsData } = useLoyaltyPoints(
+    org?.id,
+    cleanPhoneForLoyalty.length >= 10 ? cleanPhoneForLoyalty : undefined
+  );
+  const loyaltyEnabled = loyaltyConfig?.enabled ?? false;
+  const canRedeem = loyaltyEnabled && loyaltyPointsData && loyaltyConfig
+    && loyaltyPointsData.points >= loyaltyConfig.points_to_redeem && !loyaltyRedeemed;
+  const loyaltyRewardLabel = loyaltyConfig
+    ? loyaltyConfig.reward_type === "percent"
+      ? `${loyaltyConfig.reward_value}%`
+      : fmt(loyaltyConfig.reward_value)
+    : "";
 
    // Simplified address: neighborhood dropdown + street/number
    const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
@@ -336,7 +356,8 @@ const UnitPage = () => {
 
   // (deliveryFee and related vars declared above, before early returns)
 
-  const grandTotal = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
+  const grandTotalBeforeLoyalty = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
+  const grandTotal = Math.max(0, grandTotalBeforeLoyalty - loyaltyDiscount);
 
    // (no more CEP lookup needed — neighborhood-based delivery)
   // WhatsApp checkout
@@ -529,6 +550,24 @@ const UnitPage = () => {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
             openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Loyalty: accumulate points + process redemption
+            if (loyaltyEnabled && org?.id && buyerPhone && loyaltyConfig) {
+              accumulateLoyalty.mutate({
+                orgId: org.id,
+                phone: buyerPhone,
+                orderTotal: totalPrice,
+                spendPerPoint: loyaltyConfig.spend_per_point,
+              });
+              if (loyaltyRedeemed && loyaltyDiscount > 0) {
+                redeemLoyalty.mutate({
+                  orgId: org.id,
+                  phone: buyerPhone,
+                  pointsUsed: loyaltyConfig.points_to_redeem,
+                  discountValue: loyaltyDiscount,
+                  orderId: order.id,
+                });
+              }
+            }
             // Show review link toast
             toast({
               title: "Pedido enviado! 🎉",
@@ -648,6 +687,8 @@ const UnitPage = () => {
     setChangeFor(0);
     setChangeForError(false);
     setNotes("");
+    setLoyaltyRedeemed(false);
+    setLoyaltyDiscount(0);
   };
 
 
@@ -1062,6 +1103,12 @@ const UnitPage = () => {
                      )}
                    </div>
                 ) : null}
+                {loyaltyRedeemed && loyaltyDiscount > 0 && (
+                  <div className="flex items-center justify-between text-sm text-green-600">
+                    <span>🎁 Fidelidade</span>
+                    <span className="font-medium">-{fmt(loyaltyDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-1 font-bold text-foreground border-t border-border/50">
                   <span>Total</span>
                   <span className="text-lg">{fmt(grandTotal)}</span>
@@ -1137,6 +1184,42 @@ const UnitPage = () => {
                   className={phoneError ? "border-destructive" : ""}
                 />
                 {phoneError && <p className="text-destructive text-xs mt-1">Informe um telefone válido (mín. 10 dígitos)</p>}
+                {/* Loyalty badge */}
+                {loyaltyEnabled && cleanPhoneForLoyalty.length >= 10 && loyaltyPointsData && loyaltyPointsData.points > 0 && (
+                  <div className="mt-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
+                    <p className="text-xs font-medium text-primary flex items-center gap-1">
+                      🎁 Você tem <span className="font-bold">{loyaltyPointsData.points} pontos</span>!
+                    </p>
+                    {canRedeem && !loyaltyRedeemed && (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-primary underline"
+                        onClick={() => {
+                          if (!loyaltyConfig) return;
+                          const disc = loyaltyConfig.reward_type === "percent"
+                            ? (totalPrice * loyaltyConfig.reward_value) / 100
+                            : loyaltyConfig.reward_value;
+                          setLoyaltyDiscount(disc);
+                          setLoyaltyRedeemed(true);
+                        }}
+                      >
+                        Usar {loyaltyConfig!.points_to_redeem} pontos → desconto de {loyaltyRewardLabel}
+                      </button>
+                    )}
+                    {loyaltyRedeemed && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-green-600 font-medium">✅ Desconto de {fmt(loyaltyDiscount)} aplicado!</p>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground underline"
+                          onClick={() => { setLoyaltyRedeemed(false); setLoyaltyDiscount(0); }}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
