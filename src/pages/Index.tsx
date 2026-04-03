@@ -44,6 +44,8 @@ const defaultFeatures = [
   { title: "Gestão de Motoboys", description: "Cadastre motoboys, atribua entregas, acompanhe em tempo real e controle pagamentos." },
   { title: "Gestão de Insumos", description: "Controle ingredientes com ficha técnica e baixa automática a cada venda." },
   { title: "Precificação Inteligente", description: "Cálculo automático de margem e preço sugerido por markup sobre custo." },
+  { title: "Delivery Próprio", description: "Receba pedidos de delivery sem taxas. Gestão de motoboys e rastreamento em tempo real." },
+  { title: "Programa de Fidelidade", description: "Sistema de pontos por compra com troca automática por descontos." },
 ];
 
 const defaultBenefitCards = [
