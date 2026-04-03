@@ -611,6 +611,67 @@ ${watermarkHtml}
         </CardContent>
       </Card>
 
+      {/* Payment method breakdown */}
+      {paymentStats.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="font-semibold text-foreground text-sm mb-4">💳 Faturamento por Meio de Pagamento</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Meio</TableHead>
+                      <TableHead className="text-center">Pedidos</TableHead>
+                      <TableHead className="text-right">Faturamento</TableHead>
+                      <TableHead className="text-right">%</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentStats.map((ps) => (
+                      <TableRow key={ps.method}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ps.fill }} />
+                            <span className="font-medium">{ps.method}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">{ps.count}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(ps.total)}</TableCell>
+                        <TableCell className="text-right">{ps.pct.toFixed(1)}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div>
+                <ResponsiveContainer width="100%" height={Math.max(paymentStats.length * 48, 120)}>
+                  <BarChart data={paymentStats} layout="vertical" margin={{ left: 10, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis type="category" dataKey="method" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" width={70} />
+                    <Tooltip
+                      formatter={(value: number) => [fmtBRL(value), "Faturamento"]}
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                      }}
+                    />
+                    <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                      {paymentStats.map((ps, i) => (
+                        <Cell key={i} fill={ps.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Category ranking */}
       {categoryRanking.length > 0 && (
         <Card>
