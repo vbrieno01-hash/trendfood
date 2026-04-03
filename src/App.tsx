@@ -23,6 +23,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ReviewPage from "./pages/ReviewPage";
+import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
@@ -126,6 +127,7 @@ const AppInner = () => {
               <Route path="/privacidade" element={<PrivacyPage />} />
               <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
               <Route path="/avaliar/:slug/:orderId" element={<ReviewPage />} />
+              <Route path="/instalar" element={<InstallPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
