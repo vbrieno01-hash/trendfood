@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 type Plan = "free" | "pro" | "enterprise" | "lifetime";
 
-type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports" | "addons" | "stock_ingredients" | "online_payment" | "pricing";
+type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports" | "addons" | "stock_ingredients" | "online_payment" | "pricing" | "loyalty";
 
 interface OrgLike {
   subscription_status?: string;
@@ -30,22 +30,22 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
   free: {
     kds: false, caixa: false, cupons: false, bestsellers: false,
     waiter: false, history_full: false, multi_unit: false, reports: false,
-    addons: false, stock_ingredients: false, online_payment: false, pricing: false,
+    addons: false, stock_ingredients: false, online_payment: false, pricing: false, loyalty: false,
   },
   pro: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
     waiter: true, history_full: true, multi_unit: false, reports: false,
-    addons: true, stock_ingredients: false, online_payment: true, pricing: false,
+    addons: true, stock_ingredients: false, online_payment: true, pricing: false, loyalty: true,
   },
   enterprise: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
     waiter: true, history_full: true, multi_unit: true, reports: true,
-    addons: true, stock_ingredients: true, online_payment: true, pricing: true,
+    addons: true, stock_ingredients: true, online_payment: true, pricing: true, loyalty: true,
   },
   lifetime: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
     waiter: true, history_full: true, multi_unit: true, reports: true,
-    addons: true, stock_ingredients: true, online_payment: true, pricing: true,
+    addons: true, stock_ingredients: true, online_payment: true, pricing: true, loyalty: true,
   },
 };
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Lock, Zap, MessageCircle, Printer, Compass, Wallet,
   Flame, Tag, BarChart2, BellRing, Building2, UtensilsCrossed,
-  TableProperties, History, ListPlus, CreditCard, Package, Bike,
+  TableProperties, History, ListPlus, CreditCard, Package, Bike, Heart,
 } from "lucide-react";
 
 type MinPlan = "free" | "pro" | "enterprise" | "lifetime";
@@ -129,6 +129,13 @@ const FEATURES: FeatureItem[] = [
     title: "Relatórios Avançados",
     description: "Gráficos de faturamento, ticket médio, horários de pico e comparativos.",
     minPlan: "enterprise",
+    status: "available",
+  },
+  {
+    icon: <Heart className="w-5 h-5" />,
+    title: "Programa de Fidelidade",
+    description: "Sistema de pontos por compra. Clientes acumulam pontos e trocam por descontos automaticamente.",
+    minPlan: "pro",
     status: "available",
   },
   {
