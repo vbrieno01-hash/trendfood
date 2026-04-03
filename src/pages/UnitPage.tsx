@@ -1181,6 +1181,32 @@ const UnitPage = () => {
               )}
             </div>
 
+            {/* Scheduling selector */}
+            {schedulingActive && orderType && timeSlots.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-foreground text-sm">🕐 Horário do pedido</h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScheduledTime("")}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${!scheduledTime ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                  >
+                    🕐 O mais rápido possível
+                  </button>
+                  {timeSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setScheduledTime(slot)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${scheduledTime === slot ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Customer info */}
             <div className="space-y-3">
               <h3 className="font-semibold text-foreground text-sm">Seus dados</h3>
