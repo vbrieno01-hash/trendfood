@@ -21,6 +21,7 @@ import {
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
   ChevronDown, Calculator,
+  Star,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
