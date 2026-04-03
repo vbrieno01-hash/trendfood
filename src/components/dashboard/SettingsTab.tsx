@@ -39,7 +39,7 @@ export default function SettingsTab() {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open, scheduling_config")
+        .select("force_open, scheduling_config, tax_regime")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
