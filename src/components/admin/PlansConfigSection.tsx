@@ -35,6 +35,8 @@ interface PlanRow {
   key: string;
   name: string;
   price_cents: number;
+  quarterly_price_cents: number | null;
+  annual_price_cents: number | null;
   description: string | null;
   features: string[];
   highlighted: boolean;
@@ -50,6 +52,8 @@ const emptyPlan: Omit<PlanRow, "id" | "created_at"> = {
   key: "",
   name: "",
   price_cents: 0,
+  quarterly_price_cents: null,
+  annual_price_cents: null,
   description: "",
   features: [],
   highlighted: false,
@@ -106,6 +110,8 @@ export default function PlansConfigSection() {
       key: plan.key,
       name: plan.name,
       price_cents: plan.price_cents,
+      quarterly_price_cents: plan.quarterly_price_cents,
+      annual_price_cents: plan.annual_price_cents,
       description: plan.description ?? "",
       features: plan.features,
       highlighted: plan.highlighted,
@@ -222,7 +228,10 @@ export default function PlansConfigSection() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    <span className="font-semibold">{fmtPrice(plan.price_cents)}</span>/mês · {plan.features.length} features
+                    <span className="font-semibold">{fmtPrice(plan.price_cents)}</span>/mês
+                    {plan.quarterly_price_cents != null && <> · <span className="font-semibold">{fmtPrice(plan.quarterly_price_cents)}</span>/trim</>}
+                    {plan.annual_price_cents != null && <> · <span className="font-semibold">{fmtPrice(plan.annual_price_cents)}</span>/ano</>}
+                    {" "}· {plan.features.length} features
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
@@ -309,8 +318,16 @@ function PlanForm({
           <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="Pro" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço (centavos)</Label>
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço Mensal (centavos)</Label>
           <Input type="number" value={form.price_cents} onChange={(e) => setForm((p) => ({ ...p, price_cents: parseInt(e.target.value) || 0 }))} className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço Trimestral (centavos)</Label>
+          <Input type="number" value={form.quarterly_price_cents ?? ""} onChange={(e) => setForm((p) => ({ ...p, quarterly_price_cents: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ex: 26700" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço Anual (centavos)</Label>
+          <Input type="number" value={form.annual_price_cents ?? ""} onChange={(e) => setForm((p) => ({ ...p, annual_price_cents: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ex: 99700" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
       </div>
 

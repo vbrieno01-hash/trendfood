@@ -3,7 +3,7 @@ import { usePlatformContent } from "@/hooks/usePlatformContent";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
@@ -102,7 +102,7 @@ const formatPrice = (cents: number) => {
 
 interface PlanRow {
   id: string; name: string; key: string; description: string | null;
-  price_cents: number; annual_price_cents: number | null;
+  price_cents: number; annual_price_cents: number | null; quarterly_price_cents: number | null;
   features: string[]; highlighted: boolean; badge: string | null;
   checkout_url: string | null; sort_order: number; active: boolean;
 }
@@ -111,7 +111,7 @@ const Index = () => {
   const { content: cms } = usePlatformContent();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedBilling, setSelectedBilling] = useState<"monthly" | "quarterly" | "annual">("monthly");
   const [orderCount, setOrderCount] = useState(0);
   const [displayCount, setDisplayCount] = useState(0);
 
@@ -349,23 +349,45 @@ const Index = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Escolha o plano ideal para seu negócio</h2>
             <p className="text-muted-foreground text-lg">Comece grátis e evolua conforme sua operação cresce</p>
           </div>
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
-            <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-            <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
-              Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
-            </span>
+          <div className="flex items-center justify-center gap-1 bg-muted rounded-xl p-1 w-fit mx-auto mb-8">
+            {([
+              { key: "monthly" as const, label: "Mensal" },
+              { key: "quarterly" as const, label: "Trimestral", badge: "-10%" },
+              { key: "annual" as const, label: "Anual", badge: "-17%" },
+            ]).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setSelectedBilling(opt.key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedBilling === opt.key
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+                {opt.badge && <span className="ml-1 text-xs font-bold">{opt.badge}</span>}
+              </button>
+            ))}
           </div>
           {loadingPlans ? (
             <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
           ) : (
             <div className="grid md:grid-cols-3 gap-6 items-stretch">
               {plans.map((plan) => {
-                const showAnnual = isAnnual && (plan.annual_price_cents ?? 0) > 0;
-                const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents!) : formatPrice(plan.price_cents);
-                const period = showAnnual ? "/ano" : "/mês";
-                const subtitle = showAnnual ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês` : undefined;
-                const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+                const isQuarterly = selectedBilling === "quarterly" && (plan.quarterly_price_cents ?? 0) > 0;
+                const isAnnual = selectedBilling === "annual" && (plan.annual_price_cents ?? 0) > 0;
+                const displayPrice = isAnnual
+                  ? formatPrice(plan.annual_price_cents!)
+                  : isQuarterly
+                    ? formatPrice(plan.quarterly_price_cents!)
+                    : formatPrice(plan.price_cents);
+                const period = isAnnual ? "/ano" : isQuarterly ? "/trim" : "/mês";
+                const subtitle = isAnnual
+                  ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês`
+                  : isQuarterly
+                    ? `Equivalente a R$ ${((plan.quarterly_price_cents! / 3) / 100).toFixed(2).replace(".", ",")}/mês`
+                    : undefined;
+                const savingsBadge = isAnnual ? "ECONOMIA DE 17%" : isQuarterly ? "ECONOMIA DE 10%" : undefined;
                 return (
                   <PlanCard key={plan.id} name={plan.name} price={displayPrice} period={period} subtitle={subtitle} savingsBadge={savingsBadge}
                     description={plan.description ?? ""} features={Array.isArray(plan.features) ? plan.features : []}
