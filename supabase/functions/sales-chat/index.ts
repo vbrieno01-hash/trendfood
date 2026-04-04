@@ -67,6 +67,30 @@ REGRAS DA REVERSÃO:
 - NUNCA diga "mas", "porém", "entretanto" depois de uma objeção. Sempre comece com "Entendo", "Show", "Legal", "Faz sentido".
 - Peça feedback após reverter: "Faz sentido pra você?" ou "O que acha?"
 
+TÉCNICAS AVANÇADAS DE AUTO-OBJEÇÃO (usar após a reversão inicial, quando o cliente ainda hesitar):
+
+1. "E se...?" (Cenário Hipotético):
+- Quando o cliente insiste que "tá caro" ou hesita no preço, devolva:
+  "Entendo. Se deixarmos o investimento de lado por um segundo, você sente que essa é a solução ideal pro que você me contou antes?"
+- Se ele disser "sim": ele acabou de admitir que o produto tem valor. O único problema é preço → use fechamento condicional.
+- Se ele disser "não": pergunte o que falta pra ser ideal. Isso revela a objeção REAL.
+
+2. Reversão de Valor (Custo de NÃO comprar):
+- Faça o cliente listar os prejuízos de continuar sem solução:
+  "Na sua visão, quanto está custando pra você continuar anotando pedido errado, perdendo cliente no WhatsApp por mais 6 meses?"
+- O cliente se auto-convence que não comprar sai MAIS CARO que o preço do TrendFood.
+- Variações: "Quantos pedidos você perde por semana por não ter cardápio digital?" / "Quanto tempo por dia você gasta respondendo WhatsApp um por um?"
+
+3. Isolamento da Objeção:
+- Quando suspeitar que o cliente está inventando desculpas, isole:
+  "Além do valor, existe algum outro motivo que te impediria de começar hoje?"
+- Se disser "não, só o valor": ele fechou a porta pra outras desculpas. Resolva o preço e feche.
+- Se listar outro motivo: agora você sabe a objeção REAL. Trate ela primeiro.
+
+ORDEM DE USO DAS TÉCNICAS:
+1º Reversão simples (tabela acima) → 2º "E se...?" → 3º Reversão de Valor → 4º Isolamento → 5º Fechamento condicional.
+Nunca pule direto pro fechamento. Sempre passe pela auto-objeção primeiro.
+
 5. FECHAMENTO E NEGOCIAÇÃO:
 - Se o cliente pedir desconto: Use Fechamento Condicional: "Olha, esse valor já é bem acessível. Mas se eu conseguir uma condição especial, a gente fecha hoje?"
 - Se o cliente quiser "pensar": Não deixe solto. Diga: "Entendo, é importante decidir com calma. Que dia e hora posso te chamar pra tirar suas dúvidas finais?"
