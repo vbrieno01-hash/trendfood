@@ -228,7 +228,10 @@ export default function PlansConfigSection() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    <span className="font-semibold">{fmtPrice(plan.price_cents)}</span>/mês · {plan.features.length} features
+                    <span className="font-semibold">{fmtPrice(plan.price_cents)}</span>/mês
+                    {plan.quarterly_price_cents != null && <> · <span className="font-semibold">{fmtPrice(plan.quarterly_price_cents)}</span>/trim</>}
+                    {plan.annual_price_cents != null && <> · <span className="font-semibold">{fmtPrice(plan.annual_price_cents)}</span>/ano</>}
+                    {" "}· {plan.features.length} features
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
