@@ -19,11 +19,14 @@ interface Plan {
   description: string | null;
   price_cents: number;
   annual_price_cents: number;
+  quarterly_price_cents: number;
   features: string[];
   highlighted: boolean;
   badge: string | null;
   sort_order: number;
 }
+
+type BillingCycle = "monthly" | "quarterly" | "annual";
 
 interface UpgradeDialogProps {
   open: boolean;
