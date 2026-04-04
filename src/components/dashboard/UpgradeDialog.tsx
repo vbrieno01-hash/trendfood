@@ -187,10 +187,15 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
       </Dialog>
 
       {selectedPlan && (() => {
-        const showPromoInCheckout = promoEligible && !isAnnual;
-        const checkoutPrice = showPromoInCheckout
-          ? `R$ ${(Math.round(selectedPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
-          : (isAnnual && selectedPlan.annual_price_cents > 0 ? formatPrice(selectedPlan.annual_price_cents) : formatPriceFull(selectedPlan.price_cents));
+        const showPromoInCheckout = promoEligible && selectedBilling === "monthly";
+        let checkoutPrice = formatPriceFull(selectedPlan.price_cents);
+        if (showPromoInCheckout) {
+          checkoutPrice = `R$ ${(Math.round(selectedPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`;
+        } else if (isAnnual && selectedPlan.annual_price_cents > 0) {
+          checkoutPrice = formatPrice(selectedPlan.annual_price_cents);
+        } else if (isQuarterly && selectedPlan.quarterly_price_cents > 0) {
+          checkoutPrice = formatPrice(selectedPlan.quarterly_price_cents);
+        }
         return (
           <CardPaymentForm
             open={checkoutOpen}
@@ -199,7 +204,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
             plan={selectedPlan.key}
             planName={selectedPlan.name}
             planPrice={checkoutPrice}
-            billing={isAnnual && selectedPlan.annual_price_cents > 0 ? "annual" : "monthly"}
+            billing={selectedBilling}
             promo={showPromoInCheckout}
             onSuccess={handleSuccess}
           />
