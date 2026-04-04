@@ -148,11 +148,15 @@ const SubscriptionTab = () => {
     if (!organization || !session) return;
     const planData = plans.find((p) => p.key === planKey);
     if (planData) {
-      const showAnnual = isAnnual && planData.annualPriceCents > 0;
-      const showPromo = promoEligible && !isAnnual && planData.priceCents > 0;
-      const displayPrice = showPromo
-        ? `R$ ${(Math.round(planData.priceCents / 2) / 100).toFixed(2).replace(".", ",")}`
-        : showAnnual ? formatPrice(planData.annualPriceCents) : planData.price;
+      const showPromo = promoEligible && selectedBilling === "monthly" && planData.priceCents > 0;
+      let displayPrice = planData.price;
+      if (showPromo) {
+        displayPrice = `R$ ${(Math.round(planData.priceCents / 2) / 100).toFixed(2).replace(".", ",")}`;
+      } else if (isAnnual && planData.annualPriceCents > 0) {
+        displayPrice = formatPrice(planData.annualPriceCents);
+      } else if (isQuarterly && planData.quarterlyPriceCents > 0) {
+        displayPrice = formatPrice(planData.quarterlyPriceCents);
+      }
       setCardFormPlan({ key: planData.key, name: planData.name, price: displayPrice });
     }
   };
