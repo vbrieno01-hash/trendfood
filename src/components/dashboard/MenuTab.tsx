@@ -852,8 +852,31 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setImportOpen(true)}>
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Importar CSV/Excel</span>
-          </Button>
-          {items.length > 0 && (
+           </Button>
+           {items.length > 0 && (
+             <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => {
+               const header = ["Nome", "Descrição", "Preço", "Categoria", "Disponível"].join(";");
+               const rows = items.map((i) => [
+                 `"${(i.name || "").replace(/"/g, '""')}"`,
+                 `"${(i.description || "").replace(/"/g, '""')}"`,
+                 (i.price ?? 0).toFixed(2).replace(".", ","),
+                 `"${i.category}"`,
+                 i.available ? "Sim" : "Não",
+               ].join(";"));
+               const csv = "\uFEFF" + [header, ...rows].join("\n");
+               const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+               const url = URL.createObjectURL(blob);
+               const a = document.createElement("a");
+               a.href = url;
+               a.download = `cardapio-${org.slug}.csv`;
+               a.click();
+               URL.revokeObjectURL(url);
+             }}>
+               <Download className="w-4 h-4" />
+               <span className="hidden sm:inline">Exportar CSV</span>
+             </Button>
+           )}
+           {items.length > 0 && (
             <Button
               variant="outline"
               size="sm"
