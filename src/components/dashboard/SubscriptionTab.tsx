@@ -74,8 +74,7 @@ const SubscriptionTab = () => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const billingCycle = organization?.billing_cycle || "monthly";
   const isAnnualBilling = billingCycle === "annual";
-  const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedBilling, setSelectedBilling] = useState<BillingCycle>("monthly");
   const planLimits = usePlanLimits(organization);
   const promoEligible = planLimits.promoEligible;
 
