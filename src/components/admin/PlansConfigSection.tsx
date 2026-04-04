@@ -318,8 +318,16 @@ function PlanForm({
           <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="Pro" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço (centavos)</Label>
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço Mensal (centavos)</Label>
           <Input type="number" value={form.price_cents} onChange={(e) => setForm((p) => ({ ...p, price_cents: parseInt(e.target.value) || 0 }))} className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço Trimestral (centavos)</Label>
+          <Input type="number" value={form.quarterly_price_cents ?? ""} onChange={(e) => setForm((p) => ({ ...p, quarterly_price_cents: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ex: 26700" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Preço Anual (centavos)</Label>
+          <Input type="number" value={form.annual_price_cents ?? ""} onChange={(e) => setForm((p) => ({ ...p, annual_price_cents: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ex: 99700" className="h-9 text-sm bg-muted/40 border-0 focus-visible:ring-1" />
         </div>
       </div>
 

@@ -374,11 +374,20 @@ const Index = () => {
           ) : (
             <div className="grid md:grid-cols-3 gap-6 items-stretch">
               {plans.map((plan) => {
-                const showAnnual = isAnnual && (plan.annual_price_cents ?? 0) > 0;
-                const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents!) : formatPrice(plan.price_cents);
-                const period = showAnnual ? "/ano" : "/mês";
-                const subtitle = showAnnual ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês` : undefined;
-                const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+                const isQuarterly = selectedBilling === "quarterly" && (plan.quarterly_price_cents ?? 0) > 0;
+                const isAnnual = selectedBilling === "annual" && (plan.annual_price_cents ?? 0) > 0;
+                const displayPrice = isAnnual
+                  ? formatPrice(plan.annual_price_cents!)
+                  : isQuarterly
+                    ? formatPrice(plan.quarterly_price_cents!)
+                    : formatPrice(plan.price_cents);
+                const period = isAnnual ? "/ano" : isQuarterly ? "/trim" : "/mês";
+                const subtitle = isAnnual
+                  ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês`
+                  : isQuarterly
+                    ? `Equivalente a R$ ${((plan.quarterly_price_cents! / 3) / 100).toFixed(2).replace(".", ",")}/mês`
+                    : undefined;
+                const savingsBadge = isAnnual ? "ECONOMIA DE 17%" : isQuarterly ? "ECONOMIA DE 10%" : undefined;
                 return (
                   <PlanCard key={plan.id} name={plan.name} price={displayPrice} period={period} subtitle={subtitle} savingsBadge={savingsBadge}
                     description={plan.description ?? ""} features={Array.isArray(plan.features) ? plan.features : []}
