@@ -6,6 +6,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getRenewalDays(billing: string): number {
+  if (billing === "quarterly") return 93;
+  if (billing === "annual") return 370;
+  return 30;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -88,13 +94,16 @@ Deno.serve(async (req) => {
     if (paid) {
       const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-      // Check if promo was applied in the payment metadata
+      // Read billing cycle and promo from payment metadata
+      const billing = mpData.metadata?.billing || "monthly";
       const promoApplied = mpData.metadata?.promo_applied === true || mpData.metadata?.promo_applied === "true";
+      const renewalDays = getRenewalDays(billing);
 
       const updateData: Record<string, unknown> = {
         subscription_plan: plan,
         subscription_status: "active",
-        trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        billing_cycle: billing,
+        trial_ends_at: new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString(),
       };
       if (promoApplied) updateData.used_first_month_promo = true;
 
@@ -111,7 +120,7 @@ Deno.serve(async (req) => {
         old_status: null,
         new_status: "active",
         source: "mercadopago_pix",
-        notes: `PIX payment ${payment_id} approved${promoApplied ? " (promo 50% off)" : ""}`,
+        notes: `PIX payment ${payment_id} approved (${billing})${promoApplied ? " (promo 50% off)" : ""}`,
       });
     }
 
