@@ -508,7 +508,7 @@ const UnitPage = () => {
       `📋 *Itens:*`,
       ...cartItems.map((i) => {
         let line = `• ${i.qty}x ${i.name}`;
-        if (i.addons.length > 0) line += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})`;
+        if (i.addons.length > 0) line += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : '1x '}${a.name} R$${(a.price * a.qty).toFixed(2).replace('.', ',')}`).join(", ")})`;
         line += ` — ${fmt(i.price * i.qty)}`;
         if (i.notes.trim()) line += ` | Obs: ${i.notes.trim()}`;
         return line;
