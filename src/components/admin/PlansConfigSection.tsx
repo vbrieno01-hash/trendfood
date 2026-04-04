@@ -110,6 +110,8 @@ export default function PlansConfigSection() {
       key: plan.key,
       name: plan.name,
       price_cents: plan.price_cents,
+      quarterly_price_cents: plan.quarterly_price_cents,
+      annual_price_cents: plan.annual_price_cents,
       description: plan.description ?? "",
       features: plan.features,
       highlighted: plan.highlighted,
