@@ -238,7 +238,7 @@ const CardPaymentForm = ({
             <DialogTitle className="text-xl">Assinar {planName}</DialogTitle>
           </div>
           <DialogDescription>
-            {planPrice}{billing === "annual" ? "/ano" : "/mês"} — escolha a forma de pagamento.
+            {planPrice}{billing === "annual" ? "/ano" : billing === "quarterly" ? "/tri" : "/mês"} — escolha a forma de pagamento.
           </DialogDescription>
         </DialogHeader>
 
