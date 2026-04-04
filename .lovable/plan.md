@@ -1,25 +1,21 @@
 
 
-## Plano: Adicionar técnica de auto-objeção no prompt de vendas
+## Plano: Adicionar 3 técnicas avançadas de auto-objeção no prompt de vendas
 
 ### O que muda
-Adicionar uma seção no `SYSTEM_PROMPT` do `sales-chat/index.ts` com a técnica de **fazer o cliente responder suas próprias objeções** através de perguntas estratégicas (técnica de "reversão").
+Adicionar um novo módulo **"TÉCNICAS AVANÇADAS DE AUTO-OBJEÇÃO"** na seção de reversão de objeções (após linha 68) do `SYSTEM_PROMPT` em `supabase/functions/sales-chat/index.ts`.
 
-### Como funciona
-Em vez de responder objeções diretamente, o Lucas faz perguntas que levam o cliente a concluir sozinho que precisa da solução.
+### 3 técnicas que serão adicionadas
 
-**Exemplos de objeções e como reverter:**
+1. **"E se...?" (Cenário Hipotético)** -- Quando o cliente diz "tá caro", devolver: "Entendo. Se deixarmos o investimento de lado por um segundo, você sente que essa é a solução ideal pro que você me contou antes?" Se ele disser "sim", ele admitiu que o produto tem valor e o único problema é preço (resolvido com fechamento condicional).
 
-| Objeção do cliente | Resposta errada (argumentar) | Resposta certa (reverter) |
-|---|---|---|
-| "Tá caro" | "Mas é barato comparado ao iFood" | "Entendo. Me fala, quanto você paga de taxa no iFood por mês?" |
-| "Já tenho sistema" | "O nosso é melhor" | "Show! E ele resolve tudo que você precisa? Tem algo que te incomoda nele?" |
-| "Vou pensar" | "Mas é uma boa oportunidade" | "Claro! Me conta, o que exatamente você quer avaliar melhor?" |
-| "Não preciso" | "Mas todo mundo precisa" | "Entendo! Hoje como você organiza os pedidos que chegam?" |
-| "Meu cardápio já funciona" | "Mas o nosso é digital" | "Legal! E seus clientes conseguem pedir sozinhos sem te chamar no WhatsApp?" |
+2. **Reversão de Valor (Custo de não comprar)** -- Fazer o cliente listar os prejuízos de continuar sem solução: "Na sua visão, quanto está custando pra você continuar anotando pedido errado, perdendo cliente no WhatsApp por mais 6 meses?" O cliente se auto-convence que não comprar sai mais caro.
+
+3. **Isolamento da Objeção** -- Garantir que não está inventando desculpas: "Além do valor, existe algum outro motivo que te impediria de começar hoje?" Se disser "não, só o valor", fechou a porta para outras desculpas.
 
 ### Implementação
 - 1 arquivo editado: `supabase/functions/sales-chat/index.ts`
-- Substituir a seção "VALIDAÇÃO E ANTECIPAÇÃO" (linha 43-45) por uma seção completa de **REVERSÃO DE OBJEÇÕES** com regras e exemplos
+- Inserir o módulo entre as "REGRAS DA REVERSÃO" (linha 68) e o "FECHAMENTO E NEGOCIAÇÃO" (linha 70)
+- Deploy automático da edge function
 - Zero mudanças no frontend ou banco de dados
 
