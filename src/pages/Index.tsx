@@ -102,7 +102,7 @@ const formatPrice = (cents: number) => {
 
 interface PlanRow {
   id: string; name: string; key: string; description: string | null;
-  price_cents: number; annual_price_cents: number | null;
+  price_cents: number; annual_price_cents: number | null; quarterly_price_cents: number | null;
   features: string[]; highlighted: boolean; badge: string | null;
   checkout_url: string | null; sort_order: number; active: boolean;
 }
