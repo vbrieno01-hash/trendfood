@@ -11,7 +11,7 @@ interface PixPaymentTabProps {
   orgId: string;
   plan: string;
   planPrice: string;
-  billing?: "monthly" | "annual";
+  billing?: "monthly" | "quarterly" | "annual";
   promo?: boolean;
   onSuccess: () => void;
   onClose: () => void;

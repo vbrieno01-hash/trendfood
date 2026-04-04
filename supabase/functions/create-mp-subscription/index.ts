@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     // Fetch plan price from database
     const { data: planRow, error: planError } = await supabaseAdmin
       .from("platform_plans")
-      .select("name, price_cents, annual_price_cents")
+      .select("name, price_cents, annual_price_cents, quarterly_price_cents")
       .eq("key", plan)
       .eq("active", true)
       .single();
@@ -94,8 +94,11 @@ Deno.serve(async (req) => {
     }
 
     const isAnnual = billing === "annual";
-    const priceCents = isAnnual && planRow.annual_price_cents > 0 ? planRow.annual_price_cents : planRow.price_cents;
-    const billingCycle = isAnnual ? "annual" : "monthly";
+    const isQuarterly = billing === "quarterly";
+    let priceCents = planRow.price_cents;
+    if (isAnnual && planRow.annual_price_cents > 0) priceCents = planRow.annual_price_cents;
+    if (isQuarterly && planRow.quarterly_price_cents > 0) priceCents = planRow.quarterly_price_cents;
+    const billingCycle = isAnnual ? "annual" : isQuarterly ? "quarterly" : "monthly";
 
     // Promo: first month at half price (only monthly, only if not used before)
     const isPromoEligible = promo === true && !isAnnual && !org.used_first_month_promo;
@@ -129,12 +132,14 @@ Deno.serve(async (req) => {
     const backUrl = `https://trendfood.lovable.app/dashboard?tab=subscription&mp_return=true`;
 
     // Create preapproval (subscription)
+    const cycleSuffix = isAnnual ? " Anual" : isQuarterly ? " Trimestral" : "";
+    const frequency = isAnnual ? 12 : isQuarterly ? 3 : 1;
     const preapprovalBody: Record<string, unknown> = {
-      reason: `Assinatura ${planRow.name}${isAnnual ? " Anual" : ""} - ${org.name}`,
+      reason: `Assinatura ${planRow.name}${cycleSuffix} - ${org.name}`,
       external_reference: org_id,
       payer_email: userEmail,
       auto_recurring: {
-        frequency: isAnnual ? 12 : 1,
+        frequency,
         frequency_type: "months",
         transaction_amount: amount,
         currency_id: "BRL",

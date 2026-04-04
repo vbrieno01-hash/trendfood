@@ -1174,6 +1174,7 @@ export type Database = {
           key: string
           name: string
           price_cents: number
+          quarterly_price_cents: number | null
           sort_order: number
           webhook_secret_name: string | null
         }
@@ -1190,6 +1191,7 @@ export type Database = {
           key: string
           name: string
           price_cents?: number
+          quarterly_price_cents?: number | null
           sort_order?: number
           webhook_secret_name?: string | null
         }
@@ -1206,6 +1208,7 @@ export type Database = {
           key?: string
           name?: string
           price_cents?: number
+          quarterly_price_cents?: number | null
           sort_order?: number
           webhook_secret_name?: string | null
         }

@@ -8,7 +8,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Loader2, Sparkles } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+
 import PlanCard from "@/components/pricing/PlanCard";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
 
@@ -19,11 +19,14 @@ interface Plan {
   description: string | null;
   price_cents: number;
   annual_price_cents: number;
+  quarterly_price_cents: number;
   features: string[];
   highlighted: boolean;
   badge: string | null;
   sort_order: number;
 }
+
+type BillingCycle = "monthly" | "quarterly" | "annual";
 
 interface UpgradeDialogProps {
   open: boolean;
@@ -38,7 +41,9 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedBilling, setSelectedBilling] = useState<BillingCycle>("monthly");
+  const isAnnual = selectedBilling === "annual";
+  const isQuarterly = selectedBilling === "quarterly";
 
   useEffect(() => {
     if (!open) return;
@@ -54,6 +59,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
           .map((p: any) => ({
             ...p,
             annual_price_cents: p.annual_price_cents || 0,
+            quarterly_price_cents: p.quarterly_price_cents || 0,
             features: Array.isArray(p.features) ? p.features : [],
           }));
         setPlans(paid);
@@ -96,13 +102,32 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
             </div>
           </DialogHeader>
 
-          {/* Billing Toggle */}
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
-            <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-            <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
-              Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
-            </span>
+          {/* Billing Selector */}
+          <div className="flex items-center justify-center gap-1 pt-2">
+            <div className="inline-flex rounded-lg border border-border p-1 bg-muted/50">
+              {([
+                { value: "monthly" as BillingCycle, label: "Mensal" },
+                { value: "quarterly" as BillingCycle, label: "Trimestral", badge: "-10%" },
+                { value: "annual" as BillingCycle, label: "Anual", badge: "-17%" },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedBilling(opt.value)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    selectedBilling === opt.value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                  {opt.badge && (
+                    <span className={`ml-1 text-[10px] font-bold ${selectedBilling === opt.value ? 'text-primary-foreground' : 'text-primary'}`}>
+                      {opt.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -114,22 +139,21 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {plans.map((plan) => {
                 const showAnnual = isAnnual && plan.annual_price_cents > 0;
-                const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents) : formatPriceFull(plan.price_cents);
-                const period = showAnnual ? "/ano" : "/mês";
+                const showQuarterly = isQuarterly && plan.quarterly_price_cents > 0;
+                let displayPrice = formatPriceFull(plan.price_cents);
+                let period = "/mês";
+                if (showAnnual) { displayPrice = formatPrice(plan.annual_price_cents); period = "/ano"; }
+                else if (showQuarterly) { displayPrice = formatPrice(plan.quarterly_price_cents); period = "/tri"; }
                 const subtitle = showAnnual
                   ? `Equivalente a R$ ${((plan.annual_price_cents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
-                  : undefined;
-                const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+                  : showQuarterly
+                    ? `Equivalente a R$ ${((plan.quarterly_price_cents / 3) / 100).toFixed(2).replace(".", ",")}/mês`
+                    : undefined;
+                const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
                 const isSamePlan = currentPlan === plan.key;
-                const billingMismatch = isSamePlan && (
-                  (isAnnual && true) || (!isAnnual && false)
-                );
-                const ctaText = billingMismatch
-                  ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
-                  : "Assinar agora";
 
                 // Promo pricing: half price for first month (monthly only)
-                const showPromo = promoEligible && !isAnnual && !isSamePlan;
+                const showPromo = promoEligible && selectedBilling === "monthly" && !isSamePlan;
                 const promoPrice = showPromo
                   ? `R$ ${(Math.round(plan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
                   : undefined;
@@ -145,12 +169,12 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
                     savingsBadge={savingsBadge}
                     description={plan.description || ""}
                     features={plan.features}
-                    cta={showPromo ? "🔥 Aproveitar oferta" : ctaText}
+                    cta={showPromo ? "🔥 Aproveitar oferta" : "Assinar agora"}
                     ctaLink="#"
                     highlighted={plan.highlighted}
                     badge={plan.badge || undefined}
                     currentPlan={isSamePlan}
-                    billingMismatch={billingMismatch}
+                    billingMismatch={false}
                     onSelect={() => handleSelect(plan)}
                     promoPrice={promoPrice}
                     originalPrice={originalPrice}
@@ -163,10 +187,15 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
       </Dialog>
 
       {selectedPlan && (() => {
-        const showPromoInCheckout = promoEligible && !isAnnual;
-        const checkoutPrice = showPromoInCheckout
-          ? `R$ ${(Math.round(selectedPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
-          : (isAnnual && selectedPlan.annual_price_cents > 0 ? formatPrice(selectedPlan.annual_price_cents) : formatPriceFull(selectedPlan.price_cents));
+        const showPromoInCheckout = promoEligible && selectedBilling === "monthly";
+        let checkoutPrice = formatPriceFull(selectedPlan.price_cents);
+        if (showPromoInCheckout) {
+          checkoutPrice = `R$ ${(Math.round(selectedPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`;
+        } else if (isAnnual && selectedPlan.annual_price_cents > 0) {
+          checkoutPrice = formatPrice(selectedPlan.annual_price_cents);
+        } else if (isQuarterly && selectedPlan.quarterly_price_cents > 0) {
+          checkoutPrice = formatPrice(selectedPlan.quarterly_price_cents);
+        }
         return (
           <CardPaymentForm
             open={checkoutOpen}
@@ -175,7 +204,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
             plan={selectedPlan.key}
             planName={selectedPlan.name}
             planPrice={checkoutPrice}
-            billing={isAnnual && selectedPlan.annual_price_cents > 0 ? "annual" : "monthly"}
+            billing={selectedBilling}
             promo={showPromoInCheckout}
             onSuccess={handleSuccess}
           />

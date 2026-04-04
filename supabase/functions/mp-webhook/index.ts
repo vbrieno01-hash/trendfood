@@ -38,7 +38,7 @@ async function processReferralBonus(
     }
 
     // Determine bonus days based on billing cycle
-    const bonusDays = activatedOrg.billing_cycle === "annual" ? 30 : 10;
+    const bonusDays = activatedOrg.billing_cycle === "annual" ? 30 : activatedOrg.billing_cycle === "quarterly" ? 15 : 10;
 
     // Insert bonus record
     await supabase.from("referral_bonuses").insert({
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
       if (sub.auto_recurring?.transaction_amount >= 200) plan = "enterprise";
       if (sub.reason?.toLowerCase().includes("enterprise")) plan = "enterprise";
 
-      const renewalDays = org?.billing_cycle === "annual" ? 370 : 35;
+      const renewalDays = org?.billing_cycle === "annual" ? 370 : org?.billing_cycle === "quarterly" ? 95 : 35;
 
       if (sub.status === "authorized") {
         const trialEnds = new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString();
@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
             .eq("id", orgId)
             .single();
 
-          const renewalDays = org?.billing_cycle === "annual" ? 370 : 35;
+          const renewalDays = org?.billing_cycle === "annual" ? 370 : org?.billing_cycle === "quarterly" ? 95 : 35;
           const trialEnds = new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString();
 
           await supabase
@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
         .eq("id", orgId)
         .single();
 
-      const legacyDays = org?.billing_cycle === "annual" ? 370 : 30;
+      const legacyDays = org?.billing_cycle === "annual" ? 370 : org?.billing_cycle === "quarterly" ? 95 : 30;
       const trialEnds = new Date(Date.now() + legacyDays * 24 * 60 * 60 * 1000).toISOString();
 
       const updateData: Record<string, unknown> = {

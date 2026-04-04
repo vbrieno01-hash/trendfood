@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+
 import {
   Accordion,
   AccordionContent,
@@ -41,7 +41,10 @@ interface PlanData {
   external?: boolean;
   price_cents: number;
   annual_price_cents: number;
+  quarterly_price_cents: number;
 }
+
+type BillingCycle = "monthly" | "quarterly" | "annual";
 
 function formatPrice(cents: number): string {
   if (cents === 0) return "Grátis";
@@ -55,6 +58,7 @@ function mapPlanRow(row: any): PlanData {
     price: formatPrice(row.price_cents),
     price_cents: row.price_cents,
     annual_price_cents: row.annual_price_cents || 0,
+    quarterly_price_cents: row.quarterly_price_cents || 0,
     description: row.description ?? "",
     features: Array.isArray(row.features) ? row.features : [],
     cta: row.price_cents === 0 ? "Começar Grátis" : `Assinar ${row.name}`,
@@ -97,7 +101,9 @@ const PricingPage = () => {
   const [cardFormPlan, setCardFormPlan] = useState<PlanData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedBilling, setSelectedBilling] = useState<BillingCycle>("monthly");
+  const isAnnual = selectedBilling === "annual";
+  const isQuarterly = selectedBilling === "quarterly";
 
   // Promo eligibility
   const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
@@ -191,14 +197,33 @@ const PricingPage = () => {
         </p>
       </section>
 
-      {/* Billing Toggle */}
+      {/* Billing Selector */}
       <section className="px-4 pb-8">
-        <div className="flex items-center justify-center gap-3">
-          <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
-          <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-          <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
-            Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
-          </span>
+        <div className="flex items-center justify-center gap-1">
+          <div className="inline-flex rounded-lg border border-border p-1 bg-muted/50">
+            {([
+              { value: "monthly" as BillingCycle, label: "Mensal" },
+              { value: "quarterly" as BillingCycle, label: "Trimestral", badge: "-10%" },
+              { value: "annual" as BillingCycle, label: "Anual", badge: "-17%" },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedBilling(opt.value)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  selectedBilling === opt.value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+                {opt.badge && (
+                  <span className={`ml-1 text-xs font-bold ${selectedBilling === opt.value ? 'text-primary-foreground' : 'text-primary'}`}>
+                    {opt.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -211,20 +236,22 @@ const PricingPage = () => {
             </div>
           ) : plans.map((plan) => {
             const showAnnual = isAnnual && plan.annual_price_cents > 0;
-            const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents) : plan.price;
-            const period = showAnnual ? "/ano" : "/mês";
+            const showQuarterly = isQuarterly && plan.quarterly_price_cents > 0;
+            let displayPrice = plan.price;
+            let period = "/mês";
+            if (showAnnual) { displayPrice = formatPrice(plan.annual_price_cents); period = "/ano"; }
+            else if (showQuarterly) { displayPrice = formatPrice(plan.quarterly_price_cents); period = "/tri"; }
             const subtitle = showAnnual
               ? `Equivalente a R$ ${((plan.annual_price_cents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
-              : undefined;
-            const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
-            const billingCycle = organization?.billing_cycle || "monthly";
+              : showQuarterly
+                ? `Equivalente a R$ ${((plan.quarterly_price_cents / 3) / 100).toFixed(2).replace(".", ",")}/mês`
+                : undefined;
+            const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
+            const orgBilling = organization?.billing_cycle || "monthly";
             const isSamePlan = !!user && currentPlan === plan.key;
-            const billingMismatch = isSamePlan && plan.price_cents > 0 && (
-              (isAnnual && billingCycle !== "annual") ||
-              (!isAnnual && billingCycle === "annual")
-            );
+            const billingMismatch = isSamePlan && plan.price_cents > 0 && selectedBilling !== orgBilling;
             const ctaText = billingMismatch
-              ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
+              ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
               : plan.cta;
             return (
               <PlanCard
@@ -233,13 +260,13 @@ const PricingPage = () => {
                 price={displayPrice}
                 period={period}
                 subtitle={
-                  (promoEligible && !isAnnual && plan.price_cents > 0)
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0)
                     ? "Depois: " + plan.price + "/mês"
                     : subtitle
                 }
                 savingsBadge={savingsBadge}
                 cta={
-                  (promoEligible && !isAnnual && plan.price_cents > 0 && (!isSamePlan || billingMismatch))
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0 && (!isSamePlan || billingMismatch))
                     ? "🔥 Aproveitar oferta"
                     : ctaText
                 }
@@ -247,12 +274,12 @@ const PricingPage = () => {
                 billingMismatch={billingMismatch}
                 loading={false}
                 promoPrice={
-                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0 && !isSamePlan)
                     ? `R$ ${(Math.round(plan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
                     : undefined
                 }
                 originalPrice={
-                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0 && !isSamePlan)
                     ? plan.price
                     : undefined
                 }
@@ -313,7 +340,9 @@ const PricingPage = () => {
                   <strong className="text-foreground">
                     {isAnnual && selectedPlan?.annual_price_cents
                       ? `${formatPrice(selectedPlan.annual_price_cents)}/ano`
-                      : `${selectedPlan?.price}/mês`}
+                      : isQuarterly && selectedPlan?.quarterly_price_cents
+                        ? `${formatPrice(selectedPlan.quarterly_price_cents)}/tri`
+                        : `${selectedPlan?.price}/mês`}
                   </strong>{" "}
                   no cartão de crédito.
                 </p>
@@ -339,10 +368,15 @@ const PricingPage = () => {
 
       {/* Card Payment Form */}
       {organization && cardFormPlan && (() => {
-        const showPromoInCheckout = promoEligible && !isAnnual && cardFormPlan.price_cents > 0;
-        const checkoutPrice = showPromoInCheckout
-          ? `R$ ${(Math.round(cardFormPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
-          : (isAnnual && cardFormPlan.annual_price_cents ? formatPrice(cardFormPlan.annual_price_cents) : cardFormPlan.price);
+        const showPromoInCheckout = promoEligible && selectedBilling === "monthly" && cardFormPlan.price_cents > 0;
+        let checkoutPrice = cardFormPlan.price;
+        if (showPromoInCheckout) {
+          checkoutPrice = `R$ ${(Math.round(cardFormPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`;
+        } else if (isAnnual && cardFormPlan.annual_price_cents) {
+          checkoutPrice = formatPrice(cardFormPlan.annual_price_cents);
+        } else if (isQuarterly && cardFormPlan.quarterly_price_cents) {
+          checkoutPrice = formatPrice(cardFormPlan.quarterly_price_cents);
+        }
         return (
           <CardPaymentForm
             open={!!cardFormPlan}
@@ -351,7 +385,7 @@ const PricingPage = () => {
             plan={cardFormPlan.key}
             planName={cardFormPlan.name}
             planPrice={checkoutPrice}
-            billing={isAnnual && cardFormPlan.annual_price_cents ? "annual" : "monthly"}
+            billing={selectedBilling}
             promo={showPromoInCheckout}
             onSuccess={() => {
               navigate("/dashboard?tab=subscription");
