@@ -48,9 +48,17 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
             {san(item.customerName ? `${item.baseName} - ${item.customerName}` : item.baseName)}
             {item.lineTotal > 0 && `......R$ ${fmt(item.lineTotal)}`}
           </div>
-          {item.addons.map((addon, i) => (
-            <div key={i} className="pl-3">- {san(addon)}</div>
-          ))}
+          {item.addons.map((addon, i) => {
+            // Parse "1x Bacon R$3,00" or legacy "Bacon"
+            const m = addon.match(/^(\d+x\s+)?(.+?)\s+(R\$.+)$/i);
+            if (m) {
+              const qty = m[1] ? m[1].trim() : "";
+              const addonName = m[2].trim();
+              const price = m[3].trim();
+              return <div key={i} className="pl-3">- {qty ? san(qty + " ") : ""}{san(addonName)}  {san(price)}</div>;
+            }
+            return <div key={i} className="pl-3">- {san(addon)}</div>;
+          })}
           {item.itemObs && (
             <div className="pl-3 italic">{san(`Obs: ${item.itemObs}`)}</div>
           )}
