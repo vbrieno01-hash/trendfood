@@ -6,6 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getRenewalDays(billing: string): number {
+  if (billing === "quarterly") return 93;
+  if (billing === "annual") return 370;
+  return 30;
+}
+
+function getPriceCents(planRow: Record<string, unknown>, billing: string): number {
+  if (billing === "quarterly" && planRow.quarterly_price_cents) return planRow.quarterly_price_cents as number;
+  if (billing === "annual" && planRow.annual_price_cents) return planRow.annual_price_cents as number;
+  return planRow.price_cents as number;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -63,7 +75,7 @@ Deno.serve(async (req) => {
     const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: planRow, error: planError } = await serviceClient
       .from("platform_plans")
-      .select("name, price_cents")
+      .select("name, price_cents, quarterly_price_cents, annual_price_cents")
       .eq("key", plan)
       .eq("active", true)
       .single();
@@ -76,19 +88,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (planRow.price_cents === 0) {
+    // Get the correct price based on billing cycle
+    const baseCents = getPriceCents(planRow, billing);
+
+    if (baseCents === 0) {
       return new Response(JSON.stringify({ error: "Cannot create payment for a free plan" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Apply promo: half price for first month if eligible
-    const promoApplied = promo && billing === "monthly" && !org.used_first_month_promo && planRow.price_cents > 0;
-    const finalCents = promoApplied ? Math.round(planRow.price_cents / 2) : planRow.price_cents;
+    // Apply promo: half price for first month if eligible (only monthly)
+    const promoApplied = promo && billing === "monthly" && !org.used_first_month_promo && baseCents > 0;
+    const finalCents = promoApplied ? Math.round(baseCents / 2) : baseCents;
     const amount = finalCents / 100;
+    const renewalDays = getRenewalDays(billing);
 
-    console.log(`[create-mp-payment] promoRequested=${promo} promoApplied=${promoApplied} base=${planRow.price_cents} final=${finalCents}`);
+    console.log(`[create-mp-payment] billing=${billing} promoRequested=${promo} promoApplied=${promoApplied} base=${baseCents} final=${finalCents} renewalDays=${renewalDays}`);
 
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!accessToken) {
@@ -114,6 +130,7 @@ Deno.serve(async (req) => {
         org_id,
         plan,
         user_id: userId,
+        billing,
         promo_applied: promoApplied,
       },
     };
@@ -161,7 +178,8 @@ Deno.serve(async (req) => {
       const updateData: Record<string, unknown> = {
         subscription_plan: plan,
         subscription_status: "active",
-        trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        billing_cycle: billing,
+        trial_ends_at: new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString(),
       };
       if (promoApplied) updateData.used_first_month_promo = true;
 
@@ -178,7 +196,7 @@ Deno.serve(async (req) => {
         old_status: null,
         new_status: "active",
         source: "mercadopago",
-        notes: `Payment ${mpData.id} approved (card)`,
+        notes: `Payment ${mpData.id} approved (card, ${billing})`,
       });
     }
 
@@ -189,7 +207,7 @@ Deno.serve(async (req) => {
       payment_id: mpData.id,
     };
 
-    console.log(`[create-mp-payment] plan=${plan} amount=${amount} status=${mpData.status} detail=${mpData.status_detail}`);
+    console.log(`[create-mp-payment] plan=${plan} billing=${billing} amount=${amount} status=${mpData.status} detail=${mpData.status_detail}`);
 
     if (payment_method === "pix" && mpData.point_of_interaction?.transaction_data) {
       result.pix_qr_code = mpData.point_of_interaction.transaction_data.qr_code;

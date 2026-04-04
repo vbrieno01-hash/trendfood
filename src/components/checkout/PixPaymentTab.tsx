@@ -220,7 +220,7 @@ const PixPaymentTab = ({ orgId, plan, planPrice, billing = "monthly", promo, onS
         </div>
 
         <p className="text-xs text-center text-muted-foreground">
-          O pagamento via PIX ativa o plano por 30 dias. Será necessário renovar manualmente.
+          O pagamento via PIX ativa o plano por {billing === "annual" ? "12 meses" : billing === "quarterly" ? "90 dias" : "30 dias"}. Será necessário renovar manualmente.
         </p>
       </div>
     );
@@ -259,7 +259,7 @@ const PixPaymentTab = ({ orgId, plan, planPrice, billing = "monthly", promo, onS
       </Button>
 
       <p className="text-xs text-center text-muted-foreground">
-        O pagamento via PIX ativa o plano por 30 dias. Será necessário renovar manualmente.
+        O pagamento via PIX ativa o plano por {billing === "annual" ? "12 meses" : billing === "quarterly" ? "90 dias" : "30 dias"}. Será necessário renovar manualmente.
       </p>
     </form>
   );
