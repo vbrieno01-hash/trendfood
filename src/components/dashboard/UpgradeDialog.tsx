@@ -41,7 +41,9 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedBilling, setSelectedBilling] = useState<BillingCycle>("monthly");
+  const isAnnual = selectedBilling === "annual";
+  const isQuarterly = selectedBilling === "quarterly";
 
   useEffect(() => {
     if (!open) return;
