@@ -743,7 +743,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     }
     const localUrl = URL.createObjectURL(file);
     objectUrlRef.current = localUrl;
-    setForm((p) => ({ ...p, imageFile: file }));
+    setForm((p) => ({ ...p, imageFile: file, image_url: null }));
     setImagePreview(localUrl);
     console.log("[MenuTab] Photo selected locally (no upload yet)", { size: file.size });
     // Reset input so same file can be re-selected
