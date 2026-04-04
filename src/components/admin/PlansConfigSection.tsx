@@ -52,6 +52,8 @@ const emptyPlan: Omit<PlanRow, "id" | "created_at"> = {
   key: "",
   name: "",
   price_cents: 0,
+  quarterly_price_cents: null,
+  annual_price_cents: null,
   description: "",
   features: [],
   highlighted: false,
