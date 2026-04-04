@@ -1,32 +1,43 @@
 
 
-## Plano: Padronizar seletor de ciclo de cobrança em todas as páginas
+## Plano: Corrigir fluxo de pagamento para respeitar ciclo de cobrança (mensal/trimestral/anual)
 
-### Problema
-A página principal (`Index.tsx`) ainda usa o antigo toggle Switch com apenas "Mensal / Anual", sem a opção Trimestral. Além disso, o painel admin de configuração de planos (`PlansConfigSection.tsx`) não tem campo para editar o preço trimestral.
+### Problemas encontrados
 
-As páginas `/planos` (PricingPage), `SubscriptionTab` e `UpgradeDialog` já estão corretas com os 3 botões.
+Ao analisar o código, encontrei **5 problemas** que fazem os planos não funcionarem corretamente quando o ciclo não é mensal:
+
+1. **Preço errado no PIX/Cartão** — A edge function `create-mp-payment` só busca `price_cents` do banco. Quando o cliente seleciona trimestral ou anual, o Mercado Pago recebe o preço mensal em vez do correto.
+
+2. **Prazo sempre 30 dias** — Tanto `create-mp-payment` (cartão aprovado) quanto `check-subscription-pix` (PIX aprovado) definem `trial_ends_at` como +30 dias, independente do ciclo. Trimestral deveria ser ~93 dias, anual ~370 dias.
+
+3. **`billing_cycle` não é salvo** — Nenhuma das duas functions atualiza o campo `billing_cycle` da organização após o pagamento.
+
+4. **Mensagem fixa "30 dias"** — O `PixPaymentTab` mostra "O pagamento via PIX ativa o plano por 30 dias" hardcoded, mesmo para trimestral/anual.
+
+5. **Promo só para mensal mas preço não considera ciclo** — A lógica de promo está correta (só mensal), mas o preço base usado é sempre `price_cents`.
 
 ### Alterações
 
-**1. `src/pages/Index.tsx`**
-- Trocar o `Switch` + labels por seletor de 3 botões idêntico ao das outras páginas (Mensal, Trimestral -10%, Anual -17%)
-- Substituir `isAnnual: boolean` por `selectedBilling: BillingCycle` (monthly/quarterly/annual)
-- Atualizar lógica de exibição de preço para incluir `quarterly_price_cents`
-- Remover import do `Switch`
+**1. `supabase/functions/create-mp-payment/index.ts`**
+- Buscar `price_cents, quarterly_price_cents, annual_price_cents` do plano
+- Calcular `finalCents` baseado no `billing`: quarterly usa `quarterly_price_cents`, annual usa `annual_price_cents`
+- Calcular `renewalDays`: monthly=30, quarterly=93, annual=370
+- Salvar `billing_cycle` e usar `renewalDays` no `trial_ends_at` quando cartão aprovado
+- Incluir `billing` no `metadata` do pagamento MP
 
-**2. `src/components/admin/PlansConfigSection.tsx`**
-- Adicionar campo "Preço Trimestral (centavos)" no formulário de edição/criação de plano
-- Incluir `quarterly_price_cents` no `PlanRow`, no form state, e no `upsert`
-- Exibir o valor trimestral na listagem ao lado do mensal
+**2. `supabase/functions/check-subscription-pix/index.ts`**
+- Ler `billing` do `metadata` do pagamento MP (já está no metadata após fix acima)
+- Calcular `renewalDays` baseado no billing
+- Salvar `billing_cycle` e usar `renewalDays` no `trial_ends_at`
 
-### Visual do seletor (mesmo das outras páginas)
-```text
-[ Mensal ]  [ Trimestral -10% ]  [ Anual -17% ]
-```
+**3. `src/components/checkout/PixPaymentTab.tsx`**
+- Trocar mensagem hardcoded por mensagem dinâmica baseada na prop `billing`:
+  - monthly: "30 dias"
+  - quarterly: "90 dias"  
+  - annual: "12 meses"
 
 ### Impacto
-- 2 arquivos alterados
-- Zero mudanças no banco — a coluna `quarterly_price_cents` já existe
-- Todas as 5 telas de planos ficam com o mesmo padrão visual e funcional
+- 2 edge functions + 1 componente frontend
+- Zero mudanças no banco de dados
+- Corrige cobranças PIX e cartão para todos os ciclos
 
