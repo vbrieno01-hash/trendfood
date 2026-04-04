@@ -236,20 +236,22 @@ const PricingPage = () => {
             </div>
           ) : plans.map((plan) => {
             const showAnnual = isAnnual && plan.annual_price_cents > 0;
-            const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents) : plan.price;
-            const period = showAnnual ? "/ano" : "/mês";
+            const showQuarterly = isQuarterly && plan.quarterly_price_cents > 0;
+            let displayPrice = plan.price;
+            let period = "/mês";
+            if (showAnnual) { displayPrice = formatPrice(plan.annual_price_cents); period = "/ano"; }
+            else if (showQuarterly) { displayPrice = formatPrice(plan.quarterly_price_cents); period = "/tri"; }
             const subtitle = showAnnual
               ? `Equivalente a R$ ${((plan.annual_price_cents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
-              : undefined;
-            const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
-            const billingCycle = organization?.billing_cycle || "monthly";
+              : showQuarterly
+                ? `Equivalente a R$ ${((plan.quarterly_price_cents / 3) / 100).toFixed(2).replace(".", ",")}/mês`
+                : undefined;
+            const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
+            const orgBilling = organization?.billing_cycle || "monthly";
             const isSamePlan = !!user && currentPlan === plan.key;
-            const billingMismatch = isSamePlan && plan.price_cents > 0 && (
-              (isAnnual && billingCycle !== "annual") ||
-              (!isAnnual && billingCycle === "annual")
-            );
+            const billingMismatch = isSamePlan && plan.price_cents > 0 && selectedBilling !== orgBilling;
             const ctaText = billingMismatch
-              ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
+              ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
               : plan.cta;
             return (
               <PlanCard
@@ -258,13 +260,13 @@ const PricingPage = () => {
                 price={displayPrice}
                 period={period}
                 subtitle={
-                  (promoEligible && !isAnnual && plan.price_cents > 0)
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0)
                     ? "Depois: " + plan.price + "/mês"
                     : subtitle
                 }
                 savingsBadge={savingsBadge}
                 cta={
-                  (promoEligible && !isAnnual && plan.price_cents > 0 && (!isSamePlan || billingMismatch))
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0 && (!isSamePlan || billingMismatch))
                     ? "🔥 Aproveitar oferta"
                     : ctaText
                 }
@@ -272,12 +274,12 @@ const PricingPage = () => {
                 billingMismatch={billingMismatch}
                 loading={false}
                 promoPrice={
-                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0 && !isSamePlan)
                     ? `R$ ${(Math.round(plan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
                     : undefined
                 }
                 originalPrice={
-                  (promoEligible && !isAnnual && plan.price_cents > 0 && !isSamePlan)
+                  (promoEligible && selectedBilling === "monthly" && plan.price_cents > 0 && !isSamePlan)
                     ? plan.price
                     : undefined
                 }
