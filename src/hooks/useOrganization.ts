@@ -39,6 +39,7 @@ export interface Organization {
   created_at: string;
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
+  pix_key?: string | null;
   // pix_key removed from public query — use edge function generate-pix-payload
   store_address?: string | null;
   delivery_config?: DeliveryConfig | null;
