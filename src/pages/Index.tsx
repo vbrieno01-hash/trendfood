@@ -111,7 +111,7 @@ const Index = () => {
   const { content: cms } = usePlatformContent();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedBilling, setSelectedBilling] = useState<"monthly" | "quarterly" | "annual">("monthly");
   const [orderCount, setOrderCount] = useState(0);
   const [displayCount, setDisplayCount] = useState(0);
 
