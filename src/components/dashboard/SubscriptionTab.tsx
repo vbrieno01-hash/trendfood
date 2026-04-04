@@ -37,7 +37,10 @@ interface PlanData {
   badge?: string;
   priceCents: number;
   annualPriceCents: number;
+  quarterlyPriceCents: number;
 }
+
+type BillingCycle = "monthly" | "quarterly" | "annual";
 
 function formatPrice(cents: number): string {
   if (cents === 0) return "Grátis";
@@ -58,6 +61,7 @@ function mapPlanRow(row: any): PlanData {
     badge: row.badge ?? undefined,
     priceCents: row.price_cents,
     annualPriceCents: row.annual_price_cents || 0,
+    quarterlyPriceCents: row.quarterly_price_cents || 0,
   };
 }
 
