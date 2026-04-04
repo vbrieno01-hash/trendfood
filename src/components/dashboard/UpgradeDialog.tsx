@@ -169,12 +169,12 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
                     savingsBadge={savingsBadge}
                     description={plan.description || ""}
                     features={plan.features}
-                    cta={showPromo ? "🔥 Aproveitar oferta" : ctaText}
+                    cta={showPromo ? "🔥 Aproveitar oferta" : "Assinar agora"}
                     ctaLink="#"
                     highlighted={plan.highlighted}
                     badge={plan.badge || undefined}
                     currentPlan={isSamePlan}
-                    billingMismatch={billingMismatch}
+                    billingMismatch={false}
                     onSelect={() => handleSelect(plan)}
                     promoPrice={promoPrice}
                     originalPrice={originalPrice}
