@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import PasswordRequirements from "@/components/PasswordRequirements";
 import logoIcon from "@/assets/logo-icon.png";
 
 const ResetPasswordPage = () => {
@@ -92,6 +93,7 @@ const ResetPasswordPage = () => {
                   {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <PasswordRequirements password={password} />
             </div>
             <div>
               <Label htmlFor="confirm-new-pwd" className="text-sm font-medium mb-1.5 block">Confirmar nova senha</Label>

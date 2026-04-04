@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Eye, EyeOff, Loader2, Check } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
+import PasswordRequirements from "@/components/PasswordRequirements";
 
 const translateAuthError = (msg?: string): string | undefined => {
   if (!msg) return undefined;
@@ -585,7 +586,8 @@ const AuthPage = () => {
                     >
                       {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
-                  </div>
+                   </div>
+                  <PasswordRequirements password={signupData.password} />
                 </div>
                 <div>
                   <Label htmlFor="signup-confirm-pwd" className="text-sm font-medium mb-1.5 block">
