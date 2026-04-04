@@ -369,23 +369,25 @@ const SubscriptionTab = () => {
           </div>
         ) : plans.map((plan) => {
           const showAnnual = isAnnual && plan.annualPriceCents > 0;
-          const displayPrice = showAnnual ? formatPrice(plan.annualPriceCents) : plan.price;
-          const period = showAnnual ? "/ano" : "/mês";
-          const showPromo = promoEligible && !isAnnual && plan.priceCents > 0;
+          const showQuarterly = isQuarterly && plan.quarterlyPriceCents > 0;
+          let displayPrice = plan.price;
+          let period = "/mês";
+          if (showAnnual) { displayPrice = formatPrice(plan.annualPriceCents); period = "/ano"; }
+          else if (showQuarterly) { displayPrice = formatPrice(plan.quarterlyPriceCents); period = "/tri"; }
+          const showPromo = promoEligible && selectedBilling === "monthly" && plan.priceCents > 0;
           const subtitle = showAnnual
             ? `Equivalente a R$ ${((plan.annualPriceCents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
-            : showPromo
-              ? "Depois volta ao preço normal"
-              : undefined;
-          const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
-          const billingCycle = organization?.billing_cycle || "monthly";
+            : showQuarterly
+              ? `Equivalente a R$ ${((plan.quarterlyPriceCents / 3) / 100).toFixed(2).replace(".", ",")}/mês`
+              : showPromo
+                ? "Depois volta ao preço normal"
+                : undefined;
+          const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
+          const orgBilling = organization?.billing_cycle || "monthly";
           const isSamePlan = currentPlan === plan.key;
-          const billingMismatch = isSamePlan && plan.priceCents > 0 && (
-            (isAnnual && billingCycle !== "annual") ||
-            (!isAnnual && billingCycle === "annual")
-          );
+          const billingMismatch = isSamePlan && plan.priceCents > 0 && selectedBilling !== orgBilling;
           const ctaText = billingMismatch
-            ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
+            ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
             : showPromo ? "🔥 Aproveitar oferta" : plan.cta;
           return (
             <PlanCard
@@ -425,8 +427,8 @@ const SubscriptionTab = () => {
           plan={cardFormPlan.key}
           planName={cardFormPlan.name}
           planPrice={cardFormPlan.price}
-          billing={isAnnual ? "annual" : "monthly"}
-          promo={promoEligible && !isAnnual}
+          billing={selectedBilling}
+          promo={promoEligible && selectedBilling === "monthly"}
           onSuccess={() => setTimeout(() => window.location.reload(), 1500)}
         />
       )}
