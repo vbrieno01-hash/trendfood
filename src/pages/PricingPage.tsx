@@ -41,7 +41,10 @@ interface PlanData {
   external?: boolean;
   price_cents: number;
   annual_price_cents: number;
+  quarterly_price_cents: number;
 }
+
+type BillingCycle = "monthly" | "quarterly" | "annual";
 
 function formatPrice(cents: number): string {
   if (cents === 0) return "Grátis";
@@ -55,6 +58,7 @@ function mapPlanRow(row: any): PlanData {
     price: formatPrice(row.price_cents),
     price_cents: row.price_cents,
     annual_price_cents: row.annual_price_cents || 0,
+    quarterly_price_cents: row.quarterly_price_cents || 0,
     description: row.description ?? "",
     features: Array.isArray(row.features) ? row.features : [],
     cta: row.price_cents === 0 ? "Começar Grátis" : `Assinar ${row.name}`,
