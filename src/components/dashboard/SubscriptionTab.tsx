@@ -75,6 +75,9 @@ const SubscriptionTab = () => {
   const billingCycle = organization?.billing_cycle || "monthly";
   const isAnnualBilling = billingCycle === "annual";
   const [selectedBilling, setSelectedBilling] = useState<BillingCycle>("monthly");
+  const [cardFormPlan, setCardFormPlan] = useState<{ key: string; name: string; price: string } | null>(null);
+  const isAnnual = selectedBilling === "annual";
+  const isQuarterly = selectedBilling === "quarterly";
   const planLimits = usePlanLimits(organization);
   const promoEligible = planLimits.promoEligible;
 
