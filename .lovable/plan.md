@@ -1,19 +1,27 @@
 
-## Plano: Botão de exportar cardápio como CSV
+
+## Plano: Adicionar campo de URL de imagem no formulário de produto
 
 ### O que será feito
-Adicionar um botão "Exportar CSV" ao lado do botão "Importar CSV/Excel" na aba de Cardápio, permitindo que o lojista baixe todo o cardápio em formato CSV.
+Adicionar um campo de texto para colar URL de imagem diretamente no formulário de criar/editar produto, como alternativa ao upload de arquivo.
 
 ### Arquivo alterado
 
 **`src/components/dashboard/MenuTab.tsx`**
 
-1. Importar o ícone `Download` do lucide-react
-2. Criar uma função `handleExportCSV` que:
-   - Monta um array com colunas: Nome, Descrição, Preço, Categoria, Disponível
-   - Converte para string CSV com separador `;` (padrão BR, compatível com Excel)
-   - Gera o download automático como `cardapio-{slug}.csv`
-3. Adicionar o botão entre o "Importar CSV/Excel" e o "Limpar", na linha ~855
+1. Abaixo do botão "Adicionar foto" (linha ~1066), adicionar um divisor "ou" e um campo `Input` com placeholder "Cole a URL da imagem aqui..."
+2. Quando o usuário colar uma URL:
+   - Atualizar `form.image_url` com o valor digitado
+   - Atualizar `imagePreview` para mostrar a prévia da imagem
+   - Limpar `form.imageFile` (URL tem prioridade sobre arquivo local)
+3. No `handleSubmit` (linha ~755): se `form.image_url` já é uma URL válida e não há `imageFile`, usar direto sem upload — esse fluxo já funciona naturalmente
+4. Ao selecionar um arquivo via botão, limpar o campo de URL para evitar conflito
 
 ### Visual
-Um botão outline com ícone de download, texto "Exportar CSV" (visível em desktop, só ícone no mobile), consistente com os outros botões da toolbar.
+```text
+[Prévia 80x80]  [📷 Adicionar foto]
+                 JPG, PNG ou WebP. Máx 5MB.
+                 ── ou ──
+                 [  Cole a URL da imagem aqui...  ]
+```
+
