@@ -368,10 +368,15 @@ const PricingPage = () => {
 
       {/* Card Payment Form */}
       {organization && cardFormPlan && (() => {
-        const showPromoInCheckout = promoEligible && !isAnnual && cardFormPlan.price_cents > 0;
-        const checkoutPrice = showPromoInCheckout
-          ? `R$ ${(Math.round(cardFormPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
-          : (isAnnual && cardFormPlan.annual_price_cents ? formatPrice(cardFormPlan.annual_price_cents) : cardFormPlan.price);
+        const showPromoInCheckout = promoEligible && selectedBilling === "monthly" && cardFormPlan.price_cents > 0;
+        let checkoutPrice = cardFormPlan.price;
+        if (showPromoInCheckout) {
+          checkoutPrice = `R$ ${(Math.round(cardFormPlan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`;
+        } else if (isAnnual && cardFormPlan.annual_price_cents) {
+          checkoutPrice = formatPrice(cardFormPlan.annual_price_cents);
+        } else if (isQuarterly && cardFormPlan.quarterly_price_cents) {
+          checkoutPrice = formatPrice(cardFormPlan.quarterly_price_cents);
+        }
         return (
           <CardPaymentForm
             open={!!cardFormPlan}
@@ -380,7 +385,7 @@ const PricingPage = () => {
             plan={cardFormPlan.key}
             planName={cardFormPlan.name}
             planPrice={checkoutPrice}
-            billing={isAnnual && cardFormPlan.annual_price_cents ? "annual" : "monthly"}
+            billing={selectedBilling}
             promo={showPromoInCheckout}
             onSuccess={() => {
               navigate("/dashboard?tab=subscription");
