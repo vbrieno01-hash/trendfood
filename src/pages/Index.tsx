@@ -97,7 +97,7 @@ const benefitIcons = [
 
 const formatPrice = (cents: number) => {
   if (cents === 0) return "Grátis";
-  return `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
+  return `R$ ${(cents / 100).toFixed(0)}`;
 };
 
 interface PlanRow {
