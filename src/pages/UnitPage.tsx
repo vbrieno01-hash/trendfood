@@ -1098,7 +1098,7 @@ const UnitPage = () => {
                   </div>
                   {item.addons.length > 0 && (
                     <p className="text-xs text-muted-foreground ml-[76px] mt-0.5">
-                      {item.addons.map(a => `+ ${a.name}`).join(", ")}
+                      {item.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : '1x '}${a.name}`).join(", ")}
                     </p>
                   )}
                   {item.notes.trim() && (

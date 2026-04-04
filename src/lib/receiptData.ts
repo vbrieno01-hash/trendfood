@@ -129,7 +129,7 @@ export function parseItemName(name: string): { baseName: string; addons: string[
   const addonMatch = baseName.match(/\s*\(([^)]+)\)\s*$/);
   if (addonMatch) {
     baseName = baseName.slice(0, addonMatch.index).trim();
-    addonMatch[1].split(",").forEach((a) => {
+    addonMatch[1].split(/,\s*(?=\+)/).forEach((a) => {
       let cleaned = a.trim().replace(/^\+\s*/, "").trim();
       if (cleaned) addons.push(cleaned);
     });
