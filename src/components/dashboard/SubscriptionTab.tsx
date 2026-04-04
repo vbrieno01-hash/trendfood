@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+
 import PlanCard from "@/components/pricing/PlanCard";
 import {
   AlertDialog,
