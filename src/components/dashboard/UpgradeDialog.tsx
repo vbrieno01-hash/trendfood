@@ -139,22 +139,21 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {plans.map((plan) => {
                 const showAnnual = isAnnual && plan.annual_price_cents > 0;
-                const displayPrice = showAnnual ? formatPrice(plan.annual_price_cents) : formatPriceFull(plan.price_cents);
-                const period = showAnnual ? "/ano" : "/mês";
+                const showQuarterly = isQuarterly && plan.quarterly_price_cents > 0;
+                let displayPrice = formatPriceFull(plan.price_cents);
+                let period = "/mês";
+                if (showAnnual) { displayPrice = formatPrice(plan.annual_price_cents); period = "/ano"; }
+                else if (showQuarterly) { displayPrice = formatPrice(plan.quarterly_price_cents); period = "/tri"; }
                 const subtitle = showAnnual
                   ? `Equivalente a R$ ${((plan.annual_price_cents / 12) / 100).toFixed(2).replace(".", ",")}/mês`
-                  : undefined;
-                const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : undefined;
+                  : showQuarterly
+                    ? `Equivalente a R$ ${((plan.quarterly_price_cents / 3) / 100).toFixed(2).replace(".", ",")}/mês`
+                    : undefined;
+                const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
                 const isSamePlan = currentPlan === plan.key;
-                const billingMismatch = isSamePlan && (
-                  (isAnnual && true) || (!isAnnual && false)
-                );
-                const ctaText = billingMismatch
-                  ? (isAnnual ? "Mudar para anual" : "Mudar para mensal")
-                  : "Assinar agora";
 
                 // Promo pricing: half price for first month (monthly only)
-                const showPromo = promoEligible && !isAnnual && !isSamePlan;
+                const showPromo = promoEligible && selectedBilling === "monthly" && !isSamePlan;
                 const promoPrice = showPromo
                   ? `R$ ${(Math.round(plan.price_cents / 2) / 100).toFixed(2).replace(".", ",")}`
                   : undefined;
