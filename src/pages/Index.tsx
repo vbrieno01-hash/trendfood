@@ -381,11 +381,11 @@ const Index = () => {
                   : isQuarterly
                     ? formatPrice(plan.quarterly_price_cents!)
                     : formatPrice(plan.price_cents);
-                const period = isAnnual ? "/ano" : isQuarterly ? "/trim" : "/mês";
+                const period = isAnnual ? "/ano" : isQuarterly ? "/tri" : "/mês";
                 const subtitle = isAnnual
-                  ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(0)}/mês`
+                  ? `Equivalente a R$ ${((plan.annual_price_cents! / 12) / 100).toFixed(2).replace(".", ",")}/mês`
                   : isQuarterly
-                    ? `Equivalente a R$ ${((plan.quarterly_price_cents! / 3) / 100).toFixed(0)}/mês`
+                    ? `Equivalente a R$ ${((plan.quarterly_price_cents! / 3) / 100).toFixed(2).replace(".", ",")}/mês`
                     : undefined;
                 const savingsBadge = isAnnual ? "ECONOMIA DE 17%" : isQuarterly ? "ECONOMIA DE 10%" : undefined;
                 return (

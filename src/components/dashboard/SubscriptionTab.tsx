@@ -406,7 +406,7 @@ const SubscriptionTab = () => {
               currentPlan={isSamePlan}
               billingMismatch={billingMismatch}
               loading={false}
-              promoPrice={showPromo ? formatPrice(Math.round(plan.priceCents / 2)) : undefined}
+              promoPrice={showPromo ? `R$ ${(Math.round(plan.priceCents / 2) / 100).toFixed(2).replace(".", ",")}` : undefined}
               originalPrice={showPromo ? plan.price : undefined}
               onSelect={
                 (!isSamePlan || billingMismatch) && !isLifetime

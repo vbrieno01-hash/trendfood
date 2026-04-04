@@ -140,7 +140,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
               {plans.map((plan) => {
                 const showAnnual = isAnnual && plan.annual_price_cents > 0;
                 const showQuarterly = isQuarterly && plan.quarterly_price_cents > 0;
-                let displayPrice = formatPriceFull(plan.price_cents);
+                let displayPrice = formatPrice(plan.price_cents);
                 let period = "/mês";
                 if (showAnnual) { displayPrice = formatPrice(plan.annual_price_cents); period = "/ano"; }
                 else if (showQuarterly) { displayPrice = formatPrice(plan.quarterly_price_cents); period = "/tri"; }
