@@ -1,34 +1,23 @@
 
 
-## Plano: Corrigir contador de pedidos da landing page
+## Plano: Melhorar a aba "Ganhe Desconto"
 
 ### Problema
-A policy de segurança `orders_select_public_recent` que adicionamos restringe leitura pública a pedidos das últimas 24h. O contador da landing page faz um `SELECT count(*)` anônimo, então só vê pedidos recentes — por isso sumiu o número de 500+.
+A seção atual é funcional mas não deixa claro qual é a recompensa concreta. O lojista precisa entender rapidamente: "o que eu ganho?" e "como funciona?".
 
-### Solução
-Criar uma função `SECURITY DEFINER` que retorna a contagem total de pedidos sem passar pelo RLS. Isso mantém a proteção de dados pessoais (ninguém lê os campos dos pedidos antigos) mas permite contar todos.
+### Mudanças no `src/components/dashboard/ReferralSection.tsx`
 
-| # | O que | Onde |
-|---|-------|------|
-| 1 | Criar função `get_total_order_count()` SECURITY DEFINER que retorna `count(*)` da tabela orders | Migração SQL |
-| 2 | Usar `supabase.rpc('get_total_order_count')` no Index.tsx em vez de `supabase.from("orders").select("*", { count: "exact", head: true })` | `src/pages/Index.tsx` |
+| # | Melhoria | Detalhe |
+|---|----------|---------|
+| 1 | **Card de recompensa destacado** | Novo card no topo com fundo gradiente mostrando claramente: "Plano Mensal = +10 dias gratis" e "Plano Anual = +30 dias gratis" |
+| 2 | **Passo a passo visual** | Substituir o bloco "Como funciona?" por 3 passos numerados com icones: (1) Copie o link, (2) Amigo se cadastra, (3) Amigo paga e voce ganha dias |
+| 3 | **Mensagem motivacional dinamica** | Se count=0: "Comece agora!", se count>0 mas sem bonus: "Seus amigos ainda nao pagaram", se tem bonus: "Parabens! Continue indicando" |
+| 4 | **Botao de compartilhar WhatsApp** | Alem do copiar, adicionar botao verde "Enviar no WhatsApp" que abre `wa.me` com mensagem pre-formatada |
+| 5 | **Layout dos stats mais limpo** | Reorganizar os 3 cards de estatistica com icones maiores e labels mais claros |
 
-### Detalhes técnicos
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_total_order_count()
-RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$ SELECT count(*) FROM orders; $$;
-```
-
-No Index.tsx:
-```typescript
-supabase.rpc('get_total_order_count')
-  .then(({ data }) => { if (data) setOrderCount(Number(data)); });
-```
-
-### Resultado
-- Contador volta a mostrar todos os 500+ pedidos
-- Dados pessoais dos pedidos antigos continuam protegidos
-- 1 migração SQL + 1 linha editada no Index.tsx
+### Detalhes
+- 1 arquivo editado (`ReferralSection.tsx`)
+- Zero mudancas no banco de dados
+- Recompensa exibida de forma clara: "+10 dias (mensal) / +30 dias (anual)" no card principal
+- Botao WhatsApp usa `window.open(`https://wa.me/?text=...`)`
 
