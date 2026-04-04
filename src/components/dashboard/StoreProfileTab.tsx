@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ interface Organization {
   emoji: string;
   primary_color: string;
   logo_url: string | null;
+  user_id?: string;
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
   pix_key?: string | null;
@@ -58,7 +60,16 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 export default function StoreProfileTab({ organization, effectivePlan = "free" }: { organization: Organization; effectivePlan?: string }) {
-  const { refreshOrganization, user, organizations } = useAuth();
+  const { refreshOrganization: refreshAuthOrg, user, organizations } = useAuth();
+  const queryClient = useQueryClient();
+  const isAdminContext = !!user && !!organization.user_id && user.id !== organization.user_id;
+  const refreshOrganization = async () => {
+    if (isAdminContext) {
+      await queryClient.invalidateQueries({ queryKey: ["admin-org-full", organization.id] });
+    } else {
+      await refreshAuthOrg();
+    }
+  };
   const { promoEligible } = usePlanLimits(organization);
   const [freeAbove, setFreeAbove] = useState<number>(
     (organization.delivery_config as any)?.free_above ?? 80
@@ -124,7 +135,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
   // Helper: update shared fields across ALL user orgs (except current which is updated separately)
   const updateAllOrgs = async (sharedFields: Record<string, any>) => {
-    if (!user) return;
+    if (!user || isAdminContext) return;
     const otherOrgIds = organizations.filter((o) => o.id !== organization.id).map((o) => o.id);
     if (otherOrgIds.length === 0) return;
     await supabase
