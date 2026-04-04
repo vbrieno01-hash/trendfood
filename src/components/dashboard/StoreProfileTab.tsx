@@ -60,8 +60,16 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 export default function StoreProfileTab({ organization, effectivePlan = "free" }: { organization: Organization; effectivePlan?: string }) {
-  const { refreshOrganization, user, organizations } = useAuth();
-  const isAdminContext = user?.id !== organization.user_id;
+  const { refreshOrganization: refreshAuthOrg, user, organizations } = useAuth();
+  const queryClient = useQueryClient();
+  const isAdminContext = !!user && !!organization.user_id && user.id !== organization.user_id;
+  const refreshOrganization = async () => {
+    if (isAdminContext) {
+      await queryClient.invalidateQueries({ queryKey: ["admin-org-full", organization.id] });
+    } else {
+      await refreshAuthOrg();
+    }
+  };
   const { promoEligible } = usePlanLimits(organization);
   const [freeAbove, setFreeAbove] = useState<number>(
     (organization.delivery_config as any)?.free_above ?? 80
