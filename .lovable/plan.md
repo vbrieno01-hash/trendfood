@@ -1,27 +1,41 @@
 
 
-## Plano: Adicionar campo de URL de imagem no formulário de produto
+## Plano: Corrigir gerenciamento de lojas no painel admin
 
-### O que será feito
-Adicionar um campo de texto para colar URL de imagem diretamente no formulário de criar/editar produto, como alternativa ao upload de arquivo.
+### Problema
+O `AdminStoreManager` constrói um objeto `orgForComponents` com dados mínimos (sem `whatsapp`, `business_hours`, `pix_key`, `store_address`, `delivery_config`, `banner_url`, etc.). Isso faz com que componentes como `StoreProfileTab` inicializem formulários vazios e não consigam salvar corretamente.
 
-### Arquivo alterado
+### Solução
+Buscar os dados completos da organização diretamente do banco ao abrir o gerenciador de loja.
 
-**`src/components/dashboard/MenuTab.tsx`**
+### Arquivos alterados
 
-1. Abaixo do botão "Adicionar foto" (linha ~1066), adicionar um divisor "ou" e um campo `Input` com placeholder "Cole a URL da imagem aqui..."
-2. Quando o usuário colar uma URL:
-   - Atualizar `form.image_url` com o valor digitado
-   - Atualizar `imagePreview` para mostrar a prévia da imagem
-   - Limpar `form.imageFile` (URL tem prioridade sobre arquivo local)
-3. No `handleSubmit` (linha ~755): se `form.image_url` já é uma URL válida e não há `imageFile`, usar direto sem upload — esse fluxo já funciona naturalmente
-4. Ao selecionar um arquivo via botão, limpar o campo de URL para evitar conflito
+**1. `src/components/admin/AdminStoreManager.tsx`**
+- Adicionar `useQuery` para buscar todos os campos da organização via `supabase.from("organizations").select("*").eq("id", org.id)`
+- Substituir o `orgForComponents` estático pelo resultado da query completa
+- Mostrar loading skeleton enquanto carrega
+- Passar o objeto completo para `MenuTab`, `StoreProfileTab`, `TablesTab`, etc.
 
-### Visual
-```text
-[Prévia 80x80]  [📷 Adicionar foto]
-                 JPG, PNG ou WebP. Máx 5MB.
-                 ── ou ──
-                 [  Cole a URL da imagem aqui...  ]
+**2. `src/pages/AdminPage.tsx`** (ajuste menor)
+- Expandir `OrgRow` ou a query de listagem para incluir campos extras necessários (como `primary_color`, `logo_url`, `pix_key`, `delivery_config`, etc.) — ou delegar isso inteiramente ao fetch interno do `AdminStoreManager` (abordagem preferida, sem alterar AdminPage)
+
+### Abordagem técnica
+O `AdminStoreManager` já recebe o `org.id`. Basta fazer:
+```ts
+const { data: fullOrg, isLoading } = useQuery({
+  queryKey: ["admin-org-full", org.id],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("*")
+      .eq("id", org.id)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+});
 ```
+E usar `fullOrg` como base para `orgForComponents` — preenchendo todos os campos que `StoreProfileTab` e outros componentes esperam.
+
+As políticas de RLS já permitem `SELECT` público na tabela `organizations` e `UPDATE` para admin, então não há mudança no banco.
 
