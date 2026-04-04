@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
         .eq("id", orgId)
         .single();
 
-      const legacyDays = org?.billing_cycle === "annual" ? 370 : 30;
+      const legacyDays = org?.billing_cycle === "annual" ? 370 : org?.billing_cycle === "quarterly" ? 95 : 30;
       const trialEnds = new Date(Date.now() + legacyDays * 24 * 60 * 60 * 1000).toISOString();
 
       const updateData: Record<string, unknown> = {
