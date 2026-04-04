@@ -3,7 +3,7 @@ import { usePlatformContent } from "@/hooks/usePlatformContent";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+
 import ShowcaseSection from "@/components/landing/ShowcaseSection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
