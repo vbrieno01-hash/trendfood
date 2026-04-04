@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Gift, Users, CalendarPlus, Info, BadgeDollarSign } from "lucide-react";
+import { Copy, Check, Gift, Users, CalendarPlus, BadgeDollarSign, Share2, MessageCircle, UserPlus, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 
 interface ReferralBonus {
   id: string;
@@ -28,14 +29,12 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
   const referralLink = `${BASE_URL}/cadastro?ref=${orgId}`;
 
   useEffect(() => {
-    // Count referrals
     (supabase
       .from("organizations")
       .select("id", { count: "exact", head: true }) as any)
       .eq("referred_by_id", orgId)
       .then(({ count: c }: { count: number | null }) => setCount(c ?? 0));
 
-    // Fetch bonuses
     supabase
       .from("referral_bonuses" as any)
       .select("id, bonus_days, referred_org_name, created_at")
@@ -48,7 +47,6 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
         }
       });
 
-    // Fetch plan price
     const planKey = subscriptionPlan === "free" ? "pro" : subscriptionPlan;
     supabase
       .from("platform_plans")
@@ -71,6 +69,17 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
     }
   };
 
+  const handleShareWhatsApp = () => {
+    const msg = `🔥 Conheça o TrendFood! O melhor sistema de cardápio digital para lanchonetes.\n\nCadastre-se pelo meu link e ganhe vantagens:\n${referralLink}`;
+    openWhatsAppWithFallback(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+  };
+
+  const motivationalMessage = (() => {
+    if ((count ?? 0) === 0) return "Comece agora! Envie seu link para outros donos de lanchonetes 🚀";
+    if (bonuses.length === 0) return "Seus amigos ainda não pagaram um plano. Quando pagarem, você ganha dias grátis! ⏳";
+    return "Parabéns! Continue indicando para zerar sua mensalidade! 🎉";
+  })();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -81,26 +90,76 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
         <div>
           <h2 className="text-xl font-bold text-foreground">Ganhe Desconto</h2>
           <p className="text-sm text-muted-foreground">
-            Indique amigos para o TrendFood e ganhe benefícios!
+            Indique amigos e ganhe dias grátis no seu plano!
           </p>
         </div>
       </div>
 
-      {/* Referral card */}
-      <div className="dashboard-glass rounded-2xl p-6 space-y-5 animate-dashboard-fade-in dash-delay-1">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Gift className="w-6 h-6 text-primary" />
+      {/* Reward highlight card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/90 to-primary p-6 text-primary-foreground animate-dashboard-fade-in dash-delay-1">
+        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10" />
+        <div className="absolute -right-2 -bottom-8 w-24 h-24 rounded-full bg-white/5" />
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-center gap-2">
+            <Gift className="w-6 h-6" />
+            <h3 className="text-lg font-bold">Sua Recompensa</h3>
           </div>
-          <div>
-            <h3 className="font-bold text-foreground text-lg">Compartilhe seu link</h3>
-            <p className="text-sm text-muted-foreground">
-              Envie para outros donos de lanchonetes. Quando eles se cadastrarem pelo seu link, você acumula indicações!
-            </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center">
+              <p className="text-3xl font-extrabold">+10 dias</p>
+              <p className="text-sm opacity-90 mt-1">quando seu amigo assinar o <strong>Plano Mensal</strong></p>
+            </div>
+            <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center">
+              <p className="text-3xl font-extrabold">+30 dias</p>
+              <p className="text-sm opacity-90 mt-1">quando seu amigo assinar o <strong>Plano Anual</strong></p>
+            </div>
+          </div>
+          <p className="text-sm opacity-80 text-center">
+            Os dias são adicionados automaticamente ao seu plano atual!
+          </p>
+        </div>
+      </div>
+
+      {/* How it works - 3 steps */}
+      <div className="dashboard-glass rounded-2xl p-6 space-y-4 animate-dashboard-fade-in dash-delay-2">
+        <h3 className="font-bold text-foreground text-base">Como funciona?</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex flex-col items-center text-center gap-2 p-3">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Share2 className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</span>
+              <span className="font-semibold text-sm text-foreground">Compartilhe</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Copie ou envie seu link pelo WhatsApp</p>
+          </div>
+          <div className="flex flex-col items-center text-center gap-2 p-3">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <UserPlus className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+              <span className="font-semibold text-sm text-foreground">Amigo cadastra</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Seu amigo cria a loja pelo seu link</p>
+          </div>
+          <div className="flex flex-col items-center text-center gap-2 p-3">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <CreditCard className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-6 h-6 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+              <span className="font-semibold text-sm text-foreground">Amigo paga</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Quando ele assinar um plano, você ganha dias grátis!</p>
           </div>
         </div>
+      </div>
 
-        {/* Link box */}
+      {/* Link + buttons */}
+      <div className="dashboard-glass rounded-2xl p-6 space-y-4 animate-dashboard-fade-in dash-delay-3">
+        <h3 className="font-bold text-foreground">Seu link de indicação</h3>
         <div className="flex items-center gap-2">
           <div className="flex-1 bg-muted/50 border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-muted-foreground truncate">
             {referralLink}
@@ -110,56 +169,53 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
             {copied ? "Copiado" : "Copiar"}
           </Button>
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-              <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{count ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">amigos indicados</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <CalendarPlus className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{totalDays}</p>
-              <p className="text-xs text-muted-foreground">dias ganhos</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3 col-span-2 sm:col-span-1">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <BadgeDollarSign className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                {priceCents > 0
-                  ? `R$ ${((totalDays * (priceCents / 30)) / 100).toFixed(2).replace(".", ",")}`
-                  : "R$ 0,00"}
-              </p>
-              <p className="text-xs text-muted-foreground">economia total</p>
-            </div>
-          </div>
-        </div>
-
-        <p className="text-sm text-center font-medium text-primary">
-          Continue indicando para zerar sua mensalidade! 🚀
-        </p>
+        <Button
+          onClick={handleShareWhatsApp}
+          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          <MessageCircle className="w-5 h-5" />
+          Enviar no WhatsApp
+        </Button>
       </div>
 
-      {/* How it works */}
-      <div className="flex gap-3 dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-2">
-        <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-foreground">Como funciona?</p>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Seus dias de bônus são creditados automaticamente quando o amigo indicado <strong className="text-foreground">comprar um plano pago</strong>. O simples cadastro já conta como indicação, mas o bônus só é liberado após o primeiro pagamento.
-          </p>
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-dashboard-fade-in dash-delay-3">
+        <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <Users className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">{count ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">indicados</p>
+          </div>
         </div>
+        <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <CalendarPlus className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">{totalDays}</p>
+            <p className="text-xs text-muted-foreground">dias ganhos</p>
+          </div>
+        </div>
+        <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 col-span-2 sm:col-span-1">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+            <BadgeDollarSign className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">
+              {priceCents > 0
+                ? `R$ ${((totalDays * (priceCents / 30)) / 100).toFixed(2).replace(".", ",")}`
+                : "R$ 0,00"}
+            </p>
+            <p className="text-xs text-muted-foreground">economia total</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Motivational message */}
+      <div className="dashboard-glass rounded-2xl p-4 text-center animate-dashboard-fade-in dash-delay-3">
+        <p className="text-sm font-medium text-primary">{motivationalMessage}</p>
       </div>
 
       {/* Bonus history */}
