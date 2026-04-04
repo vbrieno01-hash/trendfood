@@ -1,32 +1,25 @@
 
 
-## Plano: Adicionar templates de mensagens prontas (clientes antigos + abertura)
+## Plano: Adicionar técnica de auto-objeção no prompt de vendas
 
 ### O que muda
-Adicionar uma seção de **mensagens prontas** no chat de vendas com duas categorias:
-1. **Mensagens de Abertura** — para iniciar conversa com leads novos
-2. **Mensagens de Reativação** — para reengajar clientes antigos/inativos
+Adicionar uma seção no `SYSTEM_PROMPT` do `sales-chat/index.ts` com a técnica de **fazer o cliente responder suas próprias objeções** através de perguntas estratégicas (técnica de "reversão").
 
 ### Como funciona
-- Quando uma conversa está ativa e sem mensagens (ou via botão), aparece um painel com templates organizados por categoria
-- Cada template tem um botão **Copiar** para colar direto no WhatsApp
-- Os templates atuais de "sugestões rápidas" (linha 467-479) serão substituídos por este sistema mais completo
+Em vez de responder objeções diretamente, o Lucas faz perguntas que levam o cliente a concluir sozinho que precisa da solução.
 
-### Mensagens de Abertura (exemplos)
-- "Olá! Me conta, como está o movimento aí hoje?"
-- "E aí, tudo certo? Vi que você trabalha com alimentação, queria trocar uma ideia rápida"
-- "Opa! Peguei seu contato numa lista de restaurantes da região. Posso te fazer uma pergunta rápida?"
+**Exemplos de objeções e como reverter:**
 
-### Mensagens de Reativação (exemplos)
-- "Fala [nome]! Sumiu hein! Como está a operação aí?"
-- "E aí [nome], tudo bem? Lembrei de você, como estão as coisas no delivery?"
-- "Oi [nome]! Faz um tempo que a gente conversou. Surgiu uma novidade que pode te interessar"
-- "Fala [nome]! Vi que você tinha interesse, ainda está precisando de um sistema?"
+| Objeção do cliente | Resposta errada (argumentar) | Resposta certa (reverter) |
+|---|---|---|
+| "Tá caro" | "Mas é barato comparado ao iFood" | "Entendo. Me fala, quanto você paga de taxa no iFood por mês?" |
+| "Já tenho sistema" | "O nosso é melhor" | "Show! E ele resolve tudo que você precisa? Tem algo que te incomoda nele?" |
+| "Vou pensar" | "Mas é uma boa oportunidade" | "Claro! Me conta, o que exatamente você quer avaliar melhor?" |
+| "Não preciso" | "Mas todo mundo precisa" | "Entendo! Hoje como você organiza os pedidos que chegam?" |
+| "Meu cardápio já funciona" | "Mas o nosso é digital" | "Legal! E seus clientes conseguem pedir sozinhos sem te chamar no WhatsApp?" |
 
 ### Implementação
-- 1 arquivo editado: `src/components/admin/SalesChatTab.tsx`
-- Templates ficam como constante no código, organizados por categoria
-- Botão de copiar em cada template (mesmo estilo do chat)
-- Substitui o nome `[nome]` pelo `client_name` da conversa automaticamente
-- Sem mudanças no banco de dados
+- 1 arquivo editado: `supabase/functions/sales-chat/index.ts`
+- Substituir a seção "VALIDAÇÃO E ANTECIPAÇÃO" (linha 43-45) por uma seção completa de **REVERSÃO DE OBJEÇÕES** com regras e exemplos
+- Zero mudanças no frontend ou banco de dados
 
