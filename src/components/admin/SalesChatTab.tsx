@@ -256,8 +256,8 @@ export default function SalesChatTab() {
   async function generateInitialMessage(convId: string, clientName: string | null) {
     setIsLoading(true);
     const prompt = clientName
-      ? `Gere a primeira mensagem de abertura para o cliente chamado ${clientName}. Siga a REGRA 3 - apenas cumprimento curto.`
-      : `Gere a primeira mensagem de abertura para um cliente novo. Siga a REGRA 3 - apenas cumprimento curto.`;
+      ? `Gere UMA mensagem curta de abertura para o WhatsApp do cliente chamado ${clientName}. Apenas cumprimento amigável de 1-2 frases, sem mencionar TrendFood, sem link, sem vender nada. Exemplo: "Oi ${clientName}! Me conta, como está o movimento aí hoje?"`
+      : `Gere UMA mensagem curta de abertura para o WhatsApp de um cliente novo. Apenas cumprimento amigável de 1-2 frases, sem mencionar TrendFood, sem link, sem vender nada. Exemplo: "Oi! Tudo bem? Me conta, como está o movimento aí hoje?"`;
     try {
       await streamAIResponse(convId, [{ role: "user", content: prompt }]);
     } catch (e: any) {
