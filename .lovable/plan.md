@@ -1,38 +1,21 @@
 
 
-## Plano: Corrigir parser de adicionais que quebra no preço com vírgula
+## Plano: Atualizar prompt do robô de vendas (sales-chat)
 
-### Problema encontrado no teste
-O nome salvo no banco está correto: `fasf (+ 2x banana R$10,00, + 1x azeite R$2,00)`
+### Mudança
+Substituir o `SYSTEM_PROMPT` atual no arquivo `supabase/functions/sales-chat/index.ts` pelo novo prompt de "Vendas Consultivas de Alta Performance" fornecido.
 
-Mas o `parseItemName` usa `.split(",")` para separar os adicionais dentro dos parênteses. Como o preço brasileiro usa vírgula decimal (`R$10,00`), o split quebra errado:
+### O que muda
+- O robô deixa de ser o "Lucas vendedor informal de WhatsApp" e passa a ser um "Especialista em Vendas Consultivas"
+- Tom muda de gírias/abreviações para amigável e profissional
+- Fluxo passa a seguir: Conexão → Diagnóstico → Apresentação da Solução → Validação → Fechamento → Recomendação
+- Novas técnicas: fechamento condicional para desconto, agendamento quando quer "pensar", pedido de indicação pós-venda
 
-```text
-Input:  "+ 2x banana R$10,00, + 1x azeite R$2,00"
-Split:  ["+ 2x banana R$10", "00", "+ 1x azeite R$2", "00"]
-                              ^^                        ^^  ERRADO
-```
+### Detalhes técnicos
+- 1 arquivo editado: `supabase/functions/sales-chat/index.ts` (apenas o conteúdo da constante `SYSTEM_PROMPT`)
+- Deploy automático da edge function após edição
+- Zero mudanças no frontend ou banco de dados
 
-### Solução
-
-| # | Arquivo | Mudança |
-|---|---------|---------|
-| 1 | `src/lib/receiptData.ts` | Trocar `.split(",")` por um split inteligente que só quebra em `, +` (vírgula seguida de `+`), preservando a vírgula decimal do preço |
-| 2 | `src/pages/UnitPage.tsx` | Corrigir exibição do carrinho para mostrar quantidade dos adicionais (`2x banana` em vez de `+ banana`) |
-
-### Detalhe tecnico
-No `parseItemName`, trocar:
-```typescript
-// DE:
-addonMatch[1].split(",").forEach(...)
-// PARA:
-addonMatch[1].split(/,\s*(?=\+)/).forEach(...)
-```
-
-O regex `,\s*(?=\+)` usa lookahead para só separar quando a vírgula é seguida de `+` (inicio de outro addon), ignorando vírgulas dentro de preços como `R$10,00`.
-
-### Resultado
-- Recibo mostrará corretamente: `- 2X BANANA  R$10,00`
-- Carrinho mostrará: `+ 2x banana, + 1x azeite`
-- 2 arquivos editados, zero mudanças no banco
+### Observação importante
+O novo prompt é **genérico** (não menciona TrendFood, preços, planos, link, nem funcionalidades específicas). O prompt atual contém todas essas informações contextuais. Vou **mesclar** o novo estilo/fluxo com as informações do TrendFood (planos, preços, link, regras anti-spam, regras de concorrentes, etc.) para que o robô continue sabendo vender o produto correto.
 
