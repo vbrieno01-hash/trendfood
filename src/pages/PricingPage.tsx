@@ -197,14 +197,33 @@ const PricingPage = () => {
         </p>
       </section>
 
-      {/* Billing Toggle */}
+      {/* Billing Selector */}
       <section className="px-4 pb-8">
-        <div className="flex items-center justify-center gap-3">
-          <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
-          <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-          <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
-            Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
-          </span>
+        <div className="flex items-center justify-center gap-1">
+          <div className="inline-flex rounded-lg border border-border p-1 bg-muted/50">
+            {([
+              { value: "monthly" as BillingCycle, label: "Mensal" },
+              { value: "quarterly" as BillingCycle, label: "Trimestral", badge: "-10%" },
+              { value: "annual" as BillingCycle, label: "Anual", badge: "-17%" },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedBilling(opt.value)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  selectedBilling === opt.value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+                {opt.badge && (
+                  <span className={`ml-1 text-xs font-bold ${selectedBilling === opt.value ? 'text-primary-foreground' : 'text-primary'}`}>
+                    {opt.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
