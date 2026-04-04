@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Eye, EyeOff, Loader2, Check } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
+import PasswordRequirements from "@/components/PasswordRequirements";
 
 const translateAuthError = (msg?: string): string | undefined => {
   if (!msg) return undefined;
