@@ -122,8 +122,8 @@ const Index = () => {
     supabase.from("platform_plans").select("*").eq("active", true).order("sort_order")
       .then(({ data }) => { setPlans((data as unknown as PlanRow[]) ?? []); setLoadingPlans(false); });
 
-    supabase.from("orders").select("*", { count: "exact", head: true })
-      .then(({ count }) => { if (count) setOrderCount(count); });
+    supabase.rpc('get_total_order_count')
+      .then(({ data }) => { if (data) setOrderCount(Number(data)); });
 
     const channel = supabase.channel("landing-orders")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => { setOrderCount((prev) => prev + 1); })
