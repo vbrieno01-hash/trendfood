@@ -1,35 +1,34 @@
 
-## Plano: Corrigir erro de recursão infinita na policy de orders
+
+## Plano: Corrigir contador de pedidos da landing page
 
 ### Problema
-A policy `orders_update_public_safe` faz um SELECT na própria tabela `orders` dentro do `WITH CHECK`, causando **recursão infinita** no PostgreSQL. Isso impede qualquer UPDATE público nos pedidos — incluindo aceitar pedidos na cozinha.
+A policy de segurança `orders_select_public_recent` que adicionamos restringe leitura pública a pedidos das últimas 24h. O contador da landing page faz um `SELECT count(*)` anônimo, então só vê pedidos recentes — por isso sumiu o número de 500+.
 
-### Solução (1 migração SQL, zero código)
+### Solução
+Criar uma função `SECURITY DEFINER` que retorna a contagem total de pedidos sem passar pelo RLS. Isso mantém a proteção de dados pessoais (ninguém lê os campos dos pedidos antigos) mas permite contar todos.
 
-1. Criar uma função `SECURITY DEFINER` que busca `organization_id` e `table_number` do pedido sem passar pelas policies RLS
-2. Substituir a policy `orders_update_public_safe` por uma nova que usa essa função
+| # | O que | Onde |
+|---|-------|------|
+| 1 | Criar função `get_total_order_count()` SECURITY DEFINER que retorna `count(*)` da tabela orders | Migração SQL |
+| 2 | Usar `supabase.rpc('get_total_order_count')` no Index.tsx em vez de `supabase.from("orders").select("*", { count: "exact", head: true })` | `src/pages/Index.tsx` |
+
+### Detalhes técnicos
 
 ```sql
--- Função que busca dados do pedido sem RLS
-CREATE OR REPLACE FUNCTION public.get_order_immutable_fields(p_order_id uuid)
-RETURNS TABLE(organization_id uuid, table_number integer)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT o.organization_id, o.table_number
-  FROM orders o WHERE o.id = p_order_id LIMIT 1;
-$$;
+CREATE OR REPLACE FUNCTION public.get_total_order_count()
+RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ SELECT count(*) FROM orders; $$;
+```
 
--- Substituir policy problemática
-DROP POLICY "orders_update_public_safe" ON public.orders;
-CREATE POLICY "orders_update_public_safe" ON public.orders
-  FOR UPDATE USING (true)
-  WITH CHECK (
-    (SELECT f.organization_id FROM get_order_immutable_fields(id) f) = organization_id
-    AND (SELECT f.table_number FROM get_order_immutable_fields(id) f) = table_number
-  );
+No Index.tsx:
+```typescript
+supabase.rpc('get_total_order_count')
+  .then(({ data }) => { if (data) setOrderCount(Number(data)); });
 ```
 
 ### Resultado
-- Pedidos voltam a ser aceitos normalmente na cozinha e gestão
-- A proteção contra alteração de `organization_id` e `table_number` continua ativa
-- Zero impacto em código frontend
+- Contador volta a mostrar todos os 500+ pedidos
+- Dados pessoais dos pedidos antigos continuam protegidos
+- 1 migração SQL + 1 linha editada no Index.tsx
+
