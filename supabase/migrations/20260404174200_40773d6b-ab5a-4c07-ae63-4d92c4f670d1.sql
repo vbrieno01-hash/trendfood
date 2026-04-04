@@ -1,0 +1,1 @@
+ALTER TABLE public.platform_plans ADD COLUMN quarterly_price_cents integer DEFAULT NULL;
