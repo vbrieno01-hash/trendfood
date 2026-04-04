@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
       if (sub.auto_recurring?.transaction_amount >= 200) plan = "enterprise";
       if (sub.reason?.toLowerCase().includes("enterprise")) plan = "enterprise";
 
-      const renewalDays = org?.billing_cycle === "annual" ? 370 : 35;
+      const renewalDays = org?.billing_cycle === "annual" ? 370 : org?.billing_cycle === "quarterly" ? 95 : 35;
 
       if (sub.status === "authorized") {
         const trialEnds = new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString();
