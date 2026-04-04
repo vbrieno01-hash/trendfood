@@ -1,27 +1,57 @@
 
 
-## Plano: Corrigir exibição de dados da loja no painel admin
+## Plano: Adicionar opção de assinatura trimestral
 
-### Problema identificado
-Ao abrir "Dados da Loja" de um cliente no painel admin, alguns campos aparecem vazios (endereço, chave PIX) mesmo estando configurados. Isso acontece por dois motivos:
+### Como funciona hoje
+O sistema usa o Mercado Pago (preapproval/assinatura recorrente). Hoje existem 2 ciclos:
+- **Mensal**: cobra a cada 1 mês (`frequency: 1, frequency_type: "months"`)
+- **Anual**: cobra a cada 12 meses (`frequency: 12, frequency_type: "months"`)
 
-1. **Campo `pix_key` não mapeado** — O `AdminStoreManager` busca todos os dados do banco (`select("*")`), mas não inclui `pix_key` no objeto `orgForComponents`. O campo PIX sempre aparece vazio.
+Os preços ficam na tabela `platform_plans` com colunas `price_cents` (mensal) e `annual_price_cents` (anual).
 
-2. **`refreshOrganization()` e `updateAllOrgs()` usam contexto errado** — O `StoreProfileTab` usa `useAuth()` para obter `user`, `organizations` e `refreshOrganization`. No contexto admin, essas referências apontam para as organizações do **admin**, não da loja gerenciada. Isso causa:
-   - `updateAllOrgs` tenta aplicar campos compartilhados nas orgs do admin (não nas unidades do cliente)
-   - `refreshOrganization` não atualiza os dados da loja gerenciada após salvar
+### Como vai funcionar o trimestral
+O trimestral será uma cobrança a cada 3 meses via Mercado Pago, com um pequeno desconto em relação ao mensal (ex: ~10% de economia). O cliente paga 1x e o Mercado Pago cobra automaticamente a cada 3 meses.
 
-### Arquivos alterados
+### Alterações necessárias
 
-**1. `src/components/admin/AdminStoreManager.tsx`**
-- Adicionar `pix_key: fullOrg.pix_key` no mapeamento de `orgForComponents` (campo faltante)
+**1. Banco de dados — migração**
+- Adicionar coluna `quarterly_price_cents` na tabela `platform_plans` (integer, nullable, default null)
+- Atualizar os planos existentes com os valores trimestrais desejados
 
-**2. `src/components/dashboard/StoreProfileTab.tsx`**
-- No `updateAllOrgs`: verificar se `user?.id` é diferente do `organization.user_id` (contexto admin). Se for, pular a atualização em massa — o admin não deve propagar campos para suas próprias lojas
-- No `refreshOrganization`: quando em contexto admin, invalidar a query `["admin-org-full", organization.id]` ao invés de chamar `refreshOrganization()` do useAuth
+**2. `supabase/functions/create-mp-subscription/index.ts`**
+- Buscar `quarterly_price_cents` junto com os outros campos do plano
+- Tratar `billing === "quarterly"`: usar `frequency: 3, frequency_type: "months"` e o preço trimestral
+- Salvar `billing_cycle: "quarterly"` na organização
+
+**3. `supabase/functions/mp-webhook/index.ts`**
+- Nos cálculos de `renewalDays`, adicionar caso para `quarterly`: ~95 dias (3 meses + margem)
+
+**4. `src/components/checkout/CardPaymentForm.tsx`**
+- Expandir tipo `billing` de `"monthly" | "annual"` para `"monthly" | "quarterly" | "annual"`
+
+**5. `src/components/dashboard/SubscriptionTab.tsx`**
+- Trocar o toggle Mensal/Anual por 3 opções (botões ou tabs): Mensal, Trimestral, Anual
+- Calcular e exibir preço trimestral nos cards
+- Passar `billing="quarterly"` ao `CardPaymentForm` quando selecionado
+- Mostrar economia do trimestral (ex: "Economia de 10%")
+
+**6. `src/pages/PricingPage.tsx`**
+- Mesmo ajuste do toggle: 3 opções de ciclo
+- Exibir preço trimestral e equivalente mensal
+
+**7. `src/components/dashboard/UpgradeDialog.tsx`**
+- Adicionar suporte ao ciclo trimestral no seletor e no cálculo de preço
+
+**8. `src/hooks/useAuth.tsx`**
+- Já suporta `billing_cycle` como string, sem mudança necessária
+
+### Resumo visual do seletor
+```text
+[ Mensal ]  [ Trimestral (-10%) ]  [ Anual (-17%) ]
+```
 
 ### Impacto
-- Endereço, PIX e demais campos aparecerão corretamente ao gerenciar lojas pelo admin
-- Auto-save não vai sobrescrever dados do admin acidentalmente
-- Zero mudanças no banco de dados
+- 1 migração de banco (adicionar coluna)
+- 6 arquivos alterados no frontend + 2 edge functions
+- Zero quebra de funcionalidade existente — mensal e anual continuam iguais
 
