@@ -868,7 +868,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                const url = URL.createObjectURL(blob);
                const a = document.createElement("a");
                a.href = url;
-               a.download = `cardapio-${org.slug}.csv`;
+               a.download = `cardapio-${organization.slug}.csv`;
                a.click();
                URL.revokeObjectURL(url);
              }}>
