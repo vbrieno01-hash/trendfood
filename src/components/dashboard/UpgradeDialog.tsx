@@ -59,6 +59,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
           .map((p: any) => ({
             ...p,
             annual_price_cents: p.annual_price_cents || 0,
+            quarterly_price_cents: p.quarterly_price_cents || 0,
             features: Array.isArray(p.features) ? p.features : [],
           }));
         setPlans(paid);
