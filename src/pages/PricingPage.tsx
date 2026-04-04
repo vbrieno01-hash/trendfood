@@ -340,7 +340,9 @@ const PricingPage = () => {
                   <strong className="text-foreground">
                     {isAnnual && selectedPlan?.annual_price_cents
                       ? `${formatPrice(selectedPlan.annual_price_cents)}/ano`
-                      : `${selectedPlan?.price}/mês`}
+                      : isQuarterly && selectedPlan?.quarterly_price_cents
+                        ? `${formatPrice(selectedPlan.quarterly_price_cents)}/tri`
+                        : `${selectedPlan?.price}/mês`}
                   </strong>{" "}
                   no cartão de crédito.
                 </p>
