@@ -586,7 +586,8 @@ const AuthPage = () => {
                     >
                       {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
-                  </div>
+                   </div>
+                  <PasswordRequirements password={signupData.password} />
                 </div>
                 <div>
                   <Label htmlFor="signup-confirm-pwd" className="text-sm font-medium mb-1.5 block">
