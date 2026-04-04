@@ -132,12 +132,14 @@ Deno.serve(async (req) => {
     const backUrl = `https://trendfood.lovable.app/dashboard?tab=subscription&mp_return=true`;
 
     // Create preapproval (subscription)
+    const cycleSuffix = isAnnual ? " Anual" : isQuarterly ? " Trimestral" : "";
+    const frequency = isAnnual ? 12 : isQuarterly ? 3 : 1;
     const preapprovalBody: Record<string, unknown> = {
-      reason: `Assinatura ${planRow.name}${isAnnual ? " Anual" : ""} - ${org.name}`,
+      reason: `Assinatura ${planRow.name}${cycleSuffix} - ${org.name}`,
       external_reference: org_id,
       payer_email: userEmail,
       auto_recurring: {
-        frequency: isAnnual ? 12 : 1,
+        frequency,
         frequency_type: "months",
         transaction_amount: amount,
         currency_id: "BRL",

@@ -38,7 +38,7 @@ async function processReferralBonus(
     }
 
     // Determine bonus days based on billing cycle
-    const bonusDays = activatedOrg.billing_cycle === "annual" ? 30 : 10;
+    const bonusDays = activatedOrg.billing_cycle === "annual" ? 30 : activatedOrg.billing_cycle === "quarterly" ? 15 : 10;
 
     // Insert bonus record
     await supabase.from("referral_bonuses").insert({
