@@ -26,6 +26,7 @@ interface Organization {
   emoji: string;
   primary_color: string;
   logo_url: string | null;
+  user_id?: string;
   whatsapp?: string | null;
   business_hours?: BusinessHours | null;
   pix_key?: string | null;
