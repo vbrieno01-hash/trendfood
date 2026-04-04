@@ -73,6 +73,9 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
         force_open: fullOrg.force_open,
         tax_regime: fullOrg.tax_regime,
         category_order: fullOrg.category_order as Organization["category_order"],
+        pix_key: fullOrg.pix_key,
+        onboarding_done: fullOrg.onboarding_done,
+        scheduling_config: fullOrg.scheduling_config,
       }
     : {
         id: org.id,

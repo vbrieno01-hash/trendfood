@@ -59,6 +59,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 export default function StoreProfileTab({ organization, effectivePlan = "free" }: { organization: Organization; effectivePlan?: string }) {
   const { refreshOrganization, user, organizations } = useAuth();
+  const isAdminContext = user?.id !== organization.user_id;
   const { promoEligible } = usePlanLimits(organization);
   const [freeAbove, setFreeAbove] = useState<number>(
     (organization.delivery_config as any)?.free_above ?? 80
