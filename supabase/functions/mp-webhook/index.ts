@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
             .eq("id", orgId)
             .single();
 
-          const renewalDays = org?.billing_cycle === "annual" ? 370 : 35;
+          const renewalDays = org?.billing_cycle === "annual" ? 370 : org?.billing_cycle === "quarterly" ? 95 : 35;
           const trialEnds = new Date(Date.now() + renewalDays * 24 * 60 * 60 * 1000).toISOString();
 
           await supabase
