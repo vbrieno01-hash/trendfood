@@ -101,7 +101,9 @@ const PricingPage = () => {
   const [cardFormPlan, setCardFormPlan] = useState<PlanData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedBilling, setSelectedBilling] = useState<BillingCycle>("monthly");
+  const isAnnual = selectedBilling === "annual";
+  const isQuarterly = selectedBilling === "quarterly";
 
   // Promo eligibility
   const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
