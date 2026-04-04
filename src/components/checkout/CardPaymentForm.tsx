@@ -355,7 +355,7 @@ const CardPaymentForm = ({
                       Processando...
                     </>
                   ) : (
-                    `Assinar por ${planPrice}${billing === "annual" ? "/ano" : "/mês"}`
+                    `Assinar por ${planPrice}${billing === "annual" ? "/ano" : billing === "quarterly" ? "/tri" : "/mês"}`
                   )}
                 </Button>
 
