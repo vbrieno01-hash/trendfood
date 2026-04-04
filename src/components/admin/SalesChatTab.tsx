@@ -458,26 +458,93 @@ export default function SalesChatTab() {
                     </p>
                   </div>
                 ) : messages.length === 0 && !isLoading ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                    <MessageCircle className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Cole o que o cliente falou ou use uma sugestão rápida
-                    </p>
-                    <div className="flex flex-wrap gap-2 justify-center max-w-sm">
-                      {[
-                        "Gera a primeira mensagem pra eu mandar",
-                        "Cliente respondeu 'oi, tudo bem'",
-                        "Cliente pediu o link",
-                        "Cliente perguntou o preço",
-                      ].map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          onClick={() => sendQuickSuggestion(suggestion)}
-                          className="text-xs px-3 py-2 rounded-full border border-border bg-secondary hover:bg-accent text-foreground transition-colors"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
+                  <div className="flex flex-col h-full overflow-y-auto px-4 py-3 space-y-4">
+                    {/* Quick AI suggestions */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">⚡ Sugestões IA</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          "Gera a primeira mensagem pra eu mandar",
+                          "Cliente respondeu 'oi, tudo bem'",
+                          "Cliente pediu o link",
+                          "Cliente perguntou o preço",
+                        ].map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            onClick={() => sendQuickSuggestion(suggestion)}
+                            className="text-xs px-3 py-2 rounded-full border border-border bg-secondary hover:bg-accent text-foreground transition-colors"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Opening messages */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🟢 Mensagens de Abertura</p>
+                      <div className="space-y-2">
+                        {[
+                          "Olá! Me conta, como está o movimento aí hoje? 😊",
+                          "E aí, tudo certo? Vi que você trabalha com alimentação, queria trocar uma ideia rápida contigo!",
+                          "Opa! Peguei seu contato numa lista de restaurantes da região. Posso te fazer uma pergunta rápida?",
+                          "Fala! Você recebe pedidos por WhatsApp ou usa algum aplicativo tipo iFood? Queria entender como funciona aí pra você.",
+                          "Olá! Trabalho com um sistema de cardápio digital pra delivery e achei que podia fazer sentido pra você. Posso te explicar rapidinho?",
+                        ].map((tpl) => {
+                          const clientName = conversations.find(c => c.id === activeConvId)?.client_name;
+                          const finalMsg = clientName ? tpl.replace(/\[nome\]/g, clientName) : tpl;
+                          return (
+                            <div key={tpl} className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card hover:bg-secondary/50 transition-colors group">
+                              <p className="text-xs text-foreground flex-1 leading-relaxed">{finalMsg}</p>
+                              <button
+                                onClick={() => copyToClipboard(finalMsg, `tpl-open-${tpl.slice(0,20)}`)}
+                                className="shrink-0 p-1.5 rounded-md hover:bg-accent transition-colors opacity-60 group-hover:opacity-100"
+                                title="Copiar"
+                              >
+                                {copiedId === `tpl-open-${tpl.slice(0,20)}` ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Re-engagement messages */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🔄 Reativação de Clientes Antigos</p>
+                      <div className="space-y-2">
+                        {[
+                          "Fala [nome]! Sumiu hein! Como está a operação aí? 😄",
+                          "E aí [nome], tudo bem? Lembrei de você, como estão as coisas no delivery?",
+                          "Oi [nome]! Faz um tempo que a gente conversou. Surgiu uma novidade que pode te interessar!",
+                          "Fala [nome]! Vi que você tinha interesse, ainda está precisando de um sistema pro seu delivery?",
+                          "[nome], beleza? Passando pra te dar um oi e saber se posso te ajudar com alguma coisa. Tô à disposição! 🤝",
+                          "E aí [nome]! Lançamos umas funcionalidades novas no TrendFood que resolveriam aquele problema que você comentou. Quer dar uma olhada?",
+                        ].map((tpl) => {
+                          const clientName = conversations.find(c => c.id === activeConvId)?.client_name;
+                          const finalMsg = clientName ? tpl.replace(/\[nome\]/g, clientName) : tpl.replace(/\[nome\]/g, "amigo");
+                          return (
+                            <div key={tpl} className="flex items-start gap-2 p-2 rounded-lg border border-border bg-card hover:bg-secondary/50 transition-colors group">
+                              <p className="text-xs text-foreground flex-1 leading-relaxed">{finalMsg}</p>
+                              <button
+                                onClick={() => copyToClipboard(finalMsg, `tpl-react-${tpl.slice(0,20)}`)}
+                                className="shrink-0 p-1.5 rounded-md hover:bg-accent transition-colors opacity-60 group-hover:opacity-100"
+                                title="Copiar"
+                              >
+                                {copiedId === `tpl-react-${tpl.slice(0,20)}` ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 ) : (
