@@ -1,20 +1,24 @@
 
 
-## Plano: Atualizar credenciais do Mercado Pago para conta CNPJ
+## Plano: Indicador visual de requisitos de senha no cadastro
 
 ### O que será feito
-Atualizar os dois secrets existentes com as credenciais de produção da nova conta CNPJ:
+Adicionar uma lista de requisitos de senha abaixo do campo "Senha" no formulário de cadastro (`AuthPage.tsx`) e na página de redefinição de senha (`ResetPasswordPage.tsx`). Cada requisito fica cinza por padrão e muda para verde com check quando atendido, em tempo real conforme o usuário digita.
 
-1. **MERCADO_PAGO_ACCESS_TOKEN** — usado nas Edge Functions para criar cobranças PIX e assinaturas
-2. **MERCADO_PAGO_PUBLIC_KEY** — usado no checkout transparente (cartão de crédito)
+### Requisitos exibidos
+- Mínimo 6 caracteres
+- Pelo menos 1 letra maiúscula (A-Z)
+- Pelo menos 1 número (0-9)
+- Pelo menos 1 caractere especial (!@#$%...)
 
-### Como funciona
-- Vou usar a ferramenta de adicionar secret para solicitar cada credencial
-- Você cola o valor quando o campo aparecer
-- Pronto — todos os pagamentos (assinaturas e PIX) passam a cair na conta do CNPJ automaticamente
+### Arquivos alterados
 
-### Impacto
-- Zero mudanças de código
-- Assinaturas **existentes** continuam vinculadas à conta antiga até serem renovadas ou recriadas
-- Novas assinaturas e pagamentos PIX vão direto para a conta do CNPJ
+1. **`src/components/PasswordRequirements.tsx`** (novo) — Componente reutilizável que recebe a senha como prop e renderiza a lista de requisitos com ícones verde/cinza.
+
+2. **`src/pages/AuthPage.tsx`** — Importar e adicionar `<PasswordRequirements>` logo abaixo do campo de senha no formulário de cadastro (após linha 588).
+
+3. **`src/pages/ResetPasswordPage.tsx`** — Adicionar o mesmo componente abaixo do campo "Nova senha".
+
+### Visual
+Cada linha terá um pequeno círculo/check à esquerda com o texto do requisito. Cinza quando não atendido, verde quando atendido — transição suave.
 
