@@ -1066,6 +1066,21 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                     <p className="text-xs text-muted-foreground mt-1">JPG, PNG ou WebP. Máx 5MB.</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">ou</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <Input
+                  placeholder="Cole a URL da imagem aqui..."
+                  value={form.imageFile ? "" : (form.image_url ?? "")}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setForm((p) => ({ ...p, image_url: url || null, imageFile: null }));
+                    setImagePreview(url || null);
+                  }}
+                  className="mt-1 text-sm"
+                />
               </div>
 
               {/* Name */}
