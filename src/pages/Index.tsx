@@ -349,12 +349,25 @@ const Index = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Escolha o plano ideal para seu negócio</h2>
             <p className="text-muted-foreground text-lg">Comece grátis e evolua conforme sua operação cresce</p>
           </div>
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
-            <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-            <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
-              Anual <span className="text-primary font-bold">(2 Meses Grátis)</span>
-            </span>
+          <div className="flex items-center justify-center gap-1 bg-muted rounded-xl p-1 w-fit mx-auto mb-8">
+            {([
+              { key: "monthly" as const, label: "Mensal" },
+              { key: "quarterly" as const, label: "Trimestral", badge: "-10%" },
+              { key: "annual" as const, label: "Anual", badge: "-17%" },
+            ]).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setSelectedBilling(opt.key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedBilling === opt.key
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+                {opt.badge && <span className="ml-1 text-xs font-bold">{opt.badge}</span>}
+              </button>
+            ))}
           </div>
           {loadingPlans ? (
             <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
