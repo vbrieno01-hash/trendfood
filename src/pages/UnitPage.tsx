@@ -465,7 +465,8 @@ const UnitPage = () => {
             items: cartItems.map((i) => {
               let finalName = i.name;
               if (i.addons.length > 0) {
-                finalName += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : ''}${a.name}`).join(", ")})`;
+                finalName += ` (${i.addons.map(a => `+ ${a.qty > 1 ? `${a.qty}x ` : '1x '}${a.name} R$${(a.price * a.qty).toFixed(2).replace('.', ',')}`).join(", ")})`;
+
               }
               if (i.notes.trim()) {
                 finalName += ` | Obs: ${i.notes.trim()}`;
