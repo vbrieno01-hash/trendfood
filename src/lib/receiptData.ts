@@ -125,12 +125,12 @@ export function parseItemName(name: string): { baseName: string; addons: string[
     baseName = baseName.slice(0, obsMatch.index).trim();
   }
 
-  // Extract addons in parentheses: "(+ Bacon, + Cheddar)"
+  // Extract addons in parentheses: "(+ 1x Bacon R$3,00, + 2x Cheddar R$6,00)"
   const addonMatch = baseName.match(/\s*\(([^)]+)\)\s*$/);
   if (addonMatch) {
     baseName = baseName.slice(0, addonMatch.index).trim();
     addonMatch[1].split(",").forEach((a) => {
-      const cleaned = a.trim().replace(/^\+\s*/, "").trim();
+      let cleaned = a.trim().replace(/^\+\s*/, "").trim();
       if (cleaned) addons.push(cleaned);
     });
   }
