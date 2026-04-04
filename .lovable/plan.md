@@ -1,21 +1,32 @@
 
 
-## Plano: Atualizar prompt do robô de vendas (sales-chat)
-
-### Mudança
-Substituir o `SYSTEM_PROMPT` atual no arquivo `supabase/functions/sales-chat/index.ts` pelo novo prompt de "Vendas Consultivas de Alta Performance" fornecido.
+## Plano: Adicionar templates de mensagens prontas (clientes antigos + abertura)
 
 ### O que muda
-- O robô deixa de ser o "Lucas vendedor informal de WhatsApp" e passa a ser um "Especialista em Vendas Consultivas"
-- Tom muda de gírias/abreviações para amigável e profissional
-- Fluxo passa a seguir: Conexão → Diagnóstico → Apresentação da Solução → Validação → Fechamento → Recomendação
-- Novas técnicas: fechamento condicional para desconto, agendamento quando quer "pensar", pedido de indicação pós-venda
+Adicionar uma seção de **mensagens prontas** no chat de vendas com duas categorias:
+1. **Mensagens de Abertura** — para iniciar conversa com leads novos
+2. **Mensagens de Reativação** — para reengajar clientes antigos/inativos
 
-### Detalhes técnicos
-- 1 arquivo editado: `supabase/functions/sales-chat/index.ts` (apenas o conteúdo da constante `SYSTEM_PROMPT`)
-- Deploy automático da edge function após edição
-- Zero mudanças no frontend ou banco de dados
+### Como funciona
+- Quando uma conversa está ativa e sem mensagens (ou via botão), aparece um painel com templates organizados por categoria
+- Cada template tem um botão **Copiar** para colar direto no WhatsApp
+- Os templates atuais de "sugestões rápidas" (linha 467-479) serão substituídos por este sistema mais completo
 
-### Observação importante
-O novo prompt é **genérico** (não menciona TrendFood, preços, planos, link, nem funcionalidades específicas). O prompt atual contém todas essas informações contextuais. Vou **mesclar** o novo estilo/fluxo com as informações do TrendFood (planos, preços, link, regras anti-spam, regras de concorrentes, etc.) para que o robô continue sabendo vender o produto correto.
+### Mensagens de Abertura (exemplos)
+- "Olá! Me conta, como está o movimento aí hoje?"
+- "E aí, tudo certo? Vi que você trabalha com alimentação, queria trocar uma ideia rápida"
+- "Opa! Peguei seu contato numa lista de restaurantes da região. Posso te fazer uma pergunta rápida?"
+
+### Mensagens de Reativação (exemplos)
+- "Fala [nome]! Sumiu hein! Como está a operação aí?"
+- "E aí [nome], tudo bem? Lembrei de você, como estão as coisas no delivery?"
+- "Oi [nome]! Faz um tempo que a gente conversou. Surgiu uma novidade que pode te interessar"
+- "Fala [nome]! Vi que você tinha interesse, ainda está precisando de um sistema?"
+
+### Implementação
+- 1 arquivo editado: `src/components/admin/SalesChatTab.tsx`
+- Templates ficam como constante no código, organizados por categoria
+- Botão de copiar em cada template (mesmo estilo do chat)
+- Substitui o nome `[nome]` pelo `client_name` da conversa automaticamente
+- Sem mudanças no banco de dados
 
