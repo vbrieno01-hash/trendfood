@@ -35,6 +35,8 @@ interface PlanRow {
   key: string;
   name: string;
   price_cents: number;
+  quarterly_price_cents: number | null;
+  annual_price_cents: number | null;
   description: string | null;
   features: string[];
   highlighted: boolean;
