@@ -8,7 +8,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Loader2, Sparkles } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+
 import PlanCard from "@/components/pricing/PlanCard";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
 
