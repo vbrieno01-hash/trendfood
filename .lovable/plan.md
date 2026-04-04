@@ -1,60 +1,20 @@
 
 
-## Plano: Corrigir bug que sobrescreve endereço de outras lojas
+## Plano: Atualizar credenciais do Mercado Pago para conta CNPJ
 
-### Problema identificado
-No `StoreProfileTab.tsx`, o campo `store_address` está incluído no objeto `sharedFields` (linha 167). Esse objeto é usado na função `updateAllOrgs()` (linha 191) que atualiza **TODAS as outras lojas do mesmo dono** com os mesmos valores.
+### O que será feito
+Atualizar os dois secrets existentes com as credenciais de produção da nova conta CNPJ:
 
-Resultado: quando o dono salva qualquer coisa no perfil da Loja A, o endereço da Loja A é copiado para Loja B, Loja C, etc. Com o auto-save de 1.5s, basta editar qualquer campo para isso acontecer.
+1. **MERCADO_PAGO_ACCESS_TOKEN** — usado nas Edge Functions para criar cobranças PIX e assinaturas
+2. **MERCADO_PAGO_PUBLIC_KEY** — usado no checkout transparente (cartão de crédito)
 
-### Correção
-Remover `store_address` e `delivery_config` do `sharedFields` -- esses campos são **específicos de cada loja**, não compartilhados.
-
-Campos que fazem sentido compartilhar entre lojas do mesmo dono:
-- emoji, primary_color, whatsapp, pix_key, pix_confirmation_mode, business_hours -- OK
-
-Campos que NÃO devem ser compartilhados:
-- **store_address** -- cada loja tem seu endereço
-- **delivery_config** -- cada loja pode ter raio/taxa diferente
-
-### Implementação
-- 1 arquivo editado: `src/components/dashboard/StoreProfileTab.tsx`
-- Mover `store_address` e `delivery_config` de `sharedFields` para o update individual da loja atual (linhas 171-179)
-- O `sharedFields` fica sem esses dois campos, então `updateAllOrgs` não sobrescreve mais
-
-### Código (antes → depois)
-
-**Antes (linha 160-169):**
-```typescript
-const sharedFields = {
-  emoji, primary_color, whatsapp, pix_key,
-  pix_confirmation_mode, business_hours,
-  store_address: buildStoreAddress(addressFields) || null,  // ← BUG
-  delivery_config: { free_above: freeAbove },               // ← BUG
-};
-```
-
-**Depois:**
-```typescript
-const sharedFields = {
-  emoji, primary_color, whatsapp, pix_key,
-  pix_confirmation_mode, business_hours,
-};
-
-// Campos específicos da loja (NÃO compartilhar)
-const orgSpecificFields = {
-  store_address: buildStoreAddress(addressFields) || null,
-  delivery_config: { free_above: freeAbove },
-};
-```
-
-E o update individual inclui ambos:
-```typescript
-.update({ name, description, slug, ...sharedFields, ...orgSpecificFields })
-```
+### Como funciona
+- Vou usar a ferramenta de adicionar secret para solicitar cada credencial
+- Você cola o valor quando o campo aparecer
+- Pronto — todos os pagamentos (assinaturas e PIX) passam a cair na conta do CNPJ automaticamente
 
 ### Impacto
-- Zero mudanças no banco de dados
-- Corrige o bug que apaga endereços de outras lojas
-- Não afeta lojas com uma única unidade
+- Zero mudanças de código
+- Assinaturas **existentes** continuam vinculadas à conta antiga até serem renovadas ou recriadas
+- Novas assinaturas e pagamentos PIX vão direto para a conta do CNPJ
 
