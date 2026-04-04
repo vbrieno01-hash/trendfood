@@ -1,41 +1,38 @@
 
 
-## Plano: Mostrar quantidade e preço dos adicionais no recibo
+## Plano: Corrigir parser de adicionais que quebra no preço com vírgula
 
-### Problema
-No recibo impresso, os adicionais aparecem como `- ALFACE`, `- OVO` sem mostrar:
-1. A quantidade quando > 1 (ex: `2x Bacon`)
-2. O preço individual de cada adicional
+### Problema encontrado no teste
+O nome salvo no banco está correto: `fasf (+ 2x banana R$10,00, + 1x azeite R$2,00)`
 
-O cliente reclama que não consegue conferir o que foi cobrado nos adicionais.
+Mas o `parseItemName` usa `.split(",")` para separar os adicionais dentro dos parênteses. Como o preço brasileiro usa vírgula decimal (`R$10,00`), o split quebra errado:
 
-### Causa raiz
-- O formato salvo no banco já inclui quantidade (`+ 2x Bacon`) quando qty > 1 — isso funciona
-- Mas o `parseItemName` retorna apenas o texto do addon sem preço
-- O `ThermalReceipt` renderiza `- {addon}` sem nenhuma informação de preço
+```text
+Input:  "+ 2x banana R$10,00, + 1x azeite R$2,00"
+Split:  ["+ 2x banana R$10", "00", "+ 1x azeite R$2", "00"]
+                              ^^                        ^^  ERRADO
+```
 
 ### Solução
 
 | # | Arquivo | Mudança |
 |---|---------|---------|
-| 1 | `src/pages/UnitPage.tsx` | Incluir preço no formato do addon: `+ 2x Bacon R$5,00` em vez de `+ 2x Bacon` |
-| 2 | `src/pages/TableOrderPage.tsx` | Mesma mudança no formato do addon (se existir lógica similar) |
-| 3 | `src/lib/receiptData.ts` | Atualizar `parseItemName` para extrair preço do addon se presente |
-| 4 | `src/components/shared/ThermalReceipt.tsx` | Exibir preço do addon na linha se disponível |
+| 1 | `src/lib/receiptData.ts` | Trocar `.split(",")` por um split inteligente que só quebra em `, +` (vírgula seguida de `+`), preservando a vírgula decimal do preço |
+| 2 | `src/pages/UnitPage.tsx` | Corrigir exibição do carrinho para mostrar quantidade dos adicionais (`2x banana` em vez de `+ banana`) |
 
-### Formato final no recibo
-```text
-2X X-TOSCANA PROMOCAO......R$ 52,00
-  - 1X HAMBURGUER GOURMET 180G  R$ 8,00
-  - 1X ALFACE                   R$ 2,00
-  - 2X BACON                    R$ 10,00
-OBS: SEM CEBOLA
+### Detalhe tecnico
+No `parseItemName`, trocar:
+```typescript
+// DE:
+addonMatch[1].split(",").forEach(...)
+// PARA:
+addonMatch[1].split(/,\s*(?=\+)/).forEach(...)
 ```
 
-### Detalhes
-- O nome salvo no banco passará de `(+ Bacon, + 2x Alface)` para `(+ 1x Bacon R$3.00, + 2x Alface R$4.00)`
-- `parseItemName` será atualizado para extrair qty e preço de cada addon
-- O `ReceiptItem.addons` mudará de `string[]` para incluir info de qty/preço
-- Pedidos antigos sem o novo formato continuam funcionando (fallback para texto puro)
-- 4 arquivos editados, zero mudanças no banco
+O regex `,\s*(?=\+)` usa lookahead para só separar quando a vírgula é seguida de `+` (inicio de outro addon), ignorando vírgulas dentro de preços como `R$10,00`.
+
+### Resultado
+- Recibo mostrará corretamente: `- 2X BANANA  R$10,00`
+- Carrinho mostrará: `+ 2x banana, + 1x azeite`
+- 2 arquivos editados, zero mudanças no banco
 
