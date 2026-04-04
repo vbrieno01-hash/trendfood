@@ -164,6 +164,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         pix_key: form.pix_key || null,
         pix_confirmation_mode: form.pix_confirmation_mode,
         business_hours: businessHours as unknown as never,
+      };
+
+      // Campos específicos de cada loja (NÃO compartilhar entre unidades)
+      const orgSpecificFields = {
         store_address: buildStoreAddress(addressFields) || null,
         delivery_config: { free_above: freeAbove } as unknown as never,
       };
@@ -175,6 +179,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           description: form.description || null,
           slug: form.slug,
           ...sharedFields,
+          ...orgSpecificFields,
         })
         .eq("id", organization.id);
 
