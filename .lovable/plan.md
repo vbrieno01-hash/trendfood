@@ -1,23 +1,41 @@
 
 
-## Plano: Melhorar a aba "Ganhe Desconto"
+## Plano: Mostrar quantidade e preço dos adicionais no recibo
 
 ### Problema
-A seção atual é funcional mas não deixa claro qual é a recompensa concreta. O lojista precisa entender rapidamente: "o que eu ganho?" e "como funciona?".
+No recibo impresso, os adicionais aparecem como `- ALFACE`, `- OVO` sem mostrar:
+1. A quantidade quando > 1 (ex: `2x Bacon`)
+2. O preço individual de cada adicional
 
-### Mudanças no `src/components/dashboard/ReferralSection.tsx`
+O cliente reclama que não consegue conferir o que foi cobrado nos adicionais.
 
-| # | Melhoria | Detalhe |
-|---|----------|---------|
-| 1 | **Card de recompensa destacado** | Novo card no topo com fundo gradiente mostrando claramente: "Plano Mensal = +10 dias gratis" e "Plano Anual = +30 dias gratis" |
-| 2 | **Passo a passo visual** | Substituir o bloco "Como funciona?" por 3 passos numerados com icones: (1) Copie o link, (2) Amigo se cadastra, (3) Amigo paga e voce ganha dias |
-| 3 | **Mensagem motivacional dinamica** | Se count=0: "Comece agora!", se count>0 mas sem bonus: "Seus amigos ainda nao pagaram", se tem bonus: "Parabens! Continue indicando" |
-| 4 | **Botao de compartilhar WhatsApp** | Alem do copiar, adicionar botao verde "Enviar no WhatsApp" que abre `wa.me` com mensagem pre-formatada |
-| 5 | **Layout dos stats mais limpo** | Reorganizar os 3 cards de estatistica com icones maiores e labels mais claros |
+### Causa raiz
+- O formato salvo no banco já inclui quantidade (`+ 2x Bacon`) quando qty > 1 — isso funciona
+- Mas o `parseItemName` retorna apenas o texto do addon sem preço
+- O `ThermalReceipt` renderiza `- {addon}` sem nenhuma informação de preço
+
+### Solução
+
+| # | Arquivo | Mudança |
+|---|---------|---------|
+| 1 | `src/pages/UnitPage.tsx` | Incluir preço no formato do addon: `+ 2x Bacon R$5,00` em vez de `+ 2x Bacon` |
+| 2 | `src/pages/TableOrderPage.tsx` | Mesma mudança no formato do addon (se existir lógica similar) |
+| 3 | `src/lib/receiptData.ts` | Atualizar `parseItemName` para extrair preço do addon se presente |
+| 4 | `src/components/shared/ThermalReceipt.tsx` | Exibir preço do addon na linha se disponível |
+
+### Formato final no recibo
+```text
+2X X-TOSCANA PROMOCAO......R$ 52,00
+  - 1X HAMBURGUER GOURMET 180G  R$ 8,00
+  - 1X ALFACE                   R$ 2,00
+  - 2X BACON                    R$ 10,00
+OBS: SEM CEBOLA
+```
 
 ### Detalhes
-- 1 arquivo editado (`ReferralSection.tsx`)
-- Zero mudancas no banco de dados
-- Recompensa exibida de forma clara: "+10 dias (mensal) / +30 dias (anual)" no card principal
-- Botao WhatsApp usa `window.open(`https://wa.me/?text=...`)`
+- O nome salvo no banco passará de `(+ Bacon, + 2x Alface)` para `(+ 1x Bacon R$3.00, + 2x Alface R$4.00)`
+- `parseItemName` será atualizado para extrair qty e preço de cada addon
+- O `ReceiptItem.addons` mudará de `string[]` para incluir info de qty/preço
+- Pedidos antigos sem o novo formato continuam funcionando (fallback para texto puro)
+- 4 arquivos editados, zero mudanças no banco
 
