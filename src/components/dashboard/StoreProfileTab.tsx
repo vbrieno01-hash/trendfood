@@ -126,7 +126,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
   // Helper: update shared fields across ALL user orgs (except current which is updated separately)
   const updateAllOrgs = async (sharedFields: Record<string, any>) => {
-    if (!user) return;
+    if (!user || isAdminContext) return;
     const otherOrgIds = organizations.filter((o) => o.id !== organization.id).map((o) => o.id);
     if (otherOrgIds.length === 0) return;
     await supabase
