@@ -1,26 +1,22 @@
 
 
-## Plano: Bloquear pedidos quando a loja fecha (mesmo com itens no carrinho)
+## Plano: Corrigir erro de hooks no UnitPage (página crashando)
 
 ### Problema
-O cliente reclama que recebe pedidos no WhatsApp mesmo com a loja fechada. Isso acontece porque:
+A página `/unidade/:slug` está crashando com o erro **"Rendered more hooks than during the previous render"**. Isso acontece porque o `useState(_tick)` e o `useEffect` do auto-refresh foram adicionados nas linhas 296-300, **depois** dos early returns condicionais nas linhas 268 (`if (orgLoading)`) e 282 (`if (!org)`).
 
-1. **`handleSendWhatsApp`** só verifica `paused` — não verifica `business_hours` (horário de funcionamento)
-2. **Botão "Ver pedido"** (floating bar) também só verifica `paused` antes de abrir o checkout
-3. **Sem refresh automático** — se o usuário abriu a página com a loja aberta e ficou na página até fechar, o status não atualiza sozinho
+React exige que todos os hooks sejam chamados **antes** de qualquer `return` condicional e sempre na mesma ordem.
 
-### Alterações
+### Correção
 
-**1. `src/pages/UnitPage.tsx`** — 3 correções:
+**`src/pages/UnitPage.tsx`** (único arquivo)
 
-- **`handleSendWhatsApp`**: Adicionar verificação de `business_hours` + `force_open` (igual ao `usePlaceOrder`). Buscar `business_hours, force_open, paused` do banco e chamar `getStoreStatus()`. Se fechado, mostrar toast e bloquear.
+1. **Mover** o `useState(0)` do `_tick` e o `useEffect` do `setInterval` para **antes** da linha 268 (antes dos early returns), junto com os outros hooks no topo do componente (por exemplo, após a linha 159, junto dos outros `useState`).
 
-- **Botão "Ver pedido" (floating bar)**: Na função `onClick`, além de checar `paused`, também checar `business_hours` com `getStoreStatus()`.
-
-- **Auto-refresh do status**: Adicionar um `setInterval` (a cada 60s) que recalcula `getStoreStatus` com os dados atuais do org. Quando o horário de funcionamento acaba, o UI atualiza automaticamente para mostrar "Fechada" sem o cliente precisar recarregar a página.
+2. Sem outras alterações — apenas reposicionar os 6 linhas (296-300) para o bloco de hooks no topo.
 
 ### Resultado
-- Mesmo que o cliente carregue a página com a loja aberta, quando o horário fechar a UI atualiza em até 1 minuto
-- Mesmo que o cliente tente forçar o envio, `handleSendWhatsApp` bloqueia antes de enviar ao WhatsApp
-- O `usePlaceOrder` já tem a verificação server-side como última camada de segurança
+- A página `/unidade/:slug` volta a funcionar sem crash
+- O auto-refresh de 60s continua funcionando normalmente
+- O banner "Fechada" aparece automaticamente quando o horário encerra
 
