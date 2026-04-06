@@ -1048,11 +1048,16 @@ const UnitPage = () => {
                   await queryClient.invalidateQueries({ queryKey: ["organization", slug] });
                   const { data: freshOrg } = await supabase
                     .from("organizations")
-                    .select("paused")
+                    .select("paused, business_hours, force_open")
                     .eq("slug", slug!)
                     .maybeSingle();
                   if (freshOrg?.paused) {
                     toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
+                    return;
+                  }
+                  const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
+                  if (freshStatus !== null && !freshStatus.open) {
+                    toast({ title: "Esta loja está fechada no momento.", variant: "destructive" });
                     return;
                   }
                   pushDrawerState("checkout");
