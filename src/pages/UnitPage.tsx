@@ -157,6 +157,13 @@ const UnitPage = () => {
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
+  const [_tick, setTick] = useState(0);
+
+  // Auto-refresh store status every 60s so UI updates when business hours change
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Loyalty
   const cleanPhoneForLoyalty = buyerPhone.replace(/\D/g, "");
@@ -292,12 +299,7 @@ const UnitPage = () => {
     ? `https://wa.me/${cleanWa}?text=${encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?")}`
     : "";
 
-  // Store open/closed status — auto-refresh every 60s so UI updates when hours change
-  const [_tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // Store open/closed status (uses _tick from top-level useState for auto-refresh)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const storeStatus = (() => getStoreStatus(org.business_hours, (org as any).force_open))();
