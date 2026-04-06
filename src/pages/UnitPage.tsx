@@ -293,7 +293,7 @@ const UnitPage = () => {
     : "";
 
   // Store open/closed status — auto-refresh every 60s so UI updates when hours change
-  const [tick, setTick] = useState(0);
+  const [_tick, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
     return () => clearInterval(id);
