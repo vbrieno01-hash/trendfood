@@ -401,17 +401,23 @@ const UnitPage = () => {
    try {
     setIsSubmitting(true);
 
-    // Real-time check: block if store was paused after page load
-    const { data: freshOrg } = await supabase
-      .from("organizations")
-      .select("paused")
-      .eq("id", org!.id)
-      .maybeSingle();
-    if (freshOrg?.paused) {
-      toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
+     // Real-time check: block if store was paused or closed after page load
+     const { data: freshOrg } = await supabase
+       .from("organizations")
+       .select("paused, business_hours, force_open")
+       .eq("id", org!.id)
+       .maybeSingle();
+     if (freshOrg?.paused) {
+       toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
+       setIsSubmitting(false);
+       return;
+     }
+     const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
+     if (freshStatus !== null && !freshStatus.open) {
+       toast({ title: "Esta loja está fechada no momento.", variant: "destructive" });
+       setIsSubmitting(false);
+       return;
+     }
 
     const effectivePayment = overridePayment || payment;
     let valid = true;
