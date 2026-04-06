@@ -292,8 +292,15 @@ const UnitPage = () => {
     ? `https://wa.me/${cleanWa}?text=${encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?")}`
     : "";
 
-  // Store open/closed status
-  const storeStatus = getStoreStatus(org.business_hours, (org as any).force_open);
+  // Store open/closed status — auto-refresh every 60s so UI updates when hours change
+  const [_tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const storeStatus = (() => getStoreStatus(org.business_hours, (org as any).force_open))();
   const isPaused = !!(org as any).paused;
   const isClosed = isPaused || (storeStatus !== null && !storeStatus.open);
   const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
@@ -394,17 +401,23 @@ const UnitPage = () => {
    try {
     setIsSubmitting(true);
 
-    // Real-time check: block if store was paused after page load
-    const { data: freshOrg } = await supabase
-      .from("organizations")
-      .select("paused")
-      .eq("id", org!.id)
-      .maybeSingle();
-    if (freshOrg?.paused) {
-      toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
+     // Real-time check: block if store was paused or closed after page load
+     const { data: freshOrg } = await supabase
+       .from("organizations")
+       .select("paused, business_hours, force_open")
+       .eq("id", org!.id)
+       .maybeSingle();
+     if (freshOrg?.paused) {
+       toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
+       setIsSubmitting(false);
+       return;
+     }
+     const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
+     if (freshStatus !== null && !freshStatus.open) {
+       toast({ title: "Esta loja está fechada no momento.", variant: "destructive" });
+       setIsSubmitting(false);
+       return;
+     }
 
     const effectivePayment = overridePayment || payment;
     let valid = true;
@@ -1035,11 +1048,16 @@ const UnitPage = () => {
                   await queryClient.invalidateQueries({ queryKey: ["organization", slug] });
                   const { data: freshOrg } = await supabase
                     .from("organizations")
-                    .select("paused")
+                    .select("paused, business_hours, force_open")
                     .eq("slug", slug!)
                     .maybeSingle();
                   if (freshOrg?.paused) {
                     toast({ title: "Esta loja pausou os pedidos no momento.", variant: "destructive" });
+                    return;
+                  }
+                  const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
+                  if (freshStatus !== null && !freshStatus.open) {
+                    toast({ title: "Esta loja está fechada no momento.", variant: "destructive" });
                     return;
                   }
                   pushDrawerState("checkout");
