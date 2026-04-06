@@ -157,6 +157,13 @@ const UnitPage = () => {
   const [pixOrderId, setPixOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
+  const [_tick, setTick] = useState(0);
+
+  // Auto-refresh store status every 60s so UI updates when business hours change
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Loyalty
   const cleanPhoneForLoyalty = buyerPhone.replace(/\D/g, "");
