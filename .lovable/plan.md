@@ -1,25 +1,26 @@
 
 
-## Plano: Corrigir sufixo de período no checkout (trimestral mostra "/mês")
+## Plano: Bloquear pedidos quando a loja fecha (mesmo com itens no carrinho)
 
 ### Problema
-O `CardPaymentForm.tsx` usa uma condição binária para o sufixo do período:
-```
-billing === "annual" ? "/ano" : "/mês"
-```
-Isso faz com que pagamentos trimestrais apareçam como "/mês" em dois lugares:
-1. Na descrição do dialog: `R$ 267/mês` (deveria ser `/tri`)
-2. No botão de submit: `Assinar por R$ 267/mês` (deveria ser `/tri`)
+O cliente reclama que recebe pedidos no WhatsApp mesmo com a loja fechada. Isso acontece porque:
 
-### Alteração
+1. **`handleSendWhatsApp`** só verifica `paused` — não verifica `business_hours` (horário de funcionamento)
+2. **Botão "Ver pedido"** (floating bar) também só verifica `paused` antes de abrir o checkout
+3. **Sem refresh automático** — se o usuário abriu a página com a loja aberta e ficou na página até fechar, o status não atualiza sozinho
 
-**`src/components/checkout/CardPaymentForm.tsx`** (único arquivo)
+### Alterações
 
-Substituir as 2 ocorrências do ternário `billing === "annual" ? "/ano" : "/mês"` por uma função helper que cobre os 3 ciclos:
+**1. `src/pages/UnitPage.tsx`** — 3 correções:
 
-- Linha 241 (descrição): trocar para `billing === "annual" ? "/ano" : billing === "quarterly" ? "/tri" : "/mês"`
-- Linha 358 (botão): mesma correção
+- **`handleSendWhatsApp`**: Adicionar verificação de `business_hours` + `force_open` (igual ao `usePlaceOrder`). Buscar `business_hours, force_open, paused` do banco e chamar `getStoreStatus()`. Se fechado, mostrar toast e bloquear.
 
-### Impacto
-- 1 arquivo, 2 linhas
-- Corrige a exibição do checkout para planos trimestrais em todas as 3 telas que usam `CardPaymentForm` (PricingPage, SubscriptionTab, UpgradeDialog)
+- **Botão "Ver pedido" (floating bar)**: Na função `onClick`, além de checar `paused`, também checar `business_hours` com `getStoreStatus()`.
+
+- **Auto-refresh do status**: Adicionar um `setInterval` (a cada 60s) que recalcula `getStoreStatus` com os dados atuais do org. Quando o horário de funcionamento acaba, o UI atualiza automaticamente para mostrar "Fechada" sem o cliente precisar recarregar a página.
+
+### Resultado
+- Mesmo que o cliente carregue a página com a loja aberta, quando o horário fechar a UI atualiza em até 1 minuto
+- Mesmo que o cliente tente forçar o envio, `handleSendWhatsApp` bloqueia antes de enviar ao WhatsApp
+- O `usePlaceOrder` já tem a verificação server-side como última camada de segurança
+
