@@ -292,8 +292,15 @@ const UnitPage = () => {
     ? `https://wa.me/${cleanWa}?text=${encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre a loja. Pode me ajudar?")}`
     : "";
 
-  // Store open/closed status
-  const storeStatus = getStoreStatus(org.business_hours, (org as any).force_open);
+  // Store open/closed status — auto-refresh every 60s so UI updates when hours change
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const storeStatus = (() => getStoreStatus(org.business_hours, (org as any).force_open))();
   const isPaused = !!(org as any).paused;
   const isClosed = isPaused || (storeStatus !== null && !storeStatus.open);
   const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
