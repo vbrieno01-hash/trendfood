@@ -1365,9 +1365,11 @@ const UnitPage = () => {
                                  )}
                                </SelectItem>
                              ))}
-                             <SelectItem value="__outro__" className="text-muted-foreground italic border-t mt-1 pt-1">
-                               Outro bairro — <span className="text-xs">Sob consulta</span>
-                             </SelectItem>
+                              {((org as any)?.delivery_config as any)?.allow_other_neighborhood !== false && (
+                                <SelectItem value="__outro__" className="text-muted-foreground italic border-t mt-1 pt-1">
+                                  Outro bairro — <span className="text-xs">Sob consulta</span>
+                                </SelectItem>
+                              )}
                            </SelectContent>
                        </Select>
                      ) : (

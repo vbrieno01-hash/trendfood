@@ -127,6 +127,24 @@ export default function NeighborhoodManager({ organizationId, deliveryConfig, on
         </div>
       )}
 
+      {/* Toggle "Outro bairro" */}
+      {onUpdateDeliveryConfig && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
+          <div>
+            <p className="text-sm font-medium">Permitir "Outro bairro"</p>
+            <p className="text-xs text-muted-foreground">
+              Quando desativado, clientes só podem escolher bairros cadastrados
+            </p>
+          </div>
+          <Switch
+            checked={allowOther}
+            onCheckedChange={(checked) =>
+              onUpdateDeliveryConfig({ ...deliveryConfig, allow_other_neighborhood: checked })
+            }
+          />
+        </div>
+      )}
+
       {neighborhoods.length === 0 && (
         <p className="text-sm text-muted-foreground italic">
           Nenhum bairro cadastrado. Adicione abaixo os bairros que você atende.

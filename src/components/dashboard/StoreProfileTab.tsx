@@ -988,7 +988,17 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
          </div>
 
          {/* Bairros e taxas — gerenciado via componente dedicado */}
-         <NeighborhoodManager organizationId={organization.id} />
+          <NeighborhoodManager
+            organizationId={organization.id}
+            deliveryConfig={organization.delivery_config as Record<string, any> | null}
+            onUpdateDeliveryConfig={async (patch) => {
+              const { error } = await supabase
+                .from("organizations")
+                .update({ delivery_config: patch as any })
+                .eq("id", organization.id);
+              if (!error) queryClient.invalidateQueries({ queryKey: ["organization"] });
+            }}
+          />
       </div>
 
       {/* ── SEÇÃO 6: Horário de Funcionamento ─────────────────────── */}
