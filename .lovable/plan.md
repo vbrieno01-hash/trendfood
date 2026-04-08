@@ -1,35 +1,29 @@
 
 
-## Plano: Mensagem específica de "Em intervalo" na página pública
+## Plano: Toggle para pausar "Outro bairro" na página pública
 
 ### Problema
-Quando a loja está em intervalo de descanso, o `storeStatus` retorna `{ open: false, opensAt: "13:30" }` — idêntico a "fechada". A página pública mostra "Loja fechada" sem distinguir que é apenas uma pausa temporária.
+A opção "Outro bairro — Sob consulta" sempre aparece no dropdown de bairros da página pública. O dono quer poder desativar isso quando não tem motoboy para ir longe.
 
 ### Solução
 
-**1. `src/lib/storeStatus.ts`** — Adicionar campo `reason` ao tipo de status fechado:
+**1. `delivery_config` JSON** — Adicionar campo `allow_other_neighborhood` (default `true` para compatibilidade):
+- Armazenado no JSON `delivery_config` da tabela `organizations`, sem migração necessária.
 
-```typescript
-export type StoreStatus =
-  | null
-  | { open: true }
-  | { open: false; opensAt: string | null; reason?: "break" };
-```
+**2. `src/components/dashboard/NeighborhoodManager.tsx`** — Adicionar toggle:
+- Receber `organization` como prop (em vez de só `organizationId`)
+- Ler `delivery_config.allow_other_neighborhood` (default `true`)
+- Mostrar um Switch "Permitir 'Outro bairro'" com descrição tipo "Quando desativado, clientes só podem escolher bairros cadastrados"
+- Ao alterar, salvar no `delivery_config` da org
 
-Nos 3 pontos onde retorna `{ open: false, opensAt: break_to }` (linhas 63, 91), adicionar `reason: "break"`.
+**3. `src/components/dashboard/StoreProfileTab.tsx`** — Passar `organization` inteira para o `NeighborhoodManager`
 
-**2. `src/pages/UnitPage.tsx`** — Usar o `reason` para exibir mensagens diferenciadas:
-
-- **Badge** (linha 841-845): `"Em intervalo · volta às 13:30"` em vez de `"Fechado · abre às 13:30"`
-- **Banner amarelo** (linha 856-864): `"☕ Em intervalo de descanso"` + `"Voltamos às 13:30"` com fundo amarelo em vez de vermelho
-- **Rodapé do carrinho** (linha 1484): `"☕ Em intervalo · pedidos retornam às 13:30"`
-- **Toast** (linhas 419, 1062): `"Loja em intervalo. Retorna às HH:MM"` em vez de `"Esta loja está fechada"`
-- **Barra fixa inferior** (linha 1043): `"☕ Intervalo"` em vez de `"🔒 Fechada"`
-
-**3. `src/pages/TableOrderPage.tsx`** — Mesma lógica (linha 691-699): mensagem de intervalo diferenciada.
+**4. `src/pages/UnitPage.tsx`** — Condicionar a opção "Outro bairro":
+- Ler `delivery_config.allow_other_neighborhood` da org
+- Se `false`, não renderizar o `<SelectItem value="__outro__">`
 
 ### Impacto
 - 3 arquivos alterados
-- Compatível com lojas sem intervalo (campo `reason` é opcional)
-- Visual: tom amarelo/âmbar para intervalo vs vermelho para fechada
+- Sem migração (campo opcional no JSON existente)
+- Compatível com lojas existentes (default `true`)
 
