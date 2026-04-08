@@ -110,7 +110,7 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
     setSaving(true);
     const { error } = await supabase
       .from("organizations")
-      .update({ name: name.trim(), emoji, whatsapp: whatsappDigits })
+      .update({ name: name.trim(), whatsapp: whatsappDigits })
       .eq("id", organization.id);
     setSaving(false);
     if (error) { toast.error("Erro ao salvar."); return false; }
