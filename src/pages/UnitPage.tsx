@@ -1510,11 +1510,11 @@ const UnitPage = () => {
             {isClosed ? (
               <div className="bg-muted rounded-xl p-4 text-center">
                 <p className="text-foreground font-semibold text-sm">
-                  {storeStatus && !storeStatus.open && storeStatus.reason === "break"
+                  {storeStatus && !storeStatus.open && (storeStatus as any).reason === "break"
                     ? `☕ Em intervalo · pedidos retornam às ${opensAt || "breve"}`
                     : "🔒 Loja fechada · pedidos indisponíveis"}
                 </p>
-                {!storeStatus?.reason && opensAt && (
+                {!(storeStatus && !storeStatus.open && (storeStatus as any).reason) && opensAt && (
                   <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>
                 )}
               </div>
