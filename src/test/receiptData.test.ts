@@ -60,6 +60,36 @@ describe("buildReceiptData - Retirada vs Entrega", () => {
     expect(data.trocoChange).toBeUndefined();
   });
 
+  it("should multiply addon qty by item qty when qty > 1", () => {
+    const order = {
+      id: "test-addon",
+      table_number: 0,
+      created_at: new Date().toISOString(),
+      notes: "TIPO:Entrega|CLIENTE:Test|PGTO:Pix|FRETE:R$ 5,00",
+      order_items: [
+        { id: "i1", name: "X-Onion (+ 1x Batata frita R$5,00, + 2x Bacon R$3,00)", quantity: 2, price: 25 },
+      ],
+    };
+
+    const data = buildReceiptData(order, storeInfo);
+    expect(data.items[0].addons).toEqual(["2x Batata frita R$10,00", "4x Bacon R$6,00"]);
+  });
+
+  it("should NOT multiply addon qty when item qty is 1", () => {
+    const order = {
+      id: "test-addon-1",
+      table_number: 0,
+      created_at: new Date().toISOString(),
+      notes: "TIPO:Entrega|CLIENTE:Test|PGTO:Pix",
+      order_items: [
+        { id: "i1", name: "X-Onion (+ 1x Batata frita R$5,00)", quantity: 1, price: 25 },
+      ],
+    };
+
+    const data = buildReceiptData(order, storeInfo);
+    expect(data.items[0].addons).toEqual(["1x Batata frita R$5,00"]);
+  });
+
   it("should calculate trocoChange correctly when troco > total", () => {
     const order = {
       id: "test-3",

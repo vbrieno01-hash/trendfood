@@ -30,11 +30,23 @@ describe("E2E Receipt Sanitization & Calculation", () => {
     expect(data.trocoChange).toBe(1); // 50 - 49 = 1
   });
 
-  it("parses addons and per-item obs", () => {
+  it("parses addons and per-item obs, multiplying qty", () => {
     const data = buildReceiptData(testOrder, storeInfo);
     expect(data.items[0].baseName).toBe("X-Burguer");
+    // qty=2, addons without price format stay unchanged
     expect(data.items[0].addons).toEqual(["Bacon", "Cheddar"]);
     expect(data.items[0].itemObs).toBe("Sem cebola");
+  });
+
+  it("multiplies addon qty by item qty for priced addons", () => {
+    const orderWithPricedAddons = {
+      ...testOrder,
+      order_items: [
+        { id: "i1", name: "X-Burguer (+ 1x Bacon R$5,00, + 2x Cheddar R$3,00) | Obs: Sem cebola", quantity: 3, price: 18 },
+      ],
+    };
+    const data = buildReceiptData(orderWithPricedAddons, storeInfo);
+    expect(data.items[0].addons).toEqual(["3x Bacon R$15,00", "6x Cheddar R$9,00"]);
   });
 
   it("shows PARA ENTREGA with full address for delivery", () => {
