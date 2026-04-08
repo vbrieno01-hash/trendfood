@@ -62,10 +62,25 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
     return d && d.break_from && d.break_to;
   };
 
+  const calcSmartBreak = (from: string, to: string) => {
+    const [fh, fm] = from.split(":").map(Number);
+    const [th, tm] = to.split(":").map(Number);
+    const fromMin = fh * 60 + fm;
+    let toMin = th * 60 + tm;
+    if (toMin <= fromMin) toMin += 24 * 60;
+    const mid = Math.floor((fromMin + toMin) / 2);
+    const bFrom = mid - 30;
+    const bTo = mid + 30;
+    const fmt = (m: number) => {
+      const wrapped = ((m % (24 * 60)) + 24 * 60) % (24 * 60);
+      return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+    };
+    return { break_from: fmt(bFrom), break_to: fmt(bTo) };
+  };
+
   const toggleBreak = (key: string) => {
     const d = value.schedule[key];
     if (hasBreak(key)) {
-      // Remove break
       onChange({
         ...value,
         schedule: {
@@ -74,15 +89,29 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
         },
       });
     } else {
-      // Add default break 12:00-13:00
+      const smart = calcSmartBreak(d.from, d.to);
       onChange({
         ...value,
         schedule: {
           ...value.schedule,
-          [key]: { ...d, break_from: "12:00", break_to: "13:00" },
+          [key]: { ...d, ...smart },
         },
       });
     }
+  };
+
+  const isBreakInvalid = (key: string) => {
+    const d = value.schedule[key];
+    if (!d || !d.break_from || !d.break_to) return false;
+    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+    const from = toMin(d.from);
+    let to = toMin(d.to);
+    if (to <= from) to += 24 * 60;
+    let bf = toMin(d.break_from);
+    let bt = toMin(d.break_to);
+    if (bf < from) bf += 24 * 60;
+    if (bt < from) bt += 24 * 60;
+    return bf < from || bt > to || bf >= bt;
   };
 
   return (
