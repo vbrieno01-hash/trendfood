@@ -56,7 +56,7 @@ export function getBtUnsupportedMessage(reason: BluetoothUnsupportedReason): { t
 }
 
 
-export function getBluetoothStatus(): { supported: true } | { supported: false; reason: BluetoothUnsupportedReason } {
+export function getBluetoothStatus(): { supported: boolean; reason?: BluetoothUnsupportedReason } {
   if (isBluetoothSupported()) return { supported: true };
 
   const ua = navigator.userAgent || "";
