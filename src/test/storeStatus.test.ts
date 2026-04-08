@@ -121,4 +121,76 @@ describe("getStoreStatus cross-midnight", () => {
     const status = getStoreStatus(bh, true);
     expect(status).toEqual({ open: true });
   });
+
+  it("should show closed during break interval", async () => {
+    vi.useFakeTimers();
+    // Wednesday 12:30 Brasília
+    mockDate("2026-03-04T12:30:00");
+
+    const { getStoreStatus } = await import("@/lib/storeStatus");
+
+    const bh = {
+      enabled: true,
+      schedule: {
+        seg: { open: true, from: "08:00", to: "22:00" },
+        ter: { open: true, from: "08:00", to: "22:00" },
+        qua: { open: true, from: "08:00", to: "22:00", break_from: "12:00", break_to: "13:30" },
+        qui: { open: true, from: "08:00", to: "22:00" },
+        sex: { open: true, from: "08:00", to: "22:00" },
+        sab: { open: true, from: "08:00", to: "22:00" },
+        dom: { open: false, from: "10:00", to: "20:00" },
+      },
+    };
+
+    const status = getStoreStatus(bh);
+    expect(status).toEqual({ open: false, opensAt: "13:30" });
+  });
+
+  it("should show open after break interval ends", async () => {
+    vi.useFakeTimers();
+    // Wednesday 14:00 Brasília
+    mockDate("2026-03-04T14:00:00");
+
+    const { getStoreStatus } = await import("@/lib/storeStatus");
+
+    const bh = {
+      enabled: true,
+      schedule: {
+        seg: { open: true, from: "08:00", to: "22:00" },
+        ter: { open: true, from: "08:00", to: "22:00" },
+        qua: { open: true, from: "08:00", to: "22:00", break_from: "12:00", break_to: "13:30" },
+        qui: { open: true, from: "08:00", to: "22:00" },
+        sex: { open: true, from: "08:00", to: "22:00" },
+        sab: { open: true, from: "08:00", to: "22:00" },
+        dom: { open: false, from: "10:00", to: "20:00" },
+      },
+    };
+
+    const status = getStoreStatus(bh);
+    expect(status).toEqual({ open: true });
+  });
+
+  it("should show open when no break is configured", async () => {
+    vi.useFakeTimers();
+    // Wednesday 12:30 Brasília — no break configured
+    mockDate("2026-03-04T12:30:00");
+
+    const { getStoreStatus } = await import("@/lib/storeStatus");
+
+    const bh = {
+      enabled: true,
+      schedule: {
+        seg: { open: true, from: "08:00", to: "22:00" },
+        ter: { open: true, from: "08:00", to: "22:00" },
+        qua: { open: true, from: "08:00", to: "22:00" },
+        qui: { open: true, from: "08:00", to: "22:00" },
+        sex: { open: true, from: "08:00", to: "22:00" },
+        sab: { open: true, from: "08:00", to: "22:00" },
+        dom: { open: false, from: "10:00", to: "20:00" },
+      },
+    };
+
+    const status = getStoreStatus(bh);
+    expect(status).toEqual({ open: true });
+  });
 });
