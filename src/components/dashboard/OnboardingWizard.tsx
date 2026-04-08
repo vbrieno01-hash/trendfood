@@ -31,7 +31,7 @@ interface Props {
 
 
 const STEPS = [
-  { title: "Nome e Emoji", subtitle: "Como sua loja vai aparecer para os clientes" },
+  { title: "Nome e WhatsApp", subtitle: "Como sua loja vai aparecer para os clientes" },
   { title: "Endereço de Entrega", subtitle: "Onde sua loja está localizada" },
   { title: "Horários de Funcionamento", subtitle: "Quando sua loja está aberta" },
   { title: "Primeiro Item do Cardápio", subtitle: "Adicione o primeiro produto da sua loja" },
