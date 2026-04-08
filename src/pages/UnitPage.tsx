@@ -1507,8 +1507,12 @@ const UnitPage = () => {
           <DrawerFooter className="border-t border-border pt-3">
             {isClosed ? (
               <div className="bg-muted rounded-xl p-4 text-center">
-                <p className="text-foreground font-semibold text-sm">🔒 Loja fechada · pedidos indisponíveis</p>
-                {opensAt && (
+                <p className="text-foreground font-semibold text-sm">
+                  {storeStatus && !storeStatus.open && storeStatus.reason === "break"
+                    ? `☕ Em intervalo · pedidos retornam às ${opensAt || "breve"}`
+                    : "🔒 Loja fechada · pedidos indisponíveis"}
+                </p>
+                {!storeStatus?.reason && opensAt && (
                   <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>
                 )}
               </div>

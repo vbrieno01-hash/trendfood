@@ -687,19 +687,31 @@ export default function TableOrderPage() {
       {/* Closed banner */}
       {isClosed && (
         <div className="max-w-lg mx-auto px-4 pt-4">
-          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-3">
-            <Clock className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-destructive text-sm">Loja fechada</p>
-              <p className="text-xs text-muted-foreground">
-                {org?.paused
-                  ? "A loja está temporariamente pausada."
-                  : storeStatus && !storeStatus.open && (storeStatus as { open: false; opensAt: string | null }).opensAt
-                    ? `Abre às ${(storeStatus as { open: false; opensAt: string | null }).opensAt}`
-                    : "Pedidos só podem ser feitos no horário de funcionamento."}
-              </p>
+          {storeStatus && !storeStatus.open && storeStatus.reason === "break" ? (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
+              <span className="text-xl flex-shrink-0 mt-0.5">☕</span>
+              <div>
+                <p className="font-bold text-amber-700 dark:text-amber-400 text-sm">Em intervalo de descanso</p>
+                <p className="text-xs text-muted-foreground">
+                  {storeStatus.opensAt ? `Voltamos às ${storeStatus.opensAt}` : "Voltamos em breve!"}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-3">
+              <Clock className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-destructive text-sm">Loja fechada</p>
+                <p className="text-xs text-muted-foreground">
+                  {org?.paused
+                    ? "A loja está temporariamente pausada."
+                    : storeStatus && !storeStatus.open && storeStatus.opensAt
+                      ? `Abre às ${storeStatus.opensAt}`
+                      : "Pedidos só podem ser feitos no horário de funcionamento."}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
