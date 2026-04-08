@@ -849,7 +849,7 @@ const UnitPage = () => {
               {storeStatus.open
                 ? "Aberto agora"
                 : (storeStatus as any).reason === "break" && opensAt
-                ? `☕ Intervalo · volta às ${opensAt}`
+                ? `⏸ Em pausa · voltamos às ${opensAt}`
                 : opensAt
                 ? `Fechado · abre às ${opensAt}`
                 : "Fechado hoje"}
