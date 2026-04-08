@@ -2,7 +2,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { BusinessHours } from "@/hooks/useOrganization";
-import { Coffee } from "lucide-react";
+import { Pause, X, Plus } from "lucide-react";
 
 const DAYS = [
   { key: "seg", label: "Segunda" },
@@ -164,14 +164,17 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
                           <button
                             type="button"
                             onClick={() => toggleBreak(day.key)}
-                            title={breakActive ? "Remover intervalo" : "Adicionar intervalo"}
-                            className={`p-1.5 rounded-md transition-colors ${
+                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                               breakActive
-                                ? "bg-primary/10 text-primary"
+                                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50"
                                 : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                             }`}
                           >
-                            <Coffee className="h-3.5 w-3.5" />
+                            {breakActive ? (
+                              <><X className="h-3 w-3" /> Pausa</>
+                            ) : (
+                              <><Plus className="h-3 w-3" /> Pausa</>
+                            )}
                           </button>
                         )}
                       </td>
@@ -182,8 +185,8 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
                         <td className="px-3 py-2"></td>
                         <td className="px-2 py-2">
                           <span className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                            <Coffee className="h-3 w-3" />
-                            Intervalo
+                            <Pause className="h-3 w-3" />
+                            Pausa
                           </span>
                         </td>
                         <td className="px-2 py-2">
@@ -211,6 +214,12 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {value.enabled && (
+        <p className="text-xs text-muted-foreground">
+          A pausa fecha a loja temporariamente no horário definido. Clientes não conseguem fazer pedidos durante a pausa.
+        </p>
       )}
     </div>
   );
