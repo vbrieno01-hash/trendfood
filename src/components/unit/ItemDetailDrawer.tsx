@@ -26,7 +26,7 @@ interface ItemDetailDrawerProps {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensAt, organizationId }: ItemDetailDrawerProps) => {
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
   const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
   const [itemNotes, setItemNotes] = useState("");
   const [qty, setQty] = useState(1);
