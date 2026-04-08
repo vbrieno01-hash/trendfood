@@ -5,6 +5,8 @@ export interface BusinessHoursDay {
   open: boolean;
   from: string;
   to: string;
+  break_from?: string;
+  break_to?: string;
 }
 
 export interface BusinessHours {

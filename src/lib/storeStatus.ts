@@ -55,6 +55,14 @@ export function getStoreStatus(
     const prevTo = toMinutesClose(prevDay.to);
     // Turno cruza meia-noite: prevFrom > prevTo (ex: 22:00 → 02:00 = 1320 → 120)
     if (prevTo < prevFrom && currentMinutes < prevTo) {
+      // Verificar intervalo de descanso do dia anterior
+      if (prevDay.break_from && prevDay.break_to) {
+        const breakFrom = timeToMinutes(prevDay.break_from);
+        const breakTo = timeToMinutes(prevDay.break_to);
+        if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
+          return { open: false, opensAt: prevDay.break_to };
+        }
+      }
       return { open: true };
     }
   }
@@ -75,6 +83,14 @@ export function getStoreStatus(
     : currentMinutes >= fromMin || currentMinutes < toMin;
 
   if (isOpen) {
+    // Verificar intervalo de descanso (break)
+    if (today.break_from && today.break_to) {
+      const breakFrom = timeToMinutes(today.break_from);
+      const breakTo = timeToMinutes(today.break_to);
+      if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
+        return { open: false, opensAt: today.break_to };
+      }
+    }
     return { open: true };
   }
 
