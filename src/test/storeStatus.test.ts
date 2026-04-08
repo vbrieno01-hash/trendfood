@@ -143,7 +143,7 @@ describe("getStoreStatus cross-midnight", () => {
     };
 
     const status = getStoreStatus(bh);
-    expect(status).toEqual({ open: false, opensAt: "13:30" });
+    expect(status).toEqual({ open: false, opensAt: "13:30", reason: "break" });
   });
 
   it("should show open after break interval ends", async () => {
