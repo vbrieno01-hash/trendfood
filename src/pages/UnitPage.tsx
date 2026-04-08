@@ -1562,6 +1562,7 @@ const UnitPage = () => {
         primaryColor={primaryColor}
         isClosed={isClosed}
         opensAt={opensAt}
+        closedReason={storeStatus && !storeStatus.open ? (storeStatus as any).reason : undefined}
         organizationId={org.id}
       />
 
