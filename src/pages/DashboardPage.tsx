@@ -986,6 +986,7 @@ const DashboardPage = () => {
                 btDevice={btDevice}
                 pixKey={(organization as any).pix_key}
                 onPairBluetooth={handlePairBluetooth}
+                btPairing={btPairing}
                 btConnected={btConnected}
                 btSupported={btSupported}
                 autoPrint={autoPrint}
