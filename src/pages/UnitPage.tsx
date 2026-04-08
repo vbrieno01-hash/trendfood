@@ -1083,8 +1083,9 @@ const UnitPage = () => {
                   }
                   const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
                   if (freshStatus !== null && !freshStatus.open) {
-                    const msg = freshStatus.reason === "break" && freshStatus.opensAt
-                      ? `☕ Loja em intervalo. Retorna às ${freshStatus.opensAt}.`
+                    const closed = freshStatus as { open: false; opensAt: string | null; reason?: "break" };
+                    const msg = closed.reason === "break" && closed.opensAt
+                      ? `☕ Loja em intervalo. Retorna às ${closed.opensAt}.`
                       : "Esta loja está fechada no momento.";
                     toast({ title: msg, variant: "destructive" });
                     return;
