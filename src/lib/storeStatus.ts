@@ -31,7 +31,7 @@ function toMinutesClose(time: string): number {
 export type StoreStatus =
   | null
   | { open: true }
-  | { open: false; opensAt: string | null };
+  | { open: false; opensAt: string | null; reason?: "break" };
 
 export function getStoreStatus(
   businessHours: BusinessHours | null | undefined,
