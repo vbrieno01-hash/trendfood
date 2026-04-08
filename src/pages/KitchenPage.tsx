@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
-import { isBluetoothSupported, requestBluetoothPrinter, reconnectStoredPrinter, getBluetoothStatus } from "@/lib/bluetoothPrinter";
+import { isBluetoothSupported, requestBluetoothPrinter, reconnectStoredPrinter, getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrinter";
 import { toast } from "sonner";
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>

@@ -28,7 +28,7 @@ import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import UpgradeDialog from "@/components/dashboard/UpgradeDialog";
 
 import ThemeToggle from "@/components/ThemeToggle";
-import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getStoredDeviceId } from "@/lib/bluetoothPrinter";
+import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getBtUnsupportedMessage, getStoredDeviceId } from "@/lib/bluetoothPrinter";
 
 import HomeTab from "@/components/dashboard/HomeTab";
 import MenuTab from "@/components/dashboard/MenuTab";
