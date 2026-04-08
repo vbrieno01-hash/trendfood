@@ -16,6 +16,7 @@ interface OperationsTabProps {
   onPairBluetooth?: () => void;
   btConnected?: boolean;
   btSupported?: boolean;
+  btPairing?: boolean;
   autoPrint: boolean;
   onToggleAutoPrint: (val: boolean) => void;
   notificationsEnabled: boolean;
