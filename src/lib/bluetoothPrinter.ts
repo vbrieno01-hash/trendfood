@@ -24,6 +24,15 @@ const STORED_DEVICE_KEY = "bt_printer_device_id";
 let cachedServer: BluetoothRemoteGATTServer | null = null;
 let cachedCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
 let isConnecting = false;
+let isConnectingSince = 0;
+
+function resetStaleConnecting() {
+  if (isConnecting && isConnectingSince > 0 && Date.now() - isConnectingSince > 15000) {
+    console.warn("[BT] isConnecting stuck for 15s, resetting");
+    isConnecting = false;
+    isConnectingSince = 0;
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -106,12 +115,14 @@ export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null>
 
 export async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemoteGATTCharacteristic | null> {
   if (!device.gatt) return null;
+  resetStaleConnecting();
   if (isConnecting) {
     console.warn("[BT] Connection already in progress, skipping");
     return null;
   }
 
   isConnecting = true;
+  isConnectingSince = Date.now();
   try {
     const server = await withTimeout(device.gatt.connect(), 10000, "GATT connect");
     cachedServer = server;
@@ -165,6 +176,7 @@ export async function connectToDevice(device: BluetoothDevice): Promise<Bluetoot
     return null;
   } finally {
     isConnecting = false;
+    isConnectingSince = 0;
   }
 }
 

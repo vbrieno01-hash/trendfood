@@ -16,6 +16,7 @@ interface OperationsTabProps {
   onPairBluetooth?: () => void;
   btConnected?: boolean;
   btSupported?: boolean;
+  btPairing?: boolean;
   autoPrint: boolean;
   onToggleAutoPrint: (val: boolean) => void;
   notificationsEnabled: boolean;
@@ -53,6 +54,7 @@ export default function OperationsTab(props: OperationsTabProps) {
           onPairBluetooth={props.onPairBluetooth}
           btConnected={props.btConnected}
           btSupported={props.btSupported}
+          btPairing={props.btPairing}
           autoPrint={props.autoPrint}
           onToggleAutoPrint={props.onToggleAutoPrint}
           notificationsEnabled={props.notificationsEnabled}

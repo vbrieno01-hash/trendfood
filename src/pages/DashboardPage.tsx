@@ -354,6 +354,8 @@ const DashboardPage = () => {
     device.addEventListener("gattserverdisconnected", handler);
   };
 
+  const [btPairing, setBtPairing] = useState(false);
+
   const handlePairBluetooth = async () => {
     const btStatus = getBluetoothStatus();
     if (!btStatus.supported) {
@@ -361,8 +363,12 @@ const DashboardPage = () => {
       toast.error(title, { description, duration: 8000 });
       return;
     }
+    setBtPairing(true);
     try {
-      const device = await requestBluetoothPrinter();
+      const device = await Promise.race([
+        requestBluetoothPrinter(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000)),
+      ]);
       if (device) {
         setBtDevice(device);
         // Web: connect GATT manually
@@ -394,11 +400,13 @@ const DashboardPage = () => {
           duration: 8000,
         });
       } else {
-        toast.error("Erro ao buscar impressora", {
+      toast.error("Erro ao buscar impressora", {
           description: "Verifique se Bluetooth e GPS estão ligados.",
           duration: 8000,
         });
       }
+    } finally {
+      setBtPairing(false);
     }
   };
 
@@ -978,6 +986,7 @@ const DashboardPage = () => {
                 btDevice={btDevice}
                 pixKey={(organization as any).pix_key}
                 onPairBluetooth={handlePairBluetooth}
+                btPairing={btPairing}
                 btConnected={btConnected}
                 btSupported={btSupported}
                 autoPrint={autoPrint}
@@ -996,7 +1005,7 @@ const DashboardPage = () => {
             : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgCnpj={(organization as any).cnpj} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} effectivePlan={planLimits.effectivePlan} />}
-          {activeTab === "printer" && <PrinterTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
+          {activeTab === "printer" && <PrinterTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} btPairing={btPairing} />}
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
           {activeTab === "subscription" && <SubscriptionTab />}
