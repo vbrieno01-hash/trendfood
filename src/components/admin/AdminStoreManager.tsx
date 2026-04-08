@@ -171,7 +171,7 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
           </TabsContent>
 
           <TabsContent value="relatorios" className="mt-4">
-            <ReportsTab orgId={org.id} orgName={org.name} orgEmoji={org.emoji} />
+            <ReportsTab orgId={org.id} orgName={org.name} />
           </TabsContent>
         </Tabs>
       )}

@@ -696,7 +696,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
         <CourierReportSection
           orgId={orgId}
           orgName={orgName || "Minha Loja"}
-          orgEmoji={orgEmoji || "🍽️"}
+          
           orgLogo={orgLogo}
           orgWhatsapp={orgWhatsapp}
           orgAddress={orgAddress}
