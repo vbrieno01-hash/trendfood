@@ -863,10 +863,10 @@ const UnitPage = () => {
           {isClosed && (
             storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
               <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
-                <span className="text-lg shrink-0 mt-0.5">☕</span>
+                <span className="text-lg shrink-0 mt-0.5">⏸</span>
                 <div>
                   <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                    Em intervalo de descanso
+                    Estamos em pausa
                   </p>
                   {opensAt && (
                     <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">Voltamos às {opensAt}</p>
