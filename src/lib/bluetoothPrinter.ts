@@ -40,6 +40,22 @@ export function isBluetoothSupported(): boolean {
 
 export type BluetoothUnsupportedReason = "ios" | "brave-disabled" | "webview" | "firefox" | "unsupported";
 
+export function getBtUnsupportedMessage(reason: BluetoothUnsupportedReason): { title: string; description: string } {
+  switch (reason) {
+    case "ios":
+      return { title: "Bluetooth não disponível no iOS", description: "O Safari e navegadores no iOS não suportam Bluetooth. Use um dispositivo Android com Google Chrome." };
+    case "brave-disabled":
+      return { title: "Bluetooth desativado no Brave", description: "Ative em brave://flags/#enable-web-bluetooth e recarregue a página." };
+    case "webview":
+      return { title: "Bluetooth não funciona neste app", description: "Abra no navegador Google Chrome. O Bluetooth não funciona dentro de apps como Instagram ou Facebook." };
+    case "firefox":
+      return { title: "Bluetooth não disponível no Firefox", description: "O Firefox não suporta Bluetooth. Use Google Chrome, Edge ou Opera." };
+    default:
+      return { title: "Bluetooth não disponível", description: "Use Google Chrome, Edge ou Opera para parear impressoras Bluetooth." };
+  }
+}
+
+
 export function getBluetoothStatus(): { supported: true } | { supported: false; reason: BluetoothUnsupportedReason } {
   if (isBluetoothSupported()) return { supported: true };
 
