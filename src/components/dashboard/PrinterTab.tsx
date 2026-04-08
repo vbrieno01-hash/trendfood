@@ -12,6 +12,7 @@ import {
 import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
+import { getBluetoothStatus, type BluetoothUnsupportedReason } from "@/lib/bluetoothPrinter";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
