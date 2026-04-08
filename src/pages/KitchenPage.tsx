@@ -95,6 +95,7 @@ export default function KitchenPage() {
   const [btDevice, setBtDevice] = useState<BluetoothDevice | null>(null);
   const btConnected = btDevice?.gatt?.connected ?? false;
   const [btSupported] = useState(() => isBluetoothSupported());
+  const [btPairing, setBtPairing] = useState(false);
 
   const handlePairBluetooth = async () => {
     const btStatus = getBluetoothStatus();
@@ -103,8 +104,12 @@ export default function KitchenPage() {
       toast.error(title, { description, duration: 8000 });
       return;
     }
+    setBtPairing(true);
     try {
-      const device = await requestBluetoothPrinter();
+      const device = await Promise.race([
+        requestBluetoothPrinter(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000)),
+      ]);
       if (device) setBtDevice(device);
     } catch (err: any) {
       console.error("[BT] Pair error:", err);
@@ -124,6 +129,8 @@ export default function KitchenPage() {
           duration: 8000,
         });
       }
+    } finally {
+      setBtPairing(false);
     }
   };
 
