@@ -28,7 +28,7 @@ interface Props {
   onComplete: () => void;
 }
 
-const EMOJIS = ["🍔", "🍕", "🌮", "🍜", "🍣", "🍰", "☕", "🥗", "🌯", "🍗", "🥩", "🍱"];
+
 
 const STEPS = [
   { title: "Nome e Emoji", subtitle: "Como sua loja vai aparecer para os clientes" },
