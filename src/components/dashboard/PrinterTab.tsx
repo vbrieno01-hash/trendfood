@@ -198,7 +198,6 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
               {(() => {
                 const status = getBluetoothStatus();
                 const msg = !status.supported ? getBtUnsupportedMessage(status.reason) : null;
-                const msg = !status.supported ? getBtUnsupportedMessage(status.reason) : null;
                 return msg ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
