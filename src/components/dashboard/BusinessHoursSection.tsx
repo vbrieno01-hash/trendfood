@@ -185,8 +185,8 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
                         <td className="px-3 py-2"></td>
                         <td className="px-2 py-2">
                           <span className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                            <Coffee className="h-3 w-3" />
-                            Intervalo
+                            <Pause className="h-3 w-3" />
+                            Pausa
                           </span>
                         </td>
                         <td className="px-2 py-2">
