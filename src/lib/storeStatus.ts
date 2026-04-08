@@ -88,7 +88,7 @@ export function getStoreStatus(
       const breakFrom = timeToMinutes(today.break_from);
       const breakTo = timeToMinutes(today.break_to);
       if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
-        return { open: false, opensAt: today.break_to };
+        return { open: false, opensAt: today.break_to, reason: "break" };
       }
     }
     return { open: true };
