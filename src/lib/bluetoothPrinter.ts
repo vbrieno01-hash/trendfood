@@ -38,10 +38,50 @@ export function isBluetoothSupported(): boolean {
   return typeof navigator !== "undefined" && "bluetooth" in navigator;
 }
 
-export function getBluetoothStatus(): "supported" | "brave-disabled" | "unsupported" {
-  if (isBluetoothSupported()) return "supported";
-  if ((navigator as any).brave) return "brave-disabled";
-  return "unsupported";
+export type BluetoothUnsupportedReason = "ios" | "brave-disabled" | "webview" | "firefox" | "unsupported";
+
+export function getBtUnsupportedMessage(reason: BluetoothUnsupportedReason): { title: string; description: string } {
+  switch (reason) {
+    case "ios":
+      return { title: "Bluetooth não disponível no iOS", description: "O Safari e navegadores no iOS não suportam Bluetooth. Use um dispositivo Android com Google Chrome." };
+    case "brave-disabled":
+      return { title: "Bluetooth desativado no Brave", description: "Ative em brave://flags/#enable-web-bluetooth e recarregue a página." };
+    case "webview":
+      return { title: "Bluetooth não funciona neste app", description: "Abra no navegador Google Chrome. O Bluetooth não funciona dentro de apps como Instagram ou Facebook." };
+    case "firefox":
+      return { title: "Bluetooth não disponível no Firefox", description: "O Firefox não suporta Bluetooth. Use Google Chrome, Edge ou Opera." };
+    default:
+      return { title: "Bluetooth não disponível", description: "Use Google Chrome, Edge ou Opera para parear impressoras Bluetooth." };
+  }
+}
+
+
+export function getBluetoothStatus(): { supported: boolean; reason?: BluetoothUnsupportedReason } {
+  if (isBluetoothSupported()) return { supported: true };
+
+  const ua = navigator.userAgent || "";
+
+  // iOS/iPadOS — Safari and all iOS browsers lack Web Bluetooth
+  if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) {
+    return { supported: false, reason: "ios" };
+  }
+
+  // WebView (Instagram, Facebook, LINE, Android WebView)
+  if (/FBAN|FBAV|Instagram|Line\//i.test(ua) || /; wv\)/.test(ua)) {
+    return { supported: false, reason: "webview" };
+  }
+
+  // Brave
+  if ((navigator as any).brave) {
+    return { supported: false, reason: "brave-disabled" };
+  }
+
+  // Firefox
+  if (/Firefox\//i.test(ua) && !/Seamonkey\//i.test(ua)) {
+    return { supported: false, reason: "firefox" };
+  }
+
+  return { supported: false, reason: "unsupported" };
 }
 
 export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null> {

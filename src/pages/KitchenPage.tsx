@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
-import { isBluetoothSupported, requestBluetoothPrinter, reconnectStoredPrinter, getBluetoothStatus } from "@/lib/bluetoothPrinter";
+import { isBluetoothSupported, requestBluetoothPrinter, reconnectStoredPrinter, getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrinter";
 import { toast } from "sonner";
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -98,16 +98,9 @@ export default function KitchenPage() {
 
   const handlePairBluetooth = async () => {
     const btStatus = getBluetoothStatus();
-    if (btStatus !== "supported") {
-      toast.error(
-        btStatus === "brave-disabled" ? "Bluetooth desativado no Brave" : "Bluetooth não disponível",
-        {
-          description: btStatus === "brave-disabled"
-            ? "Ative em brave://flags/#enable-web-bluetooth e recarregue a página."
-            : "Seu navegador não suporta Web Bluetooth. Use Chrome, Edge ou Opera.",
-          duration: 8000,
-        }
-      );
+    if (!btStatus.supported) {
+      const { title, description } = getBtUnsupportedMessage(btStatus.reason);
+      toast.error(title, { description, duration: 8000 });
       return;
     }
     try {

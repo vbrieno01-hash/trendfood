@@ -12,6 +12,7 @@ import {
 import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
+import { getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrinter";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
@@ -194,22 +195,19 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   {btConnected ? `✓ ${btDevice?.name || "Conectada"}` : "Desconectada"}
                 </span>
               </div>
-              {!btSupported && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-amber-800 font-medium">
-                      Web Bluetooth não está disponível
-                    </p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      {(navigator as any).brave
-                        ? <>Ative o Web Bluetooth em <strong>brave://flags/#enable-web-bluetooth</strong> e recarregue a página.</>
-                        : <>Use <strong>Google Chrome</strong>, <strong>Microsoft Edge</strong> ou <strong>Opera</strong> para parear impressoras Bluetooth.</>
-                      }
-                    </p>
+              {!btSupported && (() => {
+                const status = getBluetoothStatus();
+                const msg = !status.supported ? getBtUnsupportedMessage(status.reason) : null;
+                return msg ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm text-amber-800 font-medium">{msg.title}</p>
+                      <p className="text-xs text-amber-700 mt-1">{msg.description}</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -217,16 +215,11 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   className="gap-2"
                   onClick={() => {
                     if (!btSupported) {
-                      const isBrave = !!(navigator as any).brave;
-                      toast.error(
-                        isBrave ? "Bluetooth desativado no Brave" : "Bluetooth não disponível",
-                        {
-                          description: isBrave
-                            ? "Ative em brave://flags/#enable-web-bluetooth e recarregue a página."
-                            : "Seu navegador não suporta Web Bluetooth. Use Chrome, Edge ou Opera.",
-                          duration: 8000,
-                        }
-                      );
+                      const status = getBluetoothStatus();
+                      if (!status.supported) {
+                        const { title, description } = getBtUnsupportedMessage(status.reason);
+                        toast.error(title, { description, duration: 8000 });
+                      }
                       return;
                     }
                     onPairBluetooth();
