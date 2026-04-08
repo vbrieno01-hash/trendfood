@@ -1,25 +1,37 @@
 
 
-## Plano: Tornar a linha de pausa mais intuitiva
+## Plano: Corrigir pausa ignorada quando "Forçar Loja Aberta" está ativo
 
 ### Problema
-A linha de pausa mostra dois campos de horário com labels "Abre" e "Fecha" (do cabeçalho da tabela), mas na verdade significam "Pausa das / até". O usuário configura pausa de 12:00 a 22:00 sem perceber que está errado, porque visualmente parece igual à linha principal.
+A função `getStoreStatus` retorna `{ open: true }` imediatamente quando `force_open = true`, **antes** de verificar a pausa. Ou seja, se o dono ativa "Forçar Loja Aberta" e depois configura uma pausa, a pausa é completamente ignorada.
 
-### Alterações
+A loja TrendFood está com `force_open: true` no banco — por isso a pausa nunca funciona.
 
-**`src/components/dashboard/BusinessHoursSection.tsx`**
+### Solução
+Duas correções complementares:
 
-1. **Mudar os labels da linha de pausa** — em vez de reutilizar as colunas "Abre/Fecha", mostrar inline: `"Pausa das [HH:MM] até [HH:MM]"` como texto corrido, mais natural
-2. **Validação visual** — se a pausa estiver fora do horário de funcionamento (break_from < from ou break_to > to), mostrar um aviso em vermelho: `"⚠ A pausa deve estar dentro do horário de funcionamento (HH:MM – HH:MM)"`
-3. **Auto-corrigir ao adicionar pausa** — quando o usuário clica "+ Pausa", calcular o meio do expediente como default (ex: abre 08:00, fecha 17:40 → pausa 12:00–13:00, mas se abre 18:00 fecha 23:00 → pausa 20:00–21:00)
+**1. `src/lib/storeStatus.ts`** — Mover a verificação de `forceOpen` para DEPOIS da verificação de pausa. Se o dia tem pausa configurada e o horário atual está dentro dela, retornar fechado mesmo com `force_open`.
 
-### Detalhes técnicos
+```
+// Antes (bugado):
+if (forceOpen) return { open: true };  // pula tudo
 
-- A linha de pausa deixa de usar `<td>` separados e passa a usar `<td colSpan={3}>` com layout inline: ícone ⏸ + "Pausa das" + input time + "até" + input time
-- Validação: comparar `break_from >= from` e `break_to <= to` (considerando cross-midnight)
-- O texto explicativo abaixo da tabela continua
+// Depois (correto):
+// forceOpen pula verificação de horário, mas NÃO pula pausa
+```
+
+Lógica: `forceOpen` significa "ignore se o horário diz que está fechado" — mas uma pausa é intencional, o dono quer fechar.
+
+**2. `src/components/dashboard/BusinessHoursSection.tsx`** — Adicionar aviso visual quando `force_open` está ativo, informando que ele mantém a loja aberta fora do horário mas **não** durante pausas.
+
+**3. `src/pages/UnitPage.tsx`** — Garantir que `isPaused` (flag `paused` do org) também tem prioridade sobre `force_open` (já funciona, pois é verificado separadamente).
+
+**4. Trigger SQL `validate_store_open_for_order`** — Já trata corretamente: `force_open` pula horário mas o break é verificado depois. Nenhuma alteração necessária no banco.
+
+**5. Testes `storeStatus.test.ts`** — Adicionar caso: `force_open = true` + pausa ativa → deve retornar fechado com reason "break".
 
 ### Impacto
-- 1 arquivo alterado
-- UX muito mais clara: "Pausa das 12:00 até 13:00" em vez de dois campos soltos
+- 2-3 arquivos alterados
+- Corrige o bug real que o usuário está enfrentando
+- Pausa passa a funcionar independente de `force_open`
 
