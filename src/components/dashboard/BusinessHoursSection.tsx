@@ -215,6 +215,12 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
           </table>
         </div>
       )}
+
+      {value.enabled && (
+        <p className="text-xs text-muted-foreground">
+          A pausa fecha a loja temporariamente no horário definido. Clientes não conseguem fazer pedidos durante a pausa.
+        </p>
+      )}
     </div>
   );
 }

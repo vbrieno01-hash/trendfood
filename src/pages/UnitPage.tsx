@@ -1513,7 +1513,7 @@ const UnitPage = () => {
               <div className="bg-muted rounded-xl p-4 text-center">
                 <p className="text-foreground font-semibold text-sm">
                   {storeStatus && !storeStatus.open && (storeStatus as any).reason === "break"
-                    ? `☕ Em intervalo · pedidos retornam às ${opensAt || "breve"}`
+                    ? `⏸ Em pausa · voltamos às ${opensAt || "breve"}`
                     : "🔒 Loja fechada · pedidos indisponíveis"}
                 </p>
                 {!(storeStatus && !storeStatus.open && (storeStatus as any).reason) && opensAt && (

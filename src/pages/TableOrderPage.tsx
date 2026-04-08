@@ -689,9 +689,9 @@ export default function TableOrderPage() {
         <div className="max-w-lg mx-auto px-4 pt-4">
           {storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
-              <span className="text-xl flex-shrink-0 mt-0.5">☕</span>
+              <span className="text-xl flex-shrink-0 mt-0.5">⏸</span>
               <div>
-                <p className="font-bold text-amber-700 dark:text-amber-400 text-sm">Em intervalo de descanso</p>
+                <p className="font-bold text-amber-700 dark:text-amber-400 text-sm">Estamos em pausa</p>
                 <p className="text-xs text-muted-foreground">
                   {(storeStatus as any).opensAt ? `Voltamos às ${(storeStatus as any).opensAt}` : "Voltamos em breve!"}
                 </p>
