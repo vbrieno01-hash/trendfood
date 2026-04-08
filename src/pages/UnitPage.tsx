@@ -415,8 +415,12 @@ const UnitPage = () => {
        return;
      }
      const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
-     if (freshStatus !== null && !freshStatus.open) {
-       toast({ title: "Esta loja está fechada no momento.", variant: "destructive" });
+      if (freshStatus !== null && !freshStatus.open) {
+        const closed = freshStatus as { open: false; opensAt: string | null; reason?: "break" };
+        const msg = closed.reason === "break" && closed.opensAt
+          ? `☕ Loja em intervalo. Retorna às ${closed.opensAt}.`
+          : "Esta loja está fechada no momento.";
+        toast({ title: msg, variant: "destructive" });
        setIsSubmitting(false);
        return;
      }
@@ -835,11 +839,17 @@ const UnitPage = () => {
           {storeStatus && (
             <span
               className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                storeStatus.open ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
+                storeStatus.open
+                  ? "bg-green-500/90 text-white"
+                  : (storeStatus as any).reason === "break"
+                  ? "bg-amber-500/90 text-white"
+                  : "bg-red-500/90 text-white"
               }`}
             >
               {storeStatus.open
                 ? "Aberto agora"
+                : (storeStatus as any).reason === "break" && opensAt
+                ? `☕ Intervalo · volta às ${opensAt}`
                 : opensAt
                 ? `Fechado · abre às ${opensAt}`
                 : "Fechado hoje"}
@@ -851,19 +861,33 @@ const UnitPage = () => {
             Monte seu pedido e envie direto pelo WhatsApp!
           </p>
           {isClosed && (
-            <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
-              <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-red-600 dark:text-red-400">
-                  {isPaused ? "Loja temporariamente fechada" : "Loja fechada · pedidos indisponíveis"}
-                </p>
-                {isPaused ? (
-                  <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Estamos em pausa. Voltamos em breve!</p>
-                ) : opensAt ? (
-                  <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Abre às {opensAt}</p>
-                ) : null}
+            storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
+              <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
+                <span className="text-lg shrink-0 mt-0.5">☕</span>
+                <div>
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                    Em intervalo de descanso
+                  </p>
+                  {opensAt && (
+                    <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">Voltamos às {opensAt}</p>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
+                <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                    {isPaused ? "Loja temporariamente fechada" : "Loja fechada · pedidos indisponíveis"}
+                  </p>
+                  {isPaused ? (
+                    <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Estamos em pausa. Voltamos em breve!</p>
+                  ) : opensAt ? (
+                    <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Abre às {opensAt}</p>
+                  ) : null}
+                </div>
+              </div>
+            )
           )}
         </div>
 
@@ -1040,7 +1064,7 @@ const UnitPage = () => {
                 <div className="flex items-center gap-2">
                   <ShoppingBag className="w-5 h-5 opacity-50" />
                   <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{totalItems}</span>
-                  <span>🔒 Fechada</span>
+                  <span>{storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? "☕ Intervalo" : "🔒 Fechada"}</span>
                 </div>
                 <span className="opacity-50">{fmt(totalPrice)}</span>
               </div>
@@ -1059,7 +1083,11 @@ const UnitPage = () => {
                   }
                   const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
                   if (freshStatus !== null && !freshStatus.open) {
-                    toast({ title: "Esta loja está fechada no momento.", variant: "destructive" });
+                    const closed = freshStatus as { open: false; opensAt: string | null; reason?: "break" };
+                    const msg = closed.reason === "break" && closed.opensAt
+                      ? `☕ Loja em intervalo. Retorna às ${closed.opensAt}.`
+                      : "Esta loja está fechada no momento.";
+                    toast({ title: msg, variant: "destructive" });
                     return;
                   }
                   pushDrawerState("checkout");
@@ -1481,8 +1509,12 @@ const UnitPage = () => {
           <DrawerFooter className="border-t border-border pt-3">
             {isClosed ? (
               <div className="bg-muted rounded-xl p-4 text-center">
-                <p className="text-foreground font-semibold text-sm">🔒 Loja fechada · pedidos indisponíveis</p>
-                {opensAt && (
+                <p className="text-foreground font-semibold text-sm">
+                  {storeStatus && !storeStatus.open && (storeStatus as any).reason === "break"
+                    ? `☕ Em intervalo · pedidos retornam às ${opensAt || "breve"}`
+                    : "🔒 Loja fechada · pedidos indisponíveis"}
+                </p>
+                {!(storeStatus && !storeStatus.open && (storeStatus as any).reason) && opensAt && (
                   <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>
                 )}
               </div>

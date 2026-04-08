@@ -31,7 +31,7 @@ function toMinutesClose(time: string): number {
 export type StoreStatus =
   | null
   | { open: true }
-  | { open: false; opensAt: string | null };
+  | { open: false; opensAt: string | null; reason?: "break" };
 
 export function getStoreStatus(
   businessHours: BusinessHours | null | undefined,
@@ -60,7 +60,7 @@ export function getStoreStatus(
         const breakFrom = timeToMinutes(prevDay.break_from);
         const breakTo = timeToMinutes(prevDay.break_to);
         if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
-          return { open: false, opensAt: prevDay.break_to };
+          return { open: false, opensAt: prevDay.break_to, reason: "break" };
         }
       }
       return { open: true };
@@ -88,7 +88,7 @@ export function getStoreStatus(
       const breakFrom = timeToMinutes(today.break_from);
       const breakTo = timeToMinutes(today.break_to);
       if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
-        return { open: false, opensAt: today.break_to };
+        return { open: false, opensAt: today.break_to, reason: "break" };
       }
     }
     return { open: true };
