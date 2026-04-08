@@ -1,30 +1,32 @@
 
 
-## Plano: Feedback visual no botão de parear (sem alterar lógica Bluetooth)
+## Plano: Tornar o intervalo de pausa mais claro (dashboard + página pública)
 
-### O que NÃO muda
-- `requestBluetoothPrinter()` — intacto
-- `connectToDevice()` — intacto
-- `sendToBluetoothPrinter()` — intacto
-- `reconnectStoredPrinter()` — intacto
-- Toda a lógica de UUIDs, chunks, retry — intacta
+### Problema
+O ícone de café (☕) no dashboard é pequeno e críptico — nem o dono entende o que faz. Na página pública, as mensagens como "Em intervalo de descanso" e "☕ Intervalo · volta às 13:00" confundem os clientes.
 
-### O que muda (só UI + proteção)
+### Alterações
 
-**1. `src/lib/bluetoothPrinter.ts`** — Apenas 1 micro-ajuste:
-- Adicionar um safety timer: se `isConnecting` ficar preso por 15s (ex: diálogo nativo travou), reseta para `false` automaticamente
-- Zero alteração no fluxo de conexão
+**1. Dashboard — `src/components/dashboard/BusinessHoursSection.tsx`**
+- Substituir o ícone de café sozinho por um **botão com texto**: `"+ Pausa"` (quando não tem) / `"✕ Remover pausa"` (quando tem)
+- Na linha de intervalo, trocar "Intervalo" por **"⏸ Pausa (fecha temporariamente)"**
+- Adicionar texto explicativo pequeno abaixo da tabela: _"A pausa fecha a loja temporariamente no horário definido. Clientes não conseguem fazer pedidos durante a pausa."_
 
-**2. `src/pages/DashboardPage.tsx`** — Estado `btPairing` (true/false):
-- Envolve o `handlePairBluetooth` existente com try/finally + timeout de 25s
-- Passa `btPairing` como prop
+**2. Página pública — `src/pages/UnitPage.tsx`**
+- Trocar "Em intervalo de descanso" → **"Estamos em pausa"**
+- Trocar "☕ Intervalo · volta às HH:MM" → **"⏸ Em pausa · voltamos às HH:MM"**
+- Trocar "☕ Em intervalo · pedidos retornam às HH:MM" → **"⏸ Em pausa · voltamos às HH:MM"**
+- No toast ao tentar pedir: "☕ Loja em intervalo. Retorna às HH:MM." → **"Estamos em pausa. Voltamos às HH:MM."**
+- No botão do carrinho desabilitado: "☕ Intervalo" → **"⏸ Em pausa"**
 
-**3. `src/components/dashboard/PrinterTab.tsx`** — Botão mostra spinner + "Pareando..." quando ativo, desabilita clique duplo
+**3. Página de mesa — `src/pages/TableOrderPage.tsx`**
+- Mesmas trocas de texto: "Em intervalo de descanso" → "Estamos em pausa", "Voltamos às HH:MM"
 
-**4. `src/components/dashboard/KitchenTab.tsx`** — Mesmo spinner no botão
+**4. Drawer de item — `src/components/unit/ItemDetailDrawer.tsx`**
+- Se `reason === "break"`, mostrar "⏸ Em pausa · voltamos às HH:MM" em vez de "🔒 Loja fechada"
 
-**5. `src/pages/KitchenPage.tsx`** — Mesmo tratamento local
-
-### Resumo
-É como colocar um "carregando..." num botão — a impressora continua funcionando exatamente igual, só que o usuário vê que algo está acontecendo em vez do botão ficar parado.
+### Impacto
+- 4 arquivos alterados
+- Textos mais simples e diretos: "pausa" em vez de "intervalo de descanso"
+- Botão no dashboard com texto legível em vez de ícone misterioso
 
