@@ -62,10 +62,25 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
     return d && d.break_from && d.break_to;
   };
 
+  const calcSmartBreak = (from: string, to: string) => {
+    const [fh, fm] = from.split(":").map(Number);
+    const [th, tm] = to.split(":").map(Number);
+    const fromMin = fh * 60 + fm;
+    let toMin = th * 60 + tm;
+    if (toMin <= fromMin) toMin += 24 * 60;
+    const mid = Math.floor((fromMin + toMin) / 2);
+    const bFrom = mid - 30;
+    const bTo = mid + 30;
+    const fmt = (m: number) => {
+      const wrapped = ((m % (24 * 60)) + 24 * 60) % (24 * 60);
+      return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+    };
+    return { break_from: fmt(bFrom), break_to: fmt(bTo) };
+  };
+
   const toggleBreak = (key: string) => {
     const d = value.schedule[key];
     if (hasBreak(key)) {
-      // Remove break
       onChange({
         ...value,
         schedule: {
@@ -74,15 +89,29 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
         },
       });
     } else {
-      // Add default break 12:00-13:00
+      const smart = calcSmartBreak(d.from, d.to);
       onChange({
         ...value,
         schedule: {
           ...value.schedule,
-          [key]: { ...d, break_from: "12:00", break_to: "13:00" },
+          [key]: { ...d, ...smart },
         },
       });
     }
+  };
+
+  const isBreakInvalid = (key: string) => {
+    const d = value.schedule[key];
+    if (!d || !d.break_from || !d.break_to) return false;
+    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+    const from = toMin(d.from);
+    let to = toMin(d.to);
+    if (to <= from) to += 24 * 60;
+    let bf = toMin(d.break_from);
+    let bt = toMin(d.break_to);
+    if (bf < from) bf += 24 * 60;
+    if (bt < from) bt += 24 * 60;
+    return bf < from || bt > to || bf >= bt;
   };
 
   return (
@@ -179,31 +208,33 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
                         )}
                       </td>
                     </tr>
-                    {/* Linha de intervalo */}
+                    {/* Linha de pausa — layout inline */}
                     {d.open && breakActive && (
                       <tr key={`${day.key}-break`} className="border-b border-border last:border-0 bg-amber-50/50 dark:bg-amber-950/20">
                         <td className="px-3 py-2"></td>
-                        <td className="px-2 py-2">
-                          <span className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                            <Pause className="h-3 w-3" />
-                            Pausa
-                          </span>
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="time"
-                            value={d.break_from || "12:00"}
-                            onChange={(e) => setTime(day.key, "break_from", e.target.value)}
-                            className="h-7 rounded-md border border-amber-300 dark:border-amber-700 bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="time"
-                            value={d.break_to || "13:00"}
-                            onChange={(e) => setTime(day.key, "break_to", e.target.value)}
-                            className="h-7 rounded-md border border-amber-300 dark:border-amber-700 bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
-                          />
+                        <td colSpan={3} className="px-2 py-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Pause className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Pausa das</span>
+                            <input
+                              type="time"
+                              value={d.break_from || "12:00"}
+                              onChange={(e) => setTime(day.key, "break_from", e.target.value)}
+                              className="h-7 rounded-md border border-amber-300 dark:border-amber-700 bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
+                            />
+                            <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">até</span>
+                            <input
+                              type="time"
+                              value={d.break_to || "13:00"}
+                              onChange={(e) => setTime(day.key, "break_to", e.target.value)}
+                              className="h-7 rounded-md border border-amber-300 dark:border-amber-700 bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
+                            />
+                          </div>
+                          {isBreakInvalid(day.key) && (
+                            <p className="text-[11px] text-destructive mt-1">
+                              ⚠ A pausa deve estar dentro do horário de funcionamento ({d.from} – {d.to})
+                            </p>
+                          )}
                         </td>
                         <td></td>
                       </tr>
