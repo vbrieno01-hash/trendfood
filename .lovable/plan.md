@@ -1,43 +1,35 @@
 
 
-## Plano: Adicionar intervalo de almoço/descanso no horário de funcionamento
+## Plano: Mensagem específica de "Em intervalo" na página pública
 
-### Ideia
-Cada dia ganha um campo opcional de "pausa" (ex: 12:00–13:30) onde a loja fecha temporariamente. Lojas existentes **não são afetadas** — o campo `break_from`/`break_to` só aparece nos defaults de lojas novas.
+### Problema
+Quando a loja está em intervalo de descanso, o `storeStatus` retorna `{ open: false, opensAt: "13:30" }` — idêntico a "fechada". A página pública mostra "Loja fechada" sem distinguir que é apenas uma pausa temporária.
 
-### Alterações
+### Solução
 
-**1. `src/hooks/useOrganization.ts`** — Expandir a interface `BusinessHoursDay`:
+**1. `src/lib/storeStatus.ts`** — Adicionar campo `reason` ao tipo de status fechado:
+
 ```typescript
-export interface BusinessHoursDay {
-  open: boolean;
-  from: string;
-  to: string;
-  break_from?: string;  // novo, opcional
-  break_to?: string;    // novo, opcional
-}
+export type StoreStatus =
+  | null
+  | { open: true }
+  | { open: false; opensAt: string | null; reason?: "break" };
 ```
-Como os campos são opcionais, lojas existentes que não têm `break_from`/`break_to` no JSON continuam funcionando normalmente.
 
-**2. `src/components/dashboard/BusinessHoursSection.tsx`** — UI para o intervalo:
-- Adicionar um checkbox/toggle "Intervalo" por dia que revela dois campos `time` (break_from, break_to)
-- `DEFAULT_BUSINESS_HOURS` para lojas novas inclui `break_from: ""`, `break_to: ""` (sem pausa por padrão)
-- Lojas existentes sem os campos simplesmente não mostram a pausa ativa
+Nos 3 pontos onde retorna `{ open: false, opensAt: break_to }` (linhas 63, 91), adicionar `reason: "break"`.
 
-**3. `src/lib/storeStatus.ts`** — Lógica de pausa no `getStoreStatus`:
-- Depois de determinar que a loja está "aberta" pelo turno principal, verificar se `break_from` e `break_to` existem
-- Se `currentMinutes >= break_from && currentMinutes < break_to`, retornar `{ open: false, opensAt: break_to }`
-- Isso bloqueia pedidos durante o intervalo e mostra "Abre às HH:MM"
+**2. `src/pages/UnitPage.tsx`** — Usar o `reason` para exibir mensagens diferenciadas:
 
-**4. Trigger do banco `validate_store_open_for_order`** — Mesma lógica de pausa:
-- Após confirmar que está dentro do turno, checar `break_from`/`break_to` no JSON
-- Se estiver no intervalo, `RAISE EXCEPTION 'Loja em intervalo...'`
-- Migração SQL para atualizar a função
+- **Badge** (linha 841-845): `"Em intervalo · volta às 13:30"` em vez de `"Fechado · abre às 13:30"`
+- **Banner amarelo** (linha 856-864): `"☕ Em intervalo de descanso"` + `"Voltamos às 13:30"` com fundo amarelo em vez de vermelho
+- **Rodapé do carrinho** (linha 1484): `"☕ Em intervalo · pedidos retornam às 13:30"`
+- **Toast** (linhas 419, 1062): `"Loja em intervalo. Retorna às HH:MM"` em vez de `"Esta loja está fechada"`
+- **Barra fixa inferior** (linha 1043): `"☕ Intervalo"` em vez de `"🔒 Fechada"`
 
-**5. Testes** — Adicionar cenários em `storeStatus.test.ts` para pausa
+**3. `src/pages/TableOrderPage.tsx`** — Mesma lógica (linha 691-699): mensagem de intervalo diferenciada.
 
-### Compatibilidade
-- Campos opcionais = zero impacto em lojas existentes
-- Só lojas que configuram o intervalo terão a validação ativa
-- `DEFAULT_BUSINESS_HOURS` não define pausa ativa, apenas disponibiliza os campos
+### Impacto
+- 3 arquivos alterados
+- Compatível com lojas sem intervalo (campo `reason` é opcional)
+- Visual: tom amarelo/âmbar para intervalo vs vermelho para fechada
 
