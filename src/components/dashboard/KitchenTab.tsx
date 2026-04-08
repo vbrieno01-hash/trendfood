@@ -83,7 +83,7 @@ const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: 
 export default function KitchenTab({
   orgId, orgName, orgSlug, storeAddress, courierConfig,
   printMode = 'browser', printerWidth = '58mm', btDevice = null, pixKey,
-  onPairBluetooth, btConnected, btSupported,
+  onPairBluetooth, btConnected, btSupported, btPairing,
   autoPrint, onToggleAutoPrint,
   notificationsEnabled, onToggleNotifications,
   whatsapp, pixConfirmationMode,
