@@ -20,9 +20,10 @@ interface PrinterTabProps {
   onPairBluetooth: () => void;
   onDisconnectBluetooth: () => void;
   btSupported: boolean;
+  btPairing?: boolean;
 }
 
-export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onDisconnectBluetooth, btSupported }: PrinterTabProps) {
+export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onDisconnectBluetooth, btSupported, btPairing }: PrinterTabProps) {
   const { organization } = useAuth();
 
   
