@@ -52,7 +52,7 @@ interface Props {
   orgId: string;
   orgSlug: string;
   orgName?: string;
-  orgEmoji?: string;
+  
   orgLogo?: string | null;
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
