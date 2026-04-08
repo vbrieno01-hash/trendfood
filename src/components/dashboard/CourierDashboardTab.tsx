@@ -87,7 +87,7 @@ function useOrderTotals(orderIds: string[]) {
   });
 }
 
-const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWhatsapp, orgAddress, courierConfig }: Props) => {
+const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, orgAddress, courierConfig }: Props) => {
   useCleanupStaleDeliveries(orgId);
   const [expandedCourierId, setExpandedCourierId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
