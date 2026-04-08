@@ -841,14 +841,14 @@ const UnitPage = () => {
               className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${
                 storeStatus.open
                   ? "bg-green-500/90 text-white"
-                  : !storeStatus.open && storeStatus.reason === "break"
+                  : (storeStatus as any).reason === "break"
                   ? "bg-amber-500/90 text-white"
                   : "bg-red-500/90 text-white"
               }`}
             >
               {storeStatus.open
                 ? "Aberto agora"
-                : storeStatus.reason === "break" && opensAt
+                : (storeStatus as any).reason === "break" && opensAt
                 ? `☕ Intervalo · volta às ${opensAt}`
                 : opensAt
                 ? `Fechado · abre às ${opensAt}`
