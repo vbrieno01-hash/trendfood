@@ -50,7 +50,7 @@ function formatHours(minutes: number) {
 }
 
 export default function CourierReportSection({
-  orgId, orgName, orgEmoji, orgLogo, orgWhatsapp, orgAddress,
+  orgId, orgName, orgLogo, orgWhatsapp, orgAddress,
 }: Props) {
   const [period, setPeriod] = useState<Period>("30d");
   const reportRef = useRef<HTMLDivElement>(null);
