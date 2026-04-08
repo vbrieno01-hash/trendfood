@@ -50,7 +50,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   pending: "Pendente",
 };
 
-export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAddress, orgEmoji, orgCnpj }: ReportsTabProps) {
+export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAddress, orgCnpj }: ReportsTabProps) {
   const [period, setPeriod] = useState<Period>("30d");
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
