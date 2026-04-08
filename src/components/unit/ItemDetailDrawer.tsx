@@ -177,7 +177,11 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensA
         <div className="px-5 pb-6 pt-3 border-t border-border">
           {isClosed ? (
             <div className="bg-muted rounded-xl p-4 text-center">
-              <p className="font-semibold text-foreground text-sm">🔒 Loja fechada · pedidos indisponíveis</p>
+              <p className="font-semibold text-foreground text-sm">
+                {closedReason === "break"
+                  ? `⏸ Em pausa · voltamos às ${opensAt || "breve"}`
+                  : "🔒 Loja fechada · pedidos indisponíveis"}
+              </p>
               {opensAt && <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>}
             </div>
           ) : (
