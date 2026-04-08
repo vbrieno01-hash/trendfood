@@ -37,32 +37,38 @@ export function getStoreStatus(
   businessHours: BusinessHours | null | undefined,
   forceOpen?: boolean,
 ): StoreStatus {
-  // Se force_open estiver ativo, sempre retorna aberto
-  if (forceOpen) return { open: true };
-
-  if (!businessHours || !businessHours.enabled) return null;
+  if (!businessHours || !businessHours.enabled) {
+    // Sem horário configurado — forceOpen não se aplica
+    if (forceOpen) return { open: true };
+    return null;
+  }
 
   const now = getNowInBrasilia();
   const dayKey = DAY_MAP[now.getDay()];
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
+  // Helper: verifica se estamos em pausa de um dia ativo
+  const checkBreak = (day: { break_from?: string; break_to?: string }): StoreStatus | null => {
+    if (day.break_from && day.break_to) {
+      const breakFrom = timeToMinutes(day.break_from);
+      const breakTo = timeToMinutes(day.break_to);
+      if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
+        return { open: false, opensAt: day.break_to, reason: "break" };
+      }
+    }
+    return null;
+  };
+
   // 1️⃣ Verificar se estamos DENTRO do turno do DIA ANTERIOR que cruza meia-noite
-  const prevDayIndex = (now.getDay() + 6) % 7; // dia anterior
+  const prevDayIndex = (now.getDay() + 6) % 7;
   const prevDayKey = DAY_MAP[prevDayIndex];
   const prevDay = businessHours.schedule[prevDayKey];
   if (prevDay && prevDay.open) {
     const prevFrom = timeToMinutes(prevDay.from);
     const prevTo = toMinutesClose(prevDay.to);
-    // Turno cruza meia-noite: prevFrom > prevTo (ex: 22:00 → 02:00 = 1320 → 120)
     if (prevTo < prevFrom && currentMinutes < prevTo) {
-      // Verificar intervalo de descanso do dia anterior
-      if (prevDay.break_from && prevDay.break_to) {
-        const breakFrom = timeToMinutes(prevDay.break_from);
-        const breakTo = timeToMinutes(prevDay.break_to);
-        if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
-          return { open: false, opensAt: prevDay.break_to, reason: "break" };
-        }
-      }
+      const breakStatus = checkBreak(prevDay);
+      if (breakStatus) return breakStatus; // Pausa tem prioridade sobre forceOpen
       return { open: true };
     }
   }
@@ -70,6 +76,15 @@ export function getStoreStatus(
   // 2️⃣ Verificar turno do dia atual
   const today = businessHours.schedule[dayKey];
   if (!today || !today.open) {
+    // Dia fechado — forceOpen ignora isso, mas verifica pausa primeiro
+    if (forceOpen) {
+      // Mesmo com forceOpen, se hoje tem pausa configurada, respeitar
+      if (today) {
+        const breakStatus = checkBreak(today);
+        if (breakStatus) return breakStatus;
+      }
+      return { open: true };
+    }
     const nextOpenAt = findNextOpen(businessHours, now.getDay());
     return { open: false, opensAt: nextOpenAt };
   }
@@ -77,20 +92,20 @@ export function getStoreStatus(
   const fromMin = timeToMinutes(today.from);
   const toMin = toMinutesClose(today.to);
 
-  // Suporte a horários que cruzam meia-noite (ex: 22:00 às 02:00)
   const isOpen = toMin > fromMin
     ? currentMinutes >= fromMin && currentMinutes < toMin
     : currentMinutes >= fromMin || currentMinutes < toMin;
 
   if (isOpen) {
-    // Verificar intervalo de descanso (break)
-    if (today.break_from && today.break_to) {
-      const breakFrom = timeToMinutes(today.break_from);
-      const breakTo = timeToMinutes(today.break_to);
-      if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
-        return { open: false, opensAt: today.break_to, reason: "break" };
-      }
-    }
+    const breakStatus = checkBreak(today);
+    if (breakStatus) return breakStatus; // Pausa tem prioridade sobre forceOpen
+    return { open: true };
+  }
+
+  // Fora do horário — forceOpen ignora, mas pausa ainda vale
+  if (forceOpen) {
+    const breakStatus = checkBreak(today);
+    if (breakStatus) return breakStatus;
     return { open: true };
   }
 
@@ -98,7 +113,6 @@ export function getStoreStatus(
     return { open: false, opensAt: today.from };
   }
 
-  // After closing — find next open moment
   const nextOpenAt = findNextOpen(businessHours, now.getDay());
   return { open: false, opensAt: nextOpenAt };
 }

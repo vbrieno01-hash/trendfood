@@ -170,6 +170,31 @@ describe("getStoreStatus cross-midnight", () => {
     expect(status).toEqual({ open: true });
   });
 
+  it("force_open should NOT override break (pause)", async () => {
+    vi.useFakeTimers();
+    // Wednesday 12:30 Brasília — inside break
+    mockDate("2026-03-04T12:30:00");
+
+    const { getStoreStatus } = await import("@/lib/storeStatus");
+
+    const bh = {
+      enabled: true,
+      schedule: {
+        seg: { open: true, from: "08:00", to: "22:00" },
+        ter: { open: true, from: "08:00", to: "22:00" },
+        qua: { open: true, from: "08:00", to: "22:00", break_from: "12:00", break_to: "13:30" },
+        qui: { open: true, from: "08:00", to: "22:00" },
+        sex: { open: true, from: "08:00", to: "22:00" },
+        sab: { open: true, from: "08:00", to: "22:00" },
+        dom: { open: false, from: "10:00", to: "20:00" },
+      },
+    };
+
+    // Even with forceOpen=true, break should win
+    const status = getStoreStatus(bh, true);
+    expect(status).toEqual({ open: false, opensAt: "13:30", reason: "break" });
+  });
+
   it("should show open when no break is configured", async () => {
     vi.useFakeTimers();
     // Wednesday 12:30 Brasília — no break configured
