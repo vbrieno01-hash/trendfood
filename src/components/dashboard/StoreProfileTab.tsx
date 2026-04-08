@@ -169,7 +169,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     setAutoSaveStatus("saving");
     try {
       const sharedFields = {
-        emoji: form.emoji,
+        
         primary_color: form.primary_color,
         whatsapp: form.whatsapp || null,
         pix_key: form.pix_key || null,
