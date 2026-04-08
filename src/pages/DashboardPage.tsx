@@ -400,11 +400,13 @@ const DashboardPage = () => {
           duration: 8000,
         });
       } else {
-        toast.error("Erro ao buscar impressora", {
+      toast.error("Erro ao buscar impressora", {
           description: "Verifique se Bluetooth e GPS estão ligados.",
           duration: 8000,
         });
       }
+    } finally {
+      setBtPairing(false);
     }
   };
 

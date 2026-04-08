@@ -176,6 +176,7 @@ export async function connectToDevice(device: BluetoothDevice): Promise<Bluetoot
     return null;
   } finally {
     isConnecting = false;
+    isConnectingSince = 0;
   }
 }
 
