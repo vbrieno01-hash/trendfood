@@ -1,37 +1,43 @@
 
 
-## Plano: Corrigir pausa ignorada quando "Forçar Loja Aberta" está ativo
+## Plano: Corrigir trigger do banco para respeitar pausa com force_open
 
 ### Problema
-A função `getStoreStatus` retorna `{ open: true }` imediatamente quando `force_open = true`, **antes** de verificar a pausa. Ou seja, se o dono ativa "Forçar Loja Aberta" e depois configura uma pausa, a pausa é completamente ignorada.
-
-A loja TrendFood está com `force_open: true` no banco — por isso a pausa nunca funciona.
+O código frontend (`storeStatus.ts`) já foi corrigido — a pausa tem prioridade sobre `force_open`. Porém a **trigger do banco** `validate_store_open_for_order` ainda faz `RETURN NEW` imediatamente quando `force_open = true`, permitindo que pedidos passem mesmo durante uma pausa configurada.
 
 ### Solução
-Duas correções complementares:
 
-**1. `src/lib/storeStatus.ts`** — Mover a verificação de `forceOpen` para DEPOIS da verificação de pausa. Se o dia tem pausa configurada e o horário atual está dentro dela, retornar fechado mesmo com `force_open`.
+**Migração SQL** — Atualizar `validate_store_open_for_order` para verificar a pausa **antes** de retornar quando `force_open = true`:
 
+```sql
+-- Trocar:
+IF _org.force_open THEN
+    RETURN NEW;
+END IF;
+
+-- Por:
+IF _org.force_open THEN
+    -- Mesmo com force_open, verificar pausa do dia atual
+    _today := _bh->'schedule'->_day_key;
+    IF _today IS NOT NULL
+       AND _today->>'break_from' IS NOT NULL AND _today->>'break_from' <> ''
+       AND _today->>'break_to' IS NOT NULL AND _today->>'break_to' <> ''
+    THEN
+      _break_from_min := (split_part(_today->>'break_from',':',1))::int*60 + (split_part(_today->>'break_from',':',2))::int;
+      _break_to_min := (split_part(_today->>'break_to',':',1))::int*60 + (split_part(_today->>'break_to',':',2))::int;
+      IF _current_minutes >= _break_from_min AND _current_minutes < _break_to_min THEN
+        RAISE EXCEPTION 'Estamos em pausa. Voltamos às %.', _today->>'break_to'
+          USING ERRCODE = 'P0001';
+      END IF;
+    END IF;
+    RETURN NEW;
+END IF;
 ```
-// Antes (bugado):
-if (forceOpen) return { open: true };  // pula tudo
 
-// Depois (correto):
-// forceOpen pula verificação de horário, mas NÃO pula pausa
-```
-
-Lógica: `forceOpen` significa "ignore se o horário diz que está fechado" — mas uma pausa é intencional, o dono quer fechar.
-
-**2. `src/components/dashboard/BusinessHoursSection.tsx`** — Adicionar aviso visual quando `force_open` está ativo, informando que ele mantém a loja aberta fora do horário mas **não** durante pausas.
-
-**3. `src/pages/UnitPage.tsx`** — Garantir que `isPaused` (flag `paused` do org) também tem prioridade sobre `force_open` (já funciona, pois é verificado separadamente).
-
-**4. Trigger SQL `validate_store_open_for_order`** — Já trata corretamente: `force_open` pula horário mas o break é verificado depois. Nenhuma alteração necessária no banco.
-
-**5. Testes `storeStatus.test.ts`** — Adicionar caso: `force_open = true` + pausa ativa → deve retornar fechado com reason "break".
+Isso requer mover a extração de `_now_brt`, `_day_key` e `_current_minutes` para **antes** do bloco `force_open` (atualmente são calculados depois).
 
 ### Impacto
-- 2-3 arquivos alterados
-- Corrige o bug real que o usuário está enfrentando
-- Pausa passa a funcionar independente de `force_open`
+- 1 migração SQL
+- 0 arquivos de código alterados
+- Frontend + backend ficam sincronizados: pausa sempre tem prioridade sobre force_open
 
