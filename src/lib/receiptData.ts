@@ -205,7 +205,20 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
 
   const rawItems = order.order_items ?? [];
   const items: ReceiptItem[] = rawItems.map((item, idx) => {
-    const { baseName, addons, itemObs } = parseItemName(item.name);
+    const { baseName, addons: rawAddons, itemObs } = parseItemName(item.name);
+
+    // Multiply addon qty × item qty for receipt display
+    const addons = rawAddons.map(addon => {
+      if (item.quantity <= 1) return addon;
+      const m = addon.match(/^(\d+)x\s+(.+?)\s+R\$\s*([\d.,]+)$/i);
+      if (!m) return addon;
+      const addonQty = parseInt(m[1]) * item.quantity;
+      const unitPrice = parseFloat(m[3].replace(",", "."));
+      const totalPrice = unitPrice * item.quantity;
+      const priceStr = totalPrice.toFixed(2).replace(".", ",");
+      return `${addonQty}x ${m[2]} R$${priceStr}`;
+    });
+
     return {
       index: idx + 1,
       baseName,
