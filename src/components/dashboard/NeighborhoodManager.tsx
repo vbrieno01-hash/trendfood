@@ -15,8 +15,15 @@ import {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-export default function NeighborhoodManager({ organizationId }: { organizationId: string }) {
+interface NeighborhoodManagerProps {
+  organizationId: string;
+  deliveryConfig?: Record<string, any> | null;
+  onUpdateDeliveryConfig?: (patch: Record<string, any>) => void;
+}
+
+export default function NeighborhoodManager({ organizationId, deliveryConfig, onUpdateDeliveryConfig }: NeighborhoodManagerProps) {
   const { data: neighborhoods = [], isLoading } = useAllDeliveryNeighborhoods(organizationId);
+  const allowOther = deliveryConfig?.allow_other_neighborhood !== false;
   const addMutation = useAddNeighborhood();
   const updateMutation = useUpdateNeighborhood();
   const deleteMutation = useDeleteNeighborhood();
