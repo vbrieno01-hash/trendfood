@@ -26,7 +26,7 @@ interface ReportsTabProps {
   orgLogo?: string | null;
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
-  orgEmoji: string;
+  
   orgCnpj?: string | null;
 }
 
