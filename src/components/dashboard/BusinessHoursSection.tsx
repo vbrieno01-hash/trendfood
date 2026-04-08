@@ -2,7 +2,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { BusinessHours } from "@/hooks/useOrganization";
-import { Coffee } from "lucide-react";
+import { Pause, X, Plus } from "lucide-react";
 
 const DAYS = [
   { key: "seg", label: "Segunda" },
