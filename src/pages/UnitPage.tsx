@@ -857,19 +857,33 @@ const UnitPage = () => {
             Monte seu pedido e envie direto pelo WhatsApp!
           </p>
           {isClosed && (
-            <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
-              <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-red-600 dark:text-red-400">
-                  {isPaused ? "Loja temporariamente fechada" : "Loja fechada · pedidos indisponíveis"}
-                </p>
-                {isPaused ? (
-                  <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Estamos em pausa. Voltamos em breve!</p>
-                ) : opensAt ? (
-                  <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Abre às {opensAt}</p>
-                ) : null}
+            storeStatus && !storeStatus.open && storeStatus.reason === "break" ? (
+              <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
+                <span className="text-lg shrink-0 mt-0.5">☕</span>
+                <div>
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                    Em intervalo de descanso
+                  </p>
+                  {opensAt && (
+                    <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">Voltamos às {opensAt}</p>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
+                <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                    {isPaused ? "Loja temporariamente fechada" : "Loja fechada · pedidos indisponíveis"}
+                  </p>
+                  {isPaused ? (
+                    <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Estamos em pausa. Voltamos em breve!</p>
+                  ) : opensAt ? (
+                    <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Abre às {opensAt}</p>
+                  ) : null}
+                </div>
+              </div>
+            )
           )}
         </div>
 
