@@ -15,8 +15,15 @@ import {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-export default function NeighborhoodManager({ organizationId }: { organizationId: string }) {
+interface NeighborhoodManagerProps {
+  organizationId: string;
+  deliveryConfig?: Record<string, any> | null;
+  onUpdateDeliveryConfig?: (patch: Record<string, any>) => void;
+}
+
+export default function NeighborhoodManager({ organizationId, deliveryConfig, onUpdateDeliveryConfig }: NeighborhoodManagerProps) {
   const { data: neighborhoods = [], isLoading } = useAllDeliveryNeighborhoods(organizationId);
+  const allowOther = deliveryConfig?.allow_other_neighborhood !== false;
   const addMutation = useAddNeighborhood();
   const updateMutation = useUpdateNeighborhood();
   const deleteMutation = useDeleteNeighborhood();
@@ -117,6 +124,24 @@ export default function NeighborhoodManager({ organizationId }: { organizationId
               </Button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Toggle "Outro bairro" */}
+      {onUpdateDeliveryConfig && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border p-3">
+          <div>
+            <p className="text-sm font-medium">Permitir "Outro bairro"</p>
+            <p className="text-xs text-muted-foreground">
+              Quando desativado, clientes só podem escolher bairros cadastrados
+            </p>
+          </div>
+          <Switch
+            checked={allowOther}
+            onCheckedChange={(checked) =>
+              onUpdateDeliveryConfig({ ...deliveryConfig, allow_other_neighborhood: checked })
+            }
+          />
         </div>
       )}
 
