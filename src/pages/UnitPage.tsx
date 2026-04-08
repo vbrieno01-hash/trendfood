@@ -778,7 +778,7 @@ const UnitPage = () => {
             {org.logo_url ? (
               <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" />
             ) : (
-              <span className="text-2xl">{org.emoji}</span>
+              <span className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">{org.name?.charAt(0)?.toUpperCase()}</span>
             )}
             <p className="font-bold text-foreground text-base leading-tight">{org.name}</p>
           </div>

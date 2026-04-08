@@ -39,7 +39,7 @@ interface Organization {
 }
 
 
-const EMOJI_OPTIONS = ["🍔", "🌮", "🍕", "🍜", "🌯", "🥪", "🍗", "🥗", "🍣", "🥩", "🍟", "🧆"];
+
 
 const BRAZIL_STATES = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -77,7 +77,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [form, setForm] = useState({
     name: organization.name,
     description: organization.description ?? "",
-    emoji: organization.emoji,
+    
     slug: organization.slug,
     primary_color: organization.primary_color,
     whatsapp: organization.whatsapp ?? "",
@@ -169,7 +169,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     setAutoSaveStatus("saving");
     try {
       const sharedFields = {
-        emoji: form.emoji,
+        
         primary_color: form.primary_color,
         whatsapp: form.whatsapp || null,
         pix_key: form.pix_key || null,
@@ -393,7 +393,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               ) : logoUrl ? (
                 <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-3xl">{form.emoji}</span>
+                <span className="text-2xl font-bold text-muted-foreground">{form.name?.charAt(0)?.toUpperCase() || "?"}</span>
               )}
             </div>
             <div className="space-y-1.5">
@@ -471,26 +471,6 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </div>
         </div>
 
-        {/* Emoji — horizontal scroll, botões menores */}
-        <div className="mb-5">
-          <Label className="text-sm font-medium mb-2 block">Emoji da loja</Label>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-            {EMOJI_OPTIONS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, emoji: e }))}
-                className={`text-xl w-9 h-9 rounded-lg border shrink-0 transition-all ${
-                  form.emoji === e
-                    ? "border-primary bg-primary/10 scale-110"
-                    : "border-border hover:border-primary/50 bg-card"
-                }`}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Name */}
         <div className="mb-5">

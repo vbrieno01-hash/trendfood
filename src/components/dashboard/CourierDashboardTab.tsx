@@ -52,7 +52,7 @@ interface Props {
   orgId: string;
   orgSlug: string;
   orgName?: string;
-  orgEmoji?: string;
+  
   orgLogo?: string | null;
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
@@ -87,7 +87,7 @@ function useOrderTotals(orderIds: string[]) {
   });
 }
 
-const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWhatsapp, orgAddress, courierConfig }: Props) => {
+const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, orgAddress, courierConfig }: Props) => {
   useCleanupStaleDeliveries(orgId);
   const [expandedCourierId, setExpandedCourierId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -696,7 +696,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgEmoji, orgLogo, orgWh
         <CourierReportSection
           orgId={orgId}
           orgName={orgName || "Minha Loja"}
-          orgEmoji={orgEmoji || "🍽️"}
+          
           orgLogo={orgLogo}
           orgWhatsapp={orgWhatsapp}
           orgAddress={orgAddress}

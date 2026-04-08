@@ -28,10 +28,10 @@ interface Props {
   onComplete: () => void;
 }
 
-const EMOJIS = ["🍔", "🍕", "🌮", "🍜", "🍣", "🍰", "☕", "🥗", "🌯", "🍗", "🥩", "🍱"];
+
 
 const STEPS = [
-  { title: "Nome e Emoji", subtitle: "Como sua loja vai aparecer para os clientes" },
+  { title: "Nome e WhatsApp", subtitle: "Como sua loja vai aparecer para os clientes" },
   { title: "Endereço de Entrega", subtitle: "Onde sua loja está localizada" },
   { title: "Horários de Funcionamento", subtitle: "Quando sua loja está aberta" },
   { title: "Primeiro Item do Cardápio", subtitle: "Adicione o primeiro produto da sua loja" },
@@ -44,7 +44,6 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
 
   // Step 1 state
   const [name, setName] = useState(organization.name);
-  const [emoji, setEmoji] = useState(organization.emoji);
   const [whatsapp, setWhatsapp] = useState("");
 
   // Step 2 state — pre-populate from existing store_address
@@ -111,7 +110,7 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
     setSaving(true);
     const { error } = await supabase
       .from("organizations")
-      .update({ name: name.trim(), emoji, whatsapp: whatsappDigits })
+      .update({ name: name.trim(), whatsapp: whatsappDigits })
       .eq("id", organization.id);
     setSaving(false);
     if (error) { toast.error("Erro ao salvar."); return false; }
@@ -246,25 +245,6 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
                   maxLength={11}
                 />
                 <p className="text-xs text-muted-foreground">DDD + número (ex: 11999998888). Obrigatório para receber pedidos.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Escolha um emoji</Label>
-                <div className="grid grid-cols-6 gap-2">
-                  {EMOJIS.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => setEmoji(e)}
-                      className={`h-11 rounded-xl text-2xl flex items-center justify-center transition-all ${
-                        emoji === e
-                          ? "bg-primary/15 ring-2 ring-primary"
-                          : "bg-muted hover:bg-muted/80"
-                      }`}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           )}

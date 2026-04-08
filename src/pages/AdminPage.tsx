@@ -728,7 +728,7 @@ function AdminContent() {
                                 <td className="px-5 py-3.5">
                                   <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 rounded-xl ${getAvatarColor(s.name)} flex items-center justify-center text-white text-xs font-bold shadow-md`}>
-                                      {s.emoji !== "🍽️" ? s.emoji : s.name.charAt(0).toUpperCase()}
+                                      {s.name.charAt(0).toUpperCase()}
                                     </div>
                                     <span className="font-medium text-foreground">{s.name}</span>
                                   </div>
@@ -1078,7 +1078,7 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
         <div
           className={`w-11 h-11 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-base shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-lg`}
         >
-          {org.emoji !== "🍽️" ? org.emoji : initial}
+          {initial}
         </div>
 
         <div className="flex-1 min-w-0">

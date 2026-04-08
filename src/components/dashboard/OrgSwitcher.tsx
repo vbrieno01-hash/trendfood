@@ -36,8 +36,8 @@ export default function OrgSwitcher({ organizations, activeOrg, onSwitch, onCrea
           {activeOrg.logo_url ? (
             <img src={activeOrg.logo_url} alt={activeOrg.name} className="w-9 h-9 rounded-lg object-cover ring-1 ring-white/20" />
           ) : (
-            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center text-lg border border-primary/30">
-              {activeOrg.emoji}
+            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center text-sm font-bold text-primary border border-primary/30">
+              {activeOrg.name.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -63,8 +63,8 @@ export default function OrgSwitcher({ organizations, activeOrg, onSwitch, onCrea
               {org.logo_url ? (
                 <img src={org.logo_url} alt={org.name} className="w-7 h-7 rounded-md object-cover" />
               ) : (
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-sm">
-                  {org.emoji}
+                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                  {org.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
