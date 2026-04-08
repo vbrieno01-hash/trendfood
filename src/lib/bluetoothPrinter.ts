@@ -24,6 +24,15 @@ const STORED_DEVICE_KEY = "bt_printer_device_id";
 let cachedServer: BluetoothRemoteGATTServer | null = null;
 let cachedCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
 let isConnecting = false;
+let isConnectingSince = 0;
+
+function resetStaleConnecting() {
+  if (isConnecting && isConnectingSince > 0 && Date.now() - isConnectingSince > 15000) {
+    console.warn("[BT] isConnecting stuck for 15s, resetting");
+    isConnecting = false;
+    isConnectingSince = 0;
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
