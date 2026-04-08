@@ -168,8 +168,8 @@ export default function SettingsTab() {
               <p className="text-sm font-medium text-foreground">Forçar Loja Aberta</p>
               <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
                 {forceOpen
-                  ? "A loja está aberta 24h, ignorando o horário programado."
-                  : "Ative para manter a loja aberta manualmente, ignorando qualquer regra de horário."}
+                  ? "A loja está aberta fora do horário programado. Pausas configuradas continuam funcionando."
+                  : "Ative para manter a loja aberta fora do horário, mas pausas continuam valendo."}
               </p>
             </div>
             <Switch
