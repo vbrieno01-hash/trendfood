@@ -418,7 +418,7 @@ const UnitPage = () => {
       if (freshStatus !== null && !freshStatus.open) {
         const closed = freshStatus as { open: false; opensAt: string | null; reason?: "break" };
         const msg = closed.reason === "break" && closed.opensAt
-          ? `☕ Loja em intervalo. Retorna às ${closed.opensAt}.`
+          ? `Estamos em pausa. Voltamos às ${closed.opensAt}.`
           : "Esta loja está fechada no momento.";
         toast({ title: msg, variant: "destructive" });
        setIsSubmitting(false);
