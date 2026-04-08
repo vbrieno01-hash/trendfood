@@ -195,8 +195,10 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   {btConnected ? `✓ ${btDevice?.name || "Conectada"}` : "Desconectada"}
                 </span>
               </div>
-              {!btSupported && (() => {
-                const status = getBluetoothStatus();
+              {(() => {
+                // TEMPORÁRIO — remover após teste visual
+                const status = { supported: false, reason: "ios" as const };
+                // const status = getBluetoothStatus();
                 const msg = !status.supported ? getBtUnsupportedMessage(status.reason) : null;
                 return msg ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
