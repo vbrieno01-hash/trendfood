@@ -164,14 +164,17 @@ export default function BusinessHoursSection({ value, onChange }: Props) {
                           <button
                             type="button"
                             onClick={() => toggleBreak(day.key)}
-                            title={breakActive ? "Remover intervalo" : "Adicionar intervalo"}
-                            className={`p-1.5 rounded-md transition-colors ${
+                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                               breakActive
-                                ? "bg-primary/10 text-primary"
+                                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50"
                                 : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                             }`}
                           >
-                            <Coffee className="h-3.5 w-3.5" />
+                            {breakActive ? (
+                              <><X className="h-3 w-3" /> Pausa</>
+                            ) : (
+                              <><Plus className="h-3 w-3" /> Pausa</>
+                            )}
                           </button>
                         )}
                       </td>
