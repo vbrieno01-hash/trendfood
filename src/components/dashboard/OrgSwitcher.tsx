@@ -63,8 +63,8 @@ export default function OrgSwitcher({ organizations, activeOrg, onSwitch, onCrea
               {org.logo_url ? (
                 <img src={org.logo_url} alt={org.name} className="w-7 h-7 rounded-md object-cover" />
               ) : (
-                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-sm">
-                  {org.emoji}
+                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                  {org.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">

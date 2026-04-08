@@ -115,7 +115,7 @@ const ReviewPage = () => {
           {org.logo_url ? (
             <img src={org.logo_url} alt={org.name} className="w-16 h-16 rounded-2xl object-cover mx-auto mb-3" />
           ) : (
-            <p className="text-4xl mb-3">{org.emoji}</p>
+            <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto mb-3 text-2xl font-bold text-primary">{org.name?.charAt(0)?.toUpperCase()}</div>
           )}
           <h1 className="font-bold text-xl text-foreground">{org.name}</h1>
           <p className="text-muted-foreground text-sm mt-1">Como foi sua experiência?</p>

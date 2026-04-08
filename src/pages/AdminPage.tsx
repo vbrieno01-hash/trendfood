@@ -1078,7 +1078,7 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
         <div
           className={`w-11 h-11 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-base shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-lg`}
         >
-          {org.emoji !== "🍽️" ? org.emoji : initial}
+          {initial}
         </div>
 
         <div className="flex-1 min-w-0">

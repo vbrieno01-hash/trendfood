@@ -643,7 +643,7 @@ export default function TableOrderPage() {
           {org.logo_url ? (
             <img src={org.logo_url} alt={org.name} className="w-10 h-10 rounded-xl object-cover" />
           ) : (
-            <span className="text-2xl">{org.emoji}</span>
+            <span className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-lg font-bold text-primary">{org.name?.charAt(0)?.toUpperCase()}</span>
           )}
           <div>
             <h1 className="font-bold text-foreground text-base leading-tight">{org.name}</h1>

@@ -471,26 +471,6 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </div>
         </div>
 
-        {/* Emoji — horizontal scroll, botões menores */}
-        <div className="mb-5">
-          <Label className="text-sm font-medium mb-2 block">Emoji da loja</Label>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-            {EMOJI_OPTIONS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, emoji: e }))}
-                className={`text-xl w-9 h-9 rounded-lg border shrink-0 transition-all ${
-                  form.emoji === e
-                    ? "border-primary bg-primary/10 scale-110"
-                    : "border-border hover:border-primary/50 bg-card"
-                }`}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Name */}
         <div className="mb-5">

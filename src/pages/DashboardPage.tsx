@@ -850,7 +850,11 @@ const DashboardPage = () => {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-xl">{organization.emoji}</span>
+            {(organization as any).logo_url ? (
+              <img src={(organization as any).logo_url} alt={organization.name} className="w-7 h-7 rounded-lg object-cover" />
+            ) : (
+              <span className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center text-xs font-bold text-primary">{organization.name.charAt(0).toUpperCase()}</span>
+            )}
             <span className="font-bold text-sm">{organization.name}</span>
             <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
