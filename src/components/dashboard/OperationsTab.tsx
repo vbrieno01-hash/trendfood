@@ -54,6 +54,7 @@ export default function OperationsTab(props: OperationsTabProps) {
           onPairBluetooth={props.onPairBluetooth}
           btConnected={props.btConnected}
           btSupported={props.btSupported}
+          btPairing={props.btPairing}
           autoPrint={props.autoPrint}
           onToggleAutoPrint={props.onToggleAutoPrint}
           notificationsEnabled={props.notificationsEnabled}
