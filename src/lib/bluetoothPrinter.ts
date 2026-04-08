@@ -115,12 +115,14 @@ export async function requestBluetoothPrinter(): Promise<BluetoothDevice | null>
 
 export async function connectToDevice(device: BluetoothDevice): Promise<BluetoothRemoteGATTCharacteristic | null> {
   if (!device.gatt) return null;
+  resetStaleConnecting();
   if (isConnecting) {
     console.warn("[BT] Connection already in progress, skipping");
     return null;
   }
 
   isConnecting = true;
+  isConnectingSince = Date.now();
   try {
     const server = await withTimeout(device.gatt.connect(), 10000, "GATT connect");
     cachedServer = server;
