@@ -728,7 +728,7 @@ function AdminContent() {
                                 <td className="px-5 py-3.5">
                                   <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 rounded-xl ${getAvatarColor(s.name)} flex items-center justify-center text-white text-xs font-bold shadow-md`}>
-                                      {s.emoji !== "🍽️" ? s.emoji : s.name.charAt(0).toUpperCase()}
+                                      {s.name.charAt(0).toUpperCase()}
                                     </div>
                                     <span className="font-medium text-foreground">{s.name}</span>
                                   </div>
