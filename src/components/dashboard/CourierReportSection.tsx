@@ -188,7 +188,7 @@ export default function CourierReportSection({
 </style></head><body>
 ${watermarkHtml}
 <div style="position:relative;z-index:1">
-  <div class="header">${headerLogoHtml}<div><div class="store-name">${orgEmoji} ${orgName}</div>
+  <div class="header">${headerLogoHtml}<div><div class="store-name">${orgName}</div>
   <div class="store-info">${cleanAddress}${cleanAddress && formattedWhatsapp ? " • " : ""}${formattedWhatsapp ? "WhatsApp: " + formattedWhatsapp : ""}</div></div></div>
   <div class="report-title">Relatório de Motoboys — ${periodLabel}</div>
   <div class="emission">Emitido em ${emissionDate}</div>

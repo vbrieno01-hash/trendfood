@@ -310,7 +310,7 @@ ${watermarkHtml}
   <div class="header">
     ${headerLogoHtml}
     <div>
-      <div class="store-name">${orgEmoji} ${orgName}</div>
+      <div class="store-name">${orgName}</div>
       ${cnpjLine}
       <div class="store-info">
         ${cleanAddress ? cleanAddress : ""}${cleanAddress && formattedWhatsapp ? " &nbsp;•&nbsp; " : ""}${formattedWhatsapp ? "WhatsApp: " + formattedWhatsapp : ""}
