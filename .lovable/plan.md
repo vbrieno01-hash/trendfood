@@ -1,38 +1,36 @@
 
 
-## Plano: Multiplicar quantidade dos adicionais pelo qty do item no recibo
+## Plano: Remover emoji picker e usar logo como identidade visual da loja
 
-### Problema
-Addon armazenado como `+ 1x Batata frita R$5,00` representa qty **por unidade** do item. Quando o item tem qty=2, o recibo mostra `1x Batata frita R$5,00` — deveria mostrar `2x Batata frita R$10,00`.
+### O que muda
+O seletor de emojis ("Emoji da loja") será removido do perfil da loja e de todos os locais onde aparece. Em vez disso, onde antes exibia o emoji, agora exibe a **logo da loja** (já existente via `logo_url`). Se a loja não tiver logo, mostra a inicial do nome em um circle colorido.
 
-### Alteração
+### Alterações
 
-**`src/lib/receiptData.ts`** — Em `buildReceiptData`, após chamar `parseItemName`, multiplicar cada addon pela qty do item:
+**1. `src/components/dashboard/StoreProfileTab.tsx`**
+- Remover `EMOJI_OPTIONS` e o bloco de seleção de emoji (linhas 474-493)
+- Remover `emoji` do `form` state e do `doSave`/`sharedFields`
+- Manter o campo `emoji` no banco (sem migração) — apenas não exibir mais
 
-```typescript
-// Dentro do .map de rawItems (linha ~208)
-const { baseName, addons: rawAddons, itemObs } = parseItemName(item.name);
+**2. `src/components/dashboard/OnboardingWizard.tsx`**
+- Remover seletor de emoji do Step 1
+- Renomear step de "Nome e Emoji" para "Nome e WhatsApp"
+- Remover `emoji` do state e do update SQL
 
-// Multiplicar addon qty × item qty
-const addons = rawAddons.map(addon => {
-  if (item.quantity <= 1) return addon;
-  // Parse "1x Bacon R$5,00" → qty=1, name=Bacon, price=5.00
-  const m = addon.match(/^(\d+)x\s+(.+?)\s+R\$\s*([\d.,]+)$/i);
-  if (!m) return addon;
-  const addonQty = parseInt(m[1]) * item.quantity;
-  const unitPrice = parseFloat(m[3].replace(",", "."));
-  const totalPrice = unitPrice * item.quantity;
-  const priceStr = totalPrice.toFixed(2).replace(".", ",");
-  return `${addonQty}x ${m[2]} R$${priceStr}`;
-});
-```
+**3. `src/pages/UnitPage.tsx`** — Fallback de `org.emoji` → inicial do nome com bg colorido
 
-**Testes** — Atualizar `receiptData.test.ts` e `e2e-receipt-sanitization.test.ts`:
-- Item com qty=2 e addon `1x Batata frita R$5,00` → resultado `2x Batata frita R$10,00`
-- Item com qty=1 → addon inalterado
+**4. `src/pages/ReviewPage.tsx`** — Mesmo fallback (inicial do nome)
 
-### Impacto
-- 1 arquivo de código + 2 de testes
-- Zero impacto em dados armazenados
-- Ambos os consumidores (ThermalReceipt visual e formatReceiptText bluetooth) já exibem o addon string diretamente — a correção propaga automaticamente
+**5. `src/pages/TableOrderPage.tsx`** — Mesmo fallback (2 locais)
+
+**6. `src/components/dashboard/OrgSwitcher.tsx`** — Fallback emoji → inicial do nome
+
+**7. `src/components/admin/AdminStoreManager.tsx`** — Fallback emoji → logo ou inicial
+
+**8. `src/pages/AdminPage.tsx`** — Já usa inicial como fallback, remover referência ao emoji
+
+**9. Relatórios** (`ReportsTab.tsx`, `CourierReportSection.tsx`) — Remover emoji do cabeçalho impresso, usar só logo + nome
+
+### Sem migração
+O campo `emoji` continua no banco (compatibilidade), mas não é mais editável nem exibido.
 
