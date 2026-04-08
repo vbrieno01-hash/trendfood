@@ -1,29 +1,38 @@
 
 
-## Plano: Toggle para pausar "Outro bairro" na página pública
+## Plano: Multiplicar quantidade dos adicionais pelo qty do item no recibo
 
 ### Problema
-A opção "Outro bairro — Sob consulta" sempre aparece no dropdown de bairros da página pública. O dono quer poder desativar isso quando não tem motoboy para ir longe.
+Addon armazenado como `+ 1x Batata frita R$5,00` representa qty **por unidade** do item. Quando o item tem qty=2, o recibo mostra `1x Batata frita R$5,00` — deveria mostrar `2x Batata frita R$10,00`.
 
-### Solução
+### Alteração
 
-**1. `delivery_config` JSON** — Adicionar campo `allow_other_neighborhood` (default `true` para compatibilidade):
-- Armazenado no JSON `delivery_config` da tabela `organizations`, sem migração necessária.
+**`src/lib/receiptData.ts`** — Em `buildReceiptData`, após chamar `parseItemName`, multiplicar cada addon pela qty do item:
 
-**2. `src/components/dashboard/NeighborhoodManager.tsx`** — Adicionar toggle:
-- Receber `organization` como prop (em vez de só `organizationId`)
-- Ler `delivery_config.allow_other_neighborhood` (default `true`)
-- Mostrar um Switch "Permitir 'Outro bairro'" com descrição tipo "Quando desativado, clientes só podem escolher bairros cadastrados"
-- Ao alterar, salvar no `delivery_config` da org
+```typescript
+// Dentro do .map de rawItems (linha ~208)
+const { baseName, addons: rawAddons, itemObs } = parseItemName(item.name);
 
-**3. `src/components/dashboard/StoreProfileTab.tsx`** — Passar `organization` inteira para o `NeighborhoodManager`
+// Multiplicar addon qty × item qty
+const addons = rawAddons.map(addon => {
+  if (item.quantity <= 1) return addon;
+  // Parse "1x Bacon R$5,00" → qty=1, name=Bacon, price=5.00
+  const m = addon.match(/^(\d+)x\s+(.+?)\s+R\$\s*([\d.,]+)$/i);
+  if (!m) return addon;
+  const addonQty = parseInt(m[1]) * item.quantity;
+  const unitPrice = parseFloat(m[3].replace(",", "."));
+  const totalPrice = unitPrice * item.quantity;
+  const priceStr = totalPrice.toFixed(2).replace(".", ",");
+  return `${addonQty}x ${m[2]} R$${priceStr}`;
+});
+```
 
-**4. `src/pages/UnitPage.tsx`** — Condicionar a opção "Outro bairro":
-- Ler `delivery_config.allow_other_neighborhood` da org
-- Se `false`, não renderizar o `<SelectItem value="__outro__">`
+**Testes** — Atualizar `receiptData.test.ts` e `e2e-receipt-sanitization.test.ts`:
+- Item com qty=2 e addon `1x Batata frita R$5,00` → resultado `2x Batata frita R$10,00`
+- Item com qty=1 → addon inalterado
 
 ### Impacto
-- 3 arquivos alterados
-- Sem migração (campo opcional no JSON existente)
-- Compatível com lojas existentes (default `true`)
+- 1 arquivo de código + 2 de testes
+- Zero impacto em dados armazenados
+- Ambos os consumidores (ThermalReceipt visual e formatReceiptText bluetooth) já exibem o addon string diretamente — a correção propaga automaticamente
 
