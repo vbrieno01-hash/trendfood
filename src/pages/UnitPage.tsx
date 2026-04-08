@@ -861,7 +861,7 @@ const UnitPage = () => {
             Monte seu pedido e envie direto pelo WhatsApp!
           </p>
           {isClosed && (
-            storeStatus && !storeStatus.open && storeStatus.reason === "break" ? (
+            storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
               <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
                 <span className="text-lg shrink-0 mt-0.5">☕</span>
                 <div>
