@@ -1064,7 +1064,7 @@ const UnitPage = () => {
                 <div className="flex items-center gap-2">
                   <ShoppingBag className="w-5 h-5 opacity-50" />
                   <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{totalItems}</span>
-                  <span>{storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? "☕ Intervalo" : "🔒 Fechada"}</span>
+                  <span>{storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? "⏸ Em pausa" : "🔒 Fechada"}</span>
                 </div>
                 <span className="opacity-50">{fmt(totalPrice)}</span>
               </div>
