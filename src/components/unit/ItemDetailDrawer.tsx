@@ -19,6 +19,7 @@ interface ItemDetailDrawerProps {
   primaryColor: string;
   isClosed: boolean;
   opensAt: string | null;
+  closedReason?: string;
   organizationId?: string;
 }
 
