@@ -77,7 +77,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [form, setForm] = useState({
     name: organization.name,
     description: organization.description ?? "",
-    emoji: organization.emoji,
+    
     slug: organization.slug,
     primary_color: organization.primary_color,
     whatsapp: organization.whatsapp ?? "",
