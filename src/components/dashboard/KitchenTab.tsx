@@ -384,6 +384,7 @@ export default function KitchenTab({
               variant="outline"
               size="sm"
               className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""} ${!btSupported ? "opacity-50" : ""}`}
+              disabled={btPairing}
               onClick={() => {
                 if (!btSupported) {
                   const isBrave = !!(navigator as any).brave;
@@ -401,8 +402,8 @@ export default function KitchenTab({
                 onPairBluetooth?.();
               }}
             >
-              <Printer className="w-3.5 h-3.5" />
-              {btConnected ? "✓ Conectada" : "Parear impressora"}
+              {btPairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+              {btPairing ? "Pareando..." : btConnected ? "✓ Conectada" : "Parear impressora"}
             </Button>
           )}
           <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">

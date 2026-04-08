@@ -214,6 +214,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   variant="outline"
                   size="sm"
                   className="gap-2"
+                  disabled={btPairing}
                   onClick={() => {
                     if (!btSupported) {
                       const status = getBluetoothStatus();
@@ -226,8 +227,8 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                     onPairBluetooth();
                   }}
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  {btConnected ? "Trocar impressora" : "Parear impressora"}
+                  {btPairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                  {btPairing ? "Pareando..." : btConnected ? "Trocar impressora" : "Parear impressora"}
                 </Button>
                 {btConnected && (
                   <Button

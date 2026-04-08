@@ -1005,7 +1005,7 @@ const DashboardPage = () => {
             : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgCnpj={(organization as any).cnpj} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} effectivePlan={planLimits.effectivePlan} />}
-          {activeTab === "printer" && <PrinterTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} />}
+          {activeTab === "printer" && <PrinterTab btDevice={btDevice} btConnected={btConnected} onPairBluetooth={handlePairBluetooth} onDisconnectBluetooth={handleDisconnectBluetooth} btSupported={btSupported} btPairing={btPairing} />}
           {activeTab === "settings" && <SettingsTab />}
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
           {activeTab === "subscription" && <SubscriptionTab />}
