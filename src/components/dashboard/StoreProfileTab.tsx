@@ -180,7 +180,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       // Campos específicos de cada loja (NÃO compartilhar entre unidades)
       const orgSpecificFields = {
         store_address: buildStoreAddress(addressFields) || null,
-        delivery_config: { free_above: freeAbove } as unknown as never,
+        delivery_config: { ...(organization.delivery_config as Record<string, any>), free_above: freeAbove } as unknown as never,
       };
 
       const { error } = await supabase
