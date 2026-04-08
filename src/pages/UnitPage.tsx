@@ -415,8 +415,11 @@ const UnitPage = () => {
        return;
      }
      const freshStatus = getStoreStatus(freshOrg?.business_hours as any, freshOrg?.force_open as any);
-     if (freshStatus !== null && !freshStatus.open) {
-       toast({ title: "Esta loja está fechada no momento.", variant: "destructive" });
+      if (freshStatus !== null && !freshStatus.open) {
+        const msg = freshStatus.reason === "break" && freshStatus.opensAt
+          ? `☕ Loja em intervalo. Retorna às ${freshStatus.opensAt}.`
+          : "Esta loja está fechada no momento.";
+        toast({ title: msg, variant: "destructive" });
        setIsSubmitting(false);
        return;
      }
