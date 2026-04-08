@@ -446,10 +446,11 @@ export default function KitchenPage() {
                 variant="outline"
                 size="sm"
                 className={`text-xs gap-1.5 ${btConnected ? "border-green-300 text-green-700 bg-green-50" : ""} ${!btSupported ? "opacity-50" : ""}`}
+                disabled={btPairing}
                 onClick={handlePairBluetooth}
               >
-                <Printer className="w-3.5 h-3.5" />
-                {btConnected ? "✓ Conectada" : "Parear impressora"}
+                {btPairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                {btPairing ? "Pareando..." : btConnected ? "✓ Conectada" : "Parear impressora"}
               </Button>
             )}
             <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
