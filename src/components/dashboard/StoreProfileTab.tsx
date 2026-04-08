@@ -393,7 +393,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               ) : logoUrl ? (
                 <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-3xl">{form.emoji}</span>
+                <span className="text-2xl font-bold text-muted-foreground">{form.name?.charAt(0)?.toUpperCase() || "?"}</span>
               )}
             </div>
             <div className="space-y-1.5">
