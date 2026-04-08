@@ -26,7 +26,7 @@ import html2canvas from "html2canvas";
 interface Props {
   orgId: string;
   orgName: string;
-  orgEmoji: string;
+  
   orgLogo?: string | null;
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
