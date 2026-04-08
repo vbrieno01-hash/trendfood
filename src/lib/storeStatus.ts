@@ -75,6 +75,14 @@ export function getStoreStatus(
     : currentMinutes >= fromMin || currentMinutes < toMin;
 
   if (isOpen) {
+    // Verificar intervalo de descanso (break)
+    if (today.break_from && today.break_to) {
+      const breakFrom = timeToMinutes(today.break_from);
+      const breakTo = timeToMinutes(today.break_to);
+      if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
+        return { open: false, opensAt: today.break_to };
+      }
+    }
     return { open: true };
   }
 
