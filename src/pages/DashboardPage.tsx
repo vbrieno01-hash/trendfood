@@ -354,6 +354,8 @@ const DashboardPage = () => {
     device.addEventListener("gattserverdisconnected", handler);
   };
 
+  const [btPairing, setBtPairing] = useState(false);
+
   const handlePairBluetooth = async () => {
     const btStatus = getBluetoothStatus();
     if (!btStatus.supported) {
@@ -361,8 +363,12 @@ const DashboardPage = () => {
       toast.error(title, { description, duration: 8000 });
       return;
     }
+    setBtPairing(true);
     try {
-      const device = await requestBluetoothPrinter();
+      const device = await Promise.race([
+        requestBluetoothPrinter(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000)),
+      ]);
       if (device) {
         setBtDevice(device);
         // Web: connect GATT manually
