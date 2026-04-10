@@ -25,13 +25,14 @@ O iFood disponibiliza uma **API oficial para parceiros (iFood Merchant API)** qu
 - Aguardar aprovação e receber Client ID + Client Secret
 - **Sem essas credenciais, não é possível avançar tecnicamente**
 
-#### Fase 1 — Autenticação e Vinculação (após aprovação)
+#### Fase 1 — Autenticação e Vinculação (após aprovação) ✅
 - Edge function para gerar/renovar token OAuth2 do iFood
 - Tela no dashboard para o dono vincular sua loja iFood (informar Merchant ID)
 - Tabela `ifood_credentials` para armazenar tokens por organização
 
-#### Fase 2 — Receber Pedidos do iFood
+#### Fase 2 — Receber Pedidos do iFood ✅
 - Edge function webhook para receber eventos de novos pedidos
+- Edge function polling (`ifood-poll-events`) para buscar eventos periodicamente
 - Converter pedido iFood → formato de pedido do TrendFood
 - Pedido aparece na cozinha/gestão como qualquer outro, com badge "iFood"
 - Confirmar/recusar pedido de volta pro iFood via API
@@ -44,12 +45,11 @@ O iFood disponibiliza uma **API oficial para parceiros (iFood Merchant API)** qu
 
 ### Estimativa de esforço
 - Fase 0: depende do iFood (dias a semanas)
-- Fase 1: ~2-3 horas de desenvolvimento
-- Fase 2: ~4-6 horas
+- Fase 1: ~2-3 horas de desenvolvimento ✅
+- Fase 2: ~4-6 horas ✅
 - Fase 3: ~4-6 horas
 
 ### Próximo passo concreto
 Você precisa **criar a conta no iFood Developer Portal** e solicitar acesso como integrador. Me avise quando tiver as credenciais (Client ID e Client Secret) que eu implemento toda a integração técnica.
 
 Quer que eu já prepare a estrutura base (tabelas, telas de configuração) enquanto você faz o cadastro no portal?
-
