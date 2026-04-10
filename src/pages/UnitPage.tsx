@@ -503,7 +503,7 @@ const UnitPage = () => {
               setPixOrderId(order.id);
               setShowPixScreen(true);
               setIsSubmitting(false);
-              registerForOrder(order.id);
+              registerForOrder(order.id); // fire-and-forget after PIX screen shown
             },
             onError: (err) => {
               console.error("[UnitPage] placeOrder PIX error:", err);
@@ -599,8 +599,8 @@ const UnitPage = () => {
         {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
-            registerForOrder(order.id);
             openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            registerForOrder(order.id); // after WhatsApp to preserve user gesture
             // Loyalty: accumulate points + process redemption
             if (loyaltyEnabled && org?.id && buyerPhone && loyaltyConfig) {
               accumulateLoyalty.mutate({
