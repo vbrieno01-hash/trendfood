@@ -685,12 +685,10 @@ const DashboardPage = () => {
     }`;
 
   const showOnboarding = organization && !(organization as any).onboarding_done;
-  const [showTour, setShowTour] = useState(false);
 
   // Show tour after onboarding is done but tour hasn't been completed
   useEffect(() => {
     if (organization && (organization as any).onboarding_done && !(organization as any).dashboard_tour_done) {
-      // Small delay so dashboard renders first
       const t = setTimeout(() => setShowTour(true), 800);
       return () => clearTimeout(t);
     }
