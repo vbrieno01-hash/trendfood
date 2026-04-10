@@ -1,40 +1,55 @@
 
 
-## Status da Integração iFood — O que falta
+## Integração Completa com iFood (Pedidos + Cardápio)
 
-### ✅ Já implementado
-- Tabela `ifood_credentials` no banco (merchant_id, tokens, status por loja)
-- Edge function `ifood-auth` (autenticação OAuth2 com iFood)
-- Edge function `ifood-webhook` (receber pedidos, criar no sistema, confirmar no iFood)
-- Tela de configuração no dashboard (aba "iFood" em Integrações)
+### Realidade sobre a API do iFood
 
-### ❌ O que falta para funcionar
+O iFood disponibiliza uma **API oficial para parceiros (iFood Merchant API)** que permite:
+- Receber pedidos em tempo real via webhooks
+- Gerenciar cardápio (criar/atualizar itens, preços, disponibilidade)
+- Confirmar/recusar pedidos
+- Atualizar status de preparo e entrega
 
-**1. Cadastrar os secrets IFOOD_CLIENT_ID e IFOOD_CLIENT_SECRET**
-- Você está no portal certo. Use o **fluxo para aplicativos centralizados** (o TrendFood é a plataforma que gerencia múltiplas lojas)
-- Após aprovação, o iFood fornecerá o Client ID e Client Secret
-- Eu configuro esses secrets no backend assim que você tiver
+**Porém**, para acessar essa API, é necessário:
 
-**2. Configurar o webhook URL no portal iFood**
-- Você precisará informar ao iFood a URL do webhook para receber pedidos:
-  `https://xrzudhylpphnzousilye.supabase.co/functions/v1/ifood-webhook`
-- Isso é feito no painel do iFood Developer após aprovação
+1. **Cadastro como parceiro integrador** no portal [iFood Developer](https://developer.ifood.com.br/)
+2. **Aprovação do iFood** — eles revisam o sistema antes de liberar credenciais de produção
+3. **Client ID + Client Secret** — credenciais OAuth2 fornecidas após aprovação
+4. **Merchant ID** — cada loja do iFood tem um ID único que precisa ser vinculado
 
-**3. Polling de eventos (melhoria recomendada)**
-- A API do iFood na verdade usa **polling** (não webhook push) para pedidos — você busca eventos periodicamente
-- Criar edge function `ifood-poll-events` que roda a cada 30s via cron, buscando `/events/v1.0/events:polling`
-- Isso é mais confiável que esperar o iFood enviar webhooks
+### O que precisa ser feito (etapas)
 
-### Próximos passos concretos
+#### Fase 0 — Pré-requisito (sua parte)
+- Criar conta no [iFood Developer Portal](https://developer.ifood.com.br/)
+- Solicitar acesso à API como integrador
+- Aguardar aprovação e receber Client ID + Client Secret
+- **Sem essas credenciais, não é possível avançar tecnicamente**
 
-| Passo | Quem | O quê |
-|-------|------|-------|
-| 1 | Você | Completar cadastro no portal iFood (fluxo centralizado) |
-| 2 | Você | Me enviar Client ID e Client Secret quando receber |
-| 3 | Eu | Configurar os secrets no backend |
-| 4 | Eu | Implementar polling de eventos (se necessário pela API do iFood) |
-| 5 | Eu | Implementar sincronização de cardápio |
+#### Fase 1 — Autenticação e Vinculação (após aprovação) ✅
+- Edge function para gerar/renovar token OAuth2 do iFood
+- Tela no dashboard para o dono vincular sua loja iFood (informar Merchant ID)
+- Tabela `ifood_credentials` para armazenar tokens por organização
 
-### Arquivo alterado
-- Nenhuma mudança de código necessária agora — apenas aguardando as credenciais do iFood
+#### Fase 2 — Receber Pedidos do iFood ✅
+- Edge function webhook para receber eventos de novos pedidos
+- Edge function polling (`ifood-poll-events`) para buscar eventos periodicamente
+- Converter pedido iFood → formato de pedido do TrendFood
+- Pedido aparece na cozinha/gestão como qualquer outro, com badge "iFood"
+- Confirmar/recusar pedido de volta pro iFood via API
+- Atualizar status (preparando → pronto → entregue) sincronizado
 
+#### Fase 3 — Sincronizar Cardápio
+- Publicar itens do TrendFood no iFood (nome, descrição, preço, foto, disponibilidade)
+- Sincronizar alterações (desativar item, mudar preço)
+- Mapear categorias do TrendFood → categorias do iFood
+
+### Estimativa de esforço
+- Fase 0: depende do iFood (dias a semanas)
+- Fase 1: ~2-3 horas de desenvolvimento ✅
+- Fase 2: ~4-6 horas ✅
+- Fase 3: ~4-6 horas
+
+### Próximo passo concreto
+Você precisa **criar a conta no iFood Developer Portal** e solicitar acesso como integrador. Me avise quando tiver as credenciais (Client ID e Client Secret) que eu implemento toda a integração técnica.
+
+Quer que eu já prepare a estrutura base (tabelas, telas de configuração) enquanto você faz o cadastro no portal?
