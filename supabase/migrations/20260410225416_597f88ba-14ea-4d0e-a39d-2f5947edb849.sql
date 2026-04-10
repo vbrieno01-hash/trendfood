@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN dashboard_tour_done boolean NOT NULL DEFAULT false;

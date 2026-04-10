@@ -52,7 +52,7 @@ import ReferralSection from "@/components/dashboard/ReferralSection";
 import ReviewsTab from "@/components/dashboard/ReviewsTab";
 import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
-
+import DashboardTour from "@/components/dashboard/DashboardTour";
 
 
 type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty";
@@ -84,6 +84,7 @@ const DashboardPage = () => {
   }, [activeTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const retryRef = useRef(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ operacional: true });
 
@@ -568,6 +569,14 @@ const DashboardPage = () => {
     });
   }, [activeTab, sidebarGroups]);
 
+  // Show tour after onboarding is done but tour hasn't been completed
+  useEffect(() => {
+    if (organization && (organization as any).onboarding_done && !(organization as any).dashboard_tour_done) {
+      const t = setTimeout(() => setShowTour(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [organization]);
+
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -693,6 +702,15 @@ const DashboardPage = () => {
           onComplete={async () => { await refreshOrganization(); }}
         />
       )}
+      {showTour && (
+        <DashboardTour
+          orgId={organization.id}
+          onComplete={() => {
+            setShowTour(false);
+            refreshOrganization();
+          }}
+        />
+      )}
       {user && (
         <>
           <CreateUnitDialog
@@ -766,6 +784,7 @@ const DashboardPage = () => {
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {/* Home – fixed at top */}
           <button
+            data-tour="home"
             onClick={() => { handleTabChange("home"); setSidebarOpen(false); }}
             className={navBtnClass("home")}
           >
@@ -793,6 +812,7 @@ const DashboardPage = () => {
                   {group.items.map((item) => (
                     <button
                       key={item.key}
+                      data-tour={item.key}
                       onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
                       className={navBtnClass(item.key)}
                     >
