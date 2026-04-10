@@ -10,8 +10,26 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Health-check (GET) usado pelo portal iFood para validar a URL
+  if (req.method === "GET") {
+    return new Response(JSON.stringify({ status: "ok" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+  }
+
   try {
-    const body = await req.json();
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      // Body vazio ou inválido — responde 200 para validação do iFood
+      console.log("[ifood-webhook] Empty or invalid body, returning 200");
+      return new Response(JSON.stringify({ success: true, message: "No body" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
     console.log("[ifood-webhook] Received event:", JSON.stringify(body).slice(0, 500));
 
     const serviceClient = createClient(
