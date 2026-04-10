@@ -22,6 +22,7 @@ import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import AdminStoreManager from "@/components/admin/AdminStoreManager";
 import SiteContentTab from "@/components/admin/SiteContentTab";
 import AdminReportsTab from "@/components/admin/AdminReportsTab";
+import TransferOwnerDialog from "@/components/admin/TransferOwnerDialog";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {

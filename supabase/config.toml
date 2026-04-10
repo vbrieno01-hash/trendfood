@@ -69,3 +69,6 @@ verify_jwt = false
 [functions.cleanup-phantom-orders]
 verify_jwt = false
 
+[functions.transfer-org-owner]
+verify_jwt = false
+
