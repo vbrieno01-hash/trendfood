@@ -52,10 +52,11 @@ import ReferralSection from "@/components/dashboard/ReferralSection";
 import ReviewsTab from "@/components/dashboard/ReviewsTab";
 import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
+import IFoodTab from "@/components/dashboard/IFoodTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
