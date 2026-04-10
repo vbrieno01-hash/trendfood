@@ -644,6 +644,50 @@ export type Database = {
         }
         Relationships: []
       }
+      ifood_credentials: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          id: string
+          merchant_id: string | null
+          organization_id: string
+          refresh_token: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          id?: string
+          merchant_id?: string | null
+          organization_id: string
+          refresh_token?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          id?: string
+          merchant_id?: string | null
+          organization_id?: string
+          refresh_token?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ifood_credentials_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       improvement_tasks: {
         Row: {
           created_at: string
