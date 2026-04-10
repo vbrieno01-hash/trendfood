@@ -1,24 +1,21 @@
 
 
-## Configurar integração iFood com credenciais reais
+## Configurar Credenciais iFood no Backend
 
-### Passo 1 — Atualizar secrets do backend
-Atualizar os valores de `IFOOD_CLIENT_ID` e `IFOOD_CLIENT_SECRET` com as credenciais reais do portal iFood usando a ferramenta `add_secret`.
+Recebi as credenciais OAuth2 da aba Credenciais do portal iFood:
 
-### Passo 2 — Testar autenticação OAuth2
-Chamar a edge function `ifood-auth` para verificar se o token OAuth2 é gerado com sucesso usando as credenciais reais.
+- **Client ID**: `c7b5beb1-1eb6-43da-8005-fc4a269f3bce`
+- **Client Secret**: `9nnrf8kof25o5q0z1otynikjqoxmt6uthl3x09ryp7aik4dmgvx0lglha4hd3py2cbxhnfdkfewqwfnpneiakk308tknv702eze`
 
-### Passo 3 — Testar polling de eventos
-Chamar a edge function `ifood-poll-events` para verificar se consegue se conectar à API do iFood.
+### O que será feito
 
-### Passo 4 — Ajustar ifood-auth para grant_type correto
-O iFood usa `client_credentials` como grant_type inicial (não authorization_code). Verificar e ajustar a edge function `ifood-auth` se necessário para usar o fluxo correto.
+1. **Atualizar os secrets** `IFOOD_CLIENT_ID` e `IFOOD_CLIENT_SECRET` no backend com os valores reais acima
+2. **Ajustar a edge function `ifood-auth`** para usar `grant_type=client_credentials` corretamente no formato que o iFood espera
+3. **Testar a autenticação** chamando a edge function para validar que o token OAuth2 é gerado com sucesso
 
-### Passo do usuário (no portal iFood)
-- Aba Webhook: ativar status, colar URL `https://xrzudhylpphnzousilye.supabase.co/functions/v1/ifood-webhook`, salvar
-- Testar conexão pelo botão do portal
+### Detalhes técnicos
 
-### Arquivos possivelmente alterados
-- `supabase/functions/ifood-auth/index.ts` — ajustar grant_type se necessário
-- Secrets: `IFOOD_CLIENT_ID`, `IFOOD_CLIENT_SECRET` — atualizar valores
+- Os secrets serão configurados via ferramenta `add_secret`
+- A edge function `ifood-auth/index.ts` será ajustada para enviar os parâmetros no formato correto da API iFood (`grant_type`, `client_id`, `client_secret` como form-urlencoded)
+- Após configurar, testaremos a conectividade com `curl_edge_functions`
 
