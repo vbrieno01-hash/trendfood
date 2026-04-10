@@ -63,6 +63,7 @@ const UnitPage = () => {
   const planLimits = usePlanLimits(org);
 
   const placeOrder = usePlaceOrder();
+  const { registerForOrder } = useCustomerPush();
   const { data: loyaltyConfig } = useLoyaltyConfig(org?.id);
   const accumulateLoyalty = useAccumulateLoyalty();
   const redeemLoyalty = useRedeemLoyalty();
