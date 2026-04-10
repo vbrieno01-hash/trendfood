@@ -70,8 +70,8 @@ const DashboardPage = () => {
     const params = new URLSearchParams(location.search);
     const tabFromUrl = params.get("tab") as TabKey | null;
     const tabFromState = (location.state as { tab?: string })?.tab as TabKey | null;
-    const tabFromStorage = localStorage.getItem("dashboard_active_tab") as TabKey | null;
-    const raw = tabFromUrl || tabFromState || tabFromStorage || "home";
+    const _tabFromStorage = localStorage.getItem("dashboard_active_tab") as TabKey | null;
+    const raw = tabFromUrl || tabFromState || "home";
     // Legacy redirects
     if (raw === "kitchen" || raw === "waiter") return "operations";
     return raw;
