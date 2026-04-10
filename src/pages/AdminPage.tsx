@@ -23,6 +23,7 @@ import AdminStoreManager from "@/components/admin/AdminStoreManager";
 import SiteContentTab from "@/components/admin/SiteContentTab";
 import AdminReportsTab from "@/components/admin/AdminReportsTab";
 import TransferOwnerDialog from "@/components/admin/TransferOwnerDialog";
+import ImprovementsTab from "@/components/admin/ImprovementsTab";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -59,6 +60,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ArrowRightLeft,
+  ListChecks,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -228,7 +230,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias";
 
 interface NavGroup {
   label: string;
@@ -253,6 +255,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
       { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Chat de Vendas" },
       { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
+      { key: "melhorias", icon: <ListChecks className="w-4 h-4" />, label: "Melhorias" },
     ],
   },
   {
@@ -926,6 +929,7 @@ function AdminContent() {
           {activeTab === "indicacoes" && <ReferralsTab />}
           {activeTab === "guia" && <AdminGuideTab />}
           {activeTab === "relatorios" && <AdminReportsTab />}
+          {activeTab === "melhorias" && <ImprovementsTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}
