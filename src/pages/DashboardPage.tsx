@@ -1045,6 +1045,7 @@ const DashboardPage = () => {
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
+          {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
           </ErrorBoundary>
 
           {/* ── Rodapé institucional ─────────────────────────── */}
