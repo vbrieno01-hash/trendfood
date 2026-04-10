@@ -49,6 +49,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fetch org data (name + current owner)
+    const { data: org, error: orgErr } = await adminClient
+      .from("organizations")
+      .select("name, user_id")
+      .eq("id", organization_id)
+      .single();
+
+    if (orgErr || !org) {
+      return new Response(JSON.stringify({ error: "Organização não encontrada" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Find user by email
     const { data: { users }, error: listErr } = await adminClient.auth.admin.listUsers();
     if (listErr) {
@@ -67,6 +80,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Get old owner email
+    const currentOwner = users?.find((u: any) => u.id === org.user_id);
+    const oldEmail = currentOwner?.email ?? "desconhecido";
+
     // Update organization owner
     const { error: updateErr } = await adminClient
       .from("organizations")
@@ -78,6 +95,17 @@ Deno.serve(async (req) => {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Log transfer in activation_logs
+    await adminClient.from("activation_logs").insert({
+      organization_id,
+      org_name: org.name,
+      old_status: oldEmail,
+      new_status: targetUser.email,
+      source: "transfer",
+      admin_email: user.email,
+      notes: `Transferência de propriedade: ${oldEmail} → ${targetUser.email}`,
+    });
 
     return new Response(JSON.stringify({ 
       success: true, 
