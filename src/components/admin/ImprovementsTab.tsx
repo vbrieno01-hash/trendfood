@@ -37,25 +37,29 @@ export default function ImprovementsTab() {
   const [newDesc, setNewDesc] = useState("");
 
   const fetchTasks = async () => {
-    const { data } = await supabase
-      .from("improvement_tasks" as any)
+    const { data, error } = await supabase
+      .from("improvement_tasks")
       .select("*")
       .order("priority", { ascending: false })
       .order("created_at", { ascending: true });
-    setTasks((data as any as ImprovementTask[]) || []);
+    if (error) {
+      console.error("Erro ao buscar melhorias:", error);
+      toast.error("Erro ao carregar melhorias");
+    }
+    setTasks((data as ImprovementTask[]) || []);
     setLoading(false);
   };
 
   useEffect(() => { fetchTasks(); }, []);
 
   const updateStatus = async (id: string, status: TaskStatus) => {
-    await (supabase.from("improvement_tasks" as any) as any).update({ status }).eq("id", id);
+    await supabase.from("improvement_tasks").update({ status }).eq("id", id);
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
   };
 
   const addTask = async () => {
     if (!newTitle.trim()) return;
-    const { error } = await (supabase.from("improvement_tasks" as any) as any).insert({
+    const { error } = await supabase.from("improvement_tasks").insert({
       title: newTitle.trim(),
       description: newDesc.trim() || null,
     });
@@ -66,7 +70,7 @@ export default function ImprovementsTab() {
   };
 
   const deleteTask = async (id: string) => {
-    await (supabase.from("improvement_tasks" as any) as any).delete().eq("id", id);
+    await supabase.from("improvement_tasks").delete().eq("id", id);
     setTasks(prev => prev.filter(t => t.id !== id));
     toast.success("Removida");
   };
