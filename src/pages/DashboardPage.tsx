@@ -84,6 +84,7 @@ const DashboardPage = () => {
   }, [activeTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const retryRef = useRef(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ operacional: true });
 
