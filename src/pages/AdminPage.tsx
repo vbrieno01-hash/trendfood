@@ -22,6 +22,7 @@ import DeleteUnitDialog from "@/components/dashboard/DeleteUnitDialog";
 import AdminStoreManager from "@/components/admin/AdminStoreManager";
 import SiteContentTab from "@/components/admin/SiteContentTab";
 import AdminReportsTab from "@/components/admin/AdminReportsTab";
+import TransferOwnerDialog from "@/components/admin/TransferOwnerDialog";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -57,7 +58,7 @@ import {
   ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
-  
+  ArrowRightLeft,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -1022,6 +1023,7 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
   const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
   const [activating, setActivating] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const avatarColor = getAvatarColor(org.name);
   const initial = org.name.charAt(0).toUpperCase();
   const isActive = localOrg.subscription_status === "active";
@@ -1179,6 +1181,13 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
             <Trash2 className="w-3 h-3" />
           </button>
           <button
+            onClick={() => setTransferOpen(true)}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10 hover:scale-110 transition-all duration-200"
+            title="Transferir loja"
+          >
+            <ArrowRightLeft className="w-3 h-3" />
+          </button>
+          <button
             onClick={() => onManage(org)}
             className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-primary/15 text-primary hover:bg-primary/25 hover:scale-105 transition-all duration-200 flex items-center gap-1"
           >
@@ -1193,6 +1202,16 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
           </Link>
         </div>
       </div>
+
+      <TransferOwnerDialog
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        orgId={org.id}
+        orgName={org.name}
+        onTransferred={() => {
+          toast.success("Loja transferida com sucesso!");
+        }}
+      />
     </div>
   );
 }
