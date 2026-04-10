@@ -1,55 +1,24 @@
 
 
-## Integração Completa com iFood (Pedidos + Cardápio)
+## Configurar integração iFood com credenciais reais
 
-### Realidade sobre a API do iFood
+### Passo 1 — Atualizar secrets do backend
+Atualizar os valores de `IFOOD_CLIENT_ID` e `IFOOD_CLIENT_SECRET` com as credenciais reais do portal iFood usando a ferramenta `add_secret`.
 
-O iFood disponibiliza uma **API oficial para parceiros (iFood Merchant API)** que permite:
-- Receber pedidos em tempo real via webhooks
-- Gerenciar cardápio (criar/atualizar itens, preços, disponibilidade)
-- Confirmar/recusar pedidos
-- Atualizar status de preparo e entrega
+### Passo 2 — Testar autenticação OAuth2
+Chamar a edge function `ifood-auth` para verificar se o token OAuth2 é gerado com sucesso usando as credenciais reais.
 
-**Porém**, para acessar essa API, é necessário:
+### Passo 3 — Testar polling de eventos
+Chamar a edge function `ifood-poll-events` para verificar se consegue se conectar à API do iFood.
 
-1. **Cadastro como parceiro integrador** no portal [iFood Developer](https://developer.ifood.com.br/)
-2. **Aprovação do iFood** — eles revisam o sistema antes de liberar credenciais de produção
-3. **Client ID + Client Secret** — credenciais OAuth2 fornecidas após aprovação
-4. **Merchant ID** — cada loja do iFood tem um ID único que precisa ser vinculado
+### Passo 4 — Ajustar ifood-auth para grant_type correto
+O iFood usa `client_credentials` como grant_type inicial (não authorization_code). Verificar e ajustar a edge function `ifood-auth` se necessário para usar o fluxo correto.
 
-### O que precisa ser feito (etapas)
+### Passo do usuário (no portal iFood)
+- Aba Webhook: ativar status, colar URL `https://xrzudhylpphnzousilye.supabase.co/functions/v1/ifood-webhook`, salvar
+- Testar conexão pelo botão do portal
 
-#### Fase 0 — Pré-requisito (sua parte)
-- Criar conta no [iFood Developer Portal](https://developer.ifood.com.br/)
-- Solicitar acesso à API como integrador
-- Aguardar aprovação e receber Client ID + Client Secret
-- **Sem essas credenciais, não é possível avançar tecnicamente**
+### Arquivos possivelmente alterados
+- `supabase/functions/ifood-auth/index.ts` — ajustar grant_type se necessário
+- Secrets: `IFOOD_CLIENT_ID`, `IFOOD_CLIENT_SECRET` — atualizar valores
 
-#### Fase 1 — Autenticação e Vinculação (após aprovação) ✅
-- Edge function para gerar/renovar token OAuth2 do iFood
-- Tela no dashboard para o dono vincular sua loja iFood (informar Merchant ID)
-- Tabela `ifood_credentials` para armazenar tokens por organização
-
-#### Fase 2 — Receber Pedidos do iFood ✅
-- Edge function webhook para receber eventos de novos pedidos
-- Edge function polling (`ifood-poll-events`) para buscar eventos periodicamente
-- Converter pedido iFood → formato de pedido do TrendFood
-- Pedido aparece na cozinha/gestão como qualquer outro, com badge "iFood"
-- Confirmar/recusar pedido de volta pro iFood via API
-- Atualizar status (preparando → pronto → entregue) sincronizado
-
-#### Fase 3 — Sincronizar Cardápio
-- Publicar itens do TrendFood no iFood (nome, descrição, preço, foto, disponibilidade)
-- Sincronizar alterações (desativar item, mudar preço)
-- Mapear categorias do TrendFood → categorias do iFood
-
-### Estimativa de esforço
-- Fase 0: depende do iFood (dias a semanas)
-- Fase 1: ~2-3 horas de desenvolvimento ✅
-- Fase 2: ~4-6 horas ✅
-- Fase 3: ~4-6 horas
-
-### Próximo passo concreto
-Você precisa **criar a conta no iFood Developer Portal** e solicitar acesso como integrador. Me avise quando tiver as credenciais (Client ID e Client Secret) que eu implemento toda a integração técnica.
-
-Quer que eu já prepare a estrutura base (tabelas, telas de configuração) enquanto você faz o cadastro no portal?
