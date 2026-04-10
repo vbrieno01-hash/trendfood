@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
 import { useLoyaltyConfig, useLoyaltyPoints, useAccumulateLoyalty, useRedeemLoyalty } from "@/hooks/useLoyalty";
+import { useCustomerPush } from "@/hooks/useCustomerPush";
 
 type CartItemAddon = { id: string; name: string; price: number; qty: number };
 type CartItem = { id: string; menuItemId: string; name: string; price: number; qty: number; addons: CartItemAddon[]; notes: string };
