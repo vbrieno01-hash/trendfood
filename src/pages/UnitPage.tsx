@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
 import { useLoyaltyConfig, useLoyaltyPoints, useAccumulateLoyalty, useRedeemLoyalty } from "@/hooks/useLoyalty";
+import { useCustomerPush } from "@/hooks/useCustomerPush";
 
 type CartItemAddon = { id: string; name: string; price: number; qty: number };
 type CartItem = { id: string; menuItemId: string; name: string; price: number; qty: number; addons: CartItemAddon[]; notes: string };
@@ -62,6 +63,7 @@ const UnitPage = () => {
   const planLimits = usePlanLimits(org);
 
   const placeOrder = usePlaceOrder();
+  const { registerForOrder } = useCustomerPush();
   const { data: loyaltyConfig } = useLoyaltyConfig(org?.id);
   const accumulateLoyalty = useAccumulateLoyalty();
   const redeemLoyalty = useRedeemLoyalty();
@@ -501,6 +503,7 @@ const UnitPage = () => {
               setPixOrderId(order.id);
               setShowPixScreen(true);
               setIsSubmitting(false);
+              registerForOrder(order.id);
             },
             onError: (err) => {
               console.error("[UnitPage] placeOrder PIX error:", err);
@@ -596,6 +599,7 @@ const UnitPage = () => {
         {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
+            registerForOrder(order.id);
             openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
             // Loyalty: accumulate points + process redemption
             if (loyaltyEnabled && org?.id && buyerPhone && loyaltyConfig) {
