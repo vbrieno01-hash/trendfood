@@ -52,10 +52,11 @@ import ReferralSection from "@/components/dashboard/ReferralSection";
 import ReviewsTab from "@/components/dashboard/ReviewsTab";
 import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
+import IFoodTab from "@/components/dashboard/IFoodTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -542,6 +543,12 @@ const DashboardPage = () => {
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
         { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
         { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
+      ],
+    },
+    {
+      id: "integracoes", emoji: "🔗", title: "INTEGRAÇÕES",
+      items: [
+        { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood" },
       ],
     },
     {
@@ -1038,6 +1045,7 @@ const DashboardPage = () => {
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
+          {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
           </ErrorBoundary>
 
           {/* ── Rodapé institucional ─────────────────────────── */}

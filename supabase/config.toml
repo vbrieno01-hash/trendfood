@@ -72,3 +72,9 @@ verify_jwt = false
 [functions.transfer-org-owner]
 verify_jwt = false
 
+[functions.ifood-auth]
+verify_jwt = false
+
+[functions.ifood-webhook]
+verify_jwt = false
+
