@@ -1,35 +1,43 @@
 
 
-## Adicionar "Transferir Loja" no Painel Admin
+## Registrar log de transferência no activation_logs
 
 ### O que será feito
-Adicionar um botão "Transferir" no card de cada loja no painel admin que permite trocar o email dono da organização. O admin digita o novo email, o sistema busca o user_id correspondente na tabela `auth.users` (via edge function, já que o frontend não acessa `auth.users`), e faz o UPDATE no `user_id` da organização.
+Atualizar a edge function `transfer-org-owner` para, após transferir a loja com sucesso, inserir um registro na tabela `activation_logs` com os emails antigo e novo. Isso permite rastrear todas as transferências.
 
-### Componentes
+### Alteração na Edge Function
 
-1. **Edge Function `transfer-org-owner`**
-   - Recebe `{ organization_id, new_email }` 
-   - Valida que o caller é admin (via JWT + `has_role`)
-   - Busca o user_id do novo email em `auth.users` usando service role
-   - Se o email não tiver conta, retorna erro claro
-   - Faz `UPDATE organizations SET user_id = novo_user_id WHERE id = org_id`
-   - Retorna sucesso com o novo email
+Antes do UPDATE na org, buscar o email do dono atual. Após o UPDATE bem-sucedido, inserir um log:
 
-2. **Componente `TransferOwnerDialog`** (`src/components/admin/TransferOwnerDialog.tsx`)
-   - Dialog com input de email
-   - Confirmação antes de executar ("Tem certeza que deseja transferir X para email@...")
-   - Chama a edge function e mostra toast de sucesso/erro
+```typescript
+// Buscar email do dono atual
+const currentOwner = users?.find(u => u.id === org.user_id);
+const oldEmail = currentOwner?.email ?? 'desconhecido';
 
-3. **Integrar no card da loja** (`AdminPage.tsx`)
-   - Adicionar botão "Transferir" ao lado do botão de excluir, na área de ações do card
-
-### Fluxo
-```text
-Admin clica "Transferir" → Dialog abre → Digita novo email → Confirma
-→ Edge function busca user_id do email → UPDATE organizations → Toast de sucesso
+// Após transferência bem-sucedida:
+await adminClient.from("activation_logs").insert({
+  organization_id,
+  org_name: org.name,
+  old_plan: null,
+  new_plan: null,
+  old_status: oldEmail,
+  new_status: targetUser.email,
+  source: 'transfer',
+  admin_email: user.email,
+  notes: `Transferência de propriedade: ${oldEmail} → ${targetUser.email}`
+});
 ```
 
-### Segurança
-- Edge function valida role admin via service role key
-- Nenhuma alteração em RLS necessária (admin já pode fazer UPDATE em organizations)
+### Campos utilizados no activation_logs
+- `old_status` → email antigo do dono
+- `new_status` → email novo do dono  
+- `source` → `'transfer'` (para filtrar facilmente)
+- `notes` → descrição legível da transferência
+- `admin_email` → email do admin que executou
+- `org_name` → nome da loja
+
+### Resumo
+- 1 arquivo alterado: `supabase/functions/transfer-org-owner/index.ts`
+- Nenhuma migração necessária (tabela `activation_logs` já existe com os campos necessários)
+- Também será necessário buscar os dados da org (nome, user_id atual) antes do UPDATE
 
