@@ -78,3 +78,6 @@ verify_jwt = false
 [functions.ifood-webhook]
 verify_jwt = false
 
+[functions.ifood-poll-events]
+verify_jwt = false
+
