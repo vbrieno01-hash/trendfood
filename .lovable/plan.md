@@ -1,43 +1,60 @@
 
 
-## Registrar log de transferência no activation_logs
+## Adicionar aba "Melhorias" no Painel Admin
 
 ### O que será feito
-Atualizar a edge function `transfer-org-owner` para, após transferir a loja com sucesso, inserir um registro na tabela `activation_logs` com os emails antigo e novo. Isso permite rastrear todas as transferências.
+Criar uma nova aba "Melhorias" no painel admin com uma lista de melhorias planejadas para o TrendFood. Cada melhoria terá um status selecionável (pendente, em andamento, pronto, outro dia). A lista será armazenada no banco de dados para persistir e poder ser atualizada ao vivo.
 
-### Alteração na Edge Function
+### Componentes
 
-Antes do UPDATE na org, buscar o email do dono atual. Após o UPDATE bem-sucedido, inserir um log:
+1. **Migração: tabela `improvement_tasks`**
+   ```sql
+   CREATE TABLE public.improvement_tasks (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     title text NOT NULL,
+     description text,
+     status text NOT NULL DEFAULT 'pendente', -- pendente, em_andamento, pronto, outro_dia
+     priority integer NOT NULL DEFAULT 0,
+     created_at timestamptz NOT NULL DEFAULT now(),
+     updated_at timestamptz NOT NULL DEFAULT now()
+   );
+   ALTER TABLE public.improvement_tasks ENABLE ROW LEVEL SECURITY;
+   -- Apenas admin pode CRUD
+   CREATE POLICY "improvements_select_admin" ON public.improvement_tasks FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));
+   CREATE POLICY "improvements_insert_admin" ON public.improvement_tasks FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin'));
+   CREATE POLICY "improvements_update_admin" ON public.improvement_tasks FOR UPDATE TO authenticated USING (has_role(auth.uid(), 'admin'));
+   CREATE POLICY "improvements_delete_admin" ON public.improvement_tasks FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'));
+   ```
 
-```typescript
-// Buscar email do dono atual
-const currentOwner = users?.find(u => u.id === org.user_id);
-const oldEmail = currentOwner?.email ?? 'desconhecido';
+2. **Novo componente `src/components/admin/ImprovementsTab.tsx`**
+   - Lista todas as melhorias ordenadas por prioridade/status
+   - Cada card mostra titulo, descrição e um dropdown de status com cores:
+     - **Pendente** (amarelo)
+     - **Em andamento** (azul)
+     - **Pronto** (verde)
+     - **Outro dia** (cinza)
+   - Botão para adicionar nova melhoria (título + descrição)
+   - Botão para remover melhoria
+   - Update do status via Supabase em tempo real
+   - Contador de progresso no topo (ex: "5 de 12 concluídas")
 
-// Após transferência bem-sucedida:
-await adminClient.from("activation_logs").insert({
-  organization_id,
-  org_name: org.name,
-  old_plan: null,
-  new_plan: null,
-  old_status: oldEmail,
-  new_status: targetUser.email,
-  source: 'transfer',
-  admin_email: user.email,
-  notes: `Transferência de propriedade: ${oldEmail} → ${targetUser.email}`
-});
-```
+3. **Integrar no AdminPage.tsx**
+   - Adicionar `"melhorias"` ao tipo `AdminTab`
+   - Adicionar item no `NAV_GROUPS` dentro de "Gestão" com ícone `ListChecks`
+   - Renderizar `<ImprovementsTab />` quando `activeTab === "melhorias"`
 
-### Campos utilizados no activation_logs
-- `old_status` → email antigo do dono
-- `new_status` → email novo do dono  
-- `source` → `'transfer'` (para filtrar facilmente)
-- `notes` → descrição legível da transferência
-- `admin_email` → email do admin que executou
-- `org_name` → nome da loja
+4. **Seed inicial** — inserir as melhorias já discutidas:
+   - Notificações push para status do pedido
+   - Layout do cardápio estilo iFood com fotos em grid
+   - Painel de métricas avançado
+   - Tempo estimado de preparo por item
+   - Exportar relatórios em PDF/Excel
+   - Temas customizados por loja
+   - Modo offline para KDS
+   - Relatório de cancelamentos
+   - Pausar categorias específicas
+   - Onboarding interativo para novos donos
 
-### Resumo
-- 1 arquivo alterado: `supabase/functions/transfer-org-owner/index.ts`
-- Nenhuma migração necessária (tabela `activation_logs` já existe com os campos necessários)
-- Também será necessário buscar os dados da org (nome, user_id atual) antes do UPDATE
+### Resultado
+Uma aba dedicada no admin para acompanhar todas as melhorias, marcar o que foi feito, e eu posso adicionar novas a qualquer momento.
 
