@@ -1,21 +1,20 @@
 
 
-## Configurar Credenciais iFood no Backend
+## Corrigir webhook para aceitar requisições de teste do iFood
 
-Recebi as credenciais OAuth2 da aba Credenciais do portal iFood:
+### Problema
+O portal iFood enviou uma requisição de teste ao webhook, mas com body vazio (ou GET), causando `SyntaxError: Unexpected end of JSON input` na linha `await req.json()`.
 
-- **Client ID**: `c7b5beb1-1eb6-43da-8005-fc4a269f3bce`
-- **Client Secret**: `9nnrf8kof25o5q0z1otynikjqoxmt6uthl3x09ryp7aik4dmgvx0lglha4hd3py2cbxhnfdkfewqwfnpneiakk308tknv702eze`
+### Solução
+Ajustar `supabase/functions/ifood-webhook/index.ts` para:
+1. Responder `200 OK` a requisições `GET` (health check do iFood)
+2. Tratar body vazio graciosamente em vez de crashar no `req.json()`
 
-### O que será feito
+### Alteração em `supabase/functions/ifood-webhook/index.ts`
+- Adicionar tratamento para `GET` retornando 200
+- Envolver `req.json()` em try/catch para body vazio, retornando 200 com mensagem amigável
+- Reimplantar a edge function
 
-1. **Atualizar os secrets** `IFOOD_CLIENT_ID` e `IFOOD_CLIENT_SECRET` no backend com os valores reais acima
-2. **Ajustar a edge function `ifood-auth`** para usar `grant_type=client_credentials` corretamente no formato que o iFood espera
-3. **Testar a autenticação** chamando a edge function para validar que o token OAuth2 é gerado com sucesso
-
-### Detalhes técnicos
-
-- Os secrets serão configurados via ferramenta `add_secret`
-- A edge function `ifood-auth/index.ts` será ajustada para enviar os parâmetros no formato correto da API iFood (`grant_type`, `client_id`, `client_secret` como form-urlencoded)
-- Após configurar, testaremos a conectividade com `curl_edge_functions`
+### Resultado esperado
+O portal iFood vai mostrar "Validação OK" ao testar, e eventos reais (pedidos) continuarão sendo processados normalmente.
 
