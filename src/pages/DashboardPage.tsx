@@ -546,6 +546,12 @@ const DashboardPage = () => {
       ],
     },
     {
+      id: "integracoes", emoji: "🔗", title: "INTEGRAÇÕES",
+      items: [
+        { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood" },
+      ],
+    },
+    {
       id: "ajustes", emoji: "⚙️", title: "AJUSTES",
       items: [
         { key: "guide" as TabKey, icon: <BookOpen className="w-4 h-4" />, label: "Como Usar" },
