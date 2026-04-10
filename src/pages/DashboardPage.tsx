@@ -569,6 +569,14 @@ const DashboardPage = () => {
     });
   }, [activeTab, sidebarGroups]);
 
+  // Show tour after onboarding is done but tour hasn't been completed
+  useEffect(() => {
+    if (organization && (organization as any).onboarding_done && !(organization as any).dashboard_tour_done) {
+      const t = setTimeout(() => setShowTour(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [organization]);
+
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -686,13 +694,6 @@ const DashboardPage = () => {
 
   const showOnboarding = organization && !(organization as any).onboarding_done;
 
-  // Show tour after onboarding is done but tour hasn't been completed
-  useEffect(() => {
-    if (organization && (organization as any).onboarding_done && !(organization as any).dashboard_tour_done) {
-      const t = setTimeout(() => setShowTour(true), 800);
-      return () => clearTimeout(t);
-    }
-  }, [organization]);
   return (
     <div className="min-h-screen bg-background flex w-full">
       {showOnboarding && (
