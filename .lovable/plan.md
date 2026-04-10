@@ -1,31 +1,35 @@
 
 
-## Transferir organização "Chapa e Alho" para a conta chapaealho.2025@gmail.com
-
-### Situação atual
-- Conta **raquel.morr.10@gmail.com** (user_id: `5a343082...`) → dona da org "Chapa e Alho"
-- Conta **chapaealho.2025@gmail.com** (user_id: `dee8e1ab...`) → existe mas sem organização
+## Adicionar "Transferir Loja" no Painel Admin
 
 ### O que será feito
-Atualizar o `user_id` da organização "Chapa e Alho" para apontar para a conta `chapaealho.2025@gmail.com`. Isso transfere toda a loja (cardápio, pedidos, configurações, cupons, etc.) para o novo login.
+Adicionar um botão "Transferir" no card de cada loja no painel admin que permite trocar o email dono da organização. O admin digita o novo email, o sistema busca o user_id correspondente na tabela `auth.users` (via edge function, já que o frontend não acessa `auth.users`), e faz o UPDATE no `user_id` da organização.
 
-### Dados transferidos
-- Organização e todas as configurações
-- Cardápio completo
-- Histórico de pedidos
-- Cupons, entregadores, estoque
-- Device tokens (push notifications) — precisam ser re-registrados no novo login
+### Componentes
 
-### SQL a executar (via insert tool)
-```sql
-UPDATE organizations 
-SET user_id = 'dee8e1ab-6734-47a1-8618-9150150a8344' 
-WHERE id = '59922bf2-20ab-4f2d-a243-7c462150b4e4';
+1. **Edge Function `transfer-org-owner`**
+   - Recebe `{ organization_id, new_email }` 
+   - Valida que o caller é admin (via JWT + `has_role`)
+   - Busca o user_id do novo email em `auth.users` usando service role
+   - Se o email não tiver conta, retorna erro claro
+   - Faz `UPDATE organizations SET user_id = novo_user_id WHERE id = org_id`
+   - Retorna sucesso com o novo email
+
+2. **Componente `TransferOwnerDialog`** (`src/components/admin/TransferOwnerDialog.tsx`)
+   - Dialog com input de email
+   - Confirmação antes de executar ("Tem certeza que deseja transferir X para email@...")
+   - Chama a edge function e mostra toast de sucesso/erro
+
+3. **Integrar no card da loja** (`AdminPage.tsx`)
+   - Adicionar botão "Transferir" ao lado do botão de excluir, na área de ações do card
+
+### Fluxo
+```text
+Admin clica "Transferir" → Dialog abre → Digita novo email → Confirma
+→ Edge function busca user_id do email → UPDATE organizations → Toast de sucesso
 ```
 
-### Resultado
-- Login com **chapaealho.2025@gmail.com** → acessa a loja "Chapa e Alho" normalmente
-- Login com **raquel.morr.10@gmail.com** → não terá mais loja vinculada
-
-Nenhuma alteração de código necessária — apenas atualização de dados.
+### Segurança
+- Edge function valida role admin via service role key
+- Nenhuma alteração em RLS necessária (admin já pode fazer UPDATE em organizations)
 
