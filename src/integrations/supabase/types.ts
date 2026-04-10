@@ -609,6 +609,36 @@ export type Database = {
         }
         Relationships: []
       }
+      improvement_tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          priority: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       loyalty_config: {
         Row: {
           created_at: string
