@@ -1060,6 +1060,7 @@ export type Database = {
           cnpj: string | null
           courier_config: Json | null
           created_at: string
+          dashboard_tour_done: boolean
           delivery_config: Json | null
           description: string | null
           emoji: string
@@ -1098,6 +1099,7 @@ export type Database = {
           cnpj?: string | null
           courier_config?: Json | null
           created_at?: string
+          dashboard_tour_done?: boolean
           delivery_config?: Json | null
           description?: string | null
           emoji?: string
@@ -1136,6 +1138,7 @@ export type Database = {
           cnpj?: string | null
           courier_config?: Json | null
           created_at?: string
+          dashboard_tour_done?: boolean
           delivery_config?: Json | null
           description?: string | null
           emoji?: string
