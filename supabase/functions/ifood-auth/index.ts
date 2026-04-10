@@ -72,16 +72,17 @@ Deno.serve(async (req) => {
     }
 
     // Request new token from iFood
-    const params = new URLSearchParams({
-      grantType: "client_credentials",
-      clientId,
-      clientSecret,
-    });
+    const params = new URLSearchParams();
 
-    // If we have a refresh token, use it
     if (creds.refresh_token) {
       params.set("grantType", "refresh_token");
+      params.set("clientId", clientId);
+      params.set("clientSecret", clientSecret);
       params.set("refreshToken", creds.refresh_token);
+    } else {
+      params.set("grantType", "client_credentials");
+      params.set("clientId", clientId);
+      params.set("clientSecret", clientSecret);
     }
 
     const tokenRes = await fetch(IFOOD_AUTH_URL, {
