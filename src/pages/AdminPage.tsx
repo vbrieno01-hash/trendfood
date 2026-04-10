@@ -1023,6 +1023,7 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
   const { user } = useAuth();
   const [localOrg, setLocalOrg] = useState(org);
   const [activating, setActivating] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const avatarColor = getAvatarColor(org.name);
   const initial = org.name.charAt(0).toUpperCase();
   const isActive = localOrg.subscription_status === "active";
