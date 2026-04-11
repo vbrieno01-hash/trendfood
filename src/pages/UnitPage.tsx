@@ -212,12 +212,40 @@ const UnitPage = () => {
     if (!orgLoading && (isError || org === null)) navigate("/404");
   }, [orgLoading, isError, org, navigate]);
 
+  // Theme config
+  const themeConfig = (org as any)?.theme_config ?? {};
+  const buttonRadius = themeConfig.button_style === "pill" ? "9999px" : themeConfig.button_style === "square" ? "4px" : "12px";
+  const cardRadius = themeConfig.button_style === "pill" ? "16px" : themeConfig.button_style === "square" ? "4px" : "16px";
+  const cardClass = themeConfig.card_style === "bordered" ? "border-2 border-border shadow-none" : themeConfig.card_style === "flat" ? "border-0 shadow-none" : "border border-border/50 shadow-sm hover:shadow-md";
+  const fontFamily = themeConfig.font === "modern" ? "'Inter', sans-serif" : themeConfig.font === "classic" ? "'Merriweather', serif" : themeConfig.font === "playful" ? "'Nunito', sans-serif" : undefined;
+
   useEffect(() => {
     if (org?.primary_color) {
       document.documentElement.style.setProperty("--org-primary", org.primary_color);
     }
-    return () => { document.documentElement.style.removeProperty("--org-primary"); };
-  }, [org?.primary_color]);
+    if (themeConfig.secondary_color) {
+      document.documentElement.style.setProperty("--org-secondary", themeConfig.secondary_color);
+    }
+    // Load Google Font if needed
+    if (themeConfig.font && themeConfig.font !== "default") {
+      const fontMap: Record<string, string> = {
+        modern: "Inter:wght@400;600;700",
+        classic: "Merriweather:wght@400;700",
+        playful: "Nunito:wght@400;600;700",
+      };
+      const fontName = fontMap[themeConfig.font];
+      if (fontName && !document.querySelector(`link[href*="${fontName}"]`)) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${fontName}&display=swap`;
+        document.head.appendChild(link);
+      }
+    }
+    return () => {
+      document.documentElement.style.removeProperty("--org-primary");
+      document.documentElement.style.removeProperty("--org-secondary");
+    };
+  }, [org?.primary_color, themeConfig.secondary_color, themeConfig.font]);
 
   // Helper: build category groups dynamically using saved order or defaults
   const buildGroups = (sourceItems: typeof menuItems) => {
