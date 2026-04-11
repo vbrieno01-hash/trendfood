@@ -593,6 +593,14 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [importOpen, setImportOpen] = useState(false);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
+  const [localPausedCats, setLocalPausedCats] = useState<string[]>(organization.paused_categories ?? []);
+
+  const togglePauseCategory = async (cat: string) => {
+    const current = localPausedCats;
+    const updated = current.includes(cat) ? current.filter(c => c !== cat) : [...current, cat];
+    setLocalPausedCats(updated);
+    await supabase.from("organizations").update({ paused_categories: updated } as any).eq("id", organization.id);
+  };
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
   const deleteAllMutation = useDeleteAllMenuItems(organization.id);
