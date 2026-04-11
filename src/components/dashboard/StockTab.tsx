@@ -88,7 +88,30 @@ export default function StockTab({ orgId }: StockTabProps) {
       {items.length === 0 ? (
         <div className="dashboard-glass rounded-2xl">
           <div className="py-12 text-center text-muted-foreground">
-            <Package className="w-10 h-10 mx-auto mb-3 opacity-40" />
+            <div className="flex justify-center mb-3">
+              <div className="relative" style={{ animation: 'float 3s ease-in-out infinite' }}>
+                <svg width="96" height="96" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="60" cy="60" r="50" fill="url(#stockEmptyBg)" style={{ animation: 'pulse 3s ease-in-out infinite' }} />
+                  {/* Box body */}
+                  <rect x="35" y="52" width="50" height="32" rx="3" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeOpacity="0.5" fill="none" />
+                  {/* Box flap left */}
+                  <path d="M35 52 L45 40 L60 48 L60 52" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeOpacity="0.5" fill="none" />
+                  {/* Box flap right */}
+                  <path d="M85 52 L75 40 L60 48 L60 52" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeOpacity="0.5" fill="none" />
+                  {/* Arrow up (empty indicator) */}
+                  <path d="M60 70 L60 56 M54 62 L60 56 L66 62" stroke="hsl(var(--muted-foreground))" strokeWidth="2" strokeOpacity="0.35" strokeLinecap="round" strokeLinejoin="round" />
+                  {/* Sparkles */}
+                  <circle cx="30" cy="38" r="2" fill="hsl(var(--muted-foreground))" opacity="0.18" style={{ animation: 'pulse 2.5s ease-in-out infinite' }} />
+                  <circle cx="92" cy="42" r="1.5" fill="hsl(var(--muted-foreground))" opacity="0.15" style={{ animation: 'pulse 3.5s ease-in-out infinite' }} />
+                  <defs>
+                    <radialGradient id="stockEmptyBg" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
+                      <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0" />
+                    </radialGradient>
+                  </defs>
+                </svg>
+              </div>
+            </div>
             <p className="font-medium">Nenhum insumo cadastrado</p>
             <p className="text-sm">Adicione ingredientes para controlar o estoque automaticamente.</p>
           </div>
