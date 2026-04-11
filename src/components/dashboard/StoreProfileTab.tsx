@@ -719,6 +719,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
+                  : themeConfig.font === "roboto" ? "'Roboto', sans-serif"
+                  : themeConfig.font === "poppins" ? "'Poppins', sans-serif"
+                  : themeConfig.font === "opensans" ? "'Open Sans', sans-serif"
                   : "inherit",
               }}
             >
@@ -749,6 +752,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
+                  : themeConfig.font === "roboto" ? "'Roboto', sans-serif"
+                  : themeConfig.font === "poppins" ? "'Poppins', sans-serif"
+                  : themeConfig.font === "opensans" ? "'Open Sans', sans-serif"
                   : "inherit",
               }}
             >
