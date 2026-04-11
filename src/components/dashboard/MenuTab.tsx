@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload, Download, ChevronUp, ChevronDown,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload, Download, ChevronUp, ChevronDown, Pause, Play,
 } from "lucide-react";
 import ImportMenuDialog from "@/components/dashboard/ImportMenuDialog";
 import {
@@ -38,6 +38,7 @@ interface Organization {
   name: string;
   slug: string;
   category_order?: string[] | null;
+  paused_categories?: string[] | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
