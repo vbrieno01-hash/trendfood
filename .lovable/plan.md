@@ -1,19 +1,12 @@
 
 
-## Substituir ✅ por SVG animado na seção "Aguardando Pagamento"
+## Bug: theme_config não persiste entre sessões
 
-O emoji ✅ aparece em dois arquivos como estado vazio da seção "Aguardando Pagamento" (quando não há contas em aberto):
+### Causa raiz
+Em `src/hooks/useAuth.tsx` linha 82, a query `fetchOrganization` lista todas as colunas da organização, mas **`theme_config` não está incluída** na lista do `.select()`. Isso faz com que quando o usuário sai e volta (ou dá refresh), o dado da organização volta sem `theme_config`, e o componente inicializa com `{}` (padrão).
 
-### Arquivos
-- `src/components/dashboard/WaiterTab.tsx` (linha 394)
-- `src/pages/WaiterPage.tsx` (linha 397)
+### Correção
+**`src/hooks/useAuth.tsx`** — Adicionar `theme_config` na string do `.select()` na função `fetchOrganization` (linha 82), junto com as outras colunas.
 
-### Implementação
-Substituir `<p className="text-3xl mb-2">✅</p>` nos dois arquivos pelo mesmo SVG animado de check-mark circular já usado no WaiterTab empty state (padrão consistente com as outras abas):
-- Check circular verde com animação `checkDraw` (traço desenhando)
-- Fundo com gradiente radial sutil verde
-- Animação `float` suave
-- Mantém o texto "Tudo pago! Nenhuma conta em aberto." abaixo
-
-Dois arquivos modificados, zero mudança de lógica.
+Mudança de uma única linha, zero risco de quebrar algo.
 
