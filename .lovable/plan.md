@@ -1,12 +1,14 @@
 
 
-## Bug: theme_config não persiste entre sessões
+## Substituir ícone genérico por SVG animado no estado vazio do Cardápio
 
-### Causa raiz
-Em `src/hooks/useAuth.tsx` linha 82, a query `fetchOrganization` lista todas as colunas da organização, mas **`theme_config` não está incluída** na lista do `.select()`. Isso faz com que quando o usuário sai e volta (ou dá refresh), o dado da organização volta sem `theme_config`, e o componente inicializa com `{}` (padrão).
+### Arquivo
+- `src/components/dashboard/MenuTab.tsx` (linha 922)
 
-### Correção
-**`src/hooks/useAuth.tsx`** — Adicionar `theme_config` na string do `.select()` na função `fetchOrganization` (linha 82), junto com as outras colunas.
-
-Mudança de uma única linha, zero risco de quebrar algo.
+### Implementação
+Substituir `<UtensilsCrossed className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />` por um SVG inline animado de talheres cruzados (garfo + faca) com:
+- Animação `float` suave (3s ease-in-out infinite)
+- Gradiente radial de fundo com pulse
+- Estilo consistente com os outros empty states do dashboard (~120x120 viewBox)
+- Cores usando `hsl(var(--muted-foreground))` para manter coerência com o tema
 
