@@ -105,7 +105,8 @@ export default function TableOrderPage() {
     return max > 0;
   });
 
-  const orderedCats = buildCategoryOrder(available as any, (org as any)?.category_order);
+  const pausedCats: string[] = (org as any)?.paused_categories ?? [];
+  const orderedCats = buildCategoryOrder(available as any, (org as any)?.category_order).filter(cat => !pausedCats.includes(cat));
   const byCategory = orderedCats.reduce<Record<string, typeof available>>(
     (acc, cat) => {
       const filtered = available.filter((i) => i.category === cat);

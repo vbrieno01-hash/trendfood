@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload, Download, ChevronUp, ChevronDown,
+  Plus, Pencil, Trash2, Camera, Loader2, UtensilsCrossed, Copy, ArrowUpDown, Package, Lock, Upload, Download, ChevronUp, ChevronDown, Pause, Play,
 } from "lucide-react";
 import ImportMenuDialog from "@/components/dashboard/ImportMenuDialog";
 import {
@@ -38,6 +38,7 @@ interface Organization {
   name: string;
   slug: string;
   category_order?: string[] | null;
+  paused_categories?: string[] | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
@@ -592,6 +593,14 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [importOpen, setImportOpen] = useState(false);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
+  const [localPausedCats, setLocalPausedCats] = useState<string[]>(organization.paused_categories ?? []);
+
+  const togglePauseCategory = async (cat: string) => {
+    const current = localPausedCats;
+    const updated = current.includes(cat) ? current.filter(c => c !== cat) : [...current, cat];
+    setLocalPausedCats(updated);
+    await supabase.from("organizations").update({ paused_categories: updated } as any).eq("id", organization.id);
+  };
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
   const deleteAllMutation = useDeleteAllMenuItems(organization.id);
@@ -923,14 +932,26 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       )}
 
       {/* Grouped items — compact list */}
-      {!isLoading && grouped.map((group, groupIndex) => (
-        <div key={group.value}>
+      {!isLoading && grouped.map((group, groupIndex) => {
+        const isPaused = localPausedCats.includes(group.value);
+        return (
+        <div key={group.value} className={isPaused ? "opacity-50" : ""}>
           <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
             <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               {group.value}
             </span>
             <span className="text-xs text-muted-foreground/60">({group.items.length})</span>
+            {isPaused && (
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">Pausada</span>
+            )}
             <div className="flex items-center gap-0.5 ml-1">
+              <button
+                onClick={() => togglePauseCategory(group.value)}
+                className="p-1 rounded hover:bg-accent transition-colors"
+                title={isPaused ? "Retomar categoria" : "Pausar categoria"}
+              >
+                {isPaused ? <Play className="w-4 h-4 text-primary" /> : <Pause className="w-4 h-4 text-muted-foreground" />}
+              </button>
               <button
                 onClick={() => moveCategoryOrder(groupIndex, "up")}
                 disabled={groupIndex === 0}
@@ -1025,7 +1046,8 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
             ))}
           </div>
         </div>
-      ))}
+      );
+      })}
 
       {/* Add/Edit Modal — pure React, no Radix Portal */}
       {modalOpen && (

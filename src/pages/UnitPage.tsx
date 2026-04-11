@@ -252,13 +252,16 @@ const UnitPage = () => {
 
   // Helper: build category groups dynamically using saved order or defaults
   const buildGroups = (sourceItems: typeof menuItems) => {
+    const pausedCats: string[] = (org as any)?.paused_categories ?? [];
     const orderedCats = buildCategoryOrder(sourceItems as any, (org as any)?.category_order);
     const emojiMap = new Map(CATEGORIES.map((c) => [c.value, c.emoji]));
-    return orderedCats.map((cat) => ({
-      value: cat,
-      emoji: emojiMap.get(cat) || "🍽️",
-      items: sourceItems.filter((i) => i.category === cat),
-    })).filter((g) => g.items.length > 0);
+    return orderedCats
+      .filter((cat) => !pausedCats.includes(cat))
+      .map((cat) => ({
+        value: cat,
+        emoji: emojiMap.get(cat) || "🍽️",
+        items: sourceItems.filter((i) => i.category === cat),
+      })).filter((g) => g.items.length > 0);
   };
 
   // IntersectionObserver: detect which category section is visible

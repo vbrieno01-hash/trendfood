@@ -1116,6 +1116,7 @@ export type Database = {
           name: string
           onboarding_done: boolean
           paused: boolean
+          paused_categories: Json | null
           pix_confirmation_mode: string
           pix_key: string | null
           primary_color: string
@@ -1156,6 +1157,7 @@ export type Database = {
           name: string
           onboarding_done?: boolean
           paused?: boolean
+          paused_categories?: Json | null
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
@@ -1196,6 +1198,7 @@ export type Database = {
           name?: string
           onboarding_done?: boolean
           paused?: boolean
+          paused_categories?: Json | null
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
