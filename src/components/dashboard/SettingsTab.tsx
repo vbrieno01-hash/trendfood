@@ -12,7 +12,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Send } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
@@ -33,13 +33,16 @@ export default function SettingsTab() {
   const [billingLoading, setBillingLoading] = useState(false);
   const [taxRegime, setTaxRegime] = useState<string>("");
   const [taxRegimeLoading, setTaxRegimeLoading] = useState(false);
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [telegramTestLoading, setTelegramTestLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open, scheduling_config, tax_regime")
+        .select("force_open, scheduling_config, tax_regime, telegram_chat_id")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
@@ -52,6 +55,7 @@ export default function SettingsTab() {
             }
             setBillingLimit((data as any).billing_alert_limit ?? 0);
             setTaxRegime((data as any).tax_regime ?? "");
+            setTelegramChatId((data as any).telegram_chat_id ?? "");
           }
         });
     }
@@ -363,6 +367,79 @@ export default function SettingsTab() {
               {pwdLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Salvando...</> : "Alterar senha"}
             </Button>
           </form>
+        </div>
+      </div>
+
+      {/* Telegram */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-4">
+        <div className="px-4 py-3 border-b border-border/40 bg-muted/30 flex items-center gap-2">
+          <Send className="w-4 h-4 text-primary" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Telegram</p>
+        </div>
+        <div className="px-4 py-4 space-y-3">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Receba notificações de novos pedidos no Telegram. Abra <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="underline text-primary">@userinfobot</a> no Telegram, envie qualquer mensagem e copie o <strong>Chat ID</strong> abaixo.
+          </p>
+          <div>
+            <Label htmlFor="telegram-chat-id" className="text-sm font-medium">Chat ID</Label>
+            <Input
+              id="telegram-chat-id"
+              placeholder="Ex: 123456789"
+              value={telegramChatId}
+              onChange={(e) => setTelegramChatId(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!telegramChatId.trim() || telegramTestLoading}
+              onClick={async () => {
+                setTelegramTestLoading(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("test-telegram", {
+                    body: { chat_id: telegramChatId.trim(), organization_id: currentOrg?.id },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  toast.success("Mensagem de teste enviada! Verifique o Telegram.");
+                } catch (err: any) {
+                  toast.error(err.message || "Falha ao enviar teste");
+                } finally {
+                  setTelegramTestLoading(false);
+                }
+              }}
+              className="h-9"
+            >
+              {telegramTestLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              Testar
+            </Button>
+            <Button
+              size="sm"
+              disabled={telegramLoading}
+              onClick={async () => {
+                setTelegramLoading(true);
+                try {
+                  const { error } = await supabase
+                    .from("organizations")
+                    .update({ telegram_chat_id: telegramChatId.trim() || null } as any)
+                    .eq("id", currentOrg!.id);
+                  if (error) throw error;
+                  toast.success("Chat ID do Telegram salvo!");
+                  refreshOrganization?.();
+                } catch (err: any) {
+                  toast.error(err.message || "Erro ao salvar");
+                } finally {
+                  setTelegramLoading(false);
+                }
+              }}
+              className="h-9"
+            >
+              {telegramLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              Salvar
+            </Button>
+          </div>
         </div>
       </div>
 

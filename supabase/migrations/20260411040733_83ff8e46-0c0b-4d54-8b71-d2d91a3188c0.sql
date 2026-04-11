@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN telegram_chat_id text;
