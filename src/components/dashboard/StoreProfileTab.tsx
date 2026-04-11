@@ -13,7 +13,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import BusinessHoursSection, { DEFAULT_BUSINESS_HOURS } from "@/components/dashboard/BusinessHoursSection";
-import { BusinessHours } from "@/hooks/useOrganization";
+import { BusinessHours, ThemeConfig } from "@/hooks/useOrganization";
 import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -36,6 +36,7 @@ interface Organization {
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
   banner_url?: string | null;
   subscription_plan?: string;
+  theme_config?: ThemeConfig | null;
 }
 
 
