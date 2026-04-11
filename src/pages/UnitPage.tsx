@@ -212,12 +212,40 @@ const UnitPage = () => {
     if (!orgLoading && (isError || org === null)) navigate("/404");
   }, [orgLoading, isError, org, navigate]);
 
+  // Theme config
+  const themeConfig = (org as any)?.theme_config ?? {};
+  const buttonRadius = themeConfig.button_style === "pill" ? "9999px" : themeConfig.button_style === "square" ? "4px" : "12px";
+  const cardRadius = themeConfig.button_style === "pill" ? "16px" : themeConfig.button_style === "square" ? "4px" : "16px";
+  const cardClass = themeConfig.card_style === "bordered" ? "border-2 border-border shadow-none" : themeConfig.card_style === "flat" ? "border-0 shadow-none" : "border border-border/50 shadow-sm hover:shadow-md";
+  const fontFamily = themeConfig.font === "modern" ? "'Inter', sans-serif" : themeConfig.font === "classic" ? "'Merriweather', serif" : themeConfig.font === "playful" ? "'Nunito', sans-serif" : undefined;
+
   useEffect(() => {
     if (org?.primary_color) {
       document.documentElement.style.setProperty("--org-primary", org.primary_color);
     }
-    return () => { document.documentElement.style.removeProperty("--org-primary"); };
-  }, [org?.primary_color]);
+    if (themeConfig.secondary_color) {
+      document.documentElement.style.setProperty("--org-secondary", themeConfig.secondary_color);
+    }
+    // Load Google Font if needed
+    if (themeConfig.font && themeConfig.font !== "default") {
+      const fontMap: Record<string, string> = {
+        modern: "Inter:wght@400;600;700",
+        classic: "Merriweather:wght@400;700",
+        playful: "Nunito:wght@400;600;700",
+      };
+      const fontName = fontMap[themeConfig.font];
+      if (fontName && !document.querySelector(`link[href*="${fontName}"]`)) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${fontName}&display=swap`;
+        document.head.appendChild(link);
+      }
+    }
+    return () => {
+      document.documentElement.style.removeProperty("--org-primary");
+      document.documentElement.style.removeProperty("--org-secondary");
+    };
+  }, [org?.primary_color, themeConfig.secondary_color, themeConfig.font]);
 
   // Helper: build category groups dynamically using saved order or defaults
   const buildGroups = (sourceItems: typeof menuItems) => {
@@ -774,17 +802,43 @@ const UnitPage = () => {
   
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={{ fontFamily }}>
       {/* Header */}
-      <header className="bg-card sticky top-0 z-40 shadow-sm">
+      <header
+        className="sticky top-0 z-40 shadow-sm"
+        style={{
+          backgroundColor: (themeConfig.header_style || "solid") === "transparent"
+            ? "var(--background)"
+            : (themeConfig.header_style || "solid") === "gradient"
+            ? undefined
+            : primaryColor,
+          backgroundImage: (themeConfig.header_style || "solid") === "gradient"
+            ? `linear-gradient(135deg, ${primaryColor}, ${themeConfig.secondary_color || "#1e293b"})`
+            : undefined,
+          borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${primaryColor}` : undefined,
+        }}
+      >
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {org.logo_url ? (
               <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" />
             ) : (
-              <span className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">{org.name?.charAt(0)?.toUpperCase()}</span>
+              <span
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
+                style={{
+                  backgroundColor: (themeConfig.header_style || "solid") === "transparent" ? `${primaryColor}20` : "rgba(255,255,255,0.2)",
+                  color: (themeConfig.header_style || "solid") === "transparent" ? primaryColor : "#fff",
+                }}
+              >
+                {org.name?.charAt(0)?.toUpperCase()}
+              </span>
             )}
-            <p className="font-bold text-foreground text-base leading-tight">{org.name}</p>
+            <p
+              className="font-bold text-base leading-tight"
+              style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : "#fff" }}
+            >
+              {org.name}
+            </p>
           </div>
           <div className="w-16" />
         </div>
@@ -930,12 +984,13 @@ const UnitPage = () => {
                           key={group.value}
                           id={`pill-${group.value}`}
                           onClick={() => scrollToCategory(group.value)}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0 border"
-                          style={
-                            isActive
+                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0 border"
+                          style={{
+                            borderRadius: buttonRadius,
+                            ...(isActive
                               ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
-                              : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }
-                          }
+                              : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
+                          }}
                         >
                           <span>{group.emoji}</span>
                           <span>{group.value}</span>
@@ -962,7 +1017,8 @@ const UnitPage = () => {
                             <div
                               key={item.id}
                               onClick={() => { if (item.available) { pushDrawerState("item"); setSelectedItem(item); } }}
-                              className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200 ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
+                              style={{ borderRadius: cardRadius }}
                             >
                               {/* Foto quadrada + badge de qty */}
                               <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center overflow-hidden">
@@ -1003,8 +1059,8 @@ const UnitPage = () => {
                                   ) : qty === 0 ? (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
-                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
-                                      style={{ backgroundColor: primaryColor }}
+                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                                      style={{ backgroundColor: primaryColor, borderRadius: buttonRadius }}
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                       Add

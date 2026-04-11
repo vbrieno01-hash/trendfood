@@ -74,6 +74,7 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
         tax_regime: fullOrg.tax_regime,
         category_order: fullOrg.category_order as Organization["category_order"],
         pix_key: fullOrg.pix_key,
+        theme_config: fullOrg.theme_config as Organization["theme_config"],
       }
     : {
         id: org.id,
