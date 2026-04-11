@@ -1281,6 +1281,21 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_counters: {
+        Row: {
+          id: number
+          total_orders: number
+        }
+        Insert: {
+          id?: number
+          total_orders?: number
+        }
+        Update: {
+          id?: number
+          total_orders?: number
+        }
+        Relationships: []
+      }
       platform_plans: {
         Row: {
           active: boolean
