@@ -668,92 +668,104 @@ const AuthPage = () => {
 
             {/* LOGIN TAB */}
             <TabsContent value="login" className="mt-0 space-y-5">
-              <div className="mb-6">
-                <h2 className="font-bold text-foreground text-2xl">Bem-vindo de volta</h2>
-                <p className="text-muted-foreground text-sm mt-1">Acesse seu painel de gestão</p>
-              </div>
-              <GoogleButton />
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block">
-                    E-mail
-                  </Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="joao@email.com"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
-                    className="h-11"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="login-pwd" className="text-sm font-medium mb-1.5 block">
-                    Senha
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="login-pwd"
-                      type={showLoginPwd ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
-                      className="h-11 pr-10"
-                      required
-                    />
+              {!forgotMode ? (
+                <>
+                  <div className="mb-6">
+                    <h2 className="font-bold text-foreground text-2xl">Bem-vindo de volta</h2>
+                    <p className="text-muted-foreground text-sm mt-1">Acesse seu painel de gestão</p>
+                  </div>
+                  <GoogleButton />
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div>
+                      <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block">
+                        E-mail
+                      </Label>
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="joao@email.com"
+                        value={loginData.email}
+                        onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
+                        className="h-11"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="login-pwd" className="text-sm font-medium mb-1.5 block">
+                        Senha
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="login-pwd"
+                          type={showLoginPwd ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={loginData.password}
+                          onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
+                          className="h-11 pr-10"
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowLoginPwd((v) => !v)}
+                        >
+                          {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={loginLoading}>
+                      {loginLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Entrando...
+                        </>
+                      ) : (
+                        "Entrar no painel"
+                      )}
+                    </Button>
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowLoginPwd((v) => !v)}
+                      className="w-full text-sm text-primary hover:underline mt-2"
+                      onClick={() => {
+                        setForgotMode(true);
+                        setForgotEmail(loginData.email);
+                      }}
                     >
-                      {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      Esqueci minha senha
                     </button>
+                  </form>
+                </>
+              ) : (
+                <div className="space-y-5">
+                  <div className="mb-6">
+                    <h2 className="font-bold text-foreground text-2xl">Redefinir senha</h2>
+                    <p className="text-muted-foreground text-sm mt-1">Enviaremos um link para o seu e-mail.</p>
                   </div>
-                </div>
-                <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={loginLoading}>
-                  {loginLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Entrando...
-                    </>
-                  ) : (
-                    "Entrar no painel"
-                  )}
-                </Button>
-                <button
-                  type="button"
-                  className="w-full text-sm text-primary hover:underline mt-2"
-                  onClick={() => {
-                    setForgotMode(true);
-                    setForgotEmail(loginData.email);
-                  }}
-                >
-                  Esqueci minha senha
-                </button>
-              </form>
-
-              {forgotMode && (
-                <div className="mt-6 p-4 border border-border rounded-xl bg-muted/30 space-y-3">
-                  <p className="text-sm font-semibold text-foreground">Redefinir senha</p>
-                  <p className="text-xs text-muted-foreground">Enviaremos um link para o seu e-mail.</p>
-                  <form onSubmit={handleForgotPassword} className="space-y-3">
-                    <Input
-                      type="email"
-                      placeholder="joao@email.com"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      className="h-11"
-                      required
-                    />
-                    <div className="flex gap-2">
-                      <Button type="submit" className="flex-1 h-10 text-sm font-semibold" disabled={forgotLoading}>
-                        {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                        Enviar link
-                      </Button>
-                      <Button type="button" variant="ghost" className="h-10 text-sm" onClick={() => setForgotMode(false)}>
-                        Cancelar
-                      </Button>
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div>
+                      <Label htmlFor="forgot-email" className="text-sm font-medium mb-1.5 block">
+                        E-mail
+                      </Label>
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="joao@email.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        className="h-11"
+                        required
+                      />
                     </div>
+                    <Button type="submit" className="w-full h-11 text-base font-bold" disabled={forgotLoading}>
+                      {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                      Enviar link de redefinição
+                    </Button>
+                    <button
+                      type="button"
+                      className="w-full text-sm text-primary hover:underline mt-2"
+                      onClick={() => setForgotMode(false)}
+                    >
+                      ← Voltar ao login
+                    </button>
                   </form>
                 </div>
               )}
