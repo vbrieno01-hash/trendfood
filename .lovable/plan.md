@@ -1,16 +1,27 @@
 
 
-## Substituir ícone genérico por SVG animado no estado vazio do Estoque
+## Carregar Google Fonts no StoreProfileTab para preview funcionar
 
-### Arquivo
-- `src/components/dashboard/StockTab.tsx` (linha ~93)
+### Problema
+Os botões de seleção de fonte usam `fontFamily` inline, mas as fontes do Google Fonts **nunca são carregadas** no dashboard. Só o `UnitPage.tsx` (loja pública) injeta o `<link>` do Google Fonts. Resultado: apenas fontes que o navegador já tem instaladas (como as 3 primeiras) mostram diferença visual.
 
-### Implementação
-Substituir `<Package className="w-10 h-10 mx-auto mb-3 opacity-40" />` por um SVG inline animado de caixa/pacote com:
-- Animação `float` suave (3s ease-in-out infinite)
-- Gradiente radial de fundo com pulse
-- Ícone de caixa aberta estilizado (~96x96)
-- Cores usando `hsl(var(--muted-foreground))` consistente com os outros empty states
+### Correção
+**`src/components/dashboard/StoreProfileTab.tsx`** — Adicionar um `useEffect` que carrega todas as 6 fontes do Google Fonts quando o componente monta:
 
-Uma substituição visual, zero mudança de lógica.
+```tsx
+useEffect(() => {
+  const families = ["Inter", "Merriweather", "Nunito", "Roboto", "Poppins", "Open+Sans"];
+  const query = families.map(f => `family=${f}:wght@400;600;700`).join("&");
+  const id = "store-profile-gfonts";
+  if (!document.getElementById(id)) {
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?${query}&display=swap`;
+    document.head.appendChild(link);
+  }
+}, []);
+```
+
+Uma adição de ~10 linhas, zero mudança de lógica. Todas as 7 opções (incluindo Padrão) passarão a renderizar com a fonte correta nos botões e no mini-preview.
 
