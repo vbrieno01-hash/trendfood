@@ -8,7 +8,7 @@ import { Loader2, Send, MessageCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function TelegramTab({ orgId }: { orgId: string }) {
-  const { organization: currentOrg, refreshOrganization } = useAuth();
+  const { refreshOrganization } = useAuth();
   const [telegramChatId, setTelegramChatId] = useState("");
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
