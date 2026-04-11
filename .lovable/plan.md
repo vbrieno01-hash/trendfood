@@ -1,25 +1,30 @@
 
 
-## Substituir emoji básico por ilustração animada no IFoodTab
+## Substituir emojis básicos por ilustrações animadas em todo o dashboard
 
-### Problema
-O emoji 🛵 é genérico e passa impressão de "feito às pressas". Precisa de algo mais profissional e visualmente atraente.
+### Contexto
+Vários componentes do dashboard usam emojis de texto simples (✅, 🛎️, 📝, 📋, 🏷️, 📊) como placeholders de "estado vazio". Após o upgrade do iFood, esses emojis parecem genéricos em comparação. Vamos substituir cada um por SVGs inline animados com o mesmo padrão visual do IFoodTab.
 
-### Solução
-Substituir o emoji por uma ilustração SVG inline animada com CSS — um ícone de moto/delivery estilizado com animações suaves (flutuação, pulso, e partículas de movimento). Tudo feito com SVG + CSS animations, sem dependências externas.
+### Arquivos e substituições
 
-### Implementação
+| Arquivo | Emoji atual | Conceito SVG animado |
+|---|---|---|
+| `KitchenTab.tsx` (L420) | ✅ | Check-mark circular com animação de "confetti burst" verde |
+| `WaiterTab.tsx` (L255) | 🛎️ | Sino de serviço com animação de "ring/wobble" |
+| `ReviewsTab.tsx` (L81) | 📝 | Bloco de notas com caneta animada escrevendo |
+| `HistoryTab.tsx` (L292) | 📋 | Clipboard com lupa animada fazendo "scan" |
+| `CouponsTab.tsx` (L103) | 🏷️ | Tag de desconto com animação de "bounce/shine" |
+| `BestSellersTab.tsx` (L100) | 📊 | Barras de gráfico crescendo com animação sequencial |
 
-**`src/components/dashboard/IFoodTab.tsx`**:
-- Remover o `<div className="text-5xl">🛵</div>`
-- Criar um SVG inline com:
-  - Ícone de moto/delivery estilizado (ou um ícone de sacola + foguete representando lançamento)
-  - Animação de flutuação (float up/down suave)
-  - Linhas de movimento animadas ao redor
-  - Gradiente com as cores do iFood (vermelho `#EA1D2C`)
-- Adicionar um badge animado "Em Breve" com pulse sutil
-- Visual geral mais premium: gradiente de fundo no card, tipografia melhorada
+### Padrão visual
+Cada SVG segue o template do IFoodTab:
+- ~120x120 viewBox, inline no JSX
+- Wrapper com `animate-[float_3s_ease-in-out_infinite]`
+- Cores usando a paleta do tema (primary via Tailwind ou cores fixas adequadas ao contexto)
+- Gradiente radial de fundo sutil
+- Detalhes animados (sparkles, linhas de movimento, pulso)
+- Bloco `<style>` com keyframes customizados por componente
 
-### Resultado
-Tela "Em Breve" com aparência profissional e polida, sem parecer placeholder genérico.
+### Sem breaking changes
+Apenas substituição visual — nenhuma lógica, prop ou estado alterado.
 
