@@ -126,7 +126,7 @@ const AuthPage = () => {
     confirmPassword: "",
     businessName: "",
     slug: "",
-    whatsapp: "",
+    
   });
   const [signupLoading, setSignupLoading] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
@@ -226,11 +226,6 @@ const AuthPage = () => {
       toast.error("As senhas não coincidem.");
       return;
     }
-    const whatsappDigits = signupData.whatsapp.replace(/\D/g, "");
-    if (whatsappDigits.length < 10) {
-      toast.error("Informe o WhatsApp com DDD (mín 10 dígitos) para receber pedidos.");
-      return;
-    }
     if (!signupData.slug.trim()) {
       toast.error("Informe o slug da sua lanchonete.");
       return;
@@ -282,7 +277,7 @@ const AuthPage = () => {
               emoji: "🍔",
               description: "Bem-vindo à nossa loja!",
               primary_color: "#f97316",
-              whatsapp: signupData.whatsapp || null,
+              whatsapp: null,
             };
             if (refParam) orgPayload.referred_by_id = refParam;
             const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
@@ -326,7 +321,7 @@ const AuthPage = () => {
         emoji: "🍔",
         description: "Bem-vindo à nossa loja!",
         primary_color: "#f97316",
-        whatsapp: signupData.whatsapp || null,
+        whatsapp: null,
       };
       if (refParam) orgPayload.referred_by_id = refParam;
       const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
@@ -653,29 +648,6 @@ const AuthPage = () => {
                             }))
                           }
                           required
-                        />
-                      </div>
-                    </div>
-
-                    {/* WhatsApp */}
-                    <div>
-                    <Label htmlFor="signup-whatsapp" className="text-sm font-medium mb-1.5 block">
-                      WhatsApp para pedidos *
-                      </Label>
-                      <div className="flex items-center rounded-lg border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 h-11">
-                        <span className="px-3 text-xs text-muted-foreground bg-muted border-r border-input h-full flex items-center shrink-0">
-                          +55
-                        </span>
-                        <input
-                          id="signup-whatsapp"
-                          className="flex-1 px-3 text-sm bg-background outline-none h-full"
-                          placeholder="11999887766"
-                          inputMode="numeric"
-                          maxLength={11}
-                          value={signupData.whatsapp}
-                          onChange={(e) =>
-                            setSignupData((p) => ({ ...p, whatsapp: e.target.value.replace(/\D/g, "") }))
-                          }
                         />
                       </div>
                     </div>
