@@ -1128,6 +1128,7 @@ export type Database = {
           subscription_plan: string
           subscription_status: string
           tax_regime: string | null
+          theme_config: Json
           trial_ends_at: string | null
           used_first_month_promo: boolean
           user_id: string
@@ -1167,6 +1168,7 @@ export type Database = {
           subscription_plan?: string
           subscription_status?: string
           tax_regime?: string | null
+          theme_config?: Json
           trial_ends_at?: string | null
           used_first_month_promo?: boolean
           user_id: string
@@ -1206,6 +1208,7 @@ export type Database = {
           subscription_plan?: string
           subscription_status?: string
           tax_regime?: string | null
+          theme_config?: Json
           trial_ends_at?: string | null
           used_first_month_promo?: boolean
           user_id?: string
