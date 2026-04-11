@@ -1,27 +1,18 @@
 
 
-## Carregar Google Fonts no StoreProfileTab para preview funcionar
+## Substituir emojis por SVGs animados nos estados vazios do HomeTab
 
 ### Problema
-Os botões de seleção de fonte usam `fontFamily` inline, mas as fontes do Google Fonts **nunca são carregadas** no dashboard. Só o `UnitPage.tsx` (loja pública) injeta o `<link>` do Google Fonts. Resultado: apenas fontes que o navegador já tem instaladas (como as 3 primeiras) mostram diferença visual.
+Os dois estados vazios na aba Home ainda usam emojis genéricos (`📭` e `💳`) em vez de ilustrações SVG animadas como nos outros empty states do dashboard.
 
-### Correção
-**`src/components/dashboard/StoreProfileTab.tsx`** — Adicionar um `useEffect` que carrega todas as 6 fontes do Google Fonts quando o componente monta:
+### Arquivo
+- `src/components/dashboard/HomeTab.tsx`
 
-```tsx
-useEffect(() => {
-  const families = ["Inter", "Merriweather", "Nunito", "Roboto", "Poppins", "Open+Sans"];
-  const query = families.map(f => `family=${f}:wght@400;600;700`).join("&");
-  const id = "store-profile-gfonts";
-  if (!document.getElementById(id)) {
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = `https://fonts.googleapis.com/css2?${query}&display=swap`;
-    document.head.appendChild(link);
-  }
-}, []);
-```
+### Alterações
 
-Uma adição de ~10 linhas, zero mudança de lógica. Todas as 7 opções (incluindo Padrão) passarão a renderizar com a fonte correta nos botões e no mini-preview.
+1. **Linha 551** — Substituir `<p className="text-3xl mb-2">📭</p>` por um SVG animado de caixa de correio vazia (mailbox) com animação `float` e gradiente radial pulse, consistente com os outros empty states.
+
+2. **Linha 615** — Substituir `<p className="text-3xl mb-2">💳</p>` por um SVG animado de cartão de crédito/pagamento com as mesmas animações (`float` + `pulse`).
+
+Ambos usarão `hsl(var(--muted-foreground))` com opacidade para manter coerência visual com o tema. Zero mudança de lógica.
 
