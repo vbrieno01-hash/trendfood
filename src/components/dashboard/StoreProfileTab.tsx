@@ -148,6 +148,20 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       .in("id", otherOrgIds);
   };
 
+  // Load Google Fonts for preview
+  useEffect(() => {
+    const families = ["Inter", "Merriweather", "Nunito", "Roboto", "Poppins", "Open+Sans"];
+    const query = families.map(f => `family=${f}:wght@400;600;700`).join("&");
+    const id = "store-profile-gfonts";
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?${query}&display=swap`;
+      document.head.appendChild(link);
+    }
+  }, []);
+
   // Auto-save debounce
   useEffect(() => {
     if (isFirstRender.current) {
