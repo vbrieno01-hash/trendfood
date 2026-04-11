@@ -252,9 +252,34 @@ export default function WaiterTab({
           <p className="text-muted-foreground animate-pulse text-center py-8">Carregando…</p>
         ) : readyOrders.length === 0 ? (
           <div className="text-center py-12 bg-card border border-border rounded-2xl">
-            <p className="text-4xl mb-3">🛎️</p>
+            <div className="relative mx-auto w-24 h-24 mb-3">
+              <div className="animate-[float_3s_ease-in-out_infinite]">
+                <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-24 h-24">
+                  <circle cx="60" cy="60" r="50" fill="url(#bellGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
+                  <path d="M60 28 C60 28 42 28 42 50 L42 68 L34 78 L86 78 L78 68 L78 50 C78 28 60 28 60 28Z" fill="hsl(var(--primary))" className="animate-[bellRing_2s_ease-in-out_infinite]" style={{transformOrigin: '60px 28px'}} />
+                  <circle cx="60" cy="85" r="6" fill="hsl(var(--primary))" />
+                  <line x1="60" y1="20" x2="60" y2="28" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
+                  <circle cx="60" cy="18" r="3" fill="hsl(var(--primary))" />
+                  <path d="M30 38 L24 34" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-[bellWave_2s_ease-in-out_infinite]" opacity="0.5" />
+                  <path d="M90 38 L96 34" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-[bellWave_2s_ease-in-out_0.3s_infinite]" opacity="0.5" />
+                  <path d="M26 48 L20 48" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-[bellWave_2s_ease-in-out_0.6s_infinite]" opacity="0.3" />
+                  <path d="M94 48 L100 48" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-[bellWave_2s_ease-in-out_0.9s_infinite]" opacity="0.3" />
+                  <defs>
+                    <radialGradient id="bellGlow" cx="0.5" cy="0.5" r="0.5">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                    </radialGradient>
+                  </defs>
+                </svg>
+              </div>
+            </div>
             <p className="font-semibold text-foreground">Nenhum pedido pronto!</p>
             <p className="text-muted-foreground text-sm mt-1">Os pedidos prontos aparecerão aqui em tempo real.</p>
+            <style>{`
+              @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+              @keyframes bellRing { 0%, 100% { transform: rotate(0deg); } 10% { transform: rotate(8deg); } 20% { transform: rotate(-8deg); } 30% { transform: rotate(5deg); } 40% { transform: rotate(-5deg); } 50% { transform: rotate(0deg); } }
+              @keyframes bellWave { 0%, 100% { opacity: 0; transform: translateX(0); } 20% { opacity: 0.7; } 50% { opacity: 0; transform: translateX(-4px); } }
+            `}</style>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
