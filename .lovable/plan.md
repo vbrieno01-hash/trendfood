@@ -1,16 +1,16 @@
 
 
-## Trocar tab padrão de "Criar conta" para "Entrar"
+## Remover campo WhatsApp do cadastro
 
 ### Problema
-A tela de autenticação abre sempre em "Criar conta", confundindo clientes que já têm conta e querem apenas fazer login.
+O usuário precisa informar o WhatsApp duas vezes — no cadastro e depois dentro do painel — causando frustração.
 
 ### Alterações em `src/pages/AuthPage.tsx`
 
-1. **Linha 501** — Mudar `defaultValue="signup"` para `defaultValue="login"`
-2. **Linhas 502-514** — Inverter a ordem dos `TabsTrigger`: colocar "Entrar" primeiro (à esquerda) e "Criar conta" segundo (à direita)
+1. **Remover o bloco HTML do campo WhatsApp** (linhas 660-681) do formulário de signup
+2. **Remover a validação de WhatsApp** no `handleSignup` (linhas 229-232 que checam `whatsappDigits.length < 10`)
+3. **Manter `whatsapp: null`** nas inserções da organização (linhas 285 e 329) — já que o campo não será mais preenchido no cadastro, passar `null` diretamente
+4. **Limpar o estado** — remover `whatsapp` do `signupData` inicial (ou deixar vazio, já que não será usado)
 
-Isso garante que ao abrir a página, o formulário de login aparece por padrão e o botão "Entrar" fica na posição de destaque à esquerda.
-
-Zero mudança de lógica, apenas reordenação visual e troca do valor padrão.
+O WhatsApp continuará sendo solicitado dentro do painel (onboarding/perfil da loja), onde já existe essa funcionalidade.
 
