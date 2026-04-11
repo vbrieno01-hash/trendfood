@@ -1,47 +1,16 @@
 
 
-## Pausar Categorias Específicas
+## Simplificar aba iFood para "Em Breve"
 
-### Conceito
-Adicionar uma coluna `paused_categories` (JSONB, array de strings) na tabela `organizations`. Categorias listadas nesse array ficam ocultas na vitrine pública sem precisar desativar cada item individualmente ou fechar a loja.
+Substituir todo o conteúdo funcional da aba iFood (status, configuração de Merchant ID, instruções) por uma tela simples de "Em Breve", mantendo apenas um card centralizado com ícone, título e descrição informando que a integração está em desenvolvimento.
 
-### Implementação
+### Alteração
 
-**1. Migration — nova coluna**
-```sql
-ALTER TABLE public.organizations
-ADD COLUMN paused_categories jsonb DEFAULT '[]'::jsonb;
-```
+**`src/components/dashboard/IFoodTab.tsx`** — Reescrever o componente para exibir apenas:
+- Titulo "Integração iFood" com subtitulo
+- Um card centralizado com o emoji de moto, titulo "Em Breve" e texto explicando que a integração com o iFood está sendo finalizada
+- Remover toda lógica de query, mutations, estado, e os cards de status/configuração/instruções
+- Manter a prop `orgId` na interface para não quebrar onde é usado, mas sem utilizá-la internamente
 
-**2. Tipos e hooks**
-- `src/hooks/useOrganization.ts` — adicionar `paused_categories?: string[] | null` ao tipo `Organization` e ao `select`
-- `src/hooks/useAuth.tsx` — incluir `paused_categories` no select de organizações
-- `src/components/admin/AdminStoreManager.tsx` — incluir no cast de `orgForComponents`
-
-**3. UI no dashboard (MenuTab)**
-Ao lado de cada header de categoria (onde já existem os botões ↑ ↓), adicionar um botão de pausa (⏸/▶). Ao clicar:
-- Adiciona/remove a categoria do array `paused_categories`
-- Salva direto no banco (`supabase.update`)
-- Categoria pausada aparece com opacidade reduzida e badge "Pausada"
-- Itens da categoria permanecem intactos (não muda `available` dos itens)
-
-**4. Filtragem na vitrine pública**
-- `src/pages/UnitPage.tsx` — no `buildGroups`, filtrar categorias que estão em `paused_categories`
-- `src/pages/TableOrderPage.tsx` — mesmo filtro no `orderedCats`
-- Categorias pausadas simplesmente não aparecem para o cliente
-
-**5. Validação no pedido (trigger SQL)**
-Opcional mas recomendado: atualizar `validate_store_open_for_order` para rejeitar itens de categorias pausadas. Porém como a categoria já some da vitrine, o risco é mínimo — implementar apenas o filtro no front por ora.
-
-### Arquivos modificados
-- Migration: nova coluna `paused_categories`
-- `src/hooks/useOrganization.ts`
-- `src/hooks/useAuth.tsx`
-- `src/components/admin/AdminStoreManager.tsx`
-- `src/components/dashboard/MenuTab.tsx` — botão pausar/retomar por categoria
-- `src/pages/UnitPage.tsx` — filtro de categorias pausadas
-- `src/pages/TableOrderPage.tsx` — filtro de categorias pausadas
-
-### Sem breaking changes
-Array vazio por padrão = todas as categorias visíveis. Lojas existentes não são afetadas.
+Arquivo único modificado, sem mudanças no banco.
 
