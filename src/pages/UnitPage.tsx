@@ -1058,8 +1058,8 @@ const UnitPage = () => {
                                   ) : qty === 0 ? (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
-                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
-                                      style={{ backgroundColor: primaryColor }}
+                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                                      style={{ backgroundColor: primaryColor, borderRadius: buttonRadius }}
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                       Add
