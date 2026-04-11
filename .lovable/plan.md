@@ -1,16 +1,20 @@
 
 
-## Remover campo WhatsApp do cadastro
+## Separar fluxo "Esqueci minha senha" do formulário de login
 
 ### Problema
-O usuário precisa informar o WhatsApp duas vezes — no cadastro e depois dentro do painel — causando frustração.
+Quando o usuário clica em "Esqueci minha senha", o formulário de redefinição aparece **abaixo** do formulário de login, misturando dois fluxos na mesma tela e confundindo o usuário.
+
+### Solução
+Quando `forgotMode` estiver ativo, **esconder o formulário de login inteiro** e mostrar **apenas** o formulário de redefinição de senha, com um botão "Voltar ao login" para retornar.
 
 ### Alterações em `src/pages/AuthPage.tsx`
 
-1. **Remover o bloco HTML do campo WhatsApp** (linhas 660-681) do formulário de signup
-2. **Remover a validação de WhatsApp** no `handleSignup` (linhas 229-232 que checam `whatsappDigits.length < 10`)
-3. **Manter `whatsapp: null`** nas inserções da organização (linhas 285 e 329) — já que o campo não será mais preenchido no cadastro, passar `null` diretamente
-4. **Limpar o estado** — remover `whatsapp` do `signupData` inicial (ou deixar vazio, já que não será usado)
+1. **Envolver o formulário de login** (campos email, senha, botão entrar, link esqueci senha) em uma condicional `{!forgotMode && (...)}` para que ele desapareça quando o modo de redefinição estiver ativo.
 
-O WhatsApp continuará sendo solicitado dentro do painel (onboarding/perfil da loja), onde já existe essa funcionalidade.
+2. **Transformar o bloco de redefinição** (linhas 735-758) em uma tela independente — sem borda/card interno, ocupando o espaço principal com título "Redefinir senha", campo de e-mail e botões "Enviar link" / "Voltar ao login".
+
+3. O botão "Voltar ao login" chama `setForgotMode(false)` para restaurar o formulário de login.
+
+Resultado: telas mutuamente exclusivas — ou login, ou redefinição — sem mistura visual.
 
