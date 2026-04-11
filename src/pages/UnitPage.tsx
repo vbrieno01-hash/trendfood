@@ -984,8 +984,13 @@ const UnitPage = () => {
                           key={group.value}
                           id={`pill-${group.value}`}
                           onClick={() => scrollToCategory(group.value)}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0 border"
-                          style={
+                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0 border"
+                          style={{
+                            borderRadius: buttonRadius,
+                            ...(isActive
+                              ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
+                              : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
+                          }}
                             isActive
                               ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
                               : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }
