@@ -548,7 +548,26 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           </div>
           {delivered.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-3xl mb-2">📭</p>
+              <div className="flex justify-center mb-3">
+                <svg width="64" height="64" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-60">
+                  <defs>
+                    <radialGradient id="mailPulse" cx="50%" cy="50%" r="50%">
+                      <animate attributeName="r" values="30%;50%;30%" dur="3s" repeatCount="indefinite" />
+                      <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.10" />
+                      <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0" />
+                    </radialGradient>
+                  </defs>
+                  <circle cx="48" cy="48" r="44" fill="url(#mailPulse)" />
+                  <g stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;0,-3;0,0" dur="3s" repeatCount="indefinite" />
+                    <rect x="24" y="36" width="48" height="32" rx="4" />
+                    <path d="M24 40l24 16 24-16" />
+                    <line x1="48" y1="24" x2="48" y2="32" />
+                    <line x1="38" y1="26" x2="42" y2="32" />
+                    <line x1="58" y1="26" x2="54" y2="32" />
+                  </g>
+                </svg>
+              </div>
               <p className="text-muted-foreground text-sm">Nenhum pedido entregue ainda. Os dados aparecerão aqui!</p>
             </div>
           ) : (
@@ -612,7 +631,26 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           </div>
           {delivered.filter(o => o.paid).length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-3xl mb-2">💳</p>
+              <div className="flex justify-center mb-3">
+                <svg width="64" height="64" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-60">
+                  <defs>
+                    <radialGradient id="cardPulse" cx="50%" cy="50%" r="50%">
+                      <animate attributeName="r" values="30%;50%;30%" dur="3s" repeatCount="indefinite" />
+                      <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.10" />
+                      <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0" />
+                    </radialGradient>
+                  </defs>
+                  <circle cx="48" cy="48" r="44" fill="url(#cardPulse)" />
+                  <g stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
+                    <animateTransform attributeName="transform" type="translate" values="0,0;0,-3;0,0" dur="3s" repeatCount="indefinite" />
+                    <rect x="18" y="30" width="60" height="36" rx="5" />
+                    <line x1="18" y1="42" x2="78" y2="42" />
+                    <rect x="26" y="50" width="18" height="6" rx="2" />
+                    <circle cx="66" cy="53" r="4" />
+                    <circle cx="60" cy="53" r="4" />
+                  </g>
+                </svg>
+              </div>
               <p className="text-muted-foreground text-sm">Nenhum pedido pago ainda. Os dados aparecerão aqui!</p>
             </div>
           ) : (
