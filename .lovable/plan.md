@@ -1,50 +1,26 @@
 
 
-## Integração Telegram para Notificações de Pedidos
+## Mover Telegram para aba "Integrações"
 
-### O que será feito
+### O que muda
 
-Quando um novo pedido chegar, além da notificação push atual, o sistema também enviará uma mensagem via Telegram para o dono da loja (se configurado).
-
-### Arquitetura
-
-```text
-Novo pedido → trigger notify_new_order → send-push-notification
-                                          ↓ (já existente)
-                                       Web Push
-                                          +
-                                       Telegram (novo)
-                                       ↓
-                              Lê telegram_chat_id da organização
-                              → Envia via Connector Gateway
-```
+O bloco de configuração do Telegram sai do `SettingsTab` e vira uma aba própria dentro do grupo "INTEGRAÇÕES" no sidebar (ao lado do iFood), com explicações claras sobre o que é e como funciona.
 
 ### Etapas
 
-**1. Conectar o conector Telegram**
-- Usar `standard_connectors--connect` para vincular o bot Telegram ao projeto
-- Isso disponibiliza `TELEGRAM_API_KEY` e `LOVABLE_API_KEY` nas edge functions
+**1. Criar `src/components/dashboard/TelegramTab.tsx`**
+- Componente dedicado com toda a lógica do Telegram (já existente no SettingsTab)
+- Seção explicativa no topo: "Receba notificações instantâneas de novos pedidos diretamente no Telegram. Funciona como um complemento às notificações push — sempre que um cliente fizer um pedido, você recebe uma mensagem no Telegram com o número do pedido."
+- Passo a passo visual: 1) Crie um bot ou use @userinfobot, 2) Copie seu Chat ID, 3) Cole aqui e teste
+- Campos: input do Chat ID, botões Testar e Salvar (código migrado do SettingsTab)
 
-**2. Adicionar coluna `telegram_chat_id` na tabela `organizations`**
-- Migração SQL: `ALTER TABLE organizations ADD COLUMN telegram_chat_id text;`
-- O dono da loja vai informar o chat_id do Telegram no painel
+**2. Atualizar `src/pages/DashboardPage.tsx`**
+- Adicionar `"telegram"` ao tipo `TabKey`
+- Importar `TelegramTab`
+- Adicionar item no grupo "INTEGRAÇÕES": `{ key: "telegram", icon: <Send>, label: "Telegram" }`
+- Renderizar `<TelegramTab />` quando `activeTab === "telegram"`
 
-**3. Atualizar a edge function `send-push-notification`**
-- Após enviar os pushes web, verificar se a org tem `telegram_chat_id` preenchido
-- Se sim, enviar mensagem via gateway: `POST https://connector-gateway.lovable.dev/telegram/sendMessage`
-- Mensagem: "🔔 Novo Pedido #X recebido!"
-
-**4. Adicionar seção "Telegram" no `SettingsTab.tsx`**
-- Campo de input para o `telegram_chat_id`
-- Instruções simples: "Abra @userinfobot no Telegram, copie seu Chat ID e cole aqui"
-- Botão "Testar" que envia uma mensagem de teste
-- Botão "Salvar"
-
-**5. Criar edge function `test-telegram` (opcional, para o botão testar)**
-- Recebe `chat_id` e envia mensagem de teste via gateway
-- Confirma que a conexão funciona antes de salvar
-
-### Resultado
-
-O lojista configura o Chat ID no painel → toda vez que entra um pedido, recebe uma mensagem instantânea no Telegram com o número do pedido, além da notificação push normal.
+**3. Limpar `src/components/dashboard/SettingsTab.tsx`**
+- Remover todo o bloco do Telegram (estados, fetch do chat_id, e o JSX da seção)
+- Remover imports não mais usados (Send, etc.)
 
