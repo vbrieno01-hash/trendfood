@@ -1,18 +1,16 @@
 
 
-## Substituir emojis por SVGs animados nos estados vazios do HomeTab
+## Trocar tab padrão de "Criar conta" para "Entrar"
 
 ### Problema
-Os dois estados vazios na aba Home ainda usam emojis genéricos (`📭` e `💳`) em vez de ilustrações SVG animadas como nos outros empty states do dashboard.
+A tela de autenticação abre sempre em "Criar conta", confundindo clientes que já têm conta e querem apenas fazer login.
 
-### Arquivo
-- `src/components/dashboard/HomeTab.tsx`
+### Alterações em `src/pages/AuthPage.tsx`
 
-### Alterações
+1. **Linha 501** — Mudar `defaultValue="signup"` para `defaultValue="login"`
+2. **Linhas 502-514** — Inverter a ordem dos `TabsTrigger`: colocar "Entrar" primeiro (à esquerda) e "Criar conta" segundo (à direita)
 
-1. **Linha 551** — Substituir `<p className="text-3xl mb-2">📭</p>` por um SVG animado de caixa de correio vazia (mailbox) com animação `float` e gradiente radial pulse, consistente com os outros empty states.
+Isso garante que ao abrir a página, o formulário de login aparece por padrão e o botão "Entrar" fica na posição de destaque à esquerda.
 
-2. **Linha 615** — Substituir `<p className="text-3xl mb-2">💳</p>` por um SVG animado de cartão de crédito/pagamento com as mesmas animações (`float` + `pulse`).
-
-Ambos usarão `hsl(var(--muted-foreground))` com opacidade para manter coerência visual com o tema. Zero mudança de lógica.
+Zero mudança de lógica, apenas reordenação visual e troca do valor padrão.
 
