@@ -126,7 +126,7 @@ const AuthPage = () => {
     confirmPassword: "",
     businessName: "",
     slug: "",
-    whatsapp: "",
+    
   });
   const [signupLoading, setSignupLoading] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
@@ -226,11 +226,6 @@ const AuthPage = () => {
       toast.error("As senhas não coincidem.");
       return;
     }
-    const whatsappDigits = signupData.whatsapp.replace(/\D/g, "");
-    if (whatsappDigits.length < 10) {
-      toast.error("Informe o WhatsApp com DDD (mín 10 dígitos) para receber pedidos.");
-      return;
-    }
     if (!signupData.slug.trim()) {
       toast.error("Informe o slug da sua lanchonete.");
       return;
@@ -282,7 +277,7 @@ const AuthPage = () => {
               emoji: "🍔",
               description: "Bem-vindo à nossa loja!",
               primary_color: "#f97316",
-              whatsapp: signupData.whatsapp || null,
+              whatsapp: null,
             };
             if (refParam) orgPayload.referred_by_id = refParam;
             const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
@@ -326,7 +321,7 @@ const AuthPage = () => {
         emoji: "🍔",
         description: "Bem-vindo à nossa loja!",
         primary_color: "#f97316",
-        whatsapp: signupData.whatsapp || null,
+        whatsapp: null,
       };
       if (refParam) orgPayload.referred_by_id = refParam;
       const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
