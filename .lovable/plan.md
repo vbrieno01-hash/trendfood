@@ -1,56 +1,47 @@
 
 
-## Tema no Checkout/PIX + Mais Fontes
+## Pausar Categorias Específicas
 
-### 1. Expandir opções de fonte
+### Conceito
+Adicionar uma coluna `paused_categories` (JSONB, array de strings) na tabela `organizations`. Categorias listadas nesse array ficam ocultas na vitrine pública sem precisar desativar cada item individualmente ou fechar a loja.
 
-**`src/hooks/useOrganization.ts`** — Adicionar novos valores ao tipo `ThemeConfig.font`:
+### Implementação
+
+**1. Migration — nova coluna**
+```sql
+ALTER TABLE public.organizations
+ADD COLUMN paused_categories jsonb DEFAULT '[]'::jsonb;
 ```
-font?: "default" | "modern" | "classic" | "playful" | "roboto" | "poppins" | "opensans";
-```
 
-**`src/components/dashboard/StoreProfileTab.tsx`** — Adicionar 3 novos botões no grid de fontes:
-- Roboto → `"'Roboto', sans-serif"`
-- Poppins → `"'Poppins', sans-serif"`  
-- Open Sans → `"'Open Sans', sans-serif"`
+**2. Tipos e hooks**
+- `src/hooks/useOrganization.ts` — adicionar `paused_categories?: string[] | null` ao tipo `Organization` e ao `select`
+- `src/hooks/useAuth.tsx` — incluir `paused_categories` no select de organizações
+- `src/components/admin/AdminStoreManager.tsx` — incluir no cast de `orgForComponents`
 
-Atualizar todos os locais no preview que fazem o mapeamento font → fontFamily para incluir as novas fontes.
+**3. UI no dashboard (MenuTab)**
+Ao lado de cada header de categoria (onde já existem os botões ↑ ↓), adicionar um botão de pausa (⏸/▶). Ao clicar:
+- Adiciona/remove a categoria do array `paused_categories`
+- Salva direto no banco (`supabase.update`)
+- Categoria pausada aparece com opacidade reduzida e badge "Pausada"
+- Itens da categoria permanecem intactos (não muda `available` dos itens)
 
-**`src/pages/UnitPage.tsx`** — Atualizar:
-- O mapeamento `fontMap` no `useEffect` de Google Fonts para carregar Roboto, Poppins e Open Sans
-- A variável `fontFamily` para mapear os novos valores
+**4. Filtragem na vitrine pública**
+- `src/pages/UnitPage.tsx` — no `buildGroups`, filtrar categorias que estão em `paused_categories`
+- `src/pages/TableOrderPage.tsx` — mesmo filtro no `orderedCats`
+- Categorias pausadas simplesmente não aparecem para o cliente
 
-### 2. Aplicar tema no Checkout Drawer
-
-No `UnitPage.tsx`, o checkout drawer (linhas ~1170-1610) já usa `primaryColor` inline. Vou adicionar:
-
-- **`fontFamily`** e **`borderRadius`** (baseados em `buttonRadius`) nos botões do drawer (order type selector, payment selector, submit button)
-- **`style={{ fontFamily }}`** no `DrawerContent` wrapper para que todo o texto herde a fonte da loja
-- **`borderRadius: buttonRadius`** nos botões + e - do carrinho e nos seletores de tipo de pedido/pagamento
-
-### 3. Aplicar tema no PixPaymentScreen
-
-**`src/components/checkout/PixPaymentScreen.tsx`** — Adicionar props opcionais:
-- `fontFamily?: string`
-- `buttonRadius?: string`
-
-Aplicar:
-- `style={{ fontFamily }}` no container raiz
-- `borderRadius: buttonRadius` nos botões (Copiar código, Voltar, Cancelar)
-- Manter `primaryColor` que já é passado
-
-**`src/pages/UnitPage.tsx`** — Passar as novas props ao `<PixPaymentScreen>`:
-```tsx
-fontFamily={fontFamily}
-buttonRadius={buttonRadius}
-```
+**5. Validação no pedido (trigger SQL)**
+Opcional mas recomendado: atualizar `validate_store_open_for_order` para rejeitar itens de categorias pausadas. Porém como a categoria já some da vitrine, o risco é mínimo — implementar apenas o filtro no front por ora.
 
 ### Arquivos modificados
-- `src/hooks/useOrganization.ts` — tipo ThemeConfig expandido
-- `src/components/dashboard/StoreProfileTab.tsx` — 3 novas fontes no editor + preview
-- `src/pages/UnitPage.tsx` — tema no drawer + props extras no PixPaymentScreen
-- `src/components/checkout/PixPaymentScreen.tsx` — aceitar e aplicar fontFamily/buttonRadius
+- Migration: nova coluna `paused_categories`
+- `src/hooks/useOrganization.ts`
+- `src/hooks/useAuth.tsx`
+- `src/components/admin/AdminStoreManager.tsx`
+- `src/components/dashboard/MenuTab.tsx` — botão pausar/retomar por categoria
+- `src/pages/UnitPage.tsx` — filtro de categorias pausadas
+- `src/pages/TableOrderPage.tsx` — filtro de categorias pausadas
 
 ### Sem breaking changes
-Tudo é opcional com fallback. Lojas existentes continuam iguais.
+Array vazio por padrão = todas as categorias visíveis. Lojas existentes não são afetadas.
 
