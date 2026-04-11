@@ -75,6 +75,7 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
         category_order: fullOrg.category_order as Organization["category_order"],
         pix_key: fullOrg.pix_key,
         theme_config: fullOrg.theme_config as Organization["theme_config"],
+        paused_categories: fullOrg.paused_categories as Organization["paused_categories"],
       }
     : {
         id: org.id,
