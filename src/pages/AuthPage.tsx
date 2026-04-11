@@ -651,26 +651,6 @@ const AuthPage = () => {
                         />
                       </div>
                     </div>
-
-                    {/* WhatsApp */}
-                    <div>
-                    <Label htmlFor="signup-whatsapp" className="text-sm font-medium mb-1.5 block">
-                      WhatsApp para pedidos *
-                      </Label>
-                      <div className="flex items-center rounded-lg border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 h-11">
-                        <span className="px-3 text-xs text-muted-foreground bg-muted border-r border-input h-full flex items-center shrink-0">
-                          +55
-                        </span>
-                        <input
-                          id="signup-whatsapp"
-                          className="flex-1 px-3 text-sm bg-background outline-none h-full"
-                          placeholder="11999887766"
-                          inputMode="numeric"
-                          maxLength={11}
-                          value={signupData.whatsapp}
-                          onChange={(e) =>
-                            setSignupData((p) => ({ ...p, whatsapp: e.target.value.replace(/\D/g, "") }))
-                          }
                         />
                       </div>
                     </div>
