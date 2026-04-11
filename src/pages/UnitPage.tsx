@@ -802,17 +802,43 @@ const UnitPage = () => {
   
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={{ fontFamily }}>
       {/* Header */}
-      <header className="bg-card sticky top-0 z-40 shadow-sm">
+      <header
+        className="sticky top-0 z-40 shadow-sm"
+        style={{
+          backgroundColor: (themeConfig.header_style || "solid") === "transparent"
+            ? "var(--background)"
+            : (themeConfig.header_style || "solid") === "gradient"
+            ? undefined
+            : primaryColor,
+          backgroundImage: (themeConfig.header_style || "solid") === "gradient"
+            ? `linear-gradient(135deg, ${primaryColor}, ${themeConfig.secondary_color || "#1e293b"})`
+            : undefined,
+          borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${primaryColor}` : undefined,
+        }}
+      >
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {org.logo_url ? (
               <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" />
             ) : (
-              <span className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">{org.name?.charAt(0)?.toUpperCase()}</span>
+              <span
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
+                style={{
+                  backgroundColor: (themeConfig.header_style || "solid") === "transparent" ? `${primaryColor}20` : "rgba(255,255,255,0.2)",
+                  color: (themeConfig.header_style || "solid") === "transparent" ? primaryColor : "#fff",
+                }}
+              >
+                {org.name?.charAt(0)?.toUpperCase()}
+              </span>
             )}
-            <p className="font-bold text-foreground text-base leading-tight">{org.name}</p>
+            <p
+              className="font-bold text-base leading-tight"
+              style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : "#fff" }}
+            >
+              {org.name}
+            </p>
           </div>
           <div className="w-16" />
         </div>
