@@ -89,6 +89,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [businessHours, setBusinessHours] = useState<BusinessHours>(
     organization.business_hours ?? DEFAULT_BUSINESS_HOURS
   );
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(
+    organization.theme_config ?? {}
+  );
   const [addressFields, setAddressFields] = useState<AddressFields>(
     organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
   );
