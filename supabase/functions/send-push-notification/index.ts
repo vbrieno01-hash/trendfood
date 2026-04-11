@@ -223,6 +223,44 @@ Deno.serve(async (req) => {
     let sent = 0;
     let failed = 0;
 
+    // ── Telegram notification ─────────────────────────────────
+    try {
+      const { data: orgData } = await supabase
+        .from("organizations")
+        .select("telegram_chat_id")
+        .eq("id", organization_id)
+        .maybeSingle();
+
+      const chatId = orgData?.telegram_chat_id;
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
+
+      if (chatId && LOVABLE_API_KEY && TELEGRAM_API_KEY) {
+        const tgText = order_number
+          ? `🔔 Novo Pedido #${order_number} recebido!`
+          : "🔔 Novo pedido recebido!";
+
+        const tgRes = await fetch(
+          "https://connector-gateway.lovable.dev/telegram/sendMessage",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "X-Connection-Api-Key": TELEGRAM_API_KEY,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ chat_id: chatId, text: tgText }),
+          }
+        );
+        if (!tgRes.ok) {
+          const tgErr = await tgRes.text();
+          console.error("Telegram send failed:", tgErr);
+        }
+      }
+    } catch (tgError) {
+      console.error("Telegram notification error:", tgError);
+    }
+
     for (const sub of subs) {
       try {
         const endpointUrl = new URL(sub.endpoint);
