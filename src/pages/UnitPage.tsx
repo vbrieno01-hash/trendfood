@@ -991,10 +991,6 @@ const UnitPage = () => {
                               ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
                               : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
                           }}
-                            isActive
-                              ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
-                              : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }
-                          }
                         >
                           <span>{group.emoji}</span>
                           <span>{group.value}</span>
