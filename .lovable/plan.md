@@ -1,26 +1,47 @@
 
 
-## Mover Telegram para aba "Integrações"
+## Corrigir contador de pedidos para nunca diminuir
 
-### O que muda
+### Problema
 
-O bloco de configuração do Telegram sai do `SettingsTab` e vira uma aba própria dentro do grupo "INTEGRAÇÕES" no sidebar (ao lado do iFood), com explicações claras sobre o que é e como funciona.
+O contador usa `SELECT count(*) FROM orders`, mas pedidos fantasma (sem itens) são deletados periodicamente pelo sistema de limpeza. Quando isso acontece, o `count(*)` diminui e o contador na landing page "volta" — saindo de 600+ para 537.
+
+### Solução
+
+Criar uma tabela `platform_counters` com um contador monotônico que só incrementa. Em vez de contar linhas na tabela `orders`, o sistema mantém um número que nunca diminui.
 
 ### Etapas
 
-**1. Criar `src/components/dashboard/TelegramTab.tsx`**
-- Componente dedicado com toda a lógica do Telegram (já existente no SettingsTab)
-- Seção explicativa no topo: "Receba notificações instantâneas de novos pedidos diretamente no Telegram. Funciona como um complemento às notificações push — sempre que um cliente fizer um pedido, você recebe uma mensagem no Telegram com o número do pedido."
-- Passo a passo visual: 1) Crie um bot ou use @userinfobot, 2) Copie seu Chat ID, 3) Cole aqui e teste
-- Campos: input do Chat ID, botões Testar e Salvar (código migrado do SettingsTab)
+**1. Migração SQL**
 
-**2. Atualizar `src/pages/DashboardPage.tsx`**
-- Adicionar `"telegram"` ao tipo `TabKey`
-- Importar `TelegramTab`
-- Adicionar item no grupo "INTEGRAÇÕES": `{ key: "telegram", icon: <Send>, label: "Telegram" }`
-- Renderizar `<TelegramTab />` quando `activeTab === "telegram"`
+- Criar tabela `platform_counters` com uma linha fixa:
+  ```sql
+  CREATE TABLE platform_counters (
+    id int PRIMARY KEY CHECK (id = 1),
+    total_orders bigint NOT NULL DEFAULT 0
+  );
+  ```
+- Inserir o valor atual: `INSERT INTO platform_counters (id, total_orders) SELECT 1, count(*) FROM orders;`
+- Criar trigger na tabela `orders` que incrementa `total_orders` a cada INSERT (nunca decrementa no DELETE)
+- Atualizar a função `get_total_order_count()` para ler de `platform_counters` em vez de `count(*)`
+- RLS: SELECT público, UPDATE/INSERT apenas por service_role
 
-**3. Limpar `src/components/dashboard/SettingsTab.tsx`**
-- Remover todo o bloco do Telegram (estados, fetch do chat_id, e o JSX da seção)
-- Remover imports não mais usados (Send, etc.)
+**2. Trigger**
+
+```sql
+CREATE FUNCTION increment_order_counter() RETURNS trigger AS $$
+BEGIN
+  UPDATE platform_counters SET total_orders = total_orders + 1 WHERE id = 1;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_increment_orders
+  AFTER INSERT ON orders
+  FOR EACH ROW EXECUTE FUNCTION increment_order_counter();
+```
+
+**3. Nenhuma mudança no frontend**
+
+O `Index.tsx` já chama `get_total_order_count()` — só a função muda internamente. O contador nunca mais vai diminuir.
 
