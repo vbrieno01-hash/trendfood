@@ -15,6 +15,8 @@ interface PixPaymentScreenProps {
   onCancel: () => void;
   /** Pre-created order ID */
   orderId: string;
+  fontFamily?: string;
+  buttonRadius?: string;
 }
 
 const EXPIRY_SECONDS = 600; // 10 minutes
@@ -28,6 +30,8 @@ export default function PixPaymentScreen({
   onSuccess,
   onCancel,
   orderId,
+  fontFamily,
+  buttonRadius,
 }: PixPaymentScreenProps) {
   const { toast } = useToast();
   const { createCharge, loading: chargeLoading, error: chargeError, data: chargeData } = useCreatePixCharge();
