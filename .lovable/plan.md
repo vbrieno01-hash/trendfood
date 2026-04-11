@@ -1,53 +1,56 @@
 
 
-## Temas Personalizados por Loja
+## Tema no Checkout/PIX + Mais Fontes
 
-### Situação atual
-A loja já possui `primary_color`, `logo_url` e `banner_url` na tabela `organizations`. A cor primária é aplicada como CSS variable `--org-primary` na UnitPage e usada inline em botões/pills. Não há suporte a cor secundária, estilo de botão, ou fontes customizáveis.
+### 1. Expandir opções de fonte
 
-### O que será implementado
-
-**1. Nova coluna `theme_config` (JSONB) na tabela `organizations`**
-Armazena todas as opções visuais extras:
-```json
-{
-  "secondary_color": "#1e293b",
-  "header_style": "solid" | "transparent" | "gradient",
-  "button_style": "rounded" | "pill" | "square",
-  "card_style": "flat" | "shadow" | "bordered",
-  "font": "default" | "modern" | "classic" | "playful"
-}
+**`src/hooks/useOrganization.ts`** — Adicionar novos valores ao tipo `ThemeConfig.font`:
 ```
-Todos opcionais com fallbacks sensatos — nenhuma loja existente quebra.
+font?: "default" | "modern" | "classic" | "playful" | "roboto" | "poppins" | "opensans";
+```
 
-**2. Editor de tema no StoreProfileTab**
-Nova seção "Tema Visual" abaixo da cor primária existente, com:
-- Color picker para cor secundária (usada em textos de destaque, badges)
-- Seletor de estilo de header (sólido/transparente/gradiente)
-- Seletor de estilo de botão com preview ao vivo (arredondado/pill/quadrado)
-- Seletor de estilo de card (flat/sombra/bordado)
-- Seletor de fonte (4 opções com Google Fonts)
-- Preview em tempo real reutilizando o mini-preview que já existe
+**`src/components/dashboard/StoreProfileTab.tsx`** — Adicionar 3 novos botões no grid de fontes:
+- Roboto → `"'Roboto', sans-serif"`
+- Poppins → `"'Poppins', sans-serif"`  
+- Open Sans → `"'Open Sans', sans-serif"`
 
-**3. Aplicação do tema na UnitPage (página pública)**
-- CSS variables extras: `--org-secondary`, aplicadas via `useEffect`
-- Header renderizado conforme `header_style`
-- Botões e pills com `border-radius` dinâmico conforme `button_style`
-- Cards de menu com estilo conforme `card_style`
-- Google Font carregada dinamicamente via `<link>` no `<head>`
+Atualizar todos os locais no preview que fazem o mapeamento font → fontFamily para incluir as novas fontes.
 
-**4. Atualização do tipo Organization**
-Adicionar `theme_config` ao `useOrganization.ts` e ao `AdminStoreManager`.
+**`src/pages/UnitPage.tsx`** — Atualizar:
+- O mapeamento `fontMap` no `useEffect` de Google Fonts para carregar Roboto, Poppins e Open Sans
+- A variável `fontFamily` para mapear os novos valores
+
+### 2. Aplicar tema no Checkout Drawer
+
+No `UnitPage.tsx`, o checkout drawer (linhas ~1170-1610) já usa `primaryColor` inline. Vou adicionar:
+
+- **`fontFamily`** e **`borderRadius`** (baseados em `buttonRadius`) nos botões do drawer (order type selector, payment selector, submit button)
+- **`style={{ fontFamily }}`** no `DrawerContent` wrapper para que todo o texto herde a fonte da loja
+- **`borderRadius: buttonRadius`** nos botões + e - do carrinho e nos seletores de tipo de pedido/pagamento
+
+### 3. Aplicar tema no PixPaymentScreen
+
+**`src/components/checkout/PixPaymentScreen.tsx`** — Adicionar props opcionais:
+- `fontFamily?: string`
+- `buttonRadius?: string`
+
+Aplicar:
+- `style={{ fontFamily }}` no container raiz
+- `borderRadius: buttonRadius` nos botões (Copiar código, Voltar, Cancelar)
+- Manter `primaryColor` que já é passado
+
+**`src/pages/UnitPage.tsx`** — Passar as novas props ao `<PixPaymentScreen>`:
+```tsx
+fontFamily={fontFamily}
+buttonRadius={buttonRadius}
+```
 
 ### Arquivos modificados
-- **Migration**: nova coluna `theme_config jsonb default '{}'` em `organizations`
-- `src/hooks/useOrganization.ts` — tipo `ThemeConfig`, campo no `Organization`
-- `src/components/dashboard/StoreProfileTab.tsx` — seção editor de tema
-- `src/pages/UnitPage.tsx` — aplicar CSS vars e estilos dinâmicos
-- `src/components/admin/AdminStoreManager.tsx` — incluir `theme_config` no cast
+- `src/hooks/useOrganization.ts` — tipo ThemeConfig expandido
+- `src/components/dashboard/StoreProfileTab.tsx` — 3 novas fontes no editor + preview
+- `src/pages/UnitPage.tsx` — tema no drawer + props extras no PixPaymentScreen
+- `src/components/checkout/PixPaymentScreen.tsx` — aceitar e aplicar fontFamily/buttonRadius
 
-### O que NÃO muda
-- A `primary_color` existente continua funcionando igual
-- Lojas sem `theme_config` usam os defaults atuais (zero breaking changes)
-- Nenhuma tabela nova, apenas uma coluna JSONB
+### Sem breaking changes
+Tudo é opcional com fallback. Lojas existentes continuam iguais.
 
