@@ -1675,6 +1675,30 @@ export type Database = {
           },
         ]
       }
+      telegram_automations_log: {
+        Row: {
+          event_type: string
+          id: string
+          organization_id: string
+          ref_date: string
+          sent_at: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          organization_id: string
+          ref_date: string
+          sent_at?: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          organization_id?: string
+          ref_date?: string
+          sent_at?: string
+        }
+        Relationships: []
+      }
       terms_acceptances: {
         Row: {
           accepted_at: string
