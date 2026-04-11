@@ -1,47 +1,81 @@
 
 
-## Corrigir contador de pedidos para nunca diminuir
+## Automações Telegram — Resumos e Alertas de Abertura/Fechamento
 
-### Problema
+### O que será implementado
 
-O contador usa `SELECT count(*) FROM orders`, mas pedidos fantasma (sem itens) são deletados periodicamente pelo sistema de limpeza. Quando isso acontece, o `count(*)` diminui e o contador na landing page "volta" — saindo de 600+ para 537.
+Quatro automações automáticas via Telegram para lojas que configuraram o Chat ID:
 
-### Solução
+1. **Resumo diário (23h)** — total de pedidos, faturamento, ticket médio, produto mais vendido
+2. **Resumo semanal (domingo 23:05)** — mesmos dados + comparativo com semana anterior
+3. **Aviso de abertura** — mensagem quando a loja abre conforme horário configurado
+4. **Aviso de fechamento** — mensagem 10 min antes de fechar
 
-Criar uma tabela `platform_counters` com um contador monotônico que só incrementa. Em vez de contar linhas na tabela `orders`, o sistema mantém um número que nunca diminui.
+### Arquitetura
+
+```text
+pg_cron (a cada minuto) → Edge Function "telegram-automations"
+                           ├─ Verifica horário (Brasília)
+                           ├─ 23:00 → gera resumo diário
+                           ├─ dom 23:05 → gera resumo semanal
+                           ├─ Horário de abertura → envia "Loja aberta"
+                           └─ 10min antes fechar → envia "Loja fecha em breve"
+```
 
 ### Etapas
 
-**1. Migração SQL**
+**1. Migração SQL — tabela de controle**
 
-- Criar tabela `platform_counters` com uma linha fixa:
-  ```sql
-  CREATE TABLE platform_counters (
-    id int PRIMARY KEY CHECK (id = 1),
-    total_orders bigint NOT NULL DEFAULT 0
-  );
-  ```
-- Inserir o valor atual: `INSERT INTO platform_counters (id, total_orders) SELECT 1, count(*) FROM orders;`
-- Criar trigger na tabela `orders` que incrementa `total_orders` a cada INSERT (nunca decrementa no DELETE)
-- Atualizar a função `get_total_order_count()` para ler de `platform_counters` em vez de `count(*)`
-- RLS: SELECT público, UPDATE/INSERT apenas por service_role
+Criar tabela `telegram_automations_log` para evitar envios duplicados:
+- `id`, `organization_id`, `event_type` (daily/weekly/open/close), `sent_at`, `ref_date`
+- Constraint unique em `(organization_id, event_type, ref_date)` para garantir idempotência
+- RLS: apenas service_role acessa
 
-**2. Trigger**
+**2. Edge Function `telegram-automations`**
 
-```sql
-CREATE FUNCTION increment_order_counter() RETURNS trigger AS $$
-BEGIN
-  UPDATE platform_counters SET total_orders = total_orders + 1 WHERE id = 1;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+Função chamada a cada minuto via pg_cron. Para cada organização com `telegram_chat_id` configurado:
 
-CREATE TRIGGER trg_increment_orders
-  AFTER INSERT ON orders
-  FOR EACH ROW EXECUTE FUNCTION increment_order_counter();
+- **Resumo diário (23:00 BRT)**: consulta pedidos do dia (`paid = true`), calcula total, faturamento, ticket médio, produto mais vendido. Envia mensagem formatada.
+- **Resumo semanal (dom 23:05 BRT)**: mesma lógica mas para 7 dias, com comparativo dos 7 dias anteriores (ex: "📈 +15% vs semana passada").
+- **Abertura**: lê `business_hours`, identifica o `from` do dia atual. Se horário atual = `from` (mesma hora e minuto), envia "🟢 Loja aberta!".
+- **Fechamento**: se horário atual está a 10 min do `to`, envia "🔴 Loja fecha em 10 minutos".
+- Antes de enviar, verifica na `telegram_automations_log` se já enviou para aquele org/evento/data.
+
+**3. Agendar cron job**
+
+Usar `pg_cron` + `pg_net` para chamar a edge function a cada minuto (via SQL insert, não migração).
+
+**4. Atualizar TelegramTab**
+
+Adicionar seção informativa mostrando as automações ativas:
+- "Você receberá automaticamente: resumo diário às 23h, resumo semanal aos domingos, avisos de abertura e fechamento."
+
+### Exemplo de mensagens
+
+**Resumo diário:**
+```
+📊 Resumo do dia — 11/04/2026
+
+🛒 Pedidos: 47
+💰 Faturamento: R$ 3.240,00
+🎫 Ticket médio: R$ 68,94
+⭐ Mais vendido: X-Bacon (23 un.)
 ```
 
-**3. Nenhuma mudança no frontend**
+**Abertura:**
+```
+🟢 Sua loja está aberta! Boas vendas hoje.
+```
 
-O `Index.tsx` já chama `get_total_order_count()` — só a função muda internamente. O contador nunca mais vai diminuir.
+**Pré-fechamento:**
+```
+🔴 Sua loja fecha em 10 minutos (às 23:00).
+```
+
+### Detalhes técnicos
+
+- A edge function processa todas as orgs em batch (query única para orgs com `telegram_chat_id IS NOT NULL`)
+- Horários calculados em BRT (GMT-3) consistente com `storeStatus.ts`
+- A função roda em menos de 10s por execução (sem long polling)
+- Nenhuma mudança no frontend além do texto informativo no TelegramTab
 
