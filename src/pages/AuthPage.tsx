@@ -498,19 +498,19 @@ const AuthPage = () => {
               </Button>
             </form>
           ) : (
-          <Tabs defaultValue="signup">
+          <Tabs defaultValue="login">
             <TabsList className="w-full h-11 bg-muted/60 rounded-xl p-1 grid grid-cols-2 mb-8">
-              <TabsTrigger
-                value="signup"
-                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
-              >
-                Criar conta
-              </TabsTrigger>
               <TabsTrigger
                 value="login"
                 className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
               >
                 Entrar
+              </TabsTrigger>
+              <TabsTrigger
+                value="signup"
+                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Criar conta
               </TabsTrigger>
             </TabsList>
 
