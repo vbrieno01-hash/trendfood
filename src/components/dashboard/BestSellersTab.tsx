@@ -97,11 +97,38 @@ export default function BestSellersTab({ orgId }: BestSellersTabProps) {
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando dados…</p>
       ) : ranked.length === 0 ? (
         <div className="text-center py-16 dashboard-glass rounded-2xl">
-          <p className="text-4xl mb-3">📊</p>
+          <div className="relative mx-auto w-24 h-24 mb-3">
+            <div className="animate-[float_3s_ease-in-out_infinite]">
+              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-24 h-24">
+                <circle cx="60" cy="60" r="50" fill="url(#chartGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
+                <rect x="28" y="70" width="14" height="24" rx="3" fill="hsl(var(--primary))" opacity="0.3" className="animate-[barGrow1_2s_ease-out_infinite]" style={{transformOrigin: '35px 94px'}} />
+                <rect x="48" y="45" width="14" height="49" rx="3" fill="hsl(var(--primary))" opacity="0.5" className="animate-[barGrow2_2s_ease-out_0.2s_infinite]" style={{transformOrigin: '55px 94px'}} />
+                <rect x="68" y="30" width="14" height="64" rx="3" fill="hsl(var(--primary))" opacity="0.7" className="animate-[barGrow3_2s_ease-out_0.4s_infinite]" style={{transformOrigin: '75px 94px'}} />
+                <rect x="88" y="55" width="14" height="39" rx="3" fill="hsl(var(--primary))" opacity="0.4" className="animate-[barGrow1_2s_ease-out_0.6s_infinite]" style={{transformOrigin: '95px 94px'}} />
+                <path d="M32 68 L55 42 L75 28 L95 52" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" className="animate-[lineTrace_2s_ease-out_0.5s_infinite]" strokeDasharray="120" strokeDashoffset="120" />
+                <circle cx="95" cy="25" r="2" fill="#facc15" className="animate-[sparkle_2s_ease-in-out_infinite]" />
+                <circle cx="22" cy="45" r="1.5" fill="#facc15" className="animate-[sparkle_2s_ease-in-out_0.7s_infinite]" />
+                <defs>
+                  <radialGradient id="chartGlow" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
           <p className="font-semibold text-foreground">Nenhum dado disponível.</p>
           <p className="text-muted-foreground text-sm mt-1">
             Os itens mais vendidos aparecerão aqui conforme os pedidos forem finalizados.
           </p>
+          <style>{`
+            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+            @keyframes barGrow1 { 0% { transform: scaleY(0); } 40%, 100% { transform: scaleY(1); } }
+            @keyframes barGrow2 { 0% { transform: scaleY(0); } 40%, 100% { transform: scaleY(1); } }
+            @keyframes barGrow3 { 0% { transform: scaleY(0); } 40%, 100% { transform: scaleY(1); } }
+            @keyframes lineTrace { 0% { stroke-dashoffset: 120; } 50%, 100% { stroke-dashoffset: 0; } }
+            @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1.3); } }
+          `}</style>
         </div>
       ) : (
         <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-slide-up">

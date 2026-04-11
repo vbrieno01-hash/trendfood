@@ -289,9 +289,35 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando histórico…</p>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 dashboard-glass rounded-2xl">
-          <p className="text-4xl mb-3">📋</p>
+          <div className="relative mx-auto w-24 h-24 mb-3">
+            <div className="animate-[float_3s_ease-in-out_infinite]">
+              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-24 h-24">
+                <circle cx="60" cy="60" r="50" fill="url(#clipGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
+                <rect x="36" y="20" width="48" height="70" rx="6" fill="hsl(var(--primary))" opacity="0.15" />
+                <rect x="40" y="24" width="40" height="62" rx="4" fill="hsl(var(--primary))" opacity="0.25" />
+                <rect x="46" y="14" width="28" height="14" rx="4" fill="hsl(var(--primary))" opacity="0.6" />
+                <line x1="48" y1="42" x2="72" y2="42" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+                <line x1="48" y1="52" x2="68" y2="52" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
+                <line x1="48" y1="62" x2="64" y2="62" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+                <g className="animate-[scanMove_3s_ease-in-out_infinite]">
+                  <circle cx="82" cy="82" r="14" stroke="hsl(var(--primary))" strokeWidth="3" fill="hsl(var(--primary))" fillOpacity="0.1" />
+                  <line x1="92" y1="92" x2="102" y2="102" stroke="hsl(var(--primary))" strokeWidth="3.5" strokeLinecap="round" />
+                </g>
+                <defs>
+                  <radialGradient id="clipGlow" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
           <p className="font-semibold text-foreground">Nenhum pedido encontrado.</p>
           <p className="text-muted-foreground text-sm mt-1">Tente ajustar os filtros.</p>
+          <style>{`
+            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+            @keyframes scanMove { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-4px, -4px); } }
+          `}</style>
         </div>
       ) : (
         <div className="space-y-3">

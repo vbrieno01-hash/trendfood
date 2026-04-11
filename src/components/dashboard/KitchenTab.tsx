@@ -417,9 +417,36 @@ export default function KitchenTab({
         <p className="text-muted-foreground animate-pulse text-center py-12">Carregando pedidos…</p>
       ) : orders.length === 0 ? (
         <div className="text-center py-20">
-          <p className="text-5xl mb-4">✅</p>
+          <div className="relative mx-auto w-28 h-28 mb-4">
+            <div className="animate-[float_3s_ease-in-out_infinite]">
+              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-28 h-28">
+                <circle cx="60" cy="60" r="50" fill="url(#checkGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
+                <circle cx="60" cy="60" r="36" fill="#22c55e" opacity="0.15" />
+                <circle cx="60" cy="60" r="28" fill="#22c55e" />
+                <path d="M44 60 L54 70 L76 48" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="animate-[checkDraw_1.5s_ease-out_infinite]" />
+                <circle cx="30" cy="35" r="3" fill="#22c55e" className="animate-[confetti1_2s_ease-in-out_infinite]" />
+                <circle cx="90" cy="30" r="2.5" fill="#86efac" className="animate-[confetti2_2s_ease-in-out_0.3s_infinite]" />
+                <circle cx="95" cy="70" r="2" fill="#22c55e" className="animate-[confetti1_2s_ease-in-out_0.6s_infinite]" />
+                <circle cx="25" cy="75" r="2.5" fill="#86efac" className="animate-[confetti2_2s_ease-in-out_0.9s_infinite]" />
+                <rect x="85" y="45" width="4" height="4" rx="1" fill="#bbf7d0" className="animate-[confetti1_2s_ease-in-out_1.2s_infinite]" transform="rotate(45 87 47)" />
+                <rect x="35" y="90" width="3" height="3" rx="1" fill="#22c55e" className="animate-[confetti2_2s_ease-in-out_0.5s_infinite]" transform="rotate(30 36 91)" />
+                <defs>
+                  <radialGradient id="checkGlow" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.2" />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
           <p className="font-semibold text-foreground text-lg">Nenhum pedido pendente!</p>
           <p className="text-muted-foreground text-sm mt-1">Novos pedidos aparecerão aqui automaticamente.</p>
+          <style>{`
+            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+            @keyframes checkDraw { 0% { stroke-dashoffset: 50; stroke-dasharray: 50; } 40%, 100% { stroke-dashoffset: 0; stroke-dasharray: 50; } }
+            @keyframes confetti1 { 0%, 100% { opacity: 0; transform: scale(0.5) translateY(0); } 50% { opacity: 1; transform: scale(1.2) translateY(-6px); } }
+            @keyframes confetti2 { 0%, 100% { opacity: 0; transform: scale(0.5) translateY(0); } 50% { opacity: 0.8; transform: scale(1.1) translateY(-4px); } }
+          `}</style>
         </div>
       ) : (
         <>
