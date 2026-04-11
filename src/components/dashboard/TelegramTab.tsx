@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Send, MessageCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Send, MessageCircle, CheckCircle2, Bell, Clock, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function TelegramTab({ orgId }: { orgId: string }) {
@@ -145,6 +145,51 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
           )}
         </div>
       </div>
+
+      {/* Automações */}
+      {telegramChatId.trim() && (
+        <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in">
+          <div className="px-5 py-4 border-b border-border/40 bg-muted/30 flex items-center gap-2">
+            <Bell className="w-4 h-4 text-primary" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Automações Ativas</p>
+          </div>
+          <div className="px-5 py-5 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Com o Chat ID configurado, você recebe automaticamente:
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-start gap-3">
+                <BarChart3 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Resumo diário às 23h</p>
+                  <p className="text-xs text-muted-foreground">Total de pedidos, faturamento, ticket médio e produto mais vendido</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <BarChart3 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Resumo semanal aos domingos</p>
+                  <p className="text-xs text-muted-foreground">Mesmos dados + comparativo com a semana anterior</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Clock className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Aviso de abertura</p>
+                  <p className="text-xs text-muted-foreground">Mensagem quando a loja abre conforme o horário configurado</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Clock className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Aviso de fechamento</p>
+                  <p className="text-xs text-muted-foreground">10 minutos antes do horário de fechar</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

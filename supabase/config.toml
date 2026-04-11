@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.test-telegram]
 verify_jwt = false
+
+[functions.telegram-automations]
+verify_jwt = false
