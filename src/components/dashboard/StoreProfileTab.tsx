@@ -577,6 +577,185 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         </div>
       </div>
 
+      {/* ── SEÇÃO 2.5: Tema Visual ────────────────────────────────── */}
+      <div>
+        <SectionHeader>Tema Visual</SectionHeader>
+
+        {/* Secondary color */}
+        <div className="mb-5">
+          <Label className="text-sm font-medium">Cor secundária (textos de destaque)</Label>
+          <div className="flex items-center gap-3 mt-2">
+            <input
+              type="color"
+              value={themeConfig.secondary_color || "#1e293b"}
+              onChange={(e) => setThemeConfig((p) => ({ ...p, secondary_color: e.target.value }))}
+              className="h-9 w-14 rounded-lg border border-border cursor-pointer"
+            />
+            <Input
+              value={themeConfig.secondary_color || "#1e293b"}
+              onChange={(e) => setThemeConfig((p) => ({ ...p, secondary_color: e.target.value }))}
+              className="w-32 h-9"
+              placeholder="#1e293b"
+            />
+          </div>
+        </div>
+
+        {/* Header style */}
+        <div className="mb-5">
+          <Label className="text-sm font-medium">Estilo do cabeçalho</Label>
+          <div className="flex gap-2 mt-2">
+            {(["solid", "transparent", "gradient"] as const).map((style) => (
+              <button
+                key={style}
+                type="button"
+                onClick={() => setThemeConfig((p) => ({ ...p, header_style: style }))}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                  (themeConfig.header_style || "solid") === style
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                {style === "solid" ? "Sólido" : style === "transparent" ? "Transparente" : "Gradiente"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Button style */}
+        <div className="mb-5">
+          <Label className="text-sm font-medium">Estilo dos botões</Label>
+          <div className="flex gap-2 mt-2">
+            {(["rounded", "pill", "square"] as const).map((style) => (
+              <button
+                key={style}
+                type="button"
+                onClick={() => setThemeConfig((p) => ({ ...p, button_style: style }))}
+                className={`px-4 py-2 text-xs font-semibold border transition-all ${
+                  (themeConfig.button_style || "rounded") === style
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+                style={{
+                  borderRadius: style === "pill" ? "9999px" : style === "square" ? "4px" : "8px",
+                }}
+              >
+                {style === "rounded" ? "Arredondado" : style === "pill" ? "Pill" : "Quadrado"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Card style */}
+        <div className="mb-5">
+          <Label className="text-sm font-medium">Estilo dos cards</Label>
+          <div className="flex gap-2 mt-2">
+            {(["flat", "shadow", "bordered"] as const).map((style) => (
+              <button
+                key={style}
+                type="button"
+                onClick={() => setThemeConfig((p) => ({ ...p, card_style: style }))}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                  (themeConfig.card_style || "shadow") === style
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                {style === "flat" ? "Flat" : style === "shadow" ? "Sombra" : "Bordas"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Font */}
+        <div className="mb-5">
+          <Label className="text-sm font-medium">Fonte</Label>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            {([
+              { key: "default", label: "Padrão", family: "inherit" },
+              { key: "modern", label: "Moderna", family: "'Inter', sans-serif" },
+              { key: "classic", label: "Clássica", family: "'Merriweather', serif" },
+              { key: "playful", label: "Divertida", family: "'Nunito', sans-serif" },
+            ] as const).map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setThemeConfig((p) => ({ ...p, font: f.key }))}
+                className={`px-4 py-3 rounded-lg text-sm font-semibold border transition-all ${
+                  (themeConfig.font || "default") === f.key
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+                style={{ fontFamily: f.family }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Theme preview */}
+        <div className="rounded-xl border border-border overflow-hidden">
+          <div
+            className="h-10 flex items-center px-4"
+            style={{
+              backgroundColor: (themeConfig.header_style || "solid") === "gradient"
+                ? undefined
+                : (themeConfig.header_style || "solid") === "transparent"
+                ? "transparent"
+                : form.primary_color,
+              backgroundImage: (themeConfig.header_style || "solid") === "gradient"
+                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.secondary_color || "#1e293b"})`
+                : undefined,
+              borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${form.primary_color}` : undefined,
+            }}
+          >
+            <span
+              className="text-sm font-bold drop-shadow"
+              style={{
+                color: (themeConfig.header_style || "solid") === "transparent" ? form.primary_color : "#fff",
+                fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
+                  : themeConfig.font === "classic" ? "'Merriweather', serif"
+                  : themeConfig.font === "playful" ? "'Nunito', sans-serif"
+                  : "inherit",
+              }}
+            >
+              {form.name || "Minha Lanchonete"}
+            </span>
+          </div>
+          <div className="bg-card p-3 flex items-center gap-3">
+            <button
+              type="button"
+              className="text-xs px-3 py-1.5 font-semibold text-white"
+              style={{
+                backgroundColor: form.primary_color,
+                borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "9999px"
+                  : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
+              }}
+            >
+              Pedir agora
+            </button>
+            <div
+              className={`text-xs px-3 py-1.5 bg-card ${
+                (themeConfig.card_style || "shadow") === "shadow" ? "shadow-md" :
+                (themeConfig.card_style || "shadow") === "bordered" ? "border-2 border-border" : ""
+              }`}
+              style={{
+                borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "12px"
+                  : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
+                color: themeConfig.secondary_color || "#1e293b",
+                fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
+                  : themeConfig.font === "classic" ? "'Merriweather', serif"
+                  : themeConfig.font === "playful" ? "'Nunito', sans-serif"
+                  : "inherit",
+              }}
+            >
+              R$ 19,90
+            </div>
+            <p className="text-xs text-muted-foreground ml-auto">Preview</p>
+          </div>
+        </div>
+      </div>
+
       {/* ── SEÇÃO 3: Contato ──────────────────────────────────────────── */}
       <div>
         <SectionHeader>Contato</SectionHeader>
