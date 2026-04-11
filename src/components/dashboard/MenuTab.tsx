@@ -932,14 +932,26 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       )}
 
       {/* Grouped items — compact list */}
-      {!isLoading && grouped.map((group, groupIndex) => (
-        <div key={group.value}>
+      {!isLoading && grouped.map((group, groupIndex) => {
+        const isPaused = localPausedCats.includes(group.value);
+        return (
+        <div key={group.value} className={isPaused ? "opacity-50" : ""}>
           <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
             <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               {group.value}
             </span>
             <span className="text-xs text-muted-foreground/60">({group.items.length})</span>
+            {isPaused && (
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">Pausada</span>
+            )}
             <div className="flex items-center gap-0.5 ml-1">
+              <button
+                onClick={() => togglePauseCategory(group.value)}
+                className="p-1 rounded hover:bg-accent transition-colors"
+                title={isPaused ? "Retomar categoria" : "Pausar categoria"}
+              >
+                {isPaused ? <Play className="w-4 h-4 text-primary" /> : <Pause className="w-4 h-4 text-muted-foreground" />}
+              </button>
               <button
                 onClick={() => moveCategoryOrder(groupIndex, "up")}
                 disabled={groupIndex === 0}
