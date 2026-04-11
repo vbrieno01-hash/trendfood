@@ -53,10 +53,11 @@ import ReviewsTab from "@/components/dashboard/ReviewsTab";
 import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
 import IFoodTab from "@/components/dashboard/IFoodTab";
+import TelegramTab from "@/components/dashboard/TelegramTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -549,6 +550,7 @@ const DashboardPage = () => {
       id: "integracoes", emoji: "🔗", title: "INTEGRAÇÕES",
       items: [
         { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood" },
+        { key: "telegram" as TabKey, icon: <Send className="w-4 h-4" />, label: "Telegram" },
       ],
     },
     {
@@ -1046,6 +1048,7 @@ const DashboardPage = () => {
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
           {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
+          {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
           </ErrorBoundary>
 
           {/* ── Rodapé institucional ─────────────────────────── */}
