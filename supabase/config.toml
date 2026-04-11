@@ -81,3 +81,5 @@ verify_jwt = false
 [functions.ifood-poll-events]
 verify_jwt = false
 
+[functions.test-telegram]
+verify_jwt = false
