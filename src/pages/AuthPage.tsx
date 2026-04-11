@@ -651,9 +651,6 @@ const AuthPage = () => {
                         />
                       </div>
                     </div>
-                        />
-                      </div>
-                    </div>
                   </div>
                 </div>
 
