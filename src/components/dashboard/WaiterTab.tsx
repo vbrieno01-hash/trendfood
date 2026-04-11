@@ -391,8 +391,25 @@ export default function WaiterTab({
 
         {!isLoading && unpaidOrders.length === 0 ? (
           <div className="text-center py-10 bg-card border border-border rounded-2xl">
-            <p className="text-3xl mb-2">✅</p>
-            <p className="font-semibold text-foreground text-sm">Tudo pago! Nenhuma conta em aberto.</p>
+              <div className="flex justify-center mb-3">
+                <div className="animate-[float_3s_ease-in-out_infinite]">
+                  <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-16 h-16">
+                    <defs>
+                      <radialGradient id="paidGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="hsl(142 71% 45% / 0.2)" />
+                        <stop offset="100%" stopColor="transparent" />
+                      </radialGradient>
+                    </defs>
+                    <circle cx="60" cy="60" r="56" fill="url(#paidGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
+                    <circle cx="60" cy="60" r="36" stroke="hsl(142 71% 45%)" strokeWidth="3" fill="hsl(142 71% 45% / 0.1)" />
+                    <path d="M42 60 L54 72 L78 48" stroke="hsl(142 71% 45%)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" style={{ strokeDasharray: 60, strokeDashoffset: 60, animation: 'paidCheck 0.6s ease-out 0.3s forwards' }} />
+                  </svg>
+                  <style>{`
+                    @keyframes paidCheck { to { stroke-dashoffset: 0; } }
+                  `}</style>
+                </div>
+              </div>
+              <p className="font-semibold text-foreground text-sm">Tudo pago! Nenhuma conta em aberto.</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
