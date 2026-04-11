@@ -919,7 +919,43 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       {/* Empty state */}
       {!isLoading && items.length === 0 && (
         <div className="border border-dashed border-border rounded-xl p-12 text-center">
-          <UtensilsCrossed className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+          <div className="flex justify-center mb-3">
+            <div className="relative" style={{ animation: 'float 3s ease-in-out infinite' }}>
+              <svg width="96" height="96" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="menuEmptyBg" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.10" />
+                    <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+                <circle cx="60" cy="60" r="52" fill="url(#menuEmptyBg)" style={{ animation: 'pulse 3s ease-in-out infinite' }} />
+                {/* Plate */}
+                <ellipse cx="60" cy="72" rx="34" ry="8" fill="hsl(var(--muted-foreground))" fillOpacity="0.08" />
+                <ellipse cx="60" cy="62" rx="30" ry="30" stroke="hsl(var(--muted-foreground))" strokeWidth="2" strokeOpacity="0.25" fill="none" />
+                <ellipse cx="60" cy="62" rx="22" ry="22" stroke="hsl(var(--muted-foreground))" strokeWidth="1.5" strokeOpacity="0.15" fill="none" />
+                {/* Fork - left */}
+                <g transform="translate(38, 30) rotate(-15, 10, 30)" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.45" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="10" y1="18" x2="10" y2="58" />
+                  <line x1="4" y1="18" x2="4" y2="32" />
+                  <line x1="10" y1="18" x2="10" y2="32" />
+                  <line x1="16" y1="18" x2="16" y2="32" />
+                  <line x1="4" y1="32" x2="16" y2="32" />
+                </g>
+                {/* Knife - right */}
+                <g transform="translate(62, 30) rotate(15, 10, 30)" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.45" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="10" y1="18" x2="10" y2="58" />
+                  <path d="M10 18 Q18 25 14 35 L10 35" fill="hsl(var(--muted-foreground))" fillOpacity="0.15" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.45" strokeWidth="2" />
+                </g>
+                {/* Sparkles */}
+                <circle cx="88" cy="28" r="2" fill="hsl(var(--muted-foreground))" fillOpacity="0.3" style={{ animation: 'pulse 2s ease-in-out infinite' }} />
+                <circle cx="30" cy="24" r="1.5" fill="hsl(var(--muted-foreground))" fillOpacity="0.25" style={{ animation: 'pulse 2.5s ease-in-out 0.5s infinite' }} />
+                <circle cx="95" cy="50" r="1.5" fill="hsl(var(--muted-foreground))" fillOpacity="0.2" style={{ animation: 'pulse 2s ease-in-out 1s infinite' }} />
+                <style>{`
+                  @keyframes float { 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-6px) } }
+                `}</style>
+              </svg>
+            </div>
+          </div>
           <h3 className="font-semibold text-foreground mb-1">Cardápio vazio</h3>
           <p className="text-muted-foreground text-sm mb-4">
             Adicione seus lanches, bebidas e porções para exibi-los na página pública.
