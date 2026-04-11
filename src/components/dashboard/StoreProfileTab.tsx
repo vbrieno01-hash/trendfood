@@ -669,12 +669,15 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         {/* Font */}
         <div className="mb-5">
           <Label className="text-sm font-medium">Fonte</Label>
-          <div className="grid grid-cols-2 gap-2 mt-2">
+          <div className="grid grid-cols-3 gap-2 mt-2">
             {([
               { key: "default", label: "Padrão", family: "inherit" },
               { key: "modern", label: "Moderna", family: "'Inter', sans-serif" },
               { key: "classic", label: "Clássica", family: "'Merriweather', serif" },
               { key: "playful", label: "Divertida", family: "'Nunito', sans-serif" },
+              { key: "roboto", label: "Roboto", family: "'Roboto', sans-serif" },
+              { key: "poppins", label: "Poppins", family: "'Poppins', sans-serif" },
+              { key: "opensans", label: "Open Sans", family: "'Open Sans', sans-serif" },
             ] as const).map((f) => (
               <button
                 key={f.key}
@@ -716,6 +719,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
+                  : themeConfig.font === "roboto" ? "'Roboto', sans-serif"
+                  : themeConfig.font === "poppins" ? "'Poppins', sans-serif"
+                  : themeConfig.font === "opensans" ? "'Open Sans', sans-serif"
                   : "inherit",
               }}
             >
@@ -746,6 +752,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
+                  : themeConfig.font === "roboto" ? "'Roboto', sans-serif"
+                  : themeConfig.font === "poppins" ? "'Poppins', sans-serif"
+                  : themeConfig.font === "opensans" ? "'Open Sans', sans-serif"
                   : "inherit",
               }}
             >

@@ -34,7 +34,7 @@ export interface ThemeConfig {
   header_style?: "solid" | "transparent" | "gradient";
   button_style?: "rounded" | "pill" | "square";
   card_style?: "flat" | "shadow" | "bordered";
-  font?: "default" | "modern" | "classic" | "playful";
+  font?: "default" | "modern" | "classic" | "playful" | "roboto" | "poppins" | "opensans";
 }
 
 export interface Organization {

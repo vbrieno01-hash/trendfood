@@ -15,6 +15,8 @@ interface PixPaymentScreenProps {
   onCancel: () => void;
   /** Pre-created order ID */
   orderId: string;
+  fontFamily?: string;
+  buttonRadius?: string;
 }
 
 const EXPIRY_SECONDS = 600; // 10 minutes
@@ -28,6 +30,8 @@ export default function PixPaymentScreen({
   onSuccess,
   onCancel,
   orderId,
+  fontFamily,
+  buttonRadius,
 }: PixPaymentScreenProps) {
   const { toast } = useToast();
   const { createCharge, loading: chargeLoading, error: chargeError, data: chargeData } = useCreatePixCharge();
@@ -137,13 +141,13 @@ export default function PixPaymentScreen({
 
   if (expired) {
     return (
-      <div className="flex flex-col items-center gap-4 py-8 px-4 text-center">
+      <div className="flex flex-col items-center gap-4 py-8 px-4 text-center" style={{ fontFamily }}>
         <AlertCircle className="w-12 h-12 text-destructive" />
         <h3 className="text-lg font-bold text-foreground">Tempo esgotado</h3>
         <p className="text-sm text-muted-foreground">
           O prazo para pagamento expirou. Tente novamente.
         </p>
-        <Button variant="outline" onClick={onCancel}>Voltar</Button>
+        <Button variant="outline" onClick={onCancel} style={{ borderRadius: buttonRadius }}>Voltar</Button>
       </div>
     );
   }
@@ -161,11 +165,11 @@ export default function PixPaymentScreen({
   // Gateway error — no fallback, show error and back button
   if (hasGateway && chargeError && !chargeData) {
     return (
-      <div className="flex flex-col items-center gap-4 py-8 px-4 text-center">
+      <div className="flex flex-col items-center gap-4 py-8 px-4 text-center" style={{ fontFamily }}>
         <AlertCircle className="w-10 h-10 text-destructive" />
         <h3 className="text-base font-bold text-foreground">Erro ao gerar cobrança</h3>
         <p className="text-sm text-muted-foreground">{chargeError}</p>
-        <Button variant="outline" onClick={onCancel}>Voltar</Button>
+        <Button variant="outline" onClick={onCancel} style={{ borderRadius: buttonRadius }}>Voltar</Button>
       </div>
     );
   }
@@ -173,19 +177,19 @@ export default function PixPaymentScreen({
   // No pix key and no gateway data
   if (!pixCopiaECola && !qrCodeBase64) {
     return (
-      <div className="flex flex-col items-center gap-4 py-8 px-4 text-center">
+      <div className="flex flex-col items-center gap-4 py-8 px-4 text-center" style={{ fontFamily }}>
         <AlertCircle className="w-10 h-10 text-muted-foreground" />
         <h3 className="text-base font-bold text-foreground">PIX não configurado</h3>
         <p className="text-sm text-muted-foreground">
           A loja ainda não configurou uma chave PIX. Entre em contato pelo WhatsApp.
         </p>
-        <Button variant="outline" onClick={onCancel}>Voltar</Button>
+        <Button variant="outline" onClick={onCancel} style={{ borderRadius: buttonRadius }}>Voltar</Button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-5 py-4 px-4">
+    <div className="flex flex-col items-center gap-5 py-4 px-4" style={{ fontFamily }}>
       {/* Amount */}
       <div className="text-center">
         <p className="text-sm text-muted-foreground">Valor a pagar</p>
@@ -228,6 +232,7 @@ export default function PixPaymentScreen({
             size="sm"
             className="w-full gap-2"
             onClick={handleCopy}
+            style={{ borderRadius: buttonRadius }}
           >
             {copied ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
             {copied ? "Copiado!" : "Copiar código"}
@@ -241,7 +246,7 @@ export default function PixPaymentScreen({
         Aguardando pagamento...
       </div>
 
-      <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+      <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground" style={{ borderRadius: buttonRadius }}>
         Cancelar
       </Button>
     </div>
