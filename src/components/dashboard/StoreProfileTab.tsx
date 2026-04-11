@@ -675,6 +675,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               { key: "modern", label: "Moderna", family: "'Inter', sans-serif" },
               { key: "classic", label: "Clássica", family: "'Merriweather', serif" },
               { key: "playful", label: "Divertida", family: "'Nunito', sans-serif" },
+              { key: "roboto", label: "Roboto", family: "'Roboto', sans-serif" },
+              { key: "poppins", label: "Poppins", family: "'Poppins', sans-serif" },
+              { key: "opensans", label: "Open Sans", family: "'Open Sans', sans-serif" },
             ] as const).map((f) => (
               <button
                 key={f.key}
