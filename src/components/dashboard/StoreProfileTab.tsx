@@ -161,7 +161,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }, 1500);
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, businessHours, addressFields, freeAbove]);
+  }, [form, businessHours, addressFields, freeAbove, themeConfig]);
 
   const doSave = async () => {
     const whatsappDigits = form.whatsapp.replace(/\D/g, "");
@@ -179,6 +179,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         pix_key: form.pix_key || null,
         pix_confirmation_mode: form.pix_confirmation_mode,
         business_hours: businessHours as unknown as never,
+        theme_config: themeConfig as unknown as never,
       };
 
       // Campos específicos de cada loja (NÃO compartilhar entre unidades)
