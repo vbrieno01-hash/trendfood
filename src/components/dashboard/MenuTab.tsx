@@ -1046,7 +1046,8 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
             ))}
           </div>
         </div>
-      ))}
+      );
+      })}
 
       {/* Add/Edit Modal — pure React, no Radix Portal */}
       {modalOpen && (
