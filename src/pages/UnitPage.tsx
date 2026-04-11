@@ -1016,7 +1016,8 @@ const UnitPage = () => {
                             <div
                               key={item.id}
                               onClick={() => { if (item.available) { pushDrawerState("item"); setSelectedItem(item); } }}
-                              className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200 ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
+                              style={{ borderRadius: cardRadius }}
                             >
                               {/* Foto quadrada + badge de qty */}
                               <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center overflow-hidden">
