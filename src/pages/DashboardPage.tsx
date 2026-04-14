@@ -20,7 +20,7 @@ import {
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
-  ChevronDown, Calculator, Send,
+  ChevronDown, Calculator, Send, ShoppingCart,
   Star,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -54,10 +54,11 @@ import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
 import IFoodTab from "@/components/dashboard/IFoodTab";
 import TelegramTab from "@/components/dashboard/TelegramTab";
+import CounterTab from "@/components/dashboard/CounterTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "counter";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -521,6 +522,7 @@ const DashboardPage = () => {
     {
       id: "operacional", emoji: "⚡", title: "OPERACIONAL",
       items: [
+        { key: "counter" as TabKey, icon: <ShoppingCart className="w-4 h-4" />, label: "Balcão" },
         { key: "tables" as TabKey, icon: <TableProperties className="w-4 h-4" />, label: "Mesas & Comandas" },
         { key: "operations" as TabKey, icon: <Flame className="w-4 h-4" />, label: "Cozinha & Pedidos", locked: lockedFeatures.kitchen || lockedFeatures.waiter },
         { key: "courier" as TabKey, icon: <Bike className="w-4 h-4" />, label: "Motoboys" },
@@ -1049,6 +1051,7 @@ const DashboardPage = () => {
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
           {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
+          {activeTab === "counter" && <CounterTab orgId={organization.id} />}
           </ErrorBoundary>
 
           {/* ── Rodapé institucional ─────────────────────────── */}
