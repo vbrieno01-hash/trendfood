@@ -155,7 +155,7 @@ export default function WaiterTab({
   return (
     <div className="space-y-8 max-w-4xl">
       {/* ── SEÇÃO: Aguardando Pagamento PIX (modo manual) ─────────── */}
-      {showAwaitingSection && (
+      {showPixSection && (
         <div className="space-y-4 animate-dashboard-fade-in">
           <div className="flex items-center gap-3">
             <div className="dashboard-section-icon !bg-orange-500">
