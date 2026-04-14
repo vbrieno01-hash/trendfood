@@ -307,7 +307,7 @@ const DashboardPage = () => {
           playBell();
 
           if (notificationsRef.current) {
-            const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+            const tableLabel = order.table_number === -1 ? "Balcão" : order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
             if (typeof Notification !== "undefined" && Notification.permission === "granted") {
               new Notification(`🔔 Novo pedido! ${tableLabel}`, {
                 icon: "/pwa-192.png",

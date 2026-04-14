@@ -93,6 +93,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
   const filtered = orders.filter((order) => {
     if (typeFilter === "store" && order.table_number === 0) return false;
     if (typeFilter === "delivery" && order.table_number !== 0) return false;
+    // Note: balcão (table_number === -1) counts as "store" for filtering
     if (paidFilter === "paid" && !order.paid) return false;
     if (paidFilter === "unpaid" && order.paid) return false;
     if (search.trim()) {
@@ -150,7 +151,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                 const rows = filtered.map((order) => {
                   const total = orderTotal(order);
                   const items = (order.order_items ?? []).map((i) => `${i.quantity}x ${i.name}`).join("; ");
-                  const mesa = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+                  const mesa = order.table_number === -1 ? "Balcão" : order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
                   const pago = order.paid ? "Pago" : "Não pago";
                   const date = new Date(order.created_at).toLocaleString("pt-BR");
                   const obs = (order.notes || "").replace(/,/g, ";").replace(/\n/g, " ");
@@ -275,7 +276,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
           </div>
           <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-3">
             <p className="text-xs text-muted-foreground">🍽️ Loja</p>
-            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number > 0).length}</p>
+            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number !== 0).length}</p>
           </div>
           <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-4">
             <p className="text-xs text-muted-foreground">🛵 Entregas</p>
@@ -334,7 +335,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                       <Receipt className="w-4 h-4 text-muted-foreground" />
                       <span className="font-bold text-foreground">
                         {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
-                        {order.table_number === 0 ? "🛵 Entrega" : `Mesa ${order.table_number}`}
+                        {order.table_number === -1 ? "🛒 Balcão" : order.table_number === 0 ? "🛵 Entrega" : `Mesa ${order.table_number}`}
                       </span>
                     </div>
                     {order.paid ? (

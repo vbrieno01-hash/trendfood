@@ -95,7 +95,7 @@ const CounterTab = ({ orgId }: CounterTabProps) => {
     try {
       await placeOrder.mutateAsync({
         organizationId: orgId,
-        tableNumber: 0,
+        tableNumber: -1,
         notes: notes.trim(),
         items: cart,
         initialStatus: "pending",

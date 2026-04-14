@@ -223,6 +223,7 @@ export default function KitchenPage() {
             if (order && order.table_number === 0) {
               createDeliveryForOrder(order, org?.id ?? "", org?.store_address, org?.courier_config);
             }
+            // Note: table_number === -1 (balcão) does NOT create delivery
             // WhatsApp notification for order ready
             if (order) {
               const phone = parsePhoneFromNotes(order.notes);
@@ -321,7 +322,7 @@ export default function KitchenPage() {
               pendingPrintIds.current.add(order.id);
             }
             if (notificationsRef.current && Notification.permission === "granted") {
-              const tableLabel = order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
+              const tableLabel = order.table_number === -1 ? "Balcão" : order.table_number === 0 ? "Entrega" : `Mesa ${order.table_number}`;
               new Notification(`🔔 Novo pedido! ${tableLabel}`, {
                 icon: "/pwa-192.png",
                 badge: "/pwa-192.png",
@@ -504,7 +505,7 @@ export default function KitchenPage() {
                               </span>
                               <span className="font-bold text-foreground text-lg">
                                 {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
-                                {order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
+                                {order.table_number === -1 ? "🛒 BALCÃO" : order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
                               </span>
                               {(order as any).payment_method && (order as any).payment_method !== "pending" && (
                                 <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
@@ -629,7 +630,7 @@ export default function KitchenPage() {
                               </span>
                               <span className="font-bold text-foreground text-lg">
                                 {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
-                                {order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
+                                {order.table_number === -1 ? "🛒 BALCÃO" : order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
                               </span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
