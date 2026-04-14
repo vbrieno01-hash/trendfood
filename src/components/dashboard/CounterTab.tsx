@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Minus, Trash2, ShoppingCart, Banknote, CreditCard, QrCode, Send } from "lucide-react";
-import { useOrganization } from "@/hooks/useOrganization";
 
 interface CartItem {
   menu_item_id: string;
@@ -23,7 +22,6 @@ interface CounterTabProps {
 
 const CounterTab = ({ orgId }: CounterTabProps) => {
   const { data: items = [], isLoading } = useMenuItems(orgId);
-  const { data: org } = useOrganization(orgId);
   const placeOrder = usePlaceOrder();
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -34,8 +32,8 @@ const CounterTab = ({ orgId }: CounterTabProps) => {
   const availableItems = useMemo(() => items.filter((i) => i.available), [items]);
 
   const categoryOrder = useMemo(
-    () => buildCategoryOrder(availableItems, (org as any)?.category_order),
-    [availableItems, org]
+    () => buildCategoryOrder(availableItems),
+    [availableItems]
   );
 
   const filteredItems = useMemo(() => {
