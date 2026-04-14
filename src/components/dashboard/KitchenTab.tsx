@@ -786,6 +786,15 @@ export default function KitchenTab({
           </DialogContent>
         </Dialog>
       )}
+
+      {editingOrder && (
+        <EditOrderDialog
+          open={!!editingOrder}
+          onOpenChange={(open) => { if (!open) setEditingOrder(null); }}
+          order={editingOrder}
+          orgId={orgId}
+        />
+      )}
     </div>
   );
 }
