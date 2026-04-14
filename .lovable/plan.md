@@ -1,20 +1,22 @@
 
 
-## Corrigir filtro de itens no Balcão
+## Ocultar itens indisponíveis da vitrine pública
 
 ### Problema
-A aba Balcão filtra apenas por `item.available`, mas ignora:
-1. **`available_days`** — itens com dias específicos aparecem mesmo fora do dia configurado
-2. **`paused_categories`** — categorias pausadas continuam visíveis
-
-Isso faz a lista ficar enorme com itens que não deveriam aparecer.
+Itens com `available = false` aparecem na loja pública (UnitPage) com label "Indisponível" e opacidade reduzida, em vez de serem completamente ocultos. O mesmo ocorre com itens cujo estoque está zerado.
 
 ### Solução
-Em `src/components/dashboard/CounterTab.tsx`, atualizar o filtro `availableItems` para incluir as mesmas regras da vitrine pública (UnitPage):
-
-1. **Filtrar por `available_days`**: usar a mesma lógica de dia da semana (fuso Brasília) já presente em `UnitPage.tsx`
-2. **Filtrar por `paused_categories`**: receber a org e checar `paused_categories` para ocultar categorias pausadas
+Adicionar filtro `i.available === true` no `filteredMenuItems` do `UnitPage.tsx`, antes dos filtros de dia e busca. Isso remove completamente os itens desativados da vitrine.
 
 ### Arquivo alterado
-- `src/components/dashboard/CounterTab.tsx` — adicionar filtros de `available_days` e `paused_categories` no `useMemo` de `availableItems`
+**`src/pages/UnitPage.tsx`**
+1. No `filteredMenuItems` (linha ~792), adicionar `if (!i.available) return false;` como primeira verificação
+2. Remover o código de renderização do label "Indisponível" e a lógica de opacidade (`opacity-60`), já que itens desativados nunca serão exibidos
+3. Remover o guard `if (item.available)` no botão de adicionar ao carrinho (não será mais necessário)
+
+### Verificação
+- `available === false` → item oculto
+- `available_days` não inclui hoje → item oculto
+- `paused_categories` → categoria inteira oculta (já funciona)
+- `available === true` + dia correto + categoria ativa → item visível
 
