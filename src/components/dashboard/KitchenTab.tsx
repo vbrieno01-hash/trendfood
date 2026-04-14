@@ -474,7 +474,7 @@ export default function KitchenTab({
                   {pendingOrders.length}
                 </span>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className={`grid gap-4 ${embedded ? '' : 'md:grid-cols-2'}`}>
                 {pendingOrders.map((order) => {
                   const isOrderNew = isNew(order.created_at);
                   const isOrderLoading = loadingIds.has(order.id);
@@ -623,7 +623,7 @@ export default function KitchenTab({
                   {preparingOrders.length} pedido{preparingOrders.length !== 1 ? "s" : ""}
                 </span>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className={`grid gap-4 ${embedded ? '' : 'md:grid-cols-2'}`}>
                 {preparingOrders.map((order) => {
                   const isOrderLoading = loadingIds.has(order.id);
                   return (
