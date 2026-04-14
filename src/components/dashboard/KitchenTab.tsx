@@ -501,35 +501,46 @@ export default function KitchenTab({
                             </span>
                           )}
                         </div>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Cancelar pedido"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Não</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => cancelOrder.mutate(order.id)}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title="Editar pedido"
+                            onClick={() => setEditingOrder(order)}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Cancelar pedido"
                               >
-                                Sim, cancelar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Cancelar pedido?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Deseja realmente cancelar este pedido? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Não</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => cancelOrder.mutate(order.id)}
+                                >
+                                  Sim, cancelar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
 
                       <ul className="space-y-1">
