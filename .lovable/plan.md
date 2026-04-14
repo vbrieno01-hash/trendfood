@@ -1,15 +1,18 @@
 
 
-## Remover quadrado interno dos estados vazios de Prontos e Pagamento
+## Adicionar animação suave nos cards de pedidos
 
 ### Problema
-Os painéis "Prontos" e "Pagamento" têm um card interno (`bg-card border border-border rounded-2xl`) nos estados vazios, criando um retângulo dentro do retângulo. O painel "Cozinha" não tem esse card extra — mostra o conteúdo direto.
+Os cards de pedidos no WaiterTab (Prontos, Pagamento, Aguardando Confirmação) não têm animação de entrada — aparecem abruptamente. O KitchenTab já usa `animate-dashboard-fade-in` nos cards pendentes, mas não de forma consistente.
 
-### Alteração
+### Alterações
 
-**`src/components/dashboard/WaiterTab.tsx`**
-- Linha 265: trocar `<div className="text-center py-12 bg-card border border-border rounded-2xl">` por `<div className="text-center py-20">` (igual ao Cozinha)
-- Linha 412: trocar `<div className="text-center py-10 bg-card border border-border rounded-2xl">` por `<div className="text-center py-20">` (igual ao Cozinha)
+**`src/components/dashboard/WaiterTab.tsx`** — Adicionar `animate-dashboard-fade-in` nos 3 tipos de cards:
+- Linha 177: adicionar classe `animate-dashboard-fade-in` no card de "Aguardando Confirmação"
+- Linha 303: adicionar classe `animate-dashboard-fade-in` no card de "Prontos para Entrega"  
+- Linha 443: adicionar classe `animate-dashboard-fade-in` no card de "Aguardando Pagamento"
 
-Isso remove o quadrado extra interno e padroniza com o visual do painel Cozinha.
+**`src/components/dashboard/KitchenTab.tsx`** — Garantir que os cards de "Preparando" (~linha 626) também tenham a animação (os pendentes já têm).
+
+A animação `animate-dashboard-fade-in` já existe no CSS (`admin-fade-in`: fade + slide up 0.5s) — só precisa aplicar a classe nos cards que faltam.
 
