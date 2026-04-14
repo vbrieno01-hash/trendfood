@@ -32,6 +32,7 @@ import {
 import { useAllGlobalAddons } from "@/hooks/useGlobalAddonsCrud";
 import { useGlobalAddonExclusions, useAddExclusion, useRemoveExclusion } from "@/hooks/useGlobalAddonExclusions";
 import GlobalAddonsSection from "@/components/dashboard/GlobalAddonsSection";
+import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
 
 interface Organization {
   id: string;

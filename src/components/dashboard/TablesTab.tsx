@@ -17,6 +17,7 @@ import {
   Copy, Trash2, QrCode, Grid3X3, Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
 
 interface Props { organization: Organization; tableLimit?: number | null }
 
