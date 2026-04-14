@@ -1,19 +1,21 @@
 
 
-## Botão rápido "Mover categoria" no card do item
+## Gerar PDF de Novidades do TrendFood
 
 ### O que será feito
-Adicionar um botão com ícone `ArrowUpDown` (já importado) na linha de ações de cada item do cardápio. Ao clicar, abre um pequeno popover/select com a lista de categorias disponíveis. Ao selecionar uma categoria diferente, o item é movido instantaneamente sem abrir o formulário completo.
+Criar um PDF profissional e visualmente atraente com as 4 melhorias recentes, pronto para compartilhar no grupo de donos via WhatsApp/Telegram.
 
-### Mudanças em `src/components/dashboard/MenuTab.tsx`
+### Conteúdo do PDF
+1. **Header** — Logo TrendFood + título "Novidades da Plataforma"
+2. **Busca rápida na sidebar** — Encontre qualquer aba do painel em segundos
+3. **Edição de pedidos** — Corrija pedidos sem cancelar e refazer
+4. **Pedidos de Balcão** — Agora identificados corretamente (não mais como "Entrega")
+5. **Mover categoria rápido** — Troque a categoria de um item com 2 cliques
+6. **Footer** — Data + branding TrendFood
 
-1. **Importar `Popover`/`PopoverTrigger`/`PopoverContent`** de `@/components/ui/popover`
-2. **Novo estado**: `moveCatTarget` — guarda o `item.id` cujo popover está aberto (ou `null`)
-3. **Botão na row de ações** (entre o botão Editar e o Duplicar, linha ~1053): ícone `ArrowUpDown`, abre popover com lista de categorias
-4. **Popover com lista de categorias**: mostra todas as categorias do `grouped` + as do `CATEGORIES`. Ao clicar numa categoria diferente da atual, chama `updateMutation.mutate` com a nova categoria e fecha o popover
-5. A categoria atual fica destacada (bold/check) na lista
-
-### Resultado
-- Um clique no ícone → popover com categorias → seleciona → item movido
-- Sem abrir modal de edição completa
+### Abordagem técnica
+- Script Python com `reportlab` gerando PDF em `/mnt/documents/novidades-trendfood.pdf`
+- Cores da marca (verde/escuro), ícones via emojis, layout limpo e moderno
+- Uma página, formato A4, pronto para compartilhar como imagem ou PDF
+- QA visual obrigatório após geração
 
