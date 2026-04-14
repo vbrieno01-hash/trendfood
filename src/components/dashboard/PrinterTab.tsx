@@ -12,6 +12,7 @@ import {
 import { Loader2, Printer, Download, Copy, Zap, AlertTriangle, FileText, Smartphone, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
+import FirstAccessBanner from "./FirstAccessBanner";
 import { getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrinter";
 
 interface PrinterTabProps {
@@ -145,6 +146,12 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
 
   return (
     <div className="space-y-6 max-w-lg">
+      <FirstAccessBanner
+        tabKey="printer"
+        title="Configure sua impressora em 3 passos!"
+        description="1️⃣ Escolha o modo de impressão · 2️⃣ Selecione a largura do papel · 3️⃣ Clique em 'Testar Impressora' para confirmar"
+      />
+
       {/* Header */}
       <div className="flex items-center gap-3 animate-dashboard-fade-in">
         <div className="dashboard-section-icon">
@@ -153,6 +160,33 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
         <div>
           <h1 className="text-xl font-bold text-foreground">Impressora Térmica</h1>
           <p className="text-muted-foreground text-sm">Configure o modo e hardware de impressão</p>
+        </div>
+      </div>
+
+      {/* Quick setup guide */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in">
+        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 text-primary" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Guia Rápido</p>
+        </div>
+        <div className="px-4 py-4 space-y-3">
+          {[
+            { step: "1", text: "Escolha o modo: Navegador (mais simples), Desktop (script externo) ou Bluetooth (celular)" },
+            { step: "2", text: "Selecione a largura do papel: 58mm (portátil) ou 80mm (balcão)" },
+            { step: "3", text: "Clique no botão abaixo para enviar um teste de impressão" },
+          ].map((item) => (
+            <div key={item.step} className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">{item.step}</span>
+              <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+            </div>
+          ))}
+          <Button
+            className="w-full gap-2 mt-2"
+            disabled={testPrintLoading}
+            onClick={handleTestPrint}
+          >
+            {testPrintLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Printer className="w-4 h-4" /> 🖨️ Testar Impressora Agora</>}
+          </Button>
         </div>
       </div>
 
