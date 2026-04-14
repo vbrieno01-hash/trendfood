@@ -1,20 +1,41 @@
 
 
-## Busca rápida na sidebar do Dashboard
+## Edição de Pedidos — Adicionar/Remover Itens
 
-### O que será feito
+### Problema
+Quando um pedido sai errado ou faltando algo, não há como editá-lo. O dono precisa cancelar e refazer do zero.
 
-Adicionar um campo de busca no topo da navegação da sidebar (logo abaixo do OrgSwitcher). Conforme o dono digita, os grupos e itens são filtrados em tempo real — mostrando apenas os que contêm o texto buscado (no label). Se o campo estiver vazio, tudo aparece normalmente.
+### Solução
+Adicionar um botão "Editar" nos pedidos (pending/preparing) que abre um drawer/dialog onde o dono pode:
+- Ver os itens atuais do pedido
+- Remover itens existentes
+- Adicionar novos itens do cardápio
+- Salvar as alterações
 
-### Mudanças em `src/pages/DashboardPage.tsx`
+### Mudanças
 
-1. **Novo estado**: `const [sidebarSearch, setSidebarSearch] = useState("")`
-2. **Campo de busca**: Inserir um `<input>` com ícone de lupa entre o OrgSwitcher (linha 781) e o `<nav>` (linha 784), estilizado para combinar com o fundo escuro da sidebar
-3. **Filtro dos grupos**: Dentro do `<nav>`, filtrar `sidebarGroups` para mostrar apenas grupos que tenham pelo menos um item cujo `label` contenha o texto digitado (case-insensitive). Dentro de cada grupo visível, filtrar os itens também. O botão "Home" sempre aparece se "home" bater na busca ou se o campo estiver vazio
-4. **Limpar busca ao trocar de aba**: No `handleTabChange`, limpar o campo (`setSidebarSearch("")`)
+**1. Hook `useOrders.ts` — novo mutation `useEditOrderItems`**
+- Recebe `orderId` + lista atualizada de itens
+- Deleta os `order_items` atuais do pedido
+- Insere os novos `order_items`
+- Invalida queries de pedidos
 
-### Resultado
-- Campo de busca discreto no topo da sidebar
-- Filtragem instantânea conforme digita
-- Encontra qualquer aba em segundos sem precisar rolar
+**2. Novo componente `src/components/dashboard/EditOrderDialog.tsx`**
+- Dialog/Drawer que recebe o pedido e o `orgId`
+- Lista os itens atuais com botões +/- e lixeira
+- Campo de busca para adicionar novos itens do cardápio (usa `useMenuItems`)
+- Botão "Salvar" que chama `useEditOrderItems`
+- Mostra o novo total atualizado
+
+**3. `KitchenTab.tsx` — botão "Editar" nos cards de pedido**
+- Adicionar ícone de edição (lápis) ao lado dos botões existentes (Imprimir, Aceitar, etc.)
+- Visível apenas em pedidos `pending` e `preparing`
+- Abre o `EditOrderDialog`
+
+### Fluxo
+1. Dono vê pedido errado na cozinha
+2. Clica no ícone de edição ✏️
+3. Dialog abre com itens atuais
+4. Remove o que está errado, adiciona o que falta
+5. Salva → itens atualizados no banco → cozinha atualiza em tempo real
 
