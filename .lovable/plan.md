@@ -1,22 +1,20 @@
 
 
-## Sidebar sempre aberta e rolável
+## Busca rápida na sidebar do Dashboard
 
-### Problema
-Os donos de loja têm dificuldade em encontrar as opções porque os grupos (OPERACIONAL, LOGÍSTICA, etc.) ficam colapsados em acordeão — precisam clicar para abrir e só um grupo abre por vez.
+### O que será feito
 
-### Solução
-Remover o comportamento de acordeão (Collapsible) e mostrar **todos os grupos sempre expandidos**. A sidebar já tem `overflow-y-auto`, então basta rolar para ver tudo.
+Adicionar um campo de busca no topo da navegação da sidebar (logo abaixo do OrgSwitcher). Conforme o dono digita, os grupos e itens são filtrados em tempo real — mostrando apenas os que contêm o texto buscado (no label). Se o campo estiver vazio, tudo aparece normalmente.
 
 ### Mudanças em `src/pages/DashboardPage.tsx`
 
-1. **Remover estado `openGroups`** e o `useEffect` que sincroniza grupo aberto com aba ativa (linhas 92, 572-581)
-2. **Substituir `Collapsible`/`CollapsibleTrigger`/`CollapsibleContent`** por divs simples — cada grupo mostra título + todos os itens sempre visíveis
-3. Manter os títulos dos grupos (⚡ OPERACIONAL, 📦 LOGÍSTICA, etc.) como headers visuais não-clicáveis
-4. Remover import de `Collapsible`, `CollapsibleContent`, `CollapsibleTrigger` e `ChevronDown` se não usados em outro lugar
+1. **Novo estado**: `const [sidebarSearch, setSidebarSearch] = useState("")`
+2. **Campo de busca**: Inserir um `<input>` com ícone de lupa entre o OrgSwitcher (linha 781) e o `<nav>` (linha 784), estilizado para combinar com o fundo escuro da sidebar
+3. **Filtro dos grupos**: Dentro do `<nav>`, filtrar `sidebarGroups` para mostrar apenas grupos que tenham pelo menos um item cujo `label` contenha o texto digitado (case-insensitive). Dentro de cada grupo visível, filtrar os itens também. O botão "Home" sempre aparece se "home" bater na busca ou se o campo estiver vazio
+4. **Limpar busca ao trocar de aba**: No `handleTabChange`, limpar o campo (`setSidebarSearch("")`)
 
 ### Resultado
-- Todas as opções visíveis de imediato ao abrir o sidebar
-- Rolagem natural para encontrar qualquer item
-- Menos cliques para navegar
+- Campo de busca discreto no topo da sidebar
+- Filtragem instantânea conforme digita
+- Encontra qualquer aba em segundos sem precisar rolar
 
