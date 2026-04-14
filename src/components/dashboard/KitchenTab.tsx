@@ -629,7 +629,7 @@ export default function KitchenTab({
                   return (
                     <div
                       key={order.id}
-                      className="rounded-2xl border-2 border-blue-300 bg-card p-5 space-y-3"
+                      className="rounded-2xl border-2 border-blue-300 bg-card p-5 space-y-3 animate-fade-in"
                     >
                       <div className="flex items-start justify-between">
                         <div>
