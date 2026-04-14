@@ -70,6 +70,8 @@ interface WaiterTabProps {
   notificationsEnabled: boolean;
   onToggleNotifications: (val: boolean) => void;
   embedded?: boolean;
+  /** Render only a specific section instead of all */
+  section?: "ready" | "unpaid" | "all";
 }
 
 export default function WaiterTab({
@@ -77,7 +79,7 @@ export default function WaiterTab({
   storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null,
   onPairBluetooth, btConnected, btSupported,
   autoPrint, onToggleAutoPrint, notificationsEnabled, onToggleNotifications,
-  embedded = false,
+  embedded = false, section = "all",
 }: WaiterTabProps) {
   const [showKds, setShowKds] = useState(false);
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
@@ -146,12 +148,14 @@ export default function WaiterTab({
   };
 
   const isLoading = loadingReady || loadingUnpaid || loadingAwaiting;
-  const showAwaitingSection = pixConfirmationMode === "manual" && awaitingOrders.length > 0;
+  const showReadySection = section === "all" || section === "ready";
+  const showUnpaidSection = section === "all" || section === "unpaid";
+  const showPixSection = showReadySection && pixConfirmationMode === "manual" && awaitingOrders.length > 0;
 
   return (
     <div className="space-y-8 max-w-4xl">
       {/* ── SEÇÃO: Aguardando Pagamento PIX (modo manual) ─────────── */}
-      {showAwaitingSection && (
+      {showPixSection && (
         <div className="space-y-4 animate-dashboard-fade-in">
           <div className="flex items-center gap-3">
             <div className="dashboard-section-icon !bg-orange-500">
@@ -228,8 +232,9 @@ export default function WaiterTab({
         </div>
       )}
 
-      {/* ── SEÇÃO: Prontos para entrega ───────────────────────────── */}
+      {showReadySection && (
       <div className="space-y-4 animate-dashboard-fade-in dash-delay-1">
+        {section === "all" && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="dashboard-section-icon !bg-green-500">
@@ -247,6 +252,12 @@ export default function WaiterTab({
             ao vivo
           </span>
         </div>
+        )}
+        {section !== "all" && (
+          <p className="text-sm text-muted-foreground">
+            {readyOrders.length} pedido{readyOrders.length !== 1 ? "s" : ""}
+          </p>
+        )}
 
         {isLoading ? (
           <p className="text-muted-foreground animate-pulse text-center py-8">Carregando…</p>
@@ -374,9 +385,11 @@ export default function WaiterTab({
           </div>
         )}
       </div>
+      )}
 
-      {/* ── SEÇÃO: Aguardando Pagamento ───────────────────────────── */}
+      {showUnpaidSection && (
       <div className="space-y-4 animate-dashboard-fade-in dash-delay-2">
+        {section === "all" && (
         <div className="flex items-center gap-3">
           <div className="dashboard-section-icon !bg-yellow-500">
             <Clock className="w-5 h-5" />
@@ -388,6 +401,12 @@ export default function WaiterTab({
             </span>
           )}
         </div>
+        )}
+        {section !== "all" && (
+          <p className="text-sm text-muted-foreground">
+            {unpaidOrders.length} conta{unpaidOrders.length !== 1 ? "s" : ""} em aberto
+          </p>
+        )}
 
         {!isLoading && unpaidOrders.length === 0 ? (
           <div className="text-center py-10 bg-card border border-border rounded-2xl">
@@ -535,8 +554,8 @@ export default function WaiterTab({
           </div>
         )}
       </div>
+      )}
 
-      {/* Botão flutuante — Monitor da Cozinha (hidden when embedded) */}
       {!embedded && (
         <Button
           onClick={() => setShowKds(true)}

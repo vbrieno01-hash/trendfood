@@ -336,7 +336,8 @@ export default function KitchenTab({
 
   return (
     <div className="space-y-6">
-      {/* Section header */}
+      {/* Section header - hidden when embedded in OperationsTab grid */}
+      {!embedded && (
       <div className="flex items-center justify-between flex-wrap gap-2 animate-dashboard-fade-in">
         <div className="flex items-center gap-3">
           <div className="dashboard-section-icon">
@@ -415,6 +416,14 @@ export default function KitchenTab({
           </span>
         </div>
       </div>
+      )}
+
+      {/* Order count when embedded */}
+      {embedded && (
+        <p className="text-sm text-muted-foreground">
+          {orders.length} pedido{orders.length !== 1 ? "s" : ""}
+        </p>
+      )}
 
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse text-center py-12">Carregando pedidos…</p>
