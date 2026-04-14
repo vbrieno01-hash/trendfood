@@ -1,41 +1,38 @@
 
 
-## Edição de Pedidos — Adicionar/Remover Itens
+## Corrigir label "ENTREGA" em pedidos de Balcão
 
 ### Problema
-Quando um pedido sai errado ou faltando algo, não há como editá-lo. O dono precisa cancelar e refazer do zero.
+Pedidos feitos pela aba Balcão usam `table_number: 0`, que é o mesmo valor usado para entregas. Por isso, todos aparecem como "🛵 ENTREGA" na cozinha, histórico e notificações.
 
 ### Solução
-Adicionar um botão "Editar" nos pedidos (pending/preparing) que abre um drawer/dialog onde o dono pode:
-- Ver os itens atuais do pedido
-- Remover itens existentes
-- Adicionar novos itens do cardápio
-- Salvar as alterações
+Usar `table_number: -1` para pedidos de balcão, diferenciando de entrega (`0`) e mesas (`1+`). Atualizar toda a lógica de exibição para tratar os 3 casos.
 
 ### Mudanças
 
-**1. Hook `useOrders.ts` — novo mutation `useEditOrderItems`**
-- Recebe `orderId` + lista atualizada de itens
-- Deleta os `order_items` atuais do pedido
-- Insere os novos `order_items`
-- Invalida queries de pedidos
+**1. `src/components/dashboard/CounterTab.tsx`**
+- Alterar `tableNumber: 0` → `tableNumber: -1`
 
-**2. Novo componente `src/components/dashboard/EditOrderDialog.tsx`**
-- Dialog/Drawer que recebe o pedido e o `orgId`
-- Lista os itens atuais com botões +/- e lixeira
-- Campo de busca para adicionar novos itens do cardápio (usa `useMenuItems`)
-- Botão "Salvar" que chama `useEditOrderItems`
-- Mostra o novo total atualizado
+**2. `src/components/dashboard/KitchenTab.tsx`** (3 pontos)
+- Labels: `table_number === -1 ? "🛒 BALCÃO" : table_number === 0 ? "🛵 ENTREGA" : Mesa N`
+- Não criar delivery quando `table_number === -1` (só para `=== 0`)
+- Notificação: label correto para balcão
 
-**3. `KitchenTab.tsx` — botão "Editar" nos cards de pedido**
-- Adicionar ícone de edição (lápis) ao lado dos botões existentes (Imprimir, Aceitar, etc.)
-- Visível apenas em pedidos `pending` e `preparing`
-- Abre o `EditOrderDialog`
+**3. `src/pages/KitchenPage.tsx`** (mesmas mudanças do KitchenTab)
 
-### Fluxo
-1. Dono vê pedido errado na cozinha
-2. Clica no ícone de edição ✏️
-3. Dialog abre com itens atuais
-4. Remove o que está errado, adiciona o que falta
-5. Salva → itens atualizados no banco → cozinha atualiza em tempo real
+**4. `src/components/dashboard/HistoryTab.tsx`**
+- Labels e filtros: tratar `-1` como "Balcão"
+
+**5. `src/pages/DashboardPage.tsx`**
+- Notificação: label correto para balcão
+
+**6. `src/lib/receiptData.ts`**
+- Label no recibo: "BALCÃO" quando `table_number === -1`
+
+### Helper
+Criar uma função utilitária `getOrderTypeLabel(table_number)` para centralizar a lógica e evitar repetição:
+```ts
+export const getOrderTypeLabel = (tn: number) =>
+  tn === -1 ? "🛒 Balcão" : tn === 0 ? "🛵 Entrega" : `Mesa ${tn}`;
+```
 
