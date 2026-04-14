@@ -573,6 +573,50 @@ export const useDeleteOrder = (organizationId: string) => {
   });
 };
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Edit Order Items (add/remove/update items on existing order)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface EditOrderItem {
+  menu_item_id: string | null;
+  name: string;
+  price: number;
+  quantity: number;
+  customer_name?: string | null;
+}
+
+export const useEditOrderItems = (organizationId: string) => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ orderId, items }: { orderId: string; items: EditOrderItem[] }) => {
+      // 1. Delete existing order_items
+      const { error: delErr } = await supabase
+        .from("order_items")
+        .delete()
+        .eq("order_id", orderId);
+      if (delErr) throw delErr;
+
+      // 2. Insert new items
+      const newItems = items.map((i) => ({
+        order_id: orderId,
+        menu_item_id: i.menu_item_id,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        customer_name: i.customer_name || null,
+      }));
+      const { error: insErr } = await supabase.from("order_items").insert(newItems);
+      if (insErr) throw insErr;
+    },
+    onSuccess: async () => {
+      await qc.refetchQueries({ queryKey: ["orders", organizationId] });
+      toast({ title: "✅ Pedido atualizado!" });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao editar pedido", description: e.message, variant: "destructive" }),
+  });
+};
+
 export const useDeleteOldOrders = (organizationId: string) => {
   const qc = useQueryClient();
   const { toast } = useToast();
