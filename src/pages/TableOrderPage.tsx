@@ -301,14 +301,14 @@ export default function TableOrderPage() {
     );
   }
 
-  const handleSelectPayment = async (method: "pix" | "card") => {
+  const handleSelectPayment = async (method: "pix" | "card" | "cash") => {
     setPaymentMethod(method);
     if (orderId) {
       const currentPixMode = org?.pix_confirmation_mode ?? "direct";
       const isAutomatic = method === "pix" && currentPixMode === "automatic";
 
-      if (method === "card" || (method === "pix" && currentPixMode === "direct")) {
-        // Direct PIX or card: treat as "pay at table/counter", send to kitchen immediately
+      if (method === "card" || method === "cash" || (method === "pix" && currentPixMode === "direct")) {
+        // Direct PIX, card or cash: treat as "pay at table/counter", send to kitchen immediately
         const { error: updErr } = await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
         if (updErr) console.error("[TableOrder] update payment failed:", updErr.message);
       } else {
