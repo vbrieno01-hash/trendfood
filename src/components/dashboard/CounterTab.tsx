@@ -21,7 +21,7 @@ interface CounterTabProps {
   pausedCategories?: string[];
 }
 
-const CounterTab = ({ orgId }: CounterTabProps) => {
+const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
   const { data: items = [], isLoading } = useMenuItems(orgId);
   const placeOrder = usePlaceOrder();
 
@@ -30,7 +30,22 @@ const CounterTab = ({ orgId }: CounterTabProps) => {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "pix" | null>(null);
   const [search, setSearch] = useState("");
 
-  const availableItems = useMemo(() => items.filter((i) => i.available), [items]);
+  const DAY_KEYS = ["dom","seg","ter","qua","qui","sex","sab"];
+  const getNowInBrasiliaDay = () => {
+    const now = new Date();
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60_000;
+    const brt = new Date(utcMs + (-3) * 3600_000);
+    return brt.getDay();
+  };
+  const currentDayKey = DAY_KEYS[getNowInBrasiliaDay()];
+
+  const availableItems = useMemo(() => items.filter((i) => {
+    if (!i.available) return false;
+    if (pausedCategories.includes(i.category)) return false;
+    const days = i.available_days as string[] | null;
+    if (days && Array.isArray(days) && days.length > 0 && !days.includes(currentDayKey)) return false;
+    return true;
+  }), [items, pausedCategories, currentDayKey]);
 
   const categoryOrder = useMemo(
     () => buildCategoryOrder(availableItems),
