@@ -14,13 +14,13 @@ import { buildPixPayload } from "@/lib/pixPayload";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import {
   Home, Store, Settings, LogOut, ExternalLink,
   Menu, UtensilsCrossed, TableProperties, Flame, BellRing,
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
-  ChevronDown, Calculator, Send, ShoppingCart,
+  Calculator, Send, ShoppingCart,
   Star,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -89,7 +89,7 @@ const DashboardPage = () => {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const retryRef = useRef(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ operacional: true });
+  
 
   // Prevent accidental exit via swipe-back gesture
   useEffect(() => {
@@ -568,17 +568,6 @@ const DashboardPage = () => {
     },
   ], [lockedFeatures]);
 
-  // Accordion único: abre o grupo da aba ativa automaticamente
-  useEffect(() => {
-    const parentGroup = sidebarGroups.find(g => g.items.some(i => i.key === activeTab));
-    const targetId = parentGroup?.id;
-    setOpenGroups(prev => {
-      const keys = Object.keys(prev);
-      if (targetId && keys.length === 1 && prev[targetId]) return prev;
-      if (!targetId && keys.length === 0) return prev;
-      return targetId ? { [targetId]: true } : {};
-    });
-  }, [activeTab, sidebarGroups]);
 
   // Show tour after onboarding is done but tour hasn't been completed
   useEffect(() => {
@@ -803,39 +792,29 @@ const DashboardPage = () => {
             <span className="flex-1 text-left">Home</span>
           </button>
 
-          {/* Accordion groups */}
-          {sidebarGroups.map((group) => {
-            const isGroupOpen = openGroups[group.id] ?? false;
-            
-
-            return (
-              <Collapsible
-                key={group.id}
-                open={isGroupOpen}
-                onOpenChange={(val) => setOpenGroups(val ? { [group.id]: true } : {})}
-              >
-                <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-widest text-white/40 hover:text-white/60 transition-colors">
-                  <span>{group.emoji}</span>
-                  <span className="flex-1 text-left">{group.title}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isGroupOpen ? "rotate-180" : ""}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-0.5 mt-0.5">
-                  {group.items.map((item) => (
-                    <button
-                      key={item.key}
-                      data-tour={item.key}
-                      onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
-                      className={navBtnClass(item.key)}
-                    >
-                      {item.icon}
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
-                    </button>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
+          {/* Always-visible groups */}
+          {sidebarGroups.map((group) => (
+            <div key={group.id} className="mt-3">
+              <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-white/40">
+                <span>{group.emoji}</span>
+                <span>{group.title}</span>
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <button
+                    key={item.key}
+                    data-tour={item.key}
+                    onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
+                    className={navBtnClass(item.key)}
+                  >
+                    {item.icon}
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Bottom actions */}
