@@ -1,22 +1,31 @@
 
 
-## Ocultar itens indisponíveis da vitrine pública
+## PDF Profissional de Novidades com "Antes e Depois"
 
-### Problema
-Itens com `available = false` aparecem na loja pública (UnitPage) com label "Indisponível" e opacidade reduzida, em vez de serem completamente ocultos. O mesmo ocorre com itens cujo estoque está zerado.
+### O que será feito
+Gerar um PDF profissional, bem desenhado, com as 5 melhorias recentes do TrendFood, incluindo mockups visuais de "antes e depois" gerados programaticamente (já que o usuário não tem as imagens).
 
-### Solução
-Adicionar filtro `i.available === true` no `filteredMenuItems` do `UnitPage.tsx`, antes dos filtros de dia e busca. Isso remove completamente os itens desativados da vitrine.
+### Design do PDF
+- **Formato**: A4, múltiplas páginas, layout moderno
+- **Paleta**: Laranja TrendFood (#F07D00), cinza escuro (#1A1A1A), branco, tons neutros
+- **Tipografia**: Limpa, hierarquia clara com títulos grandes e descrições concisas
+- **Estilo**: Cards com bordas arredondadas, ícones via emojis, sombras sutis
 
-### Arquivo alterado
-**`src/pages/UnitPage.tsx`**
-1. No `filteredMenuItems` (linha ~792), adicionar `if (!i.available) return false;` como primeira verificação
-2. Remover o código de renderização do label "Indisponível" e a lógica de opacidade (`opacity-60`), já que itens desativados nunca serão exibidos
-3. Remover o guard `if (item.available)` no botão de adicionar ao carrinho (não será mais necessário)
+### Estrutura (5-6 páginas)
 
-### Verificação
-- `available === false` → item oculto
-- `available_days` não inclui hoje → item oculto
-- `paused_categories` → categoria inteira oculta (já funciona)
-- `available === true` + dia correto + categoria ativa → item visível
+1. **Capa** — Logo/nome TrendFood + "Novidades da Plataforma" + data + visual impactante
+2. **Busca rápida na sidebar** — Antes (menu longo sem filtro) vs Depois (campo de busca com resultados filtrados) — mockup desenhado com reportlab
+3. **Edição de pedidos** — Antes (cancelar e refazer) vs Depois (editar inline com ícone de lápis) — mockup do dialog
+4. **Pedidos de Balcão** — Antes (label "Entrega" errado) vs Depois (label "Balcão" correto) — mockup de cards de pedido
+5. **Mover categoria rápido** — Antes (abrir formulário completo) vs Depois (popover de 2 cliques) — mockup do card com popover
+6. **Itens indisponíveis ocultos** — Antes (item com "Indisponível" visível) vs Depois (item sumiu da vitrine) — mockup da vitrine
+
+### Abordagem técnica
+- Script Python com `reportlab` (Platypus + Canvas para os mockups)
+- Mockups "antes/depois" desenhados programaticamente com retângulos, textos e cores simulando a UI real
+- Fonte DejaVu (suporte a acentos e emojis) — verificar disponibilidade, fallback para Helvetica com encoding
+- QA visual obrigatório: converter cada página para imagem e inspecionar
+
+### Resultado
+PDF de ~6 páginas em `/mnt/documents/novidades-trendfood-v2.pdf`, visualmente profissional, pronto para WhatsApp/Telegram.
 
