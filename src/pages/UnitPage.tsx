@@ -790,6 +790,8 @@ const UnitPage = () => {
   const currentDayKey = DAY_KEYS[getNowInBrasiliaDay()];
 
   const filteredMenuItems = menuItems.filter((i) => {
+    // Hide unavailable items completely
+    if (!i.available) return false;
     // Day filter: hide items not available today
     if (i.available_days && Array.isArray(i.available_days) && i.available_days.length > 0 && !i.available_days.includes(currentDayKey)) {
       return false;
@@ -1022,8 +1024,8 @@ const UnitPage = () => {
                           return (
                             <div
                               key={item.id}
-                              onClick={() => { if (item.available) { pushDrawerState("item"); setSelectedItem(item); } }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} ${!item.available ? "opacity-60" : "cursor-pointer active:scale-[0.97]"}`}
+                              onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
                               style={{ borderRadius: cardRadius }}
                             >
                               {/* Foto quadrada + badge de qty */}
@@ -1050,14 +1052,11 @@ const UnitPage = () => {
                               {/* Info */}
                               <div className="p-2.5 flex flex-col gap-1 flex-1">
                                 <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
-                                {!item.available && (
-                                  <span className="text-[10px] text-destructive font-medium">Indisponível</span>
-                                )}
                                 <span className="font-bold text-sm" style={{ color: primaryColor }}>
                                   {fmt(item.price)}
                                 </span>
 
-                                {item.available && (
+                                {(
                                   isClosed ? (
                                     <span className="mt-auto w-full flex items-center justify-center gap-0.5 py-1 rounded-lg text-[10px] font-semibold bg-muted text-muted-foreground cursor-not-allowed">
                                       🔒 Fechado
