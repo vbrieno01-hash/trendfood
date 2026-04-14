@@ -1063,7 +1063,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                     </PopoverTrigger>
                     <PopoverContent className="w-48 p-1 max-h-60 overflow-y-auto" align="end">
                       <p className="px-2 py-1 text-xs font-medium text-muted-foreground">Mover para:</p>
-                      {[...new Set([...grouped.map(g => g.value), ...CATEGORIES])].map((cat) => (
+                      {[...new Set([...grouped.map(g => g.value), ...CATEGORIES.map(c => c.value)])].map((cat) => (
                         <button
                           key={cat}
                           className={cn(
@@ -1072,7 +1072,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                           )}
                           disabled={cat === item.category}
                           onClick={() => {
-                            updateMutation.mutate({ id: item.id, category: cat });
+                            updateMutation.mutate({ id: item.id, input: { category: cat } });
                             setMoveCatOpen(null);
                             toast({ title: "Item movido", description: `"${item.name}" → ${cat}` });
                           }}
