@@ -232,7 +232,7 @@ export default function WaiterTab({
         </div>
       )}
 
-      {/* ── SEÇÃO: Prontos para entrega ───────────────────────────── */}
+      {showReadySection && (
       <div className="space-y-4 animate-dashboard-fade-in dash-delay-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -378,8 +378,9 @@ export default function WaiterTab({
           </div>
         )}
       </div>
+      )}
 
-      {/* ── SEÇÃO: Aguardando Pagamento ───────────────────────────── */}
+      {showUnpaidSection && (
       <div className="space-y-4 animate-dashboard-fade-in dash-delay-2">
         <div className="flex items-center gap-3">
           <div className="dashboard-section-icon !bg-yellow-500">
@@ -539,8 +540,8 @@ export default function WaiterTab({
           </div>
         )}
       </div>
+      )}
 
-      {/* Botão flutuante — Monitor da Cozinha (hidden when embedded) */}
       {!embedded && (
         <Button
           onClick={() => setShowKds(true)}
