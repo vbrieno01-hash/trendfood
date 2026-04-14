@@ -148,7 +148,9 @@ export default function WaiterTab({
   };
 
   const isLoading = loadingReady || loadingUnpaid || loadingAwaiting;
-  const showAwaitingSection = pixConfirmationMode === "manual" && awaitingOrders.length > 0;
+  const showReadySection = section === "all" || section === "ready";
+  const showUnpaidSection = section === "all" || section === "unpaid";
+  const showPixSection = showReadySection && pixConfirmationMode === "manual" && awaitingOrders.length > 0;
 
   return (
     <div className="space-y-8 max-w-4xl">
