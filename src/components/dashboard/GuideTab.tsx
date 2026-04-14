@@ -18,6 +18,7 @@ interface GuideSection {
   description: string;
   steps: string[];
   tips?: string[];
+  videoUrl?: string;
 }
 
 const GUIDE_SECTIONS: GuideSection[] = [
@@ -396,6 +397,17 @@ export default function GuideTab() {
                   ))}
                 </ol>
               </div>
+
+              {section.videoUrl && (
+                <a
+                  href={section.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg px-3 py-2 transition-colors"
+                >
+                  ▶ Ver vídeo tutorial
+                </a>
+              )}
 
               {section.tips && section.tips.length > 0 && (
                 <div>
