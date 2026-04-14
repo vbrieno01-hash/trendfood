@@ -1,17 +1,22 @@
 
 
-## Adicionar "Balcão" no rodapé mobile do Dashboard
+## Sidebar sempre aberta e rolável
 
-### O que será feito
+### Problema
+Os donos de loja têm dificuldade em encontrar as opções porque os grupos (OPERACIONAL, LOGÍSTICA, etc.) ficam colapsados em acordeão — precisam clicar para abrir e só um grupo abre por vez.
 
-Adicionar o item **Balcão** na barra de navegação inferior (mobile) do dashboard, junto com os outros itens (Home, Pedidos, Cardápio, Mesas, Histórico).
+### Solução
+Remover o comportamento de acordeão (Collapsible) e mostrar **todos os grupos sempre expandidos**. A sidebar já tem `overflow-y-auto`, então basta rolar para ver tudo.
 
-### Mudança
+### Mudanças em `src/pages/DashboardPage.tsx`
 
-**Arquivo: `src/pages/DashboardPage.tsx`** (linhas 1070-1075)
+1. **Remover estado `openGroups`** e o `useEffect` que sincroniza grupo aberto com aba ativa (linhas 92, 572-581)
+2. **Substituir `Collapsible`/`CollapsibleTrigger`/`CollapsibleContent`** por divs simples — cada grupo mostra título + todos os itens sempre visíveis
+3. Manter os títulos dos grupos (⚡ OPERACIONAL, 📦 LOGÍSTICA, etc.) como headers visuais não-clicáveis
+4. Remover import de `Collapsible`, `CollapsibleContent`, `CollapsibleTrigger` e `ChevronDown` se não usados em outro lugar
 
-Adicionar um novo item no array da nav inferior:
-- `{ key: "counter", icon: <ShoppingCart className="w-5 h-5" />, label: "Balcão" }`
-
-Será inserido entre "Mesas" e "Histórico" (ou no final, conforme melhor fluxo). O grid passará de 5 para 6 itens — o layout `justify-around` já distribui automaticamente.
+### Resultado
+- Todas as opções visíveis de imediato ao abrir o sidebar
+- Rolagem natural para encontrar qualquer item
+- Menos cliques para navegar
 
