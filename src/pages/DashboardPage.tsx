@@ -21,7 +21,7 @@ import {
   History, Tag, BarChart2, Wallet, Lock, Rocket, AlertTriangle, Zap,
   BookOpen, Sparkles, FileBarChart, Printer, Bike, Package, Gift, MessageCircle,
   Calculator, Send, ShoppingCart,
-  Star,
+  Star, Search,
 } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
@@ -86,6 +86,7 @@ const DashboardPage = () => {
     localStorage.setItem("dashboard_active_tab", activeTab);
   }, [activeTab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState("");
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const retryRef = useRef(false);
@@ -650,6 +651,7 @@ const DashboardPage = () => {
   // Sync tabs with URL
   const handleTabChange = (key: TabKey) => {
     setActiveTab(key);
+    setSidebarSearch("");
     navigate(`/dashboard?tab=${key}`, { replace: false });
   };
 
@@ -780,41 +782,64 @@ const DashboardPage = () => {
           />
         </div>
 
+        {/* Search */}
+        <div className="px-3 pt-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+            <input
+              type="text"
+              placeholder="Buscar aba…"
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 rounded-lg bg-white/10 text-sm text-white placeholder:text-white/40 border border-white/10 focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+          </div>
+        </div>
+
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {/* Home – fixed at top */}
-          <button
-            data-tour="home"
-            onClick={() => { handleTabChange("home"); setSidebarOpen(false); }}
-            className={navBtnClass("home")}
-          >
-            <Home className="w-4 h-4" />
-            <span className="flex-1 text-left">Home</span>
-          </button>
+          {(!sidebarSearch || "home".includes(sidebarSearch.toLowerCase())) && (
+            <button
+              data-tour="home"
+              onClick={() => { handleTabChange("home"); setSidebarOpen(false); }}
+              className={navBtnClass("home")}
+            >
+              <Home className="w-4 h-4" />
+              <span className="flex-1 text-left">Home</span>
+            </button>
+          )}
 
-          {/* Always-visible groups */}
-          {sidebarGroups.map((group) => (
-            <div key={group.id} className="mt-3">
-              <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-white/40">
-                <span>{group.emoji}</span>
-                <span>{group.title}</span>
+          {/* Always-visible groups (filtered) */}
+          {sidebarGroups.map((group) => {
+            const q = sidebarSearch.toLowerCase();
+            const filteredItems = q
+              ? group.items.filter((item) => item.label.toLowerCase().includes(q))
+              : group.items;
+            if (filteredItems.length === 0) return null;
+            return (
+              <div key={group.id} className="mt-3">
+                <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-white/40">
+                  <span>{group.emoji}</span>
+                  <span>{group.title}</span>
+                </div>
+                <div className="space-y-0.5">
+                  {filteredItems.map((item) => (
+                    <button
+                      key={item.key}
+                      data-tour={item.key}
+                      onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
+                      className={navBtnClass(item.key)}
+                    >
+                      {item.icon}
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-0.5">
-                {group.items.map((item) => (
-                  <button
-                    key={item.key}
-                    data-tour={item.key}
-                    onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
-                    className={navBtnClass(item.key)}
-                  >
-                    {item.icon}
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Bottom actions */}
