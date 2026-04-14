@@ -389,6 +389,7 @@ export default function WaiterTab({
 
       {showUnpaidSection && (
       <div className="space-y-4 animate-dashboard-fade-in dash-delay-2">
+        {section === "all" && (
         <div className="flex items-center gap-3">
           <div className="dashboard-section-icon !bg-yellow-500">
             <Clock className="w-5 h-5" />
@@ -400,6 +401,12 @@ export default function WaiterTab({
             </span>
           )}
         </div>
+        )}
+        {section !== "all" && (
+          <p className="text-sm text-muted-foreground">
+            {unpaidOrders.length} conta{unpaidOrders.length !== 1 ? "s" : ""} em aberto
+          </p>
+        )}
 
         {!isLoading && unpaidOrders.length === 0 ? (
           <div className="text-center py-10 bg-card border border-border rounded-2xl">
