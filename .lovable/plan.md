@@ -1,31 +1,39 @@
 
 
-## PDF Profissional de Novidades com "Antes e Depois"
+## Unificar Cozinha & Gestão em 3 colunas no Desktop
 
-### O que será feito
-Gerar um PDF profissional, bem desenhado, com as 5 melhorias recentes do TrendFood, incluindo mockups visuais de "antes e depois" gerados programaticamente (já que o usuário não tem as imagens).
+### O que muda
+Remover as abas Cozinha/Gestão no desktop e mostrar as 3 seções lado a lado como colunas visíveis:
 
-### Design do PDF
-- **Formato**: A4, múltiplas páginas, layout moderno
-- **Paleta**: Laranja TrendFood (#F07D00), cinza escuro (#1A1A1A), branco, tons neutros
-- **Tipografia**: Limpa, hierarquia clara com títulos grandes e descrições concisas
-- **Estilo**: Cards com bordas arredondadas, ícones via emojis, sombras sutis
+```text
+┌─────────────────┬──────────────────┬──────────────────┐
+│  🔥 Pendentes   │  ✅ Prontos p/   │  💰 Aguardando   │
+│  (Cozinha)      │    Entrega       │    Pagamento     │
+│                 │                  │                  │
+│  cards...       │  cards...        │  cards...        │
+└─────────────────┴──────────────────┴──────────────────┘
+```
 
-### Estrutura (5-6 páginas)
+No mobile, as 3 seções ficam empilhadas verticalmente (comportamento atual mantido).
 
-1. **Capa** — Logo/nome TrendFood + "Novidades da Plataforma" + data + visual impactante
-2. **Busca rápida na sidebar** — Antes (menu longo sem filtro) vs Depois (campo de busca com resultados filtrados) — mockup desenhado com reportlab
-3. **Edição de pedidos** — Antes (cancelar e refazer) vs Depois (editar inline com ícone de lápis) — mockup do dialog
-4. **Pedidos de Balcão** — Antes (label "Entrega" errado) vs Depois (label "Balcão" correto) — mockup de cards de pedido
-5. **Mover categoria rápido** — Antes (abrir formulário completo) vs Depois (popover de 2 cliques) — mockup do card com popover
-6. **Itens indisponíveis ocultos** — Antes (item com "Indisponível" visível) vs Depois (item sumiu da vitrine) — mockup da vitrine
+### Arquivos alterados
 
-### Abordagem técnica
-- Script Python com `reportlab` (Platypus + Canvas para os mockups)
-- Mockups "antes/depois" desenhados programaticamente com retângulos, textos e cores simulando a UI real
-- Fonte DejaVu (suporte a acentos e emojis) — verificar disponibilidade, fallback para Helvetica com encoding
-- QA visual obrigatório: converter cada página para imagem e inspecionar
+**`src/components/dashboard/OperationsTab.tsx`**
+- Substituir o componente de Tabs por um layout `grid grid-cols-1 lg:grid-cols-3`
+- Cada coluna renderiza sua seção diretamente (sem abas)
+- Coluna 1: Pedidos pendentes/preparando (conteúdo do KitchenTab)
+- Coluna 2: Prontos para Entrega (seção do WaiterTab)
+- Coluna 3: Aguardando Pagamento (seção do WaiterTab)
 
-### Resultado
-PDF de ~6 páginas em `/mnt/documents/novidades-trendfood-v2.pdf`, visualmente profissional, pronto para WhatsApp/Telegram.
+**`src/components/dashboard/KitchenTab.tsx`**
+- Adicionar prop `compact?: boolean` para renderizar apenas a lista de pedidos sem controles duplicados (auto-print, notificações) quando embedded no grid
+
+**`src/components/dashboard/WaiterTab.tsx`**
+- Extrair as seções "Prontos para Entrega" e "Aguardando Pagamento" como componentes separados exportáveis, ou adicionar prop para renderizar seções individualmente
+
+### Detalhes técnicos
+- Desktop (lg+): `grid-cols-3` com gap e cada coluna com scroll independente (`max-h-[calc(100vh-200px)] overflow-y-auto`)
+- Mobile: `grid-cols-1` empilhado, mantém experiência atual
+- Controles operacionais (auto-print, notificações) ficam acima do grid, compartilhados
+- Badge "ao vivo" fica no header geral, não duplicado por coluna
 
