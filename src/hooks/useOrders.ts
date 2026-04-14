@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { enqueuePrint, cancelPendingPrints } from "@/lib/printQueue";
@@ -123,10 +123,12 @@ export const useOrders = (
   });
 
   // Realtime subscription — orders only (order_items come along via select)
+  const instanceIdRef = useRef(crypto.randomUUID());
+
   useEffect(() => {
     if (!organizationId) return;
     const channel = supabase
-      .channel(`orders-${organizationId}-${statuses.join("-")}`)
+      .channel(`orders-${organizationId}-${statuses.join("-")}-${instanceIdRef.current}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
@@ -302,10 +304,12 @@ export const useDeliveredUnpaidOrders = (organizationId: string | undefined) => 
     refetchOnWindowFocus: true,
   });
 
+  const instanceIdRef = useRef(crypto.randomUUID());
+
   useEffect(() => {
     if (!organizationId) return;
     const channel = supabase
-      .channel(`orders-unpaid-${organizationId}`)
+      .channel(`orders-unpaid-${organizationId}-${instanceIdRef.current}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
@@ -372,10 +376,12 @@ export const useAwaitingPaymentOrders = (organizationId: string | undefined) => 
     refetchOnWindowFocus: true,
   });
 
+  const instanceIdRef2 = useRef(crypto.randomUUID());
+
   useEffect(() => {
     if (!organizationId) return;
     const channel = supabase
-      .channel(`orders-awaiting-payment-${organizationId}`)
+      .channel(`orders-awaiting-payment-${organizationId}-${instanceIdRef2.current}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `organization_id=eq.${organizationId}` },
