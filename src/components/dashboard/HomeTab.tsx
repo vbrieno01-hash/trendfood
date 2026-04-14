@@ -276,6 +276,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           orgWhatsapp={organization.whatsapp}
           orgAddress={organization.store_address}
           orgLogoUrl={organization.logo_url}
+          orgPrintMode={(organization as any)?.print_mode}
           onNavigate={onNavigate}
         />
       )}
