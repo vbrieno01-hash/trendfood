@@ -18,6 +18,7 @@ interface CartItem {
 
 interface CounterTabProps {
   orgId: string;
+  pausedCategories?: string[];
 }
 
 const CounterTab = ({ orgId }: CounterTabProps) => {
