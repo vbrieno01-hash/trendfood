@@ -32,6 +32,7 @@ import {
 import { useAllGlobalAddons } from "@/hooks/useGlobalAddonsCrud";
 import { useGlobalAddonExclusions, useAddExclusion, useRemoveExclusion } from "@/hooks/useGlobalAddonExclusions";
 import GlobalAddonsSection from "@/components/dashboard/GlobalAddonsSection";
+import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
 
 interface Organization {
   id: string;
@@ -835,6 +836,11 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
 
   return (
     <div className="space-y-6 max-w-3xl">
+      <FirstAccessBanner
+        tabKey="menu"
+        title="Bem-vindo ao Cardápio! 🍔"
+        description="Clique em 'Adicionar item' para criar seu primeiro produto. Adicione nome, preço, foto e categoria."
+      />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

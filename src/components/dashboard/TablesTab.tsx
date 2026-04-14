@@ -17,6 +17,7 @@ import {
   Copy, Trash2, QrCode, Grid3X3, Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
 
 interface Props { organization: Organization; tableLimit?: number | null }
 
@@ -69,6 +70,11 @@ export default function TablesTab({ organization, tableLimit }: Props) {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <FirstAccessBanner
+        tabKey="tables"
+        title="Configure suas mesas! 🪑"
+        description="Crie mesas e gere QR Codes para seus clientes fazerem pedidos pelo celular. Imprima e coloque sobre as mesas."
+      />
       {/* Header */}
       <div className="flex items-center justify-between animate-dashboard-fade-in">
         <div className="flex items-center gap-3">

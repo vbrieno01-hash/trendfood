@@ -16,10 +16,11 @@ interface Props {
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
   orgLogoUrl?: string | null;
+  orgPrintMode?: string | null;
   onNavigate: (tab: string) => void;
 }
 
-export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogoUrl, onNavigate }: Props) {
+export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogoUrl, orgPrintMode, onNavigate }: Props) {
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const [tableCount, setTableCount] = useState<number | null>(null);
 
@@ -73,6 +74,13 @@ export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogo
       done: !!orgAddress,
       tab: "profile",
     },
+    {
+      key: "printer",
+      label: "Configurar impressora",
+      description: "Escolha o modo de impressão e teste",
+      done: !!orgPrintMode && orgPrintMode !== "browser",
+      tab: "printer",
+    },
   ];
 
   const doneCount = items.filter((i) => i.done).length;
@@ -88,9 +96,9 @@ export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogo
           <Sparkles className="w-5 h-5" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-bold text-foreground">Configure sua loja</h3>
+          <h3 className="text-sm font-bold text-foreground">Falta pouco! Configure sua loja 🚀</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {doneCount} de {items.length} concluídos — {progress}% pronto
+            {doneCount} de {items.length} concluídos — Complete para começar a vender!
           </p>
         </div>
         <span className="text-2xl font-black text-primary">{progress}%</span>
