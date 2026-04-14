@@ -276,7 +276,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
           </div>
           <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-3">
             <p className="text-xs text-muted-foreground">🍽️ Loja</p>
-            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number > 0).length}</p>
+            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number !== 0).length}</p>
           </div>
           <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-4">
             <p className="text-xs text-muted-foreground">🛵 Entregas</p>
