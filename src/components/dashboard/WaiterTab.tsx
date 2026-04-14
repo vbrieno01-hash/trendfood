@@ -167,7 +167,7 @@ export default function WaiterTab({
             </span>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid gap-4 ${embedded ? '' : 'md:grid-cols-2'}`}>
             {awaitingOrders.map((order) => {
               const busyPix = loadingConfirmPix.has(order.id);
               const total = calcTotal(order);
@@ -293,7 +293,7 @@ export default function WaiterTab({
             `}</style>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid gap-4 ${embedded ? '' : 'md:grid-cols-2'}`}>
             {readyOrders.map((order) => {
               const busy = loadingDeliver.has(order.id);
               const total = calcTotal(order);
@@ -431,7 +431,7 @@ export default function WaiterTab({
               <p className="font-semibold text-foreground text-sm">Tudo pago! Nenhuma conta em aberto.</p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid gap-4 ${embedded ? '' : 'md:grid-cols-2'}`}>
             {unpaidOrders.map((order) => {
               const busyPay = loadingPay.has(order.id);
               const total = calcTotal(order);
