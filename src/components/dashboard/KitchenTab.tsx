@@ -647,6 +647,15 @@ export default function KitchenTab({
                           )}
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title="Editar pedido"
+                            onClick={() => setEditingOrder(order)}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
