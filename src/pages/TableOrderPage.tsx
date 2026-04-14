@@ -43,7 +43,7 @@ export default function TableOrderPage() {
   const [success, setSuccess] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card">(null);
+  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card" | "cash">(null);
 
   // People setup state
   const [setupDone, setSetupDone] = useState(false);
