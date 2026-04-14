@@ -5,7 +5,8 @@ import { parsePhoneFromNotes, notifyCustomerWhatsApp, notifyCustomerReady, parse
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, Flame, Printer, BellRing, Trash2, CheckCircle2 } from "lucide-react";
+import { Loader2, Flame, Printer, BellRing, Trash2, CheckCircle2, Pencil } from "lucide-react";
+import EditOrderDialog from "@/components/dashboard/EditOrderDialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
