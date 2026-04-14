@@ -1,21 +1,20 @@
 
 
-## Gerar PDF de Novidades do TrendFood
+## Corrigir filtro de itens no Balcão
 
-### O que será feito
-Criar um PDF profissional e visualmente atraente com as 4 melhorias recentes, pronto para compartilhar no grupo de donos via WhatsApp/Telegram.
+### Problema
+A aba Balcão filtra apenas por `item.available`, mas ignora:
+1. **`available_days`** — itens com dias específicos aparecem mesmo fora do dia configurado
+2. **`paused_categories`** — categorias pausadas continuam visíveis
 
-### Conteúdo do PDF
-1. **Header** — Logo TrendFood + título "Novidades da Plataforma"
-2. **Busca rápida na sidebar** — Encontre qualquer aba do painel em segundos
-3. **Edição de pedidos** — Corrija pedidos sem cancelar e refazer
-4. **Pedidos de Balcão** — Agora identificados corretamente (não mais como "Entrega")
-5. **Mover categoria rápido** — Troque a categoria de um item com 2 cliques
-6. **Footer** — Data + branding TrendFood
+Isso faz a lista ficar enorme com itens que não deveriam aparecer.
 
-### Abordagem técnica
-- Script Python com `reportlab` gerando PDF em `/mnt/documents/novidades-trendfood.pdf`
-- Cores da marca (verde/escuro), ícones via emojis, layout limpo e moderno
-- Uma página, formato A4, pronto para compartilhar como imagem ou PDF
-- QA visual obrigatório após geração
+### Solução
+Em `src/components/dashboard/CounterTab.tsx`, atualizar o filtro `availableItems` para incluir as mesmas regras da vitrine pública (UnitPage):
+
+1. **Filtrar por `available_days`**: usar a mesma lógica de dia da semana (fuso Brasília) já presente em `UnitPage.tsx`
+2. **Filtrar por `paused_categories`**: receber a org e checar `paused_categories` para ocultar categorias pausadas
+
+### Arquivo alterado
+- `src/components/dashboard/CounterTab.tsx` — adicionar filtros de `available_days` e `paused_categories` no `useMemo` de `availableItems`
 
