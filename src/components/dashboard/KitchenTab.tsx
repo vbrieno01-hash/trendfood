@@ -104,6 +104,7 @@ export default function KitchenTab({
   );
 
   const [showWaiter, setShowWaiter] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [, forceRender] = useState(0);
 
   // ─── Refs for Realtime channel (stable, no restarts on toggle) ───
