@@ -43,7 +43,7 @@ export default function TableOrderPage() {
   const [success, setSuccess] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card">(null);
+  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card" | "cash">(null);
 
   // People setup state
   const [setupDone, setSetupDone] = useState(false);
@@ -301,14 +301,14 @@ export default function TableOrderPage() {
     );
   }
 
-  const handleSelectPayment = async (method: "pix" | "card") => {
+  const handleSelectPayment = async (method: "pix" | "card" | "cash") => {
     setPaymentMethod(method);
     if (orderId) {
       const currentPixMode = org?.pix_confirmation_mode ?? "direct";
       const isAutomatic = method === "pix" && currentPixMode === "automatic";
 
-      if (method === "card" || (method === "pix" && currentPixMode === "direct")) {
-        // Direct PIX or card: treat as "pay at table/counter", send to kitchen immediately
+      if (method === "card" || method === "cash" || (method === "pix" && currentPixMode === "direct")) {
+        // Direct PIX, card or cash: treat as "pay at table/counter", send to kitchen immediately
         const { error: updErr } = await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
         if (updErr) console.error("[TableOrder] update payment failed:", updErr.message);
       } else {
@@ -346,6 +346,31 @@ export default function TableOrderPage() {
     const pixPayload = pixPayloadFromServer;
 
     if (!paymentMethod) {
+      // Non-automatic stores: skip payment selection, order already sent to kitchen
+      if (pixMode !== "automatic") {
+        return (
+          <div className="min-h-screen bg-background flex items-center justify-center p-4">
+            <div className="text-center space-y-6 max-w-sm w-full">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+              <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
+              <p className="text-muted-foreground">
+                Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
+              </p>
+              <div className="bg-card border border-border rounded-2xl p-6 space-y-2">
+                <p className="font-bold text-foreground text-lg">Pague no caixa</p>
+                <p className="text-sm text-muted-foreground">
+                  Seu pedido já foi para a cozinha! Realize o pagamento no caixa ao final da refeição. Bom apetite! 🍽️
+                </p>
+              </div>
+              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
+                Fazer outro pedido nesta mesa
+              </Button>
+            </div>
+          </div>
+        );
+      }
+
+      // Automatic gateway: show 3 payment options
       return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
           <div className="text-center space-y-6 max-w-sm w-full">
@@ -355,28 +380,32 @@ export default function TableOrderPage() {
               Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-sm font-medium text-foreground">Como deseja pagar?</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => handleSelectPayment("pix")}
-                disabled={pixMode === "manual" && !pixPayload}
-                className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all"
               >
-                <QrCode className="w-10 h-10 text-green-600" />
-                <span className="font-bold text-sm text-foreground">Pagar com PIX</span>
-                <span className="text-xs text-muted-foreground">{pixMode === "direct" ? "Pague na hora" : "Pague agora"}</span>
+                <QrCode className="w-8 h-8 text-green-600" />
+                <span className="font-bold text-xs text-foreground">PIX</span>
+                <span className="text-[10px] text-muted-foreground">Pague agora</span>
               </button>
               <button
                 onClick={() => handleSelectPayment("card")}
-                className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 border-border bg-card hover:border-blue-400 hover:bg-blue-50 transition-all"
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-blue-400 hover:bg-blue-50 transition-all"
               >
-                <CreditCard className="w-10 h-10 text-blue-600" />
-                <span className="font-bold text-sm text-foreground">Cartão</span>
-                <span className="text-xs text-muted-foreground">Pague no final</span>
+                <CreditCard className="w-8 h-8 text-blue-600" />
+                <span className="font-bold text-xs text-foreground">Cartão</span>
+                <span className="text-[10px] text-muted-foreground">Pague no final</span>
+              </button>
+              <button
+                onClick={() => handleSelectPayment("cash")}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-yellow-400 hover:bg-yellow-50 transition-all"
+              >
+                <span className="text-3xl">💵</span>
+                <span className="font-bold text-xs text-foreground">Dinheiro</span>
+                <span className="text-[10px] text-muted-foreground">Pague no caixa</span>
               </button>
             </div>
-            {!pixPayload && (
-              <p className="text-xs text-muted-foreground">PIX indisponível — chave não configurada.</p>
-            )}
           </div>
         </div>
       );
@@ -519,6 +548,31 @@ export default function TableOrderPage() {
                 <Copy className="w-3.5 h-3.5 mr-1.5" />
                 Copiar código Pix
               </Button>
+            </div>
+            <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
+              Fazer outro pedido nesta mesa
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Cash chosen
+    if (paymentMethod === "cash") {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="text-center space-y-4 max-w-sm w-full">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+            <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
+            <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+              <span className="text-5xl">💵</span>
+              <p className="font-bold text-foreground text-lg">Pagamento em dinheiro</p>
+              <p className="text-sm text-muted-foreground">
+                Realize o pagamento no caixa ao final da refeição. Bom apetite! 🍽️
+              </p>
+              <p className="text-2xl font-black text-primary">
+                R$ {orderTotal.toFixed(2).replace(".", ",")}
+              </p>
             </div>
             <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
               Fazer outro pedido nesta mesa
