@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -592,6 +593,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [moveCatOpen, setMoveCatOpen] = useState<string | null>(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
   const [localPausedCats, setLocalPausedCats] = useState<string[]>(organization.paused_categories ?? []);
@@ -1053,6 +1055,33 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                   <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(item)} title="Editar">
                     <Pencil className="w-4 h-4" />
                   </Button>
+                  <Popover open={moveCatOpen === item.id} onOpenChange={(open) => setMoveCatOpen(open ? item.id : null)}>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-foreground" title="Mover categoria">
+                        <ArrowUpDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-1 max-h-60 overflow-y-auto" align="end">
+                      <p className="px-2 py-1 text-xs font-medium text-muted-foreground">Mover para:</p>
+                      {[...new Set([...grouped.map(g => g.value), ...CATEGORIES.map(c => c.value)])].map((cat) => (
+                        <button
+                          key={cat}
+                          className={cn(
+                            "w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors",
+                            cat === item.category && "font-bold text-primary"
+                          )}
+                          disabled={cat === item.category}
+                          onClick={() => {
+                            updateMutation.mutate({ id: item.id, input: { category: cat } });
+                            setMoveCatOpen(null);
+                            toast({ title: "Item movido", description: `"${item.name}" → ${cat}` });
+                          }}
+                        >
+                          {cat === item.category ? `✓ ${cat}` : cat}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     variant="ghost"
                     size="icon"
