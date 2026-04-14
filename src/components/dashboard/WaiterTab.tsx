@@ -262,7 +262,7 @@ export default function WaiterTab({
         {isLoading ? (
           <p className="text-muted-foreground animate-pulse text-center py-8">Carregando…</p>
         ) : readyOrders.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-border rounded-2xl">
+          <div className="text-center py-20">
             <div className="relative mx-auto w-24 h-24 mb-3">
               <div className="animate-[float_3s_ease-in-out_infinite]">
                 <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-24 h-24">
@@ -409,7 +409,7 @@ export default function WaiterTab({
         )}
 
         {!isLoading && unpaidOrders.length === 0 ? (
-          <div className="text-center py-10 bg-card border border-border rounded-2xl">
+          <div className="text-center py-20">
               <div className="flex justify-center mb-3">
                 <div className="animate-[float_3s_ease-in-out_infinite]">
                   <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-16 h-16">
