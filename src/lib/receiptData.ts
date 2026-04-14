@@ -184,11 +184,13 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
 
   const isPickup = parsed?.tipo === "Retirada";
   const locationLabel =
-    order.table_number === 0
-      ? isPickup
-        ? "RETIRADA NO LOCAL"
-        : "PARA ENTREGA"
-      : `MESA ${order.table_number}`;
+    order.table_number === -1
+      ? "BALCÃO"
+      : order.table_number === 0
+        ? isPickup
+          ? "RETIRADA NO LOCAL"
+          : "PARA ENTREGA"
+        : `MESA ${order.table_number}`;
 
   const dt = new Date(order.created_at);
   const date = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
