@@ -234,6 +234,7 @@ export default function WaiterTab({
 
       {showReadySection && (
       <div className="space-y-4 animate-dashboard-fade-in dash-delay-1">
+        {section === "all" && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="dashboard-section-icon !bg-green-500">
@@ -250,6 +251,13 @@ export default function WaiterTab({
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             ao vivo
           </span>
+        </div>
+        )}
+        {section !== "all" && (
+          <p className="text-sm text-muted-foreground">
+            {readyOrders.length} pedido{readyOrders.length !== 1 ? "s" : ""}
+          </p>
+        )}
         </div>
 
         {isLoading ? (
