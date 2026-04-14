@@ -557,6 +557,31 @@ export default function TableOrderPage() {
       );
     }
 
+    // Cash chosen
+    if (paymentMethod === "cash") {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="text-center space-y-4 max-w-sm w-full">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+            <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
+            <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
+              <span className="text-5xl">💵</span>
+              <p className="font-bold text-foreground text-lg">Pagamento em dinheiro</p>
+              <p className="text-sm text-muted-foreground">
+                Realize o pagamento no caixa ao final da refeição. Bom apetite! 🍽️
+              </p>
+              <p className="text-2xl font-black text-primary">
+                R$ {orderTotal.toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+            <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
+              Fazer outro pedido nesta mesa
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     // Card chosen
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
