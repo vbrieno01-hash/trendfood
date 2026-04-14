@@ -258,7 +258,6 @@ export default function WaiterTab({
             {readyOrders.length} pedido{readyOrders.length !== 1 ? "s" : ""}
           </p>
         )}
-        </div>
 
         {isLoading ? (
           <p className="text-muted-foreground animate-pulse text-center py-8">Carregando…</p>
