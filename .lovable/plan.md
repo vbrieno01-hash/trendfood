@@ -1,46 +1,29 @@
 
 
-## Melhorias de Usabilidade — Reduzir Abandono
+## Corrigir fluxo de pagamento em mesas
 
 ### Problema
-Clientes relatam "dificuldade" e desistem por não conseguir configurar sozinhos. A maioria trava em pontos específicos (impressora, cardápio, etc.) e não busca ajuda no guia.
+Quando o cliente faz pedido na mesa, sempre aparecem as opções "Pagar com PIX" e "Cartão". Isso não faz sentido porque:
+1. Falta a opção de **Dinheiro** — o cliente pode querer pagar em espécie
+2. Se a loja **não tem pagamento automático** (gateway PIX configurado), não faz sentido perguntar como vai pagar — o pedido já vai direto pra cozinha e o cliente paga no caixa do jeito que quiser
 
-### Melhorias propostas
+### Solução
 
-**1. Vídeos curtos no Guia (GuideTab)**
-- Adicionar links para vídeos curtos (30-60s) do YouTube/Loom em cada seção do guia
-- Ex: "Como configurar a impressora", "Como adicionar itens ao cardápio"
-- Implementação: campo `videoUrl` opcional em cada `GuideSection`, renderiza um botão "▶ Ver vídeo" que abre em modal ou nova aba
+**Lógica condicional no `TableOrderPage.tsx`:**
 
-**2. Checklist de Setup mais visível na Home**
-- O SetupChecklist já existe mas pode ser mais agressivo — mostrar como banner fixo no topo da Home enquanto não completar 100%
-- Adicionar item "Configurar impressora" no checklist
-- Texto mais motivacional: "Falta pouco! Complete esses passos para começar a vender"
+- **Loja SEM pagamento automático** (`pix_confirmation_mode` = `direct` ou `manual`): Após enviar pedido, mostrar apenas "Pedido enviado! 🎉" com a mensagem "Pague no caixa ao final da refeição" — sem perguntar método de pagamento. O pedido vai direto pra cozinha.
 
-**3. Botão "Preciso de Ajuda" flutuante no Dashboard**
-- Adicionar o SupportChatWidget (que já existe na landing) também dentro do Dashboard
-- Ou um botão de WhatsApp direto para suporte que abre conversa com você
+- **Loja COM pagamento automático** (`pix_confirmation_mode` = `automatic`): Mostrar 3 opções:
+  - **Pagar com PIX** (gera QR Code automático via gateway)
+  - **Cartão** (pague no final)
+  - **Dinheiro** (pague no caixa)
 
-**4. Tooltip de primeiro acesso em cada aba**
-- Ao entrar pela primeira vez em uma aba (cardápio, impressora, mesas), mostrar um tooltip/banner rápido explicando o que fazer ali
-- Usar localStorage para mostrar apenas na primeira vez
+  O cliente escolhe UMA opção. Se escolher PIX, gera o QR. Se escolher cartão ou dinheiro, confirma o pedido e manda pra cozinha.
 
-**5. Simplificar configuração da impressora**
-- Adicionar botão "Testar Impressão" mais proeminente
-- Mostrar diagnóstico automático (já existe `BluetoothCompatibilityDiagnostics`) de forma mais visível
-- Adicionar guia passo-a-passo inline na aba Impressora
+### Arquivo editado
+- `src/pages/TableOrderPage.tsx` — alterar o bloco `if (!paymentMethod)` para verificar se a loja tem pagamento automático antes de mostrar opções. Adicionar opção "Dinheiro". Adicionar type `"cash"` ao `paymentMethod`.
 
-### Etapas de implementação
-
-1. **Tornar o SetupChecklist mais visível** — banner fixo na Home com item de impressora
-2. **Adicionar SupportChatWidget ao Dashboard** — mesmo widget da landing, disponível em qualquer aba
-3. **Melhorar aba Impressora** — guia inline com passos numerados e botão de teste proeminente
-4. **Adicionar campo de vídeo no GuideTab** — links opcionais por seção
-
-### Escopo técnico
-- Editar `HomeTab.tsx` para destacar o checklist
-- Editar `SetupChecklist.tsx` para adicionar item de impressora
-- Editar `DashboardPage.tsx` para incluir SupportChatWidget
-- Editar `PrinterTab.tsx` para adicionar guia inline
-- Editar `GuideTab.tsx` para suportar vídeos
+### Resultado
+- Lojas sem gateway: cliente vê só "Pedido enviado", sem confusão
+- Lojas com gateway: cliente escolhe entre PIX automático, cartão ou dinheiro
 
