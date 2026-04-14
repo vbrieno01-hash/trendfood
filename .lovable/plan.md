@@ -1,39 +1,23 @@
 
 
-## Unificar Cozinha & Gestão em 3 colunas no Desktop
+## Corrigir layout dos pedidos dentro das colunas
 
-### O que muda
-Remover as abas Cozinha/Gestão no desktop e mostrar as 3 seções lado a lado como colunas visíveis:
+### Problema
+Os cards de pedidos dentro do KitchenTab usam `grid md:grid-cols-2`, tentando mostrar 2 cards lado a lado. Quando o KitchenTab está dentro de uma coluna de 1/3 da tela, não há espaço suficiente e os pedidos ficam espremidos/feios.
 
-```text
-┌─────────────────┬──────────────────┬──────────────────┐
-│  🔥 Pendentes   │  ✅ Prontos p/   │  💰 Aguardando   │
-│  (Cozinha)      │    Entrega       │    Pagamento     │
-│                 │                  │                  │
-│  cards...       │  cards...        │  cards...        │
-└─────────────────┴──────────────────┴──────────────────┘
-```
+### Solução
+Quando o KitchenTab estiver no modo `embedded` (dentro do OperationsTab), forçar os cards a ficarem empilhados verticalmente (1 coluna), removendo o `md:grid-cols-2`.
 
-No mobile, as 3 seções ficam empilhadas verticalmente (comportamento atual mantido).
-
-### Arquivos alterados
-
-**`src/components/dashboard/OperationsTab.tsx`**
-- Substituir o componente de Tabs por um layout `grid grid-cols-1 lg:grid-cols-3`
-- Cada coluna renderiza sua seção diretamente (sem abas)
-- Coluna 1: Pedidos pendentes/preparando (conteúdo do KitchenTab)
-- Coluna 2: Prontos para Entrega (seção do WaiterTab)
-- Coluna 3: Aguardando Pagamento (seção do WaiterTab)
+### Alterações
 
 **`src/components/dashboard/KitchenTab.tsx`**
-- Adicionar prop `compact?: boolean` para renderizar apenas a lista de pedidos sem controles duplicados (auto-print, notificações) quando embedded no grid
+- Nas duas grids de pedidos (pendentes ~linha 477 e preparando ~linha 626), trocar de:
+  - `grid gap-4 md:grid-cols-2` 
+  - para `grid gap-4` quando `embedded === true` (sem grid-cols-2)
+  - manter `grid gap-4 md:grid-cols-2` quando não embedded (tela cheia)
 
-**`src/components/dashboard/WaiterTab.tsx`**
-- Extrair as seções "Prontos para Entrega" e "Aguardando Pagamento" como componentes separados exportáveis, ou adicionar prop para renderizar seções individualmente
+Mesma verificação será feita no **WaiterTab.tsx** caso também use grid multi-coluna nos cards.
 
-### Detalhes técnicos
-- Desktop (lg+): `grid-cols-3` com gap e cada coluna com scroll independente (`max-h-[calc(100vh-200px)] overflow-y-auto`)
-- Mobile: `grid-cols-1` empilhado, mantém experiência atual
-- Controles operacionais (auto-print, notificações) ficam acima do grid, compartilhados
-- Badge "ao vivo" fica no header geral, não duplicado por coluna
+### Resultado
+Os pedidos ficam empilhados um embaixo do outro dentro de cada painel, ocupando toda a largura disponível da coluna.
 
