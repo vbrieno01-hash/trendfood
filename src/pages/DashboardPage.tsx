@@ -1072,6 +1072,7 @@ const DashboardPage = () => {
             { key: "operations" as TabKey, icon: <Flame className="w-5 h-5" />, label: "Pedidos" },
             { key: "menu" as TabKey, icon: <UtensilsCrossed className="w-5 h-5" />, label: "Cardápio" },
             { key: "tables" as TabKey, icon: <TableProperties className="w-5 h-5" />, label: "Mesas" },
+            { key: "counter" as TabKey, icon: <ShoppingCart className="w-5 h-5" />, label: "Balcão" },
             { key: "history" as TabKey, icon: <History className="w-5 h-5" />, label: "Histórico" },
           ].map((item) => (
             <button
