@@ -1051,6 +1051,7 @@ const DashboardPage = () => {
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
           {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
+          {activeTab === "counter" && <CounterTab orgId={organization.id} />}
           </ErrorBoundary>
 
           {/* ── Rodapé institucional ─────────────────────────── */}
