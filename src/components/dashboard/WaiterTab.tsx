@@ -70,6 +70,8 @@ interface WaiterTabProps {
   notificationsEnabled: boolean;
   onToggleNotifications: (val: boolean) => void;
   embedded?: boolean;
+  /** Render only a specific section instead of all */
+  section?: "ready" | "unpaid" | "all";
 }
 
 export default function WaiterTab({
@@ -77,7 +79,7 @@ export default function WaiterTab({
   storeAddress, courierConfig, printMode = 'browser', printerWidth = '58mm', btDevice = null,
   onPairBluetooth, btConnected, btSupported,
   autoPrint, onToggleAutoPrint, notificationsEnabled, onToggleNotifications,
-  embedded = false,
+  embedded = false, section = "all",
 }: WaiterTabProps) {
   const [showKds, setShowKds] = useState(false);
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
