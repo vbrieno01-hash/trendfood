@@ -174,7 +174,7 @@ export default function WaiterTab({
               return (
                 <div
                   key={order.id}
-                  className="rounded-2xl border-2 border-orange-400 bg-card p-5 space-y-3 shadow-md shadow-orange-50"
+                  className="rounded-2xl border-2 border-orange-400 bg-card p-5 space-y-3 shadow-md shadow-orange-50 animate-fade-in"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -300,7 +300,7 @@ export default function WaiterTab({
               return (
                 <div
                   key={order.id}
-                  className="rounded-2xl border-2 border-green-400 bg-card p-5 space-y-3 shadow-md shadow-green-50"
+                  className="rounded-2xl border-2 border-green-400 bg-card p-5 space-y-3 shadow-md shadow-green-50 animate-fade-in"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -440,7 +440,7 @@ export default function WaiterTab({
               return (
                 <div
                   key={order.id}
-                  className="rounded-2xl border-2 border-yellow-400 bg-card p-5 space-y-3 shadow-md shadow-yellow-50"
+                  className="rounded-2xl border-2 border-yellow-400 bg-card p-5 space-y-3 shadow-md shadow-yellow-50 animate-fade-in"
                 >
                   <div className="flex items-start justify-between">
                     <div>
