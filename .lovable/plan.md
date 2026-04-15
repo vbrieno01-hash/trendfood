@@ -1,29 +1,23 @@
 
 
-## Adicionar opção "Pendente" no pagamento do Balcão
+## Mostrar badge "PENDENTE" nos pedidos não pagos na Cozinha
 
-### Problema
-Atualmente o Balcão só oferece Dinheiro, Cartão e PIX. Se o cliente quiser pagar depois, não há como registrar o pedido sem selecionar um pagamento. Falta a opção de "Pendente" (fiado/pagar depois).
+### Situação atual
+A cozinha já mostra badges de pagamento (PIX, Cartão), mas **esconde** o badge quando `payment_method === "pending"`. Ou seja, pedidos do Balcão com pagamento pendente chegam na cozinha **sem nenhuma indicação** de que ainda não foram pagos.
 
-### Alteração
+### Solução
+Inverter a lógica: em vez de esconder o badge para `pending`, mostrar um badge vermelho/amarelo **"💰 PENDENTE"** para que a cozinha saiba que o cliente ainda não pagou.
 
-**`src/components/dashboard/CounterTab.tsx`**
+### Alterações
 
-1. Alterar o tipo de `paymentMethod` para incluir `"pending"`:
-   - `useState<"cash" | "card" | "pix" | "pending" | null>(null)`
+**`src/components/dashboard/KitchenTab.tsx`** — 2 locais (Pendentes ~linha 499 e Preparando ~linha 644):
+- Trocar a condição que filtra `payment_method !== "pending"` para incluir todos os métodos
+- Adicionar caso para `"pending"`: badge amarelo/vermelho com texto "PENDENTE"
+- Manter os badges existentes (PIX verde, Cartão azul, Dinheiro)
 
-2. Adicionar um 4o botão na grid de pagamento (mudar grid de 3 para 4 colunas):
-   - Ícone: `Clock` (lucide-react)
-   - Label: "Pendente"
-   - Key: `"pending"`
-
-3. Na função `handleSubmit`, quando `paymentMethod === "pending"`:
-   - Enviar `paid: false`
-   - Enviar `paymentMethod: "pending"`
-   - Isso faz o pedido aparecer na coluna "Pagamento" após ser preparado
-
-4. Ajustar o grid de `grid-cols-3` para `grid-cols-4` nos botões de pagamento.
+**`src/components/dashboard/WaiterTab.tsx`** — 2 locais (~linhas 312 e 452):
+- Mesma lógica: mostrar badge "PENDENTE" quando `payment_method === "pending"`
 
 ### Resultado
-O operador do balcão poderá registrar pedidos "fiados" que aparecerão na coluna de Pagamento para cobrança posterior.
+A equipe da cozinha verá claramente quais pedidos de balcão ainda precisam ser cobrados, com um badge vermelho "💰 PENDENTE" ao lado do "🛒 BALCÃO".
 
