@@ -543,20 +543,49 @@ export default function WaiterTab({
                       Enviar Conta
                     </a>
 
-                    <Button
-                      className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold"
-                      disabled={busyPay}
-                      onClick={() => handlePay(order.id)}
-                    >
-                      {busyPay ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4 mr-1.5" />
-                          Confirmar Pag.
-                        </>
-                      )}
-                    </Button>
+                    {(order as any).payment_method === "pending" ? (
+                      <>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold"
+                          disabled={busyPay}
+                          onClick={() => handlePay(order.id, "cash")}
+                        >
+                          {busyPay ? <Loader2 className="w-4 h-4 animate-spin" /> : "💵 Dinheiro"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+                          disabled={busyPay}
+                          onClick={() => handlePay(order.id, "card")}
+                        >
+                          {busyPay ? <Loader2 className="w-4 h-4 animate-spin" /> : "💳 Cartão"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold"
+                          disabled={busyPay}
+                          onClick={() => handlePay(order.id, "pix")}
+                        >
+                          {busyPay ? <Loader2 className="w-4 h-4 animate-spin" /> : "📱 PIX"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold"
+                        disabled={busyPay}
+                        onClick={() => handlePay(order.id)}
+                      >
+                        {busyPay ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <CreditCard className="w-4 h-4 mr-1.5" />
+                            Confirmar Pag.
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
