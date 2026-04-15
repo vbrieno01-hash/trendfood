@@ -1,23 +1,29 @@
 
 
-## Mostrar badge "PENDENTE" nos pedidos não pagos na Cozinha
+## Selecionar método de pagamento ao confirmar pedidos pendentes
 
-### Situação atual
-A cozinha já mostra badges de pagamento (PIX, Cartão), mas **esconde** o badge quando `payment_method === "pending"`. Ou seja, pedidos do Balcão com pagamento pendente chegam na cozinha **sem nenhuma indicação** de que ainda não foram pagos.
+### Problema
+Quando o operador clica "Confirmar Pag." em um pedido pendente, o sistema apenas marca `paid: true` sem registrar **como** o cliente pagou. O `payment_method` fica como `"pending"` para sempre — não há como saber se foi dinheiro, cartão ou PIX.
 
 ### Solução
-Inverter a lógica: em vez de esconder o badge para `pending`, mostrar um badge vermelho/amarelo **"💰 PENDENTE"** para que a cozinha saiba que o cliente ainda não pagou.
+Substituir o botão direto "Confirmar Pag." por um fluxo com seleção de método. Ao clicar, aparece um mini-menu (popover ou inline) com 3 opções: Dinheiro, Cartão, PIX. Ao selecionar, o sistema atualiza tanto `paid: true` quanto `payment_method` com o valor correto.
 
 ### Alterações
 
-**`src/components/dashboard/KitchenTab.tsx`** — 2 locais (Pendentes ~linha 499 e Preparando ~linha 644):
-- Trocar a condição que filtra `payment_method !== "pending"` para incluir todos os métodos
-- Adicionar caso para `"pending"`: badge amarelo/vermelho com texto "PENDENTE"
-- Manter os badges existentes (PIX verde, Cartão azul, Dinheiro)
+**`src/hooks/useOrders.ts`**
+- Modificar `useMarkAsPaid` para aceitar um objeto `{ id, paymentMethod }` em vez de apenas `id`
+- No `mutationFn`, fazer `update({ paid: true, payment_method: paymentMethod })` 
 
-**`src/components/dashboard/WaiterTab.tsx`** — 2 locais (~linhas 312 e 452):
-- Mesma lógica: mostrar badge "PENDENTE" quando `payment_method === "pending"`
+**`src/components/dashboard/WaiterTab.tsx`**
+- No botão "Confirmar Pag." da seção Pagamento (~linha 546), substituir pelo componente com 3 botões inline:
+  - 💵 Dinheiro → `handlePay(id, "cash")`
+  - 💳 Cartão → `handlePay(id, "card")`
+  - 📱 PIX → `handlePay(id, "pix")`
+- Atualizar `handlePay` para passar o `paymentMethod`
+
+**`src/pages/WaiterPage.tsx`**
+- Mesma alteração no botão de confirmar pagamento (réplica standalone do WaiterTab)
 
 ### Resultado
-A equipe da cozinha verá claramente quais pedidos de balcão ainda precisam ser cobrados, com um badge vermelho "💰 PENDENTE" ao lado do "🛒 BALCÃO".
+Ao confirmar pagamento de um pedido pendente, o operador escolhe o método real (Dinheiro/Cartão/PIX), e o registro fica correto no histórico.
 
