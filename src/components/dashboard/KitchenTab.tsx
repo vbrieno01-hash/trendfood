@@ -496,11 +496,16 @@ export default function KitchenTab({
                               {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
                               {order.table_number === -1 ? "🛒 BALCÃO" : order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
                             </span>
-                            {(order as any).payment_method && (order as any).payment_method !== "pending" && (
+                            {(order as any).payment_method && (
                               <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
-                                (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                                (order as any).payment_method === "pending" ? "bg-red-100 text-red-700" :
+                                (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" :
+                                (order as any).payment_method === "cash" ? "bg-gray-100 text-gray-700" :
+                                "bg-blue-100 text-blue-700"
                               }`}>
-                                {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
+                                {(order as any).payment_method === "pending" ? "💰 PENDENTE" :
+                                 (order as any).payment_method === "pix" ? "PIX" :
+                                 (order as any).payment_method === "cash" ? "Dinheiro" : "Cartão"}
                               </span>
                             )}
                           </div>
@@ -641,11 +646,16 @@ export default function KitchenTab({
                               {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
                               {order.table_number === -1 ? "🛒 BALCÃO" : order.table_number === 0 ? "🛵 ENTREGA" : `Mesa ${order.table_number}`}
                             </span>
-                            {(order as any).payment_method && (order as any).payment_method !== "pending" && (
+                            {(order as any).payment_method && (
                               <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
-                                (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                                (order as any).payment_method === "pending" ? "bg-red-100 text-red-700" :
+                                (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" :
+                                (order as any).payment_method === "cash" ? "bg-gray-100 text-gray-700" :
+                                "bg-blue-100 text-blue-700"
                               }`}>
-                                {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
+                                {(order as any).payment_method === "pending" ? "💰 PENDENTE" :
+                                 (order as any).payment_method === "pix" ? "PIX" :
+                                 (order as any).payment_method === "cash" ? "Dinheiro" : "Cartão"}
                               </span>
                             )}
                           </div>
