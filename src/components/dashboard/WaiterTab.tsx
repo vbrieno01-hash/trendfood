@@ -12,6 +12,7 @@ import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode, F
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
 import KitchenTab from "@/components/dashboard/KitchenTab";
+import { getOrderTypeLabel } from "@/lib/orderTypeLabel";
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -34,7 +35,7 @@ const buildWhatsAppMessage = (order: Order, whatsapp?: string | null): string =>
   const total = fmtBRL(calcTotal(order));
 
   const text = [
-    `🧾 *Conta da Mesa ${order.table_number}*`,
+    `🧾 *Conta - ${getOrderTypeLabel(order.table_number)}*`,
     "",
     items,
     "─────────────────────",
@@ -182,7 +183,7 @@ export default function WaiterTab({
                         <span className="text-xs font-bold bg-orange-500 text-white rounded-full px-2.5 py-0.5">
                           ⏳ PIX
                         </span>
-                        <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                        <span className="font-bold text-foreground text-lg">{getOrderTypeLabel(order.table_number)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{fmtTime(order.created_at)}</p>
                     </div>
@@ -308,7 +309,7 @@ export default function WaiterTab({
                         <span className="text-xs font-bold bg-green-500 text-white rounded-full px-2.5 py-0.5">
                           ✅ PRONTO
                         </span>
-                         <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                         <span className="font-bold text-foreground text-lg">{getOrderTypeLabel(order.table_number)}</span>
                          {(order as any).payment_method && (
                            <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
                              (order as any).payment_method === "pending" ? "bg-red-100 text-red-700" :
@@ -453,7 +454,7 @@ export default function WaiterTab({
                         <span className="text-xs font-bold bg-yellow-500 text-white rounded-full px-2.5 py-0.5">
                           💰 PAGAR
                         </span>
-                        <span className="font-bold text-foreground text-lg">Mesa {order.table_number}</span>
+                        <span className="font-bold text-foreground text-lg">{getOrderTypeLabel(order.table_number)}</span>
                         {(order as any).payment_method && (
                           <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
                             (order as any).payment_method === "pending" ? "bg-red-100 text-red-700" :
