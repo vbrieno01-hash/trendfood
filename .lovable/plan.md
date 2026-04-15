@@ -1,18 +1,29 @@
 
 
-## Adicionar animação suave nos cards de pedidos
+## Adicionar opção "Pendente" no pagamento do Balcão
 
 ### Problema
-Os cards de pedidos no WaiterTab (Prontos, Pagamento, Aguardando Confirmação) não têm animação de entrada — aparecem abruptamente. O KitchenTab já usa `animate-dashboard-fade-in` nos cards pendentes, mas não de forma consistente.
+Atualmente o Balcão só oferece Dinheiro, Cartão e PIX. Se o cliente quiser pagar depois, não há como registrar o pedido sem selecionar um pagamento. Falta a opção de "Pendente" (fiado/pagar depois).
 
-### Alterações
+### Alteração
 
-**`src/components/dashboard/WaiterTab.tsx`** — Adicionar `animate-dashboard-fade-in` nos 3 tipos de cards:
-- Linha 177: adicionar classe `animate-dashboard-fade-in` no card de "Aguardando Confirmação"
-- Linha 303: adicionar classe `animate-dashboard-fade-in` no card de "Prontos para Entrega"  
-- Linha 443: adicionar classe `animate-dashboard-fade-in` no card de "Aguardando Pagamento"
+**`src/components/dashboard/CounterTab.tsx`**
 
-**`src/components/dashboard/KitchenTab.tsx`** — Garantir que os cards de "Preparando" (~linha 626) também tenham a animação (os pendentes já têm).
+1. Alterar o tipo de `paymentMethod` para incluir `"pending"`:
+   - `useState<"cash" | "card" | "pix" | "pending" | null>(null)`
 
-A animação `animate-dashboard-fade-in` já existe no CSS (`admin-fade-in`: fade + slide up 0.5s) — só precisa aplicar a classe nos cards que faltam.
+2. Adicionar um 4o botão na grid de pagamento (mudar grid de 3 para 4 colunas):
+   - Ícone: `Clock` (lucide-react)
+   - Label: "Pendente"
+   - Key: `"pending"`
+
+3. Na função `handleSubmit`, quando `paymentMethod === "pending"`:
+   - Enviar `paid: false`
+   - Enviar `paymentMethod: "pending"`
+   - Isso faz o pedido aparecer na coluna "Pagamento" após ser preparado
+
+4. Ajustar o grid de `grid-cols-3` para `grid-cols-4` nos botões de pagamento.
+
+### Resultado
+O operador do balcão poderá registrar pedidos "fiados" que aparecerão na coluna de Pagamento para cobrança posterior.
 
