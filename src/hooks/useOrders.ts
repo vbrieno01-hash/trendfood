@@ -334,8 +334,10 @@ export const useMarkAsPaid = (organizationId: string) => {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("orders").update({ paid: true } as never).eq("id", id);
+    mutationFn: async ({ id, paymentMethod }: { id: string; paymentMethod?: string }) => {
+      const updateData: Record<string, unknown> = { paid: true };
+      if (paymentMethod) updateData.payment_method = paymentMethod;
+      const { error } = await supabase.from("orders").update(updateData as never).eq("id", id);
       if (error) throw error;
     },
     onSuccess: async () => {

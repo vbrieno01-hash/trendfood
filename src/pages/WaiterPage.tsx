@@ -116,10 +116,10 @@ export default function WaiterPage() {
     );
   };
 
-  const handlePay = (id: string) => {
+  const handlePay = (id: string, paymentMethod?: string) => {
     if (loadingPay.has(id)) return;
     setLoadingPay((prev) => new Set(prev).add(id));
-    markAsPaid.mutate(id, {
+    markAsPaid.mutate({ id, paymentMethod }, {
       onSettled: () => {
         setLoadingPay((prev) => {
           const next = new Set(prev);
