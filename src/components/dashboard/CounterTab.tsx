@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Minus, Trash2, ShoppingCart, Banknote, CreditCard, QrCode, Send } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, Banknote, CreditCard, QrCode, Clock, Send } from "lucide-react";
 
 interface CartItem {
   menu_item_id: string;
@@ -27,7 +27,7 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "pix" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "pix" | "pending" | null>(null);
   const [search, setSearch] = useState("");
 
   const DAY_KEYS = ["dom","seg","ter","qua","qui","sex","sab"];
@@ -116,7 +116,7 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
         items: cart,
         initialStatus: "pending",
         paymentMethod,
-        paid: paymentMethod === "cash" || paymentMethod === "card",
+        paid: paymentMethod !== "pending" && paymentMethod !== "pix",
       });
       toast.success("Pedido enviado para a cozinha! 🎉");
       setCart([]);
@@ -271,11 +271,12 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
               {/* Payment method */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground">Pagamento</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {([
                     { key: "cash" as const, label: "Dinheiro", icon: Banknote },
                     { key: "card" as const, label: "Cartão", icon: CreditCard },
                     { key: "pix" as const, label: "PIX", icon: QrCode },
+                    { key: "pending" as const, label: "Pendente", icon: Clock },
                   ]).map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}
