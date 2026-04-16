@@ -355,7 +355,7 @@ export default function TableOrderPage() {
 
   const backButtonLabel = _fromDashboard
     ? "Voltar para Mesas & Comandas"
-    : "{backButtonLabel}";
+    : "Voltar para identificação da mesa";
 
   // ── Success / Payment screens ──────────────────────────────────────────
   if (success) {
