@@ -606,7 +606,8 @@ export default function TableOrderPage() {
       );
     }
 
-    // Card chosen
+    // Card chosen (debit or credit)
+    const cardLabel = paymentMethod === "card_debit" ? "Débito" : paymentMethod === "card_credit" ? "Crédito" : "Cartão";
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-sm w-full">
@@ -614,9 +615,9 @@ export default function TableOrderPage() {
           <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
           <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
             <CreditCard className="w-12 h-12 text-blue-500 mx-auto" />
-            <p className="font-bold text-foreground text-lg">Pagamento no final</p>
+            <p className="font-bold text-foreground text-lg">Pagamento no final · {cardLabel}</p>
             <p className="text-sm text-muted-foreground">
-              O pagamento com cartão será realizado ao final da refeição. Bom apetite! 🍽️
+              O pagamento com cartão de {cardLabel.toLowerCase()} será realizado ao final da refeição. Bom apetite! 🍽️
             </p>
             <p className="text-2xl font-black text-primary">
               R$ {orderTotal.toFixed(2).replace(".", ",")}
