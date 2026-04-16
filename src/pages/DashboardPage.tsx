@@ -555,6 +555,7 @@ const DashboardPage = () => {
       items: [
         { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood" },
         { key: "telegram" as TabKey, icon: <Send className="w-4 h-4" />, label: "Telegram" },
+        { key: "aibot" as TabKey, icon: <span className="text-sm">🤖</span>, label: "Robô IA" },
       ],
     },
     {
