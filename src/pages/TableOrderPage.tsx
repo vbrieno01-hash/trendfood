@@ -342,12 +342,20 @@ export default function TableOrderPage() {
   };
 
   const backToIdentification = () => {
+    if (_fromDashboard) {
+      navigate("/dashboard?tab=tables");
+      return;
+    }
     resetAll();
     setSetupDone(false);
     setPeopleCount(1);
     setPeopleNames([""]);
     setActivePerson(0);
   };
+
+  const backButtonLabel = _fromDashboard
+    ? "Voltar para Mesas & Comandas"
+    : "Voltar para identificação da mesa";
 
   // ── Success / Payment screens ──────────────────────────────────────────
   if (success) {
