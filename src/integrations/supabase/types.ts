@@ -56,6 +56,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_bot_config: {
+        Row: {
+          enabled: boolean
+          greeting_message: string
+          id: string
+          model: string
+          system_prompt: string
+          test_org_id: string | null
+          test_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          greeting_message?: string
+          id?: string
+          model?: string
+          system_prompt?: string
+          test_org_id?: string | null
+          test_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          greeting_message?: string
+          id?: string
+          model?: string
+          system_prompt?: string
+          test_org_id?: string | null
+          test_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_bot_config_test_org_id_fkey"
+            columns: ["test_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_sessions: {
         Row: {
           closed_at: string | null
