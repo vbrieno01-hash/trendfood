@@ -355,7 +355,7 @@ export default function TableOrderPage() {
 
   const backButtonLabel = _fromDashboard
     ? "Voltar para Mesas & Comandas"
-    : "Voltar para identificação da mesa";
+    : "{backButtonLabel}";
 
   // ── Success / Payment screens ──────────────────────────────────────────
   if (success) {
@@ -382,7 +382,7 @@ export default function TableOrderPage() {
                 Fazer outro pedido nesta mesa
               </Button>
               <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para identificação da mesa
+                {backButtonLabel}
               </Button>
             </div>
           </div>
@@ -450,7 +450,7 @@ export default function TableOrderPage() {
                 Fazer outro pedido nesta mesa
               </Button>
               <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para identificação da mesa
+                {backButtonLabel}
               </Button>
             </div>
           </div>
@@ -480,7 +480,7 @@ export default function TableOrderPage() {
                   Fazer outro pedido nesta mesa
                 </Button>
                 <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                  Voltar para identificação da mesa
+                  {backButtonLabel}
                 </Button>
               </div>
             </div>
@@ -532,7 +532,7 @@ export default function TableOrderPage() {
                 Fazer outro pedido nesta mesa
               </Button>
               <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para identificação da mesa
+                {backButtonLabel}
               </Button>
             </div>
           </div>
@@ -550,7 +550,7 @@ export default function TableOrderPage() {
                 Fazer outro pedido nesta mesa
               </Button>
               <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para identificação da mesa
+                {backButtonLabel}
               </Button>
             </div>
           </div>
@@ -584,7 +584,7 @@ export default function TableOrderPage() {
               Fazer outro pedido nesta mesa
             </Button>
             <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-              Voltar para identificação da mesa
+              {backButtonLabel}
             </Button>
           </div>
         </div>
@@ -612,7 +612,7 @@ export default function TableOrderPage() {
               Fazer outro pedido nesta mesa
             </Button>
             <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-              Voltar para identificação da mesa
+              {backButtonLabel}
             </Button>
           </div>
         </div>
@@ -639,7 +639,7 @@ export default function TableOrderPage() {
             Fazer outro pedido nesta mesa
           </Button>
           <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-            Voltar para identificação da mesa
+            {backButtonLabel}
           </Button>
         </div>
       </div>
