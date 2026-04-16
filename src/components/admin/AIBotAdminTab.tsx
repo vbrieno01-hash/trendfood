@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power } from "lucide-react";
+import { Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power, Link2, Copy, Check } from "lucide-react";
 
 interface BotConfig {
   id: string;
@@ -19,7 +19,12 @@ interface BotConfig {
   model: string;
   test_phone: string | null;
   test_org_id: string | null;
+  uazapi_server_url: string | null;
+  uazapi_token: string | null;
+  uazapi_instance_name: string | null;
 }
+
+const WEBHOOK_URL = "https://xrzudhylpphnzousilye.supabase.co/functions/v1/whatsapp-webhook";
 
 interface QueueRow {
   id: string;
@@ -106,6 +111,13 @@ export default function AIBotAdminTab() {
     };
   }, [config?.test_phone]);
 
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
   const handleSave = async () => {
     if (!config) return;
     setSaving(true);
@@ -118,6 +130,9 @@ export default function AIBotAdminTab() {
         model: config.model,
         test_phone: config.test_phone?.replace(/\D/g, "") || null,
         test_org_id: config.test_org_id,
+        uazapi_server_url: config.uazapi_server_url || "https://free.uazapi.com",
+        uazapi_token: config.uazapi_token || null,
+        uazapi_instance_name: config.uazapi_instance_name || null,
       })
       .eq("id", config.id);
     setSaving(false);

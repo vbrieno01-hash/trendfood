@@ -181,26 +181,48 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
+    console.log("[whatsapp-webhook] payload:", JSON.stringify(body).slice(0, 500));
 
-    // Evolution API envia o payload com data.message e data.key.remoteJid
-    const message = body?.data?.message?.conversation 
-      || body?.data?.message?.extendedTextMessage?.text
-      || body?.data?.body
-      || null;
-    
-    const phone = body?.data?.key?.remoteJid?.replace("@s.whatsapp.net", "") 
-      || body?.data?.from
-      || null;
+    // Suporte dual: uazapiGO + Evolution API
+    // uazapiGO: { message: { text, sender, fromMe } } ou { event, message: {...} }
+    // Evolution: { data: { message: { conversation }, key: { remoteJid, fromMe } } }
+    const message =
+      body?.message?.text ||
+      body?.message?.content ||
+      body?.text ||
+      body?.data?.message?.conversation ||
+      body?.data?.message?.extendedTextMessage?.text ||
+      body?.data?.body ||
+      null;
+
+    const rawPhone =
+      body?.message?.sender ||
+      body?.message?.chatid ||
+      body?.sender ||
+      body?.chatid ||
+      body?.data?.key?.remoteJid ||
+      body?.data?.from ||
+      null;
+
+    const phone = rawPhone
+      ? String(rawPhone).replace("@s.whatsapp.net", "").replace("@c.us", "").replace(/\D/g, "")
+      : null;
 
     if (!message || !phone) {
+      console.log("[whatsapp-webhook] skipped (no message/phone)");
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Ignorar mensagens enviadas por nós mesmos
-    const fromMe = body?.data?.key?.fromMe ?? false;
+    const fromMe =
+      body?.message?.fromMe ??
+      body?.fromMe ??
+      body?.data?.key?.fromMe ??
+      false;
     if (fromMe) {
+      console.log("[whatsapp-webhook] skipped (fromMe)");
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
