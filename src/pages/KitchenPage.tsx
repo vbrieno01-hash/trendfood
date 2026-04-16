@@ -509,9 +509,15 @@ export default function KitchenPage() {
                               </span>
                               {(order as any).payment_method && (order as any).payment_method !== "pending" && (
                                 <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${
-                                  (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                                  (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" :
+                                  (order as any).payment_method === "card_debit" ? "bg-sky-100 text-sky-700" :
+                                  (order as any).payment_method === "card_credit" ? "bg-indigo-100 text-indigo-700" :
+                                  "bg-blue-100 text-blue-700"
                                 }`}>
-                                  {(order as any).payment_method === "pix" ? "PIX" : "Cartão"}
+                                  {(order as any).payment_method === "pix" ? "PIX" :
+                                   (order as any).payment_method === "card_debit" ? "💳 Débito" :
+                                   (order as any).payment_method === "card_credit" ? "💳 Crédito" :
+                                   (order as any).payment_method === "cash" ? "Dinheiro" : "Cartão"}
                                 </span>
                               )}
                             </div>

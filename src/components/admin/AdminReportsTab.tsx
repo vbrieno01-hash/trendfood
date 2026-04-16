@@ -17,6 +17,9 @@ const fmt = (v: number) =>
 const PAYMENT_LABELS: Record<string, string> = {
   pix: "PIX",
   cash: "Dinheiro",
+  card_debit: "Cartão Débito",
+  card_credit: "Cartão Crédito",
+  card: "Cartão",
   credit: "Cartão Crédito",
   debit: "Cartão Débito",
   pending: "Pendente",

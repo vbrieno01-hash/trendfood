@@ -41,7 +41,8 @@ const formatPhone = (value: string) => {
 
 const paymentOptions = [
   { value: "pix", label: "PIX", icon: QrCode },
-  { value: "cartao", label: "Cartão", icon: CreditCard },
+  { value: "cartao_debito", label: "Cartão de Débito", icon: CreditCard },
+  { value: "cartao_credito", label: "Cartão de Crédito", icon: CreditCard },
   { value: "entrega", label: "Pagar na Entrega", icon: Banknote },
 ];
 

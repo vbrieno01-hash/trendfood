@@ -27,7 +27,7 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "pix" | "pending" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card_debit" | "card_credit" | "pix" | "pending" | null>(null);
   const [search, setSearch] = useState("");
 
   const DAY_KEYS = ["dom","seg","ter","qua","qui","sex","sab"];
@@ -271,10 +271,11 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
               {/* Payment method */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground">Pagamento</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {([
                     { key: "cash" as const, label: "Dinheiro", icon: Banknote },
-                    { key: "card" as const, label: "Cartão", icon: CreditCard },
+                    { key: "card_debit" as const, label: "Débito", icon: CreditCard },
+                    { key: "card_credit" as const, label: "Crédito", icon: CreditCard },
                     { key: "pix" as const, label: "PIX", icon: QrCode },
                     { key: "pending" as const, label: "Pendente", icon: Clock },
                   ]).map(({ key, label, icon: Icon }) => (

@@ -43,7 +43,7 @@ export default function TableOrderPage() {
   const [success, setSuccess] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card" | "cash">(null);
+  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card_debit" | "card_credit" | "cash">(null);
 
   // People setup state
   const [setupDone, setSetupDone] = useState(false);
@@ -301,13 +301,13 @@ export default function TableOrderPage() {
     );
   }
 
-  const handleSelectPayment = async (method: "pix" | "card" | "cash") => {
+  const handleSelectPayment = async (method: "pix" | "card_debit" | "card_credit" | "cash") => {
     setPaymentMethod(method);
     if (orderId) {
       const currentPixMode = org?.pix_confirmation_mode ?? "direct";
       const isAutomatic = method === "pix" && currentPixMode === "automatic";
 
-      if (method === "card" || method === "cash" || (method === "pix" && currentPixMode === "direct")) {
+      if (method === "card_debit" || method === "card_credit" || method === "cash" || (method === "pix" && currentPixMode === "direct")) {
         // Direct PIX, card or cash: treat as "pay at table/counter", send to kitchen immediately
         const { error: updErr } = await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
         if (updErr) console.error("[TableOrder] update payment failed:", updErr.message);
@@ -396,7 +396,7 @@ export default function TableOrderPage() {
               Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-sm font-medium text-foreground">Como deseja pagar?</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleSelectPayment("pix")}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all"
@@ -406,20 +406,28 @@ export default function TableOrderPage() {
                 <span className="text-[10px] text-muted-foreground">Pague agora</span>
               </button>
               <button
-                onClick={() => handleSelectPayment("card")}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-blue-400 hover:bg-blue-50 transition-all"
-              >
-                <CreditCard className="w-8 h-8 text-blue-600" />
-                <span className="font-bold text-xs text-foreground">Cartão</span>
-                <span className="text-[10px] text-muted-foreground">Pague no final</span>
-              </button>
-              <button
                 onClick={() => handleSelectPayment("cash")}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-yellow-400 hover:bg-yellow-50 transition-all"
               >
                 <span className="text-3xl">💵</span>
                 <span className="font-bold text-xs text-foreground">Dinheiro</span>
                 <span className="text-[10px] text-muted-foreground">Pague no caixa</span>
+              </button>
+              <button
+                onClick={() => handleSelectPayment("card_debit")}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-sky-400 hover:bg-sky-50 transition-all"
+              >
+                <CreditCard className="w-8 h-8 text-sky-600" />
+                <span className="font-bold text-xs text-foreground">Débito</span>
+                <span className="text-[10px] text-muted-foreground">Pague no final</span>
+              </button>
+              <button
+                onClick={() => handleSelectPayment("card_credit")}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+              >
+                <CreditCard className="w-8 h-8 text-indigo-600" />
+                <span className="font-bold text-xs text-foreground">Crédito</span>
+                <span className="text-[10px] text-muted-foreground">Pague no final</span>
               </button>
             </div>
           </div>
@@ -598,7 +606,8 @@ export default function TableOrderPage() {
       );
     }
 
-    // Card chosen
+    // Card chosen (debit or credit)
+    const cardLabel = paymentMethod === "card_debit" ? "Débito" : paymentMethod === "card_credit" ? "Crédito" : "Cartão";
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-sm w-full">
@@ -606,9 +615,9 @@ export default function TableOrderPage() {
           <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
           <div className="bg-card border border-border rounded-2xl p-6 space-y-3">
             <CreditCard className="w-12 h-12 text-blue-500 mx-auto" />
-            <p className="font-bold text-foreground text-lg">Pagamento no final</p>
+            <p className="font-bold text-foreground text-lg">Pagamento no final · {cardLabel}</p>
             <p className="text-sm text-muted-foreground">
-              O pagamento com cartão será realizado ao final da refeição. Bom apetite! 🍽️
+              O pagamento com cartão de {cardLabel.toLowerCase()} será realizado ao final da refeição. Bom apetite! 🍽️
             </p>
             <p className="text-2xl font-black text-primary">
               R$ {orderTotal.toFixed(2).replace(".", ",")}
