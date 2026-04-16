@@ -341,6 +341,14 @@ export default function TableOrderPage() {
     setAutoPixQrCode(null);
   };
 
+  const backToIdentification = () => {
+    resetAll();
+    setSetupDone(false);
+    setPeopleCount(1);
+    setPeopleNames([""]);
+    setActivePerson(0);
+  };
+
   // ── Success / Payment screens ──────────────────────────────────────────
   if (success) {
     const pixPayload = pixPayloadFromServer;
@@ -365,8 +373,8 @@ export default function TableOrderPage() {
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
-              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para o início
+              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para identificação da mesa
               </Button>
             </div>
           </div>
@@ -433,8 +441,8 @@ export default function TableOrderPage() {
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
-              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para o início
+              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para identificação da mesa
               </Button>
             </div>
           </div>
@@ -463,8 +471,8 @@ export default function TableOrderPage() {
                 <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                   Fazer outro pedido nesta mesa
                 </Button>
-                <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                  Voltar para o início
+                <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                  Voltar para identificação da mesa
                 </Button>
               </div>
             </div>
@@ -515,8 +523,8 @@ export default function TableOrderPage() {
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
-              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para o início
+              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para identificação da mesa
               </Button>
             </div>
           </div>
@@ -533,8 +541,8 @@ export default function TableOrderPage() {
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
-              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-                Voltar para o início
+              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para identificação da mesa
               </Button>
             </div>
           </div>
@@ -567,8 +575,8 @@ export default function TableOrderPage() {
             <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
               Fazer outro pedido nesta mesa
             </Button>
-            <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-              Voltar para o início
+            <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              Voltar para identificação da mesa
             </Button>
           </div>
         </div>
@@ -595,8 +603,8 @@ export default function TableOrderPage() {
             <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
               Fazer outro pedido nesta mesa
             </Button>
-            <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-              Voltar para o início
+            <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              Voltar para identificação da mesa
             </Button>
           </div>
         </div>
@@ -622,8 +630,8 @@ export default function TableOrderPage() {
           <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
             Fazer outro pedido nesta mesa
           </Button>
-          <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
-            Voltar para o início
+          <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+            Voltar para identificação da mesa
           </Button>
         </div>
       </div>
