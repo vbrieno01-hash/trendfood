@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power, Link2, Copy, Check } from "lucide-react";
+import { Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power, Link2, Copy, Check, Wifi, WifiOff, AlertCircle } from "lucide-react";
 
 interface BotConfig {
   id: string;
@@ -116,6 +116,48 @@ export default function AIBotAdminTab() {
     await navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 1500);
+  };
+
+  const [testingConn, setTestingConn] = useState(false);
+  const [connStatus, setConnStatus] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const handleTestConnection = async () => {
+    if (!config?.uazapi_server_url || !config?.uazapi_token) {
+      toast.error("Preencha Server URL e Token primeiro");
+      return;
+    }
+    setTestingConn(true);
+    setConnStatus(null);
+    try {
+      const url = `${config.uazapi_server_url.replace(/\/$/, "")}/instance/status`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { token: config.uazapi_token },
+      });
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+      if (!res.ok) {
+        setConnStatus({ ok: false, message: `HTTP ${res.status}: ${data?.error || data?.message || text.slice(0, 200)}` });
+        return;
+      }
+      const state = data?.instance?.status || data?.status || data?.state || "unknown";
+      const connected = ["connected", "open", "authenticated"].includes(String(state).toLowerCase());
+      setConnStatus({
+        ok: connected,
+        message: connected
+          ? `Instância conectada ao WhatsApp (status: ${state})`
+          : `Token válido, mas WhatsApp não conectado (status: ${state}). Escaneie o QR Code no painel uazapi.`,
+      });
+    } catch (err: any) {
+      setConnStatus({ ok: false, message: "Erro de rede: " + (err.message || "falha desconhecida") });
+    } finally {
+      setTestingConn(false);
+    }
   };
 
   const handleSave = async () => {
@@ -279,19 +321,70 @@ export default function AIBotAdminTab() {
             </div>
           </div>
 
+          {/* Botão Testar conexão */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestConnection}
+              disabled={testingConn || !config.uazapi_server_url || !config.uazapi_token}
+            >
+              {testingConn ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Wifi className="w-4 h-4 mr-2" />
+              )}
+              Testar conexão
+            </Button>
+            {connStatus && (
+              <div
+                className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg border flex-1 ${
+                  connStatus.ok
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-destructive/10 border-destructive/30 text-destructive"
+                }`}
+              >
+                {connStatus.ok ? (
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                ) : (
+                  <WifiOff className="w-4 h-4 shrink-0 mt-0.5" />
+                )}
+                <span>{connStatus.message}</span>
+              </div>
+            )}
+          </div>
+
           <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-            <p className="text-sm font-semibold">Como conectar (passo a passo)</p>
+            <p className="text-sm font-semibold">Como conectar a instância (passo a passo)</p>
             <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
               <li>
                 Acesse <span className="font-mono text-foreground">free.uazapi.com</span>, cole o token e clique em
                 <strong> Conectar → Gerar QR Code</strong>.
               </li>
               <li>Escaneie o QR Code com o WhatsApp do número que vai atender.</li>
+              <li>Use o botão <strong>"Testar conexão"</strong> acima pra confirmar se a instância está online.</li>
+            </ol>
+          </div>
+
+          <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold">Configurar o Webhook no uazapiGO</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              No painel uazapi, abra <strong>Configurar Webhook → Criar Webhook</strong> e preencha exatamente assim:
+            </p>
+
+            <ol className="text-xs space-y-3 list-decimal list-inside">
               <li>
-                No painel uazapiGO, abra <strong>Configurar Webhook → Criar Webhook</strong> e cole a URL abaixo:
+                <strong>Habilitado</strong>: ligar o switch (canto superior direito)
               </li>
               <li>
-                <div className="flex gap-2 mt-1">
+                <strong>Método</strong>: deixar em <span className="font-mono">POST</span>
+              </li>
+              <li>
+                <strong>URL</strong>: cole exatamente esta:
+                <div className="flex gap-2 mt-1.5">
                   <Input value={WEBHOOK_URL} readOnly className="font-mono text-xs h-9" />
                   <Button
                     type="button"
@@ -299,16 +392,40 @@ export default function AIBotAdminTab() {
                     size="sm"
                     onClick={() => copy(WEBHOOK_URL, "webhook")}
                   >
-                    {copied === "webhook" ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
+                    {copied === "webhook" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </Button>
                 </div>
               </li>
-              <li>Marque o evento <strong>messages</strong> (mensagem recebida) e salve.</li>
-              <li>Mande mensagem do seu WhatsApp pessoal (configurado abaixo) pro número conectado e veja a resposta chegar.</li>
+              <li>
+                <strong>addUrlEvents</strong> e <strong>addUrlTypesMessages</strong>: deixar <em>desligados</em>
+              </li>
+              <li>
+                <strong>Escutar eventos</strong>: digite exatamente:
+                <div className="flex gap-2 mt-1.5">
+                  <Input value="messages" readOnly className="font-mono text-xs h-9" />
+                  <Button type="button" variant="outline" size="sm" onClick={() => copy("messages", "events")}>
+                    {copied === "events" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </li>
+              <li>
+                <strong>Excluir dos eventos escutados</strong>: digite exatamente (separado por vírgula, sem espaços):
+                <div className="flex gap-2 mt-1.5">
+                  <Input value="wasSentByApi,isGroupYes" readOnly className="font-mono text-xs h-9" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copy("wasSentByApi,isGroupYes", "exclude")}
+                  >
+                    {copied === "exclude" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5 pl-1">
+                  ⚠️ <strong>wasSentByApi</strong> evita loop quando o robô responde a si mesmo. <strong>isGroupYes</strong> ignora grupos.
+                </p>
+              </li>
+              <li>Clique em <strong>Salvar</strong> e mande mensagem do seu WhatsApp pessoal pro número conectado.</li>
             </ol>
           </div>
         </CardContent>
