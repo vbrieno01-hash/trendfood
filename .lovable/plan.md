@@ -1,40 +1,99 @@
 
-Versão informal mas profissional pra colar no grupo dos lojistas:
+## Painel Admin: Configuração + Teste do Robô de Atendimento
 
----
+### Objetivo
+Criar uma área no Painel Admin (`/admin`) para você configurar e testar o robô de WhatsApp **em modo real**, enquanto pros lojistas a aba continua como "EM BREVE". Você pega 1h de teste, valida o fluxo completo, depois libera pros lojistas quando estiver redondo.
 
-**Galera, novidade quente saindo do forno 🔧**
+### Arquitetura
 
-Tô finalizando uma integração nova aqui na plataforma: **Robô de Atendimento com IA no WhatsApp.**
+```text
+LOJISTA (qualquer org)        ADMIN (brenojackson30@gmail.com)
+       |                              |
+  /dashboard > Robô IA          /admin > Robô IA (nova aba)
+       |                              |
+   [EM BREVE]                  [Configuração + Teste real]
+                                      |
+                          ┌───────────┼───────────┐
+                          |           |           |
+                    Config bot   Conversa teste  Logs
+                    (persona,    (chat ao vivo  (fila_whatsapp
+                    saudação,    via WhatsApp   já existe)
+                    horário)     real)
+```
 
-Sabe aquele cliente que manda mensagem 23h da noite perguntando se tá aberto? Ou no domingo de manhã querendo o cardápio? Ou no meio do almoço lotado quando ninguém tem mão pra responder?
+### O que vamos construir
 
-**Esse robô resolve tudo isso sozinho.**
+**1. Tabela nova: `ai_bot_config`** (singleton — uma config global do admin pro teste)
+- `system_prompt` (text) — persona/instruções do robô
+- `greeting_message` (text) — mensagem de boas-vindas
+- `model` (text) — `google/gemini-2.5-flash` (rápido + barato pra testes)
+- `enabled` (boolean) — liga/desliga o bot
+- `test_phone` (text) — seu WhatsApp pro teste
+- `test_org_id` (uuid) — qual loja usar como contexto (cardápio, horários etc)
+- `updated_at`
+- RLS: só admin lê/escreve
 
-O que ele faz:
-• Responde na hora — cardápio, preço, horário, tempo de entrega, forma de pagamento
-• Manda o link do cardápio digital direto pro cliente
-• Anota pedido sozinho enquanto vocês tão na correria
-• Reconhece cliente que já pediu antes e chama pelo nome
-• Quando a loja tá fechada, agenda o pedido pra reabertura
-• Se a parada for séria, transfere a conversa pra vocês na hora
+**2. Edge Function nova: `ai-bot-respond`** (verify_jwt = false, chamada pelo webhook do WhatsApp)
+- Recebe `{ phone, message }`
+- Carrega `ai_bot_config` + dados da loja de teste (cardápio, horários, endereço)
+- Monta contexto: persona + cardápio + horário + histórico (últimas 10 msgs de `fila_whatsapp` desse phone)
+- Chama Lovable AI Gateway (`LOVABLE_API_KEY` já existe) com modelo configurado
+- Salva pergunta + resposta em `fila_whatsapp` (tabela já existe)
+- Retorna `{ response }` pra ser enviado via Evolution API (mesma ponte WhatsApp já configurada)
 
-**Por que isso importa:**
-Cliente hoje não espera. Se você demora 10 minutos pra responder, ele já pediu no concorrente. Com o robô, resposta em 2 segundos, 24h por dia, no SEU número de WhatsApp — sem precisar contratar atendente, sem perder venda fora do horário.
+**3. Integração com `whatsapp-webhook` existente**
+- Adicionar branch: se `ai_bot_config.enabled = true` e mensagem vem do `test_phone` (ou de qualquer número quando ativarmos pra todos depois), encaminha pra `ai-bot-respond` em vez do fluxo normal de impressão/notificação.
 
-Já tá visível na plataforma em **Integrações → Robô IA** (marcado como EM BREVE por enquanto). Vou liberar pros primeiros lojistas em poucos dias, em fase de teste fechado.
+**4. Componente novo: `src/components/admin/AIBotAdminTab.tsx`**
+- Card "Configuração":
+  - Switch ligar/desligar
+  - Textarea persona/system_prompt (default já preenchido com persona "atendente educado de delivery")
+  - Input mensagem de boas-vindas
+  - Select modelo (`gemini-2.5-flash` / `gemini-2.5-pro` / `gpt-5-mini`)
+  - Select loja de teste (lista organizations)
+  - Input WhatsApp de teste (E.164)
+  - Botão "Salvar configuração"
+- Card "Conversa de teste ao vivo":
+  - Visualização tipo chat (carrega últimas 50 msgs de `fila_whatsapp` do `test_phone` em realtime via Supabase channel)
+  - Textarea + botão "Simular mensagem do cliente" (insere uma msg como se viesse do cliente, dispara `ai-bot-respond`, mostra resposta)
+  - Botão "Limpar conversa" (apaga histórico do test_phone)
+- Card "Status":
+  - Total mensagens hoje, taxa resposta, tempo médio
+  - Link rápido pro grupo Evolution (Oracle) caso precise checar conexão
 
-**Quem quiser entrar na lista de prioridade pra testar antes de todo mundo, responde aqui no grupo que eu vou anotando.**
+**5. Registrar aba no AdminPage**
+- Adicionar nova entrada nas tabs do `src/pages/AdminPage.tsx`: `{ value: "aibot", label: "Robô IA", icon: Bot }`
+- Renderizar `<AIBotAdminTab />`
 
-Abraço e bora vender mais.
+**6. Aba do lojista permanece EM BREVE**
+- `src/components/dashboard/AIBotTab.tsx` fica exatamente como está — sem mudanças.
 
----
+### Fluxo de teste real (1h)
+1. Você abre `/admin` → aba "Robô IA"
+2. Liga o switch, escolhe loja de teste (TrendFood/sua loja matriz), define seu WhatsApp e clica salvar
+3. Manda uma mensagem do seu WhatsApp pro número da Evolution (que já tá conectado)
+4. Webhook chama `ai-bot-respond`, robô responde via Evolution
+5. Você acompanha a conversa em tempo real no painel
+6. Ajusta persona/saudação na hora e testa de novo
 
-Quer que eu ajuste alguma parte (mais curto, trocar alguma frase, mudar o fechamento)?
+### Pontos técnicos importantes
+- **Contexto da loja**: `ai-bot-respond` carrega `menu_items` (only `available=true`), `business_hours`, `delivery_neighborhoods` da `test_org_id` e injeta tudo no system prompt como Markdown estruturado. Assim o bot já responde com cardápio real.
+- **Histórico**: usa as últimas 10 entradas em `fila_whatsapp` filtrando por `phone` pra dar memória de conversa.
+- **Sem custo extra de API key**: usa `LOVABLE_API_KEY` que já tá nos secrets.
+- **RLS**: tabela `ai_bot_config` só admin acessa; `fila_whatsapp` já tem RLS admin-only.
+- **Limites**: rate-limit simples na edge function (max 1 req/segundo por phone) pra evitar loop.
 
-<lov-actions>
-<lov-suggestion message="Ficou bom, agora faz uma versão ainda mais curta de até 6 linhas pra status do WhatsApp">Versão status (6 linhas)</lov-suggestion>
-<lov-suggestion message="Tira a parte de 'fase de teste fechado' e deixa como se já fosse lançar pra todo mundo">Remover fase de teste</lov-suggestion>
-<lov-suggestion message="Adiciona um PS no final dizendo que quem indicar 3 lojistas novos ganha acesso prioritário ao robô">Adicionar gancho de indicação</lov-suggestion>
-<lov-suggestion message="Cria uma imagem/banner pra eu postar junto com esse texto no grupo, com o robô da plataforma">Gerar banner pro post</lov-suggestion>
-</lov-actions>
+### Arquivos a criar/editar
+- **Migration SQL**: cria tabela `ai_bot_config` + RLS admin-only
+- **Edge Function nova**: `supabase/functions/ai-bot-respond/index.ts`
+- **Edge Function editar**: `supabase/functions/whatsapp-webhook/index.ts` (branch pro bot)
+- **Componente novo**: `src/components/admin/AIBotAdminTab.tsx`
+- **Editar**: `src/pages/AdminPage.tsx` (registrar tab)
+
+### O que NÃO muda agora
+- `src/components/dashboard/AIBotTab.tsx` (lojista) — continua "EM BREVE"
+- `DashboardPage.tsx` — sem alteração
+- Fluxo de pedidos/impressão do WhatsApp normal — intacto, só ganha um branch pro test_phone
+
+### Resultado
+Em poucos minutos você tem uma sala de testes completa: configura o robô, manda WhatsApp real, vê a conversa rolando ao vivo no painel admin, ajusta tom/contexto na hora. Lojistas continuam vendo só "EM BREVE" até você dar o ok pra liberar.
