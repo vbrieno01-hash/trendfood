@@ -1,47 +1,41 @@
 
-## Nova aba "Robô de Atendimento — Em Breve"
+## Descrição para divulgar no grupo dos lojistas
 
-### Onde
-Adicionar uma nova aba no grupo **Integrações** do dashboard, ao lado de iFood/WhatsApp/Telegram. Mesmo padrão visual do `IFoodTab.tsx` (card "Em Breve" com SVG animado), mas com um **robô animado de verdade** — sem emojis genéricos.
+Texto pronto pra colar no grupo de WhatsApp/Telegram dos donos de loja, anunciando a próxima integração do **Robô de Atendimento com IA**:
 
-### Componente novo: `src/components/dashboard/AIBotTab.tsx`
+---
 
-Card com fundo gradiente sutil (tons da marca, não roxo neon clichê) contendo:
+**🚀 NOVIDADE CHEGANDO: Robô de Atendimento com IA**
 
-**Robô SVG animado (~140x140)** — desenhado à mão em SVG inline:
-- **Cabeça quadrada arredondada** com cor primária da plataforma
-- **Antena** com bolinha pulsante no topo (animação `pulse`)
-- **Dois olhos circulares** que piscam periodicamente (animação custom `blink` — escala Y vai a 0.1 por 150ms a cada 4s)
-- **Olhos seguem um leve movimento lateral** (left/right) simulando "pensando" — animação `lookAround` de 6s
-- **Boca** = barra horizontal que vira sorriso sutil em loop
-- **Corpo** retangular com painel frontal mostrando 3 LEDs sequenciais (verde/amarelo/azul piscando em ordem — efeito "processando")
-- **Braços** laterais leves com micro-balanço (rotate ±5deg)
-- **Sombra elíptica embaixo** que pulsa suavemente
-- **Wrapper float 3s** (sobe e desce 8px) — mesmo padrão do IFoodTab
+Pessoal, tô finalizando uma integração que vai mudar o jogo pra quem perde venda fora do horário ou trava no WhatsApp lotado:
 
-**Badge "EM BREVE"** com ponto pulsante (mesmo componente visual do IFoodTab, mas cor primária da plataforma em vez de vermelho iFood).
+**Atendimento automático 24h direto no seu WhatsApp.**
 
-**Texto:**
-- Título: **"Robô de Atendimento com IA"**
-- Subtítulo: "Atendimento automático 24h via WhatsApp. Responde dúvidas dos clientes, mostra cardápio, anota pedidos e transfere pra você quando precisar."
-- Estilo limpo, sem emojis, sem ícones decorativos genéricos.
+O que o robô vai fazer por você:
+• Responde dúvidas dos clientes na hora (cardápio, preços, horário, formas de pagamento, tempo de entrega)
+• Mostra o cardápio completo com link direto pra pedir
+• Anota pedidos sozinho enquanto você dorme ou tá no corre
+• Reconhece cliente recorrente e chama pelo nome
+• Avisa quando a loja tá fechada e agenda o pedido pra reabertura
+• Transfere a conversa pra você quando for algo que precisa de humano
 
-### Integração no dashboard
+**O que muda na prática:**
+→ Você para de perder pedido às 23h, no domingo, no almoço lotado
+→ Cliente recebe resposta em 2 segundos (não em 20 minutos)
+→ Sua equipe foca em produzir, não em digitar "boa noite, qual seu pedido?"
+→ Funciona no SEU número de WhatsApp, com a SUA personalidade configurada
 
-**`src/pages/DashboardPage.tsx`** (ou onde as abas de Integrações são registradas — vou confirmar lendo o arquivo):
-1. Importar `AIBotTab`.
-2. Adicionar entrada na lista de abas do grupo Integrações: `{ value: "ai-bot", label: "Robô IA", component: AIBotTab }` (após iFood ou Telegram, posição a definir após inspeção).
-3. Manter mesma assinatura `(orgId: string)` do IFoodTab.
+Já tá disponível na aba **Integrações > Robô IA** no painel — por enquanto marcado como **EM BREVE**. Tô liberando pros primeiros lojistas em poucos dias.
 
-### Animações CSS (dentro do `<style>` do componente, padrão IFoodTab)
-```css
-@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-@keyframes blink { 0%,92%,100%{transform:scaleY(1)} 95%{transform:scaleY(0.1)} }
-@keyframes lookAround { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-2px)} 75%{transform:translateX(2px)} }
-@keyframes ledSeq { 0%,100%{opacity:.2} 50%{opacity:1} }
-@keyframes armSwing { 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} }
-@keyframes shadowPulse { 0%,100%{transform:scaleX(1);opacity:.3} 50%{transform:scaleX(.85);opacity:.5} }
-```
+Quem quiser entrar na lista de testes prioritários, manda 🤖 aqui no grupo.
 
-### Resultado
-Nova aba **Robô IA — Em Breve** no grupo Integrações, com robô SVG genuinamente animado (piscando, olhando ao redor, LEDs processando, braços balançando, flutuando), sem emojis, comunicação direta sobre atendimento automático via WhatsApp.
+---
+
+### Variações disponíveis
+
+Posso ajustar o tom se preferir:
+- **Mais curto** (3-4 linhas pra status/story)
+- **Mais técnico** (focado em ROI e números)
+- **Mais informal** (zoeira/meme pra grupo de amigos lojistas)
+
+Me diz qual versão quer que eu refine, ou se tá bom assim.
