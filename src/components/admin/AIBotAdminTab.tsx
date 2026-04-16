@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power } from "lucide-react";
+import { Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power, Link2, Copy, Check } from "lucide-react";
 
 interface BotConfig {
   id: string;
@@ -19,7 +19,12 @@ interface BotConfig {
   model: string;
   test_phone: string | null;
   test_org_id: string | null;
+  uazapi_server_url: string | null;
+  uazapi_token: string | null;
+  uazapi_instance_name: string | null;
 }
+
+const WEBHOOK_URL = "https://xrzudhylpphnzousilye.supabase.co/functions/v1/whatsapp-webhook";
 
 interface QueueRow {
   id: string;
@@ -106,6 +111,13 @@ export default function AIBotAdminTab() {
     };
   }, [config?.test_phone]);
 
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
   const handleSave = async () => {
     if (!config) return;
     setSaving(true);
@@ -118,6 +130,9 @@ export default function AIBotAdminTab() {
         model: config.model,
         test_phone: config.test_phone?.replace(/\D/g, "") || null,
         test_org_id: config.test_org_id,
+        uazapi_server_url: config.uazapi_server_url || "https://free.uazapi.com",
+        uazapi_token: config.uazapi_token || null,
+        uazapi_instance_name: config.uazapi_instance_name || null,
       })
       .eq("id", config.id);
     setSaving(false);
@@ -211,6 +226,93 @@ export default function AIBotAdminTab() {
           </Badge>
         </div>
       </div>
+
+      {/* Conexão WhatsApp (uazapiGO) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="w-5 h-5 text-primary" />
+            Conexão WhatsApp (uazapiGO)
+          </CardTitle>
+          <CardDescription>
+            Credenciais da instância uazapiGO usada como ponte entre o WhatsApp e o robô.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Server URL</Label>
+              <Input
+                value={config.uazapi_server_url || ""}
+                onChange={(e) => setConfig({ ...config, uazapi_server_url: e.target.value })}
+                placeholder="https://free.uazapi.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome da Instância</Label>
+              <Input
+                value={config.uazapi_instance_name || ""}
+                onChange={(e) => setConfig({ ...config, uazapi_instance_name: e.target.value })}
+                placeholder="HqrTf5"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Instance Token</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={config.uazapi_token || ""}
+                  onChange={(e) => setConfig({ ...config, uazapi_token: e.target.value })}
+                  placeholder="27e8406b-..."
+                  className="font-mono text-xs"
+                />
+                {config.uazapi_token && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copy(config.uazapi_token!, "token")}
+                  >
+                    {copied === "token" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+            <p className="text-sm font-semibold">Como conectar (passo a passo)</p>
+            <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
+              <li>
+                Acesse <span className="font-mono text-foreground">free.uazapi.com</span>, cole o token e clique em
+                <strong> Conectar → Gerar QR Code</strong>.
+              </li>
+              <li>Escaneie o QR Code com o WhatsApp do número que vai atender.</li>
+              <li>
+                No painel uazapiGO, abra <strong>Configurar Webhook → Criar Webhook</strong> e cole a URL abaixo:
+              </li>
+              <li>
+                <div className="flex gap-2 mt-1">
+                  <Input value={WEBHOOK_URL} readOnly className="font-mono text-xs h-9" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copy(WEBHOOK_URL, "webhook")}
+                  >
+                    {copied === "webhook" ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </li>
+              <li>Marque o evento <strong>messages</strong> (mensagem recebida) e salve.</li>
+              <li>Mande mensagem do seu WhatsApp pessoal (configurado abaixo) pro número conectado e veja a resposta chegar.</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Configuração */}
       <Card>
@@ -414,7 +516,7 @@ export default function AIBotAdminTab() {
           </div>
           <p className="text-xs text-muted-foreground">
             💡 Dica: Você também pode mandar mensagem do seu WhatsApp ({config.test_phone || "..."}) pro
-            número da Evolution e ver a conversa rolando aqui em tempo real.
+            número conectado no uazapiGO e ver a conversa rolando aqui em tempo real.
           </p>
         </CardContent>
       </Card>

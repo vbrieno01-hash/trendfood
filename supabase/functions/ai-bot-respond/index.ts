@@ -36,10 +36,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // 1) Carregar config
+    // 1) Carregar config (inclui credenciais uazapiGO)
     const { data: config } = await supabase
       .from("ai_bot_config")
-      .select("*")
+      .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -167,7 +167,34 @@ Deno.serve(async (req) => {
       aiData.choices?.[0]?.message?.content ||
       "Desculpa, tive um problema aqui. Pode repetir?";
 
-    // 5) Salvar
+    // 5) Enviar resposta de volta via uazapiGO (se credenciais configuradas)
+    let sent = false;
+    let sendError: string | null = null;
+    if (config.uazapi_server_url && config.uazapi_token) {
+      try {
+        const sendRes = await fetch(
+          `${String(config.uazapi_server_url).replace(/\/$/, "")}/send/text`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              token: config.uazapi_token,
+            },
+            body: JSON.stringify({ number: phone, text: reply }),
+          },
+        );
+        sent = sendRes.ok;
+        if (!sendRes.ok) {
+          sendError = await sendRes.text();
+          console.error("uazapi send error:", sendRes.status, sendError);
+        }
+      } catch (e) {
+        sendError = (e as Error).message;
+        console.error("uazapi send exception:", sendError);
+      }
+    }
+
+    // 6) Salvar
     await supabase.from("fila_whatsapp").insert({
       phone,
       incoming_message: message,
@@ -176,7 +203,7 @@ Deno.serve(async (req) => {
       responded_at: new Date().toISOString(),
     });
 
-    return new Response(JSON.stringify({ ok: true, response: reply }), {
+    return new Response(JSON.stringify({ ok: true, response: reply, sent, sendError }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
