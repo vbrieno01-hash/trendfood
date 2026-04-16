@@ -1,21 +1,24 @@
 
 
-## Corrigir destino do botão "Voltar para o início"
+## Voltar para o Dashboard quando aberto pelo lojista
 
-### Problema
-O botão atual leva para `/unidade/{slug}` (cardápio público da loja). O correto é voltar para a **tela de identificação da mesa** — onde o cliente informa quantas pessoas estão e os nomes.
+### Contexto
+Na `TablesTab.tsx`, ao clicar em uma mesa o lojista navega para `/unidade/{slug}/mesa/{n}` com `state: { from: "dashboard" }`. O botão "Voltar para identificação da mesa" hoje só reseta o estado local — mas o lojista quer voltar para `/dashboard?tab=tables` (a tela de onde ele veio).
 
 ### Solução
-A tela de identificação é a fase inicial da própria `TableOrderPage` (quando `setupDone === false`). Em vez de navegar para outra rota, o botão deve **resetar o estado** para voltar à etapa de identificação da mesma mesa.
+Em `src/pages/TableOrderPage.tsx`:
 
-### Mudança em `src/pages/TableOrderPage.tsx`
-Substituir os 8 botões "Voltar para o início" para chamar uma função que:
-- Limpa o sucesso e o carrinho (`setSuccess(false)`, `setCart({})`, `setNotes("")`)
-- Reseta a identificação (`setSetupDone(false)`, `setPeopleCount(1)`, `setPeopleNames([""])`, `setActivePerson(0)`)
-- Limpa cupom e dados de pagamento (`setAppliedCoupon(null)`, `setPaymentMethod(null)`, `setOrderId(null)`)
+1. Detectar a origem usando o `_fromDashboard` (já existe na linha 34, lendo `location.state?.from === "dashboard"`).
 
-Texto sugerido: **"Voltar para identificação da mesa"** (mais claro que "início").
+2. Alterar o handler `backToIdentification` para ramificar:
+   - **Se `_fromDashboard === true`**: `navigate("/dashboard?tab=tables")` — volta para a aba Mesas & Comandas do dashboard.
+   - **Caso contrário** (cliente real escaneando QR): mantém o comportamento atual (reseta estado e volta para identificação da mesa).
+
+3. Ajustar o texto do botão dinamicamente:
+   - Lojista vindo do dashboard: **"Voltar para Mesas & Comandas"**
+   - Cliente normal: **"Voltar para identificação da mesa"** (como está hoje)
 
 ### Resultado
-Cliente clica → volta para a tela onde escolhe quantas pessoas e digita os nomes da mesma mesa, sem sair para o cardápio público.
+- Lojista testando pelo dashboard → botão volta para `/dashboard?tab=tables` (a tela do print).
+- Cliente real na mesa → botão continua resetando para a tela de nomes.
 
