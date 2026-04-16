@@ -516,7 +516,7 @@ export default function AIBotAdminTab() {
           </div>
           <p className="text-xs text-muted-foreground">
             💡 Dica: Você também pode mandar mensagem do seu WhatsApp ({config.test_phone || "..."}) pro
-            número da Evolution e ver a conversa rolando aqui em tempo real.
+            número conectado no uazapiGO e ver a conversa rolando aqui em tempo real.
           </p>
         </CardContent>
       </Card>
