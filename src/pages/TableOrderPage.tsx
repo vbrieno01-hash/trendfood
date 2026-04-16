@@ -365,6 +365,9 @@ export default function TableOrderPage() {
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
+              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para o início
+              </Button>
             </div>
           </div>
         );
@@ -430,6 +433,9 @@ export default function TableOrderPage() {
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
+              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para o início
+              </Button>
             </div>
           </div>
         );
@@ -456,6 +462,9 @@ export default function TableOrderPage() {
                 <p className="text-muted-foreground">Seu pedido foi enviado para a cozinha. Bom apetite! 🍽️</p>
                 <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                   Fazer outro pedido nesta mesa
+                </Button>
+                <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                  Voltar para o início
                 </Button>
               </div>
             </div>
@@ -506,6 +515,9 @@ export default function TableOrderPage() {
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
               </Button>
+              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para o início
+              </Button>
             </div>
           </div>
         );
@@ -520,6 +532,9 @@ export default function TableOrderPage() {
               <p className="text-muted-foreground">PIX indisponível — chave não configurada.</p>
               <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
                 Fazer outro pedido nesta mesa
+              </Button>
+              <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                Voltar para o início
               </Button>
             </div>
           </div>
@@ -552,6 +567,9 @@ export default function TableOrderPage() {
             <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
               Fazer outro pedido nesta mesa
             </Button>
+            <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              Voltar para o início
+            </Button>
           </div>
         </div>
       );
@@ -577,6 +595,9 @@ export default function TableOrderPage() {
             <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
               Fazer outro pedido nesta mesa
             </Button>
+            <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              Voltar para o início
+            </Button>
           </div>
         </div>
       );
@@ -600,6 +621,9 @@ export default function TableOrderPage() {
           </div>
           <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
             Fazer outro pedido nesta mesa
+          </Button>
+          <Button variant="link" onClick={() => navigate(`/unidade/${slug}`)} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+            Voltar para o início
           </Button>
         </div>
       </div>
