@@ -54,6 +54,7 @@ import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
 import IFoodTab from "@/components/dashboard/IFoodTab";
 import TelegramTab from "@/components/dashboard/TelegramTab";
+import AIBotTab from "@/components/dashboard/AIBotTab";
 import CounterTab from "@/components/dashboard/CounterTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
 
