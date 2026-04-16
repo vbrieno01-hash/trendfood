@@ -311,8 +311,8 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
     customer: isPickup
       ? customer ? { name: customer.name, phone: customer.phone, doc: customer.doc } : undefined
       : customer,
-    paymentMethod: parsed?.payment,
-    showChargeNotice: !!parsed?.payment,
+    paymentMethod: parsed?.payment || mapPaymentMethodToReceipt(order.payment_method),
+    showChargeNotice: !!(parsed?.payment || mapPaymentMethodToReceipt(order.payment_method)),
     totals,
     troco: parsed?.troco,
     scheduledTime: parsed?.agendado,
