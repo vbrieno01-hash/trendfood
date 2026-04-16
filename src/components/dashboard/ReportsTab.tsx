@@ -45,6 +45,9 @@ const PERIOD_OPTIONS: { key: Period; label: string }[] = [
 const PAYMENT_LABELS: Record<string, string> = {
   pix: "PIX",
   cash: "Dinheiro",
+  card_debit: "Débito",
+  card_credit: "Crédito",
+  card: "Cartão",
   credit: "Crédito",
   debit: "Débito",
   pending: "Pendente",
@@ -183,8 +186,9 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
   // Payment method breakdown
   const PAYMENT_COLORS: Record<string, string> = {
     PIX: "#22c55e",
-    Crédito: "#3b82f6",
-    Débito: "#8b5cf6",
+    Crédito: "#6366f1",
+    Débito: "#0ea5e9",
+    Cartão: "#3b82f6",
     Dinheiro: "#eab308",
     Pendente: "#9ca3af",
   };

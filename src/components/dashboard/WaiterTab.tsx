@@ -315,11 +315,15 @@ export default function WaiterTab({
                              (order as any).payment_method === "pending" ? "bg-red-100 text-red-700" :
                              (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" :
                              (order as any).payment_method === "cash" ? "bg-gray-100 text-gray-700" :
+                             (order as any).payment_method === "card_debit" ? "bg-sky-100 text-sky-700" :
+                             (order as any).payment_method === "card_credit" ? "bg-indigo-100 text-indigo-700" :
                              "bg-blue-100 text-blue-700"
                            }`}>
                              {(order as any).payment_method === "pending" ? "💰 PENDENTE" :
                               (order as any).payment_method === "pix" ? "PIX" :
-                              (order as any).payment_method === "cash" ? "Dinheiro" : "Cartão"}
+                              (order as any).payment_method === "cash" ? "Dinheiro" :
+                              (order as any).payment_method === "card_debit" ? "💳 Débito" :
+                              (order as any).payment_method === "card_credit" ? "💳 Crédito" : "Cartão"}
                            </span>
                          )}
                       </div>
@@ -460,11 +464,15 @@ export default function WaiterTab({
                             (order as any).payment_method === "pending" ? "bg-red-100 text-red-700" :
                             (order as any).payment_method === "pix" ? "bg-green-100 text-green-700" :
                             (order as any).payment_method === "cash" ? "bg-gray-100 text-gray-700" :
+                            (order as any).payment_method === "card_debit" ? "bg-sky-100 text-sky-700" :
+                            (order as any).payment_method === "card_credit" ? "bg-indigo-100 text-indigo-700" :
                             "bg-blue-100 text-blue-700"
                           }`}>
                             {(order as any).payment_method === "pending" ? "💰 PENDENTE" :
                              (order as any).payment_method === "pix" ? "PIX" :
-                             (order as any).payment_method === "cash" ? "Dinheiro" : "Cartão"}
+                             (order as any).payment_method === "cash" ? "Dinheiro" :
+                             (order as any).payment_method === "card_debit" ? "💳 Débito" :
+                             (order as any).payment_method === "card_credit" ? "💳 Crédito" : "Cartão"}
                           </span>
                         )}
                       </div>
@@ -501,7 +509,7 @@ export default function WaiterTab({
 
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span>💳</span>
-                    <span>Dinheiro · Pix · Cartão</span>
+                    <span>Dinheiro · Pix · Débito · Crédito</span>
                   </div>
 
                   <div className="flex gap-2 flex-wrap">
@@ -556,11 +564,19 @@ export default function WaiterTab({
                         </Button>
                         <Button
                           size="sm"
-                          className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+                          className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-semibold"
                           disabled={busyPay}
-                          onClick={() => handlePay(order.id, "card")}
+                          onClick={() => handlePay(order.id, "card_debit")}
                         >
-                          {busyPay ? <Loader2 className="w-4 h-4 animate-spin" /> : "💳 Cartão"}
+                          {busyPay ? <Loader2 className="w-4 h-4 animate-spin" /> : "💳 Débito"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold"
+                          disabled={busyPay}
+                          onClick={() => handlePay(order.id, "card_credit")}
+                        >
+                          {busyPay ? <Loader2 className="w-4 h-4 animate-spin" /> : "💳 Crédito"}
                         </Button>
                         <Button
                           size="sm"
