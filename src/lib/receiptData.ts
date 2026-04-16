@@ -13,7 +13,31 @@ export interface PrintableOrder {
   created_at: string;
   notes?: string | null;
   order_number?: number;
+  payment_method?: string | null;
   order_items?: Array<{ id: string; name: string; quantity: number; price?: number; customer_name?: string | null }>;
+}
+
+/** Map DB payment_method key → uppercase PT-BR label for thermal receipts */
+function mapPaymentMethodToReceipt(pm?: string | null): string | undefined {
+  if (!pm) return undefined;
+  const key = pm.toLowerCase().trim();
+  switch (key) {
+    case "card_debit": return "DEBITO";
+    case "card_credit": return "CREDITO";
+    case "pix": return "PIX";
+    case "cash":
+    case "dinheiro": return "DINHEIRO";
+    case "card":
+    case "cartão":
+    case "cartao":
+    case "maquininha na entrega": return "CARTAO";
+    case "cartão de débito":
+    case "cartao de debito": return "DEBITO";
+    case "cartão de crédito":
+    case "cartao de credito": return "CREDITO";
+    case "pending": return undefined;
+    default: return pm.toUpperCase();
+  }
 }
 
 interface ParsedNotes {
