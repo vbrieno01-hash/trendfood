@@ -378,10 +378,7 @@ export default function TableOrderPage() {
                   Seu pedido já foi para a cozinha! Realize o pagamento no caixa ao final da refeição. Bom apetite! 🍽️
                 </p>
               </div>
-              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-                Fazer outro pedido nesta mesa
-              </Button>
-              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              <Button variant="outline" onClick={backToIdentification} className="w-full">
                 {backButtonLabel}
               </Button>
             </div>
@@ -446,10 +443,7 @@ export default function TableOrderPage() {
                 <p className="font-bold text-foreground text-lg">Pagamento via PIX</p>
                 <p className="text-sm text-muted-foreground">Pague na hora com PIX. Seu pedido já foi para a cozinha! 🍽️</p>
               </div>
-              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-                Fazer outro pedido nesta mesa
-              </Button>
-              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              <Button variant="outline" onClick={backToIdentification} className="w-full">
                 {backButtonLabel}
               </Button>
             </div>
@@ -476,10 +470,7 @@ export default function TableOrderPage() {
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
                 <h1 className="text-2xl font-bold text-foreground">Pagamento confirmado! ✅</h1>
                 <p className="text-muted-foreground">Seu pedido foi enviado para a cozinha. Bom apetite! 🍽️</p>
-                <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-                  Fazer outro pedido nesta mesa
-                </Button>
-                <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+                <Button variant="outline" onClick={backToIdentification} className="w-full">
                   {backButtonLabel}
                 </Button>
               </div>
@@ -528,10 +519,7 @@ export default function TableOrderPage() {
                   <p className="text-sm text-destructive">Erro ao gerar QR Code. Tente novamente.</p>
                 )}
               </div>
-              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-                Fazer outro pedido nesta mesa
-              </Button>
-              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              <Button variant="outline" onClick={backToIdentification} className="w-full">
                 {backButtonLabel}
               </Button>
             </div>
@@ -546,10 +534,7 @@ export default function TableOrderPage() {
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
               <h1 className="text-2xl font-bold text-foreground">Pedido enviado! 🎉</h1>
               <p className="text-muted-foreground">PIX indisponível — chave não configurada.</p>
-              <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-                Fazer outro pedido nesta mesa
-              </Button>
-              <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+              <Button variant="outline" onClick={backToIdentification} className="w-full">
                 {backButtonLabel}
               </Button>
             </div>
@@ -580,10 +565,7 @@ export default function TableOrderPage() {
                 Copiar código Pix
               </Button>
             </div>
-            <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-              Fazer outro pedido nesta mesa
-            </Button>
-            <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+            <Button variant="outline" onClick={backToIdentification} className="w-full">
               {backButtonLabel}
             </Button>
           </div>
@@ -608,10 +590,7 @@ export default function TableOrderPage() {
                 R$ {orderTotal.toFixed(2).replace(".", ",")}
               </p>
             </div>
-            <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-              Fazer outro pedido nesta mesa
-            </Button>
-            <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+            <Button variant="outline" onClick={backToIdentification} className="w-full">
               {backButtonLabel}
             </Button>
           </div>
@@ -635,10 +614,7 @@ export default function TableOrderPage() {
               R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
           </div>
-          <Button variant="ghost" onClick={resetAll} className="w-full text-sm text-muted-foreground">
-            Fazer outro pedido nesta mesa
-          </Button>
-          <Button variant="link" onClick={backToIdentification} className="w-full text-xs text-muted-foreground/70 h-auto py-1">
+          <Button variant="outline" onClick={backToIdentification} className="w-full">
             {backButtonLabel}
           </Button>
         </div>
