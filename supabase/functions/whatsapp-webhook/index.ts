@@ -181,7 +181,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("[whatsapp-webhook] payload:", JSON.stringify(body).slice(0, 500));
+    // Log payload bruto completo (truncado a 2KB) pra debug
+    console.log("[whatsapp-webhook] RAW payload:", JSON.stringify(body).slice(0, 2000));
 
     // Suporte dual: uazapiGO + Evolution API
     // uazapiGO: { message: { text, sender, fromMe } } ou { event, message: {...} }
@@ -210,20 +211,38 @@ Deno.serve(async (req) => {
 
     if (!message || !phone) {
       console.log("[whatsapp-webhook] skipped (no message/phone)");
-      return new Response(JSON.stringify({ ok: true, skipped: true }), {
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "no message/phone" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Ignorar mensagens enviadas por nós mesmos
+    // Defesa em profundidade: ignorar mensagens enviadas por nós mesmos
     const fromMe =
       body?.message?.fromMe ??
+      body?.message?.wasSentByApi ??
       body?.fromMe ??
+      body?.wasSentByApi ??
       body?.data?.key?.fromMe ??
+      body?.data?.fromMe ??
       false;
     if (fromMe) {
-      console.log("[whatsapp-webhook] skipped (fromMe)");
-      return new Response(JSON.stringify({ ok: true, skipped: true }), {
+      console.log("[whatsapp-webhook] skipped (fromMe/wasSentByApi)");
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "fromMe" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Ignorar mensagens de grupos do WhatsApp (qualquer indicador de grupo)
+    const rawIdentifier = String(rawPhone || "");
+    const isGroup =
+      rawIdentifier.includes("@g.us") ||
+      body?.message?.isGroup === true ||
+      body?.isGroup === true ||
+      body?.data?.isGroup === true ||
+      body?.message?.chat?.isGroup === true;
+    if (isGroup) {
+      console.log("[whatsapp-webhook] skipped (group message)");
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "group" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
