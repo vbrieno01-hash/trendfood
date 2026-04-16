@@ -341,6 +341,14 @@ export default function TableOrderPage() {
     setAutoPixQrCode(null);
   };
 
+  const backToIdentification = () => {
+    resetAll();
+    setSetupDone(false);
+    setPeopleCount(1);
+    setPeopleNames([""]);
+    setActivePerson(0);
+  };
+
   // ── Success / Payment screens ──────────────────────────────────────────
   if (success) {
     const pixPayload = pixPayloadFromServer;
