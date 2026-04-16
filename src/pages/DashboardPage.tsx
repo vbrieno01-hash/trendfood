@@ -54,11 +54,12 @@ import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
 import IFoodTab from "@/components/dashboard/IFoodTab";
 import TelegramTab from "@/components/dashboard/TelegramTab";
+import AIBotTab from "@/components/dashboard/AIBotTab";
 import CounterTab from "@/components/dashboard/CounterTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "counter";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -554,6 +555,7 @@ const DashboardPage = () => {
       items: [
         { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood" },
         { key: "telegram" as TabKey, icon: <Send className="w-4 h-4" />, label: "Telegram" },
+        { key: "aibot" as TabKey, icon: <span className="text-sm">🤖</span>, label: "Robô IA" },
       ],
     },
     {
@@ -1055,6 +1057,7 @@ const DashboardPage = () => {
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
           {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
+          {activeTab === "aibot" && <AIBotTab orgId={organization.id} />}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
           </ErrorBoundary>
 
