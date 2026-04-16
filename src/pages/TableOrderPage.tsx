@@ -43,7 +43,7 @@ export default function TableOrderPage() {
   const [success, setSuccess] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card" | "cash">(null);
+  const [paymentMethod, setPaymentMethod] = useState<null | "pix" | "card_debit" | "card_credit" | "cash">(null);
 
   // People setup state
   const [setupDone, setSetupDone] = useState(false);
@@ -301,13 +301,13 @@ export default function TableOrderPage() {
     );
   }
 
-  const handleSelectPayment = async (method: "pix" | "card" | "cash") => {
+  const handleSelectPayment = async (method: "pix" | "card_debit" | "card_credit" | "cash") => {
     setPaymentMethod(method);
     if (orderId) {
       const currentPixMode = org?.pix_confirmation_mode ?? "direct";
       const isAutomatic = method === "pix" && currentPixMode === "automatic";
 
-      if (method === "card" || method === "cash" || (method === "pix" && currentPixMode === "direct")) {
+      if (method === "card_debit" || method === "card_credit" || method === "cash" || (method === "pix" && currentPixMode === "direct")) {
         // Direct PIX, card or cash: treat as "pay at table/counter", send to kitchen immediately
         const { error: updErr } = await supabase.from("orders").update({ payment_method: method, status: "pending" } as never).eq("id", orderId);
         if (updErr) console.error("[TableOrder] update payment failed:", updErr.message);
@@ -396,7 +396,7 @@ export default function TableOrderPage() {
               Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-sm font-medium text-foreground">Como deseja pagar?</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleSelectPayment("pix")}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all"
@@ -406,20 +406,28 @@ export default function TableOrderPage() {
                 <span className="text-[10px] text-muted-foreground">Pague agora</span>
               </button>
               <button
-                onClick={() => handleSelectPayment("card")}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-blue-400 hover:bg-blue-50 transition-all"
-              >
-                <CreditCard className="w-8 h-8 text-blue-600" />
-                <span className="font-bold text-xs text-foreground">Cartão</span>
-                <span className="text-[10px] text-muted-foreground">Pague no final</span>
-              </button>
-              <button
                 onClick={() => handleSelectPayment("cash")}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-yellow-400 hover:bg-yellow-50 transition-all"
               >
                 <span className="text-3xl">💵</span>
                 <span className="font-bold text-xs text-foreground">Dinheiro</span>
                 <span className="text-[10px] text-muted-foreground">Pague no caixa</span>
+              </button>
+              <button
+                onClick={() => handleSelectPayment("card_debit")}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-sky-400 hover:bg-sky-50 transition-all"
+              >
+                <CreditCard className="w-8 h-8 text-sky-600" />
+                <span className="font-bold text-xs text-foreground">Débito</span>
+                <span className="text-[10px] text-muted-foreground">Pague no final</span>
+              </button>
+              <button
+                onClick={() => handleSelectPayment("card_credit")}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+              >
+                <CreditCard className="w-8 h-8 text-indigo-600" />
+                <span className="font-bold text-xs text-foreground">Crédito</span>
+                <span className="text-[10px] text-muted-foreground">Pague no final</span>
               </button>
             </div>
           </div>
