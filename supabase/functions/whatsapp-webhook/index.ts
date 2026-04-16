@@ -211,6 +211,33 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // === Branch: Robô de Atendimento (admin testing) ===
+    // Se ai_bot_config estiver ativo e o phone for o test_phone, encaminha pra ai-bot-respond
+    const { data: botCfg } = await supabase
+      .from("ai_bot_config")
+      .select("enabled, test_phone")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (botCfg?.enabled && botCfg.test_phone && phone === botCfg.test_phone) {
+      const botRes = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ phone, message }),
+        },
+      );
+      const botData = await botRes.json().catch(() => ({}));
+      return new Response(JSON.stringify({ ok: true, bot: true, ...botData }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Buscar histórico recente desta conversa (últimas 10 mensagens)
     const { data: history } = await supabase
       .from("fila_whatsapp")
