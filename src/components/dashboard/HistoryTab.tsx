@@ -147,7 +147,19 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
               size="sm"
               className="gap-1.5"
               onClick={() => {
-                const header = "Data,Mesa/Tipo,Itens,Valor,Status Pagamento,Observações";
+                const PAYMENT_LABELS: Record<string, string> = {
+                  pix: "PIX",
+                  cash: "Dinheiro",
+                  card_debit: "Débito",
+                  card_credit: "Crédito",
+                  card: "Cartão",
+                  pending: "Não informado",
+                };
+                const labelPayment = (pm?: string | null) => {
+                  if (!pm) return "Não informado";
+                  return PAYMENT_LABELS[pm.toLowerCase().trim()] ?? pm;
+                };
+                const header = "Data,Mesa/Tipo,Itens,Valor,Forma de Pagamento,Status Pagamento,Observações";
                 const rows = filtered.map((order) => {
                   const total = orderTotal(order);
                   const items = (order.order_items ?? []).map((i) => `${i.quantity}x ${i.name}`).join("; ");
@@ -155,7 +167,8 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                   const pago = order.paid ? "Pago" : "Não pago";
                   const date = new Date(order.created_at).toLocaleString("pt-BR");
                   const obs = (order.notes || "").replace(/,/g, ";").replace(/\n/g, " ");
-                  return `"${date}","${mesa}","${items}","${total.toFixed(2)}","${pago}","${obs}"`;
+                  const forma = labelPayment((order as any).payment_method);
+                  return `"${date}","${mesa}","${items}","${total.toFixed(2)}","${forma}","${pago}","${obs}"`;
                 });
                 const csv = [header, ...rows].join("\n");
                 const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
