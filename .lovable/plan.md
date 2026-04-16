@@ -1,74 +1,50 @@
 
-## Migrar integração de WhatsApp pra uazapiGO
+A tela de webhook do uazapiGO que você mostrou pede dois campos importantes que precisamos preencher direitinho pra funcionar:
 
-### O que muda
-Hoje o sistema espera receber/enviar via Evolution API. Você criou uma instância no **uazapiGO free** (`HqrTf5` em `https://free.uazapi.com`) com token `27e8406b-...`. Vamos:
+## Como configurar o Webhook no painel uazapiGO
 
-1. Salvar credenciais do uazapiGO no painel admin (não em código)
-2. Adaptar webhook pra entender o payload do uazapiGO
-3. Enviar resposta do robô **de volta pro WhatsApp** via API do uazapiGO
+**No modal "Webhooks" que tá aberto na tela:**
 
-### Passos
+1. **Habilitado** → ligar o switch (canto superior direito)
+2. **POST** → manter selecionado (já tá verde)
+3. **URL** → colar:
+   ```
+   https://xrzudhylpphnzousilye.supabase.co/functions/v1/whatsapp-webhook
+   ```
+4. **addUrlEvents** → deixar **desligado** (não precisa, vamos filtrar no nosso código)
+5. **addUrlTypesMessages** → deixar **desligado**
+6. **Escutar eventos** → digitar exatamente:
+   ```
+   messages
+   ```
+   (só isso, em minúsculo — é o evento de mensagem recebida)
+7. **Excluir dos eventos escutados** → digitar:
+   ```
+   wasSentByApi,isGroupYes
+   ```
+   (separados por vírgula — evita loop quando o próprio robô responde, e ignora mensagens de grupo)
+8. Clicar em **Salvar** (botão azul)
 
-**1. DB: estender `ai_bot_config` com campos da instância**
-```sql
-ALTER TABLE ai_bot_config
-  ADD COLUMN uazapi_server_url text DEFAULT 'https://free.uazapi.com',
-  ADD COLUMN uazapi_token text,
-  ADD COLUMN uazapi_instance_name text;
-```
+## Por que esses filtros
 
-**2. Painel admin (`AIBotAdminTab.tsx`) — nova seção "Conexão WhatsApp (uazapiGO)"**
-Card novo acima de "Configuração" com:
-- Input **Server URL** (default `https://free.uazapi.com`)
-- Input **Instance Token** (texto monoespaçado, com botão copiar)
-- Input **Nome da Instância** (`HqrTf5`)
-- Card de instruções passo a passo:
-  1. Abre o painel `free.uazapi.com`, cola token e clica **Conectar → Gerar QR Code**
-  2. Escaneia QR com WhatsApp
-  3. Volta no painel uazapiGO, clica **Configurar Webhook → Criar Webhook**
-  4. Cola a URL: `https://xrzudhylpphnzousilye.supabase.co/functions/v1/whatsapp-webhook` (com botão copiar)
-  5. Salva e manda mensagem de teste
+- **`wasSentByApi`** — quando o robô manda uma resposta, o uazapi também dispara o webhook. Sem esse filtro o robô recebe a própria resposta como "nova mensagem" e responde a si mesmo num loop infinito.
+- **`isGroupYes`** — ignora mensagens de grupos do WhatsApp (a gente só quer atender 1-a-1, não responder em grupo de família).
 
-**3. Edge function `whatsapp-webhook` — adaptar parser**
-uazapiGO manda payload diferente da Evolution. Vamos ler ambos formatos pra não quebrar nada:
-```ts
-// Tenta uazapiGO primeiro
-const message = body?.message?.text 
-  || body?.text 
-  || body?.data?.message?.conversation  // evolution fallback
-  || ...;
-const phone = body?.message?.sender?.replace(/\D/g, "")
-  || body?.sender
-  || body?.data?.key?.remoteJid?.replace("@s.whatsapp.net", "")
-  || ...;
-const fromMe = body?.message?.fromMe ?? body?.fromMe ?? body?.data?.key?.fromMe ?? false;
-```
+## O que melhorar no nosso lado pra ficar mais resiliente
 
-**4. Edge function `ai-bot-respond` — enviar resposta de volta**
-Hoje só salva no banco. Adicionar: depois de gerar `reply`, dispara POST pra uazapiGO:
-```ts
-await fetch(`${cfg.uazapi_server_url}/send/text`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json", token: cfg.uazapi_token },
-  body: JSON.stringify({ number: phone, text: reply })
-});
-```
-(endpoint exato do uazapiGO — vou confirmar na doc deles antes de codar; estrutura padrão é essa)
+Vou fazer 3 ajustes pequenos no código pra garantir que mesmo se o uazapiGO mandar evento esquisito, nada quebra:
 
-**5. Manter robô só pro `test_phone`**
-Já tá assim — webhook só roteia pro bot quando `phone === test_phone`. Outros números não disparam IA, então sua loja real não corre risco.
+1. **Edge function `whatsapp-webhook`**: adicionar guardas extras
+   - Ignorar payloads onde `fromMe = true` (defesa em profundidade — caso o filtro lá no uazapi falhe)
+   - Ignorar mensagens de grupos (`@g.us` no remote ID)
+   - Logar payload bruto recebido pra eu te ajudar a debugar nos logs caso algo não funcione
 
-### Resultado
-Você cola token + instance no painel admin, escaneia o QR no painel da uazapi, configura o webhook lá apontando pra nossa edge function, manda mensagem do seu celular pro número conectado e vê:
-- Mensagem aparecendo na "Conversa ao vivo" do painel
-- Robô respondendo no seu WhatsApp em segundos
-- Tudo logado em `fila_whatsapp`
+2. **Painel admin (`AIBotAdminTab.tsx`)**: adicionar uma mini-seção de "Como configurar o webhook no uazapiGO" com esse passo-a-passo dentro do card "Conexão WhatsApp", incluindo os textos exatos pra colar (URL, "messages", "wasSentByApi,isGroupYes") com botões de copiar.
 
-Lojistas continuam vendo "EM BREVE" — nada muda pra eles.
+3. **Botão "Testar conexão"** no painel admin: faz um GET em `{server_url}/instance/status` com o token configurado e mostra ✅ verde se a instância tá conectada ao WhatsApp ou ❌ vermelho com a mensagem de erro. Assim você sabe na hora se o token tá certo antes de salvar.
 
-### Arquivos
-- Migration SQL (3 colunas em `ai_bot_config`)
-- `src/components/admin/AIBotAdminTab.tsx` (novo card de conexão)
-- `supabase/functions/whatsapp-webhook/index.ts` (parser dual)
-- `supabase/functions/ai-bot-respond/index.ts` (envio pro uazapi)
+### Arquivos a editar
+- `supabase/functions/whatsapp-webhook/index.ts` — guardas extras + log do payload bruto
+- `src/components/admin/AIBotAdminTab.tsx` — instruções passo-a-passo do webhook + botão testar conexão
+
+Lojistas continuam com "EM BREVE" — nada muda pra eles.
