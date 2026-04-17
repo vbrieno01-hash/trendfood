@@ -1,42 +1,50 @@
 
 
-## Plano
+## Diagnóstico
 
-### Problema
-Nos cabeçalhos da sidebar (OPERACIONAL ⚡, LOGÍSTICA 📦, etc) hoje:
-- Cor `text-white/40` (muito apagada)
-- Sem fundo, sem borda, sem separador
-- Visualmente parecem botões desabilitados — o lojista não percebe que são *rótulos de seção* e não entende em qual categoria cada item está
+O cliente atualizou agora e não viu o card "Nova versão disponível". Motivos possíveis:
 
-### Solução — único arquivo: `src/pages/DashboardPage.tsx` (linhas ~822-827)
+1. **Polling de 30 min é muito longo** — se o lojista abriu o app logo após o publish, só vai checar atualização daqui 30 min
+2. **Sem checagem ao focar a aba** — se o lojista deixou o app aberto em background e voltou, não revalida
+3. **Sem checagem ao recuperar conexão** — se ficou offline e voltou, não revalida
+4. **`vite.config.ts` ainda pode estar com `registerType: "autoUpdate"`** em vez de `"prompt"` — preciso confirmar
 
-Transformar o cabeçalho num **divisor visual claro** que NÃO pareça botão clicável:
+Preciso verificar o estado atual antes de propor mudanças.
 
-1. **Cor mais viva** mas com peso de "label": `text-primary/80` (laranja vibrante do tema, igual ao print que você mandou) em vez de `text-white/40`
-2. **Linha divisória superior** (`border-t border-white/10`) que separa visualmente cada grupo
-3. **Pequeno indicador lateral** (barrinha vertical de 2px na cor primária) à esquerda do emoji — dá identidade de "seção" sem parecer botão
-4. **Espaçamento maior acima** (`mt-5` em vez de `mt-3`) pra respirar entre grupos
-5. **Aumentar levemente o tamanho** do emoji e deixar o texto com `tracking-wider` + `font-bold` em vez de `font-semibold` — fica claro que é *título de categoria*
-6. **Cursor `default`** explícito (não `pointer`) — reforça que não é clicável
+## Verificação rápida do código atual
 
-### Resultado visual esperado
+Vou olhar `vite.config.ts` e `usePWAUpdate.ts` pra confirmar o que tá rodando em produção agora.
 
-```text
-─────────────────────────────  ← divisor sutil
-▎⚡ OPERACIONAL                ← laranja vivo, barrinha lateral
-   🛒 Balcão                   ← itens (clicáveis, inalterados)
-   👨‍🍳 Cozinha & Pedidos
-─────────────────────────────
-▎📦 LOGÍSTICA
-   🍽️ Cardápio (Menu)
-   ...
-```
+## Plano (após verificar)
 
-### Não mexer
-- Estrutura de `sidebarGroups`, lógica de filtro, navegação dos itens — tudo intacto
-- Botões clicáveis (`navBtnClass`) — já estão bons
-- Outros lugares do app
+### 1. Reduzir polling de 30 min → 2 min
+Em `usePWAUpdate.ts`, baixar `setInterval` de `30 * 60 * 1000` pra `2 * 60 * 1000`. Detecção quase imediata, custo de rede irrelevante (só checa um arquivo de manifest do SW).
 
-### Risco
-Zero. Mudança puramente cosmética em ~6 linhas de className em 1 arquivo.
+### 2. Checar update ao focar a aba (visibilitychange)
+Quando o lojista volta pra aba do navegador (ou abre o app no celular), forçar `registration.update()` na hora. Cobre o caso "deixei aberto em background".
+
+### 3. Checar update ao voltar conexão (online event)
+Se ficou offline e voltou, revalida na hora.
+
+### 4. Checar update no mount inicial
+Logo que o componente monta, dispara `update()` imediato em vez de esperar o primeiro intervalo.
+
+### 5. Garantir `registerType: "prompt"` em `vite.config.ts`
+Confirmar que tá `"prompt"` (e não `"autoUpdate"`) — se tiver `autoUpdate`, o SW assume sozinho e o card nunca aparece porque `needRefresh` não dispara.
+
+### 6. Logs de debug temporários
+Adicionar `console.info("[PWA]")` nos eventos chave (registrado, update detectado, needRefresh true) — assim na próxima vez você consegue abrir o console do lojista e ver onde travou.
+
+## Arquivos
+
+- `src/hooks/usePWAUpdate.ts` — adicionar listeners de visibility/online, reduzir polling, check inicial, logs
+- `vite.config.ts` — confirmar/garantir `registerType: "prompt"`
+
+## Resultado esperado
+
+Você clica Publish → Update no Lovable → no máximo **2 minutos depois** (ou imediatamente se o lojista trocar de aba e voltar) o card aparece pra ele.
+
+## Risco
+
+Zero. Mudança em 2 arquivos, sem banco, sem RLS, sem fluxo de pedido.
 
