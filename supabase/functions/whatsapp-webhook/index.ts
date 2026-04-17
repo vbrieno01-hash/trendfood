@@ -245,6 +245,7 @@ Deno.serve(async (req) => {
     const rawIdentifier = String(rawPhone || "");
     const isGroup =
       rawIdentifier.includes("@g.us") ||
+      body?.chat?.wa_isGroup === true ||
       body?.message?.isGroup === true ||
       body?.isGroup === true ||
       body?.data?.isGroup === true ||
