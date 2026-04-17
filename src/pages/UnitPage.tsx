@@ -1278,34 +1278,48 @@ const UnitPage = () => {
 
             {/* Order type selector */}
             <div ref={orderTypeRef} className="space-y-2">
-              <h3 className="font-semibold text-foreground text-sm">
-                Como você quer receber? <span className="text-destructive">*</span>
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {(["Entrega", "Retirada"] as const).map((type) => {
-                  const isSelected = orderType === type;
-                  const emoji = type === "Entrega" ? "🛵" : "🏃";
-                  const label = type === "Entrega" ? "Entrega" : "Retirada no local";
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => { setOrderType(type); setOrderTypeError(false); }}
-                      className="flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all"
-                      style={
-                        isSelected
-                          ? { borderColor: primaryColor, backgroundColor: `${primaryColor}18`, color: primaryColor }
-                          : { borderColor: "var(--border)", backgroundColor: "transparent", color: "var(--muted-foreground)" }
-                      }
-                    >
-                      <span className="text-2xl">{emoji}</span>
-                      <span>{label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {orderTypeError && (
-                <p className="text-destructive text-xs">Selecione como quer receber o pedido</p>
+              {onlyOneMode ? (
+                <div
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm"
+                  style={{ borderColor: primaryColor, backgroundColor: `${primaryColor}18`, color: primaryColor }}
+                >
+                  <span className="text-xl">{forcedOrderType === "Entrega" ? "🛵" : "🏃"}</span>
+                  <span>
+                    {forcedOrderType === "Entrega" ? "Apenas entrega" : "Apenas retirada no local"}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-semibold text-foreground text-sm">
+                    Como você quer receber? <span className="text-destructive">*</span>
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["Entrega", "Retirada"] as const).map((type) => {
+                      const isSelected = orderType === type;
+                      const emoji = type === "Entrega" ? "🛵" : "🏃";
+                      const label = type === "Entrega" ? "Entrega" : "Retirada no local";
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => { setOrderType(type); setOrderTypeError(false); }}
+                          className="flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all"
+                          style={
+                            isSelected
+                              ? { borderColor: primaryColor, backgroundColor: `${primaryColor}18`, color: primaryColor }
+                              : { borderColor: "var(--border)", backgroundColor: "transparent", color: "var(--muted-foreground)" }
+                          }
+                        >
+                          <span className="text-2xl">{emoji}</span>
+                          <span>{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {orderTypeError && (
+                    <p className="text-destructive text-xs">Selecione como quer receber o pedido</p>
+                  )}
+                </>
               )}
             </div>
 
