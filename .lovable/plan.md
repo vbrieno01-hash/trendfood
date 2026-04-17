@@ -1,58 +1,72 @@
 
 
-## Diagnóstico real (App instalado + nada mudou)
+## Diagnóstico
 
-A loja **abriu pelo PWA instalado** na home. Isso muda o jogo porque:
+A barra de categorias atual no `UnitPage` (vitrine pública) usa um emoji fixo da lista `CATEGORIES` (em `src/hooks/useMenuItems.ts`) que mapeia categorias do nicho de comida (🔥 Promoção, 🍔 Lanches, 🥤 Bebidas, etc.). Quando entra loja de roupa/cabelo/celular, esses emojis viram "parasitas" — ficam totalmente deslocados, infantis e quebram a credibilidade visual.
 
-1. **PWA standalone não dispara `focus`/`visibilitychange` da mesma forma** que aba de browser. O lojista abre o ícone, usa, fecha — o app pode ficar **dias sem nunca rodar o `r.update()`** porque os listeners que adicionamos não disparam de forma confiável em standalone.
-2. **`onRegisteredSW` só chama `setInterval` UMA vez**, no primeiro registro do SW. Se o app ficou aberto desde antes da última atualização do código (caso comum em PWA instalado que nunca é "fechado" de verdade), o handler pode nem ter sido chamado nessa sessão.
-3. **`needRefresh` só vira `true` quando o SW novo é instalado E entra em estado `waiting`** — exige que `r.update()` rode E que o navegador baixe o novo SW E identifique como "waiting". Se o PWA não rodou nenhum check, não detecta nada.
-4. **Sem botão manual** para o lojista forçar — ele depende 100% da detecção automática que tá falhando no contexto standalone.
+Onde aparece:
+- `src/pages/UnitPage.tsx` — chips de categoria no topo do cardápio público
+- `src/components/dashboard/CounterTab.tsx` — agrupamento no balcão (`getEmoji`)
+- `src/components/dashboard/MenuTab.tsx` — provavelmente também usa
+- `src/hooks/useMenuItems.ts` — fonte da verdade dos emojis (`CATEGORIES` array)
 
-## Solução em 3 frentes (segura, sem mexer em fluxo de pedido)
+## Solução proposta — "Sem emoji parasita"
 
-### Frente 1 — Tornar a detecção mais agressiva e confiável em PWA standalone
-Em `src/hooks/usePWAUpdate.ts`:
+**Princípio:** parar de forçar emoji por categoria. Deixar o lojista escolher se quer ou não, e por padrão NÃO mostrar nenhum. Visual mais limpo, profissional, agnóstico de nicho.
 
-- **Polling mais curto: de 2 min → 60s** (custo de rede irrelevante, é um HEAD no manifest do SW)
-- **Mover o `setInterval` para fora do `onRegisteredSW`** e colocar dentro de um `useEffect` que sempre roda. Garantia que sempre tem polling ativo, não dependendo de quando o SW foi registrado.
-- **Adicionar listener `controllerchange`** do `navigator.serviceWorker` — dispara quando um SW novo assume controle, sinal mais direto que algo mudou.
-- **Adicionar listener `updatefound` no registration** — dispara assim que o navegador detecta um SW novo baixando, ainda mais cedo que `needRefresh`.
-- **Check inicial com delay curto (3s após mount)** além do imediato — cobre race condition de SW ainda registrando.
+### Frente 1 — Remover emoji por padrão das chips de categoria
+Na vitrine pública (`UnitPage`) e onde mais aparecer:
+- Categoria renderiza só o **nome**, sem emoji
+- Chip ganha tipografia mais firme (font-medium), padding mais respirado
+- Estado ativo: usa `primary_color` da loja (que já existe no tema custom) — fica coerente com a identidade dela
+- Estado inativo: borda sutil + hover suave
 
-### Frente 2 — Botão manual "Verificar atualizações" no dashboard
-Em `src/components/dashboard/SettingsTab.tsx` (ou na Home/SetupChecklist):
+Resultado: roupa, cabelo, celular, coxinha — todos ficam com chips elegantes e neutros. Cada loja respira sua própria identidade via `primary_color`.
 
-- Card pequeno com botão **"Verificar atualizações"**
-- Ao clicar: força `registration.update()`, espera 3s, e:
-  - Se achou versão nova → mostra toast "Atualizando..." e dispara `updateServiceWorker(true)`
-  - Se não achou → toast "Você está na versão mais recente ✓"
-- Solução de emergência pro lojista quando suspeitar que ficou desatualizado.
+### Frente 2 — Emoji opcional escolhido pelo lojista (não automático)
+- Adicionar campo opcional `category_emojis` no banco (JSONB no `organizations`, tipo `{ "Lanches": "🍔", "Promoção": "🔥" }`)
+- Na aba Catálogo do dashboard, ao lado de cada categoria, um botão pequeno "🎨 Ícone" abre um picker simples (lista curta de 30-40 emojis genéricos: 🛍️ 👕 💇 📱 🔥 ⭐ 🎁 etc.)
+- Se o lojista escolher, o emoji aparece. Se não escolher, fica só o texto.
+- **Migração suave:** lojas existentes começam SEM emoji (limpo). Quem quer o look antigo, escolhe manualmente.
 
-### Frente 3 — Mostrar versão atual (build hash) na Home
-Pequeno texto rodapé tipo `v2025.04.17.1432` (timestamp do build) — o lojista consegue te falar a versão dele e você compara com a publicada. Diagnóstico rápido sem ter que adivinhar.
+### Frente 3 — Limpar a lista hardcoded `CATEGORIES`
+- Em `src/hooks/useMenuItems.ts`, a constante `CATEGORIES` hoje tem ~10 categorias com emojis fixos focados em comida
+- Mudar para: lista de categorias **sugeridas** (sem emoji obrigatório), e categoria livre continua funcionando como já funciona (lojista pode digitar qualquer nome)
+- Função `getEmoji(category)` passa a retornar do `category_emojis` da org se existir, senão `null` (não renderiza nada)
 
-## Arquivos
+### Frente 4 — Ajuste visual nas chips (puro CSS/Tailwind)
+- Espaçamento entre chips: `gap-2` em vez de cramped
+- Altura uniforme: `h-9` 
+- Border-radius: `rounded-full` (já é, manter)
+- Active state: fundo com `primary_color` + texto branco + leve sombra (`shadow-sm`)
+- Inactive: `bg-muted/30` + `border border-border/50` + texto `text-muted-foreground`
+- Truncate em nomes muito longos (ex: "Lanches com 1 hambúrguer e sem batata frita") com `max-w-[200px] truncate`
 
-- `src/hooks/usePWAUpdate.ts` — refatorar polling + adicionar `updatefound` + `controllerchange`, reduzir pra 60s
-- `src/components/dashboard/SettingsTab.tsx` — adicionar card "Verificar atualizações"
-- `vite.config.ts` — injetar build timestamp via `define` para exibir versão
-- `src/components/dashboard/HomeTab.tsx` (ou `SetupChecklist`) — exibir versão pequena no rodapé
+## Arquivos afetados
+
+- `src/pages/UnitPage.tsx` — remover emoji das chips, melhorar estilo
+- `src/components/dashboard/MenuTab.tsx` — adicionar picker de emoji opcional por categoria
+- `src/components/dashboard/CounterTab.tsx` — usar emoji opcional
+- `src/hooks/useMenuItems.ts` — refatorar `CATEGORIES` e `getEmoji`
+- `src/hooks/useOrganization.ts` — adicionar `category_emojis` no tipo
+- **Migração SQL:** adicionar coluna `category_emojis JSONB DEFAULT '{}'::jsonb` em `organizations`
 
 ## O que NÃO vou mexer
 
-- Fluxo de pedido, RLS, edge functions, banco — nada disso
-- `vite.config.ts` na parte de PWA core (`registerType: "prompt"` fica)
-- `main.tsx` guard de iframe/preview
+- Fluxo de pedido, checkout, RLS, edge functions
+- Lógica de `paused_categories` 
+- Ordenação manual de categorias (`category_order`)
+- Tema custom da loja (continua respeitado)
+
+## Resultado visual esperado
+
+Antes: `🔥 Promoção do dia` `🍔 Lanches com 1...` `🥤 Bebidas` (parasita pra loja de roupa)
+
+Depois (padrão): `Promoção do dia` `Lanches com 1...` `Bebidas` (limpo, profissional, funciona pra qualquer nicho)
+
+Depois (lojista quis emoji): `🛍️ Coleção Verão` `👕 Camisetas` (escolhido por ela, contextual)
 
 ## Risco
 
-Baixo. Mudanças cosméticas + lógica de polling. Sem migração de banco. Sem mexer em nada crítico de pedido/pagamento.
-
-## Resultado esperado pra Caha e Alho
-
-- Polling 1x/min em vez de 2 min → janela máxima de detecção cai pela metade
-- `updatefound` pega o SW novo no momento exato que o navegador detecta
-- Botão manual = lojista não fica refém da automação
-- Versão visível = você diagnostica em 5 segundos pelo WhatsApp
+Baixo. Migração só adiciona coluna nullable com default vazio. Visual fica mais limpo de imediato. Quem quiser emoji, configura.
 
