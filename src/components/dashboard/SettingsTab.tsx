@@ -16,6 +16,7 @@ import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Truc
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
+import VersionCheckCard from "@/components/dashboard/VersionCheckCard";
 
 export default function SettingsTab() {
   const { user, signOut, organization: currentOrg, refreshOrganization } = useAuth();
