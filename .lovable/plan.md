@@ -1,65 +1,104 @@
 
 
-## Diagnóstico
+## Objetivo
 
-No modal "Adicionar item" (`MenuTab.tsx` linhas 1251-1277), os chips de categoria mostram **apenas** as categorias sugeridas hardcoded de `CATEGORIES` (Destaques, Promoções, Combos, Bebidas, etc.). As categorias que a própria loja já criou (ex: "Coxinhas", "Cabelo Feminino", "Camisetas Oversize") **não aparecem como chip** — só dá pra reusar digitando manualmente no input de texto, o que é chato e arriscado (lojista digita errado e cria duplicada tipo "Bebidas " vs "Bebidas").
+Painel no Admin mostrando qual versão cada loja está rodando, capturada via heartbeat quando o lojista abre o dashboard. Permite identificar lojas com cache antigo / SW preso de forma proativa.
 
-## Solução
+## Arquitetura
 
-**Mostrar as categorias existentes da loja como chips no topo, antes/junto das sugeridas.**
-
-### Mudança em `MenuTab.tsx` (seção do form, ~linha 1251)
-
-1. Calcular `existingCategories` a partir de `items` (categorias únicas que já têm produto cadastrado)
-2. Renderizar 2 grupos de chips:
-   - **"Suas categorias"** (se houver): chips com as categorias já criadas pela loja, em destaque
-   - **"Sugestões"**: chips das `CATEGORIES` hardcoded que ainda não estão na loja (filtra duplicatas)
-3. Manter o input de texto livre embaixo pra criar nova personalizada
-4. Visual: chips de "suas categorias" com leve destaque (border mais firme, ou ícone ✓ pequeno se quiser) pra deixar claro que já existem
-
-### Pseudocódigo
-
-```tsx
-const existingCategories = [...new Set(items.map(i => i.category))].sort();
-const suggestedNotUsed = CATEGORIES
-  .map(c => c.value)
-  .filter(v => !existingCategories.includes(v));
-
-// Render:
-{existingCategories.length > 0 && (
-  <>
-    <p className="text-xs text-muted-foreground mb-1">Suas categorias</p>
-    <div className="flex flex-wrap gap-1.5 mb-2">
-      {existingCategories.map(cat => <chip />)}
-    </div>
-  </>
-)}
-<p className="text-xs text-muted-foreground mb-1">Sugestões</p>
-<div className="flex flex-wrap gap-1.5 mb-2">
-  {suggestedNotUsed.map(cat => <chip />)}
-</div>
-<Input placeholder="Ou digite uma categoria personalizada..." />
+```text
+Lojista abre /dashboard
+        ↓
+useVersionHeartbeat (1x por sessão + a cada 30min)
+        ↓
+UPSERT em store_version_heartbeat
+   (org_id, version, last_seen_at, user_agent, is_standalone)
+        ↓
+Admin → aba "Versões" → SELECT com JOIN organizations
+        ↓
+Tabela: Loja | Versão | Última vez online | Plataforma | Status
 ```
 
-## Arquivo afetado
+## Frente 1 — Banco
 
-- `src/components/dashboard/MenuTab.tsx` — apenas a seção do modal de criar/editar item (~linhas 1251-1277)
+Migração SQL nova:
+
+- Tabela `store_version_heartbeat`:
+  - `id uuid pk`
+  - `organization_id uuid not null unique` (1 linha por loja, sempre o mais recente)
+  - `version text not null` (ex: `2025.04.17.14.30`)
+  - `user_agent text`
+  - `is_standalone boolean` (PWA instalado vs aba navegador)
+  - `last_seen_at timestamptz default now()`
+  - `created_at timestamptz default now()`
+- RLS:
+  - INSERT/UPDATE: dono da org (`auth.uid() = org.user_id`)
+  - SELECT: só admin (`has_role(auth.uid(), 'admin')`)
+  - DELETE: só admin
+- Índice em `last_seen_at desc` para ordenação rápida
+
+## Frente 2 — Captura (lado do lojista)
+
+Novo hook `src/hooks/useVersionHeartbeat.ts`:
+- Roda no `DashboardPage` mount
+- Lê `__BUILD_VERSION__` (já existe via Vite define)
+- Detecta `is_standalone` via `window.matchMedia('(display-mode: standalone)').matches`
+- Faz `upsert` em `store_version_heartbeat` por `organization_id`
+- Re-envia a cada 30 min se a aba ficar aberta
+- Skip se preview/iframe (mesma regra do PWA hook)
+
+## Frente 3 — Painel Admin
+
+Nova aba no `AdminPage`: **"Versões"** (ícone `Activity`)
+
+Componente `src/components/admin/StoreVersionsTab.tsx`:
+- Query: `store_version_heartbeat` JOIN `organizations` (name, slug, plan, owner email)
+- Tabela com colunas:
+  - **Loja** (nome + slug)
+  - **Versão atual** (font-mono, badge colorida)
+  - **Última atividade** (formato relativo: "há 5 min", "há 2 dias")
+  - **Plataforma** (badge: 📱 PWA / 🌐 Navegador)
+  - **Status de versão** (badge):
+    - 🟢 Atualizada (igual à versão mais recente vista)
+    - 🟡 Atrasada (1-3 versões atrás)
+    - 🔴 Desatualizada (>3 versões ou >7 dias offline)
+- Filtros no topo:
+  - Busca por nome de loja
+  - Filtro "Só desatualizadas"
+  - Filtro "Só PWA instalado"
+- Stats cards no topo:
+  - Total de lojas com heartbeat
+  - % atualizadas
+  - Quantas estão com versão mais antiga que 7 dias
+- Botão "Exportar CSV" pra você ter o relatório
+
+A versão "mais recente" é calculada client-side: `max(version)` de todos os heartbeats (ordenação lexicográfica funciona porque o formato é `YYYY.MM.DD.HH.mm`).
+
+## Frente 4 — Integração
+
+- `DashboardPage.tsx`: importar e chamar `useVersionHeartbeat()` no topo
+- `AdminPage.tsx`: adicionar nova `TabsTrigger` "Versões" + `TabsContent` com `<StoreVersionsTab />`
+
+## Arquivos novos
+- `supabase/migrations/<timestamp>_store_version_heartbeat.sql`
+- `src/hooks/useVersionHeartbeat.ts`
+- `src/components/admin/StoreVersionsTab.tsx`
+
+## Arquivos editados
+- `src/pages/DashboardPage.tsx` (1 linha + import)
+- `src/pages/AdminPage.tsx` (+1 aba)
 
 ## O que NÃO vou mexer
-
-- Hook `useMenuItems`, `CATEGORIES`, ordenação, pause de categorias, emoji picker
-- Banco, RLS, edge functions
-- Vitrine pública
-
-## Resultado esperado
-
-Lojista clica em "Adicionar item":
-- Se ela já criou "Coxinhas", "Salgados", "Bebidas" no cardápio → esses 3 aparecem como chips clicáveis no topo
-- Embaixo as sugestões genéricas (Destaques, Combos, etc.) que ainda não tem
-- 1 clique pra reusar categoria existente, sem digitar nada
-- Zero risco de duplicar categoria por erro de digitação
+- Lógica de PWA update existente
+- Card "Versão do sistema" em Configurações (continua igual)
+- RLS de outras tabelas
 
 ## Risco
+Baixo. Tabela nova isolada, RLS restritiva (admin-only no SELECT), heartbeat fail-silent (se der erro não bloqueia nada). Volume mínimo (1 upsert por loja/sessão).
 
-Mínimo. Mudança puramente visual em 1 trecho do modal. Sem migração, sem nova lógica de negócio.
+## Resultado esperado
+Você abre Admin → Versões e vê em segundos:
+- "Caha e Alho rodando v2025.04.10 — 7 dias atrás" → manda mensagem pra ela
+- "Loja X em PWA standalone com versão de ontem" → tudo certo
+- Métrica geral: "82% das lojas estão na última versão"
 
