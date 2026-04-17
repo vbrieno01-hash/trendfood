@@ -88,10 +88,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.uazapi-create-instance]
-verify_jwt = true
+verify_jwt = false
 
 [functions.uazapi-instance-status]
-verify_jwt = true
+verify_jwt = false
 
 [functions.uazapi-disconnect]
-verify_jwt = true
+verify_jwt = false
