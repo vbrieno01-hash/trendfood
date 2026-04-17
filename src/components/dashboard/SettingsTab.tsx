@@ -12,7 +12,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Truck } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
@@ -33,13 +33,16 @@ export default function SettingsTab() {
   const [billingLoading, setBillingLoading] = useState(false);
   const [taxRegime, setTaxRegime] = useState<string>("");
   const [taxRegimeLoading, setTaxRegimeLoading] = useState(false);
+  const [acceptsDelivery, setAcceptsDelivery] = useState(true);
+  const [acceptsPickup, setAcceptsPickup] = useState(true);
+  const [serviceModesLoading, setServiceModesLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open, scheduling_config, tax_regime")
+        .select("force_open, scheduling_config, tax_regime, service_modes")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
@@ -52,7 +55,9 @@ export default function SettingsTab() {
             }
             setBillingLimit((data as any).billing_alert_limit ?? 0);
             setTaxRegime((data as any).tax_regime ?? "");
-            
+            const sm = (data as any).service_modes as { delivery?: boolean; pickup?: boolean } | null;
+            setAcceptsDelivery(sm?.delivery !== false);
+            setAcceptsPickup(sm?.pickup !== false);
           }
         });
     }
@@ -93,6 +98,30 @@ export default function SettingsTab() {
       toast.error("Erro ao salvar configuração de agendamento.");
     } finally {
       setSchedulingLoading(false);
+    }
+  };
+
+  const handleSaveServiceModes = async (delivery: boolean, pickup: boolean) => {
+    if (!currentOrg?.id) return;
+    if (!delivery && !pickup) {
+      toast.error("Pelo menos um modo de atendimento precisa estar ativo.");
+      return;
+    }
+    setServiceModesLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ service_modes: { delivery, pickup } } as any)
+        .eq("id", currentOrg.id);
+      if (error) throw error;
+      setAcceptsDelivery(delivery);
+      setAcceptsPickup(pickup);
+      await refreshOrganization();
+      toast.success("Modos de atendimento atualizados!");
+    } catch {
+      toast.error("Erro ao salvar modos de atendimento.");
+    } finally {
+      setServiceModesLoading(false);
     }
   };
 
@@ -177,6 +206,49 @@ export default function SettingsTab() {
               checked={forceOpen}
               onCheckedChange={handleToggleForceOpen}
               disabled={forceOpenLoading}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Service modes (Delivery / Pickup) */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Truck className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Modos de atendimento</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Escolha como sua loja atende os clientes no cardápio online. Pelo menos um modo precisa estar ativo.
+          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <span>🛵</span> Aceita Entrega
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
+                Clientes podem pedir delivery com endereço.
+              </p>
+            </div>
+            <Switch
+              checked={acceptsDelivery}
+              disabled={serviceModesLoading}
+              onCheckedChange={(v) => handleSaveServiceModes(v, acceptsPickup)}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <span>🏃</span> Aceita Retirada no local
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
+                Clientes podem retirar o pedido diretamente na loja.
+              </p>
+            </div>
+            <Switch
+              checked={acceptsPickup}
+              disabled={serviceModesLoading}
+              onCheckedChange={(v) => handleSaveServiceModes(acceptsDelivery, v)}
             />
           </div>
         </div>
