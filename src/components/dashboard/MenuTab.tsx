@@ -1251,23 +1251,60 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
               {/* Category — chips + editable input */}
               <div>
                 <Label className="text-sm font-medium">Categoria</Label>
-                <div className="flex flex-wrap gap-1.5 mt-1 mb-2">
-                  {CATEGORIES.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => setForm((p) => ({ ...p, category: c.value }))}
-                      className={cn(
-                        "px-2.5 py-1 rounded-full text-xs border transition-colors",
-                        form.category === c.value
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-muted hover:bg-muted/80 border-border"
+                {(() => {
+                  const existingCategories = [...new Set(items.map((i) => i.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+                  const suggestedNotUsed = CATEGORIES
+                    .map((c) => c.value)
+                    .filter((v) => !existingCategories.includes(v));
+                  return (
+                    <>
+                      {existingCategories.length > 0 && (
+                        <>
+                          <p className="text-xs text-muted-foreground mt-1.5 mb-1">Suas categorias</p>
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {existingCategories.map((cat) => (
+                              <button
+                                key={`existing-${cat}`}
+                                type="button"
+                                onClick={() => setForm((p) => ({ ...p, category: cat }))}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full text-xs border-2 transition-colors font-medium",
+                                  form.category === cat
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-secondary hover:bg-secondary/80 border-secondary text-secondary-foreground"
+                                )}
+                              >
+                                {cat}
+                              </button>
+                            ))}
+                          </div>
+                        </>
                       )}
-                    >
-                      {c.value}
-                    </button>
-                  ))}
-                </div>
+                      {suggestedNotUsed.length > 0 && (
+                        <>
+                          <p className="text-xs text-muted-foreground mt-1 mb-1">Sugestões</p>
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {suggestedNotUsed.map((cat) => (
+                              <button
+                                key={`suggested-${cat}`}
+                                type="button"
+                                onClick={() => setForm((p) => ({ ...p, category: cat }))}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                                  form.category === cat
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-muted hover:bg-muted/80 border-border"
+                                )}
+                              >
+                                {cat}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
                 <Input
                   value={form.category}
                   onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
