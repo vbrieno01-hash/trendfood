@@ -12,7 +12,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Truck } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
@@ -33,13 +33,16 @@ export default function SettingsTab() {
   const [billingLoading, setBillingLoading] = useState(false);
   const [taxRegime, setTaxRegime] = useState<string>("");
   const [taxRegimeLoading, setTaxRegimeLoading] = useState(false);
+  const [acceptsDelivery, setAcceptsDelivery] = useState(true);
+  const [acceptsPickup, setAcceptsPickup] = useState(true);
+  const [serviceModesLoading, setServiceModesLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open, scheduling_config, tax_regime")
+        .select("force_open, scheduling_config, tax_regime, service_modes")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
@@ -52,7 +55,9 @@ export default function SettingsTab() {
             }
             setBillingLimit((data as any).billing_alert_limit ?? 0);
             setTaxRegime((data as any).tax_regime ?? "");
-            
+            const sm = (data as any).service_modes as { delivery?: boolean; pickup?: boolean } | null;
+            setAcceptsDelivery(sm?.delivery !== false);
+            setAcceptsPickup(sm?.pickup !== false);
           }
         });
     }
