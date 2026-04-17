@@ -2,62 +2,59 @@
 
 ## Diagnóstico
 
-O bot **não tá inventando** — ele tá literalmente reproduzindo o que tá no banco. O cardápio da TrendFood TEM uma categoria chamada "Lanches com 1 hambúrguer e sem batata frita" e outra "Bebidas". O modelo Gemini Flash leu fielmente e citou.
-
-Mas tem 3 problemas reais:
-
-### Problema 1: Markdown link não funciona no WhatsApp
-O bot manda `[texto](url)` (formato Markdown). WhatsApp não interpreta isso e mostra os colchetes literais. **Solução:** instruir no prompt pra mandar URLs cruas (sem colchetes nem parênteses) e usar `*negrito*` (asterisco simples) em vez de `**duplo**`.
-
-### Problema 2: Bot lista nomes de categoria como se fossem produtos
-"Bebidas" e "Lanches com 1 hambúrguer e sem batata frita" são CATEGORIAS, não pratos. O bot deveria listar os ITENS quando o cliente pergunta "o que tem hoje". Hoje ele só cita nomes de categoria porque o prompt diz "use o cardápio" mas não orienta como apresentar.
-
-### Problema 3: Prompt genérico demais
-Não tem regra sobre formato de resposta, sobre não inventar, sobre como lidar com pedidos malucos ("quero uma casa"), nem sobre tom. Resultado: respostas inconsistentes e alucinação leve possível em qualquer pergunta.
+- `UnitPage.tsx` linha 1268 renderiza fixo `["Entrega", "Retirada"]` — sem condicional.
+- Banco (`organizations`) **não tem** coluna pra controlar isso.
+- `OperationsTab` / `SettingsTab` no dashboard também não tem essa config.
 
 ## Plano
 
-**Reescrever o prompt padrão** em `ai-bot-respond/index.ts` (e atualizar o registro atual em `ai_bot_config` via migration) com regras claras:
+### 1. Banco: adicionar campo de modo de atendimento
+Migration nova em `organizations`:
+- Coluna `service_modes` JSONB com default `{"delivery": true, "pickup": true}` (ambos ativos por padrão pra não quebrar lojas existentes).
 
-1. **Formato WhatsApp puro**: usar `*negrito*` (1 asterisco), URL crua sem colchetes, emojis com moderação, sem títulos `##`/`###`.
-2. **Listar itens reais quando pedirem cardápio**: agrupar por categoria, mostrar nome + preço dos itens disponíveis (não só categoria).
-3. **Nunca inventar**: se algo não tá no contexto fornecido, dizer "vou verificar com a equipe" ou direcionar pro link.
-4. **Respostas curtas**: máximo 4 linhas, salvo quando listando cardápio.
-5. **Tom**: simpático mas profissional, sem firulas.
-6. **Pedidos fora do escopo** ("quero uma casa"): responder com bom humor leve e redirecionar pro cardápio.
-7. **Link sempre cru**: `https://trendfood.lovable.app/unidade/mcd` direto, sem markdown.
+Por que JSONB e não 2 booleans: futuro permite adicionar "consumo no local", "drive-thru" sem nova migration.
 
-Também:
-- **Filtrar itens com preço 0** do contexto enviado pra IA (são itens "teste" que não devem aparecer pro cliente). Se o lojista deixou preço zero é provável que esteja em rascunho.
-- **Atualizar o prompt salvo no banco** (registro atual em `ai_bot_config`) via migration pra você ver o novo prompt já no painel sem precisar reconfigurar.
+### 2. Painel do lojista: toggle em Configurações
+Em `src/components/dashboard/SettingsTab.tsx` (ou onde fica o card de Loja/Operação), adicionar uma seção **"Modos de atendimento"** com:
+- Switch "Aceita Entrega" 🛵
+- Switch "Aceita Retirada no local" 🏃
+- Validação: pelo menos UM precisa estar ativo (se desligar o último, mostra toast e impede salvar)
+- Salva em `organizations.service_modes`
 
-## Arquivos a editar
+### 3. Hook `useOrganization.ts`
+Adicionar `service_modes` na interface `Organization` e no `select` da query.
 
-1. `supabase/functions/ai-bot-respond/index.ts`
-   - Trocar o `systemPrompt` default pelo novo prompt estruturado
-   - Filtrar `menu_items` com `price > 0` na query
-   - Adicionar instrução explícita no contexto sobre formato WhatsApp
-2. **Migration**: UPDATE no registro singleton de `ai_bot_config` setando o novo `system_prompt`
+### 4. Página do cliente: render condicional
+Em `UnitPage.tsx` linhas 1262-1293:
+- Ler `org.service_modes`
+- Se ambos ativos → mostra os 2 botões (comportamento atual)
+- Se só 1 ativo → **pular o seletor inteiro**, setar `orderType` automaticamente no único modo disponível, mostrar um chip discreto tipo "🛵 Apenas entrega" ou "🏃 Apenas retirada" pra deixar claro pro cliente
+- Se só Retirada → esconder também os campos de endereço/bairro/frete (já que retirada não usa)
+- Se só Entrega → manter endereço como obrigatório
 
-## Resultado esperado
+### 5. Onboarding (opcional, leve)
+No `OnboardingWizard.tsx` etapa de logística, adicionar pergunta "Você faz entrega, retirada ou ambos?" e gravar em `service_modes`. Lojas novas já saem configuradas direito.
 
-Cliente manda "o que tem hoje" → bot responde tipo:
-```
-Hoje temos:
+### Arquivos a editar
+1. **Migration nova** — `ALTER TABLE organizations ADD COLUMN service_modes JSONB DEFAULT '{"delivery": true, "pickup": true}'::jsonb`
+2. `src/hooks/useOrganization.ts` — interface + select
+3. `src/components/dashboard/SettingsTab.tsx` — UI dos switches + save
+4. `src/pages/UnitPage.tsx` — render condicional do seletor + auto-set + esconder endereço se for só retirada
+5. `src/components/dashboard/OnboardingWizard.tsx` — pergunta na etapa de logística
 
-🍔 *Lanches*
-• Teste Burguer — R$ 653,45
+### Resultado esperado
 
-🥤 *Bebidas*
-• Teste Guarana — R$ 0,00
+**Lojista que só faz retirada:**
+- Vai em Configurações → desliga "Aceita Entrega"
+- Cliente abre o cardápio → não vê seleção, sistema já assume "Retirada", esconde endereço, no resumo aparece "🏃 Retirada no local"
 
-Pra pedir é só acessar:
-https://trendfood.lovable.app/unidade/mcd
+**Lojista que só faz entrega:**
+- Mesma coisa invertido. Cliente já vai direto pra preencher endereço.
 
-Estamos abertos até 22h 😉
-```
+**Lojista padrão (ambos):**
+- Tudo continua igual hoje.
 
-Cliente manda "quero uma casa" → bot responde curto e bem humorado, redireciona pro cardápio sem 5 linhas de explicação.
-
-Link aparece clicável no WhatsApp (porque é URL crua), negrito funciona, sem colchetes feios.
+**Lista de notas/dúvidas que talvez você queira responder antes de eu codar:**
+- Quer também controlar **"Consumo no local"** (mesa)? Hoje isso já é feito por outro caminho (URL `/mesa/X`) então provavelmente não precisa entrar nesse toggle, mas vale confirmar.
+- Quer que eu coloque a config dentro da aba **"Configurações"** ou crie uma seção separada em **"Operação"**?
 
