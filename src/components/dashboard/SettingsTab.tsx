@@ -101,7 +101,30 @@ export default function SettingsTab() {
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleSaveServiceModes = async (delivery: boolean, pickup: boolean) => {
+    if (!currentOrg?.id) return;
+    if (!delivery && !pickup) {
+      toast.error("Pelo menos um modo de atendimento precisa estar ativo.");
+      return;
+    }
+    setServiceModesLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ service_modes: { delivery, pickup } } as any)
+        .eq("id", currentOrg.id);
+      if (error) throw error;
+      setAcceptsDelivery(delivery);
+      setAcceptsPickup(pickup);
+      await refreshOrganization();
+      toast.success("Modos de atendimento atualizados!");
+    } catch {
+      toast.error("Erro ao salvar modos de atendimento.");
+    } finally {
+      setServiceModesLoading(false);
+    }
+  };
+
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       toast.error("As senhas não coincidem.");
