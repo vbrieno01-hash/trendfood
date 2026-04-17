@@ -1,25 +1,86 @@
 
 
-## Plano
+## Diagnóstico
 
-Vou implementar as 3 melhorias de código que faltavam:
+Hoje o `vite.config.ts` já tem:
+- `registerType: "autoUpdate"`
+- `skipWaiting: true` + `clientsClaim: true`
+- `cleanupOutdatedCaches: true`
 
-### 1. Mensagem mais clara no card de Pagamento vazio (Cozinha & Pedidos)
-Em `OperationsTab.tsx`, ajustar o texto do estado vazio do card "Pagamento" pra deixar explícito que as formas de pagamento aparecem ali quando houver pedidos não pagos. Algo tipo:
-> "Tudo em dia! 💸 As formas de pagamento (PIX, Dinheiro, Débito, Crédito) aparecem aqui quando algum pedido estiver aguardando pagamento."
+Isso faz o SW novo **assumir sozinho no próximo refresh**. Problema: o lojista precisa fechar e abrir o app pra rodar — e como você disse, *nem todos sabem disso*. Resultado: ficam em versão antiga por dias.
 
-### 2. Liberar Débito/Crédito separados na UnitPage também pro Free
-Em `src/pages/UnitPage.tsx` (linhas ~1525-1544), remover o gating `planLimits.canAccess("online_payment")` que esconde Débito/Crédito separados pra plano Grátis. **Manter** o gating só onde realmente é Pro (PIX online automático com QR), mas a *seleção visual* de Débito/Crédito como forma de pagamento na entrega/retirada deve aparecer pra todos.
+## As 2 opções (e qual eu recomendo)
 
-Investigar primeiro o trecho exato pra garantir que vou separar bem o que é "online payment" (PIX automático Pro) do que é só "selecionar tipo de cartão" (deve ser livre).
+### Opção A — Auto-reload silencioso
+SW novo detectado → `window.location.reload()` automático em 2-3 segundos.
+- ✅ Zero ação do lojista
+- ❌ **Risco**: se ele tá no meio de um pedido no Balcão, digitando, o reload pode fazer perder o que tá fazendo. Ruim em horário de rush.
 
-### 3. Forçar invalidação de cache PWA
-Em `vite.config.ts`, fazer um bump simbólico no manifest (ex: adicionar `version` no name ou trocar `description`) + adicionar `cleanupOutdatedCaches: true` no workbox pra forçar clientes em cache antigo (como a cliente que tá vendo só 3 botões no Balcão) a receberem a versão nova automaticamente no próximo refresh.
+### Opção B — Balão interativo (RECOMENDADA) ⭐
+Card flutuante no canto inferior direito: *"🎉 Nova versão disponível! [Atualizar agora]"*
+- ✅ Lojista decide *quando* atualizar (espera o rush passar)
+- ✅ Não perde nada que tá digitando
+- ✅ Card só some quando ele clica → garante que vai atualizar
+- ✅ Visual condiz com o tema Premium Live (glassmorphism)
 
-### Não mexer
-- `CounterTab.tsx` — já tá com 5 botões corretos.
-- Estrutura geral de planos — só desbloqueio o Débito/Crédito visual, sem mudar o que é Pro de verdade (PIX automático com QR).
+### Opção C (híbrida, ainda melhor) — *minha sugestão real*
+Balão interativo **+ auto-reload forçado se ficar 24h ignorando**. Assim:
+- Lojista vê o card e atualiza quando puder
+- Se esquecer / ignorar por 1 dia, força refresh em momento ocioso (sem digitação detectada nos últimos 30s)
 
-### Risco
-Zero. São 3 mudanças isoladas, sem migração de banco, sem tocar em RLS, sem mexer em lógica de pedido/pagamento real — só rótulos, gating de UI e cache.
+## Plano de implementação
+
+### 1. Novo componente `src/components/PWAUpdatePrompt.tsx`
+Card flutuante (bottom-right, `fixed`, z-50) com:
+- Ícone de sparkle/download
+- Título: *"Nova versão disponível!"*
+- Subtítulo: *"Clique para atualizar e ver as novidades"*
+- Botão: **"Atualizar agora"** (chama `updateSW(true)` → recarrega com SW novo)
+- Botão fantasma: **"Mais tarde"** (esconde por 1h via localStorage)
+- Estilo glassmorphism (`dashboard-glass`), animação slide-up
+- Mobile: full-width no bottom
+
+### 2. Hook `src/hooks/usePWAUpdate.ts`
+- Usa `useRegisterSW` do `virtual:pwa-register/react` (já vem com `vite-plugin-pwa`)
+- Expõe: `needRefresh`, `updateServiceWorker`
+- Lógica de "snooze" 1h via localStorage (`pwa_snooze_until`)
+- Lógica de auto-force após 24h ignorando (timestamp `pwa_first_seen`)
+
+### 3. `vite.config.ts` — trocar `registerType`
+- Mudar de `"autoUpdate"` → `"prompt"` (deixa a gente controlar o momento via UI em vez do SW assumir sozinho)
+- Manter `skipWaiting`/`clientsClaim` removidos (pra prompt funcionar) — quem assume controle agora é o `updateSW(true)`
+
+### 4. `src/App.tsx`
+- Renderizar `<PWAUpdatePrompt />` dentro do `BrowserRouter`, junto do `<Sonner />`
+- Aparece em **todas as rotas internas** (Dashboard, Cozinha, Balcão, Admin)
+- **Não aparece** em iframes/preview (já temos guard em `main.tsx`)
+
+### 5. Sobre "não perder dados"
+Como o usuário escolhe quando clicar, ele só atualiza quando não tá no meio de algo. Pra reforçar:
+- Detectar se tem `<input>`/`<textarea>` em foco → adiar 5s e mostrar tooltip *"Termine de digitar e atualize quando puder"*
+- Pedidos do Balcão/Cozinha já são salvos no banco em tempo real, então refresh não perde nada que já foi confirmado
+
+### 6. `src/vite-env.d.ts`
+- Adicionar reference type `/// <reference types="vite-plugin-pwa/react" />` pro TypeScript reconhecer o virtual module
+
+## Risco
+Baixo. Mexe em 4 arquivos, 1 novo. Não toca em banco, RLS, fluxo de pedido, pagamento. Pior caso: prompt não aparece → cai no comportamento atual (refresh manual ainda funciona).
+
+## Resumo visual
+
+```text
+┌─────────────────────────────────────┐
+│  Tela do lojista (qualquer aba)     │
+│                                     │
+│                                     │
+│                                     │
+│                  ┌────────────────┐ │
+│                  │ ✨ Nova versão │ │
+│                  │   disponível!  │ │
+│                  │                │ │
+│                  │ [Atualizar]    │ │
+│                  │  Mais tarde    │ │
+│                  └────────────────┘ │
+└─────────────────────────────────────┘
+```
 
