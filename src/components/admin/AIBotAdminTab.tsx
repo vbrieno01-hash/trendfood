@@ -177,6 +177,21 @@ export default function AIBotAdminTab() {
         uazapi_instance_name: config.uazapi_instance_name || null,
       })
       .eq("id", config.id);
+
+    // Espelhar em whatsapp_instances pra Branch 1 do webhook achar a loja de teste
+    if (!error && config.test_org_id && config.uazapi_token && config.uazapi_instance_name) {
+      const { error: instErr } = await (supabase.from("whatsapp_instances") as any)
+        .upsert({
+          organization_id: config.test_org_id,
+          instance_name: config.uazapi_instance_name,
+          instance_token: config.uazapi_token,
+          status: "connected",
+          webhook_configured: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "organization_id" });
+      if (instErr) console.warn("Falha ao espelhar em whatsapp_instances:", instErr.message);
+    }
+
     setSaving(false);
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
