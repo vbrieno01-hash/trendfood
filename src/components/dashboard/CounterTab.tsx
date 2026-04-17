@@ -127,8 +127,6 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
     }
   };
 
-  // Sem emoji parasita: o título da categoria aparece só com o nome.
-  const getEmoji = (_category: string) => "";
 
   if (isLoading) {
     return (
