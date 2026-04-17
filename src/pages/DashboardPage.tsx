@@ -820,9 +820,10 @@ const DashboardPage = () => {
               : group.items;
             if (filteredItems.length === 0) return null;
             return (
-              <div key={group.id} className="mt-3">
-                <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-white/40">
-                  <span>{group.emoji}</span>
+              <div key={group.id} className="mt-5 pt-3 border-t border-white/10 first:border-t-0 first:pt-0 first:mt-3">
+                <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary/80 cursor-default select-none">
+                  <span className="block w-0.5 h-4 bg-primary rounded-full" aria-hidden="true" />
+                  <span className="text-sm leading-none">{group.emoji}</span>
                   <span>{group.title}</span>
                 </div>
                 <div className="space-y-0.5">
