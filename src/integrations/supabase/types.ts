@@ -1174,6 +1174,7 @@ export type Database = {
           printer_width: string
           referred_by_id: string | null
           scheduling_config: Json | null
+          service_modes: Json
           slug: string
           store_address: string | null
           subscription_plan: string
@@ -1216,6 +1217,7 @@ export type Database = {
           printer_width?: string
           referred_by_id?: string | null
           scheduling_config?: Json | null
+          service_modes?: Json
           slug: string
           store_address?: string | null
           subscription_plan?: string
@@ -1258,6 +1260,7 @@ export type Database = {
           printer_width?: string
           referred_by_id?: string | null
           scheduling_config?: Json | null
+          service_modes?: Json
           slug?: string
           store_address?: string | null
           subscription_plan?: string
