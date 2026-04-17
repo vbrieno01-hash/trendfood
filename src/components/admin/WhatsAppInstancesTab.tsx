@@ -33,7 +33,7 @@ export default function WhatsAppInstancesTab() {
 
     if (!rows) { setInstances([]); setLoading(false); return; }
 
-    const orgIds = Array.from(new Set(rows.map((r: any) => r.organization_id)));
+    const orgIds: string[] = Array.from(new Set(rows.map((r: any) => r.organization_id as string)));
     const { data: orgs } = await supabase
       .from("organizations")
       .select("id, name, slug")
