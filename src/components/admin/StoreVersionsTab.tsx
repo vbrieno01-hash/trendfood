@@ -25,6 +25,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { sendVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HeartbeatRow {
   organization_id: string;
@@ -80,12 +82,30 @@ function downloadCSV(content: string, filename: string) {
 }
 
 export default function StoreVersionsTab() {
+  const { organization } = useAuth();
   const [rows, setRows] = useState<HeartbeatRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [onlyOutdated, setOnlyOutdated] = useState(false);
   const [onlyPwa, setOnlyPwa] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [forcing, setForcing] = useState(false);
+
+  async function handleForceHeartbeat() {
+    if (!organization?.id) {
+      toast.error("Você precisa ter uma loja vinculada à sua conta para enviar heartbeat.");
+      return;
+    }
+    setForcing(true);
+    const result = await sendVersionHeartbeat(organization.id);
+    setForcing(false);
+    if (result.ok) {
+      toast.success(`Heartbeat enviado: ${result.version}`);
+      setRefreshKey((k) => k + 1);
+    } else {
+      toast.error(`Falhou: ${result.error ?? "erro desconhecido"}`);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -225,7 +245,16 @@ export default function StoreVersionsTab() {
             <span className="font-mono font-semibold">{latestVersion || "—"}</span>
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleForceHeartbeat}
+            disabled={forcing || !organization?.id}
+          >
+            <Activity className={`w-4 h-4 mr-1.5 ${forcing ? "animate-pulse" : ""}`} />
+            Forçar heartbeat
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -321,9 +350,14 @@ export default function StoreVersionsTab() {
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-muted-foreground">
               <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Nenhum heartbeat encontrado.</p>
-              <p className="text-xs mt-1">
-                As lojas começam a aparecer aqui assim que abrirem o dashboard.
+              <p className="font-medium">Nenhuma loja com a versão nova ainda.</p>
+              <p className="text-xs mt-2 max-w-md mx-auto leading-relaxed">
+                Heartbeats aparecem aqui só depois que cada loja atualizar pro código com tracking.
+                Lojas com PWA standalone podem demorar até 24h pra revalidar — o card de update
+                agressivo (que força reload limpando cache) acelera isso.
+              </p>
+              <p className="text-xs mt-3 text-primary">
+                Use <strong>"Forçar heartbeat"</strong> acima pra testar o pipeline com sua própria loja agora.
               </p>
             </div>
           ) : (
