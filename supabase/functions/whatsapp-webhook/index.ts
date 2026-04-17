@@ -262,8 +262,60 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // === Branch: Robô de Atendimento (admin testing) ===
-    // Se ai_bot_config estiver ativo e o phone for o test_phone, encaminha pra ai-bot-respond
+    // === Branch 1: Roteamento por instância (self-service por loja) ===
+    // uazapi envia 'token' (token da instância) ou 'instance' (nome) no payload.
+    const instanceToken =
+      body?.token ||
+      body?.instance?.token ||
+      body?.data?.token ||
+      null;
+    const instanceName =
+      body?.instance?.name ||
+      body?.instanceName ||
+      body?.data?.instance ||
+      null;
+
+    if (instanceToken || instanceName) {
+      let instQuery = supabase.from("whatsapp_instances").select("organization_id, instance_token");
+      if (instanceToken) {
+        instQuery = instQuery.eq("instance_token", instanceToken);
+      } else {
+        instQuery = instQuery.eq("instance_name", instanceName);
+      }
+      const { data: matchedInst } = await instQuery.maybeSingle();
+
+      if (matchedInst?.organization_id) {
+        // Marca como connected se ainda não estava
+        await supabase
+          .from("whatsapp_instances")
+          .update({ status: "connected", phone_connected: phone, connected_at: new Date().toISOString() })
+          .eq("organization_id", matchedInst.organization_id)
+          .neq("status", "connected");
+
+        const botRes = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              phone,
+              message,
+              organization_id: matchedInst.organization_id,
+              instance_token: matchedInst.instance_token,
+            }),
+          },
+        );
+        const botData = await botRes.json().catch(() => ({}));
+        return new Response(JSON.stringify({ ok: true, routed_by: "instance", ...botData }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // === Branch 2: Robô de Atendimento (admin testing legacy) ===
     const { data: botCfg } = await supabase
       .from("ai_bot_config")
       .select("enabled, test_phone")
