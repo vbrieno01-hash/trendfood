@@ -70,6 +70,9 @@ const DashboardPage = () => {
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const [deleteUnit, setDeleteUnit] = useState<{ id: string; name: string } | null>(null);
   const planLimits = usePlanLimits(organization);
+
+  // Heartbeat: registra qual versão essa loja está rodando (admin → painel Versões)
+  useVersionHeartbeat(organization?.id);
   // Read tab from URL query param, fallback to location.state, then localStorage, then "home"
   const getInitialTab = (): TabKey => {
     const params = new URLSearchParams(location.search);
