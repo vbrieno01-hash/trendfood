@@ -1,30 +1,30 @@
 
-## Causa raiz (3 bugs combinados)
+## Diagnóstico
 
-**Bug 1 — Branch legacy filtra errado:** o webhook só responde quando `phone === test_phone`. Mas `test_phone` é o número da LOJA (que usa o WhatsApp), e `phone` é o CLIENTE que mandou mensagem. Esses nunca vão ser iguais, exceto se você se mandar mensagem (impossível). Por isso "oi" entrou na fila como `pendente` mas nunca foi respondido.
+As abas **"Instâncias WhatsApp"** e **"Robô IA"** já estão no código (`AdminPage.tsx` linhas 261-262 e renderizadas nas linhas 938-939). Mas no seu screenshot da sidebar elas não aparecem — você vê WhatsApp e pula direto pra Melhorias.
 
-**Bug 2 — Falta seed em `whatsapp_instances`:** a instância antiga `HqrTf5` (token `27e8406b-...`) está em `ai_bot_config`, não em `whatsapp_instances`. Branch novo (multi-tenant) não consegue rotear porque não acha a linha. Tabela tá vazia.
+**Causa:** cache do preview. O Vite tá servindo a versão antiga do `AdminPage.tsx` no navegador (compilou a sessão anterior antes das edições e não recarregou).
 
-**Bug 3 — uazapi não envia `token` no payload, só `instanceName`:** o webhook tenta achar por `body.token` primeiro mas isso vem null. Tem que extrair `body.instanceName` (camelCase, não `body.instance.name`).
+## Solução (você, sem precisar de código)
 
-## Correções
+**Faça hard refresh** na aba do preview:
+- **Mac**: `Cmd + Shift + R`
+- **Windows/Linux**: `Ctrl + Shift + R`
 
-### 1. Webhook — extrair `instanceName` certo + remover filtro errado
-- Adicionar `body.instanceName` (camelCase) na cascata de fallback do `instanceName`
-- **Branch legacy:** remover a condição `phone === botCfg.test_phone`. Quando o bot tá enabled e tem `test_org_id` configurado, responde pra qualquer mensagem inbound (que não seja `fromMe`) usando aquela loja como contexto. O `test_phone` vira só um filtro de UI (mostrar conversa de quem na sala de testes), não de roteamento.
+Ou na barra de endereço do preview, recarregue forçando: clique no botão de refresh do preview do Lovable (ícone circular) — não o do navegador.
 
-### 2. Seed da instância existente em `whatsapp_instances`
-- Migration que insere uma linha em `whatsapp_instances` espelhando o que tá em `ai_bot_config` (instance_name `HqrTf5`, token `27e8406b-...`, organization_id da TrendFood, status `connected`). Assim Branch 1 pega o roteamento corretamente.
+Depois do refresh, na sidebar do `/admin`, dentro do grupo **GESTÃO**, você vai ver nessa ordem:
+- WhatsApp
+- **Instâncias WhatsApp** ← nova
+- **Robô IA** ← era a aba antiga "Robô IA" do AIBotAdminTab, agora movida pra esse grupo
+- Melhorias
 
-### 3. Admin — espelhar mudanças do `AIBotAdminTab` em `whatsapp_instances`
-Quando você salvar config no admin (token/instance_name/test_org_id), também faz upsert em `whatsapp_instances` pra manter os dois sincronizados. Garante que Branch 1 sempre funcione pra loja de teste.
+## Onde testar o fluxo do bot depois do refresh
 
-## Arquivos a editar
-- `supabase/functions/whatsapp-webhook/index.ts` — fix do parser `instanceName` + remover filtro `test_phone` no branch legacy
-- `src/components/admin/AIBotAdminTab.tsx` — upsert em `whatsapp_instances` ao salvar
-- Migration nova — seed da instância TrendFood em `whatsapp_instances`
+1. Clica em **"Robô IA"** na sidebar — é onde tá a config do bot de teste (token, instance_name, test_org_id, prompt). Salva ali pra disparar o upsert em `whatsapp_instances`.
+2. Clica em **"Instâncias WhatsApp"** — vai ver a linha da TrendFood (`HqrTf5`) que foi seedada, com status connected, número conectado e botão de desconectar.
+3. Manda "oi" do seu WhatsApp pro número conectado → robô responde.
 
-## Resultado esperado
-Você manda "oi" do `558398244382` → uazapi entrega no webhook com `instanceName: "HqrTf5"` → webhook acha a TrendFood na `whatsapp_instances` → roteia pro `ai-bot-respond` com `organization_id` certo → robô responde no seu WhatsApp em segundos.
+## Se mesmo após hard refresh ainda não aparecer
 
-Lojistas continuam com "EM BREVE".
+Me avisa que aí investigo se tem algum filtro/condição escondendo as abas (ex: `isAdmin` falhando pra `wa_instances` por algum motivo, ou erro de import quebrando o render). Mas 99% das vezes esse sintoma é cache do preview.
