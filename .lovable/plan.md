@@ -1,30 +1,39 @@
 
-## Diagnóstico
 
-As abas **"Instâncias WhatsApp"** e **"Robô IA"** já estão no código (`AdminPage.tsx` linhas 261-262 e renderizadas nas linhas 938-939). Mas no seu screenshot da sidebar elas não aparecem — você vê WhatsApp e pula direto pra Melhorias.
+## O que acontece hoje
 
-**Causa:** cache do preview. O Vite tá servindo a versão antiga do `AdminPage.tsx` no navegador (compilou a sessão anterior antes das edições e não recarregou).
+- `/dashboard?tab=aibot` carrega `AIBotTab.tsx` que é **100% estático "EM BREVE"** pra todos os lojistas (decisão sua na questão 1c).
+- A TrendFood já tem instância conectada no servidor (`HqrTf5`) e o roteamento backend funciona — você consegue receber resposta do bot mandando msg pro WhatsApp dela. Mas o painel do lojista não mostra nada disso.
 
-## Solução (você, sem precisar de código)
+## O plano: liberar a aba real só pra TrendFood (allowlist)
 
-**Faça hard refresh** na aba do preview:
-- **Mac**: `Cmd + Shift + R`
-- **Windows/Linux**: `Ctrl + Shift + R`
+Bypass do "EM BREVE" baseado em `organization_id`. Quando o lojista abrir a aba e o `org.id` estiver na lista de teste, mostra o painel de verdade. Senão, continua "EM BREVE".
 
-Ou na barra de endereço do preview, recarregue forçando: clique no botão de refresh do preview do Lovable (ícone circular) — não o do navegador.
+### O que construir
 
-Depois do refresh, na sidebar do `/admin`, dentro do grupo **GESTÃO**, você vai ver nessa ordem:
-- WhatsApp
-- **Instâncias WhatsApp** ← nova
-- **Robô IA** ← era a aba antiga "Robô IA" do AIBotAdminTab, agora movida pra esse grupo
-- Melhorias
+**1. AIBotTab refatorado com 2 modos**
+- Lê `organization.id` do `useAuth`
+- Compara contra constante `BETA_ORG_IDS = ["c9d9db45-3e46-4b03-8a2e-7af4557c6a3e"]` (TrendFood)
+- Se não estiver na lista → renderiza o "EM BREVE" atual (mantém igual)
+- Se estiver → renderiza o **painel real**:
 
-## Onde testar o fluxo do bot depois do refresh
+**Painel real (modo conectado, já que TrendFood já tá conectada):**
+- Card verde "WhatsApp conectado" mostrando `+5516988083263` e nome `TrendFood`
+- Botão "Atualizar status" (chama `uazapi-instance-status`)
+- Botão "Desconectar" (chama `uazapi-disconnect` com `delete_instance: false`)
+- Configurações editáveis: mensagem de boas-vindas + prompt do bot + modelo IA (lê/grava em `ai_bot_config` singleton)
+- Toggle "Bot ativo" (liga/desliga o `enabled` em `ai_bot_config`)
+- Histórico recente: últimas 10 linhas da `fila_whatsapp` mostrando "cliente → resposta" pra você ver o bot funcionando ao vivo
 
-1. Clica em **"Robô IA"** na sidebar — é onde tá a config do bot de teste (token, instance_name, test_org_id, prompt). Salva ali pra disparar o upsert em `whatsapp_instances`.
-2. Clica em **"Instâncias WhatsApp"** — vai ver a linha da TrendFood (`HqrTf5`) que foi seedada, com status connected, número conectado e botão de desconectar.
-3. Manda "oi" do seu WhatsApp pro número conectado → robô responde.
+**Painel real (modo desconectado, caso desconecte):**
+- Botão "Conectar WhatsApp" → chama `uazapi-create-instance` → mostra QR Code → polling no `uazapi-instance-status` até connected
 
-## Se mesmo após hard refresh ainda não aparecer
+**2. Quando expandir pros lojistas comuns (futuro)**
+Trocar o allowlist por uma flag global (`platform_config.ai_bot_public = true`) ou por plano (`subscription_plan IN ('pro','enterprise')`). Mas isso é depois — agora só TrendFood.
 
-Me avisa que aí investigo se tem algum filtro/condição escondendo as abas (ex: `isAdmin` falhando pra `wa_instances` por algum motivo, ou erro de import quebrando o render). Mas 99% das vezes esse sintoma é cache do preview.
+### Arquivo a editar
+- `src/components/dashboard/AIBotTab.tsx` — adicionar allowlist + render condicional + painel real
+
+### Resultado esperado
+Você abre `/dashboard?tab=aibot` logado como dono da TrendFood → vê o painel real conectado → consegue editar prompt/mensagem, ver histórico de conversas, desconectar e reconectar. Outros lojistas continuam vendo "EM BREVE".
+
