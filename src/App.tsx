@@ -27,6 +27,7 @@ import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
+import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -132,6 +133,7 @@ const AppInner = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <ConditionalSupportChat />
+            <PWAUpdatePrompt />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
