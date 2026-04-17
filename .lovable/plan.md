@@ -1,50 +1,58 @@
 
 
-## Diagnóstico
+## Diagnóstico real (App instalado + nada mudou)
 
-O cliente atualizou agora e não viu o card "Nova versão disponível". Motivos possíveis:
+A loja **abriu pelo PWA instalado** na home. Isso muda o jogo porque:
 
-1. **Polling de 30 min é muito longo** — se o lojista abriu o app logo após o publish, só vai checar atualização daqui 30 min
-2. **Sem checagem ao focar a aba** — se o lojista deixou o app aberto em background e voltou, não revalida
-3. **Sem checagem ao recuperar conexão** — se ficou offline e voltou, não revalida
-4. **`vite.config.ts` ainda pode estar com `registerType: "autoUpdate"`** em vez de `"prompt"` — preciso confirmar
+1. **PWA standalone não dispara `focus`/`visibilitychange` da mesma forma** que aba de browser. O lojista abre o ícone, usa, fecha — o app pode ficar **dias sem nunca rodar o `r.update()`** porque os listeners que adicionamos não disparam de forma confiável em standalone.
+2. **`onRegisteredSW` só chama `setInterval` UMA vez**, no primeiro registro do SW. Se o app ficou aberto desde antes da última atualização do código (caso comum em PWA instalado que nunca é "fechado" de verdade), o handler pode nem ter sido chamado nessa sessão.
+3. **`needRefresh` só vira `true` quando o SW novo é instalado E entra em estado `waiting`** — exige que `r.update()` rode E que o navegador baixe o novo SW E identifique como "waiting". Se o PWA não rodou nenhum check, não detecta nada.
+4. **Sem botão manual** para o lojista forçar — ele depende 100% da detecção automática que tá falhando no contexto standalone.
 
-Preciso verificar o estado atual antes de propor mudanças.
+## Solução em 3 frentes (segura, sem mexer em fluxo de pedido)
 
-## Verificação rápida do código atual
+### Frente 1 — Tornar a detecção mais agressiva e confiável em PWA standalone
+Em `src/hooks/usePWAUpdate.ts`:
 
-Vou olhar `vite.config.ts` e `usePWAUpdate.ts` pra confirmar o que tá rodando em produção agora.
+- **Polling mais curto: de 2 min → 60s** (custo de rede irrelevante, é um HEAD no manifest do SW)
+- **Mover o `setInterval` para fora do `onRegisteredSW`** e colocar dentro de um `useEffect` que sempre roda. Garantia que sempre tem polling ativo, não dependendo de quando o SW foi registrado.
+- **Adicionar listener `controllerchange`** do `navigator.serviceWorker` — dispara quando um SW novo assume controle, sinal mais direto que algo mudou.
+- **Adicionar listener `updatefound` no registration** — dispara assim que o navegador detecta um SW novo baixando, ainda mais cedo que `needRefresh`.
+- **Check inicial com delay curto (3s após mount)** além do imediato — cobre race condition de SW ainda registrando.
 
-## Plano (após verificar)
+### Frente 2 — Botão manual "Verificar atualizações" no dashboard
+Em `src/components/dashboard/SettingsTab.tsx` (ou na Home/SetupChecklist):
 
-### 1. Reduzir polling de 30 min → 2 min
-Em `usePWAUpdate.ts`, baixar `setInterval` de `30 * 60 * 1000` pra `2 * 60 * 1000`. Detecção quase imediata, custo de rede irrelevante (só checa um arquivo de manifest do SW).
+- Card pequeno com botão **"Verificar atualizações"**
+- Ao clicar: força `registration.update()`, espera 3s, e:
+  - Se achou versão nova → mostra toast "Atualizando..." e dispara `updateServiceWorker(true)`
+  - Se não achou → toast "Você está na versão mais recente ✓"
+- Solução de emergência pro lojista quando suspeitar que ficou desatualizado.
 
-### 2. Checar update ao focar a aba (visibilitychange)
-Quando o lojista volta pra aba do navegador (ou abre o app no celular), forçar `registration.update()` na hora. Cobre o caso "deixei aberto em background".
-
-### 3. Checar update ao voltar conexão (online event)
-Se ficou offline e voltou, revalida na hora.
-
-### 4. Checar update no mount inicial
-Logo que o componente monta, dispara `update()` imediato em vez de esperar o primeiro intervalo.
-
-### 5. Garantir `registerType: "prompt"` em `vite.config.ts`
-Confirmar que tá `"prompt"` (e não `"autoUpdate"`) — se tiver `autoUpdate`, o SW assume sozinho e o card nunca aparece porque `needRefresh` não dispara.
-
-### 6. Logs de debug temporários
-Adicionar `console.info("[PWA]")` nos eventos chave (registrado, update detectado, needRefresh true) — assim na próxima vez você consegue abrir o console do lojista e ver onde travou.
+### Frente 3 — Mostrar versão atual (build hash) na Home
+Pequeno texto rodapé tipo `v2025.04.17.1432` (timestamp do build) — o lojista consegue te falar a versão dele e você compara com a publicada. Diagnóstico rápido sem ter que adivinhar.
 
 ## Arquivos
 
-- `src/hooks/usePWAUpdate.ts` — adicionar listeners de visibility/online, reduzir polling, check inicial, logs
-- `vite.config.ts` — confirmar/garantir `registerType: "prompt"`
+- `src/hooks/usePWAUpdate.ts` — refatorar polling + adicionar `updatefound` + `controllerchange`, reduzir pra 60s
+- `src/components/dashboard/SettingsTab.tsx` — adicionar card "Verificar atualizações"
+- `vite.config.ts` — injetar build timestamp via `define` para exibir versão
+- `src/components/dashboard/HomeTab.tsx` (ou `SetupChecklist`) — exibir versão pequena no rodapé
 
-## Resultado esperado
+## O que NÃO vou mexer
 
-Você clica Publish → Update no Lovable → no máximo **2 minutos depois** (ou imediatamente se o lojista trocar de aba e voltar) o card aparece pra ele.
+- Fluxo de pedido, RLS, edge functions, banco — nada disso
+- `vite.config.ts` na parte de PWA core (`registerType: "prompt"` fica)
+- `main.tsx` guard de iframe/preview
 
 ## Risco
 
-Zero. Mudança em 2 arquivos, sem banco, sem RLS, sem fluxo de pedido.
+Baixo. Mudanças cosméticas + lógica de polling. Sem migração de banco. Sem mexer em nada crítico de pedido/pagamento.
+
+## Resultado esperado pra Caha e Alho
+
+- Polling 1x/min em vez de 2 min → janela máxima de detecção cai pela metade
+- `updatefound` pega o SW novo no momento exato que o navegador detecta
+- Botão manual = lojista não fica refém da automação
+- Versão visível = você diagnostica em 5 segundos pelo WhatsApp
 
