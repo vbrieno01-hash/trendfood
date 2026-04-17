@@ -212,6 +212,23 @@ const UnitPage = () => {
     if (!orgLoading && (isError || org === null)) navigate("/404");
   }, [orgLoading, isError, org, navigate]);
 
+  // Service modes (delivery/pickup) — auto-select when only one is enabled
+  const serviceModes = (org as any)?.service_modes ?? { delivery: true, pickup: true };
+  const acceptsDelivery = serviceModes.delivery !== false;
+  const acceptsPickup = serviceModes.pickup !== false;
+  const onlyOneMode = (acceptsDelivery && !acceptsPickup) || (!acceptsDelivery && acceptsPickup);
+  const forcedOrderType: "Entrega" | "Retirada" | "" =
+    acceptsDelivery && !acceptsPickup ? "Entrega"
+    : !acceptsDelivery && acceptsPickup ? "Retirada"
+    : "";
+
+  useEffect(() => {
+    if (forcedOrderType && orderType !== forcedOrderType) {
+      setOrderType(forcedOrderType);
+      setOrderTypeError(false);
+    }
+  }, [forcedOrderType, orderType]);
+
   // Theme config
   const themeConfig = (org as any)?.theme_config ?? {};
   const buttonRadius = themeConfig.button_style === "pill" ? "9999px" : themeConfig.button_style === "square" ? "4px" : "12px";
