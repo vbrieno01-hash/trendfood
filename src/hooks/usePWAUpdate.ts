@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 const SNOOZE_KEY = "pwa_snooze_until";
 const FIRST_SEEN_KEY = "pwa_first_seen";
 const SNOOZE_DURATION_MS = 60 * 60 * 1000; // 1h
 const FORCE_AFTER_MS = 24 * 60 * 60 * 1000; // 24h
+const POLL_INTERVAL_MS = 2 * 60 * 1000; // 2 min — detecção rápida pós-publish
 
 const isInIframe = (() => {
   try {
@@ -20,21 +21,62 @@ const isPreviewHost =
     window.location.hostname.includes("lovableproject.com"));
 
 export function usePWAUpdate() {
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(swUrl, r) {
-      // Polling a cada 30 min para detectar nova versão
-      if (r) {
-        setInterval(() => {
-          r.update().catch(() => {});
-        }, 30 * 60 * 1000);
-      }
+      console.info("[PWA] SW registrado", swUrl);
+      if (!r) return;
+      registrationRef.current = r;
+
+      // Check imediato no mount
+      r.update().catch((e) => console.info("[PWA] update inicial falhou", e));
+
+      // Polling a cada 2 min
+      setInterval(() => {
+        console.info("[PWA] polling update...");
+        r.update().catch(() => {});
+      }, POLL_INTERVAL_MS);
+    },
+    onNeedRefresh() {
+      console.info("[PWA] needRefresh=true — nova versão detectada");
     },
   });
 
   const [showPrompt, setShowPrompt] = useState(false);
+
+  // Listeners: focar aba + voltar online → forçar update
+  useEffect(() => {
+    if (isPreviewHost || isInIframe) return;
+
+    const checkForUpdate = (reason: string) => {
+      const r = registrationRef.current;
+      if (!r) return;
+      console.info(`[PWA] revalidando (${reason})`);
+      r.update().catch(() => {});
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        checkForUpdate("visibilitychange");
+      }
+    };
+    const onOnline = () => checkForUpdate("online");
+    const onFocus = () => checkForUpdate("focus");
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   // Controla snooze
   useEffect(() => {
@@ -76,7 +118,6 @@ export function usePWAUpdate() {
     localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_DURATION_MS));
     setShowPrompt(false);
     setNeedRefresh(false);
-    // Reaparece em 1h via re-check do próximo update detection
     setTimeout(() => {
       if (needRefresh) setShowPrompt(true);
     }, SNOOZE_DURATION_MS);
