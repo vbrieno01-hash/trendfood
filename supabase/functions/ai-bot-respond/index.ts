@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { phone, message } = await req.json();
+    const { phone, message, organization_id: orgIdOverride, instance_token: tokenOverride } = await req.json();
     if (!phone || !message) {
       return new Response(JSON.stringify({ error: "phone and message required" }), {
         status: 400,
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // 1) Carregar config (inclui credenciais uazapiGO)
+    // 1) Carregar config base (singleton com prompt/modelo padrão)
     const { data: config } = await supabase
       .from("ai_bot_config")
       .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
@@ -44,31 +44,39 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (!config || !config.enabled) {
+    // Modo multi-tenant: organization_id + instance_token vieram do webhook (loja específica)
+    // Modo singleton legacy: usa test_org_id + uazapi_token do config (apenas teste admin)
+    const effectiveOrgId = orgIdOverride || config?.test_org_id || null;
+    const effectiveServerUrl = (Deno.env.get("UAZAPI_SERVER_URL") || config?.uazapi_server_url || "https://free.uazapi.com").replace(/\/$/, "");
+    const effectiveToken = tokenOverride || config?.uazapi_token || null;
+    const isMultiTenant = !!orgIdOverride;
+
+    // No modo singleton, respeitar enabled. No multi-tenant, sempre roda (loja conectou via self-service).
+    if (!isMultiTenant && (!config || !config.enabled)) {
       return new Response(JSON.stringify({ ok: true, skipped: true, reason: "bot_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 2) Carregar contexto da loja de teste
+    // 2) Carregar contexto da loja (multi-tenant ou test)
     let storeContext = "";
-    if (config.test_org_id) {
+    if (effectiveOrgId) {
       const [{ data: org }, { data: menu }, { data: hoods }] = await Promise.all([
         supabase
           .from("organizations")
           .select("name, slug, whatsapp, store_address, business_hours, description")
-          .eq("id", config.test_org_id)
+          .eq("id", effectiveOrgId)
           .maybeSingle(),
         supabase
           .from("menu_items")
           .select("name, description, price, category")
-          .eq("organization_id", config.test_org_id)
+          .eq("organization_id", effectiveOrgId)
           .eq("available", true)
           .order("category"),
         supabase
           .from("delivery_neighborhoods")
           .select("name, fee")
-          .eq("organization_id", config.test_org_id)
+          .eq("organization_id", effectiveOrgId)
           .eq("active", true),
       ]);
 
@@ -116,8 +124,11 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
+    const systemPrompt = config?.system_prompt
+      || "Você é um atendente educado e prestativo de um restaurante via WhatsApp. Responda curto, natural e profissional. Use o cardápio e horários fornecidos. Se o cliente quiser pedir, oriente-o a usar o link do cardápio digital.";
+
     const messages: { role: string; content: string }[] = [
-      { role: "system", content: `${config.system_prompt}\n${storeContext}` },
+      { role: "system", content: `${systemPrompt}\n${storeContext}` },
     ];
     if (history) {
       for (const h of history.reverse()) {
@@ -138,7 +149,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: config.model || "google/gemini-2.5-flash",
+        model: config?.model || "google/gemini-2.5-flash",
         messages,
         temperature: 0.7,
       }),
@@ -167,18 +178,18 @@ Deno.serve(async (req) => {
       aiData.choices?.[0]?.message?.content ||
       "Desculpa, tive um problema aqui. Pode repetir?";
 
-    // 5) Enviar resposta de volta via uazapiGO (se credenciais configuradas)
+    // 5) Enviar resposta de volta via uazapiGO
     let sent = false;
     let sendError: string | null = null;
-    if (config.uazapi_server_url && config.uazapi_token) {
+    if (effectiveServerUrl && effectiveToken) {
       try {
         const sendRes = await fetch(
-          `${String(config.uazapi_server_url).replace(/\/$/, "")}/send/text`,
+          `${effectiveServerUrl}/send/text`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              token: config.uazapi_token,
+              token: effectiveToken,
             },
             body: JSON.stringify({ number: phone, text: reply }),
           },

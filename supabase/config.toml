@@ -86,3 +86,12 @@ verify_jwt = false
 
 [functions.telegram-automations]
 verify_jwt = false
+
+[functions.uazapi-create-instance]
+verify_jwt = true
+
+[functions.uazapi-instance-status]
+verify_jwt = true
+
+[functions.uazapi-disconnect]
+verify_jwt = true
