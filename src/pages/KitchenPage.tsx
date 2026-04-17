@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
 import { parsePhoneFromNotes, notifyCustomerWhatsApp, notifyCustomerReady, parseScheduledTimeFromNotes } from "@/lib/whatsappNotify";
@@ -65,6 +66,7 @@ export default function KitchenPage() {
   const [searchParams] = useSearchParams();
   const orgSlug = searchParams.get("org");
   const { data: org } = useOrganization(orgSlug || undefined);
+  useVersionHeartbeat(org?.id);
 
   const [pixKey, setPixKey] = useState<string | null>(null);
   useEffect(() => {
