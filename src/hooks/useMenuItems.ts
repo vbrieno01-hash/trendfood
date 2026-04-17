@@ -29,21 +29,51 @@ export interface MenuItemInput {
   available_days?: string[] | null;
 }
 
+/**
+ * Categorias sugeridas (genéricas, agnósticas de nicho).
+ * O lojista pode digitar qualquer categoria personalizada.
+ * O `emoji` aqui é APENAS uma sugestão visual no picker do dashboard;
+ * NÃO é renderizado automaticamente em lugar nenhum da vitrine pública.
+ */
 export const CATEGORIES = [
-  { value: "Promoção do dia", emoji: "🔥" },
-  { value: "Lanches com 1 hambúrguer e sem batata frita", emoji: "🍔" },
-  { value: "Lanches com 2 hambúrgueres e batata frita", emoji: "🍔🍟" },
-  { value: "Hambúrgueres triplo", emoji: "🍔" },
-  { value: "Gourmets", emoji: "👨‍🍳" },
-  { value: "Combos com batata frita", emoji: "🎁🍟" },
-  { value: "Combos sem batata frita", emoji: "🎁" },
-  { value: "Bebidas", emoji: "🥤" },
-  { value: "Porções", emoji: "🍟" },
-  { value: "Sobremesas", emoji: "🍰" },
-  { value: "Outros", emoji: "🍽️" },
+  { value: "Destaques", emoji: "" },
+  { value: "Promoções", emoji: "" },
+  { value: "Mais vendidos", emoji: "" },
+  { value: "Novidades", emoji: "" },
+  { value: "Combos", emoji: "" },
+  { value: "Bebidas", emoji: "" },
+  { value: "Sobremesas", emoji: "" },
+  { value: "Acessórios", emoji: "" },
+  { value: "Serviços", emoji: "" },
+  { value: "Outros", emoji: "" },
 ];
 
 const CATEGORY_ORDER = CATEGORIES.map((c) => c.value);
+
+/**
+ * Paleta opcional de emojis para o picker do lojista (sem nicho fixo).
+ * Cobre comida, vestuário, beleza, eletrônicos, serviços e símbolos genéricos.
+ */
+export const CATEGORY_EMOJI_PALETTE = [
+  "🔥", "⭐", "🎁", "🏷️", "✨", "🆕", "💎", "🛍️",
+  "🍔", "🍕", "🥤", "🍟", "🍰", "🍱", "🥗", "🍣",
+  "👕", "👗", "👟", "👜", "🧢", "🩳",
+  "💇", "💅", "💄", "✂️", "🧴",
+  "📱", "💻", "🎧", "⌚", "🔌",
+  "🛠️", "🚗", "🏠", "🐾", "📚", "🎮", "🎵", "🌿",
+];
+
+/**
+ * Retorna o emoji configurado pelo lojista para uma categoria, se houver.
+ * Por padrão retorna string vazia (sem emoji parasita).
+ */
+export function getCategoryEmoji(
+  category: string,
+  emojiMap?: Record<string, string> | null
+): string {
+  if (!emojiMap) return "";
+  return emojiMap[category] || "";
+}
 
 export type SortOrder = "newest" | "oldest";
 
