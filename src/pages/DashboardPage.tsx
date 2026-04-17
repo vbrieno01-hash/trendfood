@@ -57,6 +57,7 @@ import TelegramTab from "@/components/dashboard/TelegramTab";
 import AIBotTab from "@/components/dashboard/AIBotTab";
 import CounterTab from "@/components/dashboard/CounterTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
+import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 
 type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter";
@@ -69,6 +70,9 @@ const DashboardPage = () => {
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const [deleteUnit, setDeleteUnit] = useState<{ id: string; name: string } | null>(null);
   const planLimits = usePlanLimits(organization);
+
+  // Heartbeat: registra qual versão essa loja está rodando (admin → painel Versões)
+  useVersionHeartbeat(organization?.id);
   // Read tab from URL query param, fallback to location.state, then localStorage, then "home"
   const getInitialTab = (): TabKey => {
     const params = new URLSearchParams(location.search);

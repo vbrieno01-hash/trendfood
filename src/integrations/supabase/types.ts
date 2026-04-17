@@ -1661,6 +1661,36 @@ export type Database = {
           },
         ]
       }
+      store_version_heartbeat: {
+        Row: {
+          created_at: string
+          id: string
+          is_standalone: boolean
+          last_seen_at: string
+          organization_id: string
+          user_agent: string | null
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_standalone?: boolean
+          last_seen_at?: string
+          organization_id: string
+          user_agent?: string | null
+          version: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_standalone?: boolean
+          last_seen_at?: string
+          organization_id?: string
+          user_agent?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       suggestions: {
         Row: {
           created_at: string

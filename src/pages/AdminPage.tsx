@@ -26,6 +26,7 @@ import TransferOwnerDialog from "@/components/admin/TransferOwnerDialog";
 import ImprovementsTab from "@/components/admin/ImprovementsTab";
 import AIBotAdminTab from "@/components/admin/AIBotAdminTab";
 import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
+import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -64,6 +65,7 @@ import {
   ArrowRightLeft,
   ListChecks,
   Bot,
+  Activity,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -233,7 +235,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes";
 
 interface NavGroup {
   label: string;
@@ -268,6 +270,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "logs", icon: <AlertCircle className="w-4 h-4" />, label: "Logs de Erros" },
       { key: "ativacoes", icon: <ScrollText className="w-4 h-4" />, label: "Ativações" },
+      { key: "versoes", icon: <Activity className="w-4 h-4" />, label: "Versões" },
       { key: "guia", icon: <ScrollText className="w-4 h-4" />, label: "Guia" },
     ],
   },
@@ -937,6 +940,7 @@ function AdminContent() {
           {activeTab === "melhorias" && <ImprovementsTab />}
           {activeTab === "aibot" && <AIBotAdminTab />}
           {activeTab === "wa_instances" && <WhatsAppInstancesTab />}
+          {activeTab === "versoes" && <StoreVersionsTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}
