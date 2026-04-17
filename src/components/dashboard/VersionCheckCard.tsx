@@ -44,7 +44,7 @@ export default function VersionCheckCard() {
       <div className="px-4 py-4 flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <CheckCircle2 className="w-4 h-4 text-success" />
             Versão atual: <span className="font-mono text-xs text-muted-foreground">v{version}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1 max-w-[360px]">
