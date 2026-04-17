@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
           .select("name, description, price, category")
           .eq("organization_id", effectiveOrgId)
           .eq("available", true)
+          .gt("price", 0)
           .order("category"),
         supabase
           .from("delivery_neighborhoods")
