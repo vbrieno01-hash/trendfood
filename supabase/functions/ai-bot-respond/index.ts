@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { phone, message } = await req.json();
+    const { phone, message, organization_id: orgIdOverride, instance_token: tokenOverride } = await req.json();
     if (!phone || !message) {
       return new Response(JSON.stringify({ error: "phone and message required" }), {
         status: 400,
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // 1) Carregar config (inclui credenciais uazapiGO)
+    // 1) Carregar config base (singleton com prompt/modelo padrão)
     const { data: config } = await supabase
       .from("ai_bot_config")
       .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
@@ -44,7 +44,15 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (!config || !config.enabled) {
+    // Modo multi-tenant: organization_id + instance_token vieram do webhook (loja específica)
+    // Modo singleton legacy: usa test_org_id + uazapi_token do config (apenas teste admin)
+    const effectiveOrgId = orgIdOverride || config?.test_org_id || null;
+    const effectiveServerUrl = (Deno.env.get("UAZAPI_SERVER_URL") || config?.uazapi_server_url || "https://free.uazapi.com").replace(/\/$/, "");
+    const effectiveToken = tokenOverride || config?.uazapi_token || null;
+    const isMultiTenant = !!orgIdOverride;
+
+    // No modo singleton, respeitar enabled. No multi-tenant, sempre roda (loja conectou via self-service).
+    if (!isMultiTenant && (!config || !config.enabled)) {
       return new Response(JSON.stringify({ ok: true, skipped: true, reason: "bot_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
