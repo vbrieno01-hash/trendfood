@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { useVersionPoller } from "./useVersionPoller";
 
 const SNOOZE_KEY = "pwa_snooze_until";
 const FIRST_SEEN_KEY = "pwa_first_seen";
@@ -20,8 +21,28 @@ const isPreviewHost =
   (window.location.hostname.includes("id-preview--") ||
     window.location.hostname.includes("lovableproject.com"));
 
+/** Limpa todos os SWs e caches, depois força reload. Última saída pra SW preso. */
+async function nukeAndReload() {
+  console.info("[PWA] nukeAndReload — limpando SWs e caches");
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch (e) {
+    console.info("[PWA] nuke falhou (ignorando)", e);
+  }
+  // Reload com bypass de cache
+  window.location.reload();
+}
+
 export function usePWAUpdate() {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const serverHasNewVersion = useVersionPoller();
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -122,9 +143,11 @@ export function usePWAUpdate() {
     };
   }, []);
 
-  // Controla snooze
+  // Controla snooze — agora dispara se needRefresh OU serverHasNewVersion
   useEffect(() => {
-    if (!needRefresh || isPreviewHost || isInIframe) {
+    const newVersionDetected = needRefresh || serverHasNewVersion;
+
+    if (!newVersionDetected || isPreviewHost || isInIframe) {
       setShowPrompt(false);
       return;
     }
@@ -150,12 +173,24 @@ export function usePWAUpdate() {
     }
 
     setShowPrompt(now >= snoozeUntil);
-  }, [needRefresh]);
+  }, [needRefresh, serverHasNewVersion]);
 
   const handleUpdate = () => {
     localStorage.removeItem(SNOOZE_KEY);
     localStorage.removeItem(FIRST_SEEN_KEY);
-    updateServiceWorker(true);
+
+    // Tenta caminho normal
+    try {
+      updateServiceWorker(true);
+    } catch (e) {
+      console.info("[PWA] updateServiceWorker falhou", e);
+    }
+
+    // Se em 3s não recarregou (SW preso, sem waiting, etc), força nuke
+    setTimeout(() => {
+      console.info("[PWA] reload não disparou em 3s — forçando nuke");
+      nukeAndReload();
+    }, 3000);
   };
 
   const handleSnooze = () => {
@@ -163,26 +198,29 @@ export function usePWAUpdate() {
     setShowPrompt(false);
     setNeedRefresh(false);
     setTimeout(() => {
-      if (needRefresh) setShowPrompt(true);
+      if (needRefresh || serverHasNewVersion) setShowPrompt(true);
     }, SNOOZE_DURATION_MS);
   };
 
   /** Força check manual + update se houver. Retorna se encontrou nova versão. */
   const checkNow = async (): Promise<boolean> => {
     const r = registrationRef.current;
-    if (!r) return false;
+    if (!r) {
+      // Sem SW — confia no poller
+      return serverHasNewVersion;
+    }
     try {
       await r.update();
       // Aguarda o navegador processar
       await new Promise((res) => setTimeout(res, 3000));
       const hasWaiting = !!r.waiting;
-      if (hasWaiting || needRefresh) {
+      if (hasWaiting || needRefresh || serverHasNewVersion) {
         return true;
       }
       return false;
     } catch (e) {
       console.info("[PWA] checkNow falhou", e);
-      return false;
+      return serverHasNewVersion;
     }
   };
 
