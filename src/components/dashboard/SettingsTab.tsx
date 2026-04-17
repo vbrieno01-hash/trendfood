@@ -125,6 +125,7 @@ export default function SettingsTab() {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       toast.error("As senhas não coincidem.");
