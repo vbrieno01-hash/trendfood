@@ -185,18 +185,27 @@ Deno.serve(async (req) => {
     console.log("[whatsapp-webhook] RAW payload:", JSON.stringify(body).slice(0, 2000));
 
     // Suporte dual: uazapiGO + Evolution API
-    // uazapiGO: { message: { text, sender, fromMe } } ou { event, message: {...} }
-    // Evolution: { data: { message: { conversation }, key: { remoteJid, fromMe } } }
-    const message =
-      body?.message?.text ||
-      body?.message?.content ||
+    // uazapiGO real: { message: { content: { text }, chatid, fromMe }, chat: { phone, wa_isGroup } }
+    // uazapiGO alt:  { message: { text, sender, fromMe } }
+    // Evolution:     { data: { message: { conversation }, key: { remoteJid, fromMe } } }
+    const rawMessage =
+      body?.message?.content?.text ||           // uazapiGO real (texto aninhado)
+      body?.message?.text ||                    // uazapiGO alternativo
       body?.text ||
-      body?.data?.message?.conversation ||
+      body?.data?.message?.conversation ||      // Evolution
       body?.data?.message?.extendedTextMessage?.text ||
       body?.data?.body ||
       null;
+    // Garante que message seja string (nunca objeto)
+    const message =
+      typeof rawMessage === "string"
+        ? rawMessage
+        : rawMessage && typeof rawMessage === "object" && typeof rawMessage.text === "string"
+          ? rawMessage.text
+          : null;
 
     const rawPhone =
+      body?.chat?.phone ||                      // uazapiGO real
       body?.message?.sender ||
       body?.message?.chatid ||
       body?.sender ||
@@ -236,6 +245,7 @@ Deno.serve(async (req) => {
     const rawIdentifier = String(rawPhone || "");
     const isGroup =
       rawIdentifier.includes("@g.us") ||
+      body?.chat?.wa_isGroup === true ||
       body?.message?.isGroup === true ||
       body?.isGroup === true ||
       body?.data?.isGroup === true ||

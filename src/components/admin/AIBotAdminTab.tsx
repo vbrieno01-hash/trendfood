@@ -269,6 +269,52 @@ export default function AIBotAdminTab() {
         </div>
       </div>
 
+      {/* Banner de status: o que falta configurar */}
+      {(() => {
+        const missing: string[] = [];
+        if (!config.enabled) missing.push("ativar o switch \"Robô ativo\"");
+        if (!config.test_phone) missing.push("preencher \"WhatsApp de teste\"");
+        if (!config.test_org_id) missing.push("escolher \"Loja de teste\"");
+        if (!config.uazapi_token) missing.push("preencher o Instance Token");
+
+        if (missing.length === 0) {
+          return (
+            <div className="rounded-xl border-2 border-emerald-500/40 bg-emerald-500/10 p-4 flex items-start gap-3">
+              <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-semibold text-emerald-700 dark:text-emerald-400">Robô ativo e configurado ✓</p>
+                <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-0.5">
+                  Mande WhatsApp do número <strong className="font-mono">{config.test_phone}</strong> pro número conectado no uazapiGO. A resposta aparece em segundos abaixo na "Conversa ao vivo".
+                </p>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-sm flex-1">
+              <p className="font-semibold text-amber-700 dark:text-amber-400">Robô não vai responder ainda — falta:</p>
+              <ul className="text-xs text-amber-700/90 dark:text-amber-400/90 mt-1.5 space-y-1 list-disc list-inside">
+                {missing.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
+              {!config.test_phone && (
+                <button
+                  type="button"
+                  onClick={() => setConfig({ ...config, test_phone: "558398244382" })}
+                  className="mt-2 text-xs underline text-amber-700 dark:text-amber-400 hover:no-underline"
+                >
+                  Usar 558398244382 (último número detectado nos logs)
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Conexão WhatsApp (uazapiGO) */}
       <Card>
         <CardHeader>
