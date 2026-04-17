@@ -26,6 +26,7 @@ import TransferOwnerDialog from "@/components/admin/TransferOwnerDialog";
 import ImprovementsTab from "@/components/admin/ImprovementsTab";
 import AIBotAdminTab from "@/components/admin/AIBotAdminTab";
 import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
+import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {

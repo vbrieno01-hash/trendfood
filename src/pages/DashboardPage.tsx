@@ -57,6 +57,7 @@ import TelegramTab from "@/components/dashboard/TelegramTab";
 import AIBotTab from "@/components/dashboard/AIBotTab";
 import CounterTab from "@/components/dashboard/CounterTab";
 import DashboardTour from "@/components/dashboard/DashboardTour";
+import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 
 type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter";
