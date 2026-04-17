@@ -683,6 +683,11 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           )}
         </div>
       </div>
+
+      {/* Versão do build — diagnóstico rápido */}
+      <p className="text-center text-[10px] text-muted-foreground/60 font-mono pt-2">
+        v{(() => { try { return typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : "dev"; } catch { return "dev"; } })()}
+      </p>
     </div>
   );
 }

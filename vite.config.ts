@@ -4,8 +4,17 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Build timestamp injetado para exibir versão visível pro lojista
+const BUILD_VERSION = new Date()
+  .toISOString()
+  .replace(/[-:T]/g, ".")
+  .slice(0, 16); // ex: 2025.04.17.14.32
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __BUILD_VERSION__: JSON.stringify(BUILD_VERSION),
+  },
   server: {
     host: "::",
     port: 8080,
