@@ -315,15 +315,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // === Branch 2: Robô de Atendimento (admin testing legacy) ===
+    // === Branch 2: Robô de Atendimento (admin testing legacy fallback) ===
+    // Quando não roteou pela tabela whatsapp_instances (Branch 1), usa o singleton de ai_bot_config.
+    // Responde a QUALQUER mensagem inbound (test_phone é só filtro de UI, não de roteamento).
     const { data: botCfg } = await supabase
       .from("ai_bot_config")
-      .select("enabled, test_phone")
+      .select("enabled, test_org_id, uazapi_token")
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (botCfg?.enabled && botCfg.test_phone && phone === botCfg.test_phone) {
+    if (botCfg?.enabled && botCfg.test_org_id) {
       const botRes = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
         {
@@ -332,11 +334,16 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
           },
-          body: JSON.stringify({ phone, message }),
+          body: JSON.stringify({
+            phone,
+            message,
+            organization_id: botCfg.test_org_id,
+            instance_token: botCfg.uazapi_token,
+          }),
         },
       );
       const botData = await botRes.json().catch(() => ({}));
-      return new Response(JSON.stringify({ ok: true, bot: true, ...botData }), {
+      return new Response(JSON.stringify({ ok: true, bot: true, routed_by: "legacy_singleton", ...botData }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
