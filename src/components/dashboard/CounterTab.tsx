@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useMenuItems, buildCategoryOrder, CATEGORIES, MenuItem } from "@/hooks/useMenuItems";
+import { useMenuItems, buildCategoryOrder, MenuItem } from "@/hooks/useMenuItems";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,8 +127,8 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
     }
   };
 
-  const getEmoji = (category: string) =>
-    CATEGORIES.find((c) => c.value === category)?.emoji || "🍽️";
+  // Sem emoji parasita: o título da categoria aparece só com o nome.
+  const getEmoji = (_category: string) => "";
 
   if (isLoading) {
     return (
@@ -162,7 +162,7 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
           {grouped.map(({ category, items: catItems }) => (
             <div key={category}>
               <h3 className="font-semibold text-sm mb-2">
-                {getEmoji(category)} {category}
+                {category}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {catItems.map((item) => {
