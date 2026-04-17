@@ -2,71 +2,64 @@
 
 ## Diagnóstico
 
-A barra de categorias atual no `UnitPage` (vitrine pública) usa um emoji fixo da lista `CATEGORIES` (em `src/hooks/useMenuItems.ts`) que mapeia categorias do nicho de comida (🔥 Promoção, 🍔 Lanches, 🥤 Bebidas, etc.). Quando entra loja de roupa/cabelo/celular, esses emojis viram "parasitas" — ficam totalmente deslocados, infantis e quebram a credibilidade visual.
+No modal "Adicionar item" (`MenuTab.tsx` linhas 1251-1277), os chips de categoria mostram **apenas** as categorias sugeridas hardcoded de `CATEGORIES` (Destaques, Promoções, Combos, Bebidas, etc.). As categorias que a própria loja já criou (ex: "Coxinhas", "Cabelo Feminino", "Camisetas Oversize") **não aparecem como chip** — só dá pra reusar digitando manualmente no input de texto, o que é chato e arriscado (lojista digita errado e cria duplicada tipo "Bebidas " vs "Bebidas").
 
-Onde aparece:
-- `src/pages/UnitPage.tsx` — chips de categoria no topo do cardápio público
-- `src/components/dashboard/CounterTab.tsx` — agrupamento no balcão (`getEmoji`)
-- `src/components/dashboard/MenuTab.tsx` — provavelmente também usa
-- `src/hooks/useMenuItems.ts` — fonte da verdade dos emojis (`CATEGORIES` array)
+## Solução
 
-## Solução proposta — "Sem emoji parasita"
+**Mostrar as categorias existentes da loja como chips no topo, antes/junto das sugeridas.**
 
-**Princípio:** parar de forçar emoji por categoria. Deixar o lojista escolher se quer ou não, e por padrão NÃO mostrar nenhum. Visual mais limpo, profissional, agnóstico de nicho.
+### Mudança em `MenuTab.tsx` (seção do form, ~linha 1251)
 
-### Frente 1 — Remover emoji por padrão das chips de categoria
-Na vitrine pública (`UnitPage`) e onde mais aparecer:
-- Categoria renderiza só o **nome**, sem emoji
-- Chip ganha tipografia mais firme (font-medium), padding mais respirado
-- Estado ativo: usa `primary_color` da loja (que já existe no tema custom) — fica coerente com a identidade dela
-- Estado inativo: borda sutil + hover suave
+1. Calcular `existingCategories` a partir de `items` (categorias únicas que já têm produto cadastrado)
+2. Renderizar 2 grupos de chips:
+   - **"Suas categorias"** (se houver): chips com as categorias já criadas pela loja, em destaque
+   - **"Sugestões"**: chips das `CATEGORIES` hardcoded que ainda não estão na loja (filtra duplicatas)
+3. Manter o input de texto livre embaixo pra criar nova personalizada
+4. Visual: chips de "suas categorias" com leve destaque (border mais firme, ou ícone ✓ pequeno se quiser) pra deixar claro que já existem
 
-Resultado: roupa, cabelo, celular, coxinha — todos ficam com chips elegantes e neutros. Cada loja respira sua própria identidade via `primary_color`.
+### Pseudocódigo
 
-### Frente 2 — Emoji opcional escolhido pelo lojista (não automático)
-- Adicionar campo opcional `category_emojis` no banco (JSONB no `organizations`, tipo `{ "Lanches": "🍔", "Promoção": "🔥" }`)
-- Na aba Catálogo do dashboard, ao lado de cada categoria, um botão pequeno "🎨 Ícone" abre um picker simples (lista curta de 30-40 emojis genéricos: 🛍️ 👕 💇 📱 🔥 ⭐ 🎁 etc.)
-- Se o lojista escolher, o emoji aparece. Se não escolher, fica só o texto.
-- **Migração suave:** lojas existentes começam SEM emoji (limpo). Quem quer o look antigo, escolhe manualmente.
+```tsx
+const existingCategories = [...new Set(items.map(i => i.category))].sort();
+const suggestedNotUsed = CATEGORIES
+  .map(c => c.value)
+  .filter(v => !existingCategories.includes(v));
 
-### Frente 3 — Limpar a lista hardcoded `CATEGORIES`
-- Em `src/hooks/useMenuItems.ts`, a constante `CATEGORIES` hoje tem ~10 categorias com emojis fixos focados em comida
-- Mudar para: lista de categorias **sugeridas** (sem emoji obrigatório), e categoria livre continua funcionando como já funciona (lojista pode digitar qualquer nome)
-- Função `getEmoji(category)` passa a retornar do `category_emojis` da org se existir, senão `null` (não renderiza nada)
+// Render:
+{existingCategories.length > 0 && (
+  <>
+    <p className="text-xs text-muted-foreground mb-1">Suas categorias</p>
+    <div className="flex flex-wrap gap-1.5 mb-2">
+      {existingCategories.map(cat => <chip />)}
+    </div>
+  </>
+)}
+<p className="text-xs text-muted-foreground mb-1">Sugestões</p>
+<div className="flex flex-wrap gap-1.5 mb-2">
+  {suggestedNotUsed.map(cat => <chip />)}
+</div>
+<Input placeholder="Ou digite uma categoria personalizada..." />
+```
 
-### Frente 4 — Ajuste visual nas chips (puro CSS/Tailwind)
-- Espaçamento entre chips: `gap-2` em vez de cramped
-- Altura uniforme: `h-9` 
-- Border-radius: `rounded-full` (já é, manter)
-- Active state: fundo com `primary_color` + texto branco + leve sombra (`shadow-sm`)
-- Inactive: `bg-muted/30` + `border border-border/50` + texto `text-muted-foreground`
-- Truncate em nomes muito longos (ex: "Lanches com 1 hambúrguer e sem batata frita") com `max-w-[200px] truncate`
+## Arquivo afetado
 
-## Arquivos afetados
-
-- `src/pages/UnitPage.tsx` — remover emoji das chips, melhorar estilo
-- `src/components/dashboard/MenuTab.tsx` — adicionar picker de emoji opcional por categoria
-- `src/components/dashboard/CounterTab.tsx` — usar emoji opcional
-- `src/hooks/useMenuItems.ts` — refatorar `CATEGORIES` e `getEmoji`
-- `src/hooks/useOrganization.ts` — adicionar `category_emojis` no tipo
-- **Migração SQL:** adicionar coluna `category_emojis JSONB DEFAULT '{}'::jsonb` em `organizations`
+- `src/components/dashboard/MenuTab.tsx` — apenas a seção do modal de criar/editar item (~linhas 1251-1277)
 
 ## O que NÃO vou mexer
 
-- Fluxo de pedido, checkout, RLS, edge functions
-- Lógica de `paused_categories` 
-- Ordenação manual de categorias (`category_order`)
-- Tema custom da loja (continua respeitado)
+- Hook `useMenuItems`, `CATEGORIES`, ordenação, pause de categorias, emoji picker
+- Banco, RLS, edge functions
+- Vitrine pública
 
-## Resultado visual esperado
+## Resultado esperado
 
-Antes: `🔥 Promoção do dia` `🍔 Lanches com 1...` `🥤 Bebidas` (parasita pra loja de roupa)
-
-Depois (padrão): `Promoção do dia` `Lanches com 1...` `Bebidas` (limpo, profissional, funciona pra qualquer nicho)
-
-Depois (lojista quis emoji): `🛍️ Coleção Verão` `👕 Camisetas` (escolhido por ela, contextual)
+Lojista clica em "Adicionar item":
+- Se ela já criou "Coxinhas", "Salgados", "Bebidas" no cardápio → esses 3 aparecem como chips clicáveis no topo
+- Embaixo as sugestões genéricas (Destaques, Combos, etc.) que ainda não tem
+- 1 clique pra reusar categoria existente, sem digitar nada
+- Zero risco de duplicar categoria por erro de digitação
 
 ## Risco
 
-Baixo. Migração só adiciona coluna nullable com default vazio. Visual fica mais limpo de imediato. Quem quiser emoji, configura.
+Mínimo. Mudança puramente visual em 1 trecho do modal. Sem migração, sem nova lógica de negócio.
 
