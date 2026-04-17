@@ -1,46 +1,71 @@
 
+## Sua pergunta: precisa ser manual?
 
-## Diagnóstico
+**Hoje sim** — só dá pra cadastrar 1 instância (a sua de teste) no painel admin. Pra escalar pros lojistas, tem 2 caminhos:
 
-**O que aconteceu na sua mensagem "oi":**
-- Webhook recebeu o payload do uazapiGO 2x (logs confirmam)
-- Payload chegou com `message.content.text = "oi"` e `chat.phone = "558398244382"`
-- Mas: bot está `enabled=false`, `test_phone=null`, `test_org_id=null` no banco
-- Resultado: webhook ignora silenciosamente, robô não responde
+### Caminho A — Self-service automático (recomendado)
+Lojista clica "Conectar WhatsApp" no dashboard dele → sistema usa seu **admintoken** pra:
+1. Criar instância nova no servidor uazapi via API
+2. Mostrar QR Code pro lojista escanear no celular
+3. Configurar webhook automaticamente apontando pra nossa edge function
+4. Pronto, bot da loja funcionando — sem você intervir
 
-**Problema bônus no parser:**
-O uazapiGO manda o texto em `body.message.content.text` (objeto aninhado), não em `body.message.text` (string direta) que é o que nosso código tenta primeiro. Hoje só funciona por sorte porque há fallback pra `body.message.content` que retorna o objeto inteiro — não a string.
+### Caminho B — Manual no admin
+Você cria a instância no painel uazapi, copia token, cola no admin "Gerenciar Loja → Bot". 1 a 1, na mão. Bom só pros primeiros 5-10 lojistas.
 
-## Correções
+---
 
-### 1. Corrigir parser do webhook (`whatsapp-webhook/index.ts`)
-Adicionar leitura correta dos campos do uazapiGO no início da cascata de fallbacks:
-- Texto: `body.message.content.text` (uazapiGO real) → depois fallbacks atuais
-- Telefone: `body.chat.phone` ou `body.message.chatid` (já tinha) → depois fallbacks
-- fromMe: `body.message.fromMe` (já tinha, ok)
-- isGroup: `body.chat.wa_isGroup` ou `body.message.isGroup` (já tinha)
+## Plano: implementar Caminho A (self-service)
 
-### 2. UI: deixar óbvio que falta configurar (`AIBotAdminTab.tsx`)
-Hoje o painel mostra os campos mas não avisa que **sem preencher tudo o robô não funciona**. Vou adicionar:
-- Banner amarelo no topo se `enabled=false` OU `test_phone=null` OU `test_org_id=null` listando o que falta
-- Botão "Salvar tudo" mais destacado (verde grande) com texto claro: "Ativar robô"
-- Após salvar, banner verde: "Robô ativo — mande WhatsApp pro número 5516988083263 do seu celular 558398244382"
+### O que construir
 
-### 3. Pré-preencher seu telefone
-Pelo log já sei seu WhatsApp: **558398244382**. Vou colocar como placeholder/sugestão clicável no campo `test_phone` pra você só clicar e salvar.
+**1. Banco — nova tabela `whatsapp_instances`** (uma por loja)
+- `organization_id`, `instance_name`, `instance_token`, `status` (disconnected/connecting/connected), `phone_connected`, `webhook_configured`, `created_at`, `connected_at`
 
-### Arquivos
-- `supabase/functions/whatsapp-webhook/index.ts` — parser do uazapiGO correto
-- `src/components/admin/AIBotAdminTab.tsx` — banner de status + UX de configuração
+**2. Secrets** — guardar no Lovable Cloud:
+- `UAZAPI_ADMIN_TOKEN` = `ZaW1qwTEkuq7Ub1cBUuyMiK5bNSu3nnMQ9lh7klElc2clSRV8t`
+- `UAZAPI_SERVER_URL` = `https://free.uazapi.com`
 
-### Próximo passo seu (depois do deploy)
-1. Vai em /admin → Robô IA
-2. Liga o switch **Ativar bot**
-3. Cola seu telefone **558398244382** no campo "WhatsApp de teste"
-4. Escolhe a loja TrendFood no select "Loja de teste"
-5. Clica **Salvar**
-6. Manda "oi" do seu WhatsApp pro número conectado (5516988083263)
-7. Robô responde em segundos
+**3. Edge functions novas**
+- `uazapi-create-instance` — usa admintoken pra criar instância nova pro lojista (`POST /instance/init`), salva token na tabela, configura webhook automaticamente
+- `uazapi-instance-status` — polling pra UI saber quando conectou (`GET /instance/status` com token da instância)
+- `uazapi-disconnect` — desconecta e deleta instância
 
-Lojistas continuam com "EM BREVE" — nada muda pra eles.
+**4. Edge functions adaptar**
+- `whatsapp-webhook` — em vez de filtrar por `test_phone`, agora identifica a loja pelo **token da instância** que recebeu o evento (header `instance` ou query string que o uazapi manda) e roteia pra `ai-bot-respond` com `organization_id` certo
+- `ai-bot-respond` — receber `organization_id` em vez de depender do `test_org_id` do singleton; carrega cardápio/horário/config da loja correta; envia resposta usando o `instance_token` daquela loja
 
+**5. UI — aba Robô IA do lojista (`AIBotTab.tsx`)**
+Sai do "EM BREVE", vira fluxo real:
+- Estado **desconectado**: card "Conectar WhatsApp do meu negócio" com botão verde
+- Ao clicar: chama `uazapi-create-instance`, mostra QR Code grande na tela + instrução "Abre WhatsApp → Aparelhos conectados → Conectar"
+- Polling a cada 3s no `uazapi-instance-status` até virar `connected`
+- Estado **conectado**: card verde mostrando o número conectado, botão "Desconectar", configurações (mensagem de boas-vindas, prompt do bot, modelo IA)
+
+**6. Painel admin — aba "Instâncias WhatsApp" (extra)**
+Visão de todas as instâncias ativas no servidor uazapi: lojista, número, status, último uso. Você consegue desconectar manualmente se precisar.
+
+### Antes de eu começar, preciso confirmar 3 coisas
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ 1. LIBERAÇÃO PROS LOJISTAS                                   │
+│    a) Liberar pra todos (Grátis + Pro + Enterprise)          │
+│    b) Só Pro/Enterprise (feature paga, controla volume)      │
+│    c) Continua "EM BREVE" — só você (admin) usa por enquanto │
+│                                                              │
+│ 2. LIMITE DO SEU PLANO FREE UAZAPI                           │
+│    a) Não sei — eu confiro na doc deles antes de codar       │
+│    b) Já vi, aguenta várias instâncias                       │
+│    c) Aguenta poucas — fazer híbrido (só Pro/Enterprise)     │
+│                                                              │
+│ 3. CUSTO DE IA POR LOJA                                      │
+│    Cada conversa consome créditos do Lovable AI Gateway.     │
+│    a) Sem limite — qualquer loja usa à vontade               │
+│    b) Limite mensal por loja (ex: 500 mensagens/mês Free,    │
+│       ilimitado Pro)                                         │
+│    c) Definimos depois, agora só implementa o fluxo          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Me responde os 3 pontos (ou só fala "vai no padrão" que eu uso: 1c continua EM BREVE, 2a eu confiro, 3c definimos depois) e eu já começo a construir o self-service.
