@@ -35,6 +35,7 @@ import { parsePhoneFromNotes } from "@/hooks/useCreateDelivery";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { getStoreStatus } from "@/lib/storeStatus";
 import type { BusinessHours } from "@/hooks/useOrganization";
+import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 function usePwaInstall() {
   const [prompt, setPrompt] = useState<any>(null);
@@ -135,6 +136,7 @@ const CourierPage = () => {
 
   const orgId = orgData?.id ?? null;
   const orgName = orgData?.name ?? "";
+  useVersionHeartbeat(orgId);
   const businessHours = orgData?.business_hours as unknown as BusinessHours | null;
   const forceOpen = orgData?.force_open ?? false;
   const { data: available = [], isLoading: availableLoading } = useAvailableDeliveries(orgId ?? undefined);

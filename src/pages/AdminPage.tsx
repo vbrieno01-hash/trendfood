@@ -27,6 +27,7 @@ import ImprovementsTab from "@/components/admin/ImprovementsTab";
 import AIBotAdminTab from "@/components/admin/AIBotAdminTab";
 import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
 import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
+import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -294,7 +295,8 @@ export default function AdminPage() {
 }
 
 function AdminContent() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, organization } = useAuth();
+  useVersionHeartbeat(organization?.id);
   const navigate = useNavigate();
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);

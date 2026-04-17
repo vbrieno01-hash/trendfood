@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import {
   useOrders,
   useUpdateOrderStatus,
@@ -65,6 +66,7 @@ export default function WaiterPage() {
   const [searchParams] = useSearchParams();
   const orgSlug = searchParams.get("org");
   const { data: org } = useOrganization(orgSlug || undefined);
+  useVersionHeartbeat(org?.id);
 
   // Fetch extra org fields not in public query
   const [orgExtra, setOrgExtra] = useState<{
