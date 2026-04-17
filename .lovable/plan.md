@@ -1,86 +1,42 @@
 
 
-## Diagnóstico
+## Plano
 
-Hoje o `vite.config.ts` já tem:
-- `registerType: "autoUpdate"`
-- `skipWaiting: true` + `clientsClaim: true`
-- `cleanupOutdatedCaches: true`
+### Problema
+Nos cabeçalhos da sidebar (OPERACIONAL ⚡, LOGÍSTICA 📦, etc) hoje:
+- Cor `text-white/40` (muito apagada)
+- Sem fundo, sem borda, sem separador
+- Visualmente parecem botões desabilitados — o lojista não percebe que são *rótulos de seção* e não entende em qual categoria cada item está
 
-Isso faz o SW novo **assumir sozinho no próximo refresh**. Problema: o lojista precisa fechar e abrir o app pra rodar — e como você disse, *nem todos sabem disso*. Resultado: ficam em versão antiga por dias.
+### Solução — único arquivo: `src/pages/DashboardPage.tsx` (linhas ~822-827)
 
-## As 2 opções (e qual eu recomendo)
+Transformar o cabeçalho num **divisor visual claro** que NÃO pareça botão clicável:
 
-### Opção A — Auto-reload silencioso
-SW novo detectado → `window.location.reload()` automático em 2-3 segundos.
-- ✅ Zero ação do lojista
-- ❌ **Risco**: se ele tá no meio de um pedido no Balcão, digitando, o reload pode fazer perder o que tá fazendo. Ruim em horário de rush.
+1. **Cor mais viva** mas com peso de "label": `text-primary/80` (laranja vibrante do tema, igual ao print que você mandou) em vez de `text-white/40`
+2. **Linha divisória superior** (`border-t border-white/10`) que separa visualmente cada grupo
+3. **Pequeno indicador lateral** (barrinha vertical de 2px na cor primária) à esquerda do emoji — dá identidade de "seção" sem parecer botão
+4. **Espaçamento maior acima** (`mt-5` em vez de `mt-3`) pra respirar entre grupos
+5. **Aumentar levemente o tamanho** do emoji e deixar o texto com `tracking-wider` + `font-bold` em vez de `font-semibold` — fica claro que é *título de categoria*
+6. **Cursor `default`** explícito (não `pointer`) — reforça que não é clicável
 
-### Opção B — Balão interativo (RECOMENDADA) ⭐
-Card flutuante no canto inferior direito: *"🎉 Nova versão disponível! [Atualizar agora]"*
-- ✅ Lojista decide *quando* atualizar (espera o rush passar)
-- ✅ Não perde nada que tá digitando
-- ✅ Card só some quando ele clica → garante que vai atualizar
-- ✅ Visual condiz com o tema Premium Live (glassmorphism)
-
-### Opção C (híbrida, ainda melhor) — *minha sugestão real*
-Balão interativo **+ auto-reload forçado se ficar 24h ignorando**. Assim:
-- Lojista vê o card e atualiza quando puder
-- Se esquecer / ignorar por 1 dia, força refresh em momento ocioso (sem digitação detectada nos últimos 30s)
-
-## Plano de implementação
-
-### 1. Novo componente `src/components/PWAUpdatePrompt.tsx`
-Card flutuante (bottom-right, `fixed`, z-50) com:
-- Ícone de sparkle/download
-- Título: *"Nova versão disponível!"*
-- Subtítulo: *"Clique para atualizar e ver as novidades"*
-- Botão: **"Atualizar agora"** (chama `updateSW(true)` → recarrega com SW novo)
-- Botão fantasma: **"Mais tarde"** (esconde por 1h via localStorage)
-- Estilo glassmorphism (`dashboard-glass`), animação slide-up
-- Mobile: full-width no bottom
-
-### 2. Hook `src/hooks/usePWAUpdate.ts`
-- Usa `useRegisterSW` do `virtual:pwa-register/react` (já vem com `vite-plugin-pwa`)
-- Expõe: `needRefresh`, `updateServiceWorker`
-- Lógica de "snooze" 1h via localStorage (`pwa_snooze_until`)
-- Lógica de auto-force após 24h ignorando (timestamp `pwa_first_seen`)
-
-### 3. `vite.config.ts` — trocar `registerType`
-- Mudar de `"autoUpdate"` → `"prompt"` (deixa a gente controlar o momento via UI em vez do SW assumir sozinho)
-- Manter `skipWaiting`/`clientsClaim` removidos (pra prompt funcionar) — quem assume controle agora é o `updateSW(true)`
-
-### 4. `src/App.tsx`
-- Renderizar `<PWAUpdatePrompt />` dentro do `BrowserRouter`, junto do `<Sonner />`
-- Aparece em **todas as rotas internas** (Dashboard, Cozinha, Balcão, Admin)
-- **Não aparece** em iframes/preview (já temos guard em `main.tsx`)
-
-### 5. Sobre "não perder dados"
-Como o usuário escolhe quando clicar, ele só atualiza quando não tá no meio de algo. Pra reforçar:
-- Detectar se tem `<input>`/`<textarea>` em foco → adiar 5s e mostrar tooltip *"Termine de digitar e atualize quando puder"*
-- Pedidos do Balcão/Cozinha já são salvos no banco em tempo real, então refresh não perde nada que já foi confirmado
-
-### 6. `src/vite-env.d.ts`
-- Adicionar reference type `/// <reference types="vite-plugin-pwa/react" />` pro TypeScript reconhecer o virtual module
-
-## Risco
-Baixo. Mexe em 4 arquivos, 1 novo. Não toca em banco, RLS, fluxo de pedido, pagamento. Pior caso: prompt não aparece → cai no comportamento atual (refresh manual ainda funciona).
-
-## Resumo visual
+### Resultado visual esperado
 
 ```text
-┌─────────────────────────────────────┐
-│  Tela do lojista (qualquer aba)     │
-│                                     │
-│                                     │
-│                                     │
-│                  ┌────────────────┐ │
-│                  │ ✨ Nova versão │ │
-│                  │   disponível!  │ │
-│                  │                │ │
-│                  │ [Atualizar]    │ │
-│                  │  Mais tarde    │ │
-│                  └────────────────┘ │
-└─────────────────────────────────────┘
+─────────────────────────────  ← divisor sutil
+▎⚡ OPERACIONAL                ← laranja vivo, barrinha lateral
+   🛒 Balcão                   ← itens (clicáveis, inalterados)
+   👨‍🍳 Cozinha & Pedidos
+─────────────────────────────
+▎📦 LOGÍSTICA
+   🍽️ Cardápio (Menu)
+   ...
 ```
+
+### Não mexer
+- Estrutura de `sidebarGroups`, lógica de filtro, navegação dos itens — tudo intacto
+- Botões clicáveis (`navBtnClass`) — já estão bons
+- Outros lugares do app
+
+### Risco
+Zero. Mudança puramente cosmética em ~6 linhas de className em 1 arquivo.
 
