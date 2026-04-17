@@ -23,7 +23,7 @@ import {
 } from "@/hooks/useStockItems";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem, useDeleteAllMenuItems,
-  uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder, buildCategoryOrder,
+  uploadMenuImage, CATEGORIES, CATEGORY_EMOJI_PALETTE, MenuItem, MenuItemInput, SortOrder, buildCategoryOrder,
 } from "@/hooks/useMenuItems";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -41,6 +41,7 @@ interface Organization {
   slug: string;
   category_order?: string[] | null;
   paused_categories?: string[] | null;
+  category_emojis?: Record<string, string> | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
@@ -597,12 +598,28 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
   const [localPausedCats, setLocalPausedCats] = useState<string[]>(organization.paused_categories ?? []);
+  const [localCategoryEmojis, setLocalCategoryEmojis] = useState<Record<string, string>>(
+    organization.category_emojis ?? {}
+  );
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState<string | null>(null);
 
   const togglePauseCategory = async (cat: string) => {
     const current = localPausedCats;
     const updated = current.includes(cat) ? current.filter(c => c !== cat) : [...current, cat];
     setLocalPausedCats(updated);
     await supabase.from("organizations").update({ paused_categories: updated } as any).eq("id", organization.id);
+  };
+
+  const setCategoryEmoji = async (cat: string, emoji: string | null) => {
+    const updated = { ...localCategoryEmojis };
+    if (emoji) {
+      updated[cat] = emoji;
+    } else {
+      delete updated[cat];
+    }
+    setLocalCategoryEmojis(updated);
+    setEmojiPickerOpen(null);
+    await supabase.from("organizations").update({ category_emojis: updated } as any).eq("id", organization.id);
   };
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
