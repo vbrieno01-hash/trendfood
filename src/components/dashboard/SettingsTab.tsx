@@ -211,6 +211,49 @@ export default function SettingsTab() {
         </div>
       </div>
 
+      {/* Service modes (Delivery / Pickup) */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Truck className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Modos de atendimento</p>
+        </div>
+        <div className="px-4 py-4 space-y-4">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Escolha como sua loja atende os clientes no cardápio online. Pelo menos um modo precisa estar ativo.
+          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <span>🛵</span> Aceita Entrega
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
+                Clientes podem pedir delivery com endereço.
+              </p>
+            </div>
+            <Switch
+              checked={acceptsDelivery}
+              disabled={serviceModesLoading}
+              onCheckedChange={(v) => handleSaveServiceModes(v, acceptsPickup)}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <span>🏃</span> Aceita Retirada no local
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[260px]">
+                Clientes podem retirar o pedido diretamente na loja.
+              </p>
+            </div>
+            <Switch
+              checked={acceptsPickup}
+              disabled={serviceModesLoading}
+              onCheckedChange={(v) => handleSaveServiceModes(acceptsDelivery, v)}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Scheduling config */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
