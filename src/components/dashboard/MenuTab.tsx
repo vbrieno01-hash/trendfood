@@ -23,7 +23,7 @@ import {
 } from "@/hooks/useStockItems";
 import {
   useMenuItems, useAddMenuItem, useUpdateMenuItem, useDeleteMenuItem, useDeleteAllMenuItems,
-  uploadMenuImage, CATEGORIES, MenuItem, MenuItemInput, SortOrder, buildCategoryOrder,
+  uploadMenuImage, CATEGORIES, CATEGORY_EMOJI_PALETTE, MenuItem, MenuItemInput, SortOrder, buildCategoryOrder,
 } from "@/hooks/useMenuItems";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -41,6 +41,7 @@ interface Organization {
   slug: string;
   category_order?: string[] | null;
   paused_categories?: string[] | null;
+  category_emojis?: Record<string, string> | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
@@ -597,12 +598,28 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [localCategoryOrder, setLocalCategoryOrder] = useState<string[] | null>(null);
   const [localPausedCats, setLocalPausedCats] = useState<string[]>(organization.paused_categories ?? []);
+  const [localCategoryEmojis, setLocalCategoryEmojis] = useState<Record<string, string>>(
+    organization.category_emojis ?? {}
+  );
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState<string | null>(null);
 
   const togglePauseCategory = async (cat: string) => {
     const current = localPausedCats;
     const updated = current.includes(cat) ? current.filter(c => c !== cat) : [...current, cat];
     setLocalPausedCats(updated);
     await supabase.from("organizations").update({ paused_categories: updated } as any).eq("id", organization.id);
+  };
+
+  const setCategoryEmoji = async (cat: string, emoji: string | null) => {
+    const updated = { ...localCategoryEmojis };
+    if (emoji) {
+      updated[cat] = emoji;
+    } else {
+      delete updated[cat];
+    }
+    setLocalCategoryEmojis(updated);
+    setEmojiPickerOpen(null);
+    await supabase.from("organizations").update({ category_emojis: updated } as any).eq("id", organization.id);
   };
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
@@ -980,7 +997,47 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
         const isPaused = localPausedCats.includes(group.value);
         return (
         <div key={group.value} className={isPaused ? "opacity-50" : ""}>
-          <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
+          <div className="flex items-center gap-2 mb-3 mt-6 first:mt-0">
+            <Popover open={emojiPickerOpen === group.value} onOpenChange={(o) => setEmojiPickerOpen(o ? group.value : null)}>
+              <PopoverTrigger asChild>
+                <button
+                  className="flex items-center justify-center w-7 h-7 rounded-md border border-dashed border-border hover:border-primary hover:bg-accent transition-colors text-base leading-none"
+                  title={localCategoryEmojis[group.value] ? "Trocar ícone" : "Adicionar ícone (opcional)"}
+                  type="button"
+                >
+                  {localCategoryEmojis[group.value] || <span className="text-muted-foreground/50 text-xs">+</span>}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start">
+                <p className="px-1 pb-2 text-xs font-medium text-muted-foreground">
+                  Ícone para "{group.value}"
+                </p>
+                <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+                  {CATEGORY_EMOJI_PALETTE.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setCategoryEmoji(group.value, e)}
+                      className={cn(
+                        "w-7 h-7 rounded hover:bg-accent transition-colors text-base leading-none flex items-center justify-center",
+                        localCategoryEmojis[group.value] === e && "bg-primary/10 ring-1 ring-primary"
+                      )}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                {localCategoryEmojis[group.value] && (
+                  <button
+                    type="button"
+                    onClick={() => setCategoryEmoji(group.value, null)}
+                    className="mt-2 w-full text-xs text-muted-foreground hover:text-destructive py-1.5 rounded hover:bg-accent transition-colors"
+                  >
+                    Remover ícone
+                  </button>
+                )}
+              </PopoverContent>
+            </Popover>
             <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               {group.value}
             </span>
@@ -1207,7 +1264,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                           : "bg-muted hover:bg-muted/80 border-border"
                       )}
                     >
-                      {c.emoji} {c.value}
+                      {c.value}
                     </button>
                   ))}
                 </div>

@@ -21,7 +21,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
-import { useMenuItems, CATEGORIES, buildCategoryOrder } from "@/hooks/useMenuItems";
+import { useMenuItems, buildCategoryOrder } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliveryNeighborhoods";
@@ -271,12 +271,13 @@ const UnitPage = () => {
   const buildGroups = (sourceItems: typeof menuItems) => {
     const pausedCats: string[] = (org as any)?.paused_categories ?? [];
     const orderedCats = buildCategoryOrder(sourceItems as any, (org as any)?.category_order);
-    const emojiMap = new Map(CATEGORIES.map((c) => [c.value, c.emoji]));
+    // Emoji só aparece se o lojista tiver configurado explicitamente em `category_emojis`.
+    const emojiMap: Record<string, string> = (org as any)?.category_emojis ?? {};
     return orderedCats
       .filter((cat) => !pausedCats.includes(cat))
       .map((cat) => ({
         value: cat,
-        emoji: emojiMap.get(cat) || "🍽️",
+        emoji: emojiMap[cat] || "",
         items: sourceItems.filter((i) => i.category === cat),
       })).filter((g) => g.items.length > 0);
   };
@@ -1009,16 +1010,16 @@ const UnitPage = () => {
                           key={group.value}
                           id={`pill-${group.value}`}
                           onClick={() => scrollToCategory(group.value)}
-                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0 border"
+                          className="flex items-center gap-1.5 h-9 px-4 text-[13px] font-medium whitespace-nowrap transition-all duration-200 shrink-0 border max-w-[220px]"
                           style={{
                             borderRadius: buttonRadius,
                             ...(isActive
-                              ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor }
+                              ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor, boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
                               : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
                           }}
                         >
-                          <span>{group.emoji}</span>
-                          <span>{group.value}</span>
+                          {group.emoji && <span className="text-sm leading-none">{group.emoji}</span>}
+                          <span className="truncate">{group.value}</span>
                         </button>
                       );
                     })}

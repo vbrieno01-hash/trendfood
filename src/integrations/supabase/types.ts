@@ -1150,6 +1150,7 @@ export type Database = {
           billing_alert_limit: number | null
           billing_cycle: string
           business_hours: Json | null
+          category_emojis: Json
           category_order: Json | null
           cnpj: string | null
           courier_config: Json | null
@@ -1193,6 +1194,7 @@ export type Database = {
           billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null
+          category_emojis?: Json
           category_order?: Json | null
           cnpj?: string | null
           courier_config?: Json | null
@@ -1236,6 +1238,7 @@ export type Database = {
           billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null
+          category_emojis?: Json
           category_order?: Json | null
           cnpj?: string | null
           courier_config?: Json | null
