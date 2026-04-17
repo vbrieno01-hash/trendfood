@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "TrendFood",
         short_name: "TrendFood",
-        description: "Plataforma de cardápio e sugestões para food service",
+        description: "Plataforma de cardápio e gestão para food service — v2",
         theme_color: "#f97316",
         background_color: "#ffffff",
         display: "standalone",
@@ -48,6 +48,9 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api/],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ].filter(Boolean),

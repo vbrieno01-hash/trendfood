@@ -1533,12 +1533,10 @@ const UnitPage = () => {
                   <SelectContent>
                     <SelectItem value="Dinheiro">Dinheiro</SelectItem>
                     <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>
+                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
                     {planLimits.canAccess("online_payment") && (
-                      <>
-                        <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                        <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                        <SelectItem value="PIX">PIX</SelectItem>
-                      </>
+                      <SelectItem value="PIX">PIX</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
