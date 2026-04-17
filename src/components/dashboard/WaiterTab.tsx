@@ -438,7 +438,10 @@ export default function WaiterTab({
                   `}</style>
                 </div>
               </div>
-              <p className="font-semibold text-foreground text-sm">Tudo pago! Nenhuma conta em aberto.</p>
+              <p className="font-semibold text-foreground text-sm">Tudo em dia! 💸</p>
+              <p className="text-xs text-muted-foreground mt-1.5 max-w-xs mx-auto">
+                As formas de pagamento (PIX, Dinheiro, Débito, Crédito) aparecem aqui quando algum pedido estiver aguardando pagamento.
+              </p>
           </div>
         ) : (
           <div className={`grid gap-4 ${embedded ? '' : 'md:grid-cols-2'}`}>
