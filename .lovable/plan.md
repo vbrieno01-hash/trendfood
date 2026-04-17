@@ -1,60 +1,25 @@
 
 
-## Diagnóstico
-
-- `UnitPage.tsx` linha 1268 renderiza fixo `["Entrega", "Retirada"]` — sem condicional.
-- Banco (`organizations`) **não tem** coluna pra controlar isso.
-- `OperationsTab` / `SettingsTab` no dashboard também não tem essa config.
-
 ## Plano
 
-### 1. Banco: adicionar campo de modo de atendimento
-Migration nova em `organizations`:
-- Coluna `service_modes` JSONB com default `{"delivery": true, "pickup": true}` (ambos ativos por padrão pra não quebrar lojas existentes).
+Vou implementar as 3 melhorias de código que faltavam:
 
-Por que JSONB e não 2 booleans: futuro permite adicionar "consumo no local", "drive-thru" sem nova migration.
+### 1. Mensagem mais clara no card de Pagamento vazio (Cozinha & Pedidos)
+Em `OperationsTab.tsx`, ajustar o texto do estado vazio do card "Pagamento" pra deixar explícito que as formas de pagamento aparecem ali quando houver pedidos não pagos. Algo tipo:
+> "Tudo em dia! 💸 As formas de pagamento (PIX, Dinheiro, Débito, Crédito) aparecem aqui quando algum pedido estiver aguardando pagamento."
 
-### 2. Painel do lojista: toggle em Configurações
-Em `src/components/dashboard/SettingsTab.tsx` (ou onde fica o card de Loja/Operação), adicionar uma seção **"Modos de atendimento"** com:
-- Switch "Aceita Entrega" 🛵
-- Switch "Aceita Retirada no local" 🏃
-- Validação: pelo menos UM precisa estar ativo (se desligar o último, mostra toast e impede salvar)
-- Salva em `organizations.service_modes`
+### 2. Liberar Débito/Crédito separados na UnitPage também pro Free
+Em `src/pages/UnitPage.tsx` (linhas ~1525-1544), remover o gating `planLimits.canAccess("online_payment")` que esconde Débito/Crédito separados pra plano Grátis. **Manter** o gating só onde realmente é Pro (PIX online automático com QR), mas a *seleção visual* de Débito/Crédito como forma de pagamento na entrega/retirada deve aparecer pra todos.
 
-### 3. Hook `useOrganization.ts`
-Adicionar `service_modes` na interface `Organization` e no `select` da query.
+Investigar primeiro o trecho exato pra garantir que vou separar bem o que é "online payment" (PIX automático Pro) do que é só "selecionar tipo de cartão" (deve ser livre).
 
-### 4. Página do cliente: render condicional
-Em `UnitPage.tsx` linhas 1262-1293:
-- Ler `org.service_modes`
-- Se ambos ativos → mostra os 2 botões (comportamento atual)
-- Se só 1 ativo → **pular o seletor inteiro**, setar `orderType` automaticamente no único modo disponível, mostrar um chip discreto tipo "🛵 Apenas entrega" ou "🏃 Apenas retirada" pra deixar claro pro cliente
-- Se só Retirada → esconder também os campos de endereço/bairro/frete (já que retirada não usa)
-- Se só Entrega → manter endereço como obrigatório
+### 3. Forçar invalidação de cache PWA
+Em `vite.config.ts`, fazer um bump simbólico no manifest (ex: adicionar `version` no name ou trocar `description`) + adicionar `cleanupOutdatedCaches: true` no workbox pra forçar clientes em cache antigo (como a cliente que tá vendo só 3 botões no Balcão) a receberem a versão nova automaticamente no próximo refresh.
 
-### 5. Onboarding (opcional, leve)
-No `OnboardingWizard.tsx` etapa de logística, adicionar pergunta "Você faz entrega, retirada ou ambos?" e gravar em `service_modes`. Lojas novas já saem configuradas direito.
+### Não mexer
+- `CounterTab.tsx` — já tá com 5 botões corretos.
+- Estrutura geral de planos — só desbloqueio o Débito/Crédito visual, sem mudar o que é Pro de verdade (PIX automático com QR).
 
-### Arquivos a editar
-1. **Migration nova** — `ALTER TABLE organizations ADD COLUMN service_modes JSONB DEFAULT '{"delivery": true, "pickup": true}'::jsonb`
-2. `src/hooks/useOrganization.ts` — interface + select
-3. `src/components/dashboard/SettingsTab.tsx` — UI dos switches + save
-4. `src/pages/UnitPage.tsx` — render condicional do seletor + auto-set + esconder endereço se for só retirada
-5. `src/components/dashboard/OnboardingWizard.tsx` — pergunta na etapa de logística
-
-### Resultado esperado
-
-**Lojista que só faz retirada:**
-- Vai em Configurações → desliga "Aceita Entrega"
-- Cliente abre o cardápio → não vê seleção, sistema já assume "Retirada", esconde endereço, no resumo aparece "🏃 Retirada no local"
-
-**Lojista que só faz entrega:**
-- Mesma coisa invertido. Cliente já vai direto pra preencher endereço.
-
-**Lojista padrão (ambos):**
-- Tudo continua igual hoje.
-
-**Lista de notas/dúvidas que talvez você queira responder antes de eu codar:**
-- Quer também controlar **"Consumo no local"** (mesa)? Hoje isso já é feito por outro caminho (URL `/mesa/X`) então provavelmente não precisa entrar nesse toggle, mas vale confirmar.
-- Quer que eu coloque a config dentro da aba **"Configurações"** ou crie uma seção separada em **"Operação"**?
+### Risco
+Zero. São 3 mudanças isoladas, sem migração de banco, sem tocar em RLS, sem mexer em lógica de pedido/pagamento real — só rótulos, gating de UI e cache.
 
