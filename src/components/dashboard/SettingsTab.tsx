@@ -212,6 +212,9 @@ export default function SettingsTab() {
         </div>
       </div>
 
+      {/* Versão do sistema + verificação manual */}
+      <VersionCheckCard />
+
       {/* Service modes (Delivery / Pickup) */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
