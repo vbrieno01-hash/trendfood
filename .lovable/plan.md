@@ -1,23 +1,31 @@
 
-## Plano
+## Situação
 
-Vou voltar pra aba do `trendfood.lovable.app` que já tava aberta com o fingerprint inicial capturado, disparar `visibility/focus` ao revisitar, e ler o console procurando `NOVA VERSÃO detectada`.
+Você quis publicar uma mudança trivial pra eu testar a detecção de nova versão, mas o publish tá falhando ("não tá dando pra publicar"). A imagem que você mandou mostra o botão "Up to date" — ou seja, o Lovable acha que não há nada novo pra publicar.
 
-## Passos
+## Por que isso acontece
 
-1. `browser--navigate_to_url` → `https://trendfood.lovable.app` (revisita = dispara visibility)
-2. `browser--read_console_logs` filtrando `VersionPoller` → procuro:
-   - Novo fingerprint diferente do inicial (`index-CDCG1rgf.css|index-C6-NJeKx.js`)
-   - Log `NOVA VERSÃO detectada via index.html`
-3. `browser--screenshot` → confirmo se o card "Nova versão disponível" (do `PWAUpdatePrompt`) aparece na UI
-4. Reporto veredito:
-   - ✅ Detectou + card apareceu → **funcionando igual antes**
-   - ⚠️ Detectou no console mas card não apareceu → bug no `PWAUpdatePrompt`
-   - ❌ Não detectou → fingerprint não mudou (publish ainda propagando no CDN) ou bug no poller
+O botão Publish vira "Up to date" quando **não há diff** entre o último commit publicado e o estado atual do código. Como você tentou fazer uma "mudança trivial" (provavelmente um espaço em branco), três coisas podem ter acontecido:
 
-## Observação importante
+1. A mudança foi revertida/desfeita antes de salvar
+2. A mudança não gerou commit (espaço em branco em alguns arquivos é ignorado)
+3. O publish anterior já incluiu essa mudança e agora não há mais diff
 
-Se o publish ainda tá propagando no CDN da Lovable (pode levar 10-30s), o fingerprint pode vir igual. Nesse caso espero um pouco e tento de novo antes de declarar bug.
+## Solução: forçar uma mudança real e visível
+
+Pra garantir que o bundle Vite gere novos hashes nos assets (`index-XXX.js` / `index-XXX.css`), preciso fazer uma alteração que **mexa em código compilado**, não só whitespace.
+
+**Proposta:** vou mudar uma string visível no `VersionCheckCard.tsx` — trocar o texto do botão de **"Verificar atualizações"** pra **"Verificar atualização"** (singular). Mudança mínima, reversível, mas garante novo hash.
+
+Depois disso:
+1. Você clica Publish (vai aparecer disponível, não mais "Up to date")
+2. Me avisa "publiquei"
+3. Eu volto pra aba do `trendfood.lovable.app` e confirmo se o `[VersionPoller] NOVA VERSÃO detectada` aparece + se o card de update surge na UI
+4. Se funcionar: ✅ veredito final "voltou a atualizar igual antes"
+5. Se quiser, depois reverto o texto pro original
+
+## Arquivo afetado
+- `src/components/dashboard/VersionCheckCard.tsx` (1 linha — texto do botão)
 
 ## Risco
-Zero. Read-only no browser.
+Mínimo. Só muda um label de UI. Reversível em 5 segundos.
