@@ -1,26 +1,22 @@
 
 ## Situação
 
-Você já tem uma aba aberta no `trendfood.lovable.app` (com fingerprint inicial capturado), mas o Publish tá "Up to date" porque desde o último publish não fizemos nenhuma mudança no código.
-
-## Solução
-
-Faço outra mudança trivial mas real (que mexe no bundle), você publica, e eu volto pra aba já aberta pra confirmar se o card "Nova versão disponível" aparece via `PWAUpdatePrompt`.
-
-**Proposta:** reverter o texto do botão no `VersionCheckCard.tsx` de volta pra **"Verificar atualizações"** (plural). Já tava assim antes — agora restaura. Garante novo hash + deixa o texto no estado original.
+Você clicou Publish e tá carregando. Vou aguardar o publish terminar e então ir verificar na aba que você já tem aberta do `trendfood.lovable.app`.
 
 ## Passos
 
-1. Edito `src/components/dashboard/VersionCheckCard.tsx` linha 62: `"Verificar atualização"` → `"Verificar atualizações"`
-2. Você clica Publish (vai destravar)
-3. Me avisa "publiquei"
-4. Eu volto na aba do `trendfood.lovable.app` (já aberta com fingerprint `index-is6ww1lQ.js`)
-5. Confirmo nos console logs: `[VersionPoller] NOVA VERSÃO detectada via index.html`
-6. Tiro screenshot pra ver se o card de update aparece na UI
-7. Veredito final
+1. Aguardo você confirmar que o publish terminou (ou navego direto e checo o fingerprint atual vs o anterior `index-is6ww1lQ.js`)
+2. `browser--navigate_to_url` → `https://trendfood.lovable.app` (revisita = dispara visibility/focus event no poller)
+3. `browser--read_console_logs` filtrando `VersionPoller` → procuro `NOVA VERSÃO detectada via index.html`
+4. `browser--screenshot` → confirmo se o card "Nova versão disponível!" do `PWAUpdatePrompt` apareceu na UI
+5. Veredito final:
+   - ✅ Log + card → **funciona end-to-end igual antes**
+   - ⚠️ Log mas sem card → bug isolado no `PWAUpdatePrompt` (snooze travado, etc)
+   - ❌ Sem log → CDN ainda propagando, espero 15s e tento de novo
 
-## Arquivo afetado
-- `src/components/dashboard/VersionCheckCard.tsx` (1 linha)
+## Observação
+
+Se você quiser, me avisa "publicou" assim que sair do "carregando" — assim evito navegar antes da hora e pegar o fingerprint antigo (o que daria falso negativo).
 
 ## Risco
-Zero. Restaura o texto original.
+Zero. Read-only.
