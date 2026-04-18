@@ -52,7 +52,7 @@ async function nukeAndReload() {
 }
 
 export function usePWAUpdate() {
-  const serverHasNewVersion = useVersionPoller();
+  const { hasNewVersion: serverHasNewVersion, checkNow: pollerCheckNow } = useVersionPoller();
   const [showPrompt, setShowPrompt] = useState(false);
 
   // Controla snooze — dispara via poller (independente de SW)
@@ -98,19 +98,9 @@ export function usePWAUpdate() {
     }, SNOOZE_DURATION_MS);
   };
 
-  /** Força check manual. Retorna true se houver nova versão. */
+  /** Força check manual. Retorna true se houver nova versão (resposta real, sem closure). */
   const checkNow = async (): Promise<boolean> => {
-    // Re-fetch o index.html agora pra forçar comparação
-    try {
-      const res = await fetch(`/index.html?ts=${Date.now()}`, {
-        cache: "no-store",
-      });
-      if (res.ok) {
-        // Aguarda o poller ter chance de atualizar estado
-        await new Promise((r) => setTimeout(r, 500));
-      }
-    } catch {}
-    return serverHasNewVersion;
+    return await pollerCheckNow();
   };
 
   return { showPrompt, handleUpdate, handleSnooze, checkNow };

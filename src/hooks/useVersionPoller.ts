@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 const POLL_INTERVAL_MS = 60 * 1000; // 60s
 
@@ -21,7 +21,6 @@ const isPreviewHost =
  * Qualquer mudança no bundle gera fingerprint diferente.
  */
 function extractFingerprint(html: string): string {
-  // Pega todos os src e href de scripts/links — em build com hash, mudam a cada deploy
   const matches = html.match(/(?:src|href)="\/assets\/[^"]+"/g) || [];
   return matches.sort().join("|");
 }
@@ -45,27 +44,63 @@ async function fetchCurrentFingerprint(): Promise<string | null> {
 /**
  * Detecta nova versão publicada **independente do Service Worker**.
  * Faz polling de /index.html e compara o hash dos assets.
+ *
+ * Retorna `hasNewVersion` (estado reativo) e `checkNow` (verificação manual síncrona).
  */
-export function useVersionPoller(): boolean {
+export function useVersionPoller(): {
+  hasNewVersion: boolean;
+  checkNow: () => Promise<boolean>;
+} {
   const [hasNewVersion, setHasNewVersion] = useState(false);
+  const initialFpRef = useRef<string | null>(null);
+  const initialFpReadyRef = useRef<Promise<void> | null>(null);
+
+  // Verificação manual: faz fetch agora, compara, retorna boolean direto.
+  const checkNow = useCallback(async (): Promise<boolean> => {
+    if (isPreviewHost || isInIframe) {
+      console.info("[VersionPoller] checkNow ignorado (preview/iframe)");
+      return false;
+    }
+
+    // Garante que o fingerprint inicial já foi capturado
+    if (initialFpReadyRef.current) {
+      await initialFpReadyRef.current;
+    }
+
+    const current = await fetchCurrentFingerprint();
+    const initial = initialFpRef.current;
+    const changed = !!(initial && current && current !== initial);
+
+    console.info(
+      "[VersionPoller] checkNow →",
+      "inicial:", initial?.slice(0, 60),
+      "| atual:", current?.slice(0, 60),
+      "| mudou:", changed
+    );
+
+    if (changed) setHasNewVersion(true);
+    return changed;
+  }, []);
 
   useEffect(() => {
     if (isPreviewHost || isInIframe) return;
 
-    let initialFp: string | null = null;
     let cancelled = false;
 
-    // Captura fingerprint inicial
-    fetchCurrentFingerprint().then((fp) => {
+    // Captura fingerprint inicial e expõe a promise pra checkNow esperar
+    initialFpReadyRef.current = (async () => {
+      const fp = await fetchCurrentFingerprint();
       if (cancelled) return;
-      initialFp = fp;
+      initialFpRef.current = fp;
       console.info("[VersionPoller] fingerprint inicial:", fp?.slice(0, 80));
-    });
+    })();
 
     const check = async () => {
+      if (cancelled) return;
       const current = await fetchCurrentFingerprint();
+      const initial = initialFpRef.current;
       if (cancelled || !current) return;
-      if (initialFp && current !== initialFp) {
+      if (initial && current !== initial) {
         console.info("[VersionPoller] NOVA VERSÃO detectada via index.html");
         setHasNewVersion(true);
       }
@@ -73,7 +108,6 @@ export function useVersionPoller(): boolean {
 
     const id = setInterval(check, POLL_INTERVAL_MS);
 
-    // Também checa em foco/visibility
     const onVisibility = () => {
       if (document.visibilityState === "visible") check();
     };
@@ -88,5 +122,5 @@ export function useVersionPoller(): boolean {
     };
   }, []);
 
-  return hasNewVersion;
+  return { hasNewVersion, checkNow };
 }
