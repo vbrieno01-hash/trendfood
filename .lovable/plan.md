@@ -1,27 +1,43 @@
 
-## O que vou fazer
+## O que o usuário quer
 
-Abrir `https://trendfood.lovable.app` no browser de teste, esperar uns segundos, filtrar o console por `VersionPoller` e te reportar:
+Confirmação real, não teórica, de que o fluxo de atualização voltou a funcionar como antes. Já validei via browser tool que o poller logga `init` e `tick (60s)` em `trendfood.lovable.app`. Mas isso só prova que ele tá **vivo** — não prova que ele **detecta** uma versão nova.
 
-1. Se o log inicial `[VersionPoller] fingerprint inicial: ...` aparece (prova que o hook tá montado e rodando fora do iframe)
-2. Se aparece algum `[VersionPoller] tick (60s)` ou `visibility/focus` (prova que o polling tá ativo)
-3. Se aparece `[VersionPoller] NOVA VERSÃO detectada via index.html` (só vai aparecer se a sessão do browser tinha um fingerprint antigo em cache E você publicou depois — caso contrário o fingerprint inicial já é o novo e nada vai mudar)
+## Diagnóstico honesto
 
-## Limitação honesta do teste
+Pra responder "voltou a atualizar igual antes?" com certeza preciso de UMA das duas coisas:
 
-O browser de teste abre uma sessão **nova** — não tem o fingerprint antigo guardado de antes do seu publish. Então:
+**Opção A — Teste coordenado (mais confiável)**
+1. Eu abro `trendfood.lovable.app` no browser de teste
+2. Confirmo o `[VersionPoller] fingerprint inicial: XXX`
+3. Você publica uma mudança trivial agora (ex: troca um espaço em branco)
+4. Eu volto pra aba (dispara `visibility/focus`) ou espero até 60s
+5. Confirmo no console se aparece `[VersionPoller] NOVA VERSÃO detectada via index.html` E se o card "Nova versão disponível" aparece na UI
 
-- ✅ Consigo confirmar que o poller está **ativo** e logando (init + ticks)
-- ⚠️ **Não consigo** reproduzir a detecção real de "nova versão" porque pra isso a aba teria que estar aberta **antes** do publish. Esse teste só você consegue fazer numa loja que já tava aberta.
+Isso prova end-to-end: detecção + UI + (opcionalmente) clicar Atualizar e ver o `nukeAndReload`.
 
-O que eu posso fazer pra simular: abrir a página, esperar o init logar, e tu publica algo trivial agora — aí eu volto pra aba e vejo se o `visibility/focus` detecta. Mas isso requer coordenação entre nós.
+**Opção B — Teste sintético (rápido, menos completo)**
+Eu abro a loja, capturo o fingerprint inicial, e via DevTools/console manipulo o `initialFpRef` pra simular uma versão antiga. Aí o próximo tick deve detectar "mudança". Isso valida a lógica de comparação mas não o fluxo real de deploy.
 
-## Plano
+## Recomendação
 
-1. `navigate_to_url` → `https://trendfood.lovable.app`
-2. Aguardar ~3s
-3. `read_console_logs` filtrando por `VersionPoller`
-4. Reportar o que vi + recomendar próximo passo (se logs ausentes → bug; se só init aparece → normal, peço pra você publicar e eu volto pra aba)
+Opção A. É 5 minutos coordenados e te dá a resposta definitiva que você quer ouvir ("sim, voltou" ou "não, ainda tem bug X").
+
+## Plano de execução (Opção A)
+
+1. `browser--navigate_to_url` → `https://trendfood.lovable.app`
+2. `browser--read_console_logs` filtrando `VersionPoller` → capturo fingerprint inicial e te mostro
+3. **Pauso e te aviso**: "Publica agora uma mudança trivial"
+4. Você publica → me responde "publiquei"
+5. `browser--navigate_to_url` na mesma URL de novo (força revisita, dispara visibility) OU espero 60s e leio logs
+6. `browser--read_console_logs` → procuro `NOVA VERSÃO detectada`
+7. `browser--screenshot` da UI → confirmo se o card de update aparece
+8. Reporto o veredito final: ✅ funcionando OU ❌ bug X identificado
 
 ## Risco
-Zero. Operação read-only no browser.
+Zero. Tudo read-only no browser. Você só publica uma mudança trivial (um espaço a mais em qualquer arquivo) e reverte depois se quiser.
+
+## O que NÃO faço
+- Não publico por você
+- Não mudo código nessa rodada (só teste)
+- Não confirmo "tá funcionando" sem prova real — se o teste falhar, te aviso e a gente debuga
