@@ -95,21 +95,28 @@ export function useVersionPoller(): {
       console.info("[VersionPoller] fingerprint inicial:", fp?.slice(0, 80));
     })();
 
-    const check = async () => {
+    const check = async (trigger: string) => {
       if (cancelled) return;
       const current = await fetchCurrentFingerprint();
       const initial = initialFpRef.current;
       if (cancelled || !current) return;
-      if (initial && current !== initial) {
+      const changed = !!(initial && current !== initial);
+      console.info(
+        `[VersionPoller] ${trigger} →`,
+        "inicial:", initial?.slice(0, 60),
+        "| atual:", current?.slice(0, 60),
+        "| mudou:", changed
+      );
+      if (changed) {
         console.info("[VersionPoller] NOVA VERSÃO detectada via index.html");
         setHasNewVersion(true);
       }
     };
 
-    const id = setInterval(check, POLL_INTERVAL_MS);
+    const id = setInterval(() => check("tick (60s)"), POLL_INTERVAL_MS);
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") check();
+      if (document.visibilityState === "visible") check("visibility/focus");
     };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", onVisibility);
