@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { Bot, X, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -121,7 +121,7 @@ const SupportChatWidget = () => {
           className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
           aria-label="Abrir chat de suporte"
         >
-          <MessageCircle className="h-6 w-6" />
+          <Bot className="h-6 w-6" />
         </button>
       )}
 
@@ -131,7 +131,7 @@ const SupportChatWidget = () => {
           {/* Header */}
           <div className="flex items-center justify-between rounded-t-2xl bg-primary px-4 py-3 text-primary-foreground">
             <div className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
+              <Bot className="h-5 w-5" />
               <span className="font-semibold text-sm">TrendFood Suporte</span>
             </div>
             <button
