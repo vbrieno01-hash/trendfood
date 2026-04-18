@@ -1,75 +1,75 @@
 
-## Resposta direta
+## Diagnóstico — o botão NÃO está 100% confiável
 
-**Recomendação: Opção 1 — Remover o cache do service worker, manter manifest + push.**
+Achei 2 bugs reais analisando o fluxo de clique:
 
-### Por quê
+### Bug 1 — `checkNow()` retorna estado defasado (race condition)
+Em `usePWAUpdate.ts` linha 102-114:
+```ts
+const checkNow = async (): Promise<boolean> => {
+  await fetch(`/index.html?ts=${...}`, { cache: "no-store" });  // joga fora a resposta!
+  await new Promise((r) => setTimeout(r, 500));  // espera 500ms torcendo
+  return serverHasNewVersion;  // valor capturado no closure — pode tar desatualizado
+};
+```
 
-Seu sistema é um **SaaS operacional ao vivo** (cozinha imprimindo, garçom registrando pedido, motoboy entregando). O custo de uma loja "travada" numa versão antiga é altíssimo: bug não some, recurso novo não chega, e você fica refém de pedir pra cada lojista limpar cache manualmente.
+**Problemas:**
+1. Faz `fetch` mas **descarta a resposta** — o resultado não é usado pra nada
+2. Espera 500ms na esperança de o `useVersionPoller` rodar — mas o poller só checa a cada **60 segundos** ou em focus/visibility. Os 500ms quase nunca disparam um check novo
+3. Retorna `serverHasNewVersion` — o valor capturado quando `checkNow` foi criado. Se o React não tiver re-renderizado, retorna `false` mesmo havendo nova versão
 
-Cache offline do Workbox em PWA seria útil só se as lojas operassem **sem internet** — mas o sistema **não funciona offline de qualquer jeito** (tudo depende do Supabase em tempo real: pedidos, RLS, prints, push, status). Ou seja, você paga o **custo** do cache (lojas travadas) sem colher o **benefício** (offline real).
+**Resultado prático:** clica no botão → 90% das vezes mostra "Você está na versão mais recente ✓" mesmo quando tem versão nova publicada.
 
-### O que muda na prática
+### Bug 2 — Sem fonte de verdade compartilhada
+O `useVersionPoller` mantém o `initialFp` em escopo do `useEffect` — não é exposto. O `checkNow` não tem como pedir "compara agora e me devolve true/false na hora". Depende 100% de o estado do React ter atualizado, o que é assíncrono.
 
-| Item | Hoje | Depois |
-|---|---|---|
-| Instalar como app (Android/iOS/desktop) | ✅ Funciona | ✅ Continua igual |
-| Notificações push (novo pedido) | ✅ Funciona | ✅ Continua igual |
-| Atualização ao publicar | ❌ Trava por dias | ✅ Chega em segundos |
-| Funcionar 100% offline | ❌ Não funciona mesmo | ❌ Continua não funcionando |
-| Velocidade de abrir o app | Cache local (rápido) | HTTP + cache do navegador (rápido também) |
+### Impacto
+- Botão "Verificar atualizações" passa falsa segurança ao lojista
+- Lojista clica, vê "está atualizado", e continua na versão velha
+- Pior que não ter o botão, porque mente
 
-Resumo: **você não perde nada que realmente usa, e ganha controle total de versão.**
+## Plano de correção
 
-## Plano de implementação
+### Frente 1 — Refatorar `useVersionPoller.ts`
+Expor uma função `checkNow()` síncrona/assíncrona que:
+- Faz fetch do `/index.html` agora
+- Compara fingerprint com o inicial **dentro da própria função**
+- Retorna `true`/`false` direto, sem depender de re-render do React
+- Também atualiza o estado interno (pra o card global aparecer)
 
-### Frente 1 — `vite.config.ts`
-- Remover `VitePWA` por completo
-- Manter `manifest.json` em `public/` (instalabilidade preservada)
-- Manter `__BUILD_VERSION__` define (heartbeat continua funcionando)
+Mudar a assinatura de:
+```ts
+export function useVersionPoller(): boolean
+```
+Para:
+```ts
+export function useVersionPoller(): { hasNewVersion: boolean; checkNow: () => Promise<boolean> }
+```
 
-### Frente 2 — `index.html`
-- Adicionar `<link rel="manifest" href="/manifest.json">` (substitui o que o plugin injetava)
-- Adicionar meta tags de tema/standalone que o plugin gerava
+### Frente 2 — Atualizar `usePWAUpdate.ts`
+- Consumir o novo formato do poller
+- `checkNow` do hook delega pro `checkNow` do poller (verdade real, não closure)
+- Remover o `setTimeout(500)` e o fetch descartado
 
-### Frente 3 — `public/manifest.json` (novo)
-- Mover config de manifest do `vite.config.ts` pra arquivo estático
-- `name`, `short_name`, `icons`, `display: standalone`, `theme_color`, `start_url`
+### Frente 3 — Atualizar `VersionCheckCard.tsx`
+- Sem mudança de UI
+- Já consome `checkNow` via hook — passa a receber resposta correta
 
-### Frente 4 — `src/main.tsx` — auto-cleanup global
-- **Sempre** (não só preview/iframe) desregistrar SWs antigos do Workbox e limpar caches `workbox-*` na primeira carga depois do deploy
-- Mantém `/sw-push.js` registrado separadamente (via `usePushSubscription`)
-- Usa flag em `localStorage` (`sw_cleanup_v2`) pra rodar só uma vez por cliente
-
-### Frente 5 — `src/hooks/usePWAUpdate.ts`
-- Simplificar: remover dependência do `virtual:pwa-register` (que vai sumir junto com o plugin)
-- Manter o `useVersionPoller` (já existe e funciona via fetch direto do `index.html`)
-- Card de "atualizar agora" passa a chamar **só** `nukeAndReload()` (limpa caches HTTP via `location.reload()` + remove qualquer SW residual)
-
-### Frente 6 — `src/components/PWAUpdatePrompt.tsx`
-- Sem mudança visual; só consome o hook simplificado
-
-### Frente 7 — `public/sw-push.js`
-- Sem mudança. Continua fazendo só notificação push (não mexe em cache de páginas).
+### Frente 4 — Logs de observabilidade
+Adicionar logs claros no console pro lojista/eu conseguir debugar:
+- `[VersionPoller] checkNow → fp atual: xxx | inicial: yyy | mudou: true/false`
+- Toast de erro mais informativo se o fetch falhar
 
 ## Arquivos afetados
-- `vite.config.ts` (remover VitePWA)
-- `index.html` (adicionar `<link rel="manifest">` + meta tags)
-- `public/manifest.json` (novo)
-- `src/main.tsx` (cleanup global de SWs antigos)
-- `src/hooks/usePWAUpdate.ts` (simplificar, remover import virtual)
-- `package.json` (remover `vite-plugin-pwa` da dep)
-
-## O que NÃO muda
-- Heartbeat e painel admin de versões
-- `/sw-push.js` e fluxo de push notification
-- Manifest (instalabilidade preservada)
-- Lógica de business
+- `src/hooks/useVersionPoller.ts` (refatorar API)
+- `src/hooks/usePWAUpdate.ts` (consumir nova API, remover hack do setTimeout)
+- `src/components/dashboard/VersionCheckCard.tsx` (sem mudança visual, só herda fix)
 
 ## Resultado esperado
-- Próximo publish → todas as lojas com aba aberta veem o card em até 60s (via `useVersionPoller`)
-- Lojas com SW antigo do Workbox: o cleanup do `main.tsx` desregistra na próxima abertura, fim do "preso"
-- Você publica e em poucos minutos a frota inteira tá na versão nova
+- Clicou no botão → fetch real → comparação real → resposta real, em ~200ms
+- Se tem versão nova: mostra toast "Nova versão encontrada! Atualizando…" e dispara `nukeAndReload()`
+- Se está atualizado: mostra "Você está na versão mais recente ✓" **com confiança**
+- Card global (`PWAUpdatePrompt`) continua aparecendo via polling de 60s
 
 ## Risco
-Médio-baixo. A primeira abertura pós-deploy vai disparar 1 reload extra em lojas com SW antigo (auto-heal). Depois disso, nunca mais trava.
+Baixo. Mudança contida em 2 hooks + 0 mudança visual. Sem mudança de schema, sem efeito colateral em outras telas.
