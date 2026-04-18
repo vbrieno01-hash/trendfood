@@ -59,7 +59,7 @@ export default function VersionCheckCard() {
           className="gap-2"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Verificando…" : "Verificar atualizações"}
+          {loading ? "Verificando…" : "Verificar atualização"}
         </Button>
       </div>
     </div>
