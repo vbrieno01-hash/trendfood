@@ -1,26 +1,35 @@
 
-## Pergunta
+## Pedido
 
-"O site do Chapa e Alho vai voltar ao normal?" — você quer saber se a loja dela vai voltar a receber atualizações automáticas igual antes.
+Trocar o ícone do robô de ajuda (chat de suporte flutuante que aparece em todas as lojas + dashboard).
 
-## Resposta curta
+## Investigação
 
-**Sim, vai.** Não precisa fazer nada do lado dela.
+Localizei: `src/components/SupportChatWidget.tsx`. Hoje usa `MessageCircle` (balão de mensagem) em **dois lugares**:
+- Botão flutuante (canto inferior direito, quando chat está fechado)
+- Header do painel (ao lado de "TrendFood Suporte", quando chat está aberto)
 
-## Por quê
+Ambos importados de `lucide-react`.
 
-O `VersionPoller` (em `src/hooks/useVersionPoller.ts`) já está deployado no bundle público (`trendfood.lovable.app` → fingerprint atual `index-Dos2BuDA.js`). Como toda loja (incluindo `chapaealho`) é servida pelo **mesmo bundle** via subpath routing (`/unidade/[slug]`), o poller roda automaticamente em **qualquer aba aberta** da plataforma — dashboard, vitrine pública, KDS, etc.
+## Sugestões de ícone
 
-## O que vai acontecer na prática pra ela
+| Ícone | Vibe |
+|---|---|
+| `Bot` | Robô clássico com antena — literal, combina com "robô de ajuda" |
+| `Sparkles` | Estrelinhas mágicas — passa ideia de IA |
+| `Headphones` | Suporte/atendimento humano |
+| `LifeBuoy` | Boia salva-vidas — universal pra "ajuda" |
 
-1. Próxima vez que ela abrir/focar a aba do dashboard → poller captura o fingerprint inicial
-2. A cada 60s (ou quando ela voltar pra aba) → poller compara com o `/index.html` mais recente
-3. Quando você publicar uma nova versão → aparece o card **"Nova versão disponível!"** no canto inferior
-4. Ela clica "Atualizar agora" → `nukeAndReload()` limpa SWs/caches antigos e recarrega
+**Minha recomendação:** `Bot` — você chama de "robô", então o ícone literal de robô faz mais sentido e é mais memorável que um balão genérico.
 
-## Detalhe importante
+## Mudança
 
-Se a aba dela tava aberta **antes** do deploy de hoje (que trouxe o `VersionPoller`), ela precisa **recarregar uma vez manualmente** (Ctrl+R) pra pegar o novo bundle com o poller embutido. Depois disso, atualizações futuras viram automáticas de novo.
+Em `SupportChatWidget.tsx`:
+1. Trocar import: `MessageCircle` → ícone escolhido (mantém `X, Send, Loader2`)
+2. Substituir as 2 ocorrências de `<MessageCircle ... />` pelo novo ícone (mesmas classes, mesmo tamanho)
 
 ## Risco
-Nenhum. Read-only — só explicação.
+Mínimo. Apenas troca visual, sem mexer em lógica de chat/SSE.
+
+## Pergunta antes de executar
+Vai com `Bot` (recomendado) ou prefere outro da lista? Se não responder, assumo `Bot`.
