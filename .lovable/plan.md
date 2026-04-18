@@ -1,22 +1,26 @@
 
-## Situação
+## Pergunta
 
-Você clicou Publish e tá carregando. Vou aguardar o publish terminar e então ir verificar na aba que você já tem aberta do `trendfood.lovable.app`.
+"O site do Chapa e Alho vai voltar ao normal?" — você quer saber se a loja dela vai voltar a receber atualizações automáticas igual antes.
 
-## Passos
+## Resposta curta
 
-1. Aguardo você confirmar que o publish terminou (ou navego direto e checo o fingerprint atual vs o anterior `index-is6ww1lQ.js`)
-2. `browser--navigate_to_url` → `https://trendfood.lovable.app` (revisita = dispara visibility/focus event no poller)
-3. `browser--read_console_logs` filtrando `VersionPoller` → procuro `NOVA VERSÃO detectada via index.html`
-4. `browser--screenshot` → confirmo se o card "Nova versão disponível!" do `PWAUpdatePrompt` apareceu na UI
-5. Veredito final:
-   - ✅ Log + card → **funciona end-to-end igual antes**
-   - ⚠️ Log mas sem card → bug isolado no `PWAUpdatePrompt` (snooze travado, etc)
-   - ❌ Sem log → CDN ainda propagando, espero 15s e tento de novo
+**Sim, vai.** Não precisa fazer nada do lado dela.
 
-## Observação
+## Por quê
 
-Se você quiser, me avisa "publicou" assim que sair do "carregando" — assim evito navegar antes da hora e pegar o fingerprint antigo (o que daria falso negativo).
+O `VersionPoller` (em `src/hooks/useVersionPoller.ts`) já está deployado no bundle público (`trendfood.lovable.app` → fingerprint atual `index-Dos2BuDA.js`). Como toda loja (incluindo `chapaealho`) é servida pelo **mesmo bundle** via subpath routing (`/unidade/[slug]`), o poller roda automaticamente em **qualquer aba aberta** da plataforma — dashboard, vitrine pública, KDS, etc.
+
+## O que vai acontecer na prática pra ela
+
+1. Próxima vez que ela abrir/focar a aba do dashboard → poller captura o fingerprint inicial
+2. A cada 60s (ou quando ela voltar pra aba) → poller compara com o `/index.html` mais recente
+3. Quando você publicar uma nova versão → aparece o card **"Nova versão disponível!"** no canto inferior
+4. Ela clica "Atualizar agora" → `nukeAndReload()` limpa SWs/caches antigos e recarrega
+
+## Detalhe importante
+
+Se a aba dela tava aberta **antes** do deploy de hoje (que trouxe o `VersionPoller`), ela precisa **recarregar uma vez manualmente** (Ctrl+R) pra pegar o novo bundle com o poller embutido. Depois disso, atualizações futuras viram automáticas de novo.
 
 ## Risco
-Zero. Read-only.
+Nenhum. Read-only — só explicação.
