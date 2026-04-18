@@ -1,75 +1,49 @@
 
-## Diagnóstico — o botão NÃO está 100% confiável
+## Não consigo publicar pra você
 
-Achei 2 bugs reais analisando o fluxo de clique:
+Publish é ação manual sua — botão no canto superior direito do editor (desktop) ou menu "..." no mobile. Não tenho ferramenta pra disparar deploy.
 
-### Bug 1 — `checkNow()` retorna estado defasado (race condition)
-Em `usePWAUpdate.ts` linha 102-114:
-```ts
-const checkNow = async (): Promise<boolean> => {
-  await fetch(`/index.html?ts=${...}`, { cache: "no-store" });  // joga fora a resposta!
-  await new Promise((r) => setTimeout(r, 500));  // espera 500ms torcendo
-  return serverHasNewVersion;  // valor capturado no closure — pode tar desatualizado
-};
-```
+## O que faço de útil agora
 
-**Problemas:**
-1. Faz `fetch` mas **descarta a resposta** — o resultado não é usado pra nada
-2. Espera 500ms na esperança de o `useVersionPoller` rodar — mas o poller só checa a cada **60 segundos** ou em focus/visibility. Os 500ms quase nunca disparam um check novo
-3. Retorna `serverHasNewVersion` — o valor capturado quando `checkNow` foi criado. Se o React não tiver re-renderizado, retorna `false` mesmo havendo nova versão
+Pra garantir que **quando você publicar** o teste seja conclusivo, posso:
 
-**Resultado prático:** clica no botão → 90% das vezes mostra "Você está na versão mais recente ✓" mesmo quando tem versão nova publicada.
+1. **Adicionar um marcador visível** (ex: data/hora do build no rodapé do dashboard ou no `VersionCheckCard`) — assim você confirma a olho qual versão tá rodando, sem depender só de hash de bundle
+2. **Reforçar os logs** do `useVersionPoller` pra ficar impossível de errar:
+   - `[VersionPoller] init → fp inicial: xxx`
+   - `[VersionPoller] tick (60s) → fp atual: yyy | mudou: true/false`
+   - `[VersionPoller] visibility/focus → fp atual: yyy | mudou: true/false`
+   - `[VersionPoller] NOVA VERSÃO detectada` (já existe)
 
-### Bug 2 — Sem fonte de verdade compartilhada
-O `useVersionPoller` mantém o `initialFp` em escopo do `useEffect` — não é exposto. O `checkNow` não tem como pedir "compara agora e me devolve true/false na hora". Depende 100% de o estado do React ter atualizado, o que é assíncrono.
+## Roteiro de teste (pra você executar pós-publish)
 
-### Impacto
-- Botão "Verificar atualizações" passa falsa segurança ao lojista
-- Lojista clica, vê "está atualizado", e continua na versão velha
-- Pior que não ter o botão, porque mente
+1. Abrir loja real no domínio publicado (`trendfood.lovable.app` ou domínio do lojista) — **não** funciona em `id-preview` nem dentro do iframe do editor (poller é desativado nesses casos por design)
+2. Abrir DevTools → Console → filtrar por `VersionPoller`
+3. Confirmar log inicial: `[VersionPoller] fingerprint inicial: ...`
+4. Você clicar em **Publish** no editor
+5. Em até 60s (ou imediato se trocar de aba e voltar) o console mostra: `[VersionPoller] NOVA VERSÃO detectada via index.html`
+6. Card "Nova versão disponível" aparece no canto
 
-## Plano de correção
+## Edge cases que valem checar
 
-### Frente 1 — Refatorar `useVersionPoller.ts`
-Expor uma função `checkNow()` síncrona/assíncrona que:
-- Faz fetch do `/index.html` agora
-- Compara fingerprint com o inicial **dentro da própria função**
-- Retorna `true`/`false` direto, sem depender de re-render do React
-- Também atualiza o estado interno (pra o card global aparecer)
+- Se a aba estiver **em background** o navegador pode pausar o `setInterval` — o `visibilitychange` cobre isso ao voltar pra aba
+- Se o lojista tiver **SW antigo do Workbox preso**, a primeira abertura pós-deploy roda o cleanup do `main.tsx` e dá 1 reload — só depois disso o poller começa a funcionar limpo
 
-Mudar a assinatura de:
-```ts
-export function useVersionPoller(): boolean
-```
-Para:
-```ts
-export function useVersionPoller(): { hasNewVersion: boolean; checkNow: () => Promise<boolean> }
-```
+## Plano de mudança (mínimo, só pra facilitar o teste)
 
-### Frente 2 — Atualizar `usePWAUpdate.ts`
-- Consumir o novo formato do poller
-- `checkNow` do hook delega pro `checkNow` do poller (verdade real, não closure)
-- Remover o `setTimeout(500)` e o fetch descartado
+### Frente única — `src/hooks/useVersionPoller.ts`
+Adicionar 2 logs extras no `useEffect`:
+- Log a cada tick do `setInterval` (mostrando fp atual vs inicial)
+- Log no handler de `visibility/focus`
 
-### Frente 3 — Atualizar `VersionCheckCard.tsx`
-- Sem mudança de UI
-- Já consome `checkNow` via hook — passa a receber resposta correta
-
-### Frente 4 — Logs de observabilidade
-Adicionar logs claros no console pro lojista/eu conseguir debugar:
-- `[VersionPoller] checkNow → fp atual: xxx | inicial: yyy | mudou: true/false`
-- Toast de erro mais informativo se o fetch falhar
+Sem mudança de comportamento, só observabilidade.
 
 ## Arquivos afetados
-- `src/hooks/useVersionPoller.ts` (refatorar API)
-- `src/hooks/usePWAUpdate.ts` (consumir nova API, remover hack do setTimeout)
-- `src/components/dashboard/VersionCheckCard.tsx` (sem mudança visual, só herda fix)
-
-## Resultado esperado
-- Clicou no botão → fetch real → comparação real → resposta real, em ~200ms
-- Se tem versão nova: mostra toast "Nova versão encontrada! Atualizando…" e dispara `nukeAndReload()`
-- Se está atualizado: mostra "Você está na versão mais recente ✓" **com confiança**
-- Card global (`PWAUpdatePrompt`) continua aparecendo via polling de 60s
+- `src/hooks/useVersionPoller.ts` (apenas `console.info` adicionais)
 
 ## Risco
-Baixo. Mudança contida em 2 hooks + 0 mudança visual. Sem mudança de schema, sem efeito colateral em outras telas.
+Zero. Só logs.
+
+## O que NÃO faço
+- Não publico (não tenho permissão/ferramenta)
+- Não mudo lógica do poller (já foi corrigida na rodada anterior)
+- Não adiciono badge visual sem você pedir explicitamente
