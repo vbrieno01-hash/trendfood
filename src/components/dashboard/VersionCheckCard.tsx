@@ -18,7 +18,7 @@ export default function VersionCheckCard() {
 
   const onCheck = () => {
     setLoading(true);
-    toast.success("Buscando a última versão…");
+    toast.success("Aplicando a última atualização…");
     // Pequeno delay só pra UX (mostrar o toast antes do reload)
     setTimeout(() => handleUpdate(), 600);
   };
