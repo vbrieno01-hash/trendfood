@@ -1,58 +1,46 @@
 
-## Problema
+## Pedido
 
-Botão "Verificar atualizações" sempre diz "Você está na versão mais recente" — mesmo quando você sabe que tem deploy novo.
+Fazer uma alteração mínima/visível pra publicar e validar end-to-end se o card de atualização aparece pros lojistas que já tinham a versão anterior.
 
-## Causa raiz
+## Análise
 
-Em `useVersionPoller.ts` linha ~94 (função `checkNow`):
+A foto confirma: você tá rodando `v2026.04.19.17.14` e o card "Versão do sistema" tá funcionando (mostra versão atual + botão "Atualizar agora"). O `pwa_last_seen_fp` no seu localStorage agora tem o fingerprint dessa versão.
 
-```ts
-const initial = initialFpRef.current;
-const changed = !!(initial && current && current !== initial);
-```
+Pra validar o fluxo real:
+1. Faço uma mudança trivial que altere o bundle (novo hash em `/assets/`)
+2. Você publica
+3. Lojistas que já tinham a versão anterior aberta → card "Nova versão disponível" deve aparecer (via polling de 60s ou no boot da próxima sessão)
+4. Você mesmo, sem dar Shift+R, vai ver o card aparecer sozinho em até 60s depois de publicar
 
-O `initialFpRef.current` é setado no boot com **o fingerprint atual do servidor** (que já é o mais novo, já que você acabou de carregar a página). Então `initial === current` sempre, e `checkNow` sempre retorna `false`.
+## Mudança proposta
 
-O `pwa_last_seen_fp` (snapshot da sessão anterior) é usado **só uma vez no boot** pra disparar `hasNewVersion=true` automaticamente. Mas se já passou desse momento (ou se você acabou de atualizar e o `LAST_SEEN_FP_KEY` já foi sobrescrito com o atual), o `checkNow` manual nunca vai achar nada — ele compara o atual contra ele mesmo.
+Vou ajustar a copy do próprio `VersionCheckCard.tsx` — trocar o texto descritivo pra ficar mais claro e adicionar o timestamp da última verificação. Duas vantagens:
 
-Pior: o botão é projetado pra ser usado **dias depois** quando sai um deploy novo. Mas como o `initialFpRef` é fixado no mount da sessão, mesmo se sair um deploy novo enquanto a aba tá aberta, ele só vai detectar via polling de 60s — o `checkNow` manual continua comparando contra o snapshot do mount, que é **a mesma versão que tá rodando agora no browser**.
+1. **Muda o bundle** → novo hash → dispara detecção
+2. **Melhora UX** do próprio card que estamos testando — fica óbvio se a alteração chegou (texto novo visível)
 
-Espera — esse caso o `checkNow` deveria funcionar (versão do browser ≠ versão nova no servidor). Deixa eu reler...
+### Alterações em `src/components/dashboard/VersionCheckCard.tsx`
 
-Na verdade funciona pra esse caso: se sair deploy enquanto a aba tá aberta, `current` (fetch novo) ≠ `initial` (fetch do mount) → detecta. ✅
+- Trocar descrição de:
+  > "Clique para forçar a busca da versão mais recente do sistema."
+  
+  Para:
+  > "Mantenha o sistema sempre atualizado. Clique para baixar a última versão disponível agora mesmo."
 
-**Mas** o caso que tá quebrando é: você publica → fecha a aba → abre de novo → clica no botão. Agora:
-- Boot: persiste fingerprint A no localStorage, fixa `initialFpRef = A`
-- Você clica: fetch retorna A → `current === initial` → "tá atualizado" ❌
+- Pequeno ajuste no toast: "Buscando a última versão…" → "Aplicando a última atualização…"
 
-O botão **só funciona** se um novo deploy sair **entre o mount e o clique**. Pra qualquer outro caso (que é 99% dos cliques manuais), ele sempre diz "tá na versão mais recente".
+São mudanças puramente cosméticas, zero risco de quebrar nada, mas garantem hash novo no bundle.
 
-## Solução
+## Como validar (passo a passo)
 
-Mudar a semântica do botão "Verificar atualizações" pra fazer o que o usuário espera: **forçar reload com cache-bust pra garantir que tá rodando a última versão publicada**, em vez de comparar fingerprints (que sempre vão bater, porque o fingerprint atual é o que o browser carregou).
+1. Implemento a mudança
+2. Você clica em **Publish** no canto superior direito
+3. Aguarda ~30s pro deploy propagar
+4. **Sem dar Shift+R**, espera no máximo 60s na aba aberta → o card vermelho/laranja "Nova versão disponível" deve aparecer no canto da tela
+5. Clica em "Atualizar agora" no prompt → app recarrega com `?_v=timestamp`
+6. Depois do reload, abre o card "Versão do sistema" → vai mostrar o texto novo ("Mantenha o sistema sempre atualizado…") confirmando que pegou a versão nova
 
-### Plano
+## Arquivo
 
-**Opção A (recomendada):** Botão sempre executa `nukeAndReload()` direto. Mostra um toast tipo "Buscando última versão..." e recarrega com `?_v=timestamp`. Se o servidor tiver mesma versão, o reload é rápido e tudo continua igual. Se tiver versão nova, o usuário ganha ela na hora. Sem falsos negativos, sem confusão.
-
-**Opção B:** Manter check, mas comparar contra um endpoint sempre-fresco (ex: header `ETag` do `index.html` ou hash MD5 do conteúdo). Mais complexo, mais chance de bug.
-
-Vou de **Opção A**.
-
-### Mudanças
-
-**1. `VersionCheckCard.tsx`** — `onCheck` chama direto `handleUpdate()`:
-- Toast: "Atualizando para a última versão..."
-- Chama `handleUpdate()` (que já faz `nukeAndReload`)
-- Sem mais "Você está na versão mais recente" enganoso
-
-**2. Texto do card** — atualizar copy pra refletir o comportamento real:
-- Botão: "Atualizar agora" (em vez de "Verificar atualizações")
-- Descrição: "Clique para forçar a busca da versão mais recente do sistema."
-
-**3. `usePWAUpdate.ts`** — manter `checkNow` exportado intacto (outros lugares usam), mas o card não depende mais dele.
-
-## Arquivos
-
-- `src/components/dashboard/VersionCheckCard.tsx` — simplificar `onCheck`, ajustar copy
+- `src/components/dashboard/VersionCheckCard.tsx` — ajuste de copy
