@@ -1,35 +1,36 @@
 
-## Estado atual
+## Pedido
+1. Texto pra divulgar nos grupos de donos sobre o aumento do limite no plano Free (20 → 30 itens)
+2. Imagem pra acompanhar o texto
 
-Loja TrendFood está com `subscription_plan='free'`, mas precisei verificar o `trial_ends_at` — se ainda estiver no futuro, o `checkMenuItemLimit.ts` trata como `pro` (trialActive) e o cap de 30 não é aplicado.
+## Observação importante
+O user falou "plano Pro" mas o aumento é no plano **Free** (20 → 30). Vou seguir o que foi implementado de fato (Free), e mencionar isso no texto de forma clara — se ele quis dizer outra coisa, ajustamos depois.
 
-## Plano de teste
+## Plano
 
-### 1. Verificar via SQL
-- `subscription_plan`, `trial_ends_at`, `used_first_month_promo` da org `c9d9db45-...`
-- Count atual de `menu_items`
-- Se `trial_ends_at` estiver no futuro: pedir pro user expirar (ou criar migration temporária)
+### 1. Texto pro grupo (estilo WhatsApp/Telegram)
+- Tom: animado, direto, próximo (como dono falando com dono)
+- Estrutura: gancho → o que mudou → benefício prático → CTA
+- Emojis pontuais (não é canvas-design — é comunicação real de grupo)
+- ~80-120 palavras, formatado pra mobile
+- Salvo em `/mnt/documents/anuncio-30-itens.txt`
 
-### 2. Teste manual no browser
-- `/dashboard` → aba Cardápio
-- Se count < 30: criar itens "TESTE_CAP_DELETAR_N" até chegar a 30
-- Tentar criar item nº 31 → validar toast "Limite do plano Grátis atingido (30 itens)..."
-- SQL: confirmar count = 30 (não 31)
+### 2. Imagem (1080x1080, formato post de grupo)
+- Modelo: `google/gemini-3-pro-image-preview` (qualidade alta, vale a pena pra peça de marketing)
+- Conceito: card visual com "20 → 30 itens" em destaque, identidade TrendFood (cores premium do tema Live — tons escuros/glass, accent vibrante)
+- Texto na imagem: mínimo ("+10 ITENS NO PLANO GRÁTIS" + logo TrendFood)
+- Salvo em `/mnt/documents/anuncio-30-itens.png`
+- QA: abro a imagem gerada, confirmo legibilidade do texto e que não tem artefato esquisito antes de entregar
 
-### 3. Teste CSV import
-- Gerar `/tmp/teste_cap.csv` com 5 produtos
-- Abrir diálogo "Importar Cardápio" → subir CSV
-- Validar toast de erro + SQL confirma count inalterado
+### 3. Entrega
+- Mostro o texto inline no chat (pra você copiar fácil)
+- Anexo `<lov-artifact>` da imagem PNG
+- Anexo `<lov-artifact>` do .txt também (caso queira baixar)
 
-### 4. Reportar
-- Resultados claros (passou / falhou em cada etapa)
-- Lembrar você de: (a) deletar itens "TESTE_CAP_DELETAR_*", (b) reverter `subscription_plan` pra `lifetime`
+## Pergunta rápida antes de gerar
 
-## Pré-requisito bloqueante
+Confirma só uma coisa:
 
-Antes de começar preciso checar `trial_ends_at`. Se estiver no futuro, **não dá pra testar** — o código trata Free + trial ativo como Pro (sem cap). Cenários:
+O aumento foi no **plano Grátis (Free)** — saiu de 20 pra 30 itens. Você escreveu "plano Pro" na mensagem. Tá certo o que foi implementado (Free) ou era pra ter mexido no Pro?
 
-- **trial expirado/null** → testo direto ✅
-- **trial no futuro** → te peço pra setar `trial_ends_at = now() - interval '1 day'` antes de eu rodar
-
-Começo pelo SQL pra confirmar.
+Assumindo que é **Free** (que é o que o código faz hoje), sigo com o texto/imagem nessa linha. Se for Pro, me avisa antes que eu reviso tudo.
