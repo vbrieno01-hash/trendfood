@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { assertMenuItemLimit } from "@/lib/checkMenuItemLimit";
 
 interface Organization {
   id: string;
