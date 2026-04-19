@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { usePWAUpdate } from "@/hooks/usePWAUpdate";
 
 export default function VersionCheckCard() {
-  const { checkNow, handleUpdate } = usePWAUpdate();
+  const { handleUpdate } = usePWAUpdate();
   const [loading, setLoading] = useState(false);
 
   const version = (() => {
@@ -16,21 +16,11 @@ export default function VersionCheckCard() {
     }
   })();
 
-  const onCheck = async () => {
+  const onCheck = () => {
     setLoading(true);
-    try {
-      const found = await checkNow();
-      if (found) {
-        toast.success("Nova versão encontrada! Atualizando…");
-        setTimeout(() => handleUpdate(), 800);
-      } else {
-        toast.success("Você está na versão mais recente ✓");
-      }
-    } catch {
-      toast.error("Não foi possível verificar agora.");
-    } finally {
-      setLoading(false);
-    }
+    toast.success("Buscando a última versão…");
+    // Pequeno delay só pra UX (mostrar o toast antes do reload)
+    setTimeout(() => handleUpdate(), 600);
   };
 
   return (
@@ -48,7 +38,7 @@ export default function VersionCheckCard() {
             Versão atual: <span className="font-mono text-xs text-muted-foreground">v{version}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1 max-w-[360px]">
-            Se algo parecer desatualizado, clique para verificar e baixar a versão mais recente.
+            Clique para forçar a busca da versão mais recente do sistema.
           </p>
         </div>
         <Button
@@ -59,7 +49,7 @@ export default function VersionCheckCard() {
           className="gap-2"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Verificando…" : "Verificar atualizações"}
+          {loading ? "Atualizando…" : "Atualizar agora"}
         </Button>
       </div>
     </div>
