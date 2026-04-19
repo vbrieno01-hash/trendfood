@@ -86,7 +86,7 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
     return {
       plan: rawPlan,
       effectivePlan,
-      menuItemLimit: effectivePlan === "free" ? 20 : null,
+      menuItemLimit: effectivePlan === "free" ? 30 : null,
       tableLimit: effectivePlan === "free" ? 1 : null,
       canAccess: (feature: Feature) => features[feature],
       features,

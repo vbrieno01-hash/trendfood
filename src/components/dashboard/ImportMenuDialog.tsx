@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { assertMenuItemLimit } from "@/lib/checkMenuItemLimit";
 
 interface Organization {
   id: string;
@@ -193,6 +194,15 @@ export default function ImportMenuDialog({ open, onOpenChange, organization }: P
 
       if (valid === 0) {
         toast.error("Nenhum produto válido encontrado. Verifique se os preços estão corretos.");
+        setImporting(false);
+        return;
+      }
+
+      // Hard-stop: enforce Free plan cap (30 items)
+      try {
+        await assertMenuItemLimit(organization.id, valid);
+      } catch (limitErr: any) {
+        toast.error(limitErr?.message || "Limite do plano atingido.");
         setImporting(false);
         return;
       }

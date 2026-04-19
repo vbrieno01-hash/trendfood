@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compressImage";
+import { assertMenuItemLimit } from "@/lib/checkMenuItemLimit";
 
 export interface MenuItem {
   id: string;
@@ -141,6 +142,9 @@ export function useAddMenuItem(orgId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: MenuItemInput) => {
+      // Hard-stop: enforce Free plan cap (30 items)
+      await assertMenuItemLimit(orgId, 1);
+
       const { data, error } = await supabase
         .from("menu_items")
         .insert({
@@ -163,8 +167,8 @@ export function useAddMenuItem(orgId: string) {
       qc.invalidateQueries({ queryKey: ["menu_items", orgId] });
       toast.success("Item adicionado ao cardápio! 🍔");
     },
-    onError: () => {
-      toast.error("Erro ao adicionar item.");
+    onError: (err: any) => {
+      toast.error(err?.message || "Erro ao adicionar item.");
     },
   });
 }
