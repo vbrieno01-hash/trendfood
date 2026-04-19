@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compressImage";
+import { assertMenuItemLimit } from "@/lib/checkMenuItemLimit";
 
 export interface MenuItem {
   id: string;
