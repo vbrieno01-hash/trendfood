@@ -1,33 +1,35 @@
 
-## Plano de teste end-to-end
+## Estado atual
 
-Loja **TrendFood** está em Free agora. Vou rodar 4 verificações:
+Loja TrendFood está com `subscription_plan='free'`, mas precisei verificar o `trial_ends_at` — se ainda estiver no futuro, o `checkMenuItemLimit.ts` trata como `pro` (trialActive) e o cap de 30 não é aplicado.
 
-### 1. Estado inicial (read-only via SQL)
-- Confirmar `subscription_plan='free'` e `trial_ends_at` expirado/null
-- Contar quantos `menu_items` tem hoje na org `c9d9db45-...`
+## Plano de teste
 
-### 2. Teste manual (browser)
-- Abrir `/dashboard` na aba **Cardápio**
-- Se tiver < 30 itens: tentar criar itens até estourar o cap (criar item nº 31) e validar toast vermelho "Limite do plano Grátis atingido (30 itens)..."
-- Se já tiver ≥ 30: tentar criar 1 item e validar bloqueio direto
-- Confirmar via SQL que count **não aumentou** após o bloqueio
+### 1. Verificar via SQL
+- `subscription_plan`, `trial_ends_at`, `used_first_month_promo` da org `c9d9db45-...`
+- Count atual de `menu_items`
+- Se `trial_ends_at` estiver no futuro: pedir pro user expirar (ou criar migration temporária)
 
-### 3. Teste de import CSV (browser)
-- Abrir o diálogo "Importar Cardápio"
-- Subir um CSV pequeno que, somado ao count atual, ultrapasse 30
-- Validar toast de erro + confirmar via SQL que **nenhuma linha** foi inserida (all-or-nothing)
+### 2. Teste manual no browser
+- `/dashboard` → aba Cardápio
+- Se count < 30: criar itens "TESTE_CAP_DELETAR_N" até chegar a 30
+- Tentar criar item nº 31 → validar toast "Limite do plano Grátis atingido (30 itens)..."
+- SQL: confirmar count = 30 (não 31)
 
-### 4. Limpeza
-- Reportar resultados
-- Você reverte a loja pra `lifetime` quando quiser
+### 3. Teste CSV import
+- Gerar `/tmp/teste_cap.csv` com 5 produtos
+- Abrir diálogo "Importar Cardápio" → subir CSV
+- Validar toast de erro + SQL confirma count inalterado
 
-## Risco
-Baixo. Vou criar no máximo 1-2 itens de teste com nomes claros tipo "TESTE_CAP_DELETAR" pra você apagar depois fácil. Se o count atual já estiver no limite, não preciso nem criar nada.
+### 4. Reportar
+- Resultados claros (passou / falhou em cada etapa)
+- Lembrar você de: (a) deletar itens "TESTE_CAP_DELETAR_*", (b) reverter `subscription_plan` pra `lifetime`
 
-## Ferramentas
-- `supabase--read_query` pra contar/verificar
-- `browser--navigate_to_sandbox` + `browser--act` + `browser--screenshot` pro fluxo visual
-- Se precisar de CSV de teste, gero em `/tmp/`
+## Pré-requisito bloqueante
 
-Começo agora pelo SQL pra ver o estado atual.
+Antes de começar preciso checar `trial_ends_at`. Se estiver no futuro, **não dá pra testar** — o código trata Free + trial ativo como Pro (sem cap). Cenários:
+
+- **trial expirado/null** → testo direto ✅
+- **trial no futuro** → te peço pra setar `trial_ends_at = now() - interval '1 day'` antes de eu rodar
+
+Começo pelo SQL pra confirmar.
