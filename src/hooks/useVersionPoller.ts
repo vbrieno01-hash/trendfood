@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const POLL_INTERVAL_MS = 60 * 1000; // 60s
+const LAST_SEEN_FP_KEY = "pwa_last_seen_fp";
 
 const isInIframe = (() => {
   try {
@@ -45,13 +46,20 @@ async function fetchCurrentFingerprint(): Promise<string | null> {
  * Detecta nova versão publicada **independente do Service Worker**.
  * Faz polling de /index.html e compara o hash dos assets.
  *
- * Retorna `hasNewVersion` (estado reativo) e `checkNow` (verificação manual síncrona).
+ * Persiste o fingerprint visto em sessões anteriores no localStorage,
+ * permitindo detectar deploys que aconteceram entre sessões — assim que
+ * o app monta, compara o snapshot antigo (persistido) com o atual.
+ *
+ * Retorna `hasNewVersion`, `currentFingerprint` (estado reativo) e
+ * `checkNow` (verificação manual síncrona).
  */
 export function useVersionPoller(): {
   hasNewVersion: boolean;
+  currentFingerprint: string | null;
   checkNow: () => Promise<boolean>;
 } {
   const [hasNewVersion, setHasNewVersion] = useState(false);
+  const [currentFingerprint, setCurrentFingerprint] = useState<string | null>(null);
   const initialFpRef = useRef<string | null>(null);
   const initialFpReadyRef = useRef<Promise<void> | null>(null);
 
@@ -62,7 +70,6 @@ export function useVersionPoller(): {
       return false;
     }
 
-    // Garante que o fingerprint inicial já foi capturado
     if (initialFpReadyRef.current) {
       await initialFpReadyRef.current;
     }
@@ -78,6 +85,7 @@ export function useVersionPoller(): {
       "| mudou:", changed
     );
 
+    if (current) setCurrentFingerprint(current);
     if (changed) setHasNewVersion(true);
     return changed;
   }, []);
@@ -87,12 +95,39 @@ export function useVersionPoller(): {
 
     let cancelled = false;
 
-    // Captura fingerprint inicial e expõe a promise pra checkNow esperar
     initialFpReadyRef.current = (async () => {
-      const fp = await fetchCurrentFingerprint();
+      // 1) Recupera fingerprint persistido de sessão anterior
+      let persistedFp: string | null = null;
+      try {
+        persistedFp = localStorage.getItem(LAST_SEEN_FP_KEY);
+      } catch {}
+
+      // 2) Captura fingerprint atual do servidor
+      const currentFp = await fetchCurrentFingerprint();
       if (cancelled) return;
-      initialFpRef.current = fp;
-      console.info("[VersionPoller] fingerprint inicial:", fp?.slice(0, 80));
+
+      console.info(
+        "[VersionPoller] boot →",
+        "persistido:", persistedFp?.slice(0, 60) || "(nenhum)",
+        "| atual:", currentFp?.slice(0, 60)
+      );
+
+      if (currentFp) {
+        setCurrentFingerprint(currentFp);
+
+        // 3) Se já tinha snapshot anterior e mudou → nova versão na hora
+        if (persistedFp && persistedFp !== currentFp) {
+          console.info("[VersionPoller] NOVA VERSÃO detectada no boot (snapshot persistido difere)");
+          initialFpRef.current = persistedFp; // mantém o antigo como referência
+          setHasNewVersion(true);
+        } else {
+          // Primeira sessão OU mesma versão → adota o atual como baseline
+          initialFpRef.current = currentFp;
+          try {
+            localStorage.setItem(LAST_SEEN_FP_KEY, currentFp);
+          } catch {}
+        }
+      }
     })();
 
     const check = async (trigger: string) => {
@@ -100,6 +135,7 @@ export function useVersionPoller(): {
       const current = await fetchCurrentFingerprint();
       const initial = initialFpRef.current;
       if (cancelled || !current) return;
+      if (current) setCurrentFingerprint(current);
       const changed = !!(initial && current !== initial);
       console.info(
         `[VersionPoller] ${trigger} →`,
@@ -129,5 +165,5 @@ export function useVersionPoller(): {
     };
   }, []);
 
-  return { hasNewVersion, checkNow };
+  return { hasNewVersion, currentFingerprint, checkNow };
 }
