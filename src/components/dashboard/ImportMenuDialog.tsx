@@ -198,6 +198,15 @@ export default function ImportMenuDialog({ open, onOpenChange, organization }: P
         return;
       }
 
+      // Hard-stop: enforce Free plan cap (30 items)
+      try {
+        await assertMenuItemLimit(organization.id, valid);
+      } catch (limitErr: any) {
+        toast.error(limitErr?.message || "Limite do plano atingido.");
+        setImporting(false);
+        return;
+      }
+
       // Bulk insert in batches of 500
       const BATCH = 500;
       for (let i = 0; i < items.length; i += BATCH) {
