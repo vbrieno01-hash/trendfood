@@ -1,81 +1,51 @@
 
-## Diagnóstico da causa raiz
+## Resposta direta
 
-O `useVersionPoller` baixa `/index.html`, extrai os paths `/assets/[hash].js` e compara com o snapshot inicial. **Mas tem um problema fatal:**
+Não, não vai dar travamento offline. Vou explicar o porquê e o que a gente já blindou contra aquele bug antigo.
 
-### Bug #1 — Cleanup de SWs apaga o cache do `index.html`
-Em `main.tsx`, no primeiro load **após o deploy**, o cleanup roda `caches.delete(...)` em qualquer cache que contenha "workbox/precache/runtime". Isso ok. Mas o `fetch('/index.html?ts=...')` no poller é **no-store** — então o snapshot inicial captura o HTML **novo** (já atualizado). A partir daí, qualquer comparação dá igual → nunca detecta mudança até o **próximo** deploy.
+## Por que NÃO vai travar como antes
 
-Resultado: o lojista que já abriu a app **antes do deploy** capturou o HTML antigo no snapshot, mas só vê o card se recarregar a página naquele intervalo de 60s. Se a aba estava fechada e ele abriu **depois** do deploy → snapshot já é o novo → card nunca aparece.
+### O que causou o bug antigo
+O bug antigo era do **VitePWA + Workbox**: ele cacheava o `index.html` e os assets agressivamente via Service Worker. Quando saía deploy novo, o SW continuava servindo o bundle velho do cache até o usuário fechar **todas** as abas e reabrir — e mesmo assim às vezes ficava preso por dias.
 
-### Bug #2 — Sem `__BUILD_VERSION__` exposto publicamente
-Não existe um endpoint tipo `/version.json` com o build atual. Toda a detecção depende de comparar hashes de assets do `index.html`. Frágil.
+### O que a gente tem hoje (já blindado)
 
-### Bug #3 — Snooze persiste entre deploys
-O `localStorage` do `pwa_snooze_until` não é limpo quando muda a versão. Se o lojista clicou "mais tarde" semana passada e o TTL ainda tá valendo, o card simplesmente não aparece nesta versão também.
+**1. Não tem mais Service Worker cacheando a app**
+- O único SW ativo é o `public/sw-push.js`, que **só** serve pra notificações push. Ele não intercepta nenhum fetch, não cacheia HTML, não cacheia assets. Zero interferência com bundle.
+- O `main.tsx` roda `cleanupLegacyServiceWorkers()` no boot, que **desregistra qualquer SW que não seja o sw-push** e limpa caches antigos do Workbox/precache/runtime. Então qualquer lojista que ainda tenha resquício do bug antigo é limpo automaticamente na próxima vez que abrir a app.
 
-### Bug #4 — Card existe mas usuário precisa abrir a aba certa
-`<PWAUpdatePrompt />` está no `App.tsx` (✅ global), mas como o poller só dispara em foco/visibility e a cada 60s, lojistas com a aba sempre aberta no Dashboard talvez nunca recebam o sinal se o snapshot já é o novo.
+**2. Detecção de versão via fetch direto, não via SW**
+- O `useVersionPoller` faz `fetch('/index.html?ts=...')` com `cache: 'no-store'` e header `cache-control: no-cache`. Vai sempre no servidor, nunca no cache do browser.
+- Compara o hash dos `/assets/[hash].js` da versão atual vs a persistida em `localStorage`. Se mudou → card aparece.
 
----
+**3. Botão "Atualizar agora" usa terra arrasada**
+A função `nukeAndReload` faz, em ordem:
+1. Desregistra **todos** os SWs (exceto sw-push)
+2. Limpa **todos** os caches do browser (`caches.delete` em todas as keys)
+3. Recarrega com `window.location.replace(url + '?_v=' + Date.now())` — o `?_v=timestamp` força o browser a buscar `index.html` novo do servidor, ignorando cache HTTP
 
-## Solução: simplificar drasticamente
+Isso é o equivalente a "Ctrl+Shift+R" automático. Não tem como ficar preso em bundle antigo.
 
-O user pediu exatamente isso: **"mostra o card e ao clicar atualiza em tempo real"**. Vou trocar a detecção frágil por algo determinístico:
+**4. Modo offline real? Não tem**
+A app **nunca** funcionou offline (não é um requisito do TrendFood — todo fluxo precisa de Supabase online). O que existia antes era um SW que tentava cachear pra "performance", e era exatamente isso que travava. Hoje não cacheia nada → não tem como ficar offline com versão velha.
 
-### Mudança #1 — Endpoint `/version.json` versionado a cada build
-- `vite.config.ts`: gerar `public/version.json` no build com `{ version: BUILD_VERSION, builtAt: ISO }`
-- Como isso não é trivial sem plugin custom, alternativa mais simples: **usar o próprio `__BUILD_VERSION__` injetado**, salvar no `localStorage` do client no primeiro mount, e o poller compara `__BUILD_VERSION__` atual vs último visto
+## Resumo
 
-Espera — isso não funciona porque `__BUILD_VERSION__` é estático no bundle. Se o user já tem o bundle antigo carregado, ele continua reportando a versão antiga.
-
-**Solução real:** poller faz fetch de `/index.html` + extrai um marcador estável (não os hashes dos chunks, que podem mudar por motivos não-funcionais), **mas** persiste o snapshot inicial em `localStorage` com timestamp. Se o snapshot persistido tem mais de X minutos, considera "antigo" e qualquer mudança dispara o card. Isso resolve o caso do lojista que abriu a app **depois** do deploy (snapshot novo) — não precisa resolver, ele já tá na versão nova!
-
-O verdadeiro problema então é **só** os bugs #1 e #3. Vou focar neles:
-
-### Plano final (3 mudanças cirúrgicas)
-
-**1. `usePWAUpdate.ts` — limpar snooze ao mudar de versão**
-- Persistir o fingerprint visto pela última vez no `localStorage`
-- Se o `serverHasNewVersion` dispara com fingerprint diferente do snooze salvo → ignorar o snooze e mostrar o card
-- Resultado: cada nova versão reseta o "mais tarde"
-
-**2. `useVersionPoller.ts` — disparo imediato + log claro**
-- Hoje captura snapshot inicial e só compara depois. Vou adicionar: se já existe snapshot persistido em `localStorage` de sessão anterior, comparar imediatamente no mount (sem esperar 60s ou foco)
-- Persistir o snapshot inicial em `localStorage` com chave `pwa_last_seen_fp`
-- Comparar `pwa_last_seen_fp` (sessão anterior) vs HTML atual logo no boot → se mudou, dispara `hasNewVersion=true` na hora
-- Manter polling de 60s pra capturar deploys com app aberto
-
-**3. `PWAUpdatePrompt.tsx` — botão "Atualizar agora" garantido**
-- Já chama `nukeAndReload` (limpa SWs + caches + reload). Tá ok.
-- Adicionar cache-bust no reload: `window.location.href = window.location.pathname + '?v=' + Date.now()` em vez de `reload()` puro, pra eliminar 100% chance de cache do navegador segurar bundle antigo
-
----
-
-## Resumo do comportamento pós-fix
-
-| Cenário | Comportamento |
+| Bug antigo | Hoje |
 |---|---|
-| Lojista com app aberto durante deploy | Card aparece em até 60s (poll) ou ao trocar de aba (visibility) |
-| Lojista abre app **depois** do deploy | Snapshot novo capturado, sem card (correto — já tá na versão nova) |
-| Lojista abre app dias depois (snapshot antigo no localStorage) | **Card aparece imediatamente no boot** (novo!) |
-| Lojista clicou "mais tarde" no deploy anterior | **Snooze é resetado** ao detectar fingerprint diferente |
-| Clica "Atualizar agora" | Limpa SWs + caches + recarrega com `?v=timestamp` (cache-bust total) |
+| SW Workbox cacheava `index.html` | Sem SW de cache, só push |
+| Update dependia do SW detectar `updatefound` | Polling direto de `index.html` (sem SW) |
+| "Atualizar" só recarregava (cache HTTP segurava) | `nukeAndReload` limpa SW + caches + cache-bust `?_v=` |
+| Lojistas com bundle velho ficavam presos dias | Cleanup automático no boot remove SWs legados |
 
-## Validação
+Tá blindado em 4 camadas. Pode publicar tranquilo.
 
-Após implementar:
-1. Bumpar uma string qualquer pra forçar novo hash de bundle
-2. Publicar
-3. Abrir a app em aba anônima (limpa) → não deve aparecer card
-4. Abrir DevTools → Application → LocalStorage → setar `pwa_last_seen_fp` pra um valor fake → recarregar → card deve aparecer na hora
-5. Clicar "Atualizar agora" → URL deve ganhar `?v=timestamp` e bundle novo deve carregar
+## Próximos passos
 
-## Arquivos a modificar
+Não precisa mexer em nada. As 2 mudanças do round anterior (`useVersionPoller` + `usePWAUpdate`) já tão prontas. Só publicar e o card vai começar a aparecer pros lojistas conforme eles abrirem a app.
 
-- `src/hooks/useVersionPoller.ts` — persistir fingerprint + check imediato no boot
-- `src/hooks/usePWAUpdate.ts` — resetar snooze quando fingerprint muda
-- `src/components/PWAUpdatePrompt.tsx` — pequeno ajuste de UX (opcional)
-- Função `nukeAndReload` já existe e está boa, só trocar `reload()` por redirect com `?v=`
+Se quiser **garantia extra** antes de publicar pra todo mundo, posso:
+- Adicionar um log mais visível tipo `[PWA] Update detectado: vX → vY` pra você acompanhar no console de algum lojista beta
+- Ou nada — o que tá já resolve
 
-Sem mudança no `vite.config.ts`, sem novo endpoint, sem service worker novo. Mudança mínima e cirúrgica.
+Me avisa se quer o log extra ou se pode publicar como tá.
