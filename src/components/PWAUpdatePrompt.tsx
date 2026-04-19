@@ -1,11 +1,16 @@
 import { Sparkles, RefreshCw, X } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePWAUpdate } from "@/hooks/usePWAUpdate";
 
+const INTERNAL_PREFIXES = ["/dashboard", "/admin", "/cozinha", "/garcom", "/motoboy", "/caixa"];
+
 const PWAUpdatePrompt = () => {
   const { showPrompt, handleUpdate, handleSnooze } = usePWAUpdate();
+  const { pathname } = useLocation();
 
-  if (!showPrompt) return null;
+  const isInternal = INTERNAL_PREFIXES.some((p) => pathname.startsWith(p));
+  if (!isInternal || !showPrompt) return null;
 
   return (
     <div
