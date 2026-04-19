@@ -38,7 +38,7 @@ export default function VersionCheckCard() {
             Versão atual: <span className="font-mono text-xs text-muted-foreground">v{version}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1 max-w-[360px]">
-            Clique para forçar a busca da versão mais recente do sistema.
+            Mantenha o sistema sempre atualizado. Clique para baixar a última versão disponível agora mesmo.
           </p>
         </div>
         <Button
