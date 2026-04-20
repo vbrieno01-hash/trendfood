@@ -30,6 +30,7 @@ interface Organization {
   whatsapp?: string | null;
   store_address?: string | null;
   business_hours?: any;
+  force_open?: boolean;
 }
 
 const fmtBRL = (v: number) =>
