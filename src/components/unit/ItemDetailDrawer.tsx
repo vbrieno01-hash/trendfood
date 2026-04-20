@@ -19,6 +19,8 @@ interface ItemDetailDrawerProps {
   primaryColor: string;
   /** Cor para preços e textos de destaque. Default: primaryColor (retro-compat). */
   accentColor?: string;
+  /** Cor de TODOS os botões/ações (+, Adicionar). Default: primaryColor (retro-compat). */
+  buttonColor?: string;
   isClosed: boolean;
   opensAt: string | null;
   closedReason?: string;
@@ -28,8 +30,9 @@ interface ItemDetailDrawerProps {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
   const priceColor = accentColor || primaryColor;
+  const btnColor = buttonColor || primaryColor;
   const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
   const [itemNotes, setItemNotes] = useState("");
   const [qty, setQty] = useState(1);
@@ -147,7 +150,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, isC
                           type="button"
                           onClick={() => incrementAddon(addon)}
                           className="w-6 h-6 rounded-full text-white shadow flex items-center justify-center transition-colors"
-                          style={{ backgroundColor: primaryColor }}
+                          style={{ backgroundColor: btnColor }}
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -201,7 +204,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, isC
                 <button
                   onClick={() => setQty((q) => q + 1)}
                   className="w-7 h-7 rounded-full text-white shadow flex items-center justify-center transition-colors"
-                  style={{ backgroundColor: primaryColor }}
+                  style={{ backgroundColor: btnColor }}
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -211,7 +214,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, isC
               <button
                 onClick={() => onAdd(item, selectedAddons, itemNotes, qty)}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: btnColor }}
               >
                 Adicionar {fmt(totalPrice)}
               </button>

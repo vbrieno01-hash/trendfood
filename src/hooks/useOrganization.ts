@@ -38,6 +38,10 @@ export interface ThemeConfig {
   accent_text_color?: string;
   /** Cor do texto do nome da loja no cabeçalho (sólido/gradiente) — default: branco */
   header_text_color?: string;
+  /** Cor de fundo de TODOS os botões e ícones de ação (Add, Adicionar, +, ícone do carrinho, borda do tipo de pedido) — fallback: primary_color */
+  button_color?: string;
+  /** Cor de fundo das pílulas de categoria ativa, badge "no carrinho" e badge de quantidade no canto da foto — fallback: primary_color */
+  category_color?: string;
   header_style?: "solid" | "transparent" | "gradient";
   button_style?: "rounded" | "pill" | "square";
   card_style?: "flat" | "shadow" | "bordered";

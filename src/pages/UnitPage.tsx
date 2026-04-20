@@ -364,6 +364,9 @@ const UnitPage = () => {
   if (!org) return null;
 
   const primaryColor = org.primary_color || "#f97316";
+  // Cores derivadas: se o lojista não definir as específicas, usa primaryColor (retro-compat)
+  const buttonColor = themeConfig.button_color || primaryColor;
+  const categoryColor = themeConfig.category_color || primaryColor;
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
   // Sanitize WhatsApp number for reliable wa.me links
@@ -1047,7 +1050,7 @@ const UnitPage = () => {
                           style={{
                             borderRadius: buttonRadius,
                             ...(isActive
-                              ? { backgroundColor: primaryColor, color: "#fff", borderColor: primaryColor, boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
+                              ? { backgroundColor: categoryColor, color: "#fff", borderColor: categoryColor, boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
                               : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
                           }}
                         >
@@ -1093,7 +1096,7 @@ const UnitPage = () => {
                                 {qty > 0 && (
                                   <span
                                     className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow"
-                                    style={{ backgroundColor: primaryColor }}
+                                    style={{ backgroundColor: categoryColor }}
                                   >
                                     {qty}
                                   </span>
@@ -1116,7 +1119,7 @@ const UnitPage = () => {
                                     <button
                                       onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
                                       className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
-                                      style={{ backgroundColor: primaryColor, borderRadius: buttonRadius }}
+                                      style={{ backgroundColor: buttonColor, borderRadius: buttonRadius }}
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                       Add
@@ -1125,7 +1128,7 @@ const UnitPage = () => {
                                     <div className="mt-auto flex items-center justify-center w-full">
                                       <span
                                         className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-primary-foreground"
-                                        style={{ backgroundColor: primaryColor }}
+                                        style={{ backgroundColor: categoryColor }}
                                       >
                                         {qty} no carrinho
                                       </span>
@@ -1210,7 +1213,7 @@ const UnitPage = () => {
                   setCheckoutOpen(true);
                 }}
                 className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-between px-4 text-primary-foreground font-semibold text-sm transition-transform active:scale-95"
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: buttonColor }}
               >
                 <div className="flex items-center gap-2">
                   <ShoppingBag className="w-5 h-5" />
@@ -1228,7 +1231,7 @@ const UnitPage = () => {
         <DrawerContent className="max-h-[90dvh]" style={{ fontFamily }}>
           <DrawerHeader className="border-b border-border pb-3">
             <DrawerTitle className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5" style={{ color: primaryColor }} />
+              <ShoppingCart className="w-5 h-5" style={{ color: buttonColor }} />
               Seu Pedido
             </DrawerTitle>
           </DrawerHeader>
@@ -1251,7 +1254,7 @@ const UnitPage = () => {
                         <button
                           onClick={() => addToCart({ id: item.menuItemId, name: item.name, price: item.price - item.addons.reduce((s, a) => s + a.price, 0) }, item.addons, item.notes)}
                           className="w-6 h-6 rounded-full text-primary-foreground flex items-center justify-center"
-                          style={{ backgroundColor: primaryColor }}
+                          style={{ backgroundColor: buttonColor }}
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -1315,7 +1318,7 @@ const UnitPage = () => {
               {onlyOneMode ? (
                 <div
                   className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-sm"
-                  style={{ borderColor: primaryColor, backgroundColor: `${primaryColor}18`, color: primaryColor }}
+                  style={{ borderColor: buttonColor, backgroundColor: `${buttonColor}18`, color: buttonColor }}
                 >
                   <span className="text-xl">{forcedOrderType === "Entrega" ? "🛵" : "🏃"}</span>
                   <span>
@@ -1340,7 +1343,7 @@ const UnitPage = () => {
                           className="flex flex-col items-center gap-1.5 py-4 rounded-xl border-2 font-semibold text-sm transition-all"
                           style={
                             isSelected
-                              ? { borderColor: primaryColor, backgroundColor: `${primaryColor}18`, color: primaryColor }
+                              ? { borderColor: buttonColor, backgroundColor: `${buttonColor}18`, color: buttonColor }
                               : { borderColor: "var(--border)", backgroundColor: "transparent", color: "var(--muted-foreground)" }
                           }
                         >
@@ -1690,6 +1693,7 @@ const UnitPage = () => {
           setSelectedItem(null);
         }}
         primaryColor={primaryColor}
+        buttonColor={buttonColor}
         accentColor={accentTextColor}
         isClosed={isClosed}
         opensAt={opensAt}
