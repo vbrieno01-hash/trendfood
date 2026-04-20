@@ -1,67 +1,74 @@
 
-## Resposta direta
+## Pedido
 
-**Sim, tá garantido pra TODAS as lojas — antigas, atuais e futuras.** Mas deixa eu te explicar exatamente por quê pra você ficar 100% seguro:
+Melhorar as blindagens de "loja fechada" pra **nunca mais** um cliente conseguir ver/fazer pedido fora do horário, mesmo em casos esquisitos (cache antigo, race condition, lojista esqueceu de configurar, etc).
 
-## Onde a regra mora
+## Diagnóstico do estado atual
 
-A validação de "loja aberta/fechada" mora em **dois lugares**, e os dois foram corrigidos:
+Hoje tem 3 camadas, mas com furos:
 
-### 1. Backend (banco de dados) — proteção definitiva
-
-A função `validate_store_open_for_order()` é um **trigger SQL** que roda **antes de qualquer pedido ser inserido** na tabela `orders`. Ela:
-
-- Lê `business_hours` da própria loja (qualquer loja, sem exceção)
-- Calcula a hora atual em `America/Sao_Paulo` direto no banco (não depende do celular do cliente)
-- Aplica a lógica nova de cross-midnight (janela 00:00–04:00 pertence ao dia anterior)
-- Se a loja estiver fechada → **bloqueia o pedido com erro**
-
-Como é uma função global do banco, **ela vale automaticamente pra**:
-- ✅ Todas as lojas que existem hoje (Rei do Burger, todas as outras)
-- ✅ Toda loja nova que for criada amanhã, mês que vem, ano que vem
-- ✅ Não precisa migrar dado nenhum, nem mexer em loja por loja
-
-**Não tem como um pedido fechado passar.** Mesmo se um hacker tentasse forjar uma requisição direto na API, o trigger bloqueia.
-
-### 2. Frontend (UI da vitrine) — experiência do cliente
-
-O arquivo `src/lib/storeStatus.ts` calcula o status pra mostrar "Aberto/Fechado" no cardápio público. Ele:
-
-- Usa `Intl.DateTimeFormat` com timezone `America/Sao_Paulo` (funciona em qualquer dispositivo, qualquer fuso, com ou sem horário de verão)
-- Aplica a mesma lógica de cross-midnight do backend
-- Esconde o botão de pedido quando fechado
-
-Esse arquivo é **único e compartilhado** por toda a aplicação — então qualquer loja que carrega a vitrine usa ele. Não tem código duplicado por loja.
-
-## O que pode ainda dar "loja aberta" quando deveria estar fechada
-
-Pra ser 100% transparente com você, **três cenários legítimos** ainda mostram a loja aberta:
-
-| Cenário | O que acontece | Ação do lojista |
+| Camada | Status | Furo |
 |---|---|---|
-| `force_open = true` | Lojista clicou no toggle "Forçar abertura" no painel | É proposital — desligar o toggle |
-| `business_hours.enabled = false` | Lojista nunca configurou horário | Configurar horário no painel |
-| Cliente com aba antiga aberta | Vitrine carregou antes da meia-noite e ficou parada | Refetch automático a cada 5 min já corrige |
+| 1. Frontend `getStoreStatus` | ✅ Corrigido | Refetch só a cada 60s — aba aberta há minutos pode mostrar aberta |
+| 2. Hook `usePlaceOrder` (UI) | ✅ Existe | Reusa o mesmo cálculo do (1) — herda o mesmo lag |
+| 3. Trigger SQL `validate_store_open_for_order` | ⚠️ Função criada, mas **trigger não está ativo** | `<db-triggers>` mostra "There are no triggers in the database" — **CRÍTICO** |
 
-Os 3 são **comportamento por design**, não bug. Se quiser, posso reforçar o cenário 3 (refetch mais agressivo, tipo a cada 1 min) — mas hoje 5 min já tá bom.
+### Achado crítico
 
-## Como eu vou provar pra você agora
+A consulta do schema mostra `<db-triggers>There are no triggers in the database</db-triggers>`. Ou seja, a **função existe mas nenhum trigger está disparando ela**. O backend hoje **não está bloqueando** pedidos fora do horário — só a UI bloqueia. Se um cliente burlar a UI (ou tiver cache antigo), o pedido entra.
 
-Aprovando o plano, eu rodo um diagnóstico no banco que:
+Isso explica perfeitamente as reclamações: a UI mostra fechado em geral, mas em algum cenário (cache, força refresh, etc) o cliente consegue passar e o banco aceita.
 
-1. **Conta quantas organizações existem** no total
-2. **Lista todas que estão `force_open = true`** (essas vão aparecer abertas mesmo fechadas — é proposital)
-3. **Lista todas com `business_hours.enabled = false`** (sem horário configurado)
-4. **Pega o caso do Rei do Burger** especificamente: mostra `business_hours`, `force_open`, `paused`, e calcula manualmente — usando a hora atual de Brasília — qual deveria ser o status agora
-5. **Tenta inserir um pedido teste** (e deleta na mesma transação) pra confirmar que o trigger backend bloqueia de verdade fora do horário
+## Plano de blindagem (5 reforços)
 
-Depois desse diagnóstico, eu te mando um relatório direto: "X lojas tão certas, Y tão com force_open ligado (lojista esqueceu), Z sem horário configurado (lojista nunca preencheu)".
+### 1. Reativar o trigger no banco (CRÍTICO — resolve 80% do risco)
 
-## Conclusão
+Migration que cria o trigger `BEFORE INSERT` na tabela `orders` chamando `validate_store_open_for_order()`. Sem isso, todo o resto é cosmético.
 
-A correção é **estrutural, não loja por loja**. Está aplicada no:
-- ✅ Trigger SQL global (banco) → vale pra qualquer loja, agora e no futuro
-- ✅ Função TS compartilhada (frontend) → mesma coisa
-- ✅ Testes automatizados regredindo o caso do Rei do Burger pra nunca voltar
+```sql
+DROP TRIGGER IF EXISTS tr_validate_store_open ON public.orders;
+CREATE TRIGGER tr_validate_store_open
+  BEFORE INSERT ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.validate_store_open_for_order();
+```
 
-Aprovando, faço o diagnóstico e te confirmo loja por loja com dados reais.
+### 2. RPC server-side de status (fonte única da verdade)
+
+Criar função `public.get_store_status(_org_id uuid)` que retorna `{open, reason, opens_at}` calculando **no banco** com `AT TIME ZONE 'America/Sao_Paulo'`. O frontend passa a chamar essa RPC em vez de calcular local. Vantagens:
+- Hora vem do servidor, não do celular do cliente
+- Mesma lógica do trigger → impossível UI e backend divergirem
+- Funciona offline-first com fallback pro cálculo local
+
+### 3. Refetch mais agressivo + revalidação no foco da aba
+
+Em `useOrganization.ts`:
+- `refetchInterval: 60_000` → **30_000** (30s)
+- Adicionar `refetchOnWindowFocus: true` + `refetchOnReconnect: true`
+- Adicionar listener de `visibilitychange` no `UnitPage` pra invalidar o status quando a aba volta do background
+
+Resolve o caso "cliente deixou aba aberta a noite toda".
+
+### 4. Revalidação no clique do "Adicionar ao carrinho" e no "Finalizar pedido"
+
+Antes de abrir o checkout E antes de chamar `placeOrder`, fazer `await queryClient.refetchQueries(['organization', slug])` e re-checar `getStoreStatus`. Se fechado → toast amigável + bloqueia. Garante checagem fresca no momento crítico.
+
+### 5. Fallback "loja fechada" amigável quando o trigger bloqueia
+
+Capturar o erro `'Loja fechada no momento'` no `usePlaceOrder` e mostrar toast claro + redirecionar pra home da unidade com banner "Voltamos às XX:XX". Hoje o erro genérico assusta.
+
+### 6. (Bônus) Aviso na Home do dashboard
+
+Card vermelho na `HomeTab` quando `business_hours.enabled = false` ou `force_open = true`, lembrando o lojista. Pega o cenário "lojista esqueceu de configurar".
+
+## Arquivos
+
+- **Nova migration** — criar trigger `tr_validate_store_open` + função RPC `get_store_status`
+- `src/hooks/useOrganization.ts` — refetch 30s + onFocus/onReconnect
+- `src/lib/storeStatus.ts` — adicionar variante async que chama a RPC com fallback local
+- `src/pages/UnitPage.tsx` — listener de `visibilitychange` + revalidação no clique do CTA
+- `src/hooks/useOrders.ts` (ou onde `placeOrder` mora) — refetch antes de submeter + tratamento do erro de trigger
+- `src/components/dashboard/HomeTab.tsx` — card de aviso pra lojista sem horário/com force_open
+
+## Resultado esperado
+
+Mesmo que **tudo** dê errado no frontend (cache zumbi, JS quebrado, cliente em outro fuso, hacker forjando POST), o trigger no banco **rejeita o INSERT** e o pedido nunca entra. As outras 5 camadas só servem pra dar uma UX bonita antes do banco bloquear.
