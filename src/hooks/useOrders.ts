@@ -522,11 +522,13 @@ export const useCancelOrder = (organizationId: string) => {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (orderId: string) => {
+    mutationFn: async (params: string | { orderId: string; reason?: string }) => {
+      const orderId = typeof params === "string" ? params : params.orderId;
+      const reason = typeof params === "string" ? null : params.reason ?? null;
       // 1. Update order status to cancelled
       const { error } = await supabase
         .from("orders")
-        .update({ status: "cancelled" } as never)
+        .update({ status: "cancelled", cancellation_reason: reason } as never)
         .eq("id", orderId);
       if (error) throw error;
 
