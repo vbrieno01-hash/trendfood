@@ -50,7 +50,7 @@ const BRAZIL_STATES = [
 
 import chefLogo from "@/assets/chef-logo.png";
 import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
-import { compressImage } from "@/lib/compressImage";
+import { compressImage, uploadWithRetry, isRetriableUploadError, UPLOAD_NETWORK_ERROR_MESSAGE } from "@/lib/compressImage";
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
