@@ -15,6 +15,8 @@ import {
   useLoyaltyPointsList,
   useLoyaltyRedemptions,
 } from "@/hooks/useLoyalty";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import LockedFeatureBanner from "@/components/dashboard/LockedFeatureBanner";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -26,13 +28,17 @@ const maskPhone = (phone: string) => {
 
 interface Props {
   orgId: string;
+  organization?: any;
+  onNavigate?: (tab: string) => void;
 }
 
-export default function LoyaltyTab({ orgId }: Props) {
+export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
   const { data: config, isLoading } = useLoyaltyConfig(orgId);
   const upsert = useUpsertLoyaltyConfig();
   const { data: customers = [] } = useLoyaltyPointsList(orgId);
   const { data: redemptions = [] } = useLoyaltyRedemptions(orgId);
+  const planLimits = usePlanLimits(organization);
+  const canUse = planLimits.canAccess("loyalty");
 
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [spendPerPoint, setSpendPerPoint] = useState("");
@@ -78,6 +84,20 @@ export default function LoyaltyTab({ orgId }: Props) {
 
   return (
     <div className="space-y-4">
+      {!canUse && (
+        <LockedFeatureBanner
+          variant={planLimits.subscriptionExpired ? "expired" : "free"}
+          title={planLimits.subscriptionExpired ? "Assinatura expirada" : "Programa de Fidelidade é Pro"}
+          description={
+            planLimits.subscriptionExpired
+              ? "Os pontos dos seus clientes estão salvos. Renove o plano para reativar e voltar a acumular/resgatar."
+              : "Recompense clientes recorrentes com pontos e descontos automáticos. Disponível no plano Pro."
+          }
+          onUpgrade={onNavigate ? () => onNavigate("subscription") : undefined}
+          ctaLabel={planLimits.subscriptionExpired ? "Renovar agora" : "Conhecer Pro"}
+        />
+      )}
+
       {/* Sub-tabs */}
       <div className="flex gap-2">
         {[
@@ -111,6 +131,7 @@ export default function LoyaltyTab({ orgId }: Props) {
               <Label>Ativar programa</Label>
               <Switch
                 checked={effectiveEnabled}
+                disabled={!canUse}
                 onCheckedChange={(v) => { setEnabled(v); setDirty(true); }}
               />
             </div>

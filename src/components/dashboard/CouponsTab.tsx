@@ -24,9 +24,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from "@/hooks/useCoupons";
 import type { Coupon, CreateCouponPayload } from "@/hooks/useCoupons";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import LockedFeatureBanner from "@/components/dashboard/LockedFeatureBanner";
 
 interface CouponsTabProps {
   orgId: string;
+  organization?: any;
+  onNavigate?: (tab: string) => void;
 }
 
 const getCouponStatus = (coupon: Coupon): "active" | "inactive" | "expired" => {
@@ -55,11 +59,13 @@ const defaultForm: CreateCouponPayload = {
   expires_at: null,
 };
 
-export default function CouponsTab({ orgId }: CouponsTabProps) {
+export default function CouponsTab({ orgId, organization, onNavigate }: CouponsTabProps) {
   const { data: coupons = [], isLoading } = useCoupons(orgId);
   const createCoupon = useCreateCoupon(orgId);
   const updateCoupon = useUpdateCoupon(orgId);
   const deleteCoupon = useDeleteCoupon(orgId);
+  const planLimits = usePlanLimits(organization);
+  const canCreate = planLimits.canAccess("cupons");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -78,6 +84,20 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
 
   return (
     <div className="space-y-5 max-w-3xl">
+      {!canCreate && (
+        <LockedFeatureBanner
+          variant={planLimits.subscriptionExpired ? "expired" : "free"}
+          title={planLimits.subscriptionExpired ? "Assinatura expirada" : "Cupons são um recurso Pro"}
+          description={
+            planLimits.subscriptionExpired
+              ? "Seus cupons estão salvos. Renove o plano para criar novos. Cupons já existentes continuam válidos no checkout."
+              : "Crie códigos promocionais para fidelizar clientes. Disponível no plano Pro."
+          }
+          onUpgrade={onNavigate ? () => onNavigate("subscription") : undefined}
+          ctaLabel={planLimits.subscriptionExpired ? "Renovar agora" : "Conhecer Pro"}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
         <div className="flex items-center gap-3">
@@ -89,7 +109,13 @@ export default function CouponsTab({ orgId }: CouponsTabProps) {
             {coupons.length} cupom{coupons.length !== 1 ? "ns" : ""}
           </span>
         </div>
-        <Button size="sm" onClick={() => { setForm(defaultForm); setDialogOpen(true); }} className="shadow-lg shadow-primary/20">
+        <Button
+          size="sm"
+          onClick={() => { setForm(defaultForm); setDialogOpen(true); }}
+          className="shadow-lg shadow-primary/20"
+          disabled={!canCreate}
+          title={!canCreate ? "Disponível no plano Pro" : undefined}
+        >
           <Plus className="w-4 h-4 mr-1.5" />
           Novo Cupom
         </Button>
