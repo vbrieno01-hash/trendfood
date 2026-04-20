@@ -1890,6 +1890,7 @@ export type Database = {
           table_number: number
         }[]
       }
+      get_store_status: { Args: { _org_id: string }; Returns: Json }
       get_total_order_count: { Args: never; Returns: number }
       has_role: {
         Args: {

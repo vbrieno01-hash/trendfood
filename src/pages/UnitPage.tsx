@@ -127,6 +127,17 @@ const UnitPage = () => {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  // Revalidar status da loja quando a aba volta do background (cache zumbi guard)
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        queryClient.invalidateQueries({ queryKey: ["organization", slug] });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [queryClient, slug]);
+
   // Search
   const [searchQuery, setSearchQuery] = useState("");
 
