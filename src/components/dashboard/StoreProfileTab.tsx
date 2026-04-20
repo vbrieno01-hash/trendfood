@@ -114,7 +114,33 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const bannerFileRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const isFirstRender = useRef(true);
-  
+  const isHydrated = useRef(false);
+
+  // Re-sincroniza estado local quando organization muda (refetch, troca de aba, etc.)
+  // Sem isso, o useState inicial fica "preso" e o autosave salva valores stale por cima dos novos.
+  useEffect(() => {
+    setForm({
+      name: organization.name,
+      description: organization.description ?? "",
+      slug: organization.slug,
+      primary_color: organization.primary_color,
+      whatsapp: organization.whatsapp ?? "",
+      pix_key: organization.pix_key ?? "",
+      store_address: organization.store_address ?? "",
+      pix_confirmation_mode: organization.pix_confirmation_mode ?? "direct",
+    });
+    setBusinessHours(organization.business_hours ?? DEFAULT_BUSINESS_HOURS);
+    setThemeConfig(organization.theme_config ?? {});
+    setAddressFields(
+      organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
+    );
+    setFreeAbove((organization.delivery_config as any)?.free_above ?? 80);
+    setLogoUrl(organization.logo_url);
+    setBannerUrl(organization.banner_url ?? null);
+    // Marca como hidratado depois do estado inicial; evita autosave salvar lixo durante a hidratação.
+    isHydrated.current = true;
+    isFirstRender.current = true; // Reseta pra próxima edição não disparar save imediato
+  }, [organization.id]);
 
   // Load existing gateway secrets
   useEffect(() => {
@@ -165,6 +191,8 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
   // Auto-save debounce
   useEffect(() => {
+    // Bloqueia até a sincronização inicial com `organization` rodar
+    if (!isHydrated.current) return;
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
@@ -177,6 +205,14 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, businessHours, addressFields, freeAbove, themeConfig]);
+
+  // Reseta tema visual para o padrão (limpa fantasmas e cores erradas)
+  const handleResetTheme = () => {
+    if (!confirm("Resetar todas as cores e estilos para o padrão? Isso vai limpar o tema visual da loja.")) return;
+    setForm((p) => ({ ...p, primary_color: "#f97316" }));
+    setThemeConfig({});
+    toast.success("Tema resetado. Salvando...");
+  };
 
   const doSave = async () => {
     const whatsappDigits = form.whatsapp.replace(/\D/g, "");
@@ -556,7 +592,17 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
       {/* ── SEÇÃO 2.5: Tema Visual ────────────────────────────────── */}
       <div>
-        <SectionHeader>Tema Visual</SectionHeader>
+        <div className="flex items-center justify-between mb-2">
+          <SectionHeader>Tema Visual</SectionHeader>
+          <button
+            type="button"
+            onClick={handleResetTheme}
+            className="text-[11px] text-muted-foreground hover:text-foreground underline shrink-0 ml-3"
+            title="Resetar todas as cores e estilos para o padrão"
+          >
+            Resetar tema
+          </button>
+        </div>
 
         {/* Header style FIRST — define qual estilo afeta quais campos */}
         <div className="mb-5">
@@ -603,14 +649,14 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             <ColorField
               label="Segunda cor do gradiente"
               description="Cor onde o degradê do cabeçalho termina (canto direito)"
-              value={themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"}
+              value={themeConfig.gradient_color ?? "#1e293b"}
               defaultValue="#1e293b"
               onChange={(v) => setThemeConfig((p) => ({ ...p, gradient_color: v }))}
               preview={
                 <div
                   className="h-full w-full"
                   style={{
-                    backgroundImage: `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"})`,
+                    backgroundImage: `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`,
                   }}
                 />
               }
@@ -641,7 +687,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                   style={{
                     backgroundColor: (themeConfig.header_style || "solid") === "gradient" ? undefined : form.primary_color,
                     backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-                      ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"})`
+                      ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`
                       : undefined,
                     color: themeConfig.header_text_color || "#ffffff",
                   }}
@@ -656,16 +702,16 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           <ColorField
             label="Cor dos preços e destaques"
             description="Cor usada em valores, preços e tags de destaque dentro dos cards"
-            value={themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b"}
+            value={themeConfig.accent_text_color ?? "#1e293b"}
             defaultValue="#1e293b"
             onChange={(v) => setThemeConfig((p) => ({ ...p, accent_text_color: v }))}
             warning={
-              checkLowContrast(themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b", "#ffffff")
+              checkLowContrast(themeConfig.accent_text_color ?? "#1e293b", "#ffffff")
                 ? "⚠️ Contraste baixo com o fundo branco dos cards"
                 : undefined
             }
             preview={
-              <div className="h-full w-full bg-card flex items-center justify-center text-[10px] font-bold" style={{ color: themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b" }}>
+              <div className="h-full w-full bg-card flex items-center justify-center text-[10px] font-bold" style={{ color: themeConfig.accent_text_color ?? "#1e293b" }}>
                 R$ 19,90
               </div>
             }
@@ -758,7 +804,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 ? "transparent"
                 : form.primary_color,
               backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"})`
+                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`
                 : undefined,
               borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${form.primary_color}` : undefined,
             }}
@@ -801,7 +847,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               style={{
                 borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "12px"
                   : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
-                color: themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b",
+                color: themeConfig.accent_text_color ?? "#1e293b",
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
