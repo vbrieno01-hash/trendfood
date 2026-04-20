@@ -804,7 +804,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 ? "transparent"
                 : form.primary_color,
               backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"})`
+                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`
                 : undefined,
               borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${form.primary_color}` : undefined,
             }}
