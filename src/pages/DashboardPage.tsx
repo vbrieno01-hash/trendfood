@@ -1011,7 +1011,7 @@ const DashboardPage = () => {
           {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
           {activeTab === "coupons" && (lockedFeatures.coupons
             ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
-            : <CouponsTab orgId={organization.id} />)}
+            : <CouponsTab orgId={organization.id} organization={organization} onNavigate={handleTabChange} />)}
           {activeTab === "bestsellers" && (lockedFeatures.bestsellers
             ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <BestSellersTab orgId={organization.id} />)}
@@ -1059,7 +1059,7 @@ const DashboardPage = () => {
             : <PricingTab orgId={organization.id} />)}
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
-          {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} />}
+          {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} organization={organization} onNavigate={handleTabChange} />}
           {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
           {activeTab === "aibot" && <AIBotTab orgId={organization.id} />}
