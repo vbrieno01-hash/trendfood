@@ -1103,7 +1103,7 @@ const UnitPage = () => {
                               {/* Info */}
                               <div className="p-2.5 flex flex-col gap-1 flex-1">
                                 <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
-                                <span className="font-bold text-sm" style={{ color: primaryColor }}>
+                                <span className="font-bold text-sm" style={{ color: accentTextColor }}>
                                   {fmt(item.price)}
                                 </span>
 
@@ -1690,6 +1690,7 @@ const UnitPage = () => {
           setSelectedItem(null);
         }}
         primaryColor={primaryColor}
+        accentColor={accentTextColor}
         isClosed={isClosed}
         opensAt={opensAt}
         closedReason={storeStatus && !storeStatus.open ? (storeStatus as any).reason : undefined}
