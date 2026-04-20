@@ -109,9 +109,12 @@ export function getStoreStatus(
   const fromMin = timeToMinutes(today.from);
   const toMin = toMinutesClose(today.to);
 
+  // Para turnos que cruzam meia-noite (ex: 20:00 → 04:00), a janela 00:00-04:00
+  // pertence ao TURNO DO DIA ANTERIOR (que já foi verificado no passo 1️⃣).
+  // O dia atual só está aberto a partir de `from` em diante.
   const isOpen = toMin > fromMin
     ? currentMinutes >= fromMin && currentMinutes < toMin
-    : currentMinutes >= fromMin || currentMinutes < toMin;
+    : currentMinutes >= fromMin;
 
   if (isOpen) {
     const breakStatus = checkBreak(today);
