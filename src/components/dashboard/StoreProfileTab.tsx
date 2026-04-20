@@ -847,7 +847,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               style={{
                 borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "12px"
                   : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
-                color: themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b",
+                color: themeConfig.accent_text_color ?? "#1e293b",
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
