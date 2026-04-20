@@ -1,80 +1,70 @@
 
-## Diagnóstico
 
-Concordo: do jeito que ficou, piorou porque a lógica das cores ficou “meio separada, meio herdada”.
+## Diagnóstico — sim, está acontecendo com várias lojas
 
-Hoje existem 3 problemas ao mesmo tempo:
+Investigando o storage e o banco, descobri o seguinte:
 
-1. `primary_color` ainda vaza para partes da loja por fallback, então mudar uma cor ainda mexe em outra sem ficar óbvio.
-2. O dashboard mostra previews simples demais, mas a loja real tem mais elementos usando outras classes/cores, então parece que “fonte” muda “balão”.
-3. A separação ficou complexa demais na configuração, mas incompleta na vitrine.
+- **6 lojas** têm `banner_url` salvo no banco
+- Mas só **2 arquivos** existem fisicamente no storage
+- As outras **4 lojas (incluindo a TrendFood)** apontam para um arquivo que **não existe mais** → quando a vitrine tenta carregar, retorna **HTTP 400** e a tag `<img>` simplesmente não renderiza (ou exibe quebrada). Por isso "não fica".
+
+### Causa raiz — bug em `DeleteUnitDialog.tsx`
+
+Quando qualquer pessoa apaga uma unidade pelo dashboard, esse código roda (linhas 81-93):
+
+```ts
+clearStorageBucket("menu-images", `banners`).then(...)
+```
+
+E `clearStorageBucket` faz:
+
+```ts
+list("banners")  // lista TODOS os banners de TODAS as lojas
+remove(...)      // apaga TODOS
+```
+
+Ou seja, **apagar 1 loja zera os arquivos de banner de TODAS as lojas do sistema**. O `banner_url` no banco continua salvo, então no dashboard o lojista vê a URL preenchida (e o preview dele funciona durante a sessão por causa do estado React), mas na vitrine pública o arquivo não existe mais → banner some.
+
+### Causa secundária — escrita "compartilhada" entre lojas do mesmo dono
+
+Em `StoreProfileTab.handleBannerUpload` (linha 358):
+
+```ts
+await updateAllOrgs({ banner_url: url });
+```
+
+Isso copia a mesma `banner_url` para TODAS as outras unidades do mesmo dono. Faz sentido para Enterprise multi-loja, mas piora o efeito do bug acima: quando o storage é zerado, todas as filiais ficam com URL morta de uma vez.
 
 ## Plano de correção
 
-### 1. Simplificar a configuração visual
-Vou reorganizar o tema em 4 grupos sem ambiguidade:
+### 1. Corrigir o `DeleteUnitDialog.tsx`
+Substituir a chamada destrutiva por uma versão que apaga **apenas** os banners da loja sendo excluída:
 
-- **Cabeçalho**: só topo da loja
-- **Fonte / Preços**: só textos de destaque e valores
-- **Botões**: Add, Adicionar, carrinho, ações
-- **Balões / Categorias**: pill ativa, badge de quantidade, “no carrinho”
+- remover o `clearStorageBucket("menu-images", "banners")` (que apaga tudo)
+- manter só o filtro `f.name.startsWith(orgId)` que já existe no `.then`
+- aplicar a mesma proteção pra `menu-images/{orgId}` (já é seguro porque usa o `orgId` como prefixo)
 
-Campos como gradiente e cor do texto do cabeçalho ficam em uma área **Avançado**, para não poluir a configuração principal.
+### 2. Reparar os bancos das lojas atualmente quebradas
+Migration que faz `UPDATE organizations SET banner_url = NULL` para os 4 registros cujo arquivo não existe mais no storage. Isso limpa o "fantasma" e o lojista pode subir o banner de novo sem confusão.
 
-### 2. Remover os fallbacks que estão “misturando tudo”
-Em vez de deixar `button_color` e `category_color` herdarem silenciosamente `primary_color`, vou normalizar o tema:
+Lojas afetadas hoje:
+- TrendFood (`mcd`)
+- Chapa e Alho (`chapa-e-alho`)
+- Sabor na chapa (`sabor-na-chapa`)
+- Rei do Burguer (`rei-do-burguer`)
 
-- ao abrir/salvar, o sistema passa a trabalhar com cores explícitas
-- o `secondary_color` legado deixa de influenciar a loja
-- cada grupo visual passa a ter uma cor própria estável
+### 3. Validar a renderização da vitrine
+Adicionar `onError` no `<img>` do banner em `UnitPage.tsx` para esconder o elemento se a imagem falhar (defesa em profundidade — se algum bug residual deixar URL morta no futuro, a loja não fica com placeholder quebrado).
 
-Isso evita o efeito “mudei fonte e mexeu no balão”.
+## Arquivos afetados
 
-### 3. Auditar a loja inteira por categoria visual
-Vou revisar a vitrine e o checkout para mapear cada elemento para um grupo só:
-
-- **Fonte / Preços**: preços do card, drawer, adicionais, totais relevantes
-- **Balões / Categorias**: categoria ativa, quantidade na foto, “no carrinho”, chips visuais
-- **Botões**: Add, Adicionar, +, Ver carrinho, ações do carrinho, seleção destacada
-- **Cabeçalho**: topo e identidade
-
-Também vou corrigir os pontos que ainda usam classes genéricas tipo `bg-primary`, `text-primary` e continuam fugindo da regra.
-
-### 4. Ajustar o dashboard para ficar claro
-Vou refazer a seção de cores para ela ficar mais fácil de entender:
-
-- nomes mais diretos
-- descrições curtas
-- preview mais fiel ao que existe na loja real
-- menos campos visíveis de uma vez
-- reset do tema sem deixar “fantasma” salvo
-
-### 5. Corrigir a consistência entre dashboard e loja
-Vou garantir que o que aparece no dashboard seja o mesmo que a loja renderiza:
-
-- mesma lógica de resolução de cor
-- mesmas prioridades
-- sem valor neutro escondido substituindo cor salva
-- sem herança inesperada
-
-### 6. Limpar o tema atual da loja
-Como a configuração atual já ficou poluída pelas tentativas anteriores, vou incluir uma normalização do tema atual para que ele volte a um estado previsível antes de testar de novo.
-
-## Arquivos principais
-
-- `src/components/dashboard/StoreProfileTab.tsx`
-- `src/pages/UnitPage.tsx`
-- `src/components/unit/ItemDetailDrawer.tsx`
-- `src/components/checkout/PixPaymentScreen.tsx`
-- `src/hooks/useOrganization.ts`
+- `src/components/dashboard/DeleteUnitDialog.tsx` — corrigir limpeza de storage
+- `src/pages/UnitPage.tsx` — `onError` no `<img>` do banner
+- migration SQL — limpar `banner_url` das 4 lojas com arquivo ausente
 
 ## Resultado esperado
 
-Depois dessa correção:
+- Apagar uma unidade nunca mais derruba banner de outras lojas
+- As 4 lojas afetadas agora podem subir banner normalmente (sem o "fantasma" no banco)
+- Se algo der errado no futuro, a vitrine não exibe imagem quebrada — só não mostra o banner
 
-- mudar **fonte/preço** muda só texto e valores
-- mudar **balão/categoria** muda só pills e badges
-- mudar **botão** muda só ações clicáveis
-- mudar **cabeçalho** muda só o topo
-
-Sem mistura, sem fallback escondido, sem surpresa entre dashboard e loja.
