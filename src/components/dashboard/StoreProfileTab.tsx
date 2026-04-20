@@ -17,7 +17,7 @@ import { BusinessHours, ThemeConfig } from "@/hooks/useOrganization";
 import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import ColorField, { checkLowContrast } from "@/components/dashboard/ColorField";
+
 
 
 interface Organization {
