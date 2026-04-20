@@ -1,70 +1,56 @@
 
 
-## Diagnóstico — sim, está acontecendo com várias lojas
+## Plano — rotina automática de limpeza de banner_url quebrado
 
-Investigando o storage e o banco, descobri o seguinte:
+### O que será feito
 
-- **6 lojas** têm `banner_url` salvo no banco
-- Mas só **2 arquivos** existem fisicamente no storage
-- As outras **4 lojas (incluindo a TrendFood)** apontam para um arquivo que **não existe mais** → quando a vitrine tenta carregar, retorna **HTTP 400** e a tag `<img>` simplesmente não renderiza (ou exibe quebrada). Por isso "não fica".
+Criar uma defesa em 2 camadas para garantir que `banner_url` apontando para arquivo inexistente nunca mais persista no banco:
 
-### Causa raiz — bug em `DeleteUnitDialog.tsx`
+### 1. Edge Function `cleanup-broken-banners` (camada servidor)
 
-Quando qualquer pessoa apaga uma unidade pelo dashboard, esse código roda (linhas 81-93):
+Nova função em `supabase/functions/cleanup-broken-banners/index.ts` que:
 
-```ts
-clearStorageBucket("menu-images", `banners`).then(...)
+- Roda com `SERVICE_ROLE_KEY` (mesmo padrão da `cleanup-phantom-orders`)
+- Lista todas as organizations onde `banner_url IS NOT NULL`
+- Para cada uma, faz um `HEAD` no `banner_url`
+- Se a resposta for 4xx (400/403/404) → executa `UPDATE organizations SET banner_url = NULL WHERE id = ...`
+- Retorna JSON com quantos banners foram limpos e quais lojas
+- Configurada com `verify_jwt = false` em `supabase/config.toml` (para poder ser chamada pelo pg_cron)
+
+### 2. Agendamento via pg_cron (execução automática)
+
+Migration que agenda a função para rodar **1x por dia às 3h da manhã** (horário de baixo movimento):
+
+```sql
+select cron.schedule(
+  'cleanup-broken-banners-daily',
+  '0 3 * * *',
+  $$ select net.http_post(
+       url:='https://xrzudhylpphnzousilye.supabase.co/functions/v1/cleanup-broken-banners',
+       headers:='{"Content-Type":"application/json"}'::jsonb,
+       body:='{}'::jsonb
+     ); $$
+);
 ```
 
-E `clearStorageBucket` faz:
+Como já é diária e leve (apenas N requisições HEAD onde N = número de lojas com banner), o custo é desprezível.
 
-```ts
-list("banners")  // lista TODOS os banners de TODAS as lojas
-remove(...)      // apaga TODOS
-```
+### 3. Defesa imediata no cliente (camada vitrine)
 
-Ou seja, **apagar 1 loja zera os arquivos de banner de TODAS as lojas do sistema**. O `banner_url` no banco continua salvo, então no dashboard o lojista vê a URL preenchida (e o preview dele funciona durante a sessão por causa do estado React), mas na vitrine pública o arquivo não existe mais → banner some.
+Em `UnitPage.tsx` o `<img>` do banner já tem `onError` que esconde o elemento (linha 917-919). Vou estender para também **disparar fire-and-forget um `UPDATE banner_url = NULL`** no banco quando a imagem falhar, usando o `id` da org. Assim, a primeira pessoa que abre uma loja com banner morto já limpa o fantasma — mesmo antes do cron rodar.
 
-### Causa secundária — escrita "compartilhada" entre lojas do mesmo dono
+Proteção: só limpa se `org.user_id` está disponível ou a chamada bate em uma policy pública de update? → na verdade, vou fazer via **chamada à mesma edge function** com `{org_id}` opcional, que aceita um parâmetro para validar e limpar só aquela loja específica (sem precisar de auth).
 
-Em `StoreProfileTab.handleBannerUpload` (linha 358):
+### Arquivos afetados
 
-```ts
-await updateAllOrgs({ banner_url: url });
-```
+- `supabase/functions/cleanup-broken-banners/index.ts` — nova edge function
+- `supabase/config.toml` — adicionar `[functions.cleanup-broken-banners] verify_jwt = false`
+- migração SQL — agendar pg_cron diário
+- `src/pages/UnitPage.tsx` — `onError` do banner também chama a função com `org_id` para limpeza imediata
 
-Isso copia a mesma `banner_url` para TODAS as outras unidades do mesmo dono. Faz sentido para Enterprise multi-loja, mas piora o efeito do bug acima: quando o storage é zerado, todas as filiais ficam com URL morta de uma vez.
+### Resultado esperado
 
-## Plano de correção
-
-### 1. Corrigir o `DeleteUnitDialog.tsx`
-Substituir a chamada destrutiva por uma versão que apaga **apenas** os banners da loja sendo excluída:
-
-- remover o `clearStorageBucket("menu-images", "banners")` (que apaga tudo)
-- manter só o filtro `f.name.startsWith(orgId)` que já existe no `.then`
-- aplicar a mesma proteção pra `menu-images/{orgId}` (já é seguro porque usa o `orgId` como prefixo)
-
-### 2. Reparar os bancos das lojas atualmente quebradas
-Migration que faz `UPDATE organizations SET banner_url = NULL` para os 4 registros cujo arquivo não existe mais no storage. Isso limpa o "fantasma" e o lojista pode subir o banner de novo sem confusão.
-
-Lojas afetadas hoje:
-- TrendFood (`mcd`)
-- Chapa e Alho (`chapa-e-alho`)
-- Sabor na chapa (`sabor-na-chapa`)
-- Rei do Burguer (`rei-do-burguer`)
-
-### 3. Validar a renderização da vitrine
-Adicionar `onError` no `<img>` do banner em `UnitPage.tsx` para esconder o elemento se a imagem falhar (defesa em profundidade — se algum bug residual deixar URL morta no futuro, a loja não fica com placeholder quebrado).
-
-## Arquivos afetados
-
-- `src/components/dashboard/DeleteUnitDialog.tsx` — corrigir limpeza de storage
-- `src/pages/UnitPage.tsx` — `onError` no `<img>` do banner
-- migration SQL — limpar `banner_url` das 4 lojas com arquivo ausente
-
-## Resultado esperado
-
-- Apagar uma unidade nunca mais derruba banner de outras lojas
-- As 4 lojas afetadas agora podem subir banner normalmente (sem o "fantasma" no banco)
-- Se algo der errado no futuro, a vitrine não exibe imagem quebrada — só não mostra o banner
+- A cada 24h, a plataforma escaneia automaticamente todos os banners e limpa os quebrados sem intervenção manual
+- Quando um cliente abre uma loja com banner morto, a vitrine **se autocorrige na hora** — o lojista nem percebe o problema
+- Nunca mais teremos lojas com `banner_url` "fantasma" no banco
 
