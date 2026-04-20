@@ -21,6 +21,8 @@ interface ItemDetailDrawerProps {
   accentColor?: string;
   /** Cor de TODOS os botões/ações (+, Adicionar). Default: primaryColor (retro-compat). */
   buttonColor?: string;
+  /** Cor das pílulas/balões (badge "selecionado", destaques). Default: buttonColor. */
+  categoryColor?: string;
   isClosed: boolean;
   opensAt: string | null;
   closedReason?: string;
@@ -30,9 +32,10 @@ interface ItemDetailDrawerProps {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, categoryColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
   const priceColor = accentColor || primaryColor;
   const btnColor = buttonColor || primaryColor;
+  const catColor = categoryColor || btnColor;
   const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
   const [itemNotes, setItemNotes] = useState("");
   const [qty, setQty] = useState(1);
@@ -128,9 +131,12 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
                   return (
                     <div
                       key={addon.id}
-                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-colors ${
-                        addonQty > 0 ? "border-primary/50 bg-primary/5" : "border-border"
-                      }`}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-colors"
+                      style={
+                        addonQty > 0
+                          ? { borderColor: `${catColor}80`, backgroundColor: `${catColor}10` }
+                          : { borderColor: "var(--border)" }
+                      }
                     >
                       <span className="text-sm text-foreground flex-1">{addon.name}</span>
                       <div className="flex items-center gap-2">
