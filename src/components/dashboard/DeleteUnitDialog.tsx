@@ -78,18 +78,18 @@ export default function DeleteUnitDialog({ open, onOpenChange, orgId, orgName, o
         supabase.from("client_error_logs").delete().eq("organization_id", orgId),
       ]);
 
-      // 6. Clear storage (logos, menu-images, banners)
+      // 6. Clear storage — APENAS arquivos desta loja (nunca tocar em arquivos de outras orgs)
       await Promise.all([
         clearStorageBucket("logos", orgId),
         clearStorageBucket("menu-images", orgId),
-        clearStorageBucket("menu-images", `banners`).then(async () => {
-          // banners are stored as banners/{orgId}.* at root level
+        // Banners ficam em menu-images/banners/{orgId}.* — filtrar SEMPRE pelo orgId
+        (async () => {
           const { data } = await supabase.storage.from("menu-images").list("banners");
           const bannerFiles = data?.filter((f) => f.name.startsWith(orgId)) ?? [];
           if (bannerFiles.length) {
             await supabase.storage.from("menu-images").remove(bannerFiles.map((f) => `banners/${f.name}`));
           }
-        }),
+        })(),
       ]);
 
       // 7. Delete the organization itself
