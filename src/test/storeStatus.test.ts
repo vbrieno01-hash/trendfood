@@ -1,24 +1,21 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-// We need to mock getNowInBrasilia to control the time
-// Since it's a private function, we'll test getStoreStatus with mocked Date
-
-// Import after mocking
-const mockDate = (dateStr: string) => {
-  // dateStr like "2026-03-04T01:30:00" interpreted as Brasília time
-  // We need to create a Date where getHours/getMinutes/getDay returns the Brasília values
-  // Since getNowInBrasilia does: utcMs + offset + (-3h), and getHours uses local tz,
-  // we mock Date.now to produce the right result
-  const target = new Date(dateStr + "Z"); // treat as UTC for simplicity
-  // getNowInBrasilia: new Date(now.getTime() + now.getTimezoneOffset()*60000 + (-3)*3600000)
-  // We want getHours() on result to equal target.getUTCHours()
-  // In test env (UTC), getTimezoneOffset() = 0, so:
-  // result = new Date(now.getTime() + 0 + (-3)*3600000)
-  // getHours() in UTC = (now - 3h).getUTCHours()
-  // We want this = target.getUTCHours()
-  // So now = target + 3h
-  const fakeNow = new Date(target.getTime() + 3 * 3600_000);
-  vi.setSystemTime(fakeNow);
+/**
+ * Sets the system clock to a specific moment in Brasília (São Paulo) time.
+ * Internally converts to the equivalent UTC instant. Since the SUT now uses
+ * Intl.DateTimeFormat with timeZone "America/Sao_Paulo", any UTC instant
+ * works — we just need it to map back to the desired BRT wall-clock.
+ *
+ * BRT is UTC-3 (no DST since 2019), so BRT 01:30 == UTC 04:30.
+ */
+const mockDate = (brtDateStr: string) => {
+  // brtDateStr like "2026-03-04T01:30:00" interpreted as Brasília wall-clock
+  const [datePart, timePart] = brtDateStr.split("T");
+  const [y, mo, d] = datePart.split("-").map(Number);
+  const [h, mi, s = 0] = timePart.split(":").map(Number);
+  // Build the UTC instant that corresponds to that BRT wall-clock (BRT = UTC-3)
+  const utcMs = Date.UTC(y, mo - 1, d, h + 3, mi, s);
+  vi.setSystemTime(new Date(utcMs));
 };
 
 describe("getStoreStatus cross-midnight", () => {

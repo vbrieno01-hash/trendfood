@@ -10,11 +10,28 @@ const DAY_MAP: Record<number, string> = {
   6: "sab",
 };
 
-/** Returns a Date object adjusted to Brasília Time (GMT-3), regardless of client timezone */
-function getNowInBrasilia(): Date {
-  const now = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60_000;
-  return new Date(utcMs + (-3) * 3600_000);
+/** Returns the current time in São Paulo timezone, regardless of client timezone.
+ *  Uses Intl.DateTimeFormat for correctness across all devices and DST. */
+function getNowInBrasilia(): { dayOfWeek: number; hour: number; minute: number } {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  // Intl returns "24" for midnight in some impls; normalize to 0
+  const rawHour = parseInt(get("hour"), 10);
+  return {
+    dayOfWeek: weekdayMap[get("weekday")] ?? 0,
+    hour: Number.isFinite(rawHour) ? rawHour % 24 : 0,
+    minute: parseInt(get("minute"), 10) || 0,
+  };
 }
 
 function timeToMinutes(time: string): number {
@@ -44,8 +61,8 @@ export function getStoreStatus(
   }
 
   const now = getNowInBrasilia();
-  const dayKey = DAY_MAP[now.getDay()];
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const dayKey = DAY_MAP[now.dayOfWeek];
+  const currentMinutes = now.hour * 60 + now.minute;
 
   // Helper: verifica se estamos em pausa de um dia ativo
   const checkBreak = (day: { break_from?: string; break_to?: string }): StoreStatus | null => {
@@ -60,7 +77,7 @@ export function getStoreStatus(
   };
 
   // 1️⃣ Verificar se estamos DENTRO do turno do DIA ANTERIOR que cruza meia-noite
-  const prevDayIndex = (now.getDay() + 6) % 7;
+  const prevDayIndex = (now.dayOfWeek + 6) % 7;
   const prevDayKey = DAY_MAP[prevDayIndex];
   const prevDay = businessHours.schedule[prevDayKey];
   if (prevDay && prevDay.open) {
@@ -85,7 +102,7 @@ export function getStoreStatus(
       }
       return { open: true };
     }
-    const nextOpenAt = findNextOpen(businessHours, now.getDay());
+    const nextOpenAt = findNextOpen(businessHours, now.dayOfWeek);
     return { open: false, opensAt: nextOpenAt };
   }
 
@@ -113,7 +130,7 @@ export function getStoreStatus(
     return { open: false, opensAt: today.from };
   }
 
-  const nextOpenAt = findNextOpen(businessHours, now.getDay());
+  const nextOpenAt = findNextOpen(businessHours, now.dayOfWeek);
   return { open: false, opensAt: nextOpenAt };
 }
 
