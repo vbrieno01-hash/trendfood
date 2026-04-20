@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
 
 interface Organization {
@@ -40,6 +41,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
   const { data: delivered = [], isLoading: loadingDelivered } = useDeliveredOrders(organization.id);
   const { data: unpaid = [], isLoading: loadingUnpaid } = useDeliveredUnpaidOrders(organization.id);
   const { data: activeOrders = [] } = useOrders(organization.id, ["pending", "preparing"]);
+  const planLimits = usePlanLimits(organization as any);
   const { refreshOrganization } = useAuth();
   const [pauseLoading, setPauseLoading] = useState(false);
   const navigate = useNavigate();
@@ -280,6 +282,46 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           orgPrintMode={(organization as any)?.print_mode}
           onNavigate={onNavigate}
         />
+      )}
+
+      {/* ── Aviso de assinatura expirando (3 dias) ────────── */}
+      {planLimits.subscriptionDaysLeft > 0 && planLimits.subscriptionDaysLeft <= 3 && onNavigate && (
+        <button
+          onClick={() => onNavigate("subscription")}
+          className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-destructive/40 bg-destructive/5 hover:bg-destructive/10 transition-colors group animate-dashboard-fade-in"
+        >
+          <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              Sua assinatura expira em {planLimits.subscriptionDaysLeft} dia{planLimits.subscriptionDaysLeft !== 1 ? "s" : ""}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Renove agora pra não perder acesso aos recursos premium. Seus dados continuam salvos.
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      )}
+
+      {/* ── Aviso de assinatura expirada ──────────────────── */}
+      {planLimits.subscriptionExpired && onNavigate && (
+        <button
+          onClick={() => onNavigate("subscription")}
+          className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 transition-colors group animate-dashboard-fade-in"
+        >
+          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Assinatura expirada — recursos premium bloqueados</p>
+            <p className="text-xs text-muted-foreground">
+              Seus cupons, fidelidade, KDS e demais dados continuam salvos. Renove pra liberar tudo de volta.
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+        </button>
       )}
 
       {/* ── Avisos críticos de configuração de horário ─────── */}
