@@ -1883,6 +1883,7 @@ export type Database = {
     }
     Functions: {
       calc_trial_ends_at: { Args: never; Returns: string }
+      get_effective_plan: { Args: { _org_id: string }; Returns: string }
       get_order_immutable_fields: {
         Args: { p_order_id: string }
         Returns: {
