@@ -1,48 +1,84 @@
 
 
-## Diagnóstico — `StorageUnknownError: Failed to fetch` no upload de foto
+## Diagnóstico — o que realmente está acontecendo no TrendFood
 
-Esse erro **não é um bug de código** nem de permissão. É erro de **rede no upload da foto pra Lovable Cloud Storage**, e acontece em 3 cenários típicos no celular:
+Olhei logs reais, banco e métricas das últimas semanas. Os "errinhos bestas" não são tão besta — tem padrão. Aqui vai a foto sincera:
 
-1. **Foto grande + internet fraca** — câmera de Android moderno gera fotos de 8-15MB. Mesmo com compressão, o upload pode demorar 20-40s no 4G ruim. Se a conexão piscar, o `fetch` morre com "Failed to fetch".
-2. **Compressão falhou silenciosamente** — `compressImage` tem fallback: se der erro (iPhone com HEIC, pouca memória, foto enorme), ele **manda o arquivo original sem comprimir**. Aí sobe 12MB pelo 4G e quebra.
-3. **Sem retry** — hoje uma única falha de rede já mostra o erro. Sem segunda tentativa, sem reprocessamento.
+### Achados quantificados (últimos 7 dias)
 
-A configuração do bucket está correta (público, sem limite de tamanho rígido), e as policies estão certas. O problema é **resiliência do upload no celular**.
+| Métrica | Valor | Significado |
+|---|---|---|
+| Pedidos | 204 | Movimento saudável |
+| Pedidos cancelados | **17 (8,3%)** | Alto. Padrão setor: 2-4% |
+| Itens na fila de impressão travados há +1h | **146** | Impressão silenciosamente quebrada |
+| Erros JS no client | 48 | Concentrados em 5 padrões |
+| Lojas com banner | só 3 de 11 | Confirma o problema do banner |
 
-## Plano de correção — 3 camadas de blindagem
+### Os 5 erros que mais aparecem
 
-### 1. Compressão mais agressiva e garantida
+1. **`Should have a queue. This is likely a bug in React`** (14x) — bug grave do React; a tela inteira crasha e cai no ErrorBoundary. Geralmente causado por componente sendo renderizado fora da árvore (ex: `ConditionalSupportChat`, `PWAUpdatePrompt`) ou por hook chamado condicionalmente.
+2. **`null is not an object (evaluating 'X.target')`** (12x) — handler de evento sendo chamado depois do unmount (toast, dropdown, sheet fechando enquanto o usuário clica de novo).
+3. **`ReferenceError: ColorField is not defined`** (3x — ainda hoje 10:59) — sobrou import morto no `StoreProfileTab.tsx` depois de removermos o bloco de cores agora há pouco.
+4. **`Failed to fetch dynamically imported module: DashboardPage.tsx`** — quando sai uma versão nova, quem está com a aba aberta recebe erro de chunk velho. Ninguém recarrega → pegadinha clássica de PWA.
+5. **`Rendered more hooks than during the previous render`** — algum componente do dashboard renderiza hooks condicionalmente.
 
-Em `src/lib/compressImage.ts`:
-- Reduzir `maxWidth/maxHeight` padrão de 1200 pra **1024** (suficiente pra cards do cardápio, ainda nítido).
-- Reduzir `quality` padrão de 0.8 pra **0.75**.
-- Se a primeira tentativa de compressão **falhar** ou se o arquivo ainda ficar grande (>1.5MB depois da compressão), tentar **uma segunda passada** com `maxWidth=800` e `quality=0.65` antes de cair no fallback do arquivo original.
-- Resultado esperado: foto de 12MB sai como ~150-300KB. Upload em 1-2s mesmo no 4G ruim.
+### Os 4 problemas operacionais
 
-### 2. Retry automático com backoff no upload
+- **Fila de impressão entupida**: 146 itens com `status='pendente'` há mais de 1h. Ou a impressora tá offline e a fila não está "expirando", ou o robô local não está processando. Não tem job que limpa isso.
+- **Cancelamentos altos (8%)**: precisa entender **por que** clientes/lojistas cancelam. Hoje não temos motivo registrado.
+- **Banner sumindo**: já corrigimos a causa raiz, mas só 3 de 11 lojas têm banner. Falta um onboarding/tutorial visual.
+- **Segurança DB**: linter aponta 19 issues — várias políticas RLS com `USING (true)` em UPDATE/DELETE (couriers, deliveries, courier_shifts, fila_impressao public update). Em produção isso permite que qualquer um sem login altere registros operacionais.
 
-Em `src/hooks/useMenuItems.ts`, função `uploadMenuImage`:
-- Envolver o `supabase.storage.upload()` em uma rotina de **3 tentativas** com espera crescente (1s, 2s, 4s).
-- Detectar especificamente `TypeError: Failed to fetch` / `StorageUnknownError` e fazer retry. Outros erros (permissão, mime inválido) não retentam.
-- Toast de progresso melhor: ao invés de só "Erro ao salvar item", mostrar **"Falha de conexão ao enviar a foto. Tente novamente em uma rede melhor ou use uma foto menor."**
+---
 
-### 3. Aplicar a mesma blindagem no upload de logo e banner
+## Plano — 4 frentes priorizadas
 
-Em `src/components/dashboard/StoreProfileTab.tsx` (`handleLogoUpload` e `handleBannerUpload`):
-- Reusar o mesmo wrapper de retry.
-- Mensagem de erro amigável idêntica.
+### Frente 1 — Estabilidade (resolve 80% dos crashes) — PRIORITÁRIA
 
-## Arquivos afetados
+**1.1** Limpar o `ColorField is not defined` — varrer `StoreProfileTab.tsx` e remover qualquer referência morta ao componente removido.
 
-- `src/lib/compressImage.ts` — compressão mais agressiva + segunda passada
-- `src/hooks/useMenuItems.ts` — wrapper de retry no `uploadMenuImage`
-- `src/components/dashboard/StoreProfileTab.tsx` — usar o mesmo wrapper pro logo/banner
-- `src/components/dashboard/MenuTab.tsx` — toast de erro mais explicativo
+**1.2** Resolver `Should have a queue` — mover `<ConditionalSupportChat />` e `<PWAUpdatePrompt />` para **dentro** da `<Routes>` ou garantir que não desmontam/remontam em transições. Padrão atual tá causando reset de fiber.
 
-## Resultado esperado
+**1.3** Auto-reload em chunk antigo — quando o erro for `Failed to fetch dynamically imported module`, em vez de só logar, **forçar `window.location.reload()` 1x** (com flag em sessionStorage pra não loopar). Resolve a #4.
 
-- Fotos de câmera ficam <300KB antes de subir → upload rápido até no 3G
-- Se a rede piscar, o sistema tenta de novo automaticamente 2x antes de desistir
-- Quando realmente falhar, o lojista entende **o que** deu errado e **o que fazer** ("internet ruim, troque de rede ou use foto menor"), não fica olhando "Failed to fetch" sem entender
+**1.4** Guard nos `e.target` — varrer handlers que acessam `e.target` direto e adicionar `if (!e?.target) return;`. Resolve a #2.
+
+### Frente 2 — Operação confiável (impressão + cancelamentos)
+
+**2.1** Job pg_cron diário **`expire-stuck-prints`** — marca como `expirado` qualquer item da `fila_impressao` com mais de 24h em `pendente`, e cria notificação no admin com a contagem. Mantém a fila enxuta.
+
+**2.2** Card "Saúde da Impressora" no dashboard — mostra quantos itens pendentes a loja tem agora. Se >5 e mais antigos que 10min, alerta vermelho: "Impressora desconectada — verifique".
+
+**2.3** **Motivo de cancelamento obrigatório** — quando o lojista cancela um pedido, abrir um seletor: "Falta de produto / Cliente desistiu / Endereço fora da área / Erro do sistema / Outro". Salvar em `orders.cancellation_reason`. Sem analytics de motivo, não dá pra atacar a causa.
+
+### Frente 3 — Segurança DB (19 warnings do linter)
+
+Migration única substituindo `USING (true)` permissivos por validação real:
+- `couriers_update_public` → exigir match de `courier_id` via header ou usar tokens de sessão
+- `deliveries_update_public` → restringir colunas que motoboy pode mexer (status, accepted_at, delivered_at)
+- `courier_shifts_update_public` → idem
+- `fila_impressao` UPDATE público → restringir só ao status `printed_at`/`status`
+- Revisar RLS Enabled No Policy (1 tabela sem nenhuma policy)
+
+### Frente 4 — Onboarding visual (resolve baixo uso de banner/logo)
+
+**4.1** Adicionar à `SetupChecklist` (Home tab) os itens "Adicionar logo da loja" e "Adicionar banner". Hoje não estão lá — por isso 8 de 11 lojas estão sem banner.
+
+**4.2** Banner placeholder no UnitPage quando `banner_url` for null — uma faixa com gradiente laranja + nome da loja em destaque. Hoje fica vazio e parece bug.
+
+---
+
+## Como vou medir o sucesso
+
+Depois de implementar, em 7 dias:
+
+- Erros JS: cair de 48/sem para <10/sem
+- Fila travada: cair de 146 para <20
+- Banner adoção: subir de 27% (3/11) para 60%+
+- Linter: 19 → 0 warnings
+- Cancelamentos: começar a ter motivos categorizados (impossível medir hoje)
+
+## Sugestão de execução
+
+Implementar **na ordem Frente 1 → 2 → 3 → 4**. Frente 1 sozinha já melhora muito a percepção do "errinho besta todo dia". Posso fazer tudo num único passe, mas se preferir partir em PRs pequenos para validar uma frente por vez, também dá.
 
