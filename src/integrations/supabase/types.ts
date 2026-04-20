@@ -1063,6 +1063,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          cancellation_reason: string | null
           created_at: string
           gateway_payment_id: string | null
           id: string
@@ -1075,6 +1076,7 @@ export type Database = {
           table_number: number
         }
         Insert: {
+          cancellation_reason?: string | null
           created_at?: string
           gateway_payment_id?: string | null
           id?: string
@@ -1087,6 +1089,7 @@ export type Database = {
           table_number: number
         }
         Update: {
+          cancellation_reason?: string | null
           created_at?: string
           gateway_payment_id?: string | null
           id?: string
