@@ -16,11 +16,12 @@ interface Props {
   orgWhatsapp?: string | null;
   orgAddress?: string | null;
   orgLogoUrl?: string | null;
+  orgBannerUrl?: string | null;
   orgPrintMode?: string | null;
   onNavigate: (tab: string) => void;
 }
 
-export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogoUrl, orgPrintMode, onNavigate }: Props) {
+export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogoUrl, orgBannerUrl, orgPrintMode, onNavigate }: Props) {
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const [tableCount, setTableCount] = useState<number | null>(null);
 
@@ -65,6 +66,13 @@ export default function SetupChecklist({ orgId, orgWhatsapp, orgAddress, orgLogo
       label: "Adicionar logo da loja",
       description: "Sua marca aparece para os clientes",
       done: !!orgLogoUrl,
+      tab: "profile",
+    },
+    {
+      key: "banner",
+      label: "Adicionar banner de capa",
+      description: "Banner grande no topo da vitrine, dá um ar profissional",
+      done: !!orgBannerUrl,
       tab: "profile",
     },
     {

@@ -55,6 +55,23 @@ const AppInner = () => {
     const rejectionHandler = (e: PromiseRejectionEvent) => {
       const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
       if (isIgnorableError(msg)) return;
+      // Auto-reload em chunk velho de PWA: depois de um deploy, abas antigas tentam
+      // baixar chunks que não existem mais. Recarrega 1x (sessionStorage flag pra não loopar).
+      if (
+        msg.includes("Failed to fetch dynamically imported module") ||
+        msg.includes("Importing a module script failed") ||
+        msg.includes("error loading dynamically imported module")
+      ) {
+        try {
+          const FLAG = "chunk_reload_done";
+          if (!sessionStorage.getItem(FLAG)) {
+            sessionStorage.setItem(FLAG, "1");
+            console.info("[Auto-Reload] chunk velho detectado, recarregando…");
+            window.location.reload();
+            return;
+          }
+        } catch {}
+      }
       console.error("[Unhandled Rejection]", e.reason);
       e.preventDefault();
       const stack = e.reason instanceof Error ? e.reason.stack : undefined;
@@ -63,6 +80,20 @@ const AppInner = () => {
 
     const errorHandler = (e: ErrorEvent) => {
       if (isIgnorableError(e.message)) return;
+      if (
+        e.message.includes("Failed to fetch dynamically imported module") ||
+        e.message.includes("Importing a module script failed")
+      ) {
+        try {
+          const FLAG = "chunk_reload_done";
+          if (!sessionStorage.getItem(FLAG)) {
+            sessionStorage.setItem(FLAG, "1");
+            console.info("[Auto-Reload] chunk velho detectado (error), recarregando…");
+            window.location.reload();
+            return;
+          }
+        } catch {}
+      }
       logClientError({
         message: e.message,
         stack: e.error?.stack,

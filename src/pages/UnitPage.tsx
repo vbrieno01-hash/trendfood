@@ -908,7 +908,7 @@ const UnitPage = () => {
       </header>
 
       {/* Banner */}
-      {org.banner_url && (
+      {org.banner_url ? (
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
           <img
             src={org.banner_url}
@@ -925,6 +925,33 @@ const UnitPage = () => {
               } catch {}
             }}
           />
+        </div>
+      ) : (
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+          <div
+            className="w-full rounded-2xl flex items-center justify-center px-6 py-8 text-center"
+            style={{
+              maxHeight: 180,
+              minHeight: 120,
+              background: `linear-gradient(135deg, ${org.primary_color || "#f97316"} 0%, ${org.primary_color || "#f97316"}cc 60%, ${org.primary_color || "#f97316"}99 100%)`,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              {org.emoji && (
+                <span className="text-4xl drop-shadow-sm">{org.emoji}</span>
+              )}
+              <div className="text-left">
+                <p className="text-white font-extrabold text-xl leading-tight drop-shadow-md">
+                  {org.name}
+                </p>
+                {org.description && (
+                  <p className="text-white/90 text-xs mt-0.5 line-clamp-2 max-w-[260px]">
+                    {org.description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
