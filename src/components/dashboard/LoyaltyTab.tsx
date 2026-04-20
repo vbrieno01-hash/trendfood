@@ -84,6 +84,20 @@ export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
 
   return (
     <div className="space-y-4">
+      {!canUse && (
+        <LockedFeatureBanner
+          variant={planLimits.subscriptionExpired ? "expired" : "free"}
+          title={planLimits.subscriptionExpired ? "Assinatura expirada" : "Programa de Fidelidade é Pro"}
+          description={
+            planLimits.subscriptionExpired
+              ? "Os pontos dos seus clientes estão salvos. Renove o plano para reativar e voltar a acumular/resgatar."
+              : "Recompense clientes recorrentes com pontos e descontos automáticos. Disponível no plano Pro."
+          }
+          onUpgrade={onNavigate ? () => onNavigate("subscription") : undefined}
+          ctaLabel={planLimits.subscriptionExpired ? "Renovar agora" : "Conhecer Pro"}
+        />
+      )}
+
       {/* Sub-tabs */}
       <div className="flex gap-2">
         {[
@@ -117,6 +131,7 @@ export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
               <Label>Ativar programa</Label>
               <Switch
                 checked={effectiveEnabled}
+                disabled={!canUse}
                 onCheckedChange={(v) => { setEnabled(v); setDirty(true); }}
               />
             </div>
