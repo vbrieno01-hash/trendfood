@@ -17,6 +17,8 @@ interface ItemDetailDrawerProps {
   onClose: () => void;
   onAdd: (item: { id: string; name: string; price: number }, addons: CartItemAddon[], notes: string, qty: number) => void;
   primaryColor: string;
+  /** Cor para preços e textos de destaque. Default: primaryColor (retro-compat). */
+  accentColor?: string;
   isClosed: boolean;
   opensAt: string | null;
   closedReason?: string;
@@ -26,7 +28,8 @@ interface ItemDetailDrawerProps {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
+  const priceColor = accentColor || primaryColor;
   const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
   const [itemNotes, setItemNotes] = useState("");
   const [qty, setQty] = useState(1);
@@ -100,7 +103,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensA
             {item.description && (
               <p className="text-sm text-muted-foreground leading-relaxed mt-1">{item.description}</p>
             )}
-            <p className="text-xl font-bold mt-1" style={{ color: primaryColor }}>
+            <p className="text-xl font-bold mt-1" style={{ color: priceColor }}>
               {fmt(item.price)}
             </p>
           </div>
@@ -148,7 +151,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, isClosed, opensA
                         >
                           <Plus className="w-3 h-3" />
                         </button>
-                        <span className="text-sm font-medium min-w-[60px] text-right" style={{ color: primaryColor }}>
+                        <span className="text-sm font-medium min-w-[60px] text-right" style={{ color: priceColor }}>
                           + {fmt(addonQty > 0 ? (addon.price_cents / 100) * addonQty : addon.price_cents / 100)}
                         </span>
                       </div>
