@@ -24,9 +24,13 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from "@/hooks/useCoupons";
 import type { Coupon, CreateCouponPayload } from "@/hooks/useCoupons";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import LockedFeatureBanner from "@/components/dashboard/LockedFeatureBanner";
 
 interface CouponsTabProps {
   orgId: string;
+  organization?: any;
+  onNavigate?: (tab: string) => void;
 }
 
 const getCouponStatus = (coupon: Coupon): "active" | "inactive" | "expired" => {

@@ -58,6 +58,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // GATE POR PLANO: bot só responde para lojas no plano pago (pro/enterprise/lifetime).
+    // Lojas no Free (ou com assinatura expirada) param de receber respostas automáticas
+    // até renovarem. Retorna 200 silencioso pra não quebrar o webhook do uazapi.
+    if (effectiveOrgId) {
+      const { data: planResult } = await supabase
+        .rpc("get_effective_plan", { _org_id: effectiveOrgId });
+      const effectivePlan = (planResult as string) || "free";
+      if (effectivePlan === "free") {
+        return new Response(
+          JSON.stringify({ ok: true, skipped: true, reason: "plan_free_or_expired" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // 2) Carregar contexto da loja (multi-tenant ou test)
     let storeContext = "";
     if (effectiveOrgId) {
