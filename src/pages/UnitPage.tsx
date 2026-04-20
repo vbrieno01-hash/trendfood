@@ -916,6 +916,12 @@ const UnitPage = () => {
             style={{ maxHeight: 180 }}
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement | null)?.remove();
+              // Self-healing: limpa banner_url morto no banco para não voltar a tentar
+              try {
+                supabase.functions.invoke("cleanup-broken-banners", {
+                  body: { org_id: org.id },
+                });
+              } catch {}
             }}
           />
         </div>
