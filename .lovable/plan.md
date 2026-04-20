@@ -1,56 +1,57 @@
 
 
-## Plano — rotina automática de limpeza de banner_url quebrado
+## Plano — voltar cores ao padrão laranja, manter estilos
 
-### O que será feito
+### O que muda
 
-Criar uma defesa em 2 camadas para garantir que `banner_url` apontando para arquivo inexistente nunca mais persista no banco:
+A seção **Cores da loja** (com os 4 campos numerados — Cabeçalho, Fonte dos preços, Botões, Balões) será **removida** do dashboard. As cores voltam todas para o padrão laranja (`#f97316`) automaticamente, sem o lojista precisar configurar nada.
 
-### 1. Edge Function `cleanup-broken-banners` (camada servidor)
+### O que continua igual
 
-Nova função em `supabase/functions/cleanup-broken-banners/index.ts` que:
+Permanecem na configuração:
+- **Estilo do cabeçalho** — Sólido / Transparente / Gradiente
+- **Estilo dos botões** — Arredondado / Pill / Quadrado
+- **Estilo dos cards** — Flat / Sombra / Bordas
+- **Fonte** — Padrão / Moderna / Clássica / Divertida / Roboto / Poppins / Open Sans
 
-- Roda com `SERVICE_ROLE_KEY` (mesmo padrão da `cleanup-phantom-orders`)
-- Lista todas as organizations onde `banner_url IS NOT NULL`
-- Para cada uma, faz um `HEAD` no `banner_url`
-- Se a resposta for 4xx (400/403/404) → executa `UPDATE organizations SET banner_url = NULL WHERE id = ...`
-- Retorna JSON com quantos banners foram limpos e quais lojas
-- Configurada com `verify_jwt = false` em `supabase/config.toml` (para poder ser chamada pelo pg_cron)
+### Como vai ficar a vitrine
 
-### 2. Agendamento via pg_cron (execução automática)
+- Cabeçalho: laranja `#f97316`
+- Preços nos cards: cor padrão escura (`#1e293b`)
+- Botões "Add", "Adicionar", "Ver carrinho", "+": laranja
+- Balões/categoria selecionada/badges: laranja
 
-Migration que agenda a função para rodar **1x por dia às 3h da manhã** (horário de baixo movimento):
+Ou seja, todas as lojas vão ficar visualmente consistentes no padrão TrendFood (laranja), mas cada lojista ainda escolhe formato dos botões/cards e fonte.
 
-```sql
-select cron.schedule(
-  'cleanup-broken-banners-daily',
-  '0 3 * * *',
-  $$ select net.http_post(
-       url:='https://xrzudhylpphnzousilye.supabase.co/functions/v1/cleanup-broken-banners',
-       headers:='{"Content-Type":"application/json"}'::jsonb,
-       body:='{}'::jsonb
-     ); $$
-);
-```
+### Limpeza no banco
 
-Como já é diária e leve (apenas N requisições HEAD onde N = número de lojas com banner), o custo é desprezível.
+Como várias lojas já experimentaram cores (e algumas ficaram com brancos invisíveis), vou rodar uma limpeza única que **zera os campos de cor personalizados** em todas as organizations:
 
-### 3. Defesa imediata no cliente (camada vitrine)
+- `primary_color` → `#f97316` (padrão)
+- `theme_config.accent_text_color` → removido (volta para padrão `#1e293b`)
+- `theme_config.button_color` → removido (volta para usar a cor padrão)
+- `theme_config.category_color` → removido (volta para usar a cor padrão)
+- `theme_config.gradient_color` → removido
+- `theme_config.header_text_color` → removido (volta para branco)
 
-Em `UnitPage.tsx` o `<img>` do banner já tem `onError` que esconde o elemento (linha 917-919). Vou estender para também **disparar fire-and-forget um `UPDATE banner_url = NULL`** no banco quando a imagem falhar, usando o `id` da org. Assim, a primeira pessoa que abre uma loja com banner morto já limpa o fantasma — mesmo antes do cron rodar.
+Os campos `header_style`, `button_style`, `card_style` e `font` **continuam preservados** — cada lojista mantém o estilo que escolheu.
 
-Proteção: só limpa se `org.user_id` está disponível ou a chamada bate em uma policy pública de update? → na verdade, vou fazer via **chamada à mesma edge function** com `{org_id}` opcional, que aceita um parâmetro para validar e limpar só aquela loja específica (sem precisar de auth).
+### Ajustes no preview da seção Tema Visual
+
+O mini-preview embaixo (que mostra a barra do header + botão "Pedir agora" + chip "Categoria") continua, mas passa a usar sempre o laranja padrão como cor — assim o lojista vê na hora como vai ficar a loja com o estilo escolhido.
 
 ### Arquivos afetados
 
-- `supabase/functions/cleanup-broken-banners/index.ts` — nova edge function
-- `supabase/config.toml` — adicionar `[functions.cleanup-broken-banners] verify_jwt = false`
-- migração SQL — agendar pg_cron diário
-- `src/pages/UnitPage.tsx` — `onError` do banner também chama a função com `org_id` para limpeza imediata
+- `src/components/dashboard/StoreProfileTab.tsx` — remover bloco "Cores da loja" (linhas ~630-771) e o input de slug "Cor primária"; ajustar preview embaixo para usar laranja fixo
+- `src/hooks/useOrganization.ts` — manter `button_color`/`category_color` no tipo (pra não quebrar imports), mas não expor mais na UI
+- `src/pages/UnitPage.tsx` — quando `button_color`/`category_color` não existirem, cair direto no laranja `#f97316`
+- `src/components/unit/ItemDetailDrawer.tsx` — mesmo fallback pro laranja
+- migração SQL — normalizar `theme_config` de todas as organizations removendo os 4 campos de cor personalizados, e setar `primary_color = '#f97316'`
 
-### Resultado esperado
+### Resultado
 
-- A cada 24h, a plataforma escaneia automaticamente todos os banners e limpa os quebrados sem intervenção manual
-- Quando um cliente abre uma loja com banner morto, a vitrine **se autocorrige na hora** — o lojista nem percebe o problema
-- Nunca mais teremos lojas com `banner_url` "fantasma" no banco
+- Dashboard fica mais limpo: lojista só decide **formato e fonte**, não cor
+- Nunca mais terá lojista botando branco em fundo branco e sumindo elemento
+- Identidade visual TrendFood (laranja) fica padronizada em todas as lojas
+- Ainda assim cada loja consegue se diferenciar pelo estilo de botão, card e fonte
 
