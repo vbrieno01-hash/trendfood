@@ -758,7 +758,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 ? "transparent"
                 : form.primary_color,
               backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.secondary_color || "#1e293b"})`
+                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"})`
                 : undefined,
               borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${form.primary_color}` : undefined,
             }}
@@ -766,7 +766,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             <span
               className="text-sm font-bold drop-shadow"
               style={{
-                color: (themeConfig.header_style || "solid") === "transparent" ? form.primary_color : "#fff",
+                color: (themeConfig.header_style || "solid") === "transparent"
+                  ? form.primary_color
+                  : (themeConfig.header_text_color || "#ffffff"),
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
@@ -799,7 +801,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               style={{
                 borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "12px"
                   : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
-                color: themeConfig.secondary_color || "#1e293b",
+                color: themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b",
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
@@ -811,7 +813,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             >
               R$ 19,90
             </div>
-            <p className="text-xs text-muted-foreground ml-auto">Preview</p>
+            <p className="text-xs text-muted-foreground ml-auto">Preview completo</p>
           </div>
         </div>
       </div>
