@@ -282,6 +282,42 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
         />
       )}
 
+      {/* ── Avisos críticos de configuração de horário ─────── */}
+      {(!organization.business_hours?.enabled || organization.force_open) && onNavigate && (
+        <div className="space-y-3 animate-dashboard-fade-in">
+          {!organization.business_hours?.enabled && (
+            <button
+              onClick={() => onNavigate("settings")}
+              className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-destructive/40 bg-destructive/5 hover:bg-destructive/10 transition-colors group"
+            >
+              <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">Horário de funcionamento não configurado</p>
+                <p className="text-xs text-muted-foreground">Sua loja aparece como sempre aberta para os clientes. Configure agora.</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+          {organization.force_open && (
+            <button
+              onClick={() => onNavigate("settings")}
+              className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 transition-colors group"
+            >
+              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">"Forçar abertura" ativado</p>
+                <p className="text-xs text-muted-foreground">A loja aceita pedidos mesmo fora do horário. Lembre-se de desativar quando fechar.</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Action Cards ──────────────────────────────────── */}
       {(activeOrders.length > 0 || lowStockCount > 0) && onNavigate && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-dashboard-fade-in">
