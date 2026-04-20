@@ -242,6 +242,10 @@ const UnitPage = () => {
 
   // Theme config
   const themeConfig = (org as any)?.theme_config ?? {};
+  // Fallbacks retro-compatíveis: lojas antigas tinham só "secondary_color"
+  const gradientColor = themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b";
+  const accentTextColor = themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b";
+  const headerTextColor = themeConfig.header_text_color || "#ffffff";
   const buttonRadius = themeConfig.button_style === "pill" ? "9999px" : themeConfig.button_style === "square" ? "4px" : "12px";
   const cardRadius = themeConfig.button_style === "pill" ? "16px" : themeConfig.button_style === "square" ? "4px" : "16px";
   const cardClass = themeConfig.card_style === "bordered" ? "border-2 border-border shadow-none" : themeConfig.card_style === "flat" ? "border-0 shadow-none" : "border border-border/50 shadow-sm hover:shadow-md";
@@ -251,6 +255,9 @@ const UnitPage = () => {
     if (org?.primary_color) {
       document.documentElement.style.setProperty("--org-primary", org.primary_color);
     }
+    document.documentElement.style.setProperty("--org-gradient", gradientColor);
+    document.documentElement.style.setProperty("--org-accent-text", accentTextColor);
+    document.documentElement.style.setProperty("--org-header-text", headerTextColor);
     if (themeConfig.secondary_color) {
       document.documentElement.style.setProperty("--org-secondary", themeConfig.secondary_color);
     }
@@ -275,8 +282,11 @@ const UnitPage = () => {
     return () => {
       document.documentElement.style.removeProperty("--org-primary");
       document.documentElement.style.removeProperty("--org-secondary");
+      document.documentElement.style.removeProperty("--org-gradient");
+      document.documentElement.style.removeProperty("--org-accent-text");
+      document.documentElement.style.removeProperty("--org-header-text");
     };
-  }, [org?.primary_color, themeConfig.secondary_color, themeConfig.font]);
+  }, [org?.primary_color, themeConfig.secondary_color, gradientColor, accentTextColor, headerTextColor, themeConfig.font]);
 
   // Helper: build category groups dynamically using saved order or defaults
   const buildGroups = (sourceItems: typeof menuItems) => {
@@ -862,7 +872,7 @@ const UnitPage = () => {
             ? undefined
             : primaryColor,
           backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-            ? `linear-gradient(135deg, ${primaryColor}, ${themeConfig.secondary_color || "#1e293b"})`
+            ? `linear-gradient(135deg, ${primaryColor}, ${gradientColor})`
             : undefined,
           borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${primaryColor}` : undefined,
         }}
@@ -876,7 +886,7 @@ const UnitPage = () => {
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
                 style={{
                   backgroundColor: (themeConfig.header_style || "solid") === "transparent" ? `${primaryColor}20` : "rgba(255,255,255,0.2)",
-                  color: (themeConfig.header_style || "solid") === "transparent" ? primaryColor : "#fff",
+                  color: (themeConfig.header_style || "solid") === "transparent" ? primaryColor : headerTextColor,
                 }}
               >
                 {org.name?.charAt(0)?.toUpperCase()}
@@ -884,7 +894,7 @@ const UnitPage = () => {
             )}
             <p
               className="font-bold text-base leading-tight"
-              style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : "#fff" }}
+              style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : headerTextColor }}
             >
               {org.name}
             </p>
