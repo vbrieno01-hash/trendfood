@@ -156,7 +156,7 @@ export default function PixPaymentScreen({
   if (hasGateway && chargeLoading) {
     return (
       <div className="flex flex-col items-center gap-4 py-12 px-4">
-        <Loader2 className="w-10 h-10 animate-spin" style={{ color: primaryColor }} />
+        <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">Gerando cobrança PIX...</p>
       </div>
     );

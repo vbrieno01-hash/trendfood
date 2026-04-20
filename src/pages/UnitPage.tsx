@@ -1368,7 +1368,12 @@ const UnitPage = () => {
                   <button
                     type="button"
                     onClick={() => setScheduledTime("")}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${!scheduledTime ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                    style={
+                      !scheduledTime
+                        ? { backgroundColor: buttonColor, borderColor: buttonColor, color: "#fff" }
+                        : { backgroundColor: "var(--background)", borderColor: "var(--border)", color: "var(--foreground)" }
+                    }
                   >
                     🕐 O mais rápido possível
                   </button>
@@ -1377,7 +1382,12 @@ const UnitPage = () => {
                       key={slot}
                       type="button"
                       onClick={() => setScheduledTime(slot)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${scheduledTime === slot ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                      style={
+                        scheduledTime === slot
+                          ? { backgroundColor: buttonColor, borderColor: buttonColor, color: "#fff" }
+                          : { backgroundColor: "var(--background)", borderColor: "var(--border)", color: "var(--foreground)" }
+                      }
                     >
                       {slot}
                     </button>
@@ -1423,14 +1433,18 @@ const UnitPage = () => {
                 {phoneError && <p className="text-destructive text-xs mt-1">Informe um telefone válido (mín. 10 dígitos)</p>}
                 {/* Loyalty badge */}
                 {loyaltyEnabled && cleanPhoneForLoyalty.length >= 10 && loyaltyPointsData && loyaltyPointsData.points > 0 && (
-                  <div className="mt-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
-                    <p className="text-xs font-medium text-primary flex items-center gap-1">
+                  <div
+                    className="mt-2 rounded-lg border p-2.5 space-y-1.5"
+                    style={{ borderColor: `${categoryColor}4D`, backgroundColor: `${categoryColor}0D` }}
+                  >
+                    <p className="text-xs font-medium flex items-center gap-1" style={{ color: categoryColor }}>
                       🎁 Você tem <span className="font-bold">{loyaltyPointsData.points} {loyaltyPointsData.points === 1 ? "ponto" : "pontos"}</span>!
                     </p>
                     {canRedeem && !loyaltyRedeemed && (
                       <button
                         type="button"
-                        className="text-xs font-semibold text-primary underline"
+                        className="text-xs font-semibold underline"
+                        style={{ color: categoryColor }}
                         onClick={() => {
                           if (!loyaltyConfig) return;
                           const disc = loyaltyConfig.reward_type === "percent"
@@ -1588,7 +1602,12 @@ const UnitPage = () => {
                     <button
                       type="button"
                       onClick={() => { setChangeFor(0); setChangeForError(false); }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${changeFor === 0 ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                      style={
+                        changeFor === 0
+                          ? { backgroundColor: buttonColor, borderColor: buttonColor, color: "#fff" }
+                          : { backgroundColor: "var(--background)", borderColor: "var(--border)", color: "var(--foreground)" }
+                      }
                     >
                       Não precisa
                     </button>
@@ -1597,7 +1616,12 @@ const UnitPage = () => {
                         key={v}
                         type="button"
                         onClick={() => { setChangeFor(v); setChangeForError(false); }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${changeFor === v ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-accent"}`}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                        style={
+                          changeFor === v
+                            ? { backgroundColor: buttonColor, borderColor: buttonColor, color: "#fff" }
+                            : { backgroundColor: "var(--background)", borderColor: "var(--border)", color: "var(--foreground)" }
+                        }
                       >
                         R$ {v}
                       </button>
@@ -1694,6 +1718,7 @@ const UnitPage = () => {
         }}
         primaryColor={primaryColor}
         buttonColor={buttonColor}
+        categoryColor={categoryColor}
         accentColor={accentTextColor}
         isClosed={isClosed}
         opensAt={opensAt}
