@@ -822,7 +822,14 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
       closeModal();
     } catch (err) {
       console.error("[MenuTab] Submit error:", err);
-      toast({ title: "Erro ao salvar item", description: String(err), variant: "destructive" });
+      const rawMsg = (err as any)?.message ?? String(err);
+      const friendly =
+        typeof rawMsg === "string" && rawMsg.toLowerCase().includes("falha de conexão")
+          ? rawMsg
+          : /failed to fetch|network|load failed|storageunknown/i.test(String(rawMsg))
+            ? "Falha de conexão ao enviar a foto. Tente novamente em uma rede melhor (Wi-Fi) ou use uma foto menor."
+            : rawMsg;
+      toast({ title: "Erro ao salvar item", description: friendly, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }

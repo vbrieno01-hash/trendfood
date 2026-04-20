@@ -1,7 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { compressImage } from "@/lib/compressImage";
+import {
+  compressImage,
+  uploadWithRetry,
+  isRetriableUploadError,
+  UPLOAD_NETWORK_ERROR_MESSAGE,
+} from "@/lib/compressImage";
 import { assertMenuItemLimit } from "@/lib/checkMenuItemLimit";
 
 export interface MenuItem {
@@ -125,13 +130,28 @@ export async function uploadMenuImage(orgId: string, itemId: string, file: File)
   const ext = compressed.name.split(".").pop();
   const path = `${orgId}/${itemId}.${ext}`;
   console.log(`[uploadMenuImage] Uploading: path=${path}, size=${compressed.size}, type=${compressed.type}`);
-  const { error } = await supabase.storage
-    .from("menu-images")
-    .upload(path, compressed, { upsert: true });
-  if (error) {
+
+  try {
+    await uploadWithRetry(
+      async () => {
+        const { error } = await supabase.storage
+          .from("menu-images")
+          .upload(path, compressed, { upsert: true });
+        if (error) {
+          // Throw so retry logic can decide whether to retry
+          throw error;
+        }
+      },
+      { label: "uploadMenuImage" },
+    );
+  } catch (error) {
     console.error("[uploadMenuImage] Storage upload error:", JSON.stringify(error));
+    if (isRetriableUploadError(error)) {
+      throw new Error(UPLOAD_NETWORK_ERROR_MESSAGE);
+    }
     throw error;
   }
+
   const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
   const url = data.publicUrl + `?t=${Date.now()}`;
   console.log(`[uploadMenuImage] Success: ${url}`);

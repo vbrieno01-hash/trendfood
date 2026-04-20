@@ -50,7 +50,7 @@ const BRAZIL_STATES = [
 
 import chefLogo from "@/assets/chef-logo.png";
 import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
-import { compressImage } from "@/lib/compressImage";
+import { compressImage, uploadWithRetry, isRetriableUploadError, UPLOAD_NETWORK_ERROR_MESSAGE } from "@/lib/compressImage";
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
@@ -307,8 +307,15 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800 });
       const ext = compressed.name.split(".").pop();
       const path = `${organization.id}/logo.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("logos").upload(path, compressed, { upsert: true });
-      if (uploadError) throw uploadError;
+      await uploadWithRetry(
+        async () => {
+          const { error: uploadError } = await supabase.storage
+            .from("logos")
+            .upload(path, compressed, { upsert: true });
+          if (uploadError) throw uploadError;
+        },
+        { label: "logoUpload" },
+      );
       const { data } = supabase.storage.from("logos").getPublicUrl(path);
       const url = data.publicUrl + `?t=${Date.now()}`;
       setLogoUrl(url);
@@ -318,7 +325,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       toast.success("Logo atualizado!");
     } catch (err) {
       console.error("[StoreProfile] Logo upload error:", err);
-      toast.error("Erro ao fazer upload do logo.");
+      toast.error(isRetriableUploadError(err) ? UPLOAD_NETWORK_ERROR_MESSAGE : "Erro ao fazer upload do logo.");
     } finally {
       setLogoUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -348,8 +355,15 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 800 });
       const ext = compressed.name.split(".").pop();
       const path = `banners/${organization.id}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("menu-images").upload(path, compressed, { upsert: true });
-      if (uploadError) throw uploadError;
+      await uploadWithRetry(
+        async () => {
+          const { error: uploadError } = await supabase.storage
+            .from("menu-images")
+            .upload(path, compressed, { upsert: true });
+          if (uploadError) throw uploadError;
+        },
+        { label: "bannerUpload" },
+      );
       const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
       const url = data.publicUrl + `?t=${Date.now()}`;
       setBannerUrl(url);
@@ -359,7 +373,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       toast.success("Banner atualizado!");
     } catch (err) {
       console.error("[StoreProfile] Banner upload error:", err);
-      toast.error("Erro ao fazer upload do banner.");
+      toast.error(isRetriableUploadError(err) ? UPLOAD_NETWORK_ERROR_MESSAGE : "Erro ao fazer upload do banner.");
     } finally {
       setBannerUploading(false);
       if (bannerFileRef.current) bannerFileRef.current.value = "";
