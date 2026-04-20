@@ -548,48 +548,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </Button>
         </div>
 
-        {/* Primary color */}
-        <div>
-          <Label className="text-sm font-medium">Cor primária do mural público</Label>
-          <div className="flex items-center gap-3 mt-2 mb-3">
-            <input
-              type="color"
-              value={form.primary_color}
-              onChange={(e) => setForm((p) => ({ ...p, primary_color: e.target.value }))}
-              className="h-9 w-14 rounded-lg border border-border cursor-pointer"
-            />
-            <Input
-              value={form.primary_color}
-              onChange={(e) => setForm((p) => ({ ...p, primary_color: e.target.value }))}
-              className="w-32 h-9"
-              placeholder="#f97316"
-            />
-          </div>
-
-          {/* Live color preview */}
-          <div className="rounded-xl border border-border overflow-hidden">
-            <div className="h-10 flex items-center px-4" style={{ backgroundColor: form.primary_color }}>
-              <span className="text-white text-sm font-bold drop-shadow">{form.name || "Minha Lanchonete"}</span>
-            </div>
-            <div className="bg-card p-3 flex items-center gap-3">
-              <button
-                type="button"
-                className="text-xs px-3 py-1.5 rounded-full text-white font-semibold"
-                style={{ backgroundColor: form.primary_color }}
-              >
-                Pedir agora
-              </button>
-              <button
-                type="button"
-                className="text-xs px-3 py-1.5 rounded-full font-semibold border-2"
-                style={{ color: form.primary_color, borderColor: form.primary_color }}
-              >
-                Ver cardápio
-              </button>
-              <p className="text-xs text-muted-foreground ml-auto">Preview</p>
-            </div>
-          </div>
-        </div>
+        {/* Cor primária e demais cores foram movidas para a seção "Tema Visual" abaixo */}
+        <p className="text-xs text-muted-foreground">
+          💡 Personalize as cores e o estilo visual da sua loja na seção <span className="font-semibold text-foreground">Tema Visual</span> abaixo.
+        </p>
       </div>
 
       {/* ── SEÇÃO 2.5: Tema Visual ────────────────────────────────── */}
