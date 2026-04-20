@@ -364,6 +364,9 @@ const UnitPage = () => {
   if (!org) return null;
 
   const primaryColor = org.primary_color || "#f97316";
+  // Cores derivadas: se o lojista não definir as específicas, usa primaryColor (retro-compat)
+  const buttonColor = themeConfig.button_color || primaryColor;
+  const categoryColor = themeConfig.category_color || primaryColor;
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
   // Sanitize WhatsApp number for reliable wa.me links

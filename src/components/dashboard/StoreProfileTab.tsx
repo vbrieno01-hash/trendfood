@@ -699,10 +699,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             />
           )}
 
-          {/* 4. Cor de destaque (preços, badges) — sempre visível */}
+          {/* 4. Cor dos PREÇOS (texto) */}
           <ColorField
-            label="Cor dos preços e destaques"
-            description="Cor usada em valores, preços e tags de destaque dentro dos cards"
+            label="Cor dos preços"
+            description="Onde aparece: TEXTO dos preços nos cards e dentro do produto (R$ 19,90, preço dos adicionais)."
             value={themeConfig.accent_text_color ?? "#1e293b"}
             defaultValue="#1e293b"
             onChange={(v) => setThemeConfig((p) => ({ ...p, accent_text_color: v }))}
@@ -714,6 +714,44 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             preview={
               <div className="h-full w-full bg-card flex items-center justify-center text-[10px] font-bold" style={{ color: themeConfig.accent_text_color ?? "#1e293b" }}>
                 R$ 19,90
+              </div>
+            }
+          />
+
+          {/* 5. Cor dos BOTÕES (Add, Adicionar, +, ícone do carrinho) */}
+          <ColorField
+            label="Cor dos botões"
+            description='Onde aparece: fundo dos botões "Add", "Adicionar", "+", "Ver carrinho" e borda do tipo de pedido.'
+            value={themeConfig.button_color ?? form.primary_color}
+            defaultValue={form.primary_color}
+            onChange={(v) => setThemeConfig((p) => ({ ...p, button_color: v }))}
+            preview={
+              <div className="h-full w-full bg-card flex items-center justify-center">
+                <span
+                  className="px-2 py-1 rounded-md text-[10px] font-bold text-white"
+                  style={{ backgroundColor: themeConfig.button_color ?? form.primary_color }}
+                >
+                  Comprar
+                </span>
+              </div>
+            }
+          />
+
+          {/* 6. Cor das PÍLULAS de categoria + badges de quantidade */}
+          <ColorField
+            label="Cor das pílulas de categoria"
+            description='Onde aparece: pílula da categoria selecionada, badge "no carrinho" e número de quantidade no canto da foto.'
+            value={themeConfig.category_color ?? form.primary_color}
+            defaultValue={form.primary_color}
+            onChange={(v) => setThemeConfig((p) => ({ ...p, category_color: v }))}
+            preview={
+              <div className="h-full w-full bg-card flex items-center justify-center">
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                  style={{ backgroundColor: themeConfig.category_color ?? form.primary_color }}
+                >
+                  Categoria
+                </span>
               </div>
             }
           />
