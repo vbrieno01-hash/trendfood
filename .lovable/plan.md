@@ -1,57 +1,48 @@
 
 
-## Plano — voltar cores ao padrão laranja, manter estilos
+## Diagnóstico — `StorageUnknownError: Failed to fetch` no upload de foto
 
-### O que muda
+Esse erro **não é um bug de código** nem de permissão. É erro de **rede no upload da foto pra Lovable Cloud Storage**, e acontece em 3 cenários típicos no celular:
 
-A seção **Cores da loja** (com os 4 campos numerados — Cabeçalho, Fonte dos preços, Botões, Balões) será **removida** do dashboard. As cores voltam todas para o padrão laranja (`#f97316`) automaticamente, sem o lojista precisar configurar nada.
+1. **Foto grande + internet fraca** — câmera de Android moderno gera fotos de 8-15MB. Mesmo com compressão, o upload pode demorar 20-40s no 4G ruim. Se a conexão piscar, o `fetch` morre com "Failed to fetch".
+2. **Compressão falhou silenciosamente** — `compressImage` tem fallback: se der erro (iPhone com HEIC, pouca memória, foto enorme), ele **manda o arquivo original sem comprimir**. Aí sobe 12MB pelo 4G e quebra.
+3. **Sem retry** — hoje uma única falha de rede já mostra o erro. Sem segunda tentativa, sem reprocessamento.
 
-### O que continua igual
+A configuração do bucket está correta (público, sem limite de tamanho rígido), e as policies estão certas. O problema é **resiliência do upload no celular**.
 
-Permanecem na configuração:
-- **Estilo do cabeçalho** — Sólido / Transparente / Gradiente
-- **Estilo dos botões** — Arredondado / Pill / Quadrado
-- **Estilo dos cards** — Flat / Sombra / Bordas
-- **Fonte** — Padrão / Moderna / Clássica / Divertida / Roboto / Poppins / Open Sans
+## Plano de correção — 3 camadas de blindagem
 
-### Como vai ficar a vitrine
+### 1. Compressão mais agressiva e garantida
 
-- Cabeçalho: laranja `#f97316`
-- Preços nos cards: cor padrão escura (`#1e293b`)
-- Botões "Add", "Adicionar", "Ver carrinho", "+": laranja
-- Balões/categoria selecionada/badges: laranja
+Em `src/lib/compressImage.ts`:
+- Reduzir `maxWidth/maxHeight` padrão de 1200 pra **1024** (suficiente pra cards do cardápio, ainda nítido).
+- Reduzir `quality` padrão de 0.8 pra **0.75**.
+- Se a primeira tentativa de compressão **falhar** ou se o arquivo ainda ficar grande (>1.5MB depois da compressão), tentar **uma segunda passada** com `maxWidth=800` e `quality=0.65` antes de cair no fallback do arquivo original.
+- Resultado esperado: foto de 12MB sai como ~150-300KB. Upload em 1-2s mesmo no 4G ruim.
 
-Ou seja, todas as lojas vão ficar visualmente consistentes no padrão TrendFood (laranja), mas cada lojista ainda escolhe formato dos botões/cards e fonte.
+### 2. Retry automático com backoff no upload
 
-### Limpeza no banco
+Em `src/hooks/useMenuItems.ts`, função `uploadMenuImage`:
+- Envolver o `supabase.storage.upload()` em uma rotina de **3 tentativas** com espera crescente (1s, 2s, 4s).
+- Detectar especificamente `TypeError: Failed to fetch` / `StorageUnknownError` e fazer retry. Outros erros (permissão, mime inválido) não retentam.
+- Toast de progresso melhor: ao invés de só "Erro ao salvar item", mostrar **"Falha de conexão ao enviar a foto. Tente novamente em uma rede melhor ou use uma foto menor."**
 
-Como várias lojas já experimentaram cores (e algumas ficaram com brancos invisíveis), vou rodar uma limpeza única que **zera os campos de cor personalizados** em todas as organizations:
+### 3. Aplicar a mesma blindagem no upload de logo e banner
 
-- `primary_color` → `#f97316` (padrão)
-- `theme_config.accent_text_color` → removido (volta para padrão `#1e293b`)
-- `theme_config.button_color` → removido (volta para usar a cor padrão)
-- `theme_config.category_color` → removido (volta para usar a cor padrão)
-- `theme_config.gradient_color` → removido
-- `theme_config.header_text_color` → removido (volta para branco)
+Em `src/components/dashboard/StoreProfileTab.tsx` (`handleLogoUpload` e `handleBannerUpload`):
+- Reusar o mesmo wrapper de retry.
+- Mensagem de erro amigável idêntica.
 
-Os campos `header_style`, `button_style`, `card_style` e `font` **continuam preservados** — cada lojista mantém o estilo que escolheu.
+## Arquivos afetados
 
-### Ajustes no preview da seção Tema Visual
+- `src/lib/compressImage.ts` — compressão mais agressiva + segunda passada
+- `src/hooks/useMenuItems.ts` — wrapper de retry no `uploadMenuImage`
+- `src/components/dashboard/StoreProfileTab.tsx` — usar o mesmo wrapper pro logo/banner
+- `src/components/dashboard/MenuTab.tsx` — toast de erro mais explicativo
 
-O mini-preview embaixo (que mostra a barra do header + botão "Pedir agora" + chip "Categoria") continua, mas passa a usar sempre o laranja padrão como cor — assim o lojista vê na hora como vai ficar a loja com o estilo escolhido.
+## Resultado esperado
 
-### Arquivos afetados
-
-- `src/components/dashboard/StoreProfileTab.tsx` — remover bloco "Cores da loja" (linhas ~630-771) e o input de slug "Cor primária"; ajustar preview embaixo para usar laranja fixo
-- `src/hooks/useOrganization.ts` — manter `button_color`/`category_color` no tipo (pra não quebrar imports), mas não expor mais na UI
-- `src/pages/UnitPage.tsx` — quando `button_color`/`category_color` não existirem, cair direto no laranja `#f97316`
-- `src/components/unit/ItemDetailDrawer.tsx` — mesmo fallback pro laranja
-- migração SQL — normalizar `theme_config` de todas as organizations removendo os 4 campos de cor personalizados, e setar `primary_color = '#f97316'`
-
-### Resultado
-
-- Dashboard fica mais limpo: lojista só decide **formato e fonte**, não cor
-- Nunca mais terá lojista botando branco em fundo branco e sumindo elemento
-- Identidade visual TrendFood (laranja) fica padronizada em todas as lojas
-- Ainda assim cada loja consegue se diferenciar pelo estilo de botão, card e fonte
+- Fotos de câmera ficam <300KB antes de subir → upload rápido até no 3G
+- Se a rede piscar, o sistema tenta de novo automaticamente 2x antes de desistir
+- Quando realmente falhar, o lojista entende **o que** deu errado e **o que fazer** ("internet ruim, troque de rede ou use foto menor"), não fica olhando "Failed to fetch" sem entender
 
