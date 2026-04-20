@@ -1,74 +1,127 @@
 
-## Pedido
+## Pergunta do usuário
 
-Melhorar as blindagens de "loja fechada" pra **nunca mais** um cliente conseguir ver/fazer pedido fora do horário, mesmo em casos esquisitos (cache antigo, race condition, lojista esqueceu de configurar, etc).
+1. Quando a assinatura paga (Pro/Enterprise) expira, os dados que o lojista criou usando recursos pagos **somem ou são apagados**?
+2. Se sim, **não pode apagar** — manter tudo salvo, só **bloquear o acesso** (igual já é hoje pra plano Free), e voltar a liberar quando pagar de novo.
+3. O robô do WhatsApp só funciona pra quem paga.
 
-## Diagnóstico do estado atual
+## Diagnóstico — o que acontece hoje
 
-Hoje tem 3 camadas, mas com furos:
+Investiguei o `usePlanLimits.ts` e o fluxo de expiração:
 
-| Camada | Status | Furo |
+### Boa notícia: dados NÃO são apagados
+
+Quando uma assinatura expira (`trial_ends_at <= now()` em plano `pro`/`enterprise`), o sistema só muda o `effectivePlan` pra `"free"` na lógica do frontend. **Nada é deletado do banco**:
+
+- Cupons criados continuam na tabela `coupons` (só ficam inacessíveis)
+- Programa de fidelidade (`loyalty_config`, `loyalty_points`) permanece intacto
+- Histórico completo de pedidos preservado em `orders`
+- Bairros de entrega (`delivery_neighborhoods`) salvos
+- Adicionais (`menu_item_addons`, `global_addons`) preservados
+- Configurações de KDS, garçom, balcão, caixa — tudo persiste no banco
+
+A lógica em `usePlanLimits` apenas **bloqueia o acesso** via `canAccess(feature)` retornando `false`. Quando o lojista pagar de novo, o `effectivePlan` volta pra `pro`/`enterprise` e **tudo reaparece automaticamente** — porque nunca saiu do banco.
+
+### Furos que precisam de blindagem
+
+| Furo | Cenário | Risco |
 |---|---|---|
-| 1. Frontend `getStoreStatus` | ✅ Corrigido | Refetch só a cada 60s — aba aberta há minutos pode mostrar aberta |
-| 2. Hook `usePlaceOrder` (UI) | ✅ Existe | Reusa o mesmo cálculo do (1) — herda o mesmo lag |
-| 3. Trigger SQL `validate_store_open_for_order` | ⚠️ Função criada, mas **trigger não está ativo** | `<db-triggers>` mostra "There are no triggers in the database" — **CRÍTICO** |
+| 1. Limite de itens no Free (30) | Lojista Pro tem 200 itens. Plano expira → vira Free | UI permite editar/deletar, mas o que acontece se ele tentar criar o item 201? `assertMenuItemLimit` bloqueia ✅ — mas os 200 existentes ficam visíveis e editáveis no painel? Precisa confirmar |
+| 2. Limite de mesas no Free (1) | Lojista tem 10 QR codes ativos. Vira Free | Cliente escaneia mesa 5 → cardápio abre? Deveria? |
+| 3. Cupons ativos | Lojista criou 20 cupons. Vira Free (sem feature `cupons`) | Cliente usa cupom no checkout — backend valida? Hoje `validate_coupon_by_code` não checa plano |
+| 4. Programa de fidelidade | Lojista tem 500 clientes com pontos. Vira Free | Pontos continuam acumulando? Resgate funciona? |
+| 5. Robô WhatsApp (AI Bot) | Lojista pagou Pro, configurou bot. Vira Free | Edge function `ai-bot-respond` continua respondendo? Não tem checagem de plano |
+| 6. KDS/Garçom/Caixa | Telas operacionais já abertas em tablets do salão | Cache local pode permitir uso offline mesmo após expiração |
 
-### Achado crítico
+### Sobre o robô WhatsApp especificamente
 
-A consulta do schema mostra `<db-triggers>There are no triggers in the database</db-triggers>`. Ou seja, a **função existe mas nenhum trigger está disparando ela**. O backend hoje **não está bloqueando** pedidos fora do horário — só a UI bloqueia. Se um cliente burlar a UI (ou tiver cache antigo), o pedido entra.
+Olhando `ai_bot_config` e a edge function `ai-bot-respond`: o bot responde **globalmente** baseado em `enabled = true` na tabela `ai_bot_config` (singleton admin). Não há gate por plano hoje. **Precisa adicionar checagem do plano da org antes de responder.**
 
-Isso explica perfeitamente as reclamações: a UI mostra fechado em geral, mas em algum cenário (cache, força refresh, etc) o cliente consegue passar e o banco aceita.
+## Plano de blindagem (preserva dados, bloqueia acesso)
 
-## Plano de blindagem (5 reforços)
+### Princípio: **nunca deletar, sempre gatear**
 
-### 1. Reativar o trigger no banco (CRÍTICO — resolve 80% do risco)
+Toda blindagem é via verificação de plano antes da ação — nunca via DELETE de dados do lojista.
 
-Migration que cria o trigger `BEFORE INSERT` na tabela `orders` chamando `validate_store_open_for_order()`. Sem isso, todo o resto é cosmético.
+### 1. Adicionar `feature: "ai_bot"` ao `usePlanLimits`
 
-```sql
-DROP TRIGGER IF EXISTS tr_validate_store_open ON public.orders;
-CREATE TRIGGER tr_validate_store_open
-  BEFORE INSERT ON public.orders
-  FOR EACH ROW EXECUTE FUNCTION public.validate_store_open_for_order();
-```
+- Free: `false`
+- Pro: `true`  
+- Enterprise: `true`
+- Lifetime: `true`
 
-### 2. RPC server-side de status (fonte única da verdade)
+Isso é só pra UI. O gate real fica no item 2.
 
-Criar função `public.get_store_status(_org_id uuid)` que retorna `{open, reason, opens_at}` calculando **no banco** com `AT TIME ZONE 'America/Sao_Paulo'`. O frontend passa a chamar essa RPC em vez de calcular local. Vantagens:
-- Hora vem do servidor, não do celular do cliente
-- Mesma lógica do trigger → impossível UI e backend divergirem
-- Funciona offline-first com fallback pro cálculo local
+### 2. Edge function `ai-bot-respond` — checar plano da org antes de responder
 
-### 3. Refetch mais agressivo + revalidação no foco da aba
+No início da função, buscar a org pelo telefone/instância, verificar `effectivePlan` (mesma lógica do `usePlanLimits` replicada em SQL via RPC `get_effective_plan(_org_id)`). Se for `free` → não responde, retorna 200 silencioso (pra não quebrar webhook).
 
-Em `useOrganization.ts`:
-- `refetchInterval: 60_000` → **30_000** (30s)
-- Adicionar `refetchOnWindowFocus: true` + `refetchOnReconnect: true`
-- Adicionar listener de `visibilitychange` no `UnitPage` pra invalidar o status quando a aba volta do background
+### 3. Criar RPC SQL `get_effective_plan(_org_id)` — fonte única da verdade
 
-Resolve o caso "cliente deixou aba aberta a noite toda".
+Replica a lógica de `usePlanLimits` no banco:
+- `lifetime` → `lifetime`
+- `pro`/`enterprise` com `trial_ends_at <= now()` → `free` (expirou)
+- `free` com trial ativo → `pro`
+- Senão → o próprio plano
 
-### 4. Revalidação no clique do "Adicionar ao carrinho" e no "Finalizar pedido"
+Usado por edge functions e triggers.
 
-Antes de abrir o checkout E antes de chamar `placeOrder`, fazer `await queryClient.refetchQueries(['organization', slug])` e re-checar `getStoreStatus`. Se fechado → toast amigável + bloqueia. Garante checagem fresca no momento crítico.
+### 4. Triggers SQL de gate em features pagas (camada definitiva)
 
-### 5. Fallback "loja fechada" amigável quando o trigger bloqueia
+Criar triggers `BEFORE INSERT/UPDATE` que bloqueiam ações de plano superior:
 
-Capturar o erro `'Loja fechada no momento'` no `usePlaceOrder` e mostrar toast claro + redirecionar pra home da unidade com banner "Voltamos às XX:XX". Hoje o erro genérico assusta.
+- **`coupons`**: bloqueia INSERT se `get_effective_plan` for `free`. UPDATE/DELETE permitidos (lojista pode arrumar a casa, mas não criar novo).
+- **`loyalty_config`**: bloqueia UPDATE de `enabled = true` se Free.
+- **`delivery_neighborhoods`**: bloqueia INSERT de novos se Free e já tiver algum.
+- **`menu_item_addons`** / **`global_addons`**: bloqueia INSERT se Free.
 
-### 6. (Bônus) Aviso na Home do dashboard
+Cupom já criado continua válido no checkout? **Decisão:** sim, respeita até expirar — não pune cliente final por inadimplência do lojista. Mas lojista não pode criar novos.
 
-Card vermelho na `HomeTab` quando `business_hours.enabled = false` ou `force_open = true`, lembrando o lojista. Pega o cenário "lojista esqueceu de configurar".
+### 5. UI — modo "somente leitura" nas abas pagas após expiração
 
-## Arquivos
+Em vez de esconder a aba (que assusta o lojista achando que perdeu dados), mostrar:
 
-- **Nova migration** — criar trigger `tr_validate_store_open` + função RPC `get_store_status`
-- `src/hooks/useOrganization.ts` — refetch 30s + onFocus/onReconnect
-- `src/lib/storeStatus.ts` — adicionar variante async que chama a RPC com fallback local
-- `src/pages/UnitPage.tsx` — listener de `visibilitychange` + revalidação no clique do CTA
-- `src/hooks/useOrders.ts` (ou onde `placeOrder` mora) — refetch antes de submeter + tratamento do erro de trigger
-- `src/components/dashboard/HomeTab.tsx` — card de aviso pra lojista sem horário/com force_open
+- Banner amarelo no topo: **"Assinatura expirada. Seus dados estão salvos. Renove pra voltar a usar este recurso."**
+- Botão "Renovar agora" → leva pra `SubscriptionTab`
+- Listas/tabelas continuam visíveis em modo leitura (cinza)
+- Botões "Adicionar/Editar" desabilitados com tooltip "Disponível no Pro"
+
+Abas afetadas: `CouponsTab`, `LoyaltyTab`, `BestSellersTab`, `WaiterTab`, `AIBotTab`, `OperationsTab` (KDS), `CaixaTab`, `PricingTab`, `ReportsTab` (Enterprise).
+
+### 6. Limite de itens/mesas — **não force shrink**
+
+- Lojista com 200 itens vira Free → mantém os 200 visíveis e vendendo (não esconde nada do cliente final).
+- **Não pode criar o 201º** (já bloqueado por `assertMenuItemLimit`).
+- Banner no MenuTab: "Você tem 200 itens. Plano Free permite 30. Renove pra continuar adicionando."
+- Mesmo pra mesas: 10 QR codes continuam funcionais, mas não cria a 11ª.
+
+### 7. Aviso pré-expiração (proativo)
+
+Card vermelho no `HomeTab` quando `subscriptionDaysLeft <= 3`: "Sua assinatura expira em X dias. Renove agora pra não perder acesso aos recursos premium."
+
+## Arquivos a editar
+
+- **Nova migration** — RPC `get_effective_plan(_org_id)` + 4 triggers de gate (coupons, loyalty_config, delivery_neighborhoods, addons)
+- `src/hooks/usePlanLimits.ts` — adicionar feature `ai_bot`
+- `supabase/functions/ai-bot-respond/index.ts` — checar plano antes de responder
+- `src/components/dashboard/CouponsTab.tsx` — banner readonly + desabilitar criar
+- `src/components/dashboard/LoyaltyTab.tsx` — idem
+- `src/components/dashboard/BestSellersTab.tsx` — idem
+- `src/components/dashboard/WaiterTab.tsx` — idem
+- `src/components/dashboard/AIBotTab.tsx` — idem (já existe? verificar)
+- `src/components/dashboard/OperationsTab.tsx` — banner KDS readonly
+- `src/components/dashboard/CaixaTab.tsx` — idem
+- `src/components/dashboard/PricingTab.tsx` — idem
+- `src/components/dashboard/ReportsTab.tsx` — idem (Enterprise)
+- `src/components/dashboard/MenuTab.tsx` — banner "limite excedido, renove"
+- `src/components/dashboard/HomeTab.tsx` — aviso pré-expiração (3 dias)
+- `mem://features/subscription/data-preservation-on-expiration` — documentar política
 
 ## Resultado esperado
 
-Mesmo que **tudo** dê errado no frontend (cache zumbi, JS quebrado, cliente em outro fuso, hacker forjando POST), o trigger no banco **rejeita o INSERT** e o pedido nunca entra. As outras 5 camadas só servem pra dar uma UX bonita antes do banco bloquear.
+- **Zero perda de dados** quando assinatura expira — tudo continua no banco
+- Lojista vê seus dados em modo leitura + CTA claro pra renovar
+- Cliente final não é afetado por features já configuradas (cupons válidos, fidelidade)
+- Robô WhatsApp deixa de responder automaticamente quando vira Free
+- Triggers SQL garantem que mesmo com burla na UI, nada paga é criado
+- Quando lojista renova → tudo volta a funcionar instantaneamente, sem refazer nada
