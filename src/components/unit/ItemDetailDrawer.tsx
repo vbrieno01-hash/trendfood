@@ -33,9 +33,10 @@ const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, categoryColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
-  const priceColor = accentColor || primaryColor;
-  const btnColor = buttonColor || primaryColor;
-  const catColor = categoryColor || btnColor;
+  // Padrão TrendFood: laranja em tudo. Estilos visuais ainda são herdados via props.
+  const priceColor = "#1e293b";
+  const btnColor = "#f97316";
+  const catColor = "#f97316";
   const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
   const [itemNotes, setItemNotes] = useState("");
   const [qty, setQty] = useState(1);

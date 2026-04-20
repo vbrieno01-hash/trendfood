@@ -17,7 +17,7 @@ import { BusinessHours, ThemeConfig } from "@/hooks/useOrganization";
 import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import ColorField, { checkLowContrast } from "@/components/dashboard/ColorField";
+
 
 
 interface Organization {
@@ -206,11 +206,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, businessHours, addressFields, freeAbove, themeConfig]);
 
-  // Reseta tema visual para o padrão (limpa fantasmas e cores erradas)
+  // Reseta tema visual para o padrão (limpa estilos personalizados)
   const handleResetTheme = () => {
-    if (!confirm("Resetar todas as cores e estilos para o padrão? Isso vai limpar o tema visual da loja.")) return;
+    if (!confirm("Resetar todos os estilos para o padrão? Isso vai limpar header, botões, cards e fonte.")) return;
     setForm((p) => ({ ...p, primary_color: "#f97316" }));
-    // Limpa TUDO: gradient_color, accent_text_color, header_text_color, button_color, category_color, secondary_color fantasma
     setThemeConfig({});
     toast.success("Tema resetado. Salvando...");
   };
@@ -627,149 +626,6 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </div>
         </div>
 
-        {/* === Cores: 4 grupos independentes, cada um controla 1 coisa === */}
-        <div className="space-y-5 mb-5 p-4 rounded-xl border border-border bg-muted/30">
-          <div>
-            <p className="text-xs font-semibold text-foreground/80 uppercase tracking-wide">🎨 Cores da loja</p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Cada cor controla uma coisa só. Mudar uma <strong>não</strong> mexe nas outras.
-            </p>
-          </div>
-
-          {/* 1. CABEÇALHO — só o topo */}
-          <ColorField
-            label="1. Cabeçalho"
-            description="Fundo da faixa colorida do topo da loja (onde fica o nome)."
-            value={form.primary_color}
-            defaultValue="#f97316"
-            onChange={(v) => setForm((p) => ({ ...p, primary_color: v }))}
-            preview={
-              <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: form.primary_color }}>
-                LOJA
-              </div>
-            }
-          />
-
-          {/* 2. FONTE / PREÇOS — texto destacado */}
-          <ColorField
-            label="2. Fonte dos preços"
-            description="Cor do texto dos valores (R$ 19,90) nos cards e dentro do produto."
-            value={themeConfig.accent_text_color ?? "#1e293b"}
-            defaultValue="#1e293b"
-            onChange={(v) => setThemeConfig((p) => ({ ...p, accent_text_color: v }))}
-            warning={
-              checkLowContrast(themeConfig.accent_text_color ?? "#1e293b", "#ffffff")
-                ? "⚠️ Contraste baixo com o fundo branco dos cards"
-                : undefined
-            }
-            preview={
-              <div className="h-full w-full bg-card flex items-center justify-center text-[10px] font-bold" style={{ color: themeConfig.accent_text_color ?? "#1e293b" }}>
-                R$ 19,90
-              </div>
-            }
-          />
-
-          {/* 3. BOTÕES — Add, Adicionar, Ver carrinho, + */}
-          <ColorField
-            label="3. Botões"
-            description='Fundo dos botões "Add", "Adicionar", "Ver carrinho", "+" e borda do tipo de pedido.'
-            value={themeConfig.button_color ?? form.primary_color}
-            defaultValue={form.primary_color}
-            onChange={(v) => setThemeConfig((p) => ({ ...p, button_color: v }))}
-            preview={
-              <div className="h-full w-full bg-card flex items-center justify-center">
-                <span
-                  className="px-2 py-1 rounded-md text-[10px] font-bold text-white"
-                  style={{ backgroundColor: themeConfig.button_color ?? form.primary_color }}
-                >
-                  Comprar
-                </span>
-              </div>
-            }
-          />
-
-          {/* 4. BALÕES / CATEGORIAS — pill ativa, badges */}
-          <ColorField
-            label="4. Balões e categorias"
-            description='Fundo da pílula da categoria selecionada, badge "no carrinho" e número de quantidade.'
-            value={themeConfig.category_color ?? form.primary_color}
-            defaultValue={form.primary_color}
-            onChange={(v) => setThemeConfig((p) => ({ ...p, category_color: v }))}
-            preview={
-              <div className="h-full w-full bg-card flex items-center justify-center">
-                <span
-                  className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-                  style={{ backgroundColor: themeConfig.category_color ?? form.primary_color }}
-                >
-                  Categoria
-                </span>
-              </div>
-            }
-          />
-
-          {/* === AVANÇADO (gradiente + cor do texto do header) === */}
-          <details className="pt-2 border-t border-border/60">
-            <summary className="text-xs font-semibold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors">
-              ⚙️ Opções avançadas do cabeçalho
-            </summary>
-            <div className="mt-3 space-y-4">
-              {/* Segunda cor do gradiente — SÓ se gradiente */}
-              {(themeConfig.header_style || "solid") === "gradient" && (
-                <ColorField
-                  label="Segunda cor do gradiente"
-                  description="Cor onde o degradê do cabeçalho termina (canto direito)."
-                  value={themeConfig.gradient_color ?? "#1e293b"}
-                  defaultValue="#1e293b"
-                  onChange={(v) => setThemeConfig((p) => ({ ...p, gradient_color: v }))}
-                  preview={
-                    <div
-                      className="h-full w-full"
-                      style={{
-                        backgroundImage: `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`,
-                      }}
-                    />
-                  }
-                />
-              )}
-
-              {/* Cor do texto do cabeçalho */}
-              {(themeConfig.header_style || "solid") !== "transparent" && (
-                <ColorField
-                  label="Cor do texto do cabeçalho"
-                  description="Cor do nome da loja no topo. Use branco em fundos escuros."
-                  value={themeConfig.header_text_color || "#ffffff"}
-                  defaultValue="#ffffff"
-                  onChange={(v) => setThemeConfig((p) => ({ ...p, header_text_color: v }))}
-                  warning={
-                    checkLowContrast(themeConfig.header_text_color || "#ffffff", form.primary_color)
-                      ? "⚠️ Contraste baixo com o fundo do cabeçalho"
-                      : undefined
-                  }
-                  preview={
-                    <div
-                      className="h-full w-full flex items-center justify-center text-[10px] font-bold"
-                      style={{
-                        backgroundColor: (themeConfig.header_style || "solid") === "gradient" ? undefined : form.primary_color,
-                        backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-                          ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`
-                          : undefined,
-                        color: themeConfig.header_text_color || "#ffffff",
-                      }}
-                    >
-                      LOJA
-                    </div>
-                  }
-                />
-              )}
-              {(themeConfig.header_style || "solid") === "transparent" && (
-                <p className="text-[11px] text-muted-foreground italic">
-                  No estilo transparente, o texto do cabeçalho usa a cor primária automaticamente.
-                </p>
-              )}
-            </div>
-          </details>
-        </div>
-
         {/* Button style */}
         <div className="mb-5">
           <Label className="text-sm font-medium">Estilo dos botões</Label>
@@ -845,7 +701,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </div>
         </div>
 
-        {/* Theme preview */}
+        {/* Theme preview — sempre laranja padrão */}
         <div className="rounded-xl border border-border overflow-hidden">
           <div
             className="h-10 flex items-center px-4"
@@ -854,19 +710,17 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 ? undefined
                 : (themeConfig.header_style || "solid") === "transparent"
                 ? "transparent"
-                : form.primary_color,
+                : "#f97316",
               backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`
+                ? `linear-gradient(135deg, #f97316, #1e293b)`
                 : undefined,
-              borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${form.primary_color}` : undefined,
+              borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid #f97316` : undefined,
             }}
           >
             <span
               className="text-sm font-bold drop-shadow"
               style={{
-                color: (themeConfig.header_style || "solid") === "transparent"
-                  ? form.primary_color
-                  : (themeConfig.header_text_color || "#ffffff"),
+                color: (themeConfig.header_style || "solid") === "transparent" ? "#f97316" : "#ffffff",
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
@@ -884,7 +738,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               type="button"
               className="text-xs px-3 py-1.5 font-semibold text-white"
               style={{
-                backgroundColor: themeConfig.button_color ?? form.primary_color,
+                backgroundColor: "#f97316",
                 borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "9999px"
                   : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
               }}
@@ -893,7 +747,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             </button>
             <span
               className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white"
-              style={{ backgroundColor: themeConfig.category_color ?? form.primary_color }}
+              style={{ backgroundColor: "#f97316" }}
             >
               Categoria
             </span>
@@ -905,7 +759,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               style={{
                 borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "12px"
                   : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
-                color: themeConfig.accent_text_color ?? "#1e293b",
+                color: "#1e293b",
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
