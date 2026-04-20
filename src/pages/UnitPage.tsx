@@ -369,16 +369,28 @@ const UnitPage = () => {
     const bh = org.business_hours as any;
     if (!bh?.enabled || !bh?.schedule) return [];
     const DK = ["dom","seg","ter","qua","qui","sex","sab"];
-    const now = new Date();
-    const brt = new Date(now.getTime() + now.getTimezoneOffset() * 60_000 + (-3) * 3600_000);
-    const daySchedule = bh.schedule[DK[brt.getDay()]];
+    // Get current time in São Paulo timezone (works on any device)
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Sao_Paulo",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(new Date());
+    const getPart = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+    const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const dayIdx = weekdayMap[getPart("weekday")] ?? 0;
+    const brtHour = (parseInt(getPart("hour"), 10) || 0) % 24;
+    const brtMinute = parseInt(getPart("minute"), 10) || 0;
+    const daySchedule = bh.schedule[DK[dayIdx]];
     if (!daySchedule?.open) return [];
     const [fH, fM] = (daySchedule.from || "08:00").split(":").map(Number);
     const [tH, tM] = (daySchedule.to || "22:00").split(":").map(Number);
     let fromMin = fH * 60 + fM;
     let toMin = tH * 60 + tM;
     if (toMin <= fromMin) toMin += 1440;
-    const currentMin = brt.getHours() * 60 + brt.getMinutes();
+    const currentMin = brtHour * 60 + brtMinute;
     const earliest = currentMin + (schedulingConfig?.min_advance_minutes ?? 30);
     const slots: string[] = [];
     for (let m = fromMin; m < toMin; m += 30) {
