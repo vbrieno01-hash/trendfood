@@ -86,7 +86,9 @@ export const useOrganization = (slug: string | undefined) => {
       return data as unknown as Organization | null;
     },
     enabled: !!slug,
-    refetchInterval: 60 * 1000, // Re-fetch a cada 1 min para atualizar status (paused, horário)
-    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000, // Re-fetch a cada 30s para atualizar status (paused, horário)
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 15 * 1000,
   });
 };
