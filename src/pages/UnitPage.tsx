@@ -242,9 +242,9 @@ const UnitPage = () => {
 
   // Theme config
   const themeConfig = (org as any)?.theme_config ?? {};
-  // Fallbacks retro-compatíveis: lojas antigas tinham só "secondary_color"
-  const gradientColor = themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b";
-  const accentTextColor = themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b";
+  // Lojas migradas têm gradient_color/accent_text_color limpos; se faltarem, usa o default neutro.
+  const gradientColor = themeConfig.gradient_color ?? "#1e293b";
+  const accentTextColor = themeConfig.accent_text_color ?? "#1e293b";
   const headerTextColor = themeConfig.header_text_color || "#ffffff";
   const buttonRadius = themeConfig.button_style === "pill" ? "9999px" : themeConfig.button_style === "square" ? "4px" : "12px";
   const cardRadius = themeConfig.button_style === "pill" ? "16px" : themeConfig.button_style === "square" ? "4px" : "16px";
