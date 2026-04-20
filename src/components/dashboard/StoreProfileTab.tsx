@@ -210,6 +210,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const handleResetTheme = () => {
     if (!confirm("Resetar todas as cores e estilos para o padrão? Isso vai limpar o tema visual da loja.")) return;
     setForm((p) => ({ ...p, primary_color: "#f97316" }));
+    // Limpa TUDO: gradient_color, accent_text_color, header_text_color, button_color, category_color, secondary_color fantasma
     setThemeConfig({});
     toast.success("Tema resetado. Salvando...");
   };
@@ -630,10 +631,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         <div className="space-y-4 mb-5 p-4 rounded-xl border border-border bg-muted/30">
           <p className="text-xs font-semibold text-foreground/80 uppercase tracking-wide">🎨 Cores</p>
 
-          {/* 1. Cor primária — sempre visível (banner sólido + botões) */}
+          {/* 1. Cor do CABEÇALHO — só o banner do topo */}
           <ColorField
-            label="Cor principal"
-            description="Usada no fundo do cabeçalho (sólido), botões e detalhes"
+            label="Cor do cabeçalho"
+            description="Onde aparece: faixa colorida do topo onde fica o nome da loja."
             value={form.primary_color}
             defaultValue="#f97316"
             onChange={(v) => setForm((p) => ({ ...p, primary_color: v }))}
