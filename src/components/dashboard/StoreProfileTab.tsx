@@ -595,28 +595,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       <div>
         <SectionHeader>Tema Visual</SectionHeader>
 
-        {/* Secondary color */}
-        <div className="mb-5">
-          <Label className="text-sm font-medium">Cor secundária (textos de destaque)</Label>
-          <div className="flex items-center gap-3 mt-2">
-            <input
-              type="color"
-              value={themeConfig.secondary_color || "#1e293b"}
-              onChange={(e) => setThemeConfig((p) => ({ ...p, secondary_color: e.target.value }))}
-              className="h-9 w-14 rounded-lg border border-border cursor-pointer"
-            />
-            <Input
-              value={themeConfig.secondary_color || "#1e293b"}
-              onChange={(e) => setThemeConfig((p) => ({ ...p, secondary_color: e.target.value }))}
-              className="w-32 h-9"
-              placeholder="#1e293b"
-            />
-          </div>
-        </div>
-
-        {/* Header style */}
+        {/* Header style FIRST — define qual estilo afeta quais campos */}
         <div className="mb-5">
           <Label className="text-sm font-medium">Estilo do cabeçalho</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">Escolha como o topo da sua loja vai aparecer.</p>
           <div className="flex gap-2 mt-2">
             {(["solid", "transparent", "gradient"] as const).map((style) => (
               <button
@@ -633,6 +615,98 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               </button>
             ))}
           </div>
+        </div>
+
+        {/* === Cores separadas e bem nomeadas === */}
+        <div className="space-y-4 mb-5 p-4 rounded-xl border border-border bg-muted/30">
+          <p className="text-xs font-semibold text-foreground/80 uppercase tracking-wide">🎨 Cores</p>
+
+          {/* 1. Cor primária — sempre visível (banner sólido + botões) */}
+          <ColorField
+            label="Cor principal"
+            description="Usada no fundo do cabeçalho (sólido), botões e detalhes"
+            value={form.primary_color}
+            defaultValue="#f97316"
+            onChange={(v) => setForm((p) => ({ ...p, primary_color: v }))}
+            preview={
+              <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: form.primary_color }}>
+                LOJA
+              </div>
+            }
+          />
+
+          {/* 2. Segunda cor do gradiente — SÓ se gradiente */}
+          {(themeConfig.header_style || "solid") === "gradient" && (
+            <ColorField
+              label="Segunda cor do gradiente"
+              description="Cor onde o degradê do cabeçalho termina (canto direito)"
+              value={themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"}
+              defaultValue="#1e293b"
+              onChange={(v) => setThemeConfig((p) => ({ ...p, gradient_color: v }))}
+              preview={
+                <div
+                  className="h-full w-full"
+                  style={{
+                    backgroundImage: `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"})`,
+                  }}
+                />
+              }
+            />
+          )}
+
+          {/* 3. Cor do texto do cabeçalho — só se sólido OU gradiente (transparente usa cor primária) */}
+          {(themeConfig.header_style || "solid") !== "transparent" && (
+            <ColorField
+              label="Cor do texto do cabeçalho"
+              description="Cor do nome da loja que aparece no topo. Use branco em fundos escuros."
+              value={themeConfig.header_text_color || "#ffffff"}
+              defaultValue="#ffffff"
+              onChange={(v) => setThemeConfig((p) => ({ ...p, header_text_color: v }))}
+              warning={
+                checkLowContrast(
+                  themeConfig.header_text_color || "#ffffff",
+                  (themeConfig.header_style || "solid") === "gradient"
+                    ? form.primary_color
+                    : form.primary_color
+                )
+                  ? "⚠️ Contraste baixo com o fundo — esse texto pode ficar difícil de ler"
+                  : undefined
+              }
+              preview={
+                <div
+                  className="h-full w-full flex items-center justify-center text-[10px] font-bold"
+                  style={{
+                    backgroundColor: (themeConfig.header_style || "solid") === "gradient" ? undefined : form.primary_color,
+                    backgroundImage: (themeConfig.header_style || "solid") === "gradient"
+                      ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color || themeConfig.secondary_color || "#1e293b"})`
+                      : undefined,
+                    color: themeConfig.header_text_color || "#ffffff",
+                  }}
+                >
+                  LOJA
+                </div>
+              }
+            />
+          )}
+
+          {/* 4. Cor de destaque (preços, badges) — sempre visível */}
+          <ColorField
+            label="Cor dos preços e destaques"
+            description="Cor usada em valores, preços e tags de destaque dentro dos cards"
+            value={themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b"}
+            defaultValue="#1e293b"
+            onChange={(v) => setThemeConfig((p) => ({ ...p, accent_text_color: v }))}
+            warning={
+              checkLowContrast(themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b", "#ffffff")
+                ? "⚠️ Contraste baixo com o fundo branco dos cards"
+                : undefined
+            }
+            preview={
+              <div className="h-full w-full bg-card flex items-center justify-center text-[10px] font-bold" style={{ color: themeConfig.accent_text_color || themeConfig.secondary_color || "#1e293b" }}>
+                R$ 19,90
+              </div>
+            }
+          />
         </div>
 
         {/* Button style */}
