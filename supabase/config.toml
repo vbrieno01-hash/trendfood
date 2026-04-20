@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.uazapi-disconnect]
 verify_jwt = false
+
+[functions.cleanup-broken-banners]
+verify_jwt = false
