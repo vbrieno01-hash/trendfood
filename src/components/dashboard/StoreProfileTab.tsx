@@ -701,7 +701,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </div>
         </div>
 
-        {/* Theme preview */}
+        {/* Theme preview — sempre laranja padrão */}
         <div className="rounded-xl border border-border overflow-hidden">
           <div
             className="h-10 flex items-center px-4"
@@ -710,19 +710,17 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                 ? undefined
                 : (themeConfig.header_style || "solid") === "transparent"
                 ? "transparent"
-                : form.primary_color,
+                : "#f97316",
               backgroundImage: (themeConfig.header_style || "solid") === "gradient"
-                ? `linear-gradient(135deg, ${form.primary_color}, ${themeConfig.gradient_color ?? "#1e293b"})`
+                ? `linear-gradient(135deg, #f97316, #1e293b)`
                 : undefined,
-              borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${form.primary_color}` : undefined,
+              borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid #f97316` : undefined,
             }}
           >
             <span
               className="text-sm font-bold drop-shadow"
               style={{
-                color: (themeConfig.header_style || "solid") === "transparent"
-                  ? form.primary_color
-                  : (themeConfig.header_text_color || "#ffffff"),
+                color: (themeConfig.header_style || "solid") === "transparent" ? "#f97316" : "#ffffff",
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
@@ -740,7 +738,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               type="button"
               className="text-xs px-3 py-1.5 font-semibold text-white"
               style={{
-                backgroundColor: themeConfig.button_color ?? form.primary_color,
+                backgroundColor: "#f97316",
                 borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "9999px"
                   : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
               }}
@@ -749,7 +747,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             </button>
             <span
               className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white"
-              style={{ backgroundColor: themeConfig.category_color ?? form.primary_color }}
+              style={{ backgroundColor: "#f97316" }}
             >
               Categoria
             </span>
@@ -761,7 +759,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               style={{
                 borderRadius: (themeConfig.button_style || "rounded") === "pill" ? "12px"
                   : (themeConfig.button_style || "rounded") === "square" ? "4px" : "8px",
-                color: themeConfig.accent_text_color ?? "#1e293b",
+                color: "#1e293b",
                 fontFamily: themeConfig.font === "modern" ? "'Inter', sans-serif"
                   : themeConfig.font === "classic" ? "'Merriweather', serif"
                   : themeConfig.font === "playful" ? "'Nunito', sans-serif"
