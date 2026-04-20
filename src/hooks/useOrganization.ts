@@ -30,7 +30,14 @@ export interface DeliveryConfig {
 }
 
 export interface ThemeConfig {
+  /** @deprecated Use gradient_color e accent_text_color. Mantido para retro-compatibilidade. */
   secondary_color?: string;
+  /** Segunda cor do gradiente do cabeçalho (só usada quando header_style = "gradient") */
+  gradient_color?: string;
+  /** Cor de textos de destaque (preços, badges, valores) — fallback: secondary_color */
+  accent_text_color?: string;
+  /** Cor do texto do nome da loja no cabeçalho (sólido/gradiente) — default: branco */
+  header_text_color?: string;
   header_style?: "solid" | "transparent" | "gradient";
   button_style?: "rounded" | "pill" | "square";
   card_style?: "flat" | "shadow" | "bordered";
