@@ -215,4 +215,30 @@ describe("getStoreStatus cross-midnight", () => {
     const status = getStoreStatus(bh);
     expect(status).toEqual({ open: true });
   });
+
+  it("REGRESSION: closed at 01:52 Mon when Sun is closed and Mon opens 20:00-04:00", async () => {
+    vi.useFakeTimers();
+    // Monday 01:52 Brasília — Rei do Burguer real-world bug
+    mockDate("2026-04-20T01:52:00");
+
+    const { getStoreStatus } = await import("@/lib/storeStatus");
+
+    const bh = {
+      enabled: true,
+      schedule: {
+        dom: { open: false, from: "10:00", to: "20:00" },
+        seg: { open: true, from: "20:00", to: "04:00" },
+        ter: { open: true, from: "20:00", to: "04:00" },
+        qua: { open: true, from: "20:00", to: "04:00" },
+        qui: { open: true, from: "20:00", to: "04:00" },
+        sex: { open: true, from: "20:00", to: "04:00" },
+        sab: { open: true, from: "20:00", to: "04:00" },
+      },
+    };
+
+    // Sunday is closed → the 00:00-04:00 window of Mon does NOT belong to Sun's shift.
+    // Mon's own shift starts at 20:00 → store must be CLOSED, opening at 20:00.
+    const status = getStoreStatus(bh);
+    expect(status).toEqual({ open: false, opensAt: "20:00" });
+  });
 });
