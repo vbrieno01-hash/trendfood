@@ -15,6 +15,8 @@ import {
   useLoyaltyPointsList,
   useLoyaltyRedemptions,
 } from "@/hooks/useLoyalty";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import LockedFeatureBanner from "@/components/dashboard/LockedFeatureBanner";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -26,13 +28,17 @@ const maskPhone = (phone: string) => {
 
 interface Props {
   orgId: string;
+  organization?: any;
+  onNavigate?: (tab: string) => void;
 }
 
-export default function LoyaltyTab({ orgId }: Props) {
+export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
   const { data: config, isLoading } = useLoyaltyConfig(orgId);
   const upsert = useUpsertLoyaltyConfig();
   const { data: customers = [] } = useLoyaltyPointsList(orgId);
   const { data: redemptions = [] } = useLoyaltyRedemptions(orgId);
+  const planLimits = usePlanLimits(organization);
+  const canUse = planLimits.canAccess("loyalty");
 
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [spendPerPoint, setSpendPerPoint] = useState("");
