@@ -400,9 +400,9 @@ const AuthPage = () => {
       />
 
       {/* LEFT PANEL — Form */}
-      <div className="flex-1 lg:w-1/2 relative z-10 flex flex-col justify-center px-6 py-12 lg:px-16 overflow-y-auto">
-        {/* Top header row (desktop): logo left, badge right with breathing room */}
-        <div className="hidden lg:flex absolute top-8 left-12 right-12 items-center justify-between gap-6">
+      <div className="flex-1 lg:w-1/2 relative z-10 flex flex-col px-6 py-8 lg:px-16 lg:py-8 overflow-y-auto">
+        {/* Top header row (desktop): logo left, badge right — in normal flow */}
+        <div className="hidden lg:flex items-center justify-between gap-6 shrink-0">
           <Link to="/" className="inline-flex items-center gap-2.5 shrink-0">
             <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-bold text-white text-base tracking-tight">TrendFood</span>
@@ -411,7 +411,9 @@ const AuthPage = () => {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             <span className="text-xs text-white/70 font-medium whitespace-nowrap">
-              Você está entrando em <span className="text-white font-semibold">TrendFood</span>
+              <span className="hidden xl:inline">Você está entrando em </span>
+              <span className="xl:hidden">Entrando em </span>
+              <span className="text-white font-semibold">TrendFood</span>
             </span>
           </div>
         </div>
@@ -424,7 +426,8 @@ const AuthPage = () => {
           </Link>
         </div>
 
-        <div className="w-full max-w-sm mx-auto">
+        {/* Form area — centered vertically without overlapping the header */}
+        <div className="w-full max-w-sm mx-auto flex-1 flex flex-col justify-center py-8 lg:py-12">
           {googleOnboarding ? (
             <form onSubmit={handleGoogleOnboard} className="space-y-5">
               <div className="mb-6">
