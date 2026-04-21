@@ -401,20 +401,19 @@ const AuthPage = () => {
 
       {/* LEFT PANEL — Form */}
       <div className="flex-1 lg:w-1/2 relative z-10 flex flex-col justify-center px-6 py-12 lg:px-16 overflow-y-auto">
-        {/* Top-left logo (desktop) */}
-        <div className="hidden lg:flex items-center gap-2.5 absolute top-8 left-12">
-          <Link to="/" className="inline-flex items-center gap-2.5">
+        {/* Top header row (desktop): logo left, badge right with breathing room */}
+        <div className="hidden lg:flex absolute top-8 left-12 right-12 items-center justify-between gap-6">
+          <Link to="/" className="inline-flex items-center gap-2.5 shrink-0">
             <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-bold text-white text-base tracking-tight">TrendFood</span>
           </Link>
-        </div>
 
-        {/* Top-right badge (desktop) */}
-        <div className="hidden lg:flex absolute top-8 right-12 items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          <span className="text-xs text-white/70 font-medium">
-            Você está entrando em <span className="text-white font-semibold">TrendFood</span>
-          </span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs text-white/70 font-medium whitespace-nowrap">
+              Você está entrando em <span className="text-white font-semibold">TrendFood</span>
+            </span>
+          </div>
         </div>
 
         {/* Mobile-only logo */}
