@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap, Flame } from "lucide-react";
 import dashboardImg from "@/assets/dashboard-screenshot.png";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 interface HeroProps {
   badgeText: string;
@@ -44,6 +45,7 @@ export default function HeroCinematic({
   badgeText, title, titleHighlight, subtitle, subtitle2, ctaText,
   proofBadges, orderCount, displayCount, orderCounterText, heroImageUrl,
 }: HeroProps) {
+  const isDesktop = useIsDesktop();
   const mockupRef = useRef<HTMLDivElement>(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
@@ -61,8 +63,10 @@ export default function HeroCinematic({
   }
 
   const { scrollY } = useScroll();
-  const heroY = useTransform(scrollY, [0, 600], [0, 120]);
-  const heroOpacity = useTransform(scrollY, [0, 500], [1, 0.4]);
+  const heroYRaw = useTransform(scrollY, [0, 600], [0, 120]);
+  const heroOpacityRaw = useTransform(scrollY, [0, 500], [1, 0.4]);
+  const heroY = isDesktop ? heroYRaw : 0;
+  const heroOpacity = isDesktop ? heroOpacityRaw : 1;
 
   return (
     <section className="relative overflow-hidden min-h-[640px] md:min-h-screen">
@@ -76,11 +80,13 @@ export default function HeroCinematic({
       </motion.div>
 
       {/* Particles layer */}
-      <div className="absolute inset-0 z-[1] overflow-hidden pointer-events-none">
-        {Array.from({ length: 28 }).map((_, i) => (
-          <Particle key={i} i={i} />
-        ))}
-      </div>
+      {isDesktop && (
+        <div className="absolute inset-0 z-[1] overflow-hidden pointer-events-none">
+          {Array.from({ length: 28 }).map((_, i) => (
+            <Particle key={i} i={i} />
+          ))}
+        </div>
+      )}
 
       {/* Radial orange glow center-bottom */}
       <div

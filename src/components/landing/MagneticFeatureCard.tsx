@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 interface Props {
   title: string;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function MagneticFeatureCard({ title, description, icon, index }: Props) {
+  const isDesktop = useIsDesktop();
   const ref = useRef<HTMLDivElement>(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
@@ -18,11 +20,13 @@ export default function MagneticFeatureCard({ title, description, icon, index }:
   const glowY = useTransform(my, (v) => `${(v + 0.5) * 100}%`);
 
   function handleMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!isDesktop) return;
     const r = e.currentTarget.getBoundingClientRect();
     mx.set((e.clientX - r.left) / r.width - 0.5);
     my.set((e.clientY - r.top) / r.height - 0.5);
   }
   function handleLeave() {
+    if (!isDesktop) return;
     mx.set(0);
     my.set(0);
   }
@@ -30,25 +34,27 @@ export default function MagneticFeatureCard({ title, description, icon, index }:
   return (
     <motion.div
       ref={ref}
-      onMouseMove={handleMove}
-      onMouseLeave={handleLeave}
-      style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}
+      onMouseMove={isDesktop ? handleMove : undefined}
+      onMouseLeave={isDesktop ? handleLeave : undefined}
+      style={isDesktop ? { rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" } : undefined}
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.5, delay: index * 0.05 }}
       className="group relative bg-card rounded-2xl p-6 border border-border hover:border-primary/40 transition-colors overflow-hidden"
     >
-      <div className="landing-conic-border" />
-      <motion.div
-        className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{
-          background: useTransform([glowX, glowY], ([x, y]) =>
-            `radial-gradient(400px circle at ${x} ${y}, hsl(var(--primary) / 0.18), transparent 40%)`
-          ) as any,
-        }}
-      />
-      <div className="relative" style={{ transform: "translateZ(20px)" }}>
+      {isDesktop && <div className="landing-conic-border" />}
+      {isDesktop && (
+        <motion.div
+          className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{
+            background: useTransform([glowX, glowY], ([x, y]) =>
+              `radial-gradient(400px circle at ${x} ${y}, hsl(var(--primary) / 0.18), transparent 40%)`
+            ) as any,
+          }}
+        />
+      )}
+      <div className="relative" style={isDesktop ? { transform: "translateZ(20px)" } : undefined}>
         <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
           {icon}
         </div>
