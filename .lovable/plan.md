@@ -1,62 +1,35 @@
 
-## Plano — Acelerar o carrossel infinito
 
-O problema agora não é travamento: é **velocidade de animação**. O carrossel está andando devagar demais, então passa sensação de “quase parado”.
+## Plano — Barras animadas que não travam no meio
 
-### Diagnóstico
-Hoje o track usa:
-- `animation: landing-marquee 25s linear infinite`
-- conteúdo triplicado
-- deslocamento de `0` até `-33.333%`
+### O bug
 
-Esse setup está correto para loop infinito, mas **25s ficou lento demais** para a largura atual da faixa.
+Na screenshot atual aparece **"12% TAXA" / "57% PRA VOCÊ"** — esses números não fazem sentido (a mensagem real é 27% pro marketplace, 100% pra você). Eles são **valores intermediários** porque a animação está amarrada ao scroll: quando você para de rolar, ela congela em qualquer ponto da curva.
 
-### O que vou ajustar
+Pior ainda: a barra Marketplace está animando do jeito **invertido** (começa cheia, esvazia até 12%) — exatamente o oposto do que comunica a mensagem (Marketplace TIRA 27% de você).
 
-**1. Acelerar o track principal**
-Arquivo: `src/index.css`
+### Correção
 
-- reduzir a duração de `25s` para algo bem mais perceptível, na faixa de **10s a 12s**
-- manter `linear infinite` para não dar aceleração/freada
-- manter `translate3d(...)` para continuar suave
+**`src/components/landing/AnimatedComparison.tsx`** — trocar scroll-linked por `whileInView` único:
 
-Exemplo do ajuste:
-```css
-.landing-marquee-track {
-  animation: landing-marquee 12s linear infinite;
-}
-```
-
-**2. Manter acessibilidade sem parecer parado**
-Arquivo: `src/index.css`
-
-Hoje em `prefers-reduced-motion` está em `80s`, que fica praticamente parado.
-Vou trocar para uma versão ainda respeitosa, mas visível, algo como **20s a 24s**.
-
-Exemplo:
-```css
-@media (prefers-reduced-motion: reduce) {
-  .landing-marquee-track {
-    animation-duration: 22s !important;
-  }
-}
-```
-
-**3. Não mexer na estrutura do componente**
-Arquivo: `src/components/landing/MarqueeSocialProof.tsx`
-
-- manter array triplicado
-- manter pause no hover
-- manter fade nas bordas
-- sem alterar conteúdo nem layout
+1. **Remover** `useScroll` e os 4 `useTransform` (marketplaceHeight, trendHeight, marketplacePct, trendPct).
+2. **Remover** o gate `isDesktop` das barras — agora desktop e mobile usam a mesma animação simples e segura.
+3. **Trocar** as barras por `motion.div` com:
+   - Marketplace: `initial={{ height: "0%" }}` → `whileInView={{ height: "27%" }}` (cresce até 27%, comunica "eles tomam 27%")
+   - TrendFood: `initial={{ height: "0%" }}` → `whileInView={{ height: "100%" }}` (cresce até 100%)
+   - `viewport={{ once: true, margin: "-20%" }}` — anima uma vez quando entra na tela
+   - `transition={{ duration: 1.2, ease: "easeOut", delay: 0.1 }}`
+4. **Trocar** os contadores numéricos por contagem com `whileInView` usando um `motion.span` animado de 0 → valor final via `useMotionValue` + `animate` (ou simplesmente exibir o número final estático após `0.6s` de delay com fade).
+   - Solução mais limpa: componente `<CountUp from={0} to={27} />` usando `useMotionValue` + `animate()` no `useEffect` disparado por `whileInView` (via `useInView`).
 
 ### Resultado
-- carrossel visivelmente mais rápido
-- loop infinito preservado
-- sem impacto no resto da landing
-- ajuste pequeno e cirúrgico: basicamente CSS
 
-### Arquivos
-- `src/index.css`
+- Barras **sempre terminam nos valores corretos** (27% / 100%), em qualquer posição de scroll.
+- Animação dispara uma vez ao entrar na viewport, não fica refém do scroll.
+- Mensagem coerente: Marketplace cresce até 27% (vermelho) representando "o que eles tiram"; TrendFood cresce até 100% (verde) representando "o que fica com você".
+- Mesma animação em mobile e desktop (já era estática em mobile, agora vira animada em todos os tamanhos com custo zero — `whileInView` não tem listener de scroll contínuo).
 
-Se ao aplicar ainda parecer lento, o próximo passo fino é baixar de `12s` para `10s`, mas a primeira passada já resolve sem deixar agressivo demais.
+### Arquivo
+
+- `src/components/landing/AnimatedComparison.tsx`
+
