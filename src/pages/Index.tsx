@@ -163,82 +163,28 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-screen flex flex-col">
-        <img
-          src={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
-          alt="Ambiente comercial"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(10,8,6,0.93) 0%, rgba(15,10,5,0.82) 45%, rgba(10,8,6,0.55) 100%)" }} />
+      {/* Hero Cinematic */}
+      <HeroCinematic
+        badgeText={c("hero_badge_text", "Zero taxas sobre vendas")}
+        title={c("hero_title", "O Cardápio Digital que Profissionaliza seu Delivery")}
+        titleHighlight={c("hero_title_highlight", "Sem Taxas, Com Gestão Real.")}
+        subtitle={c("hero_subtitle", "Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.")}
+        subtitle2={c("hero_subtitle2", "Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.")}
+        ctaText={c("hero_cta_text", "Começar Grátis")}
+        proofBadges={cArr("proof_badges", defaultProofBadges)}
+        orderCount={orderCount}
+        displayCount={displayCount}
+        orderCounterText={c("order_counter_text", "pedidos feitos no TrendFood")}
+        heroImageUrl={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
+      />
 
-        <header className="relative z-10 border-b border-white/[0.06]">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
-            <div className="flex items-center gap-2.5">
-              <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
-              <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
-            </div>
-            <div className="hidden md:flex items-center gap-6 mr-auto ml-10">
-              <a href="#funcionalidades" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Recursos</a>
-              <Link to="/planos" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Preços</Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/[0.06] transition-all" asChild>
-                <Link to="/auth">Entrar</Link>
-              </Button>
-              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-5 transition-all" asChild>
-                <Link to="/auth">Começar Agora</Link>
-              </Button>
-            </div>
-          </div>
-        </header>
+      {/* Marquee social proof */}
+      <MarqueeSocialProof />
 
-        <div className="relative z-10 flex-1 flex items-center">
-          <div className="max-w-5xl mx-auto px-4 py-24 text-center w-full">
-            <Badge className="mb-8 bg-white/[0.08] text-white/80 border-white/[0.1] hover:bg-white/[0.12] backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
-              <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-              {c("hero_badge_text", "Zero taxas sobre vendas")}
-            </Badge>
-
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
-              {c("hero_title", "O Cardápio Digital que Profissionaliza seu Delivery")}
-              <br />
-              <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-                {c("hero_title_highlight", "Sem Taxas, Com Gestão Real.")}
-              </span>
-            </h1>
-
-            <p className="text-lg md:text-xl text-white/75 max-w-2xl mx-auto mb-4 leading-[1.8]">
-              {c("hero_subtitle", "Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.")}
-            </p>
-            <p className="text-sm md:text-base text-white/45 max-w-xl mx-auto mb-12 leading-relaxed">
-              {c("hero_subtitle2", "Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.")}
-            </p>
-
-            <div className="flex justify-center">
-              <Link to="/auth" className="inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.6)] hover:scale-[1.03] transition-all duration-300">
-                {c("hero_cta_text", "Começar Grátis")}
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-
-            <div className="mt-14 flex flex-wrap gap-2.5 justify-center">
-              {cArr("proof_badges", defaultProofBadges).map((b: string) => (
-                <span key={b} className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium">{b}</span>
-              ))}
-            </div>
-
-            {orderCount > 0 && (
-              <div className="mt-8 flex justify-center animate-fade-in">
-                <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-300 text-sm font-semibold tracking-wide">
-                  <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
-                  +{displayCount.toLocaleString('pt-BR')} {c("order_counter_text", "pedidos feitos no TrendFood")}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      {/* Live order counter */}
+      {orderCount > 0 && (
+        <LiveOrderCounter count={displayCount} label={c("order_counter_text", "pedidos feitos no TrendFood")} />
+      )}
 
       {/* Benefit Cards */}
       <section className="py-16 px-4 bg-background border-b border-border/60">
