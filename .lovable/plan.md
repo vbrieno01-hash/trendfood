@@ -1,43 +1,51 @@
 
-## Plano — Corrigir o badge que está sobrepondo as abas no AuthPage
 
-### Problema real
-O elemento “Você está entrando em TrendFood” não está apenas com pouco espaço: ele está **sobreposto** nas abas “Entrar / Criar conta”.  
-Isso acontece porque o header desktop está em `absolute`, então ele não reserva altura no layout. Quando o conteúdo do formulário sobe, o badge fica “grudado” por cima da interface.
+## Plano — Auditoria de botões da landing page (`/`)
 
-### O que será ajustado
+### Inventário e status
 
-**1. Tirar o header desktop do `absolute`**
-- Remover `absolute top-8 left-12 right-12`
-- Colocar o bloco do logo + badge em fluxo normal no painel esquerdo
-- Assim o layout passa a reservar espaço real para ele
+**Header (HeroCinematic)**
+- Logo "TrendFood" — ❌ **não é clicável** (não envolve em `<Link>`)
+- Recursos → `#funcionalidades` ✅
+- Preços → `/planos` ✅
+- Entrar → `/auth` ✅
+- Começar Agora → `/auth` ✅
 
-**2. Separar o topo do conteúdo**
-- Criar uma estrutura com:
-  - header no topo
-  - conteúdo do auth abaixo
-- Adicionar `mb`/`pb` consistente entre header e tabs/form para nunca encostar visualmente
+**Hero body**
+- CTA "Começar Grátis" → `/auth` ✅
 
-**3. Centralizar o formulário sem invadir o header**
-- Manter o card/form centralizado, mas dentro de uma área própria (`flex-1`)
-- Evitar que a centralização vertical empurre tabs para trás do badge
+**SavingsCalculator**
+- Slider, input, presets ✅
+- CTA "Começar Grátis" → `/auth` ✅
 
-**4. Refinar o badge para desktop menor**
-- Reduzir levemente largura visual do badge
-- Se necessário, encurtar a frase em breakpoints intermediários para algo como:
-  - `Entrando em TrendFood`
-- Manter a versão completa em telas maiores
+**CTA final**
+- "Começar Grátis Agora" → `/auth` ✅
 
-**5. Preservar o visual atual**
-- Não mexer na lógica de auth
-- Não mexer no painel direito cinematográfico
-- Não alterar mobile, exceto se for necessário manter consistência de espaçamento
+**Footer**
+- Instagram, WhatsApp, email ✅
+- Funcionalidades, Planos, Como Funciona, Calculadora, Comparativo ✅ (todas as âncoras existem: `#funcionalidades`, `#planos`, `#como-funciona`, `#calculadora`, `#comparativo`)
+- Termos, Privacidade, WhatsApp ✅
+- ⚠️ **"Perguntas Frequentes" → `#problemas`** — leva para a seção "Você já passou por isso?", que não é FAQ. Label enganoso.
+
+### Correções a aplicar
+
+**1. Tornar a logo do header clicável** (`src/components/landing/HeroCinematic.tsx`)
+- Envolver o bloco `<img + span TrendFood>` em `<Link to="/">` para padrão de UX consistente (logo sempre volta pra home/topo)
+- Manter classes visuais; apenas adicionar `hover:opacity-90 transition-opacity`
+
+**2. Corrigir o link "Perguntas Frequentes"** (`src/pages/Index.tsx`)
+- Substituir o item `<li><a href="#problemas">Perguntas Frequentes</a></li>` por:
+  - **Label:** "Problemas Comuns"
+  - **Destino:** `#problemas` (mesma âncora, agora com label coerente com a seção real)
+- Alternativa rejeitada: criar uma FAQ nova — fora de escopo desta auditoria
 
 ### Resultado esperado
-- O badge fica acima, com respiro correto
-- As abas “Entrar / Criar conta” não ficam mais por baixo dele
-- O topo da página passa a ter hierarquia clara: logo/badge primeiro, formulário depois
-- Visual mais limpo e profissional
 
-### Arquivo
-- `src/pages/AuthPage.tsx`
+- Todos os botões/links da landing funcionam e levam ao destino correto e coerente com o label
+- Logo do header passa a ser clicável (padrão web esperado)
+- Footer deixa de prometer FAQ que não existe
+
+### Arquivos
+- `src/components/landing/HeroCinematic.tsx` (logo clicável)
+- `src/pages/Index.tsx` (label do item "Perguntas Frequentes")
+
