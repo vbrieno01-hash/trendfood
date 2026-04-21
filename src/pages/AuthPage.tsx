@@ -760,32 +760,32 @@ const AuthPage = () => {
           }}
         />
 
-        {/* Diagonal light beam from top-right corner */}
+        {/* Big warm halo centered behind the logo */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse 70% 60% at 95% 5%, hsl(20 100% 50% / 0.45) 0%, hsl(20 90% 35% / 0.18) 35%, transparent 70%)",
+              "radial-gradient(circle at 50% 50%, hsl(20 100% 50% / 0.55) 0%, hsl(20 90% 35% / 0.25) 30%, transparent 65%)",
           }}
         />
-        {/* Soft warm ambient under logo */}
+        {/* Diagonal light leak from top-right */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(circle at 45% 55%, hsl(20 80% 25% / 0.35) 0%, transparent 55%)",
+              "radial-gradient(ellipse 60% 50% at 90% 10%, hsl(35 100% 55% / 0.35) 0%, transparent 60%)",
           }}
         />
 
-        {/* Giant logo — slightly left of center so the beam comes from behind/right */}
-        <div className="relative z-10 flex flex-col items-center gap-3 -translate-x-[6%]">
+        {/* Giant logo centered with strong halo */}
+        <div className="relative z-10 flex flex-col items-center gap-6 px-8">
           <img
             src={logoIcon}
             alt="TrendFood"
-            className="w-[60vh] max-w-[520px] h-auto object-contain drop-shadow-[0_0_120px_hsl(20_100%_50%_/_0.6)] opacity-95 animate-fade-in"
+            className="w-[min(70vh,560px)] h-auto object-contain drop-shadow-[0_0_140px_hsl(20_100%_55%_/_0.75)] animate-fade-in"
           />
-          <p className="text-white/75 text-base font-light tracking-wide animate-fade-in [animation-delay:200ms]">
-            Zero taxas. <span className="text-white font-medium">100% seu.</span>
+          <p className="text-white/80 text-lg font-light tracking-wide animate-fade-in [animation-delay:200ms]">
+            Zero taxas. <span className="text-white font-semibold">100% seu.</span>
           </p>
         </div>
       </div>
