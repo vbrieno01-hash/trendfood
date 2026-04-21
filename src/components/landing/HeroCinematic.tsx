@@ -65,7 +65,7 @@ export default function HeroCinematic({
   const heroOpacity = useTransform(scrollY, [0, 500], [1, 0.4]);
 
   return (
-    <section className="relative overflow-hidden min-h-screen">
+    <section className="relative overflow-hidden min-h-[640px] md:min-h-screen">
       {/* Background image with parallax */}
       <motion.div className="absolute inset-0 z-0" style={{ y: heroY }}>
         <img src={heroImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
@@ -112,7 +112,7 @@ export default function HeroCinematic({
       </header>
 
       <motion.div className="relative z-10 flex items-center" style={{ opacity: heroOpacity }}>
-        <div className="max-w-6xl mx-auto px-4 pt-20 pb-32 w-full grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
+        <div className="max-w-6xl mx-auto px-4 pt-12 pb-16 md:pt-20 md:pb-32 w-full grid md:grid-cols-[1.1fr_1fr] gap-8 md:gap-12 items-center">
           {/* Left: text */}
           <div className="text-center lg:text-left">
             <motion.div
@@ -196,20 +196,20 @@ export default function HeroCinematic({
             )}
           </div>
 
-          {/* Right: 3D mockup */}
+          {/* Right: 3D mockup (md+) — tilt only on lg+ */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.9, delay: 0.3 }}
-            className="hidden lg:block perspective-[1400px]"
+            className="hidden md:block perspective-[1400px]"
             style={{ perspective: 1400 }}
           >
             <motion.div
               ref={mockupRef}
-              onMouseMove={handleMove}
-              onMouseLeave={handleLeave}
+              onMouseMove={(e) => { if (window.innerWidth >= 1024) handleMove(e); }}
+              onMouseLeave={() => { if (window.innerWidth >= 1024) handleLeave(); }}
               style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}
-              className="relative w-full max-w-[560px] mx-auto"
+              className="relative w-full max-w-[420px] lg:max-w-[560px] mx-auto"
             >
               {/* Glow behind */}
               <div
