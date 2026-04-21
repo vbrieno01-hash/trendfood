@@ -14,7 +14,7 @@ const items = [
 ];
 
 export default function MarqueeSocialProof() {
-  const doubled = [...items, ...items];
+  const tripled = [...items, ...items, ...items];
   return (
     <section className="relative py-8 bg-background border-y border-border/60 overflow-hidden">
       <div
@@ -25,8 +25,11 @@ export default function MarqueeSocialProof() {
         className="pointer-events-none absolute inset-y-0 right-0 w-32 z-10"
         style={{ background: "linear-gradient(to left, hsl(var(--background)), transparent)" }}
       />
-      <div className="flex landing-marquee-track gap-12 whitespace-nowrap will-change-transform">
-        {doubled.map((it, i) => {
+      <div
+        aria-hidden="true"
+        className="flex landing-marquee-track gap-12 whitespace-nowrap will-change-transform hover:[animation-play-state:paused]"
+      >
+        {tripled.map((it, i) => {
           const Icon = it.icon;
           return (
             <div key={i} className="flex items-center gap-2.5 text-muted-foreground shrink-0">
