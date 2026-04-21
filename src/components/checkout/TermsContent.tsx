@@ -122,7 +122,7 @@ const TermsContent = () => (
     </div>
 
     <div className="border-t border-border pt-4 mt-4 text-xs text-muted-foreground/70">
-      <p>CNPJ 66.067.207/0001-91 — JACKSON BRENO FRANCELINO DA COSTA</p>
+      <p>CNPJ 66.067.207/0001-91</p>
     </div>
   </div>
 );
