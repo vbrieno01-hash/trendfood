@@ -385,8 +385,7 @@ const AuthPage = () => {
     <div
       className="min-h-screen flex relative overflow-hidden text-white"
       style={{
-        background:
-          "radial-gradient(ellipse at top left, hsl(20 60% 14%) 0%, hsl(15 45% 8%) 45%, hsl(20 30% 5%) 100%)",
+        background: "hsl(20 25% 9%)",
       }}
     >
       {/* Subtle warm grain/noise overlay for depth */}
