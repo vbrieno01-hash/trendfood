@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Eye, EyeOff, Loader2, Check } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
 import PasswordRequirements from "@/components/PasswordRequirements";
