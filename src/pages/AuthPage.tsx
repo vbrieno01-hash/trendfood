@@ -183,8 +183,7 @@ const AuthPage = () => {
     <>
       <Button
         type="button"
-        variant="outline"
-        className="w-full h-11 text-sm font-semibold gap-3"
+        className="w-full h-12 rounded-full text-sm font-semibold gap-3 bg-white text-zinc-900 hover:bg-white/90 shadow-lg shadow-black/30"
         onClick={handleGoogleLogin}
         disabled={googleLoading}
       >
@@ -200,10 +199,10 @@ const AuthPage = () => {
         )}
         Continuar com Google
       </Button>
-      <div className="flex items-center gap-3 my-4">
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground font-medium">ou</span>
-        <div className="flex-1 h-px bg-border" />
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-white/10" />
+        <span className="text-[11px] uppercase tracking-widest text-white/40 font-medium">ou</span>
+        <div className="flex-1 h-px bg-white/10" />
       </div>
     </>
   );
