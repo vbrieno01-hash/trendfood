@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, TrendingDown, TrendingUp } from "lucide-react";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
