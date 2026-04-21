@@ -1,47 +1,35 @@
 
 
-## Plano — Substituir o painel direito por uma imagem cinematográfica gerada
+## Plano — Gerar nova logo cinematográfica para o painel direito
 
 ### Diagnóstico
 
-O painel direito atual está com **excesso de laranja** (radial gradient + drop-shadow + halo + light leak), tudo sobreposto, fazendo parecer "borrado" e amador. A Grok funciona porque é **uma única imagem cinematográfica esticada** ocupando toda a metade — sem camadas de CSS competindo.
-
-### Solução
-
-Trocar todos os efeitos CSS do painel direito por **uma imagem cinematográfica gerada via AI**, esticada no painel inteiro (estilo wallpaper de produto premium), com a logo TrendFood discretamente posicionada por cima.
+A logo atual no painel direito (ícone TrendFood importado de `@/assets/logo-icon.png`) não combina visualmente com o fundo cinematográfico — fica parecendo "colada por cima". Precisa de uma logo nova, gerada no mesmo estilo do fundo, pra integrar de forma natural.
 
 ### O que vai ser feito
 
-**1. Gerar imagem cinematográfica via AI Gateway (nano banana pro)**
-- Prompt: cena cinematográfica vertical, ambiente escuro premium estilo "dark luxury restaurant", iluminação dramática lateral cor âmbar/laranja queimado vindo do canto, partículas suaves no ar, estética minimalista tipo Apple/xAI, sem texto, sem objetos identificáveis — pura atmosfera
+**1. Gerar logo cinematográfica via AI Gateway**
 - Modelo: `google/gemini-3-pro-image-preview` (qualidade máxima)
-- Aspect ratio vertical (~3:4 ou 9:16) pra ocupar metade da tela em desktop
-- Salvar em `src/assets/auth-cinematic-bg.png`
+- Prompt: logo minimalista premium "TrendFood" estilo monograma/símbolo, com tipografia moderna sans-serif, acabamento metálico em laranja-dourado quente brilhando, fundo transparente, estética Apple/xAI, glow sutil ao redor, sem sombra de chão, formato quadrado
+- Salvar em `src/assets/auth-logo-cinematic.png`
 
-**2. Refatorar painel direito do `AuthPage.tsx`**
-- Remover **todos** os gradientes, halos, light leaks e drop-shadows atuais
-- Usar a nova imagem como `background` do painel direito (`object-cover`, ocupa 100% do espaço)
-- Logo TrendFood **menor e mais elegante** (não gigante), centralizada com `drop-shadow` sutil branco/dourado
-- Tagline "Zero taxas. 100% seu." abaixo da logo, fonte fina branca
-- Overlay escuro sutil por cima da imagem (`bg-black/30`) pra garantir contraste com a logo
-- Borda esquerda com gradiente fino pra fundir com painel do form
+**2. Atualizar `src/pages/AuthPage.tsx`**
+- Trocar import: `logoIcon` → `authLogoCinematic` (nova logo)
+- Manter posicionamento atual (centralizada no painel direito)
+- Ajustar drop-shadow se necessário pra harmonizar com o brilho próprio da nova logo
+- Tamanho mantido (`w-[min(32vh,260px)]`)
 
-**3. Manter painel esquerdo intacto**
-- Form continua com fundo marrom-escuro uniforme atual (já tá bom)
-- Divisória vertical permanece
-
-**4. Mobile**
-- Painel direito continua escondido (`hidden lg:flex`)
-- Sem mudança no mobile
+**3. Painel esquerdo (form)**
+- Manter a logo atual (`logoIcon`) no canto superior — ela funciona bem em tamanho pequeno sobre fundo escuro
+- Sem mudanças no form
 
 ### Resultado esperado
 
-- Painel direito vira uma **cena cinematográfica real** (não CSS amador), com a logo TrendFood elegantemente posicionada
-- Mesma sensação premium da Grok, mas com identidade própria (paleta quente, atmosfera de restaurante luxuoso)
-- Zero "borrão laranja" — a imagem dá profundidade real, a logo só se sobrepõe
-- 100% da lógica de auth preservada
+- Nova logo grande no painel direito, nascendo da própria atmosfera da imagem cinematográfica (não mais "colada")
+- Mesma identidade TrendFood, mas em versão premium/editorial
+- Integração visual perfeita com o fundo gerado
 
 ### Arquivos
-- `src/assets/auth-cinematic-bg.png` (nova, gerada via AI)
-- `src/pages/AuthPage.tsx` (simplificação do painel direito)
+- `src/assets/auth-logo-cinematic.png` (nova, gerada via AI)
+- `src/pages/AuthPage.tsx` (apenas troca do import e da tag `<img>`)
 
