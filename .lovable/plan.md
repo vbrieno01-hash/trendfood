@@ -1,117 +1,46 @@
 
 
-## Plano — Landing TrendFood "Premium Cinematográfica"
+## Plano — Corrigir landing "incompleta" em mobile/tablet
 
-Transformar a landing de "site bonitinho" em **experiência cinematográfica scroll-driven**, com efeitos que praticamente nenhuma SaaS BR de food tem hoje. Mantendo conteúdo, identidade laranja e estrutura — mudando só a **forma como aparece**.
+Você não está vendo bug, está vendo **buracos de design responsivo**. Vários efeitos foram desenhados pra desktop e em telas <1024px deixam metade da seção vazia. Vou fechar esses buracos sem perder o efeito premium do desktop.
 
----
+### Os 5 buracos identificados (viewport ≤1024px)
 
-## Conceito visual
-
-A página vai funcionar como um **filme curto**: cada seção tem sua "entrada", as coisas montam na frente do cliente, peças se encaixam, números sobem ao vivo, mockups giram em 3D conforme rola. Sensação de produto **caro, vivo e premiado**.
-
----
-
-## 8 efeitos novos que serão implementados
-
-### 1. Hero com **mockup 3D que gira com o mouse** + parallax de partículas
-- Substituir a foto estática do hero por um **dashboard mockup flutuante em 3D** que inclina conforme o mouse (efeito tilt suave, igual Apple Vision Pro / Linear).
-- Atrás do mockup: **partículas laranja flutuando devagar** (estrelinhas/poeira) com parallax em camadas conforme rola.
-- Texto do título com **gradiente animado** (laranja claro → escuro → claro) varrendo lentamente.
-- Botão "Começar Grátis" com **brilho que passa** a cada 4s (shimmer).
-
-### 2. **Stack de cards 3D** que se desempilha no scroll (problemas)
-- Os 3 problemas hoje aparecem lado a lado. Vão virar uma **pilha de cards** que se separa conforme o scroll: o de cima sobe, os de baixo aparecem em sequência girando levemente em 3D.
-- Cada card revela seu conteúdo com **máscara de gradiente** (efeito reveal cinematográfico).
-
-### 3. **Linha do tempo conectada** com SVG animado (Como Funciona)
-- Os 4 passos hoje estão lado a lado com setinha. Vão virar uma **linha SVG sinuosa** que se **desenha conforme o scroll passa** (stroke-dashoffset animado).
-- Os ícones de cada etapa **acendem** (glow laranja) quando a linha chega neles.
-- Cada card "salta" do lado da linha com bounce sutil.
-
-### 4. **Showcase com mockup que troca de tela** (sticky scroll)
-- A seção do dashboard fica **grudada na tela** (sticky) por uns 100vh enquanto o usuário rola.
-- À medida que rola, o **mockup do dashboard troca de aba sozinho**: Pedidos → Caixa → Mais Vendidos → Cardápio → KDS. Cada troca acompanhada por uma legenda lateral que muda também ("Veja vendas ao vivo", "Feche o caixa em 1 clique", etc).
-- Padrão Apple/Stripe.
-
-### 5. **Comparativo com efeito "balança"** + barras animadas
-- Marketplace vs TrendFood: a tabela vira um **gráfico animado** onde a coluna do marketplace começa cheia (vermelho 27%) e **esvazia** conforme o scroll passa, enquanto a coluna TrendFood enche (verde 0%).
-- Visceral. Mostra economia em movimento.
-
-### 6. **Calculadora com contador giratório estilo aeroporto**
-- Hoje tem `SavingsCalculator`. Vou trocar o display de número por um **odômetro/flip-counter** (aqueles números rolando estilo painel de aeroporto antigo) quando recalcula.
-- Efeito instantâneo de "uau, está calculando de verdade".
-
-### 7. **Cards de funcionalidades com magnetismo + glow no hover**
-- Os 14 cards de features ganham:
-  - **Magnetic effect**: o card se inclina suavemente perseguindo o cursor (3D tilt leve).
-  - **Glow radial laranja** que acompanha o mouse dentro do card (igual GitHub Copilot, Vercel).
-  - **Borda animada arco-íris laranja** quando hover (gradient conic rotacionando).
-- Aparecem em scroll com **stagger reveal** (um após o outro).
-
-### 8. **Marquee de "social proof" + contador gigante**
-- Logo abaixo do hero, antes dos problemas: faixa horizontal **rolando infinitamente** com badges de credibilidade ("Zero comissão", "Suporte 24/7", "PIX automático", "Sem app", logos fictícios de tipos de negócio: Pizzaria, Hamburgueria, Açaiteria, Loja, Mercearia, etc) — efeito **marquee infinito** que nunca para.
-- O contador de pedidos atual (que já existe) vai virar uma **seção dedicada** com o número GIGANTE (texto 8rem, gradiente laranja, **flip animation a cada novo pedido em tempo real**) com legenda "Pedidos processados pela plataforma" e um pulso verde "ao vivo".
-
----
-
-## Detalhes técnicos
-
-**Bibliotecas/abordagem** (sem dependências pesadas — tudo em CSS/Framer Motion + Intersection Observer):
-- **Framer Motion** (`framer-motion`) — única dep nova, padrão da indústria, ~50KB. Usado pra: parallax, stack reveal, sticky scroll com troca de aba, magnetic cards, contadores.
-- **CSS puro** pra: shimmer, gradiente animado, marquee infinito, glow radial, conic-gradient borders.
-- **SVG** pra: linha do tempo desenhada (stroke-dashoffset).
-
-**Performance**:
-- `prefers-reduced-motion` respeitado em todos os efeitos (acessibilidade + bateria mobile).
-- Animações usam `transform`/`opacity` (GPU), nunca layout properties.
-- Lazy mount: efeitos pesados (sticky showcase, magnetic) só montam quando entram na viewport.
-- Mobile: efeitos 3D/magnetic desligados, mantendo só fade/slide simples (UX limpa em touch).
-
-**Estrutura de arquivos** (refatoração organizada):
-- Novos componentes em `src/components/landing/`:
-  - `HeroCinematic.tsx` — hero com mockup 3D + partículas + shimmer
-  - `MarqueeSocialProof.tsx` — faixa rolante infinita
-  - `LiveOrderCounter.tsx` — contador gigante flip + pulso ao vivo
-  - `StackedProblemCards.tsx` — pilha de cards desempilhando
-  - `TimelineSteps.tsx` — linha SVG desenhada + cards conectados
-  - `StickyShowcase.tsx` — dashboard que troca de aba no sticky scroll
-  - `AnimatedComparison.tsx` — barras esvaziando/enchendo
-  - `MagneticFeatureCard.tsx` — card individual com tilt + glow radial
-- `src/pages/Index.tsx` — fica como orquestrador, monta as seções na ordem.
-- `src/index.css` — adicionar keyframes: `shimmer`, `gradient-sweep`, `marquee`, `flip-number`, `glow-pulse`.
-
-**Conteúdo/CMS**:
-- **Zero impacto** no CMS atual (`platform_content`). Todos os textos continuam editáveis. Só a renderização visual muda.
-
----
-
-## Antes vs Depois (resumo executivo)
-
-| Seção | Hoje | Depois |
+| Onde | O que está acontecendo | Correção |
 |---|---|---|
-| Hero | Foto fixa + texto | Mockup 3D tilt + partículas + shimmer no CTA |
-| Social proof | Badges parados | Marquee infinito + contador gigante ao vivo |
-| Problemas | 3 cards em grid | Stack desempilhando em 3D no scroll |
-| Como Funciona | 4 cards + setinhas | Timeline SVG desenhada + ícones acendendo |
-| Showcase | Mockup estático | Sticky scroll com troca de aba sincronizada |
-| Comparativo | Tabela | Barras animadas (vermelho esvazia / verde enche) |
-| Calculadora | Número fixo | Flip-counter estilo aeroporto |
-| Features | Cards hover simples | Magnetic tilt + glow radial seguindo mouse |
+| **Hero** | Mockup 3D escondido (`hidden lg:block`). Lado direito vira coluna vazia + hero com `min-h-screen` deixa meia tela em branco | Mostrar mockup também em md/tablet (escala menor, sem tilt 3D), e remover `min-h-screen` em <lg — usar altura natural |
+| **StickyShowcase** | Altura `400vh` mesmo no mobile, mas em coluna única o sticky-scroll não faz sentido | No mobile, virar **carrossel/lista vertical** das 5 abas com mockup acima; altura natural, sem sticky |
+| **TimelineSteps** | Em md (≥768) tem linha vertical, abaixo de md cada passo fica espaçado demais (`mb-16`) e o mockup de 128px central do lado parece flutuando | Em mobile: layout vertical compacto com linha lateral à esquerda, ícones menores (w-20), `mb-8` |
+| **Padding vertical** | Quase toda seção tem `py-24` (192px) — sobreposto, parece "vazio" | Em mobile reduzir pra `py-12 md:py-24` em todas as seções da landing |
+| **Benefit cards** | Em mobile viram 1 coluna sem mais nada, e a seção tem `py-16` solta — parece "deslocada" | Reduzir padding em mobile e juntar visualmente com a próxima seção (sem border-b separadora) |
 
----
+### Mudanças exatas
 
-## Resultado esperado
+**`HeroCinematic.tsx`**
+- Trocar `hidden lg:block` do mockup 3D por `hidden md:block` e reduzir escala em md (max-w-[420px] md, [560px] lg)
+- Em md, desligar tilt 3D (peso na CPU mobile) — mockup estático com leve rotação fixa
+- Remover `min-h-screen` → trocar por `min-h-[600px] md:min-h-screen`
+- `pt-20 pb-32` → `pt-12 pb-16 md:pt-20 md:pb-32`
 
-- O cliente abre a landing → **bate o olho e percebe que é caro**
-- Não parece feito com IA, parece feito por estúdio premiado
-- Tempo médio de permanência sobe (cada seção dá vontade de scrollar pra ver o próximo efeito)
-- Conversão sobe porque a percepção de qualidade do produto sobe junto
-- Acessibilidade preservada (reduced-motion, touch, mobile)
+**`StickyShowcase.tsx`**
+- Detectar mobile: se `window.innerWidth < 1024`, renderizar **versão alternativa**: lista vertical das 5 features com mini-mockup acima de cada uma, altura natural (sem sticky, sem scroll-driven). Mantém o conteúdo, mas sem buraco.
+- Em desktop, mantém o sticky scroll cinematográfico atual.
 
----
+**`TimelineSteps.tsx`**
+- Em mobile: linha vertical à esquerda (não centralizada), cards alinhados à direita da linha, ícones menores (w-20 h-20), `mb-8` em vez de `mb-16`
+- Manter visual desktop intacto
 
-## Execução
+**`Index.tsx` (padding global das seções)**
+- Trocar `py-24` por `py-14 md:py-24` em: StackedProblemCards (já tem 24), TimelineSteps, Features, Plans, CTA final
+- Trocar `py-20` por `py-12 md:py-20` em Features e Plans
+- Trocar `py-16` por `py-10 md:py-16` em Benefit Cards
+- Remover `border-b` que isola visualmente a Benefit section quando em mobile (já fica natural)
 
-Vou implementar tudo num único passe (8 componentes novos + refactor do Index + CSS). É um trabalho denso mas coeso — fragmentar atrapalha porque os efeitos se complementam. Cobertura: desktop premium, mobile leve e funcional. Demora um pouco mais pra gerar mas você recebe a página inteira nova de uma vez.
+### Resultado
+
+- Desktop: **idêntico ao atual** (cinematográfico, premium)
+- Tablet (768-1023px): mockup do hero aparece, sticky showcase vira lista compacta, padding mais enxuto
+- Mobile (≤767px): tudo flui em coluna única sem buracos, linha do tempo lateral, padding adequado
+
+Sem mudar conteúdo, sem mexer no CMS, sem remover efeito nenhum no desktop. Só **fechar os vazios responsivos**.
 
