@@ -351,7 +351,7 @@ const Index = () => {
               <li><Link to="/termos" className="text-muted-foreground hover:text-foreground transition-colors">Termos de Uso</Link></li>
               <li><Link to="/privacidade" className="text-muted-foreground hover:text-foreground transition-colors">Política de Privacidade</Link></li>
               <li><a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
-              <li><a href="#problemas" className="text-muted-foreground hover:text-foreground transition-colors">Perguntas Frequentes</a></li>
+              <li><a href="#problemas" className="text-muted-foreground hover:text-foreground transition-colors">Problemas Comuns</a></li>
             </ul>
           </div>
           <div>
