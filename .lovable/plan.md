@@ -1,51 +1,38 @@
 
 
-## Plano — Auditoria de botões da landing page (`/`)
+## Plano — Remover "JACKSON BRENO FRANCELINO DA COSTA" de todo o site
 
-### Inventário e status
+### Onde aparece atualmente
 
-**Header (HeroCinematic)**
-- Logo "TrendFood" — ❌ **não é clicável** (não envolve em `<Link>`)
-- Recursos → `#funcionalidades` ✅
-- Preços → `/planos` ✅
-- Entrar → `/auth` ✅
-- Começar Agora → `/auth` ✅
+Busca no codebase encontra a string em:
 
-**Hero body**
-- CTA "Começar Grátis" → `/auth` ✅
+1. `src/pages/Index.tsx` — footer da landing page
+2. `src/pages/TermsPage.tsx` — footer
+3. `src/components/checkout/TermsContent.tsx` — bloco final do conteúdo de termos
+4. `src/pages/PrivacyPage.tsx` — footer
 
-**SavingsCalculator**
-- Slider, input, presets ✅
-- CTA "Começar Grátis" → `/auth` ✅
+### O que será alterado
 
-**CTA final**
-- "Começar Grátis Agora" → `/auth` ✅
+Em todos os 4 arquivos acima, substituir:
 
-**Footer**
-- Instagram, WhatsApp, email ✅
-- Funcionalidades, Planos, Como Funciona, Calculadora, Comparativo ✅ (todas as âncoras existem: `#funcionalidades`, `#planos`, `#como-funciona`, `#calculadora`, `#comparativo`)
-- Termos, Privacidade, WhatsApp ✅
-- ⚠️ **"Perguntas Frequentes" → `#problemas`** — leva para a seção "Você já passou por isso?", que não é FAQ. Label enganoso.
+- **De:** `CNPJ 66.067.207/0001-91 — JACKSON BRENO FRANCELINO DA COSTA`
+- **Para:** `CNPJ 66.067.207/0001-91`
 
-### Correções a aplicar
+(remover apenas o travessão e o nome; manter o CNPJ exatamente como está)
 
-**1. Tornar a logo do header clicável** (`src/components/landing/HeroCinematic.tsx`)
-- Envolver o bloco `<img + span TrendFood>` em `<Link to="/">` para padrão de UX consistente (logo sempre volta pra home/topo)
-- Manter classes visuais; apenas adicionar `hover:opacity-90 transition-opacity`
+### Verificação adicional
 
-**2. Corrigir o link "Perguntas Frequentes"** (`src/pages/Index.tsx`)
-- Substituir o item `<li><a href="#problemas">Perguntas Frequentes</a></li>` por:
-  - **Label:** "Problemas Comuns"
-  - **Destino:** `#problemas` (mesma âncora, agora com label coerente com a seção real)
-- Alternativa rejeitada: criar uma FAQ nova — fora de escopo desta auditoria
+Vou também rodar uma busca final por "Jackson", "Breno", "Francelino" e "COSTA" em todo o `src/` para garantir que não sobrou nenhuma ocorrência em outro componente, página ou config (ex: meta tags, SEO, sobre).
 
 ### Resultado esperado
 
-- Todos os botões/links da landing funcionam e levam ao destino correto e coerente com o label
-- Logo do header passa a ser clicável (padrão web esperado)
-- Footer deixa de prometer FAQ que não existe
+- Footer da landing, página de Termos, conteúdo de Termos no checkout e página de Privacidade passam a exibir apenas o CNPJ
+- Nome pessoal removido 100% do site
+- Nenhuma outra alteração visual ou funcional
 
 ### Arquivos
-- `src/components/landing/HeroCinematic.tsx` (logo clicável)
-- `src/pages/Index.tsx` (label do item "Perguntas Frequentes")
+- `src/pages/Index.tsx`
+- `src/pages/TermsPage.tsx`
+- `src/components/checkout/TermsContent.tsx`
+- `src/pages/PrivacyPage.tsx`
 
