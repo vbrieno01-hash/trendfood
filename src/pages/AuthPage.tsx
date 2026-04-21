@@ -428,29 +428,29 @@ const AuthPage = () => {
           {googleOnboarding ? (
             <form onSubmit={handleGoogleOnboard} className="space-y-5">
               <div className="mb-6">
-                <h2 className="font-bold text-foreground text-2xl">Complete seu cadastro</h2>
-                <p className="text-muted-foreground text-sm mt-1">Só falta criar sua lanchonete!</p>
+                <h2 className="font-bold text-white text-3xl tracking-tight">Complete seu cadastro</h2>
+                <p className="text-white/60 text-sm mt-2">Só falta criar sua lanchonete!</p>
               </div>
               <div>
-                <Label htmlFor="g-biz" className="text-sm font-medium mb-1.5 block">Nome da lanchonete</Label>
-                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11" required />
+                <Label htmlFor="g-biz" className="text-sm font-medium mb-1.5 block text-white/80">Nome da lanchonete</Label>
+                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
               </div>
               <div>
-                <Label htmlFor="g-slug" className="text-sm font-medium mb-1.5 block">Slug (URL)</Label>
-                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11" required />
+                <Label htmlFor="g-slug" className="text-sm font-medium mb-1.5 block text-white/80">Slug (URL)</Label>
+                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
               </div>
               <div>
-                <Label htmlFor="g-wpp" className="text-sm font-medium mb-1.5 block">WhatsApp (com DDD)</Label>
-                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11" required />
+                <Label htmlFor="g-wpp" className="text-sm font-medium mb-1.5 block text-white/80">WhatsApp (com DDD)</Label>
+                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
               </div>
-              <Button type="submit" className="w-full h-11 font-semibold" disabled={googleOnboardLoading}>
+              <Button type="submit" className="w-full h-12 rounded-full font-semibold bg-primary hover:bg-primary/90 text-primary-foreground" disabled={googleOnboardLoading}>
                 {googleOnboardLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Criar lanchonete
               </Button>
               <Button
                 type="button"
                 variant="ghost"
-                className="w-full h-11 text-sm text-muted-foreground"
+                className="w-full h-11 text-sm text-white/60 hover:text-white hover:bg-white/5"
                 onClick={async () => {
                   await supabase.auth.signOut();
                   setGoogleOnboarding(false);
@@ -461,16 +461,16 @@ const AuthPage = () => {
             </form>
           ) : (
           <Tabs defaultValue="login">
-            <TabsList className="w-full h-11 bg-muted/60 rounded-xl p-1 grid grid-cols-2 mb-8">
+            <TabsList className="w-full h-11 bg-white/5 border border-white/10 rounded-full p-1 grid grid-cols-2 mb-8">
               <TabsTrigger
                 value="login"
-                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                className="rounded-full h-full text-sm font-semibold text-white/60 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm"
               >
                 Entrar
               </TabsTrigger>
               <TabsTrigger
                 value="signup"
-                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                className="rounded-full h-full text-sm font-semibold text-white/60 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm"
               >
                 Criar conta
               </TabsTrigger>
