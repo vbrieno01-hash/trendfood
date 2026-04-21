@@ -98,10 +98,10 @@ export default function HeroCinematic({
 
       <header className="relative z-10 border-b border-white/[0.06]">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
-          <div className="flex items-center gap-2.5">
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity" aria-label="Ir para o início">
             <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
-          </div>
+          </Link>
           <div className="hidden md:flex items-center gap-6 mr-auto ml-10">
             <a href="#funcionalidades" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Recursos</a>
             <Link to="/planos" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Preços</Link>
