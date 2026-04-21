@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
+import authCinematicBg from "@/assets/auth-cinematic-bg.png";
 import { toast } from "sonner";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
@@ -749,8 +750,18 @@ const AuthPage = () => {
       {/* RIGHT PANEL — Cinematic logo (desktop only) */}
       <div
         className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden"
-        style={{ background: "hsl(20 40% 6%)" }}
       >
+        {/* Cinematic background image */}
+        <img
+          src={authCinematicBg}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* Subtle dark overlay to ensure logo contrast */}
+        <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+
         {/* Vertical divider — fades at top/bottom (cinematic) */}
         <div
           className="absolute inset-y-0 left-0 w-px pointer-events-none z-20"
@@ -760,31 +771,14 @@ const AuthPage = () => {
           }}
         />
 
-        {/* Big warm halo centered behind the logo */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(circle at 50% 50%, hsl(20 100% 50% / 0.55) 0%, hsl(20 90% 35% / 0.25) 30%, transparent 65%)",
-          }}
-        />
-        {/* Diagonal light leak from top-right */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse 60% 50% at 90% 10%, hsl(35 100% 55% / 0.35) 0%, transparent 60%)",
-          }}
-        />
-
-        {/* Giant logo centered with strong halo */}
-        <div className="relative z-10 flex flex-col items-center gap-6 px-8">
+        {/* Logo + tagline elegantly centered over the image */}
+        <div className="relative z-10 flex flex-col items-center gap-5 px-8">
           <img
             src={logoIcon}
             alt="TrendFood"
-            className="w-[min(70vh,560px)] h-auto object-contain drop-shadow-[0_0_140px_hsl(20_100%_55%_/_0.75)] animate-fade-in"
+            className="w-[min(32vh,260px)] h-auto object-contain drop-shadow-[0_0_60px_hsl(20_100%_55%_/_0.5)] animate-fade-in"
           />
-          <p className="text-white/80 text-lg font-light tracking-wide animate-fade-in [animation-delay:200ms]">
+          <p className="text-white/85 text-base font-light tracking-wide animate-fade-in [animation-delay:200ms]">
             Zero taxas. <span className="text-white font-semibold">100% seu.</span>
           </p>
         </div>
