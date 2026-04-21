@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import authCinematicBg from "@/assets/auth-cinematic-bg.png";
+import authLogoCinematic from "@/assets/auth-logo-cinematic.png";
 import { toast } from "sonner";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
@@ -774,9 +775,9 @@ const AuthPage = () => {
         {/* Logo + tagline elegantly centered over the image */}
         <div className="relative z-10 flex flex-col items-center gap-5 px-8">
           <img
-            src={logoIcon}
+            src={authLogoCinematic}
             alt="TrendFood"
-            className="w-[min(32vh,260px)] h-auto object-contain drop-shadow-[0_0_60px_hsl(20_100%_55%_/_0.5)] animate-fade-in"
+            className="w-[min(46vh,420px)] h-auto object-contain drop-shadow-[0_0_80px_hsl(20_100%_55%_/_0.35)] animate-fade-in"
           />
           <p className="text-white/85 text-base font-light tracking-wide animate-fade-in [animation-delay:200ms]">
             Zero taxas. <span className="text-white font-semibold">100% seu.</span>
