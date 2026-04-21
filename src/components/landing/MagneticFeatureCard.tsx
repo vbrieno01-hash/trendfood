@@ -18,6 +18,9 @@ export default function MagneticFeatureCard({ title, description, icon, index }:
   const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-6, 6]), { stiffness: 200, damping: 20 });
   const glowX = useTransform(mx, (v) => `${(v + 0.5) * 100}%`);
   const glowY = useTransform(my, (v) => `${(v + 0.5) * 100}%`);
+  const glowBg = useTransform([glowX, glowY], ([x, y]) =>
+    `radial-gradient(400px circle at ${x} ${y}, hsl(var(--primary) / 0.18), transparent 40%)`
+  );
 
   function handleMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!isDesktop) return;
@@ -47,11 +50,7 @@ export default function MagneticFeatureCard({ title, description, icon, index }:
       {isDesktop && (
         <motion.div
           className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{
-            background: useTransform([glowX, glowY], ([x, y]) =>
-              `radial-gradient(400px circle at ${x} ${y}, hsl(var(--primary) / 0.18), transparent 40%)`
-            ) as any,
-          }}
+          style={{ background: glowBg as any }}
         />
       )}
       <div className="relative" style={isDesktop ? { transform: "translateZ(20px)" } : undefined}>
