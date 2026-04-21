@@ -203,73 +203,23 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Problem Section */}
-      <section id="problemas" className="py-20 px-4 bg-background">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">O problema real</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">{c("problems_title", "Você já passou por isso?")}</h2>
-            <p className="text-muted-foreground text-lg">{c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {problemsData.map((p: any) => (
-              <div key={p.title} className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:border-primary/30 hover:shadow-md transition-all">
-                <div className="h-44 overflow-hidden">
-                  <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
-                </div>
-                <div className="p-6">
-                  <h3 className="font-bold text-foreground text-lg mb-2">{p.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{p.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-10">
-            <p className="text-lg font-semibold text-foreground">
-              A TrendFood resolve tudo isso. <span className="text-primary">Veja como 👇</span>
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* Problems with stacked 3D cards */}
+      <StackedProblemCards
+        title={c("problems_title", "Você já passou por isso?")}
+        subtitle={c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}
+        problems={problemsData as any}
+      />
 
-      {/* Comparison Section */}
-      <ComparisonSection rows={comparisonData} />
+      {/* Animated comparison */}
+      <AnimatedComparison rows={comparisonData as any} />
 
       <SavingsCalculator />
 
-      {/* How it works */}
-      <section id="como-funciona" className="bg-secondary/40 border-y border-border/60 py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Como funciona</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Quatro passos simples</h2>
-            <p className="text-muted-foreground text-lg">Do cardápio ao fechamento do caixa, tudo integrado</p>
-          </div>
-          <div className="grid md:grid-cols-4 gap-4 md:gap-0 items-start">
-            {stepsData.map((step: any, idx: number) => (
-              <div key={step.title} className="flex md:contents">
-                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm flex-1">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                      {stepIcons[idx] || <Zap className="w-6 h-6" />}
-                    </div>
-                    <span className="text-4xl font-black text-border">{String(idx + 1).padStart(2, "0")}</span>
-                  </div>
-                  <h3 className="font-bold text-foreground text-base mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
-                </div>
-                {idx < stepsData.length - 1 && (
-                  <div className="hidden md:flex items-center justify-center px-1 self-center">
-                    <ChevronRight className="w-5 h-5 text-primary" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Timeline-style steps */}
+      <TimelineSteps steps={stepsData as any} />
 
-      <ShowcaseSection />
+      {/* Sticky scroll showcase */}
+      <StickyShowcase />
 
       {/* Features */}
       <section id="funcionalidades" className="py-20 px-4 bg-background">
