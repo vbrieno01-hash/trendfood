@@ -741,9 +741,49 @@ const AuthPage = () => {
           </Tabs>
           )}
 
-          <p className="text-center text-xs text-muted-foreground mt-8">
+          <p className="text-center text-xs text-white/40 mt-8">
             Ao criar sua conta, você concorda com nossos{" "}
-            <Link to="/termos" target="_blank" className="underline cursor-pointer hover:text-foreground transition-colors">Termos de Uso</Link>.
+            <Link to="/termos" target="_blank" className="underline cursor-pointer hover:text-white transition-colors">Termos de Uso</Link>.
+          </p>
+        </div>
+      </div>
+
+      {/* RIGHT PANEL — Cinematic logo (desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
+        {/* Warm radial glow */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle at 70% 50%, hsl(20 90% 35% / 0.55) 0%, hsl(15 70% 18% / 0.4) 35%, transparent 70%)",
+          }}
+        />
+        {/* Light leak from right */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 100% 50%, hsl(35 100% 60% / 0.25) 0%, transparent 55%)",
+          }}
+        />
+        {/* Left edge fade — fuses with form panel */}
+        <div
+          className="absolute inset-y-0 left-0 w-32 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to right, hsl(15 45% 8%) 0%, transparent 100%)",
+          }}
+        />
+
+        {/* Giant logo */}
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <img
+            src={logoIcon}
+            alt="TrendFood"
+            className="w-[60vh] max-w-[520px] h-auto object-contain drop-shadow-[0_0_80px_hsl(20_100%_55%_/_0.45)] opacity-95"
+          />
+          <p className="text-white/70 text-base font-light tracking-wide">
+            Zero taxas. <span className="text-white font-medium">100% seu.</span>
           </p>
         </div>
       </div>
