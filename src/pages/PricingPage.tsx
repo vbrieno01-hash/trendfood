@@ -324,7 +324,7 @@ const PricingPage = () => {
           <span className="font-semibold text-foreground">TrendFood</span>
         </div>
         <p>© 2026 TrendFood. Todos os direitos reservados.</p>
-        <p className="text-xs">CNPJ 66.067.207/0001-91 — JACKSON BRENO FRANCELINO DA COSTA</p>
+        <p className="text-xs">CNPJ 66.067.207/0001-91</p>
       </footer>
       {/* Confirmation Dialog */}
       <AlertDialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
