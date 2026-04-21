@@ -226,18 +226,18 @@ const Index = () => {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Tudo em um só lugar</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Funcionalidades completas</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Funcionalidades completas</h2>
             <p className="text-muted-foreground text-lg">Do cardápio digital ao controle de caixa — sem precisar de vários sistemas</p>
           </div>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {featuresData.map((f: any) => (
-              <div key={f.title} className="group bg-card rounded-2xl p-5 border border-border hover:border-primary/40 hover:shadow-md transition-all">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  {featureIconMap[f.title] || <Zap className="w-5 h-5" />}
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">{f.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
-              </div>
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 perspective-[1200px]" style={{ perspective: 1200 }}>
+            {featuresData.map((f: any, i: number) => (
+              <MagneticFeatureCard
+                key={f.title}
+                title={f.title}
+                description={f.description}
+                icon={featureIconMap[f.title] || <Zap className="w-5 h-5" />}
+                index={i}
+              />
             ))}
           </div>
         </div>
