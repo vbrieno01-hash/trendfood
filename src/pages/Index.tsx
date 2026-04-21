@@ -4,15 +4,21 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import ShowcaseSection from "@/components/landing/ShowcaseSection";
-import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
+import HeroCinematic from "@/components/landing/HeroCinematic";
+import MarqueeSocialProof from "@/components/landing/MarqueeSocialProof";
+import LiveOrderCounter from "@/components/landing/LiveOrderCounter";
+import StackedProblemCards from "@/components/landing/StackedProblemCards";
+import TimelineSteps from "@/components/landing/TimelineSteps";
+import StickyShowcase from "@/components/landing/StickyShowcase";
+import AnimatedComparison from "@/components/landing/AnimatedComparison";
+import MagneticFeatureCard from "@/components/landing/MagneticFeatureCard";
 import PlanCard from "@/components/pricing/PlanCard";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
   BarChart3, Zap, ArrowRight, QrCode, UtensilsCrossed, TrendingUp,
-  ChevronRight, Flame, BellRing, Wallet, Tag, Printer, BarChart2,
+  Flame, BellRing, Wallet, Tag, Printer, BarChart2,
   Bike, MessageCircle, Instagram, Smartphone, Package, CreditCard, Loader2,
 } from "lucide-react";
 
@@ -157,82 +163,28 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-screen flex flex-col">
-        <img
-          src={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
-          alt="Ambiente comercial"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(10,8,6,0.93) 0%, rgba(15,10,5,0.82) 45%, rgba(10,8,6,0.55) 100%)" }} />
+      {/* Hero Cinematic */}
+      <HeroCinematic
+        badgeText={c("hero_badge_text", "Zero taxas sobre vendas")}
+        title={c("hero_title", "O Cardápio Digital que Profissionaliza seu Delivery")}
+        titleHighlight={c("hero_title_highlight", "Sem Taxas, Com Gestão Real.")}
+        subtitle={c("hero_subtitle", "Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.")}
+        subtitle2={c("hero_subtitle2", "Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.")}
+        ctaText={c("hero_cta_text", "Começar Grátis")}
+        proofBadges={cArr("proof_badges", defaultProofBadges)}
+        orderCount={orderCount}
+        displayCount={displayCount}
+        orderCounterText={c("order_counter_text", "pedidos feitos no TrendFood")}
+        heroImageUrl={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
+      />
 
-        <header className="relative z-10 border-b border-white/[0.06]">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
-            <div className="flex items-center gap-2.5">
-              <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
-              <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
-            </div>
-            <div className="hidden md:flex items-center gap-6 mr-auto ml-10">
-              <a href="#funcionalidades" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Recursos</a>
-              <Link to="/planos" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Preços</Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/[0.06] transition-all" asChild>
-                <Link to="/auth">Entrar</Link>
-              </Button>
-              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-5 transition-all" asChild>
-                <Link to="/auth">Começar Agora</Link>
-              </Button>
-            </div>
-          </div>
-        </header>
+      {/* Marquee social proof */}
+      <MarqueeSocialProof />
 
-        <div className="relative z-10 flex-1 flex items-center">
-          <div className="max-w-5xl mx-auto px-4 py-24 text-center w-full">
-            <Badge className="mb-8 bg-white/[0.08] text-white/80 border-white/[0.1] hover:bg-white/[0.12] backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
-              <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-              {c("hero_badge_text", "Zero taxas sobre vendas")}
-            </Badge>
-
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
-              {c("hero_title", "O Cardápio Digital que Profissionaliza seu Delivery")}
-              <br />
-              <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-                {c("hero_title_highlight", "Sem Taxas, Com Gestão Real.")}
-              </span>
-            </h1>
-
-            <p className="text-lg md:text-xl text-white/75 max-w-2xl mx-auto mb-4 leading-[1.8]">
-              {c("hero_subtitle", "Diferente dos marketplaces, aqui o dinheiro fica todo com você. Catálogo digital, entregas com seus motoboys, impressão térmica e controle de caixa — sem pagar 27% pra ninguém.")}
-            </p>
-            <p className="text-sm md:text-base text-white/45 max-w-xl mx-auto mb-12 leading-relaxed">
-              {c("hero_subtitle2", "Comece grátis em menos de 2 minutos. Seu negócio mais organizado a partir de hoje.")}
-            </p>
-
-            <div className="flex justify-center">
-              <Link to="/auth" className="inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.6)] hover:scale-[1.03] transition-all duration-300">
-                {c("hero_cta_text", "Começar Grátis")}
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-
-            <div className="mt-14 flex flex-wrap gap-2.5 justify-center">
-              {cArr("proof_badges", defaultProofBadges).map((b: string) => (
-                <span key={b} className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium">{b}</span>
-              ))}
-            </div>
-
-            {orderCount > 0 && (
-              <div className="mt-8 flex justify-center animate-fade-in">
-                <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-300 text-sm font-semibold tracking-wide">
-                  <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
-                  +{displayCount.toLocaleString('pt-BR')} {c("order_counter_text", "pedidos feitos no TrendFood")}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      {/* Live order counter */}
+      {orderCount > 0 && (
+        <LiveOrderCounter count={displayCount} label={c("order_counter_text", "pedidos feitos no TrendFood")} />
+      )}
 
       {/* Benefit Cards */}
       <section className="py-16 px-4 bg-background border-b border-border/60">
@@ -251,91 +203,41 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Problem Section */}
-      <section id="problemas" className="py-20 px-4 bg-background">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">O problema real</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">{c("problems_title", "Você já passou por isso?")}</h2>
-            <p className="text-muted-foreground text-lg">{c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {problemsData.map((p: any) => (
-              <div key={p.title} className="bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:border-primary/30 hover:shadow-md transition-all">
-                <div className="h-44 overflow-hidden">
-                  <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
-                </div>
-                <div className="p-6">
-                  <h3 className="font-bold text-foreground text-lg mb-2">{p.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{p.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-10">
-            <p className="text-lg font-semibold text-foreground">
-              A TrendFood resolve tudo isso. <span className="text-primary">Veja como 👇</span>
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* Problems with stacked 3D cards */}
+      <StackedProblemCards
+        title={c("problems_title", "Você já passou por isso?")}
+        subtitle={c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}
+        problems={problemsData as any}
+      />
 
-      {/* Comparison Section */}
-      <ComparisonSection rows={comparisonData} />
+      {/* Animated comparison */}
+      <AnimatedComparison rows={comparisonData as any} />
 
       <SavingsCalculator />
 
-      {/* How it works */}
-      <section id="como-funciona" className="bg-secondary/40 border-y border-border/60 py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Como funciona</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Quatro passos simples</h2>
-            <p className="text-muted-foreground text-lg">Do cardápio ao fechamento do caixa, tudo integrado</p>
-          </div>
-          <div className="grid md:grid-cols-4 gap-4 md:gap-0 items-start">
-            {stepsData.map((step: any, idx: number) => (
-              <div key={step.title} className="flex md:contents">
-                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm flex-1">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                      {stepIcons[idx] || <Zap className="w-6 h-6" />}
-                    </div>
-                    <span className="text-4xl font-black text-border">{String(idx + 1).padStart(2, "0")}</span>
-                  </div>
-                  <h3 className="font-bold text-foreground text-base mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
-                </div>
-                {idx < stepsData.length - 1 && (
-                  <div className="hidden md:flex items-center justify-center px-1 self-center">
-                    <ChevronRight className="w-5 h-5 text-primary" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Timeline-style steps */}
+      <TimelineSteps steps={stepsData as any} />
 
-      <ShowcaseSection />
+      {/* Sticky scroll showcase */}
+      <StickyShowcase />
 
       {/* Features */}
       <section id="funcionalidades" className="py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Tudo em um só lugar</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Funcionalidades completas</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Funcionalidades completas</h2>
             <p className="text-muted-foreground text-lg">Do cardápio digital ao controle de caixa — sem precisar de vários sistemas</p>
           </div>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {featuresData.map((f: any) => (
-              <div key={f.title} className="group bg-card rounded-2xl p-5 border border-border hover:border-primary/40 hover:shadow-md transition-all">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  {featureIconMap[f.title] || <Zap className="w-5 h-5" />}
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">{f.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{f.description}</p>
-              </div>
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 perspective-[1200px]" style={{ perspective: 1200 }}>
+            {featuresData.map((f: any, i: number) => (
+              <MagneticFeatureCard
+                key={f.title}
+                title={f.title}
+                description={f.description}
+                icon={featureIconMap[f.title] || <Zap className="w-5 h-5" />}
+                index={i}
+              />
             ))}
           </div>
         </div>

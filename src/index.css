@@ -200,3 +200,98 @@ a[href*="lovable.dev"][style*="position: fixed"] {
   pointer-events: none !important;
   visibility: hidden !important;
 }
+
+/* ── Landing Cinematic Effects ── */
+@keyframes landing-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes landing-gradient-sweep {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes landing-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes landing-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(24 95% 53% / 0.45); }
+  50% { box-shadow: 0 0 0 14px hsl(24 95% 53% / 0); }
+}
+@keyframes landing-float-particle {
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.45; }
+  50% { transform: translate3d(0, -30px, 0); opacity: 1; }
+}
+@keyframes landing-conic-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes landing-flip {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-100%); }
+  50.01% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+
+.landing-shimmer-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.landing-shimmer-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.5) 50%, transparent 80%);
+  animation: landing-shimmer 3.5s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.landing-gradient-text {
+  background: linear-gradient(90deg, #fdba74, #f97316, #ea580c, #f97316, #fdba74);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: landing-gradient-sweep 6s ease-in-out infinite;
+}
+
+.landing-marquee-track {
+  animation: landing-marquee 40s linear infinite;
+}
+
+.landing-conic-border {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--angle, 0deg), transparent 60%, hsl(24 95% 53% / 0.9), transparent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s;
+  animation: landing-conic-spin 4s linear infinite;
+}
+.group:hover .landing-conic-border {
+  opacity: 1;
+}
+
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-shimmer-overlay::after,
+  .landing-gradient-text,
+  .landing-marquee-track,
+  .landing-conic-border {
+    animation: none !important;
+  }
+}

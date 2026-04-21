@@ -1,12 +1,36 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 const PRESETS = [5000, 10000, 20000, 50000];
+
+function FlipNumber({ value }: { value: string }) {
+  return (
+    <span className="inline-flex overflow-hidden tabular-nums">
+      {value.split("").map((c, i) => (
+        <span key={`${i}-${c}`} className="relative inline-block" style={{ height: "1em", minWidth: /\d/.test(c) ? "0.55em" : undefined }}>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={c}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "-100%", opacity: 0 }}
+              transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              {c}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const SavingsCalculator = () => {
   const [revenue, setRevenue] = useState(10000);
@@ -96,11 +120,11 @@ const SavingsCalculator = () => {
             </p>
             <div className="flex items-baseline gap-3 mb-2">
               <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
-                {formatBRL(lossMin)}
+                <FlipNumber value={formatBRL(lossMin)} />
               </span>
               <span className="text-white/20 text-lg">a</span>
               <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
-                {formatBRL(lossMax)}
+                <FlipNumber value={formatBRL(lossMax)} />
               </span>
               <span className="text-white/20 text-sm">/mês</span>
             </div>
@@ -116,7 +140,7 @@ const SavingsCalculator = () => {
               Com o TrendFood
             </p>
             <p className="text-3xl md:text-4xl font-semibold text-emerald-400 tabular-nums mb-2">
-              {formatBRL(revenue)} <span className="text-white/40 text-lg font-normal">fica com você</span>
+              <FlipNumber value={formatBRL(revenue)} /> <span className="text-white/40 text-lg font-normal">fica com você</span>
             </p>
             <p className="text-sm text-emerald-400/60">0% de comissão sobre vendas</p>
           </div>

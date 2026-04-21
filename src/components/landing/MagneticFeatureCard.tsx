@@ -1,0 +1,60 @@
+import { useRef } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+
+interface Props {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  index: number;
+}
+
+export default function MagneticFeatureCard({ title, description, icon, index }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 200, damping: 20 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-6, 6]), { stiffness: 200, damping: 20 });
+  const glowX = useTransform(mx, (v) => `${(v + 0.5) * 100}%`);
+  const glowY = useTransform(my, (v) => `${(v + 0.5) * 100}%`);
+
+  function handleMove(e: React.MouseEvent<HTMLDivElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    mx.set((e.clientX - r.left) / r.width - 0.5);
+    my.set((e.clientY - r.top) / r.height - 0.5);
+  }
+  function handleLeave() {
+    mx.set(0);
+    my.set(0);
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.5, delay: index * 0.05 }}
+      className="group relative bg-card rounded-2xl p-6 border border-border hover:border-primary/40 transition-colors overflow-hidden"
+    >
+      <div className="landing-conic-border" />
+      <motion.div
+        className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{
+          background: useTransform([glowX, glowY], ([x, y]) =>
+            `radial-gradient(400px circle at ${x} ${y}, hsl(var(--primary) / 0.18), transparent 40%)`
+          ) as any,
+        }}
+      />
+      <div className="relative" style={{ transform: "translateZ(20px)" }}>
+        <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+          {icon}
+        </div>
+        <h3 className="font-semibold text-foreground mb-1">{title}</h3>
+        <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
+      </div>
+    </motion.div>
+  );
+}
