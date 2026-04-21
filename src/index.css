@@ -211,8 +211,8 @@ a[href*="lovable.dev"][style*="position: fixed"] {
   50% { background-position: 100% 50%; }
 }
 @keyframes landing-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-33.333%, 0, 0); }
 }
 @keyframes landing-glow-pulse {
   0%, 100% { box-shadow: 0 0 0 0 hsl(24 95% 53% / 0.45); }
@@ -261,7 +261,7 @@ a[href*="lovable.dev"][style*="position: fixed"] {
 }
 
 .landing-marquee-track {
-  animation: landing-marquee 40s linear infinite;
+  animation: landing-marquee 25s linear infinite;
 }
 
 .landing-conic-border {
@@ -290,8 +290,10 @@ a[href*="lovable.dev"][style*="position: fixed"] {
 @media (prefers-reduced-motion: reduce) {
   .landing-shimmer-overlay::after,
   .landing-gradient-text,
-  .landing-marquee-track,
   .landing-conic-border {
     animation: none !important;
+  }
+  .landing-marquee-track {
+    animation-duration: 80s !important;
   }
 }
