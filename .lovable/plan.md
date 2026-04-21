@@ -1,46 +1,40 @@
 
 
-## Plano — Corrigir landing "incompleta" em mobile/tablet
+## Plano — Sumir o "buraco branco" do contador AO VIVO
 
-Você não está vendo bug, está vendo **buracos de design responsivo**. Vários efeitos foram desenhados pra desktop e em telas <1024px deixam metade da seção vazia. Vou fechar esses buracos sem perder o efeito premium do desktop.
+O espaço vazio que você está vendo é o componente **LiveOrderCounter** com o número gigante invisível (FlipDigit bugado + gradiente de texto sem fallback). E ele é **redundante** porque o Hero já mostra o contador de pedidos.
 
-### Os 5 buracos identificados (viewport ≤1024px)
+### Diagnóstico exato
 
-| Onde | O que está acontecendo | Correção |
-|---|---|---|
-| **Hero** | Mockup 3D escondido (`hidden lg:block`). Lado direito vira coluna vazia + hero com `min-h-screen` deixa meia tela em branco | Mostrar mockup também em md/tablet (escala menor, sem tilt 3D), e remover `min-h-screen` em <lg — usar altura natural |
-| **StickyShowcase** | Altura `400vh` mesmo no mobile, mas em coluna única o sticky-scroll não faz sentido | No mobile, virar **carrossel/lista vertical** das 5 abas com mockup acima; altura natural, sem sticky |
-| **TimelineSteps** | Em md (≥768) tem linha vertical, abaixo de md cada passo fica espaçado demais (`mb-16`) e o mockup de 128px central do lado parece flutuando | Em mobile: layout vertical compacto com linha lateral à esquerda, ícones menores (w-20), `mb-8` |
-| **Padding vertical** | Quase toda seção tem `py-24` (192px) — sobreposto, parece "vazio" | Em mobile reduzir pra `py-12 md:py-24` em todas as seções da landing |
-| **Benefit cards** | Em mobile viram 1 coluna sem mais nada, e a seção tem `py-16` solta — parece "deslocada" | Reduzir padding em mobile e juntar visualmente com a próxima seção (sem border-b separadora) |
+Olhando a screenshot: aparece o badge verde "AO VIVO", um espaço vazio enorme (onde deveria estar `9.999` em laranja gigante), e a legenda "pedidos feitos no TrendFood". O número não renderiza por dois bugs no `FlipDigit`:
 
-### Mudanças exatas
+1. **Wrapper com altura quebrada**: `<div style={{ height: "1em", width: "0.6em" }}>` + filho `absolute inset-0` dentro de container `items-baseline` → o flex com baseline ignora a altura do inline-block e o dígito cai fora do recorte
+2. **Gradiente de texto sem cor de fallback**: classe `landing-gradient-text` aplica `color: transparent` + `background-clip: text` — se o background-image falhar ou demorar, fica texto transparente sobre fundo branco
+3. **Redundância**: o `HeroCinematic` no topo já renderiza `displayCount` + `orderCounterText` — ter dois contadores enche linguiça
 
-**`HeroCinematic.tsx`**
-- Trocar `hidden lg:block` do mockup 3D por `hidden md:block` e reduzir escala em md (max-w-[420px] md, [560px] lg)
-- Em md, desligar tilt 3D (peso na CPU mobile) — mockup estático com leve rotação fixa
-- Remover `min-h-screen` → trocar por `min-h-[600px] md:min-h-screen`
-- `pt-20 pb-32` → `pt-12 pb-16 md:pt-20 md:pb-32`
+### Correção (escolha mais limpa)
 
-**`StickyShowcase.tsx`**
-- Detectar mobile: se `window.innerWidth < 1024`, renderizar **versão alternativa**: lista vertical das 5 features com mini-mockup acima de cada uma, altura natural (sem sticky, sem scroll-driven). Mantém o conteúdo, mas sem buraco.
-- Em desktop, mantém o sticky scroll cinematográfico atual.
+**Remover o `<LiveOrderCounter />` do `Index.tsx`.**
 
-**`TimelineSteps.tsx`**
-- Em mobile: linha vertical à esquerda (não centralizada), cards alinhados à direita da linha, ícones menores (w-20 h-20), `mb-8` em vez de `mb-16`
-- Manter visual desktop intacto
+Justificativa:
+- O contador já aparece no Hero (linha 175-177 do Index.tsx passa `orderCount`/`displayCount`/`orderCounterText` pro HeroCinematic)
+- Tirar a seção elimina o "espaço vazio" reclamado
+- Página fica mais enxuta (menos scroll desnecessário)
+- Sequência fica: Hero (com contador) → Marquee → Benefícios → Problemas → ... (mais fluida)
 
-**`Index.tsx` (padding global das seções)**
-- Trocar `py-24` por `py-14 md:py-24` em: StackedProblemCards (já tem 24), TimelineSteps, Features, Plans, CTA final
-- Trocar `py-20` por `py-12 md:py-20` em Features e Plans
-- Trocar `py-16` por `py-10 md:py-16` em Benefit Cards
-- Remover `border-b` que isola visualmente a Benefit section quando em mobile (já fica natural)
+### Mudança exata
+
+**`src/pages/Index.tsx`**:
+- Remover linhas 184-187 (bloco `{orderCount > 0 && <LiveOrderCounter ... />}`)
+- Remover import da linha 10 (`import LiveOrderCounter from "@/components/landing/LiveOrderCounter";`)
+- Manter o arquivo `LiveOrderCounter.tsx` no projeto (não apaga, fica disponível caso queira usar futuramente em outra página)
 
 ### Resultado
 
-- Desktop: **idêntico ao atual** (cinematográfico, premium)
-- Tablet (768-1023px): mockup do hero aparece, sticky showcase vira lista compacta, padding mais enxuto
-- Mobile (≤767px): tudo flui em coluna única sem buracos, linha do tempo lateral, padding adequado
+- O "espaço em branco" da screenshot desaparece completamente
+- Contador continua aparecendo (no Hero, onde já estava funcionando)
+- Fluxo da landing fica: Hero com contador ao vivo → Marquee de social proof → Benefícios → Problemas em stack 3D → Comparativo animado → Calculadora → Timeline → Showcase sticky → Funcionalidades → Planos → CTA
+- Sem efeito quebrado, sem duplicação, sem buraco
 
-Sem mudar conteúdo, sem mexer no CMS, sem remover efeito nenhum no desktop. Só **fechar os vazios responsivos**.
+Mudança mínima e cirúrgica: 2 linhas removidas no `Index.tsx`.
 
