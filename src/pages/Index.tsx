@@ -4,15 +4,21 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import ShowcaseSection from "@/components/landing/ShowcaseSection";
-import ComparisonSection from "@/components/landing/ComparisonSection";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
+import HeroCinematic from "@/components/landing/HeroCinematic";
+import MarqueeSocialProof from "@/components/landing/MarqueeSocialProof";
+import LiveOrderCounter from "@/components/landing/LiveOrderCounter";
+import StackedProblemCards from "@/components/landing/StackedProblemCards";
+import TimelineSteps from "@/components/landing/TimelineSteps";
+import StickyShowcase from "@/components/landing/StickyShowcase";
+import AnimatedComparison from "@/components/landing/AnimatedComparison";
+import MagneticFeatureCard from "@/components/landing/MagneticFeatureCard";
 import PlanCard from "@/components/pricing/PlanCard";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
   BarChart3, Zap, ArrowRight, QrCode, UtensilsCrossed, TrendingUp,
-  ChevronRight, Flame, BellRing, Wallet, Tag, Printer, BarChart2,
+  Flame, BellRing, Wallet, Tag, Printer, BarChart2,
   Bike, MessageCircle, Instagram, Smartphone, Package, CreditCard, Loader2,
 } from "lucide-react";
 

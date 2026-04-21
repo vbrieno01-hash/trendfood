@@ -120,11 +120,11 @@ const SavingsCalculator = () => {
             </p>
             <div className="flex items-baseline gap-3 mb-2">
               <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
-                {formatBRL(lossMin)}
+                <FlipNumber value={formatBRL(lossMin)} />
               </span>
               <span className="text-white/20 text-lg">a</span>
               <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
-                {formatBRL(lossMax)}
+                <FlipNumber value={formatBRL(lossMax)} />
               </span>
               <span className="text-white/20 text-sm">/mês</span>
             </div>
@@ -140,7 +140,7 @@ const SavingsCalculator = () => {
               Com o TrendFood
             </p>
             <p className="text-3xl md:text-4xl font-semibold text-emerald-400 tabular-nums mb-2">
-              {formatBRL(revenue)} <span className="text-white/40 text-lg font-normal">fica com você</span>
+              <FlipNumber value={formatBRL(revenue)} /> <span className="text-white/40 text-lg font-normal">fica com você</span>
             </p>
             <p className="text-sm text-emerald-400/60">0% de comissão sobre vendas</p>
           </div>
