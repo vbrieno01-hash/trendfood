@@ -261,7 +261,7 @@ a[href*="lovable.dev"][style*="position: fixed"] {
 }
 
 .landing-marquee-track {
-  animation: landing-marquee 25s linear infinite;
+  animation: landing-marquee 12s linear infinite;
 }
 
 .landing-conic-border {
@@ -294,7 +294,7 @@ a[href*="lovable.dev"][style*="position: fixed"] {
     animation: none !important;
   }
   .landing-marquee-track {
-    animation-duration: 80s !important;
+    animation-duration: 22s !important;
   }
 }
 
