@@ -1,84 +1,117 @@
 
 
-## Diagnóstico — o que realmente está acontecendo no TrendFood
+## Plano — Landing TrendFood "Premium Cinematográfica"
 
-Olhei logs reais, banco e métricas das últimas semanas. Os "errinhos bestas" não são tão besta — tem padrão. Aqui vai a foto sincera:
+Transformar a landing de "site bonitinho" em **experiência cinematográfica scroll-driven**, com efeitos que praticamente nenhuma SaaS BR de food tem hoje. Mantendo conteúdo, identidade laranja e estrutura — mudando só a **forma como aparece**.
 
-### Achados quantificados (últimos 7 dias)
+---
 
-| Métrica | Valor | Significado |
+## Conceito visual
+
+A página vai funcionar como um **filme curto**: cada seção tem sua "entrada", as coisas montam na frente do cliente, peças se encaixam, números sobem ao vivo, mockups giram em 3D conforme rola. Sensação de produto **caro, vivo e premiado**.
+
+---
+
+## 8 efeitos novos que serão implementados
+
+### 1. Hero com **mockup 3D que gira com o mouse** + parallax de partículas
+- Substituir a foto estática do hero por um **dashboard mockup flutuante em 3D** que inclina conforme o mouse (efeito tilt suave, igual Apple Vision Pro / Linear).
+- Atrás do mockup: **partículas laranja flutuando devagar** (estrelinhas/poeira) com parallax em camadas conforme rola.
+- Texto do título com **gradiente animado** (laranja claro → escuro → claro) varrendo lentamente.
+- Botão "Começar Grátis" com **brilho que passa** a cada 4s (shimmer).
+
+### 2. **Stack de cards 3D** que se desempilha no scroll (problemas)
+- Os 3 problemas hoje aparecem lado a lado. Vão virar uma **pilha de cards** que se separa conforme o scroll: o de cima sobe, os de baixo aparecem em sequência girando levemente em 3D.
+- Cada card revela seu conteúdo com **máscara de gradiente** (efeito reveal cinematográfico).
+
+### 3. **Linha do tempo conectada** com SVG animado (Como Funciona)
+- Os 4 passos hoje estão lado a lado com setinha. Vão virar uma **linha SVG sinuosa** que se **desenha conforme o scroll passa** (stroke-dashoffset animado).
+- Os ícones de cada etapa **acendem** (glow laranja) quando a linha chega neles.
+- Cada card "salta" do lado da linha com bounce sutil.
+
+### 4. **Showcase com mockup que troca de tela** (sticky scroll)
+- A seção do dashboard fica **grudada na tela** (sticky) por uns 100vh enquanto o usuário rola.
+- À medida que rola, o **mockup do dashboard troca de aba sozinho**: Pedidos → Caixa → Mais Vendidos → Cardápio → KDS. Cada troca acompanhada por uma legenda lateral que muda também ("Veja vendas ao vivo", "Feche o caixa em 1 clique", etc).
+- Padrão Apple/Stripe.
+
+### 5. **Comparativo com efeito "balança"** + barras animadas
+- Marketplace vs TrendFood: a tabela vira um **gráfico animado** onde a coluna do marketplace começa cheia (vermelho 27%) e **esvazia** conforme o scroll passa, enquanto a coluna TrendFood enche (verde 0%).
+- Visceral. Mostra economia em movimento.
+
+### 6. **Calculadora com contador giratório estilo aeroporto**
+- Hoje tem `SavingsCalculator`. Vou trocar o display de número por um **odômetro/flip-counter** (aqueles números rolando estilo painel de aeroporto antigo) quando recalcula.
+- Efeito instantâneo de "uau, está calculando de verdade".
+
+### 7. **Cards de funcionalidades com magnetismo + glow no hover**
+- Os 14 cards de features ganham:
+  - **Magnetic effect**: o card se inclina suavemente perseguindo o cursor (3D tilt leve).
+  - **Glow radial laranja** que acompanha o mouse dentro do card (igual GitHub Copilot, Vercel).
+  - **Borda animada arco-íris laranja** quando hover (gradient conic rotacionando).
+- Aparecem em scroll com **stagger reveal** (um após o outro).
+
+### 8. **Marquee de "social proof" + contador gigante**
+- Logo abaixo do hero, antes dos problemas: faixa horizontal **rolando infinitamente** com badges de credibilidade ("Zero comissão", "Suporte 24/7", "PIX automático", "Sem app", logos fictícios de tipos de negócio: Pizzaria, Hamburgueria, Açaiteria, Loja, Mercearia, etc) — efeito **marquee infinito** que nunca para.
+- O contador de pedidos atual (que já existe) vai virar uma **seção dedicada** com o número GIGANTE (texto 8rem, gradiente laranja, **flip animation a cada novo pedido em tempo real**) com legenda "Pedidos processados pela plataforma" e um pulso verde "ao vivo".
+
+---
+
+## Detalhes técnicos
+
+**Bibliotecas/abordagem** (sem dependências pesadas — tudo em CSS/Framer Motion + Intersection Observer):
+- **Framer Motion** (`framer-motion`) — única dep nova, padrão da indústria, ~50KB. Usado pra: parallax, stack reveal, sticky scroll com troca de aba, magnetic cards, contadores.
+- **CSS puro** pra: shimmer, gradiente animado, marquee infinito, glow radial, conic-gradient borders.
+- **SVG** pra: linha do tempo desenhada (stroke-dashoffset).
+
+**Performance**:
+- `prefers-reduced-motion` respeitado em todos os efeitos (acessibilidade + bateria mobile).
+- Animações usam `transform`/`opacity` (GPU), nunca layout properties.
+- Lazy mount: efeitos pesados (sticky showcase, magnetic) só montam quando entram na viewport.
+- Mobile: efeitos 3D/magnetic desligados, mantendo só fade/slide simples (UX limpa em touch).
+
+**Estrutura de arquivos** (refatoração organizada):
+- Novos componentes em `src/components/landing/`:
+  - `HeroCinematic.tsx` — hero com mockup 3D + partículas + shimmer
+  - `MarqueeSocialProof.tsx` — faixa rolante infinita
+  - `LiveOrderCounter.tsx` — contador gigante flip + pulso ao vivo
+  - `StackedProblemCards.tsx` — pilha de cards desempilhando
+  - `TimelineSteps.tsx` — linha SVG desenhada + cards conectados
+  - `StickyShowcase.tsx` — dashboard que troca de aba no sticky scroll
+  - `AnimatedComparison.tsx` — barras esvaziando/enchendo
+  - `MagneticFeatureCard.tsx` — card individual com tilt + glow radial
+- `src/pages/Index.tsx` — fica como orquestrador, monta as seções na ordem.
+- `src/index.css` — adicionar keyframes: `shimmer`, `gradient-sweep`, `marquee`, `flip-number`, `glow-pulse`.
+
+**Conteúdo/CMS**:
+- **Zero impacto** no CMS atual (`platform_content`). Todos os textos continuam editáveis. Só a renderização visual muda.
+
+---
+
+## Antes vs Depois (resumo executivo)
+
+| Seção | Hoje | Depois |
 |---|---|---|
-| Pedidos | 204 | Movimento saudável |
-| Pedidos cancelados | **17 (8,3%)** | Alto. Padrão setor: 2-4% |
-| Itens na fila de impressão travados há +1h | **146** | Impressão silenciosamente quebrada |
-| Erros JS no client | 48 | Concentrados em 5 padrões |
-| Lojas com banner | só 3 de 11 | Confirma o problema do banner |
-
-### Os 5 erros que mais aparecem
-
-1. **`Should have a queue. This is likely a bug in React`** (14x) — bug grave do React; a tela inteira crasha e cai no ErrorBoundary. Geralmente causado por componente sendo renderizado fora da árvore (ex: `ConditionalSupportChat`, `PWAUpdatePrompt`) ou por hook chamado condicionalmente.
-2. **`null is not an object (evaluating 'X.target')`** (12x) — handler de evento sendo chamado depois do unmount (toast, dropdown, sheet fechando enquanto o usuário clica de novo).
-3. **`ReferenceError: ColorField is not defined`** (3x — ainda hoje 10:59) — sobrou import morto no `StoreProfileTab.tsx` depois de removermos o bloco de cores agora há pouco.
-4. **`Failed to fetch dynamically imported module: DashboardPage.tsx`** — quando sai uma versão nova, quem está com a aba aberta recebe erro de chunk velho. Ninguém recarrega → pegadinha clássica de PWA.
-5. **`Rendered more hooks than during the previous render`** — algum componente do dashboard renderiza hooks condicionalmente.
-
-### Os 4 problemas operacionais
-
-- **Fila de impressão entupida**: 146 itens com `status='pendente'` há mais de 1h. Ou a impressora tá offline e a fila não está "expirando", ou o robô local não está processando. Não tem job que limpa isso.
-- **Cancelamentos altos (8%)**: precisa entender **por que** clientes/lojistas cancelam. Hoje não temos motivo registrado.
-- **Banner sumindo**: já corrigimos a causa raiz, mas só 3 de 11 lojas têm banner. Falta um onboarding/tutorial visual.
-- **Segurança DB**: linter aponta 19 issues — várias políticas RLS com `USING (true)` em UPDATE/DELETE (couriers, deliveries, courier_shifts, fila_impressao public update). Em produção isso permite que qualquer um sem login altere registros operacionais.
+| Hero | Foto fixa + texto | Mockup 3D tilt + partículas + shimmer no CTA |
+| Social proof | Badges parados | Marquee infinito + contador gigante ao vivo |
+| Problemas | 3 cards em grid | Stack desempilhando em 3D no scroll |
+| Como Funciona | 4 cards + setinhas | Timeline SVG desenhada + ícones acendendo |
+| Showcase | Mockup estático | Sticky scroll com troca de aba sincronizada |
+| Comparativo | Tabela | Barras animadas (vermelho esvazia / verde enche) |
+| Calculadora | Número fixo | Flip-counter estilo aeroporto |
+| Features | Cards hover simples | Magnetic tilt + glow radial seguindo mouse |
 
 ---
 
-## Plano — 4 frentes priorizadas
+## Resultado esperado
 
-### Frente 1 — Estabilidade (resolve 80% dos crashes) — PRIORITÁRIA
-
-**1.1** Limpar o `ColorField is not defined` — varrer `StoreProfileTab.tsx` e remover qualquer referência morta ao componente removido.
-
-**1.2** Resolver `Should have a queue` — mover `<ConditionalSupportChat />` e `<PWAUpdatePrompt />` para **dentro** da `<Routes>` ou garantir que não desmontam/remontam em transições. Padrão atual tá causando reset de fiber.
-
-**1.3** Auto-reload em chunk antigo — quando o erro for `Failed to fetch dynamically imported module`, em vez de só logar, **forçar `window.location.reload()` 1x** (com flag em sessionStorage pra não loopar). Resolve a #4.
-
-**1.4** Guard nos `e.target` — varrer handlers que acessam `e.target` direto e adicionar `if (!e?.target) return;`. Resolve a #2.
-
-### Frente 2 — Operação confiável (impressão + cancelamentos)
-
-**2.1** Job pg_cron diário **`expire-stuck-prints`** — marca como `expirado` qualquer item da `fila_impressao` com mais de 24h em `pendente`, e cria notificação no admin com a contagem. Mantém a fila enxuta.
-
-**2.2** Card "Saúde da Impressora" no dashboard — mostra quantos itens pendentes a loja tem agora. Se >5 e mais antigos que 10min, alerta vermelho: "Impressora desconectada — verifique".
-
-**2.3** **Motivo de cancelamento obrigatório** — quando o lojista cancela um pedido, abrir um seletor: "Falta de produto / Cliente desistiu / Endereço fora da área / Erro do sistema / Outro". Salvar em `orders.cancellation_reason`. Sem analytics de motivo, não dá pra atacar a causa.
-
-### Frente 3 — Segurança DB (19 warnings do linter)
-
-Migration única substituindo `USING (true)` permissivos por validação real:
-- `couriers_update_public` → exigir match de `courier_id` via header ou usar tokens de sessão
-- `deliveries_update_public` → restringir colunas que motoboy pode mexer (status, accepted_at, delivered_at)
-- `courier_shifts_update_public` → idem
-- `fila_impressao` UPDATE público → restringir só ao status `printed_at`/`status`
-- Revisar RLS Enabled No Policy (1 tabela sem nenhuma policy)
-
-### Frente 4 — Onboarding visual (resolve baixo uso de banner/logo)
-
-**4.1** Adicionar à `SetupChecklist` (Home tab) os itens "Adicionar logo da loja" e "Adicionar banner". Hoje não estão lá — por isso 8 de 11 lojas estão sem banner.
-
-**4.2** Banner placeholder no UnitPage quando `banner_url` for null — uma faixa com gradiente laranja + nome da loja em destaque. Hoje fica vazio e parece bug.
+- O cliente abre a landing → **bate o olho e percebe que é caro**
+- Não parece feito com IA, parece feito por estúdio premiado
+- Tempo médio de permanência sobe (cada seção dá vontade de scrollar pra ver o próximo efeito)
+- Conversão sobe porque a percepção de qualidade do produto sobe junto
+- Acessibilidade preservada (reduced-motion, touch, mobile)
 
 ---
 
-## Como vou medir o sucesso
+## Execução
 
-Depois de implementar, em 7 dias:
-
-- Erros JS: cair de 48/sem para <10/sem
-- Fila travada: cair de 146 para <20
-- Banner adoção: subir de 27% (3/11) para 60%+
-- Linter: 19 → 0 warnings
-- Cancelamentos: começar a ter motivos categorizados (impossível medir hoje)
-
-## Sugestão de execução
-
-Implementar **na ordem Frente 1 → 2 → 3 → 4**. Frente 1 sozinha já melhora muito a percepção do "errinho besta todo dia". Posso fazer tudo num único passe, mas se preferir partir em PRs pequenos para validar uma frente por vez, também dá.
+Vou implementar tudo num único passe (8 componentes novos + refactor do Index + CSS). É um trabalho denso mas coeso — fragmentar atrapalha porque os efeitos se complementam. Cobertura: desktop premium, mobile leve e funcional. Demora um pouco mais pra gerar mas você recebe a página inteira nova de uma vez.
 
