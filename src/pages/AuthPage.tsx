@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Eye, EyeOff, Loader2, Check } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import logoIcon from "@/assets/logo-icon.png";
 import { toast } from "sonner";
 import PasswordRequirements from "@/components/PasswordRequirements";
@@ -183,8 +183,7 @@ const AuthPage = () => {
     <>
       <Button
         type="button"
-        variant="outline"
-        className="w-full h-11 text-sm font-semibold gap-3"
+        className="w-full h-12 rounded-full text-sm font-semibold gap-3 bg-white text-zinc-900 hover:bg-white/90 shadow-lg shadow-black/30"
         onClick={handleGoogleLogin}
         disabled={googleLoading}
       >
@@ -200,10 +199,10 @@ const AuthPage = () => {
         )}
         Continuar com Google
       </Button>
-      <div className="flex items-center gap-3 my-4">
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground font-medium">ou</span>
-        <div className="flex-1 h-px bg-border" />
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-white/10" />
+        <span className="text-[11px] uppercase tracking-widest text-white/40 font-medium">ou</span>
+        <div className="flex-1 h-px bg-white/10" />
       </div>
     </>
   );
@@ -383,77 +382,45 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* LEFT PANEL — Visual (desktop only) */}
+    <div
+      className="min-h-screen flex relative overflow-hidden text-white"
+      style={{
+        background:
+          "radial-gradient(ellipse at top left, hsl(20 60% 14%) 0%, hsl(15 45% 8%) 45%, hsl(20 30% 5%) 100%)",
+      }}
+    >
+      {/* Subtle warm grain/noise overlay for depth */}
       <div
-        className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 overflow-hidden"
-        style={{ minHeight: "100vh" }}
-      >
-        {/* Background photo */}
-        <img
-          src="https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=1200&q=80"
-          alt="Interior de restaurante aconchegante"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        {/* Dark red gradient overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(90,5,5,0.90) 0%, rgba(20,3,3,0.95) 100%)",
-          }}
-        />
+        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>\")",
+        }}
+      />
 
-        {/* Content over overlay */}
-        <div className="relative z-10 flex flex-col h-full justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <img src={logoIcon} alt="TrendFood" className="w-10 h-10 rounded-xl object-contain" />
-            <span className="font-extrabold text-white text-xl tracking-tight">TrendFood</span>
-          </div>
-
-          {/* Center content */}
-          <div className="flex-1 flex flex-col justify-center py-16">
-            <h1 className="text-4xl font-extrabold text-white leading-tight mb-4">
-              Transforme o gosto dos seus clientes em lucro
-            </h1>
-            <p className="text-white/70 text-lg leading-relaxed mb-10">
-              Gerencie pedidos, cardápio digital e métricas do seu negócio em um só lugar.
-            </p>
-
-            {/* Bullets */}
-            <ul className="space-y-4">
-              {[
-                "Sem instalação de aplicativo",
-                "Cardápio digital personalizado",
-                "Painel completo de métricas",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                  </div>
-                  <span className="text-white/90 text-sm font-medium">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Footer badge */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-white/50 font-medium">
-              Grátis para começar · Sem cartão de crédito
-            </span>
-          </div>
+      {/* LEFT PANEL — Form */}
+      <div className="flex-1 lg:w-1/2 relative z-10 flex flex-col justify-center px-6 py-12 lg:px-16 overflow-y-auto">
+        {/* Top-left logo (desktop) */}
+        <div className="hidden lg:flex items-center gap-2.5 absolute top-8 left-12">
+          <Link to="/" className="inline-flex items-center gap-2.5">
+            <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
+            <span className="font-bold text-white text-base tracking-tight">TrendFood</span>
+          </Link>
         </div>
-      </div>
 
-      {/* RIGHT PANEL — Form */}
-      <div className="flex-1 lg:w-1/2 bg-background flex flex-col justify-center px-6 py-12 lg:px-16 overflow-y-auto">
+        {/* Top-right badge (desktop) */}
+        <div className="hidden lg:flex absolute top-8 right-12 items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs text-white/70 font-medium">
+            Você está entrando em <span className="text-white font-semibold">TrendFood</span>
+          </span>
+        </div>
+
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-8 lg:hidden">
           <Link to="/" className="inline-flex items-center gap-2">
             <img src={logoIcon} alt="TrendFood" className="w-9 h-9 rounded-xl object-contain" />
-            <span className="font-extrabold text-foreground text-lg">TrendFood</span>
+            <span className="font-extrabold text-white text-lg">TrendFood</span>
           </Link>
         </div>
 
@@ -461,29 +428,29 @@ const AuthPage = () => {
           {googleOnboarding ? (
             <form onSubmit={handleGoogleOnboard} className="space-y-5">
               <div className="mb-6">
-                <h2 className="font-bold text-foreground text-2xl">Complete seu cadastro</h2>
-                <p className="text-muted-foreground text-sm mt-1">Só falta criar sua lanchonete!</p>
+                <h2 className="font-bold text-white text-3xl tracking-tight">Complete seu cadastro</h2>
+                <p className="text-white/60 text-sm mt-2">Só falta criar sua lanchonete!</p>
               </div>
               <div>
-                <Label htmlFor="g-biz" className="text-sm font-medium mb-1.5 block">Nome da lanchonete</Label>
-                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11" required />
+                <Label htmlFor="g-biz" className="text-sm font-medium mb-1.5 block text-white/80">Nome da lanchonete</Label>
+                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
               </div>
               <div>
-                <Label htmlFor="g-slug" className="text-sm font-medium mb-1.5 block">Slug (URL)</Label>
-                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11" required />
+                <Label htmlFor="g-slug" className="text-sm font-medium mb-1.5 block text-white/80">Slug (URL)</Label>
+                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
               </div>
               <div>
-                <Label htmlFor="g-wpp" className="text-sm font-medium mb-1.5 block">WhatsApp (com DDD)</Label>
-                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11" required />
+                <Label htmlFor="g-wpp" className="text-sm font-medium mb-1.5 block text-white/80">WhatsApp (com DDD)</Label>
+                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
               </div>
-              <Button type="submit" className="w-full h-11 font-semibold" disabled={googleOnboardLoading}>
+              <Button type="submit" className="w-full h-12 rounded-full font-semibold bg-primary hover:bg-primary/90 text-primary-foreground" disabled={googleOnboardLoading}>
                 {googleOnboardLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Criar lanchonete
               </Button>
               <Button
                 type="button"
                 variant="ghost"
-                className="w-full h-11 text-sm text-muted-foreground"
+                className="w-full h-11 text-sm text-white/60 hover:text-white hover:bg-white/5"
                 onClick={async () => {
                   await supabase.auth.signOut();
                   setGoogleOnboarding(false);
@@ -494,16 +461,16 @@ const AuthPage = () => {
             </form>
           ) : (
           <Tabs defaultValue="login">
-            <TabsList className="w-full h-11 bg-muted/60 rounded-xl p-1 grid grid-cols-2 mb-8">
+            <TabsList className="w-full h-11 bg-white/5 border border-white/10 rounded-full p-1 grid grid-cols-2 mb-8">
               <TabsTrigger
                 value="login"
-                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                className="rounded-full h-full text-sm font-semibold text-white/60 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm"
               >
                 Entrar
               </TabsTrigger>
               <TabsTrigger
                 value="signup"
-                className="rounded-lg h-full text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                className="rounded-full h-full text-sm font-semibold text-white/60 data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm"
               >
                 Criar conta
               </TabsTrigger>
@@ -512,14 +479,14 @@ const AuthPage = () => {
             {/* SIGNUP TAB */}
             <TabsContent value="signup" className="mt-0 space-y-5">
               <div className="mb-6">
-                <h2 className="font-bold text-foreground text-2xl">Crie seu estabelecimento</h2>
-                <p className="text-muted-foreground text-sm mt-1">Pronto em menos de 2 minutos</p>
+                <h2 className="font-bold text-white text-3xl tracking-tight">Crie seu estabelecimento</h2>
+                <p className="text-white/60 text-sm mt-2">Pronto em menos de 2 minutos</p>
               </div>
               <GoogleButton />
               <form onSubmit={handleSignup} className="space-y-4">
                 {/* Dados pessoais */}
                 <div>
-                  <Label htmlFor="fullName" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="fullName" className="text-sm font-medium mb-1.5 block text-white/80">
                     Seu nome completo
                   </Label>
                   <Input
@@ -527,12 +494,12 @@ const AuthPage = () => {
                     placeholder="João da Silva"
                     value={signupData.fullName}
                     onChange={(e) => setSignupData((p) => ({ ...p, fullName: e.target.value }))}
-                    className="h-11"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="email" className="text-sm font-medium mb-1.5 block text-white/80">
                     E-mail
                   </Label>
                   <Input
@@ -541,12 +508,12 @@ const AuthPage = () => {
                     placeholder="joao@email.com"
                     value={signupData.email}
                     onChange={(e) => setSignupData((p) => ({ ...p, email: e.target.value }))}
-                    className="h-11"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="confirmEmail" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="confirmEmail" className="text-sm font-medium mb-1.5 block text-white/80">
                     Confirme seu e-mail
                   </Label>
                   <Input
@@ -555,12 +522,12 @@ const AuthPage = () => {
                     placeholder="joao@email.com"
                     value={signupData.confirmEmail}
                     onChange={(e) => setSignupData((p) => ({ ...p, confirmEmail: e.target.value }))}
-                    className="h-11"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="signup-pwd" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="signup-pwd" className="text-sm font-medium mb-1.5 block text-white/80">
                     Senha
                   </Label>
                   <div className="relative">
@@ -570,13 +537,13 @@ const AuthPage = () => {
                       placeholder="Mínimo 6 caracteres"
                       value={signupData.password}
                       onChange={(e) => setSignupData((p) => ({ ...p, password: e.target.value }))}
-                      className="h-11 pr-10"
+                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                       minLength={6}
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                       onClick={() => setShowSignupPwd((v) => !v)}
                     >
                       {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -585,7 +552,7 @@ const AuthPage = () => {
                   <PasswordRequirements password={signupData.password} />
                 </div>
                 <div>
-                  <Label htmlFor="signup-confirm-pwd" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="signup-confirm-pwd" className="text-sm font-medium mb-1.5 block text-white/80">
                     Confirme sua senha
                   </Label>
                   <div className="relative">
@@ -595,13 +562,13 @@ const AuthPage = () => {
                       placeholder="Repita a senha"
                       value={signupData.confirmPassword}
                       onChange={(e) => setSignupData((p) => ({ ...p, confirmPassword: e.target.value }))}
-                      className="h-11 pr-10"
+                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                       minLength={6}
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                       onClick={() => setShowSignupConfirmPwd((v) => !v)}
                     >
                       {showSignupConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -610,13 +577,13 @@ const AuthPage = () => {
                 </div>
 
                 {/* Dados do estabelecimento */}
-                <div className="pt-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-3 font-semibold uppercase tracking-wide">
+                <div className="pt-4 border-t border-white/10">
+                  <p className="text-xs text-white/50 mb-3 font-semibold uppercase tracking-wide">
                     Dados do estabelecimento
                   </p>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="businessName" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="businessName" className="text-sm font-medium mb-1.5 block text-white/80">
                         Nome da lanchonete
                       </Label>
                       <Input
@@ -624,21 +591,21 @@ const AuthPage = () => {
                         placeholder="Burguer da Vila"
                         value={signupData.businessName}
                         onChange={(e) => handleBusinessNameChange(e.target.value)}
-                        className="h-11"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="slug" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="slug" className="text-sm font-medium mb-1.5 block text-white/80">
                         URL pública
                       </Label>
-                      <div className="flex items-center rounded-lg border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 h-11">
-                        <span className="px-3 text-xs text-muted-foreground bg-muted border-r border-input h-full flex items-center shrink-0 font-mono">
+                      <div className="flex items-center rounded-lg border border-white/10 bg-white/5 overflow-hidden focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-0 h-11">
+                        <span className="px-3 text-xs text-white/50 bg-white/5 border-r border-white/10 h-full flex items-center shrink-0 font-mono">
                           /u/
                         </span>
                         <input
                           id="slug"
-                          className="flex-1 px-3 text-sm bg-background outline-none h-full"
+                          className="flex-1 px-3 text-sm bg-transparent text-white placeholder:text-white/30 outline-none h-full"
                           placeholder="burguer-da-vila"
                           value={signupData.slug}
                           onChange={(e) =>
@@ -654,7 +621,7 @@ const AuthPage = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={signupLoading}>
+                <Button type="submit" className="w-full h-12 rounded-full text-base font-bold mt-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30" disabled={signupLoading}>
                   {signupLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" /> Criando conta...
@@ -671,13 +638,13 @@ const AuthPage = () => {
               {!forgotMode ? (
                 <>
                   <div className="mb-6">
-                    <h2 className="font-bold text-foreground text-2xl">Bem-vindo de volta</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Acesse seu painel de gestão</p>
+                    <h2 className="font-bold text-white text-3xl tracking-tight">Bem-vindo de volta</h2>
+                    <p className="text-white/60 text-sm mt-2">Acesse seu painel de gestão</p>
                   </div>
                   <GoogleButton />
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                      <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block text-white/80">
                         E-mail
                       </Label>
                       <Input
@@ -686,12 +653,12 @@ const AuthPage = () => {
                         placeholder="joao@email.com"
                         value={loginData.email}
                         onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
-                        className="h-11"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="login-pwd" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="login-pwd" className="text-sm font-medium mb-1.5 block text-white/80">
                         Senha
                       </Label>
                       <div className="relative">
@@ -701,19 +668,19 @@ const AuthPage = () => {
                           placeholder="••••••••"
                           value={loginData.password}
                           onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
-                          className="h-11 pr-10"
+                          className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                           required
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                           onClick={() => setShowLoginPwd((v) => !v)}
                         >
                           {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
-                    <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={loginLoading}>
+                    <Button type="submit" className="w-full h-12 rounded-full text-base font-bold mt-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30" disabled={loginLoading}>
                       {loginLoading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" /> Entrando...
@@ -724,7 +691,7 @@ const AuthPage = () => {
                     </Button>
                     <button
                       type="button"
-                      className="w-full text-sm text-primary hover:underline mt-2"
+                      className="w-full text-sm text-primary hover:text-primary/80 hover:underline mt-2"
                       onClick={() => {
                         setForgotMode(true);
                         setForgotEmail(loginData.email);
@@ -737,12 +704,12 @@ const AuthPage = () => {
               ) : (
                 <div className="space-y-5">
                   <div className="mb-6">
-                    <h2 className="font-bold text-foreground text-2xl">Redefinir senha</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Enviaremos um link para o seu e-mail.</p>
+                    <h2 className="font-bold text-white text-3xl tracking-tight">Redefinir senha</h2>
+                    <p className="text-white/60 text-sm mt-2">Enviaremos um link para o seu e-mail.</p>
                   </div>
                   <form onSubmit={handleForgotPassword} className="space-y-4">
                     <div>
-                      <Label htmlFor="forgot-email" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="forgot-email" className="text-sm font-medium mb-1.5 block text-white/80">
                         E-mail
                       </Label>
                       <Input
@@ -751,17 +718,17 @@ const AuthPage = () => {
                         placeholder="joao@email.com"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        className="h-11"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full h-11 text-base font-bold" disabled={forgotLoading}>
+                    <Button type="submit" className="w-full h-12 rounded-full text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30" disabled={forgotLoading}>
                       {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                       Enviar link de redefinição
                     </Button>
                     <button
                       type="button"
-                      className="w-full text-sm text-primary hover:underline mt-2"
+                      className="w-full text-sm text-primary hover:text-primary/80 hover:underline mt-2"
                       onClick={() => setForgotMode(false)}
                     >
                       ← Voltar ao login
@@ -773,9 +740,49 @@ const AuthPage = () => {
           </Tabs>
           )}
 
-          <p className="text-center text-xs text-muted-foreground mt-8">
+          <p className="text-center text-xs text-white/40 mt-8">
             Ao criar sua conta, você concorda com nossos{" "}
-            <Link to="/termos" target="_blank" className="underline cursor-pointer hover:text-foreground transition-colors">Termos de Uso</Link>.
+            <Link to="/termos" target="_blank" className="underline cursor-pointer hover:text-white transition-colors">Termos de Uso</Link>.
+          </p>
+        </div>
+      </div>
+
+      {/* RIGHT PANEL — Cinematic logo (desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
+        {/* Warm radial glow */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(circle at 70% 50%, hsl(20 90% 35% / 0.55) 0%, hsl(15 70% 18% / 0.4) 35%, transparent 70%)",
+          }}
+        />
+        {/* Light leak from right */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 100% 50%, hsl(35 100% 60% / 0.25) 0%, transparent 55%)",
+          }}
+        />
+        {/* Left edge fade — fuses with form panel */}
+        <div
+          className="absolute inset-y-0 left-0 w-32 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to right, hsl(15 45% 8%) 0%, transparent 100%)",
+          }}
+        />
+
+        {/* Giant logo */}
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <img
+            src={logoIcon}
+            alt="TrendFood"
+            className="w-[60vh] max-w-[520px] h-auto object-contain drop-shadow-[0_0_80px_hsl(20_100%_55%_/_0.45)] opacity-95"
+          />
+          <p className="text-white/70 text-base font-light tracking-wide">
+            Zero taxas. <span className="text-white font-medium">100% seu.</span>
           </p>
         </div>
       </div>
