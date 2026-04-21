@@ -1,0 +1,107 @@
+import { useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
+import { BarChart3, Wallet, TrendingUp, UtensilsCrossed, Flame } from "lucide-react";
+import dashboardImg from "@/assets/dashboard-screenshot.png";
+
+const tabs = [
+  { icon: TrendingUp, label: "Pedidos ao vivo", desc: "Receba pedidos em tempo real, com alerta sonoro e impressão automática para a cozinha." },
+  { icon: Wallet, label: "Caixa em 1 clique", desc: "Abertura, fechamento e sangria do caixa com relatório completo do turno." },
+  { icon: BarChart3, label: "Mais vendidos", desc: "Ranking de produtos por período com receita gerada por cada item — saiba o que vende." },
+  { icon: UtensilsCrossed, label: "Cardápio digital", desc: "Categorias, fotos e preços organizados. Cliente pede pelo celular sem app." },
+  { icon: Flame, label: "Painel KDS", desc: "Tela dedicada para a cozinha com fila de pedidos e tempo de preparo." },
+];
+
+export default function StickyShowcase() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
+  const activeIndex = useTransform(scrollYProgress, (v) => Math.min(Math.floor(v * tabs.length), tabs.length - 1));
+
+  return (
+    <section ref={ref} className="relative bg-background" style={{ height: `${tabs.length * 80}vh` }}>
+      <div className="sticky top-0 h-screen flex items-center overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-40"
+          style={{
+            background:
+              "radial-gradient(ellipse 50% 60% at 70% 50%, rgba(249,115,22,0.2), transparent)",
+          }}
+        />
+        <div className="relative max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left: tabs list */}
+          <div className="space-y-2">
+            <Badge className="mb-3 bg-primary/10 text-primary border-primary/20">Tudo num lugar só</Badge>
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-8 tracking-tight">
+              Um sistema. <span className="text-primary">Operação inteira.</span>
+            </h2>
+            {tabs.map((tab, i) => {
+              const Icon = tab.icon;
+              return <TabRow key={tab.label} tab={tab} index={i} active={activeIndex} Icon={Icon} />;
+            })}
+          </div>
+
+          {/* Right: dashboard mockup */}
+          <div className="relative perspective-[1400px]" style={{ perspective: 1400 }}>
+            <motion.div
+              style={{ rotateY: -8, rotateX: 4, transformStyle: "preserve-3d" }}
+              className="relative w-full max-w-[600px] mx-auto"
+            >
+              <div
+                className="absolute -inset-12 rounded-[2rem] opacity-60 blur-3xl"
+                style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.4), transparent 70%)" }}
+              />
+              <div
+                className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+                style={{ background: "#1a1a2e" }}
+              >
+                <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                </div>
+                <div className="relative">
+                  <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
+                  {tabs.map((tab, i) => (
+                    <ScreenLabel key={tab.label} index={i} active={activeIndex} label={tab.label} />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TabRow({ tab, index, active, Icon }: { tab: { label: string; desc: string }; index: number; active: any; Icon: any }) {
+  const opacity = useTransform(active, (v: number) => (v === index ? 1 : 0.35));
+  const x = useTransform(active, (v: number) => (v === index ? 8 : 0));
+  return (
+    <motion.div style={{ opacity, x }} className="flex items-start gap-4 p-4 rounded-2xl transition-colors">
+      <motion.div
+        animate={{ scale: 1 }}
+        className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0"
+      >
+        <Icon className="w-6 h-6" />
+      </motion.div>
+      <div>
+        <h3 className="font-bold text-foreground text-lg mb-1">{tab.label}</h3>
+        <p className="text-muted-foreground text-sm leading-relaxed">{tab.desc}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+function ScreenLabel({ index, active, label }: { index: number; active: any; label: string }) {
+  const opacity = useTransform(active, (v: number) => (v === index ? 1 : 0));
+  const y = useTransform(active, (v: number) => (v === index ? 0 : 10));
+  return (
+    <motion.div
+      style={{ opacity, y }}
+      className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-primary/90 backdrop-blur-md text-primary-foreground text-xs font-bold shadow-xl"
+    >
+      {label}
+    </motion.div>
+  );
+}
