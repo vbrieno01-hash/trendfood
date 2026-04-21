@@ -2,11 +2,13 @@ import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, TrendingDown, TrendingUp } from "lucide-react";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 interface ComparisonRow { label: string; marketplace: string; trendfood: string; badge?: string; }
 interface Props { rows: ComparisonRow[]; }
 
 export default function AnimatedComparison({ rows }: Props) {
+  const isDesktop = useIsDesktop();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 80%", "end 60%"] });
 
@@ -29,13 +31,24 @@ export default function AnimatedComparison({ rows }: Props) {
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm font-bold uppercase tracking-wider">
               <span className="text-destructive flex items-center gap-1.5"><TrendingDown className="w-4 h-4" /> Marketplace</span>
-              <PercentDisplay value={marketplacePct} suffix="% taxa" className="text-destructive" />
+              {isDesktop ? (
+                <PercentDisplay value={marketplacePct} suffix="% taxa" className="text-destructive" />
+              ) : (
+                <span className="tabular-nums text-destructive">27% taxa</span>
+              )}
             </div>
             <div className="relative h-64 rounded-2xl border border-destructive/30 overflow-hidden bg-destructive/5">
-              <motion.div
-                style={{ height: marketplaceHeight }}
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-destructive to-red-500"
-              />
+              {isDesktop ? (
+                <motion.div
+                  style={{ height: marketplaceHeight }}
+                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-destructive to-red-500"
+                />
+              ) : (
+                <div
+                  style={{ height: "27%" }}
+                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-destructive to-red-500"
+                />
+              )}
               <div className="absolute inset-0 flex items-end justify-center pb-4">
                 <X className="w-10 h-10 text-white/80 drop-shadow-lg" />
               </div>
@@ -45,13 +58,24 @@ export default function AnimatedComparison({ rows }: Props) {
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm font-bold uppercase tracking-wider">
               <span className="text-emerald-600 flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> TrendFood</span>
-              <PercentDisplay value={trendPct} suffix="% pra você" className="text-emerald-600" />
+              {isDesktop ? (
+                <PercentDisplay value={trendPct} suffix="% pra você" className="text-emerald-600" />
+              ) : (
+                <span className="tabular-nums text-emerald-600">100% pra você</span>
+              )}
             </div>
             <div className="relative h-64 rounded-2xl border border-emerald-500/30 overflow-hidden bg-emerald-500/5">
-              <motion.div
-                style={{ height: trendHeight }}
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-600 to-emerald-400"
-              />
+              {isDesktop ? (
+                <motion.div
+                  style={{ height: trendHeight }}
+                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-600 to-emerald-400"
+                />
+              ) : (
+                <div
+                  style={{ height: "100%" }}
+                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-600 to-emerald-400"
+                />
+              )}
               <div className="absolute inset-0 flex items-end justify-center pb-4">
                 <Check className="w-10 h-10 text-white/90 drop-shadow-lg" />
               </div>

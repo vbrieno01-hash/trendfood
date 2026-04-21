@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { UtensilsCrossed, QrCode, Flame, BarChart3 } from "lucide-react";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 const stepIcons = [UtensilsCrossed, QrCode, Flame, BarChart3];
 
@@ -52,6 +53,7 @@ function StepCard({ step, index, progress }: { step: Step; index: number; progre
 }
 
 export default function TimelineSteps({ steps }: Props) {
+  const isDesktop = useIsDesktop();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 70%", "end 30%"] });
   const lineLength = useTransform(scrollYProgress, [0, 1], [0, 1]);
@@ -68,16 +70,57 @@ export default function TimelineSteps({ steps }: Props) {
         <div ref={ref} className="relative">
           {/* Vertical animated line — left on mobile, center on desktop */}
           <div className="absolute left-6 md:left-1/2 top-0 md:-translate-x-1/2 w-0.5 h-full bg-border" />
-          <motion.div
-            style={{ scaleY: lineLength, transformOrigin: "top" }}
-            className="absolute left-6 md:left-1/2 top-0 md:-translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-primary via-orange-500 to-primary/0"
-          />
+          {isDesktop ? (
+            <motion.div
+              style={{ scaleY: lineLength, transformOrigin: "top" }}
+              className="absolute left-6 md:left-1/2 top-0 md:-translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-primary via-orange-500 to-primary/0"
+            />
+          ) : (
+            <div className="absolute left-6 md:left-1/2 top-0 md:-translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-primary/60 via-orange-500/40 to-primary/0" />
+          )}
 
-          {steps.map((step, i) => (
-            <StepCard key={step.title || i} step={step} index={i} progress={scrollYProgress} />
-          ))}
+          {steps.map((step, i) =>
+            isDesktop ? (
+              <StepCard key={step.title || i} step={step} index={i} progress={scrollYProgress} />
+            ) : (
+              <SimpleStepCard key={step.title || i} step={step} index={i} />
+            )
+          )}
         </div>
       </div>
     </section>
+  );
+}
+
+function SimpleStepCard({ step, index }: { step: Step; index: number }) {
+  const Icon = stepIcons[index] || UtensilsCrossed;
+  const isLeft = index % 2 === 0;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-30px" }}
+      transition={{ duration: 0.4, delay: 0.05 }}
+      className={`relative grid grid-cols-[3rem_1fr] md:grid-cols-2 gap-4 md:gap-8 items-center mb-8 md:mb-16 last:mb-0 ${isLeft ? "" : "md:[direction:rtl]"}`}
+    >
+      <div className="md:hidden flex justify-center">
+        <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-primary-foreground shadow-[0_10px_25px_-8px_rgba(249,115,22,0.55)]">
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+      <div className={`md:[direction:ltr] order-2 md:order-none ${isLeft ? "md:text-right md:pr-12" : "md:pl-12"}`}>
+        <div className={`inline-flex items-center gap-3 mb-2 md:mb-3 ${isLeft ? "md:flex-row-reverse" : ""}`}>
+          <span className="text-5xl font-black text-primary/20">{String(index + 1).padStart(2, "0")}</span>
+          <span className="h-px w-10 bg-primary/30" />
+        </div>
+        <h3 className="font-bold text-foreground text-xl mb-2">{step.title}</h3>
+        <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+      </div>
+      <div className="hidden md:flex md:[direction:ltr] justify-center">
+        <div className="relative w-32 h-32 rounded-3xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-primary-foreground shadow-[0_20px_50px_-10px_rgba(249,115,22,0.5)]">
+          <Icon className="w-12 h-12" />
+        </div>
+      </div>
+    </motion.div>
   );
 }
