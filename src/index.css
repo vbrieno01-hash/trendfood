@@ -297,3 +297,14 @@ a[href*="lovable.dev"][style*="position: fixed"] {
     animation-duration: 80s !important;
   }
 }
+
+/* Mobile: heavy GPU blurs are killers. Downgrade blur-3xl to blur-xl below lg. */
+@media (max-width: 1023px) {
+  .blur-3xl {
+    filter: blur(16px) !important;
+  }
+  /* Disable particle keyframes on mobile in case any leak through */
+  [style*="landing-float-particle"] {
+    animation: none !important;
+  }
+}
