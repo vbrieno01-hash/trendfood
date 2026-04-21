@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import SavingsCalculator from "@/components/landing/SavingsCalculator";
 import HeroCinematic from "@/components/landing/HeroCinematic";
 import MarqueeSocialProof from "@/components/landing/MarqueeSocialProof";
-import LiveOrderCounter from "@/components/landing/LiveOrderCounter";
 import StackedProblemCards from "@/components/landing/StackedProblemCards";
 import TimelineSteps from "@/components/landing/TimelineSteps";
 import StickyShowcase from "@/components/landing/StickyShowcase";
@@ -180,11 +179,6 @@ const Index = () => {
 
       {/* Marquee social proof */}
       <MarqueeSocialProof />
-
-      {/* Live order counter */}
-      {orderCount > 0 && (
-        <LiveOrderCounter count={displayCount} label={c("order_counter_text", "pedidos feitos no TrendFood")} />
-      )}
 
       {/* Benefit Cards */}
       <section className="py-10 md:py-16 px-4 bg-background md:border-b md:border-border/60">
