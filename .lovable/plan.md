@@ -1,35 +1,67 @@
 
 
-## Plano — Barras animadas que não travam no meio
+## Plano — AuthPage estilo cinematográfico (com identidade TrendFood)
 
-### O bug
+Mesmo conceito da xAI/Grok (split layout, logo gigante, formulário minimalista), mas usando a paleta TrendFood (laranja/vermelho/dourado) ao invés do preto puro.
 
-Na screenshot atual aparece **"12% TAXA" / "57% PRA VOCÊ"** — esses números não fazem sentido (a mensagem real é 27% pro marketplace, 100% pra você). Eles são **valores intermediários** porque a animação está amarrada ao scroll: quando você para de rolar, ela congela em qualquer ponto da curva.
+### Painel esquerdo — formulário minimalista
 
-Pior ainda: a barra Marketplace está animando do jeito **invertido** (começa cheia, esvazia até 12%) — exatamente o oposto do que comunica a mensagem (Marketplace TIRA 27% de você).
+**Fundo:**
+- Fundo escuro com tom quente: gradiente sutil partindo de `hsl(20 30% 8%)` (preto-avermelhado profundo) com leve tinta laranja, ao invés de preto puro
+- Mantém a sensação cinematográfica, mas com personalidade TrendFood
 
-### Correção
+**Conteúdo:**
+- Logo TrendFood pequena no canto superior esquerdo
+- Badge sutil topo direito: "Você está entrando em **TrendFood**" com ícone laranja
+- Título grande bold: "Crie sua conta" / "Entre na sua conta" — texto branco, tracking apertado
+- Botões pílula:
+  - **Principal (Google)**: pílula branca com texto escuro + ícone Google colorido (igual referência)
+  - **Secundário (Email)**: pílula transparente com borda laranja sutil (`border-primary/30`), texto branco
+- Divisor fininho com label "ou"
+- Link "Já tem conta? **Entrar**" centralizado com cor primária no destaque
+- Footer minúsculo: termos + privacidade
+- Form de e-mail expande inline (sem trocar de tela) ao clicar no botão
 
-**`src/components/landing/AnimatedComparison.tsx`** — trocar scroll-linked por `whileInView` único:
+### Painel direito — vitrine cinematográfica TrendFood
 
-1. **Remover** `useScroll` e os 4 `useTransform` (marketplaceHeight, trendHeight, marketplacePct, trendPct).
-2. **Remover** o gate `isDesktop` das barras — agora desktop e mobile usam a mesma animação simples e segura.
-3. **Trocar** as barras por `motion.div` com:
-   - Marketplace: `initial={{ height: "0%" }}` → `whileInView={{ height: "27%" }}` (cresce até 27%, comunica "eles tomam 27%")
-   - TrendFood: `initial={{ height: "0%" }}` → `whileInView={{ height: "100%" }}` (cresce até 100%)
-   - `viewport={{ once: true, margin: "-20%" }}` — anima uma vez quando entra na tela
-   - `transition={{ duration: 1.2, ease: "easeOut", delay: 0.1 }}`
-4. **Trocar** os contadores numéricos por contagem com `whileInView` usando um `motion.span` animado de 0 → valor final via `useMotionValue` + `animate` (ou simplesmente exibir o número final estático após `0.6s` de delay com fade).
-   - Solução mais limpa: componente `<CountUp from={0} to={27} />` usando `useMotionValue` + `animate()` no `useEffect` disparado por `whileInView` (via `useInView`).
+**Fundo:**
+- Gradiente radial quente: centro `hsl(15 80% 25%)` → bordas `hsl(20 40% 10%)` (laranja queimado profundo, não preto)
+- Glow lateral cinematográfico vindo da direita: gradiente radial laranja-dourado simulando "luz vazando" atrás da logo
+- Textura sutil de grão/noise opcional pra dar profundidade premium
 
-### Resultado
+**Conteúdo:**
+- Logo TrendFood **gigante** centralizada (60-70% da altura)
+- `drop-shadow` quente: `drop-shadow-[0_0_80px_rgba(255,140,0,0.4)]` pra logo "brilhar"
+- Pequeno tagline embaixo opcional: "Zero taxas. 100% seu." em letra fina branca
 
-- Barras **sempre terminam nos valores corretos** (27% / 100%), em qualquer posição de scroll.
-- Animação dispara uma vez ao entrar na viewport, não fica refém do scroll.
-- Mensagem coerente: Marketplace cresce até 27% (vermelho) representando "o que eles tiram"; TrendFood cresce até 100% (verde) representando "o que fica com você".
-- Mesma animação em mobile e desktop (já era estática em mobile, agora vira animada em todos os tamanhos com custo zero — `whileInView` não tem listener de scroll contínuo).
+**Borda de fusão:**
+- Gradiente vertical fino na borda esquerda do painel direito → fundir suavemente com o painel do form
+
+### Mobile
+
+- Painel direito esconde (`hidden lg:flex` já existe)
+- Mobile: mesmo fundo gradiente quente escuro, logo TrendFood centralizada no topo, formulário minimalista abaixo
+
+### Lógica preservada
+
+Zero mudança em comportamento:
+- `handleSignup`, `handleLogin`, `handleGoogleLogin`, `googleOnboarding`
+- `refParam` (afiliados), `planParam`, `redirectTo`
+- Recuperação de senha
+- Toda integração Supabase intacta
+
+### Paleta usada (já no design system)
+
+- `--primary` (laranja TrendFood) para acentos, bordas, hover
+- Branco/branco translúcido para textos e botão principal
+- Tons escuros quentes (avermelhado/marrom profundo) ao invés de preto puro — reforça identidade
+- Sem cinza neutro frio em lugar nenhum
 
 ### Arquivo
 
-- `src/components/landing/AnimatedComparison.tsx`
+- `src/pages/AuthPage.tsx` (refatoração visual completa do JSX, lógica 100% intacta)
+
+### Resultado
+
+Página com cara de produto premium (mesmo conceito visual da Grok/xAI), mas **inegavelmente TrendFood**: paleta quente laranja-dourado, logo gigante brilhando, formulário pílula minimalista. Não vai parecer preto/cinza genérico — vai ter a alma quente da marca.
 
