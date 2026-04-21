@@ -1,35 +1,26 @@
 
 
-## Plano — Gerar nova logo cinematográfica para o painel direito
+## Plano — Corrigir espaçamento do badge "Você está entrando em TrendFood"
 
-### Diagnóstico
+### Problema
 
-A logo atual no painel direito (ícone TrendFood importado de `@/assets/logo-icon.png`) não combina visualmente com o fundo cinematográfico — fica parecendo "colada por cima". Precisa de uma logo nova, gerada no mesmo estilo do fundo, pra integrar de forma natural.
+No header do painel esquerdo do `AuthPage.tsx`, o logo "TrendFood" (esquerda) e o badge "Você está entrando em TrendFood" (direita) estão visualmente grudados/encostando nas bordas, sem respiro adequado.
 
-### O que vai ser feito
+### Correção
 
-**1. Gerar logo cinematográfica via AI Gateway**
-- Modelo: `google/gemini-3-pro-image-preview` (qualidade máxima)
-- Prompt: logo minimalista premium "TrendFood" estilo monograma/símbolo, com tipografia moderna sans-serif, acabamento metálico em laranja-dourado quente brilhando, fundo transparente, estética Apple/xAI, glow sutil ao redor, sem sombra de chão, formato quadrado
-- Salvar em `src/assets/auth-logo-cinematic.png`
+Em `src/pages/AuthPage.tsx`, no header do painel esquerdo:
 
-**2. Atualizar `src/pages/AuthPage.tsx`**
-- Trocar import: `logoIcon` → `authLogoCinematic` (nova logo)
-- Manter posicionamento atual (centralizada no painel direito)
-- Ajustar drop-shadow se necessário pra harmonizar com o brilho próprio da nova logo
-- Tamanho mantido (`w-[min(32vh,260px)]`)
+1. **Aumentar gap entre logo e badge**: adicionar `gap-4` (ou maior) no container flex que agrupa os dois
+2. **Adicionar padding interno do header**: garantir `px-2` ou `px-4` extra pra que nem o logo nem o badge encostem nas bordas do painel
+3. **Espaçamento interno do badge**: revisar `px-3 py-1.5` do badge pra garantir respiro do texto
+4. **Margin-bottom do header**: garantir separação adequada do conteúdo abaixo (form)
 
-**3. Painel esquerdo (form)**
-- Manter a logo atual (`logoIcon`) no canto superior — ela funciona bem em tamanho pequeno sobre fundo escuro
-- Sem mudanças no form
+### Resultado
 
-### Resultado esperado
+- Logo e badge com respiro visual claro entre si
+- Ambos afastados das bordas do painel
+- Header mais "respirado", combinando com a estética premium do resto da página
 
-- Nova logo grande no painel direito, nascendo da própria atmosfera da imagem cinematográfica (não mais "colada")
-- Mesma identidade TrendFood, mas em versão premium/editorial
-- Integração visual perfeita com o fundo gerado
-
-### Arquivos
-- `src/assets/auth-logo-cinematic.png` (nova, gerada via AI)
-- `src/pages/AuthPage.tsx` (apenas troca do import e da tag `<img>`)
+### Arquivo
+- `src/pages/AuthPage.tsx` (apenas ajustes de spacing/gap no header)
 
