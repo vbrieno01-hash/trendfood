@@ -1,26 +1,43 @@
 
+## Plano — Corrigir o badge que está sobrepondo as abas no AuthPage
 
-## Plano — Corrigir espaçamento do badge "Você está entrando em TrendFood"
+### Problema real
+O elemento “Você está entrando em TrendFood” não está apenas com pouco espaço: ele está **sobreposto** nas abas “Entrar / Criar conta”.  
+Isso acontece porque o header desktop está em `absolute`, então ele não reserva altura no layout. Quando o conteúdo do formulário sobe, o badge fica “grudado” por cima da interface.
 
-### Problema
+### O que será ajustado
 
-No header do painel esquerdo do `AuthPage.tsx`, o logo "TrendFood" (esquerda) e o badge "Você está entrando em TrendFood" (direita) estão visualmente grudados/encostando nas bordas, sem respiro adequado.
+**1. Tirar o header desktop do `absolute`**
+- Remover `absolute top-8 left-12 right-12`
+- Colocar o bloco do logo + badge em fluxo normal no painel esquerdo
+- Assim o layout passa a reservar espaço real para ele
 
-### Correção
+**2. Separar o topo do conteúdo**
+- Criar uma estrutura com:
+  - header no topo
+  - conteúdo do auth abaixo
+- Adicionar `mb`/`pb` consistente entre header e tabs/form para nunca encostar visualmente
 
-Em `src/pages/AuthPage.tsx`, no header do painel esquerdo:
+**3. Centralizar o formulário sem invadir o header**
+- Manter o card/form centralizado, mas dentro de uma área própria (`flex-1`)
+- Evitar que a centralização vertical empurre tabs para trás do badge
 
-1. **Aumentar gap entre logo e badge**: adicionar `gap-4` (ou maior) no container flex que agrupa os dois
-2. **Adicionar padding interno do header**: garantir `px-2` ou `px-4` extra pra que nem o logo nem o badge encostem nas bordas do painel
-3. **Espaçamento interno do badge**: revisar `px-3 py-1.5` do badge pra garantir respiro do texto
-4. **Margin-bottom do header**: garantir separação adequada do conteúdo abaixo (form)
+**4. Refinar o badge para desktop menor**
+- Reduzir levemente largura visual do badge
+- Se necessário, encurtar a frase em breakpoints intermediários para algo como:
+  - `Entrando em TrendFood`
+- Manter a versão completa em telas maiores
 
-### Resultado
+**5. Preservar o visual atual**
+- Não mexer na lógica de auth
+- Não mexer no painel direito cinematográfico
+- Não alterar mobile, exceto se for necessário manter consistência de espaçamento
 
-- Logo e badge com respiro visual claro entre si
-- Ambos afastados das bordas do painel
-- Header mais "respirado", combinando com a estética premium do resto da página
+### Resultado esperado
+- O badge fica acima, com respiro correto
+- As abas “Entrar / Criar conta” não ficam mais por baixo dele
+- O topo da página passa a ter hierarquia clara: logo/badge primeiro, formulário depois
+- Visual mais limpo e profissional
 
 ### Arquivo
-- `src/pages/AuthPage.tsx` (apenas ajustes de spacing/gap no header)
-
+- `src/pages/AuthPage.tsx`
