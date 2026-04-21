@@ -1,12 +1,36 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 const PRESETS = [5000, 10000, 20000, 50000];
+
+function FlipNumber({ value }: { value: string }) {
+  return (
+    <span className="inline-flex overflow-hidden tabular-nums">
+      {value.split("").map((c, i) => (
+        <span key={`${i}-${c}`} className="relative inline-block" style={{ height: "1em", minWidth: /\d/.test(c) ? "0.55em" : undefined }}>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={c}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "-100%", opacity: 0 }}
+              transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              {c}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const SavingsCalculator = () => {
   const [revenue, setRevenue] = useState(10000);
