@@ -479,14 +479,14 @@ const AuthPage = () => {
             {/* SIGNUP TAB */}
             <TabsContent value="signup" className="mt-0 space-y-5">
               <div className="mb-6">
-                <h2 className="font-bold text-foreground text-2xl">Crie seu estabelecimento</h2>
-                <p className="text-muted-foreground text-sm mt-1">Pronto em menos de 2 minutos</p>
+                <h2 className="font-bold text-white text-3xl tracking-tight">Crie seu estabelecimento</h2>
+                <p className="text-white/60 text-sm mt-2">Pronto em menos de 2 minutos</p>
               </div>
               <GoogleButton />
               <form onSubmit={handleSignup} className="space-y-4">
                 {/* Dados pessoais */}
                 <div>
-                  <Label htmlFor="fullName" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="fullName" className="text-sm font-medium mb-1.5 block text-white/80">
                     Seu nome completo
                   </Label>
                   <Input
@@ -494,12 +494,12 @@ const AuthPage = () => {
                     placeholder="João da Silva"
                     value={signupData.fullName}
                     onChange={(e) => setSignupData((p) => ({ ...p, fullName: e.target.value }))}
-                    className="h-11"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="email" className="text-sm font-medium mb-1.5 block text-white/80">
                     E-mail
                   </Label>
                   <Input
@@ -508,12 +508,12 @@ const AuthPage = () => {
                     placeholder="joao@email.com"
                     value={signupData.email}
                     onChange={(e) => setSignupData((p) => ({ ...p, email: e.target.value }))}
-                    className="h-11"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="confirmEmail" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="confirmEmail" className="text-sm font-medium mb-1.5 block text-white/80">
                     Confirme seu e-mail
                   </Label>
                   <Input
@@ -522,12 +522,12 @@ const AuthPage = () => {
                     placeholder="joao@email.com"
                     value={signupData.confirmEmail}
                     onChange={(e) => setSignupData((p) => ({ ...p, confirmEmail: e.target.value }))}
-                    className="h-11"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="signup-pwd" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="signup-pwd" className="text-sm font-medium mb-1.5 block text-white/80">
                     Senha
                   </Label>
                   <div className="relative">
@@ -537,13 +537,13 @@ const AuthPage = () => {
                       placeholder="Mínimo 6 caracteres"
                       value={signupData.password}
                       onChange={(e) => setSignupData((p) => ({ ...p, password: e.target.value }))}
-                      className="h-11 pr-10"
+                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                       minLength={6}
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                       onClick={() => setShowSignupPwd((v) => !v)}
                     >
                       {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -552,7 +552,7 @@ const AuthPage = () => {
                   <PasswordRequirements password={signupData.password} />
                 </div>
                 <div>
-                  <Label htmlFor="signup-confirm-pwd" className="text-sm font-medium mb-1.5 block">
+                  <Label htmlFor="signup-confirm-pwd" className="text-sm font-medium mb-1.5 block text-white/80">
                     Confirme sua senha
                   </Label>
                   <div className="relative">
@@ -562,13 +562,13 @@ const AuthPage = () => {
                       placeholder="Repita a senha"
                       value={signupData.confirmPassword}
                       onChange={(e) => setSignupData((p) => ({ ...p, confirmPassword: e.target.value }))}
-                      className="h-11 pr-10"
+                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                       minLength={6}
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                       onClick={() => setShowSignupConfirmPwd((v) => !v)}
                     >
                       {showSignupConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -577,13 +577,13 @@ const AuthPage = () => {
                 </div>
 
                 {/* Dados do estabelecimento */}
-                <div className="pt-3 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-3 font-semibold uppercase tracking-wide">
+                <div className="pt-4 border-t border-white/10">
+                  <p className="text-xs text-white/50 mb-3 font-semibold uppercase tracking-wide">
                     Dados do estabelecimento
                   </p>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="businessName" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="businessName" className="text-sm font-medium mb-1.5 block text-white/80">
                         Nome da lanchonete
                       </Label>
                       <Input
@@ -591,21 +591,21 @@ const AuthPage = () => {
                         placeholder="Burguer da Vila"
                         value={signupData.businessName}
                         onChange={(e) => handleBusinessNameChange(e.target.value)}
-                        className="h-11"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="slug" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="slug" className="text-sm font-medium mb-1.5 block text-white/80">
                         URL pública
                       </Label>
-                      <div className="flex items-center rounded-lg border border-input overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 h-11">
-                        <span className="px-3 text-xs text-muted-foreground bg-muted border-r border-input h-full flex items-center shrink-0 font-mono">
+                      <div className="flex items-center rounded-lg border border-white/10 bg-white/5 overflow-hidden focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-0 h-11">
+                        <span className="px-3 text-xs text-white/50 bg-white/5 border-r border-white/10 h-full flex items-center shrink-0 font-mono">
                           /u/
                         </span>
                         <input
                           id="slug"
-                          className="flex-1 px-3 text-sm bg-background outline-none h-full"
+                          className="flex-1 px-3 text-sm bg-transparent text-white placeholder:text-white/30 outline-none h-full"
                           placeholder="burguer-da-vila"
                           value={signupData.slug}
                           onChange={(e) =>
@@ -621,7 +621,7 @@ const AuthPage = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={signupLoading}>
+                <Button type="submit" className="w-full h-12 rounded-full text-base font-bold mt-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30" disabled={signupLoading}>
                   {signupLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" /> Criando conta...
@@ -638,13 +638,13 @@ const AuthPage = () => {
               {!forgotMode ? (
                 <>
                   <div className="mb-6">
-                    <h2 className="font-bold text-foreground text-2xl">Bem-vindo de volta</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Acesse seu painel de gestão</p>
+                    <h2 className="font-bold text-white text-3xl tracking-tight">Bem-vindo de volta</h2>
+                    <p className="text-white/60 text-sm mt-2">Acesse seu painel de gestão</p>
                   </div>
                   <GoogleButton />
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                      <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="login-email" className="text-sm font-medium mb-1.5 block text-white/80">
                         E-mail
                       </Label>
                       <Input
@@ -653,12 +653,12 @@ const AuthPage = () => {
                         placeholder="joao@email.com"
                         value={loginData.email}
                         onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
-                        className="h-11"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="login-pwd" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="login-pwd" className="text-sm font-medium mb-1.5 block text-white/80">
                         Senha
                       </Label>
                       <div className="relative">
@@ -668,19 +668,19 @@ const AuthPage = () => {
                           placeholder="••••••••"
                           value={loginData.password}
                           onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
-                          className="h-11 pr-10"
+                          className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                           required
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                           onClick={() => setShowLoginPwd((v) => !v)}
                         >
                           {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
-                    <Button type="submit" className="w-full h-11 text-base font-bold mt-2" disabled={loginLoading}>
+                    <Button type="submit" className="w-full h-12 rounded-full text-base font-bold mt-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30" disabled={loginLoading}>
                       {loginLoading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" /> Entrando...
@@ -691,7 +691,7 @@ const AuthPage = () => {
                     </Button>
                     <button
                       type="button"
-                      className="w-full text-sm text-primary hover:underline mt-2"
+                      className="w-full text-sm text-primary hover:text-primary/80 hover:underline mt-2"
                       onClick={() => {
                         setForgotMode(true);
                         setForgotEmail(loginData.email);
@@ -704,12 +704,12 @@ const AuthPage = () => {
               ) : (
                 <div className="space-y-5">
                   <div className="mb-6">
-                    <h2 className="font-bold text-foreground text-2xl">Redefinir senha</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Enviaremos um link para o seu e-mail.</p>
+                    <h2 className="font-bold text-white text-3xl tracking-tight">Redefinir senha</h2>
+                    <p className="text-white/60 text-sm mt-2">Enviaremos um link para o seu e-mail.</p>
                   </div>
                   <form onSubmit={handleForgotPassword} className="space-y-4">
                     <div>
-                      <Label htmlFor="forgot-email" className="text-sm font-medium mb-1.5 block">
+                      <Label htmlFor="forgot-email" className="text-sm font-medium mb-1.5 block text-white/80">
                         E-mail
                       </Label>
                       <Input
@@ -718,17 +718,17 @@ const AuthPage = () => {
                         placeholder="joao@email.com"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        className="h-11"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full h-11 text-base font-bold" disabled={forgotLoading}>
+                    <Button type="submit" className="w-full h-12 rounded-full text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/30" disabled={forgotLoading}>
                       {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                       Enviar link de redefinição
                     </Button>
                     <button
                       type="button"
-                      className="w-full text-sm text-primary hover:underline mt-2"
+                      className="w-full text-sm text-primary hover:text-primary/80 hover:underline mt-2"
                       onClick={() => setForgotMode(false)}
                     >
                       ← Voltar ao login
