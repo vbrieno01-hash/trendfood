@@ -385,8 +385,7 @@ const AuthPage = () => {
     <div
       className="min-h-screen flex relative overflow-hidden text-white"
       style={{
-        background:
-          "radial-gradient(ellipse at top left, hsl(20 60% 14%) 0%, hsl(15 45% 8%) 45%, hsl(20 30% 5%) 100%)",
+        background: "hsl(20 25% 9%)",
       }}
     >
       {/* Subtle warm grain/noise overlay for depth */}
@@ -748,40 +747,44 @@ const AuthPage = () => {
       </div>
 
       {/* RIGHT PANEL — Cinematic logo (desktop only) */}
-      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
-        {/* Warm radial glow */}
+      <div
+        className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden"
+        style={{ background: "hsl(20 40% 6%)" }}
+      >
+        {/* Vertical divider — fades at top/bottom (cinematic) */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-y-0 left-0 w-px pointer-events-none z-20"
           style={{
             background:
-              "radial-gradient(circle at 70% 50%, hsl(20 90% 35% / 0.55) 0%, hsl(15 70% 18% / 0.4) 35%, transparent 70%)",
-          }}
-        />
-        {/* Light leak from right */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 100% 50%, hsl(35 100% 60% / 0.25) 0%, transparent 55%)",
-          }}
-        />
-        {/* Left edge fade — fuses with form panel */}
-        <div
-          className="absolute inset-y-0 left-0 w-32 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(to right, hsl(15 45% 8%) 0%, transparent 100%)",
+              "linear-gradient(to bottom, transparent 0%, hsl(0 0% 100% / 0.12) 25%, hsl(0 0% 100% / 0.12) 75%, transparent 100%)",
           }}
         />
 
-        {/* Giant logo */}
-        <div className="relative z-10 flex flex-col items-center gap-6">
+        {/* Diagonal light beam from top-right corner */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 60% at 95% 5%, hsl(20 100% 50% / 0.45) 0%, hsl(20 90% 35% / 0.18) 35%, transparent 70%)",
+          }}
+        />
+        {/* Soft warm ambient under logo */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle at 45% 55%, hsl(20 80% 25% / 0.35) 0%, transparent 55%)",
+          }}
+        />
+
+        {/* Giant logo — slightly left of center so the beam comes from behind/right */}
+        <div className="relative z-10 flex flex-col items-center gap-3 -translate-x-[6%]">
           <img
             src={logoIcon}
             alt="TrendFood"
-            className="w-[60vh] max-w-[520px] h-auto object-contain drop-shadow-[0_0_80px_hsl(20_100%_55%_/_0.45)] opacity-95"
+            className="w-[60vh] max-w-[520px] h-auto object-contain drop-shadow-[0_0_120px_hsl(20_100%_50%_/_0.6)] opacity-95 animate-fade-in"
           />
-          <p className="text-white/70 text-base font-light tracking-wide">
+          <p className="text-white/75 text-base font-light tracking-wide animate-fade-in [animation-delay:200ms]">
             Zero taxas. <span className="text-white font-medium">100% seu.</span>
           </p>
         </div>
