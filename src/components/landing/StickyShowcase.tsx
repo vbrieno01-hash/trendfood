@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3, Wallet, TrendingUp, UtensilsCrossed, Flame } from "lucide-react";
@@ -16,6 +16,76 @@ export default function StickyShowcase() {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
   const activeIndex = useTransform(scrollYProgress, (v) => Math.min(Math.floor(v * tabs.length), tabs.length - 1));
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  if (isMobile) {
+    return (
+      <section className="relative bg-background py-14 px-4">
+        <div
+          className="absolute inset-0 opacity-30 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 60% 40% at 50% 30%, rgba(249,115,22,0.18), transparent)",
+          }}
+        />
+        <div className="relative max-w-2xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge className="mb-3 bg-primary/10 text-primary border-primary/20">Tudo num lugar só</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+              Um sistema. <span className="text-primary">Operação inteira.</span>
+            </h2>
+          </div>
+
+          {/* Mockup once on top */}
+          <div className="relative mb-10">
+            <div
+              className="absolute -inset-6 rounded-[2rem] opacity-50 blur-3xl pointer-events-none"
+              style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.35), transparent 70%)" }}
+            />
+            <div
+              className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 mx-auto max-w-[460px]"
+              style={{ background: "#1a1a2e" }}
+            >
+              <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              </div>
+              <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
+            </div>
+          </div>
+
+          {/* Vertical list of features */}
+          <div className="space-y-3">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <div
+                  key={tab.label}
+                  className="flex items-start gap-4 p-4 rounded-2xl bg-card border border-border/60"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground text-lg mb-1">{tab.label}</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">{tab.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section ref={ref} className="relative bg-background" style={{ height: `${tabs.length * 80}vh` }}>

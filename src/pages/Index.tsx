@@ -187,7 +187,7 @@ const Index = () => {
       )}
 
       {/* Benefit Cards */}
-      <section className="py-16 px-4 bg-background border-b border-border/60">
+      <section className="py-10 md:py-16 px-4 bg-background md:border-b md:border-border/60">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-3 gap-6">
             {benefitsData.map((card: any, idx: number) => (
@@ -222,7 +222,7 @@ const Index = () => {
       <StickyShowcase />
 
       {/* Features */}
-      <section id="funcionalidades" className="py-20 px-4 bg-background">
+      <section id="funcionalidades" className="py-12 md:py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Tudo em um só lugar</Badge>
@@ -244,7 +244,7 @@ const Index = () => {
       </section>
 
       {/* Plans Section */}
-      <section id="planos" className="py-20 px-4 bg-secondary/40 border-y border-border/60">
+      <section id="planos" className="py-12 md:py-20 px-4 bg-secondary/40 border-y border-border/60">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Planos</Badge>
@@ -303,7 +303,7 @@ const Index = () => {
       </section>
 
       {/* CTA final */}
-      <section className="relative overflow-hidden py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
+      <section className="relative overflow-hidden py-14 md:py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
             {c("cta_title", "Pare de pagar comissão. Comece hoje.")}
