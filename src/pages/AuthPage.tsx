@@ -383,77 +383,45 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* LEFT PANEL — Visual (desktop only) */}
+    <div
+      className="min-h-screen flex relative overflow-hidden text-white"
+      style={{
+        background:
+          "radial-gradient(ellipse at top left, hsl(20 60% 14%) 0%, hsl(15 45% 8%) 45%, hsl(20 30% 5%) 100%)",
+      }}
+    >
+      {/* Subtle warm grain/noise overlay for depth */}
       <div
-        className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 overflow-hidden"
-        style={{ minHeight: "100vh" }}
-      >
-        {/* Background photo */}
-        <img
-          src="https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=1200&q=80"
-          alt="Interior de restaurante aconchegante"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        {/* Dark red gradient overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(90,5,5,0.90) 0%, rgba(20,3,3,0.95) 100%)",
-          }}
-        />
+        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>\")",
+        }}
+      />
 
-        {/* Content over overlay */}
-        <div className="relative z-10 flex flex-col h-full justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <img src={logoIcon} alt="TrendFood" className="w-10 h-10 rounded-xl object-contain" />
-            <span className="font-extrabold text-white text-xl tracking-tight">TrendFood</span>
-          </div>
-
-          {/* Center content */}
-          <div className="flex-1 flex flex-col justify-center py-16">
-            <h1 className="text-4xl font-extrabold text-white leading-tight mb-4">
-              Transforme o gosto dos seus clientes em lucro
-            </h1>
-            <p className="text-white/70 text-lg leading-relaxed mb-10">
-              Gerencie pedidos, cardápio digital e métricas do seu negócio em um só lugar.
-            </p>
-
-            {/* Bullets */}
-            <ul className="space-y-4">
-              {[
-                "Sem instalação de aplicativo",
-                "Cardápio digital personalizado",
-                "Painel completo de métricas",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center shrink-0">
-                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                  </div>
-                  <span className="text-white/90 text-sm font-medium">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Footer badge */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-white/50 font-medium">
-              Grátis para começar · Sem cartão de crédito
-            </span>
-          </div>
+      {/* LEFT PANEL — Form */}
+      <div className="flex-1 lg:w-1/2 relative z-10 flex flex-col justify-center px-6 py-12 lg:px-16 overflow-y-auto">
+        {/* Top-left logo (desktop) */}
+        <div className="hidden lg:flex items-center gap-2.5 absolute top-8 left-12">
+          <Link to="/" className="inline-flex items-center gap-2.5">
+            <img src={logoIcon} alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
+            <span className="font-bold text-white text-base tracking-tight">TrendFood</span>
+          </Link>
         </div>
-      </div>
 
-      {/* RIGHT PANEL — Form */}
-      <div className="flex-1 lg:w-1/2 bg-background flex flex-col justify-center px-6 py-12 lg:px-16 overflow-y-auto">
+        {/* Top-right badge (desktop) */}
+        <div className="hidden lg:flex absolute top-8 right-12 items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs text-white/70 font-medium">
+            Você está entrando em <span className="text-white font-semibold">TrendFood</span>
+          </span>
+        </div>
+
         {/* Mobile-only logo */}
         <div className="flex justify-center mb-8 lg:hidden">
           <Link to="/" className="inline-flex items-center gap-2">
             <img src={logoIcon} alt="TrendFood" className="w-9 h-9 rounded-xl object-contain" />
-            <span className="font-extrabold text-foreground text-lg">TrendFood</span>
+            <span className="font-extrabold text-white text-lg">TrendFood</span>
           </Link>
         </div>
 
