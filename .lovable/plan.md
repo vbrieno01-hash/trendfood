@@ -1,34 +1,56 @@
 
 
-## Plano — Marquee infinito de verdade, sempre rolando
+## Plano — Landing rápida no celular (sem perder o efeito no desktop)
 
-A faixa já tem a estrutura de loop infinito (conteúdo duplicado + `translateX(0 → -50%)`), mas na prática parece parada por 3 motivos:
+A landing tá lenta porque **muito efeito caro tá rodando em mobile** ao mesmo tempo. Cada `useScroll` do framer-motion adiciona um listener e recalcula transforms a cada scroll — você tem **6 deles ativos simultaneamente**. Junte isso com 28 partículas animadas, parallax de imagem, tilts 3D e gradientes blur-3xl, e o celular trava.
 
-### Problemas identificados
+### Diagnóstico (390x844, mobile real)
 
-1. **Velocidade muito lenta**: `40s linear infinite` numa tela de ~1450px faz o movimento parecer congelado (≈18px/s). Olho humano mal percebe.
-2. **Pode parar com `prefers-reduced-motion`**: hoje a regra `@media (prefers-reduced-motion: reduce)` desliga 100% a animação. Em vários sistemas Windows/Mac com configurações de acessibilidade, o marquee fica estático sem o usuário saber.
-3. **Apenas 2 cópias do conteúdo**: com tela ultrawide e `gap-12`, em algum momento o segundo conjunto aparece visível antes do primeiro sair — quebrando a ilusão de infinito.
+| Componente | Custo no mobile | O que dá pra cortar |
+|---|---|---|
+| **HeroCinematic** | Parallax `useScroll` na imagem + 28 partículas com keyframe + radial glow 900x600 | Desligar parallax e particles em mobile, manter só o gradiente |
+| **StackedProblemCards** | `useScroll` + 4 transforms por card (y, scale, opacity, rotate) × 3 cards = **12 transforms recalculados a cada pixel de scroll** | Em mobile virar fade-in simples (`whileInView`) sem scroll-linked |
+| **AnimatedComparison** | `useScroll` controlando altura de barras + 2 contadores numéricos atualizando 60x/s | Em mobile mostrar barras estáticas no valor final (27% / 100%) |
+| **TimelineSteps** | `useScroll` + 2 transforms por step × 4 + linha vertical animada | Em mobile virar fade-in simples; linha vertical estática |
+| **MagneticFeatureCard** | 14 cards, cada um com 4 motion values + spring + radial glow seguindo mouse | Em mobile remover tilt/glow (não tem mouse) — virar card normal |
+| **StickyShowcase** | Já tem fallback mobile ✅ | Sem mudança |
+| **MarqueeSocialProof** | Animação CSS leve | Sem mudança |
 
-### Correções
+### O que vou implementar
 
-**`src/components/landing/MarqueeSocialProof.tsx`**
-- Triplicar o array (`[...items, ...items, ...items]`) em vez de duplicar — garante cobertura mesmo em telas 4K e remove qualquer "salto" visível no loop.
-- Adicionar `aria-hidden="true"` no track (decorativo, não precisa ser lido por screen reader).
-- Pausar no hover (`hover:[animation-play-state:paused]`) — toque profissional tipo Stripe/Vercel, deixa o usuário ler o item se quiser.
+**1. Hook compartilhado `useIsDesktop()`** (`src/hooks/useIsDesktop.ts`)
+- Retorna `window.innerWidth >= 1024` com listener de resize
+- Usado por todos os componentes pesados pra desligar efeitos em mobile
 
-**`src/index.css`**
-- Velocidade de `40s` → `25s` (movimento percebido ~30px/s, suave mas visível).
-- Trocar a regra de `prefers-reduced-motion`: em vez de desligar tudo, **desacelerar pra 80s** (mantém a sensação de carrossel sem ser agressivo pra usuários sensíveis a movimento). Marquees decorativos lentos são aceitáveis pelas WCAG.
-- Garantir que o keyframe use `translate3d(0,0,0) → translate3d(-33.333%,0,0)` (3 cópias, então -1/3 fecha o loop perfeitamente) — `translate3d` força camada GPU, animação mais fluida.
+**2. `HeroCinematic.tsx`**
+- Em mobile: zero partículas (`Array.from({ length: 0 })`), sem parallax (`heroY`/`heroOpacity` desativados), sem `useScroll`
+- Particles e parallax só renderizam em `isDesktop`
+
+**3. `StackedProblemCards.tsx`**
+- Em mobile: substituir `StackedCard` (com 4 useTransform) por card simples com `whileInView` fade-in (uma vez só)
+- Em desktop: mantém o efeito 3D stacked atual
+
+**4. `AnimatedComparison.tsx`**
+- Em mobile: barras estáticas (Marketplace cheia em vermelho, TrendFood cheia em verde), sem `useScroll`, sem contadores animados
+- Em desktop: mantém a animação de barras enchendo/esvaziando
+
+**5. `TimelineSteps.tsx`**
+- Em mobile: `StepCard` sem `useTransform`, só `whileInView` fade simples; linha vertical estática (cor `bg-primary/30`, sem scaleY animado)
+- Em desktop: mantém tudo
+
+**6. `MagneticFeatureCard.tsx`**
+- Em mobile: nada de tilt 3D nem glow seguindo mouse (não existe mouse no toque); só fade-in com delay
+- Em desktop: mantém efeito magnético
+
+**7. CSS bonus (`src/index.css`)**
+- Adicionar `@media (max-width: 1023px)` que reduz `blur-3xl` pra `blur-xl` em divs de glow (blur grande é assassino de GPU mobile)
 
 ### Resultado
 
-- Carrossel rolando continuamente da direita pra esquerda, suave e visível.
-- Loop perfeito (sem salto perceptível) em qualquer tamanho de tela.
-- Pausa elegante no hover.
-- Acessível: respeita reduced-motion mas não fica estático/quebrado.
-- Fade nas bordas (que já existe) continua dando o efeito premium de "infinito".
+- **Desktop**: idêntico ao atual, todo o efeito cinematográfico preservado
+- **Mobile**: rolagem fluida 60fps, fade-ins suaves no lugar dos efeitos scroll-linked pesados, mantendo a hierarquia visual (gradientes, badges, mockup do hero, marquee)
+- Sem perder nada de conteúdo, só remover efeito invisível ou caro demais pra tela pequena
+- Acessibilidade: continua respeitando `prefers-reduced-motion`
 
-Mudança mínima: 1 array triplicado + 4 linhas de CSS ajustadas.
+Mudança em 6 arquivos + 1 hook novo. Trabalho coeso, faço num passe.
 
