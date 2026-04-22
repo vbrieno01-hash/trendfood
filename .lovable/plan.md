@@ -1,105 +1,136 @@
 
 
-## Plano — Telegram ao vivo só pra você (admin)
+## Plano — Pacote essencial de alertas Telegram (alto valor)
 
-Vou criar um **canal de notificações em tempo real** no Telegram, exclusivo pra você (`brenojackson30@gmail.com`), com tudo que acontece na plataforma.
+Vou adicionar **os 5 alertas que mais valem a pena** pro seu dia a dia, focados em **dinheiro + retenção + crescimento**. Sem encher o saco com notificação inútil.
 
-### O que você vai receber no Telegram (em tempo real)
+### O que vai chegar no seu Telegram (além do que já tem)
 
-**🟢 Eventos de crescimento (boas notícias)**
-- 🆕 Novo cadastro: `Loja "Pizzaria X" se cadastrou • plano: Trial Pro`
-- 💰 Nova assinatura paga: `Pizzaria X assinou Pro Mensal • R$ 49,90`
-- 🤝 Indicação convertida: `Pizzaria Y indicou Pizzaria Z (+30 dias Pro)`
+**💰 1. Pagamento de assinatura confirmado**
+> 💰 **Pagamento confirmado!**
+> 🏪 Pizzaria X • Plano Pro Mensal
+> 💵 R$ 49,90 via PIX
+> 📈 MRR estimado: R$ 1.247,80
 
-**🟡 Eventos de saúde**
-- 🛒 Pedido fantasma detectado/limpo
-- ⚠️ Erro crítico capturado (checkout, pagamento, impressão)
-- 📉 Cancelamento de assinatura: `Pizzaria X cancelou Pro`
-- ⏰ Plano expirando em 3 dias
+Disparado quando o webhook do Mercado Pago confirma pagamento aprovado.
 
-**🔵 Eventos operacionais (resumos)**
-- 📊 Resumo diário às 09h: novos cadastros, MRR, pedidos da plataforma nas últimas 24h
-- 📈 Resumo semanal aos domingos: comparativo com semana anterior
+**❌ 2. Falha de cobrança (cartão recusado)**
+> ❌ **Cobrança recusada**
+> 🏪 Pizzaria X • Pro Mensal
+> 💳 Motivo: cartão expirado
+> ⚠️ Loja perde acesso em 3 dias se não regularizar
 
-### Onde configurar (Painel Admin)
+Disparado quando MP retorna `payment.rejected` ou `subscription.payment_failed`.
 
-Vou adicionar uma nova aba **"Telegram Admin"** no Painel Admin com:
-- Campo pro **seu Chat ID pessoal** (separado dos lojistas)
-- Toggles pra ligar/desligar cada tipo de evento (cadastros, pagamentos, erros, etc.)
-- Botão **"Testar"** que envia uma mensagem de boas-vindas
-- Lista das últimas 20 notificações enviadas (auditoria)
+**⏰ 3. Trial acabando (3 dias / 1 dia / hoje)**
+> ⏰ **Trial expira em 1 dia**
+> 🏪 Pizzaria X
+> 📊 Já fez **47 pedidos** no trial
+> 📱 WhatsApp: 11 99999-9999
+> 👉 Bom momento pra ligar e converter
+
+Cron diário às 09h verifica `trial_ends_at` em D-3, D-1 e D-0.
+
+**🔥 4. Loja "quente" (alta atividade no Free)**
+> 🔥 **Lead quente detectado!**
+> 🏪 Pizzaria X (plano Grátis)
+> 📊 Bateu **50 pedidos hoje** (limite Free é apertado)
+> 💡 Pronto pra abordar e oferecer Pro
+
+Cron a cada 2h durante o dia checa lojas Free com >30 pedidos/dia.
+
+**😴 5. Loja "fria" (risco de churn em planos pagos)**
+> 😴 **Loja inativa há 7 dias**
+> 🏪 Pizzaria X (Pro Mensal)
+> 📉 Último pedido: 15/04
+> 💸 Risco de cancelamento • R$ 49,90 MRR em jogo
+
+Cron diário às 09h checa lojas Pro/Enterprise sem pedidos há 7+ dias.
+
+### Onde configurar
+
+Na aba **Painel Admin → Telegram Admin** (que já existe), vou adicionar **5 novos toggles**:
+- 💰 Pagamentos confirmados
+- ❌ Falhas de cobrança
+- ⏰ Trials expirando
+- 🔥 Lojas quentes (leads)
+- 😴 Lojas frias (churn)
+
+Todos vêm **ligados por padrão**. Você desliga o que não quiser.
 
 ### Como vai funcionar tecnicamente
 
 ```text
-Evento acontece (cadastro, pagamento, erro, etc.)
-        ↓
-Trigger SQL detecta → chama edge function
-        ↓
-Edge function `admin-telegram-notify` envia pro seu Chat ID
-        ↓
-Você recebe instantaneamente no Telegram
+┌─ Pagamento aprovado ─→ mp-webhook ─→ admin-telegram-notify (event: payment_confirmed)
+├─ Pagamento recusado ─→ mp-webhook ─→ admin-telegram-notify (event: payment_failed)
+├─ Cron 09h diário   ─→ admin-telegram-watchdog ─→ varre trials + churn
+└─ Cron 11h/15h/19h  ─→ admin-telegram-watchdog ─→ detecta lojas quentes
 ```
 
 ### Componentes técnicos
 
-**1. Banco de dados (migração SQL)**
-- Adicionar em `platform_config`:
-  - `admin_telegram_chat_id text` — seu Chat ID
-  - `admin_telegram_events jsonb` — quais eventos enviar (default: tudo ligado)
-- Nova tabela `admin_telegram_log` (auditoria das últimas mensagens)
-- Triggers SQL em:
-  - `organizations` (INSERT) → notifica novo cadastro
-  - `organizations` (UPDATE de `subscription_plan`) → notifica upgrade/cancelamento
-  - `client_error_logs` (INSERT) → notifica erros 🔴 críticos (filtrado pelo classifier)
-- Cron job (`pg_cron`) às 09h pra enviar resumo diário
+**1. Edge function nova: `admin-telegram-watchdog`**
+- Roda via pg_cron em horários estratégicos
+- Faz 3 varreduras:
+  - Trials em D-3 / D-1 / D-0 (lê `trial_ends_at` + conta pedidos do trial)
+  - Lojas Pro/Enterprise sem pedidos há 7+ dias
+  - Lojas Free com >30 pedidos/dia (conta de hoje)
+- Para cada hit, chama `admin-telegram-notify` com o evento certo
+- Anti-spam: tabela `admin_telegram_dedupe` (chave `event_type|org_id|date`) evita disparar 2x no mesmo dia
 
-**2. Edge function nova: `admin-telegram-notify`**
-- Recebe `{ event_type, payload }`
-- Lê chat_id e toggles do `platform_config`
-- Formata mensagem em HTML (emoji + negrito + dados)
-- Envia via `connector-gateway.lovable.dev/telegram` (já configurado, secret `TELEGRAM_API_KEY` existe)
-- Loga em `admin_telegram_log`
-- `verify_jwt = false` (chamada por triggers SQL)
+**2. Editar `admin-telegram-notify` (já existe)**
+- Adicionar 5 novos `event_type` no `buildMessage`:
+  - `payment_confirmed`
+  - `payment_failed`
+  - `trial_expiring` (já existe `subscription_expiring`, vou reaproveitar/renomear)
+  - `hot_lead`
+  - `cold_store`
+- Adicionar os 5 novos toggles no default do `admin_telegram_events`
 
-**3. Edge function nova: `admin-telegram-digest`**
-- Roda às 09h via pg_cron
-- Calcula métricas das últimas 24h (novos cadastros, MRR, pedidos totais, taxa de erro)
-- Envia resumo formatado
+**3. Editar `mp-webhook` (já existe)**
+- Quando MP retornar pagamento aprovado de assinatura → chama `admin-telegram-notify` com `payment_confirmed`
+- Quando MP retornar pagamento recusado → chama com `payment_failed`
+- Calcula MRR estimado somando todas as assinaturas ativas
 
-**4. Frontend (1 arquivo novo + 1 edição)**
-- `src/components/admin/AdminTelegramTab.tsx` (novo) — UI de configuração
-- `src/pages/AdminPage.tsx` — adicionar nova aba "Telegram Admin" no menu
+**4. Migração SQL**
+- Nova tabela `admin_telegram_dedupe (event_key text PK, sent_at timestamptz)` — TTL 7 dias
+- Atualizar default de `platform_config.admin_telegram_events` com os 5 novos toggles
+- Agendar pg_cron:
+  - `admin-telegram-watchdog-morning` — todo dia 09h BRT (trials + churn)
+  - `admin-telegram-watchdog-business` — 11h/15h/19h BRT (hot leads)
 
-### Segurança / isolamento
+**5. Editar `AdminTelegramTab.tsx`**
+- Adicionar os 5 novos toggles na seção de eventos com labels/ícones em português
 
-- Chat ID admin fica em `platform_config` (singleton, RLS já restringe a admin)
-- Notificações **NÃO** vão pros lojistas — só pro seu Chat ID
-- Sistema de Telegram dos lojistas (`organizations.telegram_chat_id`) continua intocado
-- Usa o **mesmo bot** já configurado (Telegram connector ativo, sem custo extra)
+### Anti-spam (importante)
+
+- **Trial expirando** dispara só 1x por dia por loja por janela (D-3, D-1, D-0)
+- **Lead quente** dispara só 1x por loja por dia
+- **Loja fria** dispara só 1x por loja por semana
+- **Pagamentos** sempre disparam (são únicos por natureza)
+
+Tudo controlado pela tabela `admin_telegram_dedupe`.
 
 ### O que NÃO vou mexer
 
-- Aba Telegram dos lojistas (`TelegramTab.tsx`) — fica como está
-- Sistema de push notification dos pedidos — intocado
-- Edge functions `test-telegram` e `telegram-automations` — intocadas
-
-### Como você vai usar (passo a passo)
-
-1. Eu termino a implementação
-2. Você abre **Painel Admin → Telegram Admin**
-3. Cola seu Chat ID pessoal (mesmo bot @userinfobot que os lojistas usam)
-4. Clica em "Testar" → recebe mensagem de boas-vindas
-5. Pronto — a partir desse momento, recebe tudo ao vivo
+- Sistema de Telegram dos lojistas — intocado
+- Push notification de pedidos — intocado
+- Lógica de pagamento/cobrança — só adiciono notificação no final
+- Trials/expiração de plano — só leio, não mudo regra
 
 ### Arquivos envolvidos
 
-- **Novos:**
-  - `supabase/functions/admin-telegram-notify/index.ts`
-  - `supabase/functions/admin-telegram-digest/index.ts`
-  - `src/components/admin/AdminTelegramTab.tsx`
-  - 1 migração SQL (colunas + tabela log + triggers + cron)
-- **Editados:**
-  - `src/pages/AdminPage.tsx` (adicionar aba)
-  - `supabase/config.toml` (registrar funções com `verify_jwt = false`)
+**Novos:**
+- `supabase/functions/admin-telegram-watchdog/index.ts`
+- 1 migração SQL (tabela dedupe + cron jobs + default toggles)
+
+**Editados:**
+- `supabase/functions/admin-telegram-notify/index.ts` (5 novos eventos)
+- `supabase/functions/mp-webhook/index.ts` (chamar notify em aprovado/recusado)
+- `src/components/admin/AdminTelegramTab.tsx` (5 novos toggles)
+- `supabase/config.toml` (registrar `admin-telegram-watchdog` com `verify_jwt = false`)
+
+### Resultado esperado
+
+Você vai parar de descobrir cancelamento depois que aconteceu. Vai saber **antes** quem vai pagar, quem está pra cancelar e quem está pronto pra upgrade — tudo no Telegram, sem precisar abrir o painel.
 
