@@ -314,6 +314,40 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const LOVABLE_API_KEY_EARLY = Deno.env.get("LOVABLE_API_KEY");
+    const TELEGRAM_API_KEY_EARLY = Deno.env.get("TELEGRAM_API_KEY");
+
+    // Auxiliary action: getMe — returns bot username/info (used by Add dialog)
+    const url = new URL(req.url);
+    if (url.searchParams.get("action") === "bot_info" || req.method === "GET") {
+      if (!LOVABLE_API_KEY_EARLY || !TELEGRAM_API_KEY_EARLY) {
+        return new Response(JSON.stringify({ ok: false, error: "missing_keys" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const meRes = await fetch(`${GATEWAY_URL}/getMe`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY_EARLY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY_EARLY,
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        });
+        const meBody = await meRes.json().catch(() => ({}));
+        const username = meBody?.result?.username || null;
+        const first_name = meBody?.result?.first_name || null;
+        return new Response(JSON.stringify({ ok: meRes.ok, username, first_name }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const { event_type, payload } = await req.json();
     if (!event_type) {
       return new Response(JSON.stringify({ error: "event_type required" }), {
@@ -426,12 +460,33 @@ Deno.serve(async (req: Request) => {
     const skippedCount = results.filter((r: any) => r.skipped).length;
     const errorCount = results.filter((r: any) => !r.ok && !r.skipped).length;
 
+    // Extract first error detail for UI to show precise message
+    const firstFailed = results.find((r: any) => !r.ok && !r.skipped);
+    let first_error: string | null = null;
+    let first_error_recipient: string | null = null;
+    if (firstFailed) {
+      first_error_recipient = (firstFailed as any).recipient?.name ?? null;
+      const rawErr = (firstFailed as any).error;
+      const rawBody = (firstFailed as any).body;
+      // Telegram returns JSON like {"ok":false,"description":"Bad Request: chat not found"}
+      let desc: string | null = null;
+      if (rawBody) {
+        try {
+          const parsed = JSON.parse(rawBody);
+          desc = parsed?.description || null;
+        } catch { /* ignore */ }
+      }
+      first_error = desc || rawErr || (rawBody ? String(rawBody).slice(0, 200) : null) || `HTTP ${(firstFailed as any).status ?? "?"}`;
+    }
+
     return new Response(JSON.stringify({
       ok: sentCount > 0,
       sent: sentCount,
       skipped: skippedCount,
       errors: errorCount,
       total: recipients.length,
+      first_error,
+      first_error_recipient,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

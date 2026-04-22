@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   Loader2, Send, Bell, CheckCircle2, XCircle, ExternalLink,
-  Plus, Trash2, ChevronDown, ChevronUp, Pause, Play, User,
+  Plus, Trash2, ChevronDown, ChevronUp, Pause, Play, User, AlertTriangle,
 } from "lucide-react";
 
 interface Recipient {
@@ -65,10 +65,49 @@ export default function AdminTelegramTab() {
   const [newName, setNewName] = useState("");
   const [newChatId, setNewChatId] = useState("");
   const [adding, setAdding] = useState(false);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [botInfoLoading, setBotInfoLoading] = useState(false);
 
   useEffect(() => {
     void load();
   }, []);
+
+  // Fetch bot username when Add dialog opens (cached after first call)
+  useEffect(() => {
+    if (!addOpen || botUsername) return;
+    setBotInfoLoading(true);
+    supabase.functions
+      .invoke("admin-telegram-notify", { body: { action: "bot_info" } })
+      .then(({ data }: any) => {
+        if (data?.username) setBotUsername(data.username);
+      })
+      .catch(() => { /* ignore — fallback shows generic instructions */ })
+      .finally(() => setBotInfoLoading(false));
+  }, [addOpen, botUsername]);
+
+  /** Translate raw Telegram errors into clear PT-BR instructions. */
+  function explainError(rawError: string | null | undefined, recipientName: string | null | undefined): string {
+    const err = String(rawError || "").toLowerCase();
+    const who = recipientName || "o destinatário";
+    const botRef = botUsername ? `@${botUsername}` : "o bot da plataforma";
+
+    if (err.includes("chat not found")) {
+      return `${who} ainda não iniciou o ${botRef}. Peça para abrir o ${botRef} no Telegram e enviar /start. Iniciar o /start em @userinfobot só serve pra pegar o ID — cada bot precisa do /start próprio.`;
+    }
+    if (err.includes("bot was blocked") || err.includes("blocked by the user")) {
+      return `${who} bloqueou ${botRef}. Peça pra desbloquear nas conversas do Telegram e enviar /start novamente.`;
+    }
+    if (err.includes("user is deactivated")) {
+      return `A conta de ${who} no Telegram foi desativada.`;
+    }
+    if (err.includes("unauthorized") || err.includes("token")) {
+      return `Token do bot inválido. Verifique a conexão Telegram em Connectors.`;
+    }
+    if (err.includes("too many requests") || err.includes("rate")) {
+      return `Telegram pediu pra reduzir o ritmo (rate limit). Tente de novo em alguns segundos.`;
+    }
+    return rawError || "Erro desconhecido ao enviar.";
+  }
 
   async function load() {
     setLoading(true);
@@ -163,7 +202,10 @@ export default function AdminTelegramTab() {
       toast.success(`Mensagem enviada pra ${r.name}! 📱`);
       void load();
     } else {
-      toast.error("Não enviou: " + ((data as any)?.reason ?? "erro desconhecido"));
+      const d = data as any;
+      const friendly = explainError(d?.first_error, d?.first_error_recipient ?? r.name);
+      toast.error(friendly, { duration: 12000 });
+      void load();
     }
   }
 
@@ -215,17 +257,56 @@ export default function AdminTelegramTab() {
               <DialogHeader>
                 <DialogTitle>Adicionar destinatário</DialogTitle>
                 <DialogDescription>
-                  Pegue o Chat ID enviando uma mensagem pro bot{" "}
-                  <a
-                    href="https://t.me/userinfobot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    @userinfobot <ExternalLink className="w-3 h-3" />
-                  </a>
+                  Cadastre uma pessoa que vai receber as notificações da plataforma no Telegram.
                 </DialogDescription>
               </DialogHeader>
+
+              {/* Critical warning: each bot needs its own /start */}
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  Antes de funcionar, siga 3 passos:
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-foreground/90">
+                  <li>
+                    Pegue o Chat ID em{" "}
+                    <a
+                      href="https://t.me/userinfobot"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      @userinfobot <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </li>
+                  <li>
+                    Abra{" "}
+                    {botInfoLoading ? (
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Loader2 className="w-3 h-3 animate-spin" /> identificando bot…
+                      </span>
+                    ) : botUsername ? (
+                      <a
+                        href={`https://t.me/${botUsername}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        @{botUsername} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="font-semibold">o bot da plataforma</span>
+                    )}
+                    {" "}e envie <code className="px-1 py-0.5 rounded bg-muted text-xs">/start</code>{" "}
+                    <span className="font-semibold">← passo crítico</span>
+                  </li>
+                  <li>Cole o Chat ID abaixo</li>
+                </ol>
+                <div className="text-xs text-muted-foreground pt-1 border-t border-amber-500/20">
+                  ⚠️ Se pular o passo 2, o Telegram bloqueia o envio com "chat not found".
+                </div>
+              </div>
+
               <div className="space-y-3 py-2">
                 <div>
                   <Label htmlFor="rec-name">Apelido</Label>
