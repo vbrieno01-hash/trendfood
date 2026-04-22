@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   Loader2, Send, Bell, CheckCircle2, XCircle, ExternalLink,
-  Plus, Trash2, ChevronDown, ChevronUp, Pause, Play, User, AlertTriangle,
+  Plus, Trash2, ChevronDown, ChevronUp, Pause, Play, User, AlertTriangle, Search,
 } from "lucide-react";
 
 interface Recipient {
@@ -35,6 +35,18 @@ interface LogRow {
   error: string | null;
   created_at: string;
   recipient_name: string | null;
+}
+
+/** Per-recipient diagnostic state populated lazily after recipients load. */
+interface DiagInfo {
+  /** ISO timestamp of the most recent log row with status='sent' for this recipient. */
+  lastSentAt: string | null;
+  /** Result of the last `get_chat_info` lookup (null until the user clicks Verificar). */
+  chat: { first_name?: string | null; last_name?: string | null; username?: string | null; type?: string | null; title?: string | null } | null;
+  /** Error from the last `get_chat_info` call, if any. */
+  chatError: string | null;
+  /** Loading state for `get_chat_info`. */
+  loadingChat: boolean;
 }
 
 const EVENT_LABELS: { key: string; label: string; description: string }[] = [
