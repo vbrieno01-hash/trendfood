@@ -328,35 +328,35 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Read admin chat_id and toggles
-    const { data: cfg } = await supabase
-      .from("platform_config")
-      .select("admin_telegram_chat_id, admin_telegram_events")
-      .limit(1)
-      .maybeSingle();
+    // Optional: target a single recipient (used by "Testar" per-recipient button)
+    const targetRecipientId: string | undefined = (payload as any)?._target_recipient_id;
 
-    const chatId = (cfg as any)?.admin_telegram_chat_id;
-    const toggles = (cfg as any)?.admin_telegram_events ?? {};
+    // Load active recipients
+    let query = supabase
+      .from("admin_telegram_recipients")
+      .select("id, name, chat_id, active, events")
+      .eq("active", true);
+    if (targetRecipientId) {
+      query = supabase
+        .from("admin_telegram_recipients")
+        .select("id, name, chat_id, active, events")
+        .eq("id", targetRecipientId);
+    }
+    const { data: recipients, error: recErr } = await query;
+    if (recErr) {
+      console.error("[admin-telegram-notify] recipients fetch error:", recErr);
+    }
 
-    if (!chatId) {
-      return new Response(JSON.stringify({ ok: false, reason: "no_chat_id" }), {
+    if (!recipients || recipients.length === 0) {
+      return new Response(JSON.stringify({ ok: false, reason: "no_recipients" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Test event always sent regardless of toggle
-    if (event_type !== "test") {
-      const key = eventToggleKey(event_type);
-      if (toggles[key] === false) {
-        return new Response(JSON.stringify({ ok: false, reason: "disabled" }), {
-          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
     if (!LOVABLE_API_KEY || !TELEGRAM_API_KEY) {
       await supabase.from("admin_telegram_log").insert({
-        event_type, message: "(missing keys)", payload, status: "error", error: "Missing LOVABLE_API_KEY or TELEGRAM_API_KEY",
+        event_type, message: "(missing keys)", payload, status: "error",
+        error: "Missing LOVABLE_API_KEY or TELEGRAM_API_KEY",
       });
       return new Response(JSON.stringify({ ok: false, reason: "missing_keys" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -370,39 +370,69 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": TELEGRAM_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-        ...(() => {
-          const buttons = buildButtons(event_type, payload || {});
-          return buttons.length > 0
-            ? { reply_markup: { inline_keyboard: buttons } }
-            : {};
-        })(),
-      }),
+    const buttons = buildButtons(event_type, payload || {});
+    const replyMarkup = buttons.length > 0
+      ? { reply_markup: { inline_keyboard: buttons } }
+      : {};
+
+    // Send to each eligible recipient in parallel
+    const sends = recipients.map(async (r: any) => {
+      const toggles = (r.events ?? {}) as Record<string, boolean>;
+      // Test event bypasses filters
+      if (event_type !== "test" && toggles[eventToggleKey(event_type)] === false) {
+        return { recipient: r, skipped: true, reason: "disabled" };
+      }
+      try {
+        const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id: r.chat_id,
+            text: message,
+            parse_mode: "HTML",
+            disable_web_page_preview: true,
+            ...replyMarkup,
+          }),
+        });
+        const tgBody = await tgRes.text();
+        return { recipient: r, ok: tgRes.ok, status: tgRes.status, body: tgBody };
+      } catch (err: any) {
+        return { recipient: r, ok: false, error: err?.message || String(err) };
+      }
     });
 
-    const tgBody = await tgRes.text();
-    const ok = tgRes.ok;
+    const results = await Promise.all(sends);
 
-    await supabase.from("admin_telegram_log").insert({
-      event_type,
-      message,
-      payload,
-      status: ok ? "sent" : "error",
-      error: ok ? null : `HTTP ${tgRes.status}: ${tgBody.slice(0, 500)}`,
-    });
+    // Log one row per actual send attempt (skip filtered-out)
+    const logRows = results
+      .filter((r: any) => !r.skipped)
+      .map((r: any) => ({
+        event_type,
+        message,
+        payload,
+        status: r.ok ? "sent" : "error",
+        recipient_name: r.recipient.name,
+        error: r.ok ? null : (r.error ?? `HTTP ${r.status}: ${String(r.body || "").slice(0, 500)}`),
+      }));
+    if (logRows.length > 0) {
+      await supabase.from("admin_telegram_log").insert(logRows);
+    }
 
-    return new Response(JSON.stringify({ ok, message }), {
+    const sentCount = results.filter((r: any) => r.ok).length;
+    const skippedCount = results.filter((r: any) => r.skipped).length;
+    const errorCount = results.filter((r: any) => !r.ok && !r.skipped).length;
+
+    return new Response(JSON.stringify({
+      ok: sentCount > 0,
+      sent: sentCount,
+      skipped: skippedCount,
+      errors: errorCount,
+      total: recipients.length,
+    }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
