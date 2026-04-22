@@ -397,6 +397,20 @@ Deno.serve(async (req) => {
 
           console.log("[mp-webhook] Recurring payment renewed org:", orgId);
 
+          // ── Notify admin about confirmed payment ──
+          {
+            const mrr = await computeMRR(supabase);
+            await notifyAdmin(supabase, "payment_confirmed", {
+              org_id: orgId,
+              org_name: org?.name || null,
+              plan: org?.subscription_plan || null,
+              billing_cycle: org?.billing_cycle || null,
+              amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+              payment_method: mpData.payment_method_id || "MP",
+              mrr_estimate: mrr,
+            });
+          }
+
           // ── Promo: bump subscription to full price after first half-price payment ──
           if (org?.used_first_month_promo && preapprovalId) {
             try {
@@ -490,6 +504,20 @@ Deno.serve(async (req) => {
       });
 
       console.log("[mp-webhook] Org updated:", orgId, "plan:", plan);
+
+      // ── Notify admin about confirmed payment (legacy one-time / first PIX) ──
+      {
+        const mrr = await computeMRR(supabase);
+        await notifyAdmin(supabase, "payment_confirmed", {
+          org_id: orgId,
+          org_name: org?.name || null,
+          plan: plan,
+          billing_cycle: org?.billing_cycle || null,
+          amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+          payment_method: mpData.payment_method_id || "MP",
+          mrr_estimate: mrr,
+        });
+      }
 
       // ── Referral bonus ──
       await processReferralBonus(supabase, orgId, accessToken);
