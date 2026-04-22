@@ -405,6 +405,8 @@ Deno.serve(async (req) => {
             await notifyAdmin(supabase, "payment_confirmed", {
               org_id: orgId,
               org_name: org?.name || null,
+              slug: (org as any)?.slug || null,
+              whatsapp: (org as any)?.whatsapp || null,
               plan: org?.subscription_plan || null,
               billing_cycle: org?.billing_cycle || null,
               amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
@@ -513,6 +515,8 @@ Deno.serve(async (req) => {
         await notifyAdmin(supabase, "payment_confirmed", {
           org_id: orgId,
           org_name: org?.name || null,
+          slug: (org as any)?.slug || null,
+          whatsapp: (org as any)?.whatsapp || null,
           plan: plan,
           billing_cycle: org?.billing_cycle || null,
           amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
