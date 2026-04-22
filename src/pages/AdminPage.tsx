@@ -238,7 +238,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin";
 
 interface NavGroup {
   label: string;
@@ -265,6 +265,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
       { key: "wa_instances", icon: <Smartphone className="w-4 h-4" />, label: "Instâncias WhatsApp" },
       { key: "aibot", icon: <Bot className="w-4 h-4" />, label: "Robô IA" },
+      { key: "telegram_admin", icon: <Send className="w-4 h-4" />, label: "Telegram Admin" },
       { key: "melhorias", icon: <ListChecks className="w-4 h-4" />, label: "Melhorias" },
     ],
   },
