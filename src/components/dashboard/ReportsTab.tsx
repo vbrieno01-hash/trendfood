@@ -2,9 +2,22 @@ import { useState, useMemo } from "react";
 import { useOrderHistory, type CustomDateRange } from "@/hooks/useOrders";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  BarChart,
+  Bar as BarRaw,
+  XAxis as XAxisRaw,
+  YAxis as YAxisRaw,
+  CartesianGrid,
+  Tooltip as TooltipRaw,
+  ResponsiveContainer,
+  Cell,
 } from "recharts";
+
+// Cast recharts class components to `any` so React 18's stricter JSX typing
+// accepts them (recharts 2.x doesn't expose a `props` field on its classes).
+const XAxis = XAxisRaw as any;
+const YAxis = YAxisRaw as any;
+const Tooltip = TooltipRaw as any;
+const Bar = BarRaw as any;
 import {
   DollarSign, ShoppingCart, TrendingUp, Clock, ArrowUpRight, ArrowDownRight, Minus, Download, FileImage, FileText, CalendarIcon, FileSpreadsheet,
 } from "lucide-react";
