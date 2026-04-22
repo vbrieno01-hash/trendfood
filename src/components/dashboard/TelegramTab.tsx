@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Send, MessageCircle, CheckCircle2, Bell, Clock, BarChart3 } from "lucide-react";
+import { Loader2, Send, MessageCircle, CheckCircle2, Bell, Clock, BarChart3, Search, User, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 function explainTelegramError(rawError: string, botRef: string): string {
@@ -35,6 +35,42 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [botUsername, setBotUsername] = useState<string>("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifiedChat, setVerifiedChat] = useState<{ first_name?: string|null; last_name?: string|null; username?: string|null; type?: string|null; title?: string|null } | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  function chatAccountLabel(chat: typeof verifiedChat): string {
+    if (!chat) return "—";
+    if (chat.type === "private") {
+      const fullName = [chat.first_name, chat.last_name].filter(Boolean).join(" ").trim();
+      const handle = chat.username ? ` (@${chat.username})` : "";
+      return (fullName || chat.username || "Conta privada") + handle;
+    }
+    if (chat.title) return `${chat.title}${chat.username ? ` (@${chat.username})` : ""}`;
+    return chat.username ? `@${chat.username}` : (chat.type ?? "—");
+  }
+
+  const handleVerify = async () => {
+    setVerifyLoading(true);
+    setVerifiedChat(null);
+    setVerifyError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-telegram", {
+        body: { action: "get_chat_info", chat_id: telegramChatId.trim() },
+      });
+      if (error) throw error;
+      const d = data as any;
+      if (!d?.ok) {
+        setVerifyError(explainTelegramError(d?.telegram_error || d?.error || "", botRef));
+      } else {
+        setVerifiedChat(d.chat ?? null);
+      }
+    } catch (err: any) {
+      setVerifyError(explainTelegramError(err?.message || "", botRef));
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Busca username real do bot da plataforma
