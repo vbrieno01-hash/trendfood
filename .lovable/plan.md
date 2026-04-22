@@ -1,136 +1,120 @@
 
 
-## Plano — Pacote essencial de alertas Telegram (alto valor)
+## Plano — Botões de WhatsApp com mensagem pronta no Telegram
 
-Vou adicionar **os 5 alertas que mais valem a pena** pro seu dia a dia, focados em **dinheiro + retenção + crescimento**. Sem encher o saco com notificação inútil.
+Cada notificação que envolve uma loja vai chegar com **botões inline** clicáveis abaixo da mensagem. Você toca, abre o WhatsApp da loja com **mensagem pronta específica pro contexto**, é só apertar enviar.
 
-### O que vai chegar no seu Telegram (além do que já tem)
+### Como vai parecer no Telegram
 
-**💰 1. Pagamento de assinatura confirmado**
-> 💰 **Pagamento confirmado!**
-> 🏪 Pizzaria X • Plano Pro Mensal
-> 💵 R$ 49,90 via PIX
-> 📈 MRR estimado: R$ 1.247,80
+```text
+⏰ Trial expira em 1 dia
+🏪 Pizzaria do João
+📊 Já fez 47 pedidos no trial
+📱 WhatsApp: 11 99999-9999
+👉 Bom momento pra entrar em contato
 
-Disparado quando o webhook do Mercado Pago confirma pagamento aprovado.
+┌────────────────────────────────────┐
+│  💬 Falar com loja (mensagem pronta)│  ← link wa.me com texto
+├────────────────────────────────────┤
+│  🏪 Abrir vitrine                   │  ← link da loja
+├────────────────────────────────────┤
+│  ⚙️  Painel Admin                   │  ← gerenciar loja
+└────────────────────────────────────┘
+```
 
-**❌ 2. Falha de cobrança (cartão recusado)**
-> ❌ **Cobrança recusada**
-> 🏪 Pizzaria X • Pro Mensal
-> 💳 Motivo: cartão expirado
-> ⚠️ Loja perde acesso em 3 dias se não regularizar
+### Mensagens prontas por evento
 
-Disparado quando MP retorna `payment.rejected` ou `subscription.payment_failed`.
+Cada evento ganha um **template específico** em português, assinado como TrendFood, com tom apropriado:
 
-**⏰ 3. Trial acabando (3 dias / 1 dia / hoje)**
-> ⏰ **Trial expira em 1 dia**
-> 🏪 Pizzaria X
-> 📊 Já fez **47 pedidos** no trial
-> 📱 WhatsApp: 11 99999-9999
-> 👉 Bom momento pra ligar e converter
+**⏰ Trial expirando (D-3 / D-1 / hoje)**
+> Olá, [Nome da Loja]! 👋 Aqui é o time da TrendFood. Notei que seu trial Pro acaba em [X dias] e você já fez [N] pedidos — ótimo ritmo! 🚀 Quer que eu te ajude a continuar com tudo liberado? Posso te mandar o link de pagamento ou tirar dúvidas sobre os planos. Me avisa por aqui!
 
-Cron diário às 09h verifica `trial_ends_at` em D-3, D-1 e D-0.
+**❌ Falha de cobrança**
+> Olá, [Nome da Loja]! Aqui é a TrendFood. Sua cobrança da assinatura Pro foi recusada hoje ([motivo]). Pra não perder o acesso, é só atualizar o método de pagamento no painel: [link]. Qualquer dúvida, me chama por aqui que ajudo na hora!
 
-**🔥 4. Loja "quente" (alta atividade no Free)**
-> 🔥 **Lead quente detectado!**
-> 🏪 Pizzaria X (plano Grátis)
-> 📊 Bateu **50 pedidos hoje** (limite Free é apertado)
-> 💡 Pronto pra abordar e oferecer Pro
+**🔥 Lead quente (Free com volume alto)**
+> Oi, [Nome da Loja]! Time da TrendFood aqui 🚀 Vi que vocês estão bombando hoje com [N] pedidos! No plano Free você tem várias limitações que podem estar te atrapalhando. Posso te mostrar como o Pro pode te dar pedidos ilimitados, cupons, fidelidade e muito mais. Topa um papo rápido?
 
-Cron a cada 2h durante o dia checa lojas Free com >30 pedidos/dia.
+**😴 Loja fria (risco churn)**
+> Olá, [Nome da Loja]! Aqui é a TrendFood 👋 Notamos que vocês não receberam pedidos nos últimos dias. Tá tudo bem por aí? Se tiver alguma dificuldade com a plataforma, alguma dúvida ou precisar de ajuda pra divulgar a loja, me chama aqui — quero garantir que vocês tirem o máximo proveito do plano Pro!
 
-**😴 5. Loja "fria" (risco de churn em planos pagos)**
-> 😴 **Loja inativa há 7 dias**
-> 🏪 Pizzaria X (Pro Mensal)
-> 📉 Último pedido: 15/04
-> 💸 Risco de cancelamento • R$ 49,90 MRR em jogo
+**🆕 Novo cadastro**
+> Olá, [Nome da Loja]! 👋 Boas-vindas à TrendFood! Sou do time e estou aqui pra te ajudar a configurar tudo certinho nos primeiros dias. Qualquer dúvida sobre cardápio, pagamentos, impressão ou WhatsApp, é só me chamar!
 
-Cron diário às 09h checa lojas Pro/Enterprise sem pedidos há 7+ dias.
+**💰 Pagamento confirmado**
+> Olá, [Nome da Loja]! Aqui é a TrendFood 🎉 Seu pagamento foi confirmado e seu plano Pro está ativo. Obrigado pela confiança! Qualquer coisa que precisar, é só me chamar por aqui.
 
-### Onde configurar
+**📉 Cancelamento de assinatura**
+> Olá, [Nome da Loja]! Aqui é a TrendFood. Vi que vocês cancelaram a assinatura — sentiremos falta! 😔 Se tiver 2 minutinhos, adoraria entender o que motivou e se tem algo que podemos melhorar. Estou à disposição!
 
-Na aba **Painel Admin → Telegram Admin** (que já existe), vou adicionar **5 novos toggles**:
-- 💰 Pagamentos confirmados
-- ❌ Falhas de cobrança
-- ⏰ Trials expirando
-- 🔥 Lojas quentes (leads)
-- 😴 Lojas frias (churn)
-
-Todos vêm **ligados por padrão**. Você desliga o que não quiser.
+**🤝 Indicação convertida** *(usa WhatsApp do indicador)*
+> Olá, [Nome do Indicador]! 🎉 A loja [Nome do Indicado] que você indicou virou assinante Pro! Você acabou de ganhar +[X] dias Pro de bônus. Continue indicando! 🚀
 
 ### Como vai funcionar tecnicamente
 
-```text
-┌─ Pagamento aprovado ─→ mp-webhook ─→ admin-telegram-notify (event: payment_confirmed)
-├─ Pagamento recusado ─→ mp-webhook ─→ admin-telegram-notify (event: payment_failed)
-├─ Cron 09h diário   ─→ admin-telegram-watchdog ─→ varre trials + churn
-└─ Cron 11h/15h/19h  ─→ admin-telegram-watchdog ─→ detecta lojas quentes
+**1. Editar `admin-telegram-notify`**
+- Trocar `sendMessage` simples por `sendMessage` com `reply_markup.inline_keyboard`
+- Nova função `buildButtons(eventType, payload)` que retorna array de botões com:
+  - `text`: rótulo (ex: "💬 Falar com loja")
+  - `url`: `https://wa.me/55XXXXXXXXXXX?text=...` (mensagem URL-encoded)
+- Nova função `buildWhatsAppMessage(eventType, payload)` com os 8 templates acima
+- Botões aparecem **só se a loja tiver WhatsApp cadastrado**
+- Sempre incluir botão "🏪 Abrir vitrine" (link da loja) quando tiver `slug`
+- Sempre incluir botão "⚙️ Painel Admin" linkando pra `https://trendfood.lovable.app/admin`
+
+**2. Atualizar payloads do `admin-telegram-watchdog`**
+- Já passa `whatsapp` em `trial_expiring` e `hot_lead` ✅
+- Adicionar `slug` em todos os payloads (1 query a mais por sweep)
+- Adicionar `whatsapp` no payload de `cold_store`
+
+**3. Atualizar payloads dos triggers SQL**
+- `trg_admin_notify_new_org` → já passa whatsapp e slug ✅
+- `trg_admin_notify_subscription_change` → adicionar `whatsapp` e `slug`
+- `trg_admin_notify_referral` → adicionar `whatsapp` do referrer
+
+**4. Atualizar `mp-webhook` (payment_confirmed / payment_failed)**
+- Adicionar `whatsapp` e `slug` da org no payload
+
+### Sanitização do número de WhatsApp
+
+Vou aplicar a mesma lógica que já é usada na plataforma:
+- Remover tudo que não é dígito
+- Garantir prefixo `55` (Brasil)
+- Validar mínimo 12 dígitos antes de gerar o link
+- Se inválido, simplesmente **não mostra o botão** (sem quebrar a mensagem)
+
+### Telegram Inline Keyboard (formato técnico)
+
+```json
+{
+  "reply_markup": {
+    "inline_keyboard": [
+      [{ "text": "💬 Falar com loja (msg pronta)", "url": "https://wa.me/5511999999999?text=..." }],
+      [{ "text": "🏪 Abrir vitrine", "url": "https://trendfood.lovable.app/unidade/pizzaria-x" }],
+      [{ "text": "⚙️ Painel Admin", "url": "https://trendfood.lovable.app/admin" }]
+    ]
+  }
+}
 ```
 
-### Componentes técnicos
-
-**1. Edge function nova: `admin-telegram-watchdog`**
-- Roda via pg_cron em horários estratégicos
-- Faz 3 varreduras:
-  - Trials em D-3 / D-1 / D-0 (lê `trial_ends_at` + conta pedidos do trial)
-  - Lojas Pro/Enterprise sem pedidos há 7+ dias
-  - Lojas Free com >30 pedidos/dia (conta de hoje)
-- Para cada hit, chama `admin-telegram-notify` com o evento certo
-- Anti-spam: tabela `admin_telegram_dedupe` (chave `event_type|org_id|date`) evita disparar 2x no mesmo dia
-
-**2. Editar `admin-telegram-notify` (já existe)**
-- Adicionar 5 novos `event_type` no `buildMessage`:
-  - `payment_confirmed`
-  - `payment_failed`
-  - `trial_expiring` (já existe `subscription_expiring`, vou reaproveitar/renomear)
-  - `hot_lead`
-  - `cold_store`
-- Adicionar os 5 novos toggles no default do `admin_telegram_events`
-
-**3. Editar `mp-webhook` (já existe)**
-- Quando MP retornar pagamento aprovado de assinatura → chama `admin-telegram-notify` com `payment_confirmed`
-- Quando MP retornar pagamento recusado → chama com `payment_failed`
-- Calcula MRR estimado somando todas as assinaturas ativas
-
-**4. Migração SQL**
-- Nova tabela `admin_telegram_dedupe (event_key text PK, sent_at timestamptz)` — TTL 7 dias
-- Atualizar default de `platform_config.admin_telegram_events` com os 5 novos toggles
-- Agendar pg_cron:
-  - `admin-telegram-watchdog-morning` — todo dia 09h BRT (trials + churn)
-  - `admin-telegram-watchdog-business` — 11h/15h/19h BRT (hot leads)
-
-**5. Editar `AdminTelegramTab.tsx`**
-- Adicionar os 5 novos toggles na seção de eventos com labels/ícones em português
-
-### Anti-spam (importante)
-
-- **Trial expirando** dispara só 1x por dia por loja por janela (D-3, D-1, D-0)
-- **Lead quente** dispara só 1x por loja por dia
-- **Loja fria** dispara só 1x por loja por semana
-- **Pagamentos** sempre disparam (são únicos por natureza)
-
-Tudo controlado pela tabela `admin_telegram_dedupe`.
+Botões abrem **direto no WhatsApp** (web ou app, dependendo do dispositivo) com texto pré-preenchido. Você só precisa apertar enviar.
 
 ### O que NÃO vou mexer
 
 - Sistema de Telegram dos lojistas — intocado
-- Push notification de pedidos — intocado
-- Lógica de pagamento/cobrança — só adiciono notificação no final
-- Trials/expiração de plano — só leio, não mudo regra
+- Lógica de envio (gateway, log, dedupe) — intacta, só amplio o body do `sendMessage`
+- Triggers de erro crítico (não tem loja específica) — sem botões de WhatsApp, só botão "Painel Admin → Logs"
+- Resumos diários/semanais — sem botões (não é loja específica)
 
 ### Arquivos envolvidos
 
-**Novos:**
-- `supabase/functions/admin-telegram-watchdog/index.ts`
-- 1 migração SQL (tabela dedupe + cron jobs + default toggles)
-
 **Editados:**
-- `supabase/functions/admin-telegram-notify/index.ts` (5 novos eventos)
-- `supabase/functions/mp-webhook/index.ts` (chamar notify em aprovado/recusado)
-- `src/components/admin/AdminTelegramTab.tsx` (5 novos toggles)
-- `supabase/config.toml` (registrar `admin-telegram-watchdog` com `verify_jwt = false`)
+- `supabase/functions/admin-telegram-notify/index.ts` (templates + inline keyboard)
+- `supabase/functions/admin-telegram-watchdog/index.ts` (incluir slug nos payloads)
+- `supabase/functions/mp-webhook/index.ts` (incluir whatsapp + slug nos payloads de payment)
+- 1 migração SQL (atualizar 2 triggers pra incluir whatsapp/slug)
 
 ### Resultado esperado
 
-Você vai parar de descobrir cancelamento depois que aconteceu. Vai saber **antes** quem vai pagar, quem está pra cancelar e quem está pronto pra upgrade — tudo no Telegram, sem precisar abrir o painel.
+Quando chegar uma notificação tipo "Trial expira em 1 dia", você toca no botão **"💬 Falar com loja"**, abre o WhatsApp do dono da loja com mensagem pronta personalizada, é só apertar **Enviar**. Nada de digitar, nada de copiar telefone, nada de pensar no que escrever.
 
