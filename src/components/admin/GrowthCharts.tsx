@@ -1,6 +1,22 @@
 import { useMemo } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  AreaChart,
+  Area as AreaRaw,
+  XAxis as XAxisRaw,
+  YAxis as YAxisRaw,
+  CartesianGrid,
+  Tooltip as TooltipRaw,
+  ResponsiveContainer,
+} from "recharts";
 import { TrendingUp } from "lucide-react";
+
+// Recharts 2.x classes are exported without an explicit `props` type, which
+// React 18's stricter JSX typing rejects. Casting to `any` keeps runtime
+// behaviour identical while unblocking the build.
+const XAxis = XAxisRaw as any;
+const YAxis = YAxisRaw as any;
+const Tooltip = TooltipRaw as any;
+const Area = AreaRaw as any;
 
 interface OrgLike {
   created_at: string;

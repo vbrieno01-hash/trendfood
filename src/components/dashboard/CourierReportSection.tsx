@@ -12,8 +12,22 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart,
+  Bar as BarRaw,
+  XAxis as XAxisRaw,
+  YAxis as YAxisRaw,
+  CartesianGrid,
+  Tooltip as TooltipRaw,
+  ResponsiveContainer,
+  Cell,
 } from "recharts";
+
+// Cast recharts class components to `any` so React 18's stricter JSX typing
+// accepts them (recharts 2.x doesn't expose a `props` field on its classes).
+const XAxis = XAxisRaw as any;
+const YAxis = YAxisRaw as any;
+const Tooltip = TooltipRaw as any;
+const Bar = BarRaw as any;
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";

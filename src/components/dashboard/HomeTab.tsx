@@ -3,8 +3,26 @@ import { extractDeliveryFee } from "@/lib/formatReceiptText";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import {
-  Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend, BarChart,
+  Bar as BarRaw,
+  XAxis as XAxisRaw,
+  YAxis as YAxisRaw,
+  CartesianGrid,
+  Tooltip as TooltipRaw,
+  ResponsiveContainer,
+  Line as LineRaw,
+  ComposedChart,
+  Legend as LegendRaw,
+  BarChart,
 } from "recharts";
+
+// Cast recharts class components to `any` so React 18's stricter JSX typing
+// accepts them (recharts 2.x doesn't expose a `props` field on its classes).
+const XAxis = XAxisRaw as any;
+const YAxis = YAxisRaw as any;
+const Tooltip = TooltipRaw as any;
+const Bar = BarRaw as any;
+const Line = LineRaw as any;
+const Legend = LegendRaw as any;
 import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight } from "lucide-react";
 import { subDays, subMonths, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";

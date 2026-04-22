@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   Loader2, Send, Bell, CheckCircle2, XCircle, ExternalLink,
-  Plus, Trash2, ChevronDown, ChevronUp, Pause, Play, User, AlertTriangle,
+  Plus, Trash2, ChevronDown, ChevronUp, Pause, Play, User, AlertTriangle, Search, Clock,
 } from "lucide-react";
 
 interface Recipient {
@@ -35,6 +35,18 @@ interface LogRow {
   error: string | null;
   created_at: string;
   recipient_name: string | null;
+}
+
+/** Per-recipient diagnostic state populated lazily after recipients load. */
+interface DiagInfo {
+  /** ISO timestamp of the most recent log row with status='sent' for this recipient. */
+  lastSentAt: string | null;
+  /** Result of the last `get_chat_info` lookup (null until the user clicks Verificar). */
+  chat: { first_name?: string | null; last_name?: string | null; username?: string | null; type?: string | null; title?: string | null } | null;
+  /** Error from the last `get_chat_info` call, if any. */
+  chatError: string | null;
+  /** Loading state for `get_chat_info`. */
+  loadingChat: boolean;
 }
 
 const EVENT_LABELS: { key: string; label: string; description: string }[] = [
@@ -59,6 +71,14 @@ export default function AdminTelegramTab() {
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  /** Last successful Telegram delivery per recipient name (used for the
+   *  "✅ Última msg aceita" hint). Keyed by recipient.name to mirror what
+   *  the edge function logs. */
+  const [lastSentByName, setLastSentByName] = useState<Record<string, string>>({});
+
+  /** Per-recipient `getChat` lookup state, keyed by recipient.id. */
+  const [chatInfoById, setChatInfoById] = useState<Record<string, DiagInfo>>({});
 
   // Add dialog state
   const [addOpen, setAddOpen] = useState(false);
@@ -123,6 +143,22 @@ export default function AdminTelegramTab() {
 
     setRecipients((recData ?? []) as Recipient[]);
     if (logsData) setLogs(logsData as LogRow[]);
+
+    // Build "last accepted by Telegram" map per recipient name. We pull the
+    // 200 most recent rows so a chatty integration doesn't hide the per-name
+    // most-recent send. Edge function logs use recipient.name as the key.
+    const { data: sentRows } = await (supabase.from("admin_telegram_log") as any)
+      .select("recipient_name, created_at")
+      .eq("status", "sent")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    const map: Record<string, string> = {};
+    for (const row of (sentRows ?? []) as Array<{ recipient_name: string | null; created_at: string }>) {
+      const name = row.recipient_name ?? "";
+      if (name && !map[name]) map[name] = row.created_at;
+    }
+    setLastSentByName(map);
+
     setLoading(false);
   }
 
@@ -230,6 +266,57 @@ export default function AdminTelegramTab() {
       toast.error(friendly, { duration: 12000 });
       void load();
     }
+  }
+
+  /** Calls Telegram's `getChat` for a recipient and stores the real account
+   *  metadata so the admin can confirm WHICH Telegram account is bound to
+   *  the saved Chat ID. Useful when the recipient swears they didn't get the
+   *  message but logs say "sent": the name shown here may not be theirs. */
+  async function handleVerifyConnection(r: Recipient) {
+    setChatInfoById((prev) => ({
+      ...prev,
+      [r.id]: { lastSentAt: null, chat: null, chatError: null, loadingChat: true },
+    }));
+    const { data, error } = await supabase.functions.invoke("admin-telegram-notify", {
+      body: { action: "get_chat_info", chat_id: r.chat_id },
+    });
+    const d = (data as any) ?? {};
+    if (error || d.ok === false) {
+      const rawErr = d.error || error?.message || "Erro desconhecido";
+      setChatInfoById((prev) => ({
+        ...prev,
+        [r.id]: { lastSentAt: null, chat: null, chatError: explainError(rawErr, r.name), loadingChat: false },
+      }));
+      return;
+    }
+    setChatInfoById((prev) => ({
+      ...prev,
+      [r.id]: { lastSentAt: null, chat: d.chat ?? null, chatError: null, loadingChat: false },
+    }));
+  }
+
+  /** Pretty-print the seconds/minutes/hours since a timestamp. */
+  function timeAgo(iso: string): string {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diffMs / 60000);
+    if (m < 1) return "agora";
+    if (m < 60) return `há ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    return `há ${d}d`;
+  }
+
+  /** Build a friendly account label from a getChat result. */
+  function chatAccountLabel(chat: DiagInfo["chat"]): string {
+    if (!chat) return "—";
+    if (chat.type === "private") {
+      const fullName = [chat.first_name, chat.last_name].filter(Boolean).join(" ").trim();
+      const handle = chat.username ? ` (@${chat.username})` : "";
+      return (fullName || chat.username || "Conta privada") + handle;
+    }
+    if (chat.title) return `${chat.title}${chat.username ? ` (@${chat.username})` : ""}`;
+    return chat.username ? `@${chat.username}` : (chat.type ?? "—");
   }
 
   function eventsSummary(events: Record<string, boolean>): string {
@@ -391,6 +478,41 @@ export default function AdminTelegramTab() {
                       <div className="text-xs text-muted-foreground mt-0.5">
                         {eventsSummary(r.events)}
                       </div>
+                      {/* Diagnostic: last accepted by Telegram + Verify connection */}
+                      {(() => {
+                        const lastSent = lastSentByName[r.name];
+                        const info = chatInfoById[r.id];
+                        return (
+                          <div className="mt-2 space-y-1">
+                            {lastSent ? (
+                              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Última msg aceita pelo Telegram {timeAgo(lastSent)}
+                                <span className="text-muted-foreground">
+                                  ({new Date(lastSent).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })})
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Nenhuma mensagem enviada ainda — clique em <b>Testar</b> pra confirmar a conexão.
+                              </div>
+                            )}
+                            {info?.chat && (
+                              <div className="text-[11px] text-foreground/80 flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                Conta vinculada: <b>{chatAccountLabel(info.chat)}</b>
+                              </div>
+                            )}
+                            {info?.chatError && (
+                              <div className="text-[11px] text-destructive flex items-start gap-1">
+                                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                                <span>{info.chatError}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
                       <Button
@@ -399,6 +521,17 @@ export default function AdminTelegramTab() {
                       >
                         {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                         <span className="ml-1 hidden sm:inline">Testar</span>
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        onClick={() => handleVerifyConnection(r)}
+                        disabled={chatInfoById[r.id]?.loadingChat}
+                        title="Verifica qual conta Telegram está vinculada a este Chat ID"
+                      >
+                        {chatInfoById[r.id]?.loadingChat
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Search className="w-3.5 h-3.5" />}
+                        <span className="ml-1 hidden sm:inline">Verificar</span>
                       </Button>
                       <Button
                         size="sm" variant="outline"
