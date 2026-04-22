@@ -72,6 +72,14 @@ export default function AdminTelegramTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  /** Last successful Telegram delivery per recipient name (used for the
+   *  "✅ Última msg aceita" hint). Keyed by recipient.name to mirror what
+   *  the edge function logs. */
+  const [lastSentByName, setLastSentByName] = useState<Record<string, string>>({});
+
+  /** Per-recipient `getChat` lookup state, keyed by recipient.id. */
+  const [chatInfoById, setChatInfoById] = useState<Record<string, DiagInfo>>({});
+
   // Add dialog state
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
