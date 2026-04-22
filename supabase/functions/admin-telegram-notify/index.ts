@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
+const STOREFRONT_BASE = "https://trendfood.lovable.app/unidade";
+const ADMIN_PANEL_URL = "https://trendfood.lovable.app/admin";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +29,116 @@ function escapeHtml(s: string | null | undefined): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+/** Sanitize a Brazilian WhatsApp number to digits-only with `55` prefix.
+ *  Returns null if it doesn't look valid. */
+function sanitizeWhatsApp(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let digits = String(raw).replace(/\D/g, "");
+  if (!digits) return null;
+  // Strip leading zeros
+  digits = digits.replace(/^0+/, "");
+  // Add country code if missing
+  if (!digits.startsWith("55")) digits = "55" + digits;
+  // BR mobile: 55 + DDD(2) + 9digits => 13. Landline => 12. Accept 12-13.
+  if (digits.length < 12 || digits.length > 13) return null;
+  return digits;
+}
+
+/** Build a wa.me URL with pre-filled message. Returns null if number invalid. */
+function buildWaLink(whatsapp: string | null | undefined, text: string): string | null {
+  const digits = sanitizeWhatsApp(whatsapp);
+  if (!digits) return null;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
+
+/** Per-event WhatsApp message templates, signed as TrendFood. */
+function buildWhatsAppMessage(eventType: string, payload: any): string | null {
+  const name = payload.org_name || payload.referrer_name || "tudo bem";
+  switch (eventType) {
+    case "new_signup":
+      return `Olá, ${name}! 👋 Boas-vindas à TrendFood! Sou do time e estou aqui pra te ajudar a configurar tudo certinho nos primeiros dias. Qualquer dúvida sobre cardápio, pagamentos, impressão ou WhatsApp, é só me chamar!`;
+
+    case "subscription_change": {
+      const status = payload.new_status;
+      if (status === "cancelled") {
+        return `Olá, ${name}! Aqui é a TrendFood. Vi que vocês cancelaram a assinatura — sentiremos falta! 😔 Se tiver 2 minutinhos, adoraria entender o que motivou e se tem algo que podemos melhorar. Estou à disposição!`;
+      }
+      const order: Record<string, number> = { free: 0, pro: 1, enterprise: 2, lifetime: 3 };
+      const oldRank = order[payload.old_plan] ?? 0;
+      const newRank = order[payload.new_plan] ?? 0;
+      if (newRank > oldRank) {
+        return `Olá, ${name}! Aqui é a TrendFood 🎉 Vi que vocês fizeram upgrade pro plano ${planLabel(payload.new_plan)}. Obrigado pela confiança! Qualquer dúvida sobre as novas funcionalidades, é só me chamar.`;
+      }
+      return null;
+    }
+
+    case "referral_converted":
+      return `Olá, ${payload.referrer_name || "tudo bem"}! 🎉 A loja "${payload.referred_name}" que você indicou virou assinante Pro! Você acabou de ganhar +${payload.bonus_days} dias Pro de bônus. Continue indicando! 🚀`;
+
+    case "payment_confirmed":
+      return `Olá, ${name}! Aqui é a TrendFood 🎉 Seu pagamento foi confirmado e seu plano ${planLabel(payload.plan)} está ativo. Obrigado pela confiança! Qualquer coisa que precisar, é só me chamar por aqui.`;
+
+    case "payment_failed":
+      return `Olá, ${name}! Aqui é a TrendFood. Sua cobrança da assinatura ${planLabel(payload.plan)} foi recusada hoje${payload.reason ? ` (${payload.reason})` : ""}. Pra não perder o acesso, é só atualizar o método de pagamento no painel. Qualquer dúvida, me chama por aqui que ajudo na hora!`;
+
+    case "trial_expiring": {
+      const daysTxt = payload.days_left === 0 ? "acaba hoje" : `acaba em ${payload.days_left} dia(s)`;
+      const ordersTxt = typeof payload.order_count === "number" && payload.order_count > 0
+        ? ` e você já fez ${payload.order_count} pedido(s) — ótimo ritmo! 🚀`
+        : "";
+      return `Olá, ${name}! 👋 Aqui é o time da TrendFood. Notei que seu trial Pro ${daysTxt}${ordersTxt} Quer que eu te ajude a continuar com tudo liberado? Posso te mandar o link de pagamento ou tirar dúvidas sobre os planos. Me avisa por aqui!`;
+    }
+
+    case "hot_lead":
+      return `Oi, ${name}! Time da TrendFood aqui 🚀 Vi que vocês estão bombando hoje com ${payload.orders_today} pedido(s)! No plano Free você tem várias limitações que podem estar te atrapalhando. Posso te mostrar como o Pro te dá pedidos ilimitados, cupons, fidelidade e muito mais. Topa um papo rápido?`;
+
+    case "cold_store":
+      return `Olá, ${name}! Aqui é a TrendFood 👋 Notamos que vocês não receberam pedidos nos últimos dias. Tá tudo bem por aí? Se tiver alguma dificuldade com a plataforma, alguma dúvida ou precisar de ajuda pra divulgar a loja, me chama aqui — quero garantir que vocês tirem o máximo proveito do plano!`;
+
+    default:
+      return null;
+  }
+}
+
+/** Build inline keyboard buttons for a Telegram message. */
+function buildButtons(eventType: string, payload: any): Array<Array<{ text: string; url: string }>> {
+  const rows: Array<Array<{ text: string; url: string }>> = [];
+
+  // For referral, the WhatsApp belongs to the referrer
+  const waNumber = eventType === "referral_converted"
+    ? payload.referrer_whatsapp
+    : payload.whatsapp;
+  const slug = eventType === "referral_converted"
+    ? payload.referrer_slug
+    : payload.slug;
+
+  const waText = buildWhatsAppMessage(eventType, payload);
+  if (waText) {
+    const waLink = buildWaLink(waNumber, waText);
+    if (waLink) {
+      rows.push([{ text: "💬 Falar com loja (msg pronta)", url: waLink }]);
+    }
+  }
+
+  if (slug) {
+    rows.push([{ text: "🏪 Abrir vitrine", url: `${STOREFRONT_BASE}/${slug}` }]);
+  }
+
+  // Always offer the admin panel for store-specific events
+  const isStoreEvent = [
+    "new_signup", "subscription_change", "referral_converted",
+    "payment_confirmed", "payment_failed", "trial_expiring",
+    "hot_lead", "cold_store",
+  ].includes(eventType);
+  if (isStoreEvent) {
+    rows.push([{ text: "⚙️ Painel Admin", url: ADMIN_PANEL_URL }]);
+  } else if (eventType === "critical_error") {
+    rows.push([{ text: "⚙️ Painel Admin → Logs", url: ADMIN_PANEL_URL }]);
+  }
+
+  return rows;
 }
 
 function buildMessage(eventType: string, payload: any): string | null {
@@ -246,6 +358,12 @@ Deno.serve(async (req: Request) => {
         text: message,
         parse_mode: "HTML",
         disable_web_page_preview: true,
+        ...(() => {
+          const buttons = buildButtons(event_type, payload || {});
+          return buttons.length > 0
+            ? { reply_markup: { inline_keyboard: buttons } }
+            : {};
+        })(),
       }),
     });
 

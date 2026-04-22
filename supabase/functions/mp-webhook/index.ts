@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
 
       const { data: org } = await supabase
         .from("organizations")
-        .select("subscription_plan, subscription_status, name, billing_cycle")
+        .select("subscription_plan, subscription_status, name, slug, whatsapp, billing_cycle")
         .eq("id", orgId)
         .single();
 
@@ -334,12 +334,14 @@ Deno.serve(async (req) => {
           if (failOrgId) {
             const { data: orgInfo } = await supabase
               .from("organizations")
-              .select("name, subscription_plan, billing_cycle")
+              .select("name, slug, whatsapp, subscription_plan, billing_cycle")
               .eq("id", failOrgId)
               .maybeSingle();
             await notifyAdmin(supabase, "payment_failed", {
               org_id: failOrgId,
               org_name: (orgInfo as any)?.name || null,
+              slug: (orgInfo as any)?.slug || null,
+              whatsapp: (orgInfo as any)?.whatsapp || null,
               plan: failPlan || (orgInfo as any)?.subscription_plan || null,
               billing_cycle: failCycle || (orgInfo as any)?.billing_cycle || null,
               reason: mpData.status_detail || mpData.status,
@@ -403,6 +405,8 @@ Deno.serve(async (req) => {
             await notifyAdmin(supabase, "payment_confirmed", {
               org_id: orgId,
               org_name: org?.name || null,
+              slug: (org as any)?.slug || null,
+              whatsapp: (org as any)?.whatsapp || null,
               plan: org?.subscription_plan || null,
               billing_cycle: org?.billing_cycle || null,
               amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
@@ -473,7 +477,7 @@ Deno.serve(async (req) => {
 
       const { data: org } = await supabase
         .from("organizations")
-        .select("subscription_plan, subscription_status, name, billing_cycle")
+        .select("subscription_plan, subscription_status, name, slug, whatsapp, billing_cycle")
         .eq("id", orgId)
         .single();
 
@@ -511,6 +515,8 @@ Deno.serve(async (req) => {
         await notifyAdmin(supabase, "payment_confirmed", {
           org_id: orgId,
           org_name: org?.name || null,
+          slug: (org as any)?.slug || null,
+          whatsapp: (org as any)?.whatsapp || null,
           plan: plan,
           billing_cycle: org?.billing_cycle || null,
           amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,

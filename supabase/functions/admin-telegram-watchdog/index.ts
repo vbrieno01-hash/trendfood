@@ -64,7 +64,7 @@ async function sweepTrials(supabase: ReturnType<typeof createClient>) {
   const in4days = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString();
   const { data: orgs } = await supabase
     .from("organizations")
-    .select("id, name, trial_ends_at, subscription_plan, subscription_status, whatsapp, created_at")
+    .select("id, name, slug, trial_ends_at, subscription_plan, subscription_status, whatsapp, created_at")
     .lte("trial_ends_at", in4days)
     .gte("trial_ends_at", now.toISOString())
     .neq("subscription_status", "active");
@@ -90,6 +90,7 @@ async function sweepTrials(supabase: ReturnType<typeof createClient>) {
     const ok = await notifyOnce(supabase, eventKey, "trial_expiring", {
       org_id: org.id,
       org_name: org.name,
+      slug: org.slug,
       days_left: daysLeft,
       order_count: orderCount ?? 0,
       whatsapp: org.whatsapp,
@@ -108,7 +109,7 @@ async function sweepColdStores(supabase: ReturnType<typeof createClient>) {
 
   const { data: orgs } = await supabase
     .from("organizations")
-    .select("id, name, subscription_plan, subscription_status, billing_cycle")
+    .select("id, name, slug, whatsapp, subscription_plan, subscription_status, billing_cycle")
     .in("subscription_plan", ["pro", "enterprise"])
     .eq("subscription_status", "active");
 
@@ -132,6 +133,8 @@ async function sweepColdStores(supabase: ReturnType<typeof createClient>) {
     const ok = await notifyOnce(supabase, eventKey, "cold_store", {
       org_id: org.id,
       org_name: org.name,
+      slug: org.slug,
+      whatsapp: org.whatsapp,
       plan: org.subscription_plan,
       billing_cycle: org.billing_cycle,
       last_order_at: lastOrder.created_at,
@@ -150,7 +153,7 @@ async function sweepHotLeads(supabase: ReturnType<typeof createClient>) {
 
   const { data: orgs } = await supabase
     .from("organizations")
-    .select("id, name, subscription_plan, whatsapp")
+    .select("id, name, slug, subscription_plan, whatsapp")
     .eq("subscription_plan", "free");
 
   if (!orgs?.length) return { hot: 0 };
@@ -169,6 +172,7 @@ async function sweepHotLeads(supabase: ReturnType<typeof createClient>) {
     const ok = await notifyOnce(supabase, eventKey, "hot_lead", {
       org_id: org.id,
       org_name: org.name,
+      slug: org.slug,
       plan: org.subscription_plan,
       orders_today: count,
       whatsapp: org.whatsapp,
