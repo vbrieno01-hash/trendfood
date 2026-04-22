@@ -1,93 +1,68 @@
 
 
-## Plano — Conectar mais de um Telegram (multi-admin)
+## Plano — Garantir que o bot envie pra qualquer destinatário com ID válido
 
-Hoje o sistema só permite 1 Chat ID. Vou expandir pra **N destinatários**, cada um com **nome (apelido), Chat ID próprio, ativo/inativo e filtros de eventos individuais** — útil pra ter você + sócio + atendimento recebendo coisas diferentes.
+Você tem razão: o destinatário **GB já deu `/start` no @userinfobot** (foi como pegou o Chat ID), mas o erro `chat not found` aconteceu porque **cada bot precisa ser iniciado individualmente** — `/start` no @userinfobot só serve pra descobrir o ID, não autoriza nosso bot do TrendFood a enviar mensagens.
 
-### Como vai ficar a aba "Telegram Admin"
+### O problema real
 
 ```text
-📡 Destinatários conectados
-┌───────────────────────────────────────────────┐
-│ 👤 Breno (principal)        [✓ Ativo]  [⋯]   │
-│    Chat ID: 123456789                         │
-│    Recebe: TODOS os eventos                   │
-│    [Testar]  [Editar eventos]  [Remover]      │
-├───────────────────────────────────────────────┤
-│ 👤 Sócio                    [✓ Ativo]  [⋯]   │
-│    Chat ID: 987654321                         │
-│    Recebe: só Financeiro + Crescimento        │
-│    [Testar]  [Editar eventos]  [Remover]      │
-├───────────────────────────────────────────────┤
-│ 👤 Atendimento              [✗ Pausado]      │
-│    Chat ID: 555444333                         │
-│    Recebe: só Hot Lead + Trial expirando      │
-└───────────────────────────────────────────────┘
-
-[+ Adicionar destinatário]
+@userinfobot          → mostra o Chat ID (qualquer pessoa pode usar)
+@SeuBotDoTrendFood    → precisa de /start específico pra autorizar envio
 ```
 
-Cada destinatário tem **filtros próprios** — você recebe tudo, sócio só financeiro, atendimento só leads quentes. Quando uma notificação dispara, o sistema envia em paralelo pra todos os destinatários ativos cujo filtro permite o evento.
+Quando GB nunca abriu o **bot do TrendFood** e mandou `/start` lá, o Telegram retorna `chat not found` na hora de enviar — independente de ter o Chat ID correto.
 
-### Mudanças no banco
+### Solução em 3 partes
 
-**Nova tabela `admin_telegram_recipients`:**
-```sql
-- id (uuid)
-- name (text)            -- apelido: "Breno", "Sócio"
-- chat_id (text)         -- Chat ID do Telegram
-- active (boolean)       -- pausar sem deletar
-- events (jsonb)         -- mesma estrutura de toggles atual
-- created_at, updated_at
+**1. Mensagem de erro clara no toast (em vez de "erro desconhecido")**
+
+Quando o "Testar" falhar com `chat not found`, mostro o nome do bot e o passo exato:
+
+> ❌ **GB precisa iniciar o bot do TrendFood**
+> Peça pra GB abrir **@NomeDoSeuBot** no Telegram e enviar `/start`. Só depois disso o bot consegue enviar mensagem pra ele.
+> 
+> *(Iniciar `/start` no @userinfobot só serve pra pegar o ID — cada bot precisa do `/start` próprio)*
+
+**2. Backend retorna detalhe do erro pra UI mostrar mensagem precisa**
+
+Atualizar `admin-telegram-notify` pra incluir no JSON de resposta:
+```json
+{
+  "ok": false,
+  "sent": 0,
+  "errors": 1,
+  "first_error": "Bad Request: chat not found",
+  "first_error_recipient": "GB"
+}
 ```
 
-RLS: só admin (`has_role admin`) pode SELECT/INSERT/UPDATE/DELETE.
+A UI detecta `chat not found` e mostra o toast educativo. Outros erros (token inválido, rate limit) ganham mensagens próprias também.
 
-**Migração de dados:** se já existir `admin_telegram_chat_id` no `platform_config`, criar 1 linha "Principal" automática com os toggles atuais. Os campos antigos (`admin_telegram_chat_id`, `admin_telegram_events`) ficam por compatibilidade mas não são mais usados pela edge function.
+**3. Aviso no dialog "Adicionar destinatário" + descobrir nome do bot**
 
-### Mudanças na edge function `admin-telegram-notify`
+No dialog de cadastro, adicionar um passo claro com o **username real do bot** (descoberto via `getMe` da Telegram API e cacheado em `platform_config`):
 
-- Em vez de ler 1 chat_id do `platform_config`, busca **todos os recipients ativos**.
-- Para cada um, checa o filtro de eventos individual (mesma lógica do toggle atual).
-- Envia em paralelo (`Promise.allSettled`) pros que passarem.
-- Loga 1 entrada por destinatário em `admin_telegram_log` com novo campo opcional `recipient_name` (pra você ver no histórico quem recebeu).
+```text
+⚠️ Antes de funcionar:
+1. Pegue o Chat ID em @userinfobot
+2. Abra @NomeDoSeuBot e envie /start  ← passo crítico
+3. Cole o Chat ID aqui
 
-### Mudanças na UI (`AdminTelegramTab.tsx`)
+Se pular o passo 2, o Telegram bloqueia o envio.
+```
 
-Reorganizada em 2 cards:
-
-**1. Card "Destinatários"**
-- Lista de cards expansíveis (um por destinatário)
-- Cada card mostra: nome, chat_id, badge ativo/pausado, resumo de eventos ("Recebe: Todos" / "Recebe: 3 eventos selecionados")
-- Botões por destinatário: **Testar** (envia teste só pra ele), **Editar eventos** (abre painel inline com os 13 toggles), **Pausar/Ativar**, **Remover**
-- Botão **"+ Adicionar destinatário"** abre dialog com: nome + chat_id + link pro `@userinfobot`
-
-**2. Card "Últimas notificações enviadas"** (igual hoje, mas mostra o nome do destinatário em cada linha)
-
-### Comportamento dos eventos
-
-- Por padrão, **novo destinatário recebe todos os eventos** (toggles default `true`).
-- Pausar destinatário = nenhum envio, mas mantém configuração.
-- Remover destinatário = exclui permanentemente.
-- Se nenhum destinatário ativo existir, edge function loga e retorna `no_recipients` (sem erro).
-
-### Compatibilidade retroativa
-
-- Triggers SQL (`trg_admin_notify_*`), `mp-webhook`, `admin-telegram-watchdog`, `admin-telegram-digest` continuam **chamando a mesma edge function com mesmo payload** — zero mudança nesses lugares.
-- A multiplexação acontece **dentro da edge function**.
-
-### Arquivos envolvidos
+### Onde mexer
 
 **Editados:**
-- `src/components/admin/AdminTelegramTab.tsx` (UI multi-destinatário)
-- `supabase/functions/admin-telegram-notify/index.ts` (loop de envio)
+- `supabase/functions/admin-telegram-notify/index.ts` — incluir `first_error` + `first_error_recipient` no response quando `sent === 0`; expor endpoint auxiliar `?action=bot_info` que chama `getMe` e retorna o username
+- `src/components/admin/AdminTelegramTab.tsx` — toast inteligente detectando `chat not found` (e outros erros comuns); buscar username do bot ao abrir dialog de Adicionar; mostrar instruções com nome real do bot
 
-**Migração SQL (1 arquivo):**
-- Cria tabela `admin_telegram_recipients` com RLS
-- Adiciona coluna `recipient_name` em `admin_telegram_log`
-- Backfill: se houver `admin_telegram_chat_id` em `platform_config`, cria linha "Principal"
+**Não mexer:** triggers SQL, tabela `admin_telegram_recipients`, watchdog, mp-webhook, RLS, lógica de envio multiplexada.
 
-### Resultado esperado
+### Resultado
 
-Você pode adicionar quantos contatos quiser (você, sócio, atendimento, financeiro), cada um recebendo só os eventos que importam pra ele. Tudo controlado por uma UI simples na aba Telegram Admin, sem precisar mexer em código.
+- Você adiciona GB → toast já avisa "peça pra GB iniciar @SeuBot"
+- Se mesmo assim ele esquecer, o "Testar" falha com mensagem **exata** ("GB precisa iniciar o bot do TrendFood") em vez de "erro desconhecido"
+- Quando GB mandar `/start` no bot certo, próximo "Testar" funciona
 
