@@ -334,12 +334,14 @@ Deno.serve(async (req) => {
           if (failOrgId) {
             const { data: orgInfo } = await supabase
               .from("organizations")
-              .select("name, subscription_plan, billing_cycle")
+              .select("name, slug, whatsapp, subscription_plan, billing_cycle")
               .eq("id", failOrgId)
               .maybeSingle();
             await notifyAdmin(supabase, "payment_failed", {
               org_id: failOrgId,
               org_name: (orgInfo as any)?.name || null,
+              slug: (orgInfo as any)?.slug || null,
+              whatsapp: (orgInfo as any)?.whatsapp || null,
               plan: failPlan || (orgInfo as any)?.subscription_plan || null,
               billing_cycle: failCycle || (orgInfo as any)?.billing_cycle || null,
               reason: mpData.status_detail || mpData.status,
