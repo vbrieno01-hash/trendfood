@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
 
       const { data: org } = await supabase
         .from("organizations")
-        .select("subscription_plan, subscription_status, name, billing_cycle")
+        .select("subscription_plan, subscription_status, name, slug, whatsapp, billing_cycle")
         .eq("id", orgId)
         .single();
 
@@ -477,7 +477,7 @@ Deno.serve(async (req) => {
 
       const { data: org } = await supabase
         .from("organizations")
-        .select("subscription_plan, subscription_status, name, billing_cycle")
+        .select("subscription_plan, subscription_status, name, slug, whatsapp, billing_cycle")
         .eq("id", orgId)
         .single();
 
