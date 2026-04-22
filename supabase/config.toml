@@ -98,3 +98,9 @@ verify_jwt = false
 
 [functions.cleanup-broken-banners]
 verify_jwt = false
+
+[functions.admin-telegram-notify]
+verify_jwt = false
+
+[functions.admin-telegram-digest]
+verify_jwt = false

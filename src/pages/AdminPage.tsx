@@ -27,6 +27,7 @@ import ImprovementsTab from "@/components/admin/ImprovementsTab";
 import AIBotAdminTab from "@/components/admin/AIBotAdminTab";
 import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
 import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
+import AdminTelegramTab from "@/components/admin/AdminTelegramTab";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 import ThemeToggle from "@/components/ThemeToggle";
@@ -67,6 +68,7 @@ import {
   ListChecks,
   Bot,
   Activity,
+  Send,
 } from "lucide-react";
 
 const fmt = (v: number) =>
