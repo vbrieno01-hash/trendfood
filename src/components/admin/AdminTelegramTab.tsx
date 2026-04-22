@@ -143,6 +143,22 @@ export default function AdminTelegramTab() {
 
     setRecipients((recData ?? []) as Recipient[]);
     if (logsData) setLogs(logsData as LogRow[]);
+
+    // Build "last accepted by Telegram" map per recipient name. We pull the
+    // 200 most recent rows so a chatty integration doesn't hide the per-name
+    // most-recent send. Edge function logs use recipient.name as the key.
+    const { data: sentRows } = await (supabase.from("admin_telegram_log") as any)
+      .select("recipient_name, created_at")
+      .eq("status", "sent")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    const map: Record<string, string> = {};
+    for (const row of (sentRows ?? []) as Array<{ recipient_name: string | null; created_at: string }>) {
+      const name = row.recipient_name ?? "";
+      if (name && !map[name]) map[name] = row.created_at;
+    }
+    setLastSentByName(map);
+
     setLoading(false);
   }
 
@@ -250,6 +266,57 @@ export default function AdminTelegramTab() {
       toast.error(friendly, { duration: 12000 });
       void load();
     }
+  }
+
+  /** Calls Telegram's `getChat` for a recipient and stores the real account
+   *  metadata so the admin can confirm WHICH Telegram account is bound to
+   *  the saved Chat ID. Useful when the recipient swears they didn't get the
+   *  message but logs say "sent": the name shown here may not be theirs. */
+  async function handleVerifyConnection(r: Recipient) {
+    setChatInfoById((prev) => ({
+      ...prev,
+      [r.id]: { lastSentAt: null, chat: null, chatError: null, loadingChat: true },
+    }));
+    const { data, error } = await supabase.functions.invoke("admin-telegram-notify", {
+      body: { action: "get_chat_info", chat_id: r.chat_id },
+    });
+    const d = (data as any) ?? {};
+    if (error || d.ok === false) {
+      const rawErr = d.error || error?.message || "Erro desconhecido";
+      setChatInfoById((prev) => ({
+        ...prev,
+        [r.id]: { lastSentAt: null, chat: null, chatError: explainError(rawErr, r.name), loadingChat: false },
+      }));
+      return;
+    }
+    setChatInfoById((prev) => ({
+      ...prev,
+      [r.id]: { lastSentAt: null, chat: d.chat ?? null, chatError: null, loadingChat: false },
+    }));
+  }
+
+  /** Pretty-print the seconds/minutes/hours since a timestamp. */
+  function timeAgo(iso: string): string {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diffMs / 60000);
+    if (m < 1) return "agora";
+    if (m < 60) return `há ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    return `há ${d}d`;
+  }
+
+  /** Build a friendly account label from a getChat result. */
+  function chatAccountLabel(chat: DiagInfo["chat"]): string {
+    if (!chat) return "—";
+    if (chat.type === "private") {
+      const fullName = [chat.first_name, chat.last_name].filter(Boolean).join(" ").trim();
+      const handle = chat.username ? ` (@${chat.username})` : "";
+      return (fullName || chat.username || "Conta privada") + handle;
+    }
+    if (chat.title) return `${chat.title}${chat.username ? ` (@${chat.username})` : ""}`;
+    return chat.username ? `@${chat.username}` : (chat.type ?? "—");
   }
 
   function eventsSummary(events: Record<string, boolean>): string {
