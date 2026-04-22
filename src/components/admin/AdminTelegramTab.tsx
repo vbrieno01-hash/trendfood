@@ -478,6 +478,41 @@ export default function AdminTelegramTab() {
                       <div className="text-xs text-muted-foreground mt-0.5">
                         {eventsSummary(r.events)}
                       </div>
+                      {/* Diagnostic: last accepted by Telegram + Verify connection */}
+                      {(() => {
+                        const lastSent = lastSentByName[r.name];
+                        const info = chatInfoById[r.id];
+                        return (
+                          <div className="mt-2 space-y-1">
+                            {lastSent ? (
+                              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Última msg aceita pelo Telegram {timeAgo(lastSent)}
+                                <span className="text-muted-foreground">
+                                  ({new Date(lastSent).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })})
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Nenhuma mensagem enviada ainda — clique em <b>Testar</b> pra confirmar a conexão.
+                              </div>
+                            )}
+                            {info?.chat && (
+                              <div className="text-[11px] text-foreground/80 flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                Conta vinculada: <b>{chatAccountLabel(info.chat)}</b>
+                              </div>
+                            )}
+                            {info?.chatError && (
+                              <div className="text-[11px] text-destructive flex items-start gap-1">
+                                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                                <span>{info.chatError}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
                       <Button
@@ -486,6 +521,17 @@ export default function AdminTelegramTab() {
                       >
                         {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                         <span className="ml-1 hidden sm:inline">Testar</span>
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        onClick={() => handleVerifyConnection(r)}
+                        disabled={chatInfoById[r.id]?.loadingChat}
+                        title="Verifica qual conta Telegram está vinculada a este Chat ID"
+                      >
+                        {chatInfoById[r.id]?.loadingChat
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Search className="w-3.5 h-3.5" />}
+                        <span className="ml-1 hidden sm:inline">Verificar</span>
                       </Button>
                       <Button
                         size="sm" variant="outline"
