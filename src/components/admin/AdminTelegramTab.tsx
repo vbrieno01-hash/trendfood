@@ -257,17 +257,56 @@ export default function AdminTelegramTab() {
               <DialogHeader>
                 <DialogTitle>Adicionar destinatário</DialogTitle>
                 <DialogDescription>
-                  Pegue o Chat ID enviando uma mensagem pro bot{" "}
-                  <a
-                    href="https://t.me/userinfobot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    @userinfobot <ExternalLink className="w-3 h-3" />
-                  </a>
+                  Cadastre uma pessoa que vai receber as notificações da plataforma no Telegram.
                 </DialogDescription>
               </DialogHeader>
+
+              {/* Critical warning: each bot needs its own /start */}
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  Antes de funcionar, siga 3 passos:
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-foreground/90">
+                  <li>
+                    Pegue o Chat ID em{" "}
+                    <a
+                      href="https://t.me/userinfobot"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      @userinfobot <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </li>
+                  <li>
+                    Abra{" "}
+                    {botInfoLoading ? (
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Loader2 className="w-3 h-3 animate-spin" /> identificando bot…
+                      </span>
+                    ) : botUsername ? (
+                      <a
+                        href={`https://t.me/${botUsername}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        @{botUsername} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="font-semibold">o bot da plataforma</span>
+                    )}
+                    {" "}e envie <code className="px-1 py-0.5 rounded bg-muted text-xs">/start</code>{" "}
+                    <span className="font-semibold">← passo crítico</span>
+                  </li>
+                  <li>Cole o Chat ID abaixo</li>
+                </ol>
+                <div className="text-xs text-muted-foreground pt-1 border-t border-amber-500/20">
+                  ⚠️ Se pular o passo 2, o Telegram bloqueia o envio com "chat not found".
+                </div>
+              </div>
+
               <div className="space-y-3 py-2">
                 <div>
                   <Label htmlFor="rec-name">Apelido</Label>
