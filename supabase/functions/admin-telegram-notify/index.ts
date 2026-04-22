@@ -136,6 +136,8 @@ function buildButtons(eventType: string, payload: any): Array<Array<{ text: stri
     rows.push([{ text: "⚙️ Painel Admin", url: ADMIN_PANEL_URL }]);
   } else if (eventType === "critical_error") {
     rows.push([{ text: "⚙️ Painel Admin → Logs", url: ADMIN_PANEL_URL }]);
+  } else if (eventType === "test") {
+    rows.push([{ text: "⚙️ Abrir Painel Admin", url: ADMIN_PANEL_URL }]);
   }
 
   return rows;
@@ -147,12 +149,34 @@ function buildMessage(eventType: string, payload: any): string | null {
       return [
         "✅ <b>Telegram Admin conectado!</b>",
         "",
-        "A partir de agora você vai receber tudo que importa da plataforma aqui em tempo real:",
-        "🆕 Novos cadastros",
-        "💰 Novas assinaturas",
-        "📉 Cancelamentos",
-        "⚠️ Erros críticos",
-        "📊 Resumo diário às 09h",
+        "A partir de agora você recebe tudo da plataforma aqui em tempo real, organizado por categoria:",
+        "",
+        "💰 <b>FINANCEIRO</b>",
+        "   • Pagamentos confirmados (com MRR)",
+        "   • Falhas de cobrança",
+        "   • Mudanças de assinatura",
+        "",
+        "🚀 <b>CRESCIMENTO</b>",
+        "   • Novos cadastros",
+        "   • Indicações convertidas",
+        "   • Lojas quentes (leads pra abordar)",
+        "",
+        "⏰ <b>RETENÇÃO</b>",
+        "   • Trials expirando (D-3 / D-1 / hoje)",
+        "   • Lojas frias (risco de churn)",
+        "",
+        "⚠️ <b>OPERACIONAL</b>",
+        "   • Erros críticos",
+        "   • Pedidos fantasmas",
+        "",
+        "📊 <b>RELATÓRIOS AUTOMÁTICOS</b>",
+        "   • Resumo diário às 09h",
+        "   • Resumo semanal aos domingos",
+        "",
+        "💡 <i>Dica: cada alerta de loja vem com botões de ação — toque em \"💬 Falar com loja\" e o WhatsApp abre com mensagem pronta!</i>",
+        "",
+        "Configure quais eventos receber em:",
+        "⚙️ Painel Admin → Telegram Admin",
       ].join("\n");
 
     case "new_signup":
