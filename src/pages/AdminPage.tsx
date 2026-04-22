@@ -946,6 +946,7 @@ function AdminContent() {
           {activeTab === "aibot" && <AIBotAdminTab />}
           {activeTab === "wa_instances" && <WhatsAppInstancesTab />}
           {activeTab === "versoes" && <StoreVersionsTab />}
+          {activeTab === "telegram_admin" && <AdminTelegramTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}
