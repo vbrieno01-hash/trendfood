@@ -52,6 +52,62 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Action: welcome_merchant → envia boas-vindas para o lojista que acabou de configurar Chat ID
+    if (action === "welcome_merchant") {
+      const storeName = String(body?.store_name || "").trim() || "lojista";
+      if (!chat_id) {
+        return new Response(JSON.stringify({ ok: false, error: "chat_id obrigatório" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const welcomeText = [
+        `🎉 <b>Bem-vindo, ${storeName}!</b>`,
+        "",
+        "Seu Telegram foi conectado com sucesso ao TrendFood.",
+        "",
+        "A partir de agora você vai receber aqui:",
+        "• 🛎️ Novos pedidos chegando",
+        "• 📊 Resumo diário de vendas (se ativado)",
+        "• ⏰ Aviso de abertura e fechamento da loja",
+        "• ⚠️ Alertas operacionais importantes",
+        "",
+        "<i>Para parar de receber, é só remover o Chat ID nas configurações da sua loja.</i>",
+        "",
+        "— Bot oficial TrendFood",
+      ].join("\n");
+      try {
+        const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id,
+            text: welcomeText,
+            parse_mode: "HTML",
+            disable_web_page_preview: true,
+          }),
+        });
+        const tgBody = await tgRes.json().catch(() => ({}));
+        if (!tgRes.ok) {
+          return new Response(JSON.stringify({
+            ok: false,
+            error: "Falha ao enviar boas-vindas",
+            telegram_error: tgBody?.description || tgBody?.error || JSON.stringify(tgBody),
+          }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if (!chat_id || !organization_id) {
       return new Response(JSON.stringify({ ok: false, error: "chat_id e organization_id obrigatórios" }), {
         status: 400,
