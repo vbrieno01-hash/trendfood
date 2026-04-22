@@ -1,68 +1,52 @@
 
 
-## Plano — Garantir que o bot envie pra qualquer destinatário com ID válido
+## Plano — Aplicar a mesma melhoria de Telegram para os lojistas
 
-Você tem razão: o destinatário **GB já deu `/start` no @userinfobot** (foi como pegou o Chat ID), mas o erro `chat not found` aconteceu porque **cada bot precisa ser iniciado individualmente** — `/start` no @userinfobot só serve pra descobrir o ID, não autoriza nosso bot do TrendFood a enviar mensagens.
+Hoje o **bot do TrendFood é o mesmo** pra notificações de admin e de lojistas. Logo, todo lojista que configurar o Chat ID dele também precisa abrir o bot da plataforma e enviar `/start` — senão o Telegram bloqueia o envio com `chat not found` (mesmo problema que aconteceu com o "GB").
 
-### O problema real
+A aba do lojista (`TelegramTab.tsx`) hoje:
+- Só menciona `@userinfobot` (pra pegar o ID)
+- **Não avisa** que precisa iniciar o bot da plataforma
+- Quando o teste falha, mostra mensagem genérica ("Falha ao enviar teste")
 
-```text
-@userinfobot          → mostra o Chat ID (qualquer pessoa pode usar)
-@SeuBotDoTrendFood    → precisa de /start específico pra autorizar envio
-```
+### O que vou fazer
 
-Quando GB nunca abriu o **bot do TrendFood** e mandou `/start` lá, o Telegram retorna `chat not found` na hora de enviar — independente de ter o Chat ID correto.
+**1. Atualizar o passo a passo da aba Telegram do lojista**
 
-### Solução em 3 partes
-
-**1. Mensagem de erro clara no toast (em vez de "erro desconhecido")**
-
-Quando o "Testar" falhar com `chat not found`, mostro o nome do bot e o passo exato:
-
-> ❌ **GB precisa iniciar o bot do TrendFood**
-> Peça pra GB abrir **@NomeDoSeuBot** no Telegram e enviar `/start`. Só depois disso o bot consegue enviar mensagem pra ele.
-> 
-> *(Iniciar `/start` no @userinfobot só serve pra pegar o ID — cada bot precisa do `/start` próprio)*
-
-**2. Backend retorna detalhe do erro pra UI mostrar mensagem precisa**
-
-Atualizar `admin-telegram-notify` pra incluir no JSON de resposta:
-```json
-{
-  "ok": false,
-  "sent": 0,
-  "errors": 1,
-  "first_error": "Bad Request: chat not found",
-  "first_error_recipient": "GB"
-}
-```
-
-A UI detecta `chat not found` e mostra o toast educativo. Outros erros (token inválido, rate limit) ganham mensagens próprias também.
-
-**3. Aviso no dialog "Adicionar destinatário" + descobrir nome do bot**
-
-No dialog de cadastro, adicionar um passo claro com o **username real do bot** (descoberto via `getMe` da Telegram API e cacheado em `platform_config`):
+Adicionar um passo extra no card "Como configurar":
 
 ```text
-⚠️ Antes de funcionar:
 1. Pegue o Chat ID em @userinfobot
-2. Abra @NomeDoSeuBot e envie /start  ← passo crítico
-3. Cole o Chat ID aqui
-
-Se pular o passo 2, o Telegram bloqueia o envio.
+2. Abra @NomeDoBotTrendFood e envie /start  ← NOVO (passo crítico)
+3. Cole o Chat ID abaixo, teste e salve
 ```
+
+O nome real do bot será buscado dinamicamente via a action `bot_info` que já criei em `admin-telegram-notify` (reaproveitamento — sem nova edge function).
+
+**2. Toast inteligente no botão "Testar" do lojista**
+
+Reaproveitar a mesma função `explainError()` que criei pro admin. Quando o teste falhar com:
+- `chat not found` → "Você ainda não iniciou o @BotTrendFood. Abra o bot no Telegram e envie /start, depois teste de novo."
+- `bot was blocked` → "Você bloqueou o bot. Desbloqueie no Telegram e tente novamente."
+- Token inválido → "Erro de configuração da plataforma. Avise o suporte."
+
+**3. Atualizar a edge function `test-telegram` pra retornar erro detalhado**
+
+Hoje ela retorna mensagem genérica. Vou fazer ela retornar `{ ok, error, telegram_error }` igual a `admin-telegram-notify`, pra UI conseguir mostrar mensagem precisa.
 
 ### Onde mexer
 
 **Editados:**
-- `supabase/functions/admin-telegram-notify/index.ts` — incluir `first_error` + `first_error_recipient` no response quando `sent === 0`; expor endpoint auxiliar `?action=bot_info` que chama `getMe` e retorna o username
-- `src/components/admin/AdminTelegramTab.tsx` — toast inteligente detectando `chat not found` (e outros erros comuns); buscar username do bot ao abrir dialog de Adicionar; mostrar instruções com nome real do bot
+- `src/components/dashboard/TelegramTab.tsx` — adicionar passo "/start no bot", buscar nome real do bot via `bot_info`, toast inteligente reusando lógica `explainError`
+- `supabase/functions/test-telegram/index.ts` — retornar `telegram_error` detalhado em vez de string genérica
 
-**Não mexer:** triggers SQL, tabela `admin_telegram_recipients`, watchdog, mp-webhook, RLS, lógica de envio multiplexada.
+**Não mexer:**
+- Aba admin (já está pronta)
+- Triggers, automações (digest, watchdog)
+- `send-push-notification` (envio de pedidos pro lojista)
+- Tabela `organizations.telegram_chat_id`
 
 ### Resultado
 
-- Você adiciona GB → toast já avisa "peça pra GB iniciar @SeuBot"
-- Se mesmo assim ele esquecer, o "Testar" falha com mensagem **exata** ("GB precisa iniciar o bot do TrendFood") em vez de "erro desconhecido"
-- Quando GB mandar `/start` no bot certo, próximo "Testar" funciona
+Lojista entra na aba Telegram → vê os 3 passos claros (incluindo o `/start` no bot da plataforma com nome real). Se mesmo assim esquecer, o teste falha com mensagem explicando exatamente o que fazer, em vez de "Falha ao enviar teste".
 
