@@ -314,6 +314,40 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const LOVABLE_API_KEY_EARLY = Deno.env.get("LOVABLE_API_KEY");
+    const TELEGRAM_API_KEY_EARLY = Deno.env.get("TELEGRAM_API_KEY");
+
+    // Auxiliary action: getMe — returns bot username/info (used by Add dialog)
+    const url = new URL(req.url);
+    if (url.searchParams.get("action") === "bot_info" || req.method === "GET") {
+      if (!LOVABLE_API_KEY_EARLY || !TELEGRAM_API_KEY_EARLY) {
+        return new Response(JSON.stringify({ ok: false, error: "missing_keys" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const meRes = await fetch(`${GATEWAY_URL}/getMe`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY_EARLY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY_EARLY,
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        });
+        const meBody = await meRes.json().catch(() => ({}));
+        const username = meBody?.result?.username || null;
+        const first_name = meBody?.result?.first_name || null;
+        return new Response(JSON.stringify({ ok: meRes.ok, username, first_name }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const { event_type, payload } = await req.json();
     if (!event_type) {
       return new Response(JSON.stringify({ error: "event_type required" }), {
