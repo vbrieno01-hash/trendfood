@@ -52,6 +52,50 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Action: get_chat_info → retorna a conta Telegram vinculada ao chat_id
+    // (first_name, username, type) usando getChat. Permite ao lojista
+    // confirmar que deu /start na conta correta.
+    if (action === "get_chat_info") {
+      if (!chat_id) {
+        return new Response(JSON.stringify({ ok: false, error: "chat_id obrigatório" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const tgRes = await fetch(`${GATEWAY_URL}/getChat`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ chat_id }),
+        });
+        const tgBody = await tgRes.json().catch(() => ({}));
+        if (!tgRes.ok || !tgBody?.result) {
+          return new Response(JSON.stringify({
+            ok: false,
+            telegram_error: tgBody?.description || `HTTP ${tgRes.status}`,
+          }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const r = tgBody.result;
+        return new Response(JSON.stringify({
+          ok: true,
+          chat: {
+            type: r.type ?? null,
+            first_name: r.first_name ?? null,
+            last_name: r.last_name ?? null,
+            username: r.username ?? null,
+            title: r.title ?? null,
+          },
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Action: welcome_merchant → envia boas-vindas para o lojista que acabou de configurar Chat ID
     if (action === "welcome_merchant") {
       const storeName = String(body?.store_name || "").trim() || "lojista";
