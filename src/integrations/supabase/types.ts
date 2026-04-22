@@ -56,6 +56,36 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_telegram_log: {
+        Row: {
+          created_at: string
+          error: string | null
+          event_type: string
+          id: string
+          message: string
+          payload: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event_type: string
+          id?: string
+          message: string
+          payload?: Json | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event_type?: string
+          id?: string
+          message?: string
+          payload?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       ai_bot_config: {
         Row: {
           enabled: boolean
@@ -1291,6 +1321,8 @@ export type Database = {
       }
       platform_config: {
         Row: {
+          admin_telegram_chat_id: string | null
+          admin_telegram_events: Json
           apk_url: string | null
           created_at: string
           default_trial_days: number
@@ -1300,6 +1332,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_telegram_chat_id?: string | null
+          admin_telegram_events?: Json
           apk_url?: string | null
           created_at?: string
           default_trial_days?: number
@@ -1309,6 +1343,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_telegram_chat_id?: string | null
+          admin_telegram_events?: Json
           apk_url?: string | null
           created_at?: string
           default_trial_days?: number
@@ -1908,6 +1944,10 @@ export type Database = {
         Returns: undefined
       }
       increment_vote: { Args: { suggestion_id: string }; Returns: undefined }
+      notify_admin_telegram: {
+        Args: { _event_type: string; _payload: Json }
+        Returns: undefined
+      }
       validate_coupon_by_code: {
         Args: { _cart_total: number; _code: string; _org_id: string }
         Returns: Json
