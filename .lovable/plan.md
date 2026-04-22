@@ -1,52 +1,85 @@
 
 
-## Plano — Aplicar a mesma melhoria de Telegram para os lojistas
+## Plano — Mensagem de boas-vindas obrigatória + outros eventos opcionais
 
-Hoje o **bot do TrendFood é o mesmo** pra notificações de admin e de lojistas. Logo, todo lojista que configurar o Chat ID dele também precisa abrir o bot da plataforma e enviar `/start` — senão o Telegram bloqueia o envio com `chat not found` (mesmo problema que aconteceu com o "GB").
+Entendi! A imagem que você mostrou é a notificação de **`new_signup`** (novo cadastro chegando pra você como admin). Mas o que você quer é diferente:
 
-A aba do lojista (`TelegramTab.tsx`) hoje:
-- Só menciona `@userinfobot` (pra pegar o ID)
-- **Não avisa** que precisa iniciar o bot da plataforma
-- Quando o teste falha, mostra mensagem genérica ("Falha ao enviar teste")
+> **Toda vez que alguém adicionar um novo destinatário no Telegram (admin OU lojista), o bot deve mandar AUTOMATICAMENTE uma mensagem de boas-vindas pra esse destinatário** — sem precisar clicar em "Testar".
 
-### O que vou fazer
+E os outros eventos (pedidos, pagamentos, erros) continuam como estão hoje, disparando só quando faz sentido.
 
-**1. Atualizar o passo a passo da aba Telegram do lojista**
+### Como vai funcionar
 
-Adicionar um passo extra no card "Como configurar":
+**1. Admin adiciona destinatário novo (ex: "GB", "Sócio", "Financeiro")**
+→ Backend envia automaticamente pra esse Chat ID:
 
 ```text
-1. Pegue o Chat ID em @userinfobot
-2. Abra @NomeDoBotTrendFood e envie /start  ← NOVO (passo crítico)
-3. Cole o Chat ID abaixo, teste e salve
+🎉 Bem-vindo ao TrendFood Admin!
+
+Você foi adicionado como destinatário de notificações 
+da plataforma por [Nome do Admin].
+
+A partir de agora você vai receber:
+• 🆕 Novos cadastros
+• 💳 Pagamentos e mudanças de plano
+• 🤝 Conversões de afiliados
+• ⚠️ Erros críticos do sistema
+
+Se não quiser mais receber, peça pro admin remover seu Chat ID.
+
+— Bot oficial TrendFood
 ```
 
-O nome real do bot será buscado dinamicamente via a action `bot_info` que já criei em `admin-telegram-notify` (reaproveitamento — sem nova edge function).
+**2. Lojista cadastra Chat ID dele na aba Telegram**
+→ Backend envia automaticamente pra esse Chat ID:
 
-**2. Toast inteligente no botão "Testar" do lojista**
+```text
+🎉 Bem-vindo, [Nome da Loja]!
 
-Reaproveitar a mesma função `explainError()` que criei pro admin. Quando o teste falhar com:
-- `chat not found` → "Você ainda não iniciou o @BotTrendFood. Abra o bot no Telegram e envie /start, depois teste de novo."
-- `bot was blocked` → "Você bloqueou o bot. Desbloqueie no Telegram e tente novamente."
-- Token inválido → "Erro de configuração da plataforma. Avise o suporte."
+Seu Telegram foi conectado com sucesso ao TrendFood.
 
-**3. Atualizar a edge function `test-telegram` pra retornar erro detalhado**
+A partir de agora você vai receber aqui:
+• 🛎️ Novos pedidos chegando
+• 📊 Resumo diário de vendas (se ativado)
+• ⚠️ Alertas operacionais importantes
 
-Hoje ela retorna mensagem genérica. Vou fazer ela retornar `{ ok, error, telegram_error }` igual a `admin-telegram-notify`, pra UI conseguir mostrar mensagem precisa.
+Para parar de receber, é só remover o Chat ID nas 
+configurações da sua loja.
+
+— Bot oficial TrendFood
+```
+
+**3. Eventos operacionais (não mexer)**
+- `new_signup`, `subscription_change`, `referral_converted`, `critical_error` → continuam disparando como hoje, só pros admins
+- Pedidos pro lojista → continuam via `send-push-notification`
+
+### Implementação
+
+**Backend — `admin-telegram-notify/index.ts`:**
+- Nova action `welcome_admin` — envia mensagem de boas-vindas pro chat_id passado, com nome de quem cadastrou
+- Verifica se já mandou boas-vindas pra esse Chat ID antes (usa tabela `admin_telegram_dedupe` com `event_type = 'welcome'` pra não mandar 2x se editar)
+
+**Backend — `test-telegram/index.ts`:**
+- Nova action `welcome_merchant` — envia mensagem de boas-vindas pro lojista assim que ele cadastrar/atualizar o Chat ID
+
+**Frontend:**
+- `AdminTelegramTab.tsx` → ao salvar novo destinatário com sucesso, chama `welcome_admin` automaticamente em background. Se a chamada falhar com `chat not found`, mostra o toast educativo já existente (peça pro destinatário dar `/start` no bot)
+- `TelegramTab.tsx` (lojista) → ao salvar Chat ID novo (ou trocar pra um diferente), chama `welcome_merchant` em background. Mesmo tratamento de erro
 
 ### Onde mexer
 
 **Editados:**
-- `src/components/dashboard/TelegramTab.tsx` — adicionar passo "/start no bot", buscar nome real do bot via `bot_info`, toast inteligente reusando lógica `explainError`
-- `supabase/functions/test-telegram/index.ts` — retornar `telegram_error` detalhado em vez de string genérica
+- `supabase/functions/admin-telegram-notify/index.ts` — adicionar action `welcome_admin` com texto e dedupe
+- `supabase/functions/test-telegram/index.ts` — adicionar action `welcome_merchant` com texto
+- `src/components/admin/AdminTelegramTab.tsx` — disparar `welcome_admin` após criar destinatário
+- `src/components/dashboard/TelegramTab.tsx` — disparar `welcome_merchant` após salvar Chat ID
 
 **Não mexer:**
-- Aba admin (já está pronta)
-- Triggers, automações (digest, watchdog)
-- `send-push-notification` (envio de pedidos pro lojista)
-- Tabela `organizations.telegram_chat_id`
+- Triggers SQL (`trg_admin_notify_new_org`, `trg_admin_notify_subscription_change`, etc.)
+- `send-push-notification` (notificação de pedidos pro lojista)
+- Tabela `admin_telegram_recipients`, RLS, watchdog, digest
 
 ### Resultado
 
-Lojista entra na aba Telegram → vê os 3 passos claros (incluindo o `/start` no bot da plataforma com nome real). Se mesmo assim esquecer, o teste falha com mensagem explicando exatamente o que fazer, em vez de "Falha ao enviar teste".
+Adicionou destinatário → ele já recebe a mensagem de boas-vindas do bot oficial automaticamente, confirmando que a conexão funcionou. Não precisa mais clicar em "Testar" pra validar — a própria boas-vindas já é o teste. E os eventos operacionais (cadastros, pagamentos, erros) continuam fluindo normalmente como sempre estiveram.
 
