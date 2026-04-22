@@ -79,6 +79,7 @@ export type Database = {
           id: string
           message: string
           payload: Json | null
+          recipient_name: string | null
           status: string
         }
         Insert: {
@@ -88,6 +89,7 @@ export type Database = {
           id?: string
           message: string
           payload?: Json | null
+          recipient_name?: string | null
           status?: string
         }
         Update: {
@@ -97,7 +99,38 @@ export type Database = {
           id?: string
           message?: string
           payload?: Json | null
+          recipient_name?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      admin_telegram_recipients: {
+        Row: {
+          active: boolean
+          chat_id: string
+          created_at: string
+          events: Json
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          chat_id: string
+          created_at?: string
+          events?: Json
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          chat_id?: string
+          created_at?: string
+          events?: Json
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
