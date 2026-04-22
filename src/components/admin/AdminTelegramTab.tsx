@@ -33,6 +33,11 @@ const EVENT_LABELS: { key: string; label: string; description: string }[] = [
   { key: "subscription_expiring", label: "⏰ Assinatura expirando", description: "Aviso 3 dias antes da expiração" },
   { key: "daily_digest", label: "📊 Resumo diário (09h)", description: "Métricas das últimas 24h: cadastros, MRR, pedidos, erros" },
   { key: "weekly_digest", label: "📈 Resumo semanal (domingo)", description: "Comparativo com a semana anterior" },
+  { key: "payment_confirmed", label: "💵 Pagamento confirmado", description: "Quando um pagamento de assinatura é aprovado no Mercado Pago" },
+  { key: "payment_failed", label: "❌ Falha de cobrança", description: "Cartão recusado ou pagamento de assinatura falhou" },
+  { key: "trial_expiring", label: "⏰ Trial acabando (D-3 / D-1 / hoje)", description: "Aviso pra você ligar e converter antes do trial expirar" },
+  { key: "hot_lead", label: "🔥 Lead quente (loja Free movimentada)", description: "Loja Free com 30+ pedidos no dia — pronta pra upgrade" },
+  { key: "cold_store", label: "😴 Loja fria (risco de churn)", description: "Loja Pro/Enterprise sem pedidos há 7+ dias" },
 ];
 
 export default function AdminTelegramTab() {

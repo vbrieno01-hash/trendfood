@@ -6,6 +6,58 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Best-effort fire-and-forget call to admin telegram notifier */
+async function notifyAdmin(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>,
+) {
+  try {
+    await supabase.functions.invoke("admin-telegram-notify", {
+      body: { event_type: eventType, payload },
+    });
+  } catch (err) {
+    console.error("[mp-webhook] notifyAdmin error (non-blocking):", err);
+  }
+}
+
+/** Compute estimated MRR (sum of active paid subs, normalized to monthly) */
+async function computeMRR(supabase: ReturnType<typeof createClient>): Promise<number> {
+  try {
+    const { data: orgs } = await supabase
+      .from("organizations")
+      .select("subscription_plan, billing_cycle, subscription_status")
+      .eq("subscription_status", "active")
+      .in("subscription_plan", ["pro", "enterprise"]);
+
+    if (!orgs?.length) return 0;
+
+    const { data: plans } = await supabase
+      .from("platform_plans")
+      .select("key, price_cents, quarterly_price_cents, annual_price_cents");
+
+    const planMap = new Map<string, any>();
+    (plans || []).forEach((p: any) => planMap.set(p.key, p));
+
+    let totalCents = 0;
+    for (const org of orgs as any[]) {
+      const p = planMap.get(org.subscription_plan);
+      if (!p) continue;
+      if (org.billing_cycle === "annual" && p.annual_price_cents) {
+        totalCents += Math.round(p.annual_price_cents / 12);
+      } else if (org.billing_cycle === "quarterly" && p.quarterly_price_cents) {
+        totalCents += Math.round(p.quarterly_price_cents / 3);
+      } else {
+        totalCents += p.price_cents || 0;
+      }
+    }
+    return totalCents;
+  } catch (err) {
+    console.error("[mp-webhook] computeMRR error:", err);
+    return 0;
+  }
+}
+
 /** After activating an org, reward the referrer if applicable */
 async function processReferralBonus(
   supabase: ReturnType<typeof createClient>,
@@ -262,6 +314,38 @@ Deno.serve(async (req) => {
       console.log("[mp-webhook] Payment status:", mpData.status, "metadata:", JSON.stringify(mpData.metadata));
 
       if (mpData.status !== "approved") {
+        // Notify admin about rejected/failed payment
+        if (mpData.status === "rejected" || mpData.status === "cancelled") {
+          let failOrgId: string | null = mpData.metadata?.org_id || null;
+          let failPlan: string | null = mpData.metadata?.plan || null;
+          let failCycle: string | null = null;
+          if (!failOrgId && mpData.metadata?.preapproval_id) {
+            const { data: o } = await supabase
+              .from("organizations")
+              .select("id, name, subscription_plan, billing_cycle")
+              .eq("mp_subscription_id", mpData.metadata.preapproval_id)
+              .maybeSingle();
+            if (o) {
+              failOrgId = (o as any).id;
+              failPlan = (o as any).subscription_plan;
+              failCycle = (o as any).billing_cycle;
+            }
+          }
+          if (failOrgId) {
+            const { data: orgInfo } = await supabase
+              .from("organizations")
+              .select("name, subscription_plan, billing_cycle")
+              .eq("id", failOrgId)
+              .maybeSingle();
+            await notifyAdmin(supabase, "payment_failed", {
+              org_id: failOrgId,
+              org_name: (orgInfo as any)?.name || null,
+              plan: failPlan || (orgInfo as any)?.subscription_plan || null,
+              billing_cycle: failCycle || (orgInfo as any)?.billing_cycle || null,
+              reason: mpData.status_detail || mpData.status,
+            });
+          }
+        }
         return new Response(JSON.stringify({ received: true, status: mpData.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -312,6 +396,20 @@ Deno.serve(async (req) => {
           });
 
           console.log("[mp-webhook] Recurring payment renewed org:", orgId);
+
+          // ── Notify admin about confirmed payment ──
+          {
+            const mrr = await computeMRR(supabase);
+            await notifyAdmin(supabase, "payment_confirmed", {
+              org_id: orgId,
+              org_name: org?.name || null,
+              plan: org?.subscription_plan || null,
+              billing_cycle: org?.billing_cycle || null,
+              amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+              payment_method: mpData.payment_method_id || "MP",
+              mrr_estimate: mrr,
+            });
+          }
 
           // ── Promo: bump subscription to full price after first half-price payment ──
           if (org?.used_first_month_promo && preapprovalId) {
@@ -406,6 +504,20 @@ Deno.serve(async (req) => {
       });
 
       console.log("[mp-webhook] Org updated:", orgId, "plan:", plan);
+
+      // ── Notify admin about confirmed payment (legacy one-time / first PIX) ──
+      {
+        const mrr = await computeMRR(supabase);
+        await notifyAdmin(supabase, "payment_confirmed", {
+          org_id: orgId,
+          org_name: org?.name || null,
+          plan: plan,
+          billing_cycle: org?.billing_cycle || null,
+          amount: mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+          payment_method: mpData.payment_method_id || "MP",
+          mrr_estimate: mrr,
+        });
+      }
 
       // ── Referral bonus ──
       await processReferralBonus(supabase, orgId, accessToken);

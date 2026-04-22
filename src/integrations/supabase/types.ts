@@ -56,6 +56,21 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_telegram_dedupe: {
+        Row: {
+          event_key: string
+          sent_at: string
+        }
+        Insert: {
+          event_key: string
+          sent_at?: string
+        }
+        Update: {
+          event_key?: string
+          sent_at?: string
+        }
+        Relationships: []
+      }
       admin_telegram_log: {
         Row: {
           created_at: string
@@ -1922,6 +1937,7 @@ export type Database = {
     }
     Functions: {
       calc_trial_ends_at: { Args: never; Returns: string }
+      cleanup_admin_telegram_dedupe: { Args: never; Returns: undefined }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
       get_order_immutable_fields: {
         Args: { p_order_id: string }

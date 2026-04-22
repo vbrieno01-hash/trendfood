@@ -110,6 +110,58 @@ function buildMessage(eventType: string, payload: any): string | null {
         `📋 Plano: ${planLabel(payload.plan)}`,
       ].join("\n");
 
+    case "payment_confirmed":
+      return [
+        "💰 <b>Pagamento confirmado!</b>",
+        "",
+        `🏪 <b>${escapeHtml(payload.org_name)}</b>`,
+        `📋 Plano: ${planLabel(payload.plan)}${payload.billing_cycle ? ` (${escapeHtml(payload.billing_cycle)})` : ""}`,
+        payload.amount ? `💵 ${fmtBRL(Math.round(Number(payload.amount) * 100))} via ${escapeHtml(payload.payment_method || "MP")}` : "",
+        payload.mrr_estimate ? `📈 MRR estimado: ${fmtBRL(payload.mrr_estimate)}` : "",
+      ].filter(Boolean).join("\n");
+
+    case "payment_failed":
+      return [
+        "❌ <b>Cobrança recusada</b>",
+        "",
+        `🏪 <b>${escapeHtml(payload.org_name)}</b>`,
+        `📋 Plano: ${planLabel(payload.plan)}${payload.billing_cycle ? ` (${escapeHtml(payload.billing_cycle)})` : ""}`,
+        payload.reason ? `💳 Motivo: ${escapeHtml(payload.reason)}` : "",
+        "⚠️ Loja perde acesso se não regularizar",
+      ].filter(Boolean).join("\n");
+
+    case "trial_expiring":
+      return [
+        `⏰ <b>Trial expira ${payload.days_left === 0 ? "hoje" : `em ${payload.days_left} dia(s)`}</b>`,
+        "",
+        `🏪 <b>${escapeHtml(payload.org_name)}</b>`,
+        typeof payload.order_count === "number" ? `📊 Já fez <b>${payload.order_count}</b> pedido(s) no trial` : "",
+        payload.whatsapp ? `📱 WhatsApp: ${escapeHtml(payload.whatsapp)}` : "",
+        "👉 Bom momento pra entrar em contato",
+      ].filter(Boolean).join("\n");
+
+    case "hot_lead":
+      return [
+        "🔥 <b>Lead quente detectado!</b>",
+        "",
+        `🏪 <b>${escapeHtml(payload.org_name)}</b> (plano ${planLabel(payload.plan)})`,
+        `📊 Bateu <b>${payload.orders_today}</b> pedido(s) hoje`,
+        payload.whatsapp ? `📱 WhatsApp: ${escapeHtml(payload.whatsapp)}` : "",
+        "💡 Pronto pra abordar e oferecer Pro",
+      ].filter(Boolean).join("\n");
+
+    case "cold_store": {
+      const lastOrder = payload.last_order_at ? new Date(payload.last_order_at) : null;
+      const lastOrderStr = lastOrder ? lastOrder.toLocaleDateString("pt-BR") : "—";
+      return [
+        "😴 <b>Loja inativa há 7+ dias</b>",
+        "",
+        `🏪 <b>${escapeHtml(payload.org_name)}</b> (${planLabel(payload.plan)}${payload.billing_cycle ? ` ${escapeHtml(payload.billing_cycle)}` : ""})`,
+        `📉 Último pedido: ${lastOrderStr}`,
+        "💸 Risco de cancelamento — vale dar follow-up",
+      ].filter(Boolean).join("\n");
+    }
+
     default:
       return null;
   }
