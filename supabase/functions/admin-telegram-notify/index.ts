@@ -381,6 +381,56 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Action: get_chat_info — calls Telegram getChat for a chat_id and
+    // returns the real account name/username so the admin can confirm
+    // which Telegram account is actually receiving messages.
+    if (action === "get_chat_info") {
+      if (!LOVABLE_API_KEY_EARLY || !TELEGRAM_API_KEY_EARLY) {
+        return new Response(JSON.stringify({ ok: false, error: "missing_keys" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const chatId = String(reqBody?.chat_id || "").trim();
+      if (!chatId) {
+        return new Response(JSON.stringify({ ok: false, error: "chat_id required" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const tgRes = await fetch(`${GATEWAY_URL}/getChat`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY_EARLY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY_EARLY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ chat_id: chatId }),
+        });
+        const tgBody = await tgRes.json().catch(() => ({}));
+        if (!tgRes.ok || !tgBody?.result) {
+          return new Response(JSON.stringify({
+            ok: false,
+            error: tgBody?.description || `HTTP ${tgRes.status}`,
+          }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const r = tgBody.result;
+        return new Response(JSON.stringify({
+          ok: true,
+          chat: {
+            type: r.type ?? null,
+            first_name: r.first_name ?? null,
+            last_name: r.last_name ?? null,
+            username: r.username ?? null,
+            title: r.title ?? null,
+          },
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Action: welcome_admin — sends welcome message directly to a chat_id
     // Used when an admin adds a new recipient. Bypasses recipients table & toggles.
     if (action === "welcome_admin") {
