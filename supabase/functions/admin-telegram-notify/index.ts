@@ -348,7 +348,103 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const { event_type, payload } = await req.json();
+    const reqBody = await req.json();
+    const { event_type, payload, action } = reqBody;
+
+    // Action: bot_info via POST body (used by AdminTelegramTab)
+    if (action === "bot_info") {
+      if (!LOVABLE_API_KEY_EARLY || !TELEGRAM_API_KEY_EARLY) {
+        return new Response(JSON.stringify({ ok: false, error: "missing_keys" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const meRes = await fetch(`${GATEWAY_URL}/getMe`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY_EARLY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY_EARLY,
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        });
+        const meBody = await meRes.json().catch(() => ({}));
+        return new Response(JSON.stringify({
+          ok: meRes.ok,
+          username: meBody?.result?.username || null,
+          first_name: meBody?.result?.first_name || null,
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Action: welcome_admin — sends welcome message directly to a chat_id
+    // Used when an admin adds a new recipient. Bypasses recipients table & toggles.
+    if (action === "welcome_admin") {
+      if (!LOVABLE_API_KEY_EARLY || !TELEGRAM_API_KEY_EARLY) {
+        return new Response(JSON.stringify({ ok: false, error: "missing_keys" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const chatId = String(reqBody?.chat_id || "").trim();
+      const recipientName = String(reqBody?.recipient_name || "").trim() || "Você";
+      const addedBy = String(reqBody?.added_by || "").trim() || "um administrador";
+      if (!chatId) {
+        return new Response(JSON.stringify({ ok: false, error: "chat_id required" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const welcomeText = [
+        "🎉 <b>Bem-vindo ao TrendFood Admin!</b>",
+        "",
+        `Olá ${escapeHtml(recipientName)}, você foi adicionado(a) como destinatário de notificações da plataforma por <b>${escapeHtml(addedBy)}</b>.`,
+        "",
+        "A partir de agora você vai receber:",
+        "• 🆕 Novos cadastros",
+        "• 💳 Pagamentos e mudanças de plano",
+        "• 🤝 Conversões de afiliados",
+        "• ⚠️ Erros críticos do sistema",
+        "• 📊 Resumos diários e semanais",
+        "",
+        "<i>Se não quiser mais receber, peça pro admin remover seu Chat ID.</i>",
+        "",
+        "— Bot oficial TrendFood",
+      ].join("\n");
+      try {
+        const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY_EARLY}`,
+            "X-Connection-Api-Key": TELEGRAM_API_KEY_EARLY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: welcomeText,
+            parse_mode: "HTML",
+            disable_web_page_preview: true,
+          }),
+        });
+        const tgBody = await tgRes.json().catch(() => ({}));
+        if (!tgRes.ok) {
+          return new Response(JSON.stringify({
+            ok: false,
+            error: tgBody?.description || `HTTP ${tgRes.status}`,
+          }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if (!event_type) {
       return new Response(JSON.stringify({ error: "event_type required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

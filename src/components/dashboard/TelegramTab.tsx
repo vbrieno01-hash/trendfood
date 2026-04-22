@@ -30,6 +30,8 @@ function explainTelegramError(rawError: string, botRef: string): string {
 export default function TelegramTab({ orgId }: { orgId: string }) {
   const { refreshOrganization } = useAuth();
   const [telegramChatId, setTelegramChatId] = useState("");
+  const [originalChatId, setOriginalChatId] = useState("");
+  const [storeName, setStoreName] = useState("");
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [botUsername, setBotUsername] = useState<string>("");
@@ -50,11 +52,16 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
     if (!orgId) return;
     supabase
       .from("organizations")
-      .select("telegram_chat_id")
+      .select("telegram_chat_id, name")
       .eq("id", orgId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setTelegramChatId((data as any).telegram_chat_id ?? "");
+        if (data) {
+          const cid = (data as any).telegram_chat_id ?? "";
+          setTelegramChatId(cid);
+          setOriginalChatId(cid);
+          setStoreName((data as any).name ?? "");
+        }
       });
   }, [orgId]);
 
@@ -81,12 +88,33 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
   const handleSave = async () => {
     setLoading(true);
     try {
+      const newChatId = telegramChatId.trim();
       const { error } = await supabase
         .from("organizations")
-        .update({ telegram_chat_id: telegramChatId.trim() || null } as any)
+        .update({ telegram_chat_id: newChatId || null } as any)
         .eq("id", orgId);
       if (error) throw error;
-      toast.success("Chat ID do Telegram salvo!");
+
+      // Send welcome message automatically when Chat ID is new or changed
+      const isNewOrChanged = newChatId && newChatId !== originalChatId;
+      if (isNewOrChanged) {
+        const { data: welcomeData, error: welcomeErr } = await supabase.functions.invoke(
+          "test-telegram",
+          { body: { action: "welcome_merchant", chat_id: newChatId, store_name: storeName } },
+        );
+        if (welcomeErr || (welcomeData as any)?.ok === false) {
+          const tgError = (welcomeData as any)?.telegram_error || (welcomeData as any)?.error || welcomeErr?.message || "";
+          toast.warning(
+            `Chat ID salvo, mas boas-vindas falhou: ${explainTelegramError(tgError, botRef)}`,
+            { duration: 12000 },
+          );
+        } else {
+          toast.success("Chat ID salvo! Mensagem de boas-vindas enviada pro Telegram 📱");
+        }
+        setOriginalChatId(newChatId);
+      } else {
+        toast.success("Chat ID do Telegram salvo!");
+      }
       refreshOrganization?.();
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar");

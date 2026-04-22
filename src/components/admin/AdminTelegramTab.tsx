@@ -137,12 +137,35 @@ export default function AdminTelegramTab() {
     // default: receives all events (toggles default true via missing key)
     const { error } = await (supabase.from("admin_telegram_recipients") as any)
       .insert({ name, chat_id: chatId, active: true, events: {} });
-    setAdding(false);
     if (error) {
+      setAdding(false);
       toast.error("Erro ao adicionar: " + error.message);
       return;
     }
-    toast.success("Destinatário adicionado!");
+
+    // Send welcome message automatically (background, non-blocking for UX flow)
+    let addedByName = "um administrador";
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      addedByName = user?.email?.split("@")[0] || "um administrador";
+    } catch { /* ignore */ }
+
+    const { data: welcomeData, error: welcomeErr } = await supabase.functions.invoke(
+      "admin-telegram-notify",
+      { body: { action: "welcome_admin", chat_id: chatId, recipient_name: name, added_by: addedByName } },
+    );
+    setAdding(false);
+
+    if (welcomeErr || (welcomeData as any)?.ok === false) {
+      const rawErr = (welcomeData as any)?.error || welcomeErr?.message || "";
+      toast.warning(
+        `Destinatário adicionado, mas a boas-vindas falhou: ${explainError(rawErr, name)}`,
+        { duration: 12000 },
+      );
+    } else {
+      toast.success(`Destinatário adicionado! Boas-vindas enviada pra ${name} 📱`);
+    }
+
     setNewName("");
     setNewChatId("");
     setAddOpen(false);
