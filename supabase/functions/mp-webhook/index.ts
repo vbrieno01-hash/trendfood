@@ -6,6 +6,58 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Best-effort fire-and-forget call to admin telegram notifier */
+async function notifyAdmin(
+  supabase: ReturnType<typeof createClient>,
+  eventType: string,
+  payload: Record<string, unknown>,
+) {
+  try {
+    await supabase.functions.invoke("admin-telegram-notify", {
+      body: { event_type: eventType, payload },
+    });
+  } catch (err) {
+    console.error("[mp-webhook] notifyAdmin error (non-blocking):", err);
+  }
+}
+
+/** Compute estimated MRR (sum of active paid subs, normalized to monthly) */
+async function computeMRR(supabase: ReturnType<typeof createClient>): Promise<number> {
+  try {
+    const { data: orgs } = await supabase
+      .from("organizations")
+      .select("subscription_plan, billing_cycle, subscription_status")
+      .eq("subscription_status", "active")
+      .in("subscription_plan", ["pro", "enterprise"]);
+
+    if (!orgs?.length) return 0;
+
+    const { data: plans } = await supabase
+      .from("platform_plans")
+      .select("key, price_cents, quarterly_price_cents, annual_price_cents");
+
+    const planMap = new Map<string, any>();
+    (plans || []).forEach((p: any) => planMap.set(p.key, p));
+
+    let totalCents = 0;
+    for (const org of orgs as any[]) {
+      const p = planMap.get(org.subscription_plan);
+      if (!p) continue;
+      if (org.billing_cycle === "annual" && p.annual_price_cents) {
+        totalCents += Math.round(p.annual_price_cents / 12);
+      } else if (org.billing_cycle === "quarterly" && p.quarterly_price_cents) {
+        totalCents += Math.round(p.quarterly_price_cents / 3);
+      } else {
+        totalCents += p.price_cents || 0;
+      }
+    }
+    return totalCents;
+  } catch (err) {
+    console.error("[mp-webhook] computeMRR error:", err);
+    return 0;
+  }
+}
+
 /** After activating an org, reward the referrer if applicable */
 async function processReferralBonus(
   supabase: ReturnType<typeof createClient>,
