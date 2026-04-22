@@ -6,13 +6,25 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Bell, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
+import {
+  Loader2, Send, Bell, CheckCircle2, XCircle, ExternalLink,
+  Plus, Trash2, ChevronDown, ChevronUp, Pause, Play, User,
+} from "lucide-react";
 
-interface PlatformCfg {
+interface Recipient {
   id: string;
-  admin_telegram_chat_id: string | null;
-  admin_telegram_events: Record<string, boolean>;
+  name: string;
+  chat_id: string;
+  active: boolean;
+  events: Record<string, boolean>;
 }
 
 interface LogRow {
@@ -22,6 +34,7 @@ interface LogRow {
   status: string;
   error: string | null;
   created_at: string;
+  recipient_name: string | null;
 }
 
 const EVENT_LABELS: { key: string; label: string; description: string }[] = [
@@ -42,12 +55,16 @@ const EVENT_LABELS: { key: string; label: string; description: string }[] = [
 
 export default function AdminTelegramTab() {
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [cfg, setCfg] = useState<PlatformCfg | null>(null);
-  const [chatId, setChatId] = useState("");
-  const [events, setEvents] = useState<Record<string, boolean>>({});
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [logs, setLogs] = useState<LogRow[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Add dialog state
+  const [addOpen, setAddOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newChatId, setNewChatId] = useState("");
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     void load();
@@ -55,71 +72,106 @@ export default function AdminTelegramTab() {
 
   async function load() {
     setLoading(true);
-    const [{ data: cfgData }, { data: logsData }] = await Promise.all([
-      (supabase.from("platform_config") as any)
-        .select("id, admin_telegram_chat_id, admin_telegram_events")
-        .limit(1)
-        .maybeSingle(),
+    const [{ data: recData }, { data: logsData }] = await Promise.all([
+      (supabase.from("admin_telegram_recipients") as any)
+        .select("id, name, chat_id, active, events")
+        .order("created_at", { ascending: true }),
       (supabase.from("admin_telegram_log") as any)
-        .select("id, event_type, message, status, error, created_at")
+        .select("id, event_type, message, status, error, created_at, recipient_name")
         .order("created_at", { ascending: false })
         .limit(20),
     ]);
 
-    if (cfgData) {
-      setCfg(cfgData as PlatformCfg);
-      setChatId((cfgData as any).admin_telegram_chat_id ?? "");
-      setEvents(((cfgData as any).admin_telegram_events ?? {}) as Record<string, boolean>);
-    }
+    setRecipients((recData ?? []) as Recipient[]);
     if (logsData) setLogs(logsData as LogRow[]);
     setLoading(false);
   }
 
-  async function handleSave() {
-    if (!cfg) return;
-    setSaving(true);
-    const { error } = await (supabase.from("platform_config") as any)
-      .update({
-        admin_telegram_chat_id: chatId.trim() || null,
-        admin_telegram_events: events,
-      })
-      .eq("id", cfg.id);
-    setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar: " + error.message);
+  async function handleAdd() {
+    const name = newName.trim();
+    const chatId = newChatId.trim();
+    if (!name || !chatId) {
+      toast.error("Preencha nome e Chat ID.");
       return;
     }
-    toast.success("Configurações salvas!");
+    setAdding(true);
+    // default: receives all events (toggles default true via missing key)
+    const { error } = await (supabase.from("admin_telegram_recipients") as any)
+      .insert({ name, chat_id: chatId, active: true, events: {} });
+    setAdding(false);
+    if (error) {
+      toast.error("Erro ao adicionar: " + error.message);
+      return;
+    }
+    toast.success("Destinatário adicionado!");
+    setNewName("");
+    setNewChatId("");
+    setAddOpen(false);
+    void load();
   }
 
-  async function handleTest() {
-    if (!chatId.trim()) {
-      toast.error("Cola seu Chat ID antes de testar.");
+  async function handleToggleActive(r: Recipient) {
+    setBusyId(r.id);
+    const { error } = await (supabase.from("admin_telegram_recipients") as any)
+      .update({ active: !r.active })
+      .eq("id", r.id);
+    setBusyId(null);
+    if (error) {
+      toast.error("Erro: " + error.message);
       return;
     }
-    setTesting(true);
-    // Save first to ensure chat_id is persisted
-    if (cfg) {
-      await (supabase.from("platform_config") as any)
-        .update({ admin_telegram_chat_id: chatId.trim() })
-        .eq("id", cfg.id);
+    toast.success(r.active ? "Pausado." : "Ativado.");
+    void load();
+  }
+
+  async function handleDelete(r: Recipient) {
+    setBusyId(r.id);
+    const { error } = await (supabase.from("admin_telegram_recipients") as any)
+      .delete()
+      .eq("id", r.id);
+    setBusyId(null);
+    if (error) {
+      toast.error("Erro ao remover: " + error.message);
+      return;
     }
+    toast.success("Destinatário removido.");
+    void load();
+  }
+
+  async function handleEventToggle(r: Recipient, key: string, value: boolean) {
+    const newEvents = { ...r.events, [key]: value };
+    // Optimistic update
+    setRecipients((prev) => prev.map((x) => (x.id === r.id ? { ...x, events: newEvents } : x)));
+    const { error } = await (supabase.from("admin_telegram_recipients") as any)
+      .update({ events: newEvents })
+      .eq("id", r.id);
+    if (error) {
+      toast.error("Erro ao salvar: " + error.message);
+      void load();
+    }
+  }
+
+  async function handleTest(r: Recipient) {
+    setBusyId(r.id);
     const { data, error } = await supabase.functions.invoke("admin-telegram-notify", {
-      body: { event_type: "test", payload: {} },
+      body: { event_type: "test", payload: { _target_recipient_id: r.id } },
     });
-    setTesting(false);
+    setBusyId(null);
     if (error) {
       toast.error("Falha no teste: " + error.message);
-    } else if ((data as any)?.ok) {
-      toast.success("Mensagem enviada! Checa o Telegram 📱");
+    } else if ((data as any)?.sent > 0) {
+      toast.success(`Mensagem enviada pra ${r.name}! 📱`);
       void load();
     } else {
       toast.error("Não enviou: " + ((data as any)?.reason ?? "erro desconhecido"));
     }
   }
 
-  function setEventToggle(key: string, value: boolean) {
-    setEvents((prev) => ({ ...prev, [key]: value }));
+  function eventsSummary(events: Record<string, boolean>): string {
+    const disabled = EVENT_LABELS.filter((ev) => events[ev.key] === false).length;
+    if (disabled === 0) return "Recebe TODOS os eventos";
+    const enabled = EVENT_LABELS.length - disabled;
+    return `Recebe ${enabled} de ${EVENT_LABELS.length} eventos`;
   }
 
   if (loading) {
@@ -138,67 +190,170 @@ export default function AdminTelegramTab() {
           Telegram Admin (ao vivo)
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Receba tudo que acontece na plataforma em tempo real, no seu Telegram pessoal.
+          Adicione você, sócios ou equipe — cada destinatário recebe só os eventos que importam pra ele.
         </p>
       </div>
 
-      {/* Chat ID config */}
+      {/* Recipients */}
       <Card className="p-6 space-y-4">
-        <div>
-          <Label htmlFor="admin-chat-id" className="text-base font-semibold">Seu Chat ID pessoal</Label>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pegue seu Chat ID enviando uma mensagem pro bot{" "}
-            <a
-              href="https://t.me/userinfobot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline inline-flex items-center gap-1"
-            >
-              @userinfobot <ExternalLink className="w-3 h-3" />
-            </a>
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Input
-            id="admin-chat-id"
-            placeholder="Ex: 123456789"
-            value={chatId}
-            onChange={(e) => setChatId(e.target.value)}
-            className="font-mono"
-          />
-          <Button onClick={handleTest} disabled={testing || !chatId.trim()} variant="outline">
-            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            <span className="ml-2 hidden sm:inline">Testar</span>
-          </Button>
-        </div>
-      </Card>
-
-      {/* Event toggles */}
-      <Card className="p-6 space-y-4">
-        <div>
-          <h3 className="font-semibold text-base">Quais eventos enviar?</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Liga/desliga cada tipo de notificação.
-          </p>
-        </div>
-        <div className="space-y-3 divide-y divide-border">
-          {EVENT_LABELS.map((ev) => (
-            <div key={ev.key} className="flex items-start justify-between gap-4 pt-3 first:pt-0">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">{ev.label}</div>
-                <div className="text-xs text-muted-foreground">{ev.description}</div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h3 className="font-semibold text-base">📡 Destinatários conectados</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {recipients.length === 0
+                ? "Nenhum destinatário ainda. Adicione o primeiro abaixo."
+                : `${recipients.length} destinatário(s) configurado(s).`}
+            </p>
+          </div>
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="w-4 h-4 mr-1" /> Adicionar
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Adicionar destinatário</DialogTitle>
+                <DialogDescription>
+                  Pegue o Chat ID enviando uma mensagem pro bot{" "}
+                  <a
+                    href="https://t.me/userinfobot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    @userinfobot <ExternalLink className="w-3 h-3" />
+                  </a>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <div>
+                  <Label htmlFor="rec-name">Apelido</Label>
+                  <Input
+                    id="rec-name"
+                    placeholder="Ex: Breno, Sócio, Atendimento..."
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rec-chat-id">Chat ID</Label>
+                  <Input
+                    id="rec-chat-id"
+                    placeholder="Ex: 123456789"
+                    value={newChatId}
+                    onChange={(e) => setNewChatId(e.target.value)}
+                    className="font-mono"
+                  />
+                </div>
               </div>
-              <Switch
-                checked={events[ev.key] !== false}
-                onCheckedChange={(v) => setEventToggle(ev.key, v)}
-              />
-            </div>
-          ))}
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancelar</Button>
+                <Button onClick={handleAdd} disabled={adding}>
+                  {adding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Adicionar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
-          {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Salvar configurações
-        </Button>
+
+        {recipients.length === 0 ? (
+          <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-lg">
+            Clique em <b>Adicionar</b> pra cadastrar o primeiro destinatário.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recipients.map((r) => {
+              const isExpanded = expandedId === r.id;
+              const isBusy = busyId === r.id;
+              return (
+                <div key={r.id} className="rounded-lg border bg-card/50">
+                  {/* Header */}
+                  <div className="p-4 flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-semibold">{r.name}</span>
+                        {r.active ? (
+                          <Badge variant="default" className="text-xs">Ativo</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">Pausado</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 font-mono">
+                        Chat ID: {r.chat_id}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {eventsSummary(r.events)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Button
+                        size="sm" variant="outline"
+                        onClick={() => handleTest(r)} disabled={isBusy || !r.active}
+                      >
+                        {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                        <span className="ml-1 hidden sm:inline">Testar</span>
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                      >
+                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        <span className="ml-1 hidden sm:inline">Eventos</span>
+                      </Button>
+                      <Button
+                        size="sm" variant="ghost"
+                        onClick={() => handleToggleActive(r)} disabled={isBusy}
+                        title={r.active ? "Pausar" : "Ativar"}
+                      >
+                        {r.active ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remover {r.name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esse destinatário não vai mais receber notificações. Você pode adicionar de novo depois.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(r)}>Remover</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+
+                  {/* Expanded: per-event toggles */}
+                  {isExpanded && (
+                    <div className="border-t p-4 space-y-3 divide-y divide-border">
+                      {EVENT_LABELS.map((ev) => (
+                        <div key={ev.key} className="flex items-start justify-between gap-4 pt-3 first:pt-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm">{ev.label}</div>
+                            <div className="text-xs text-muted-foreground">{ev.description}</div>
+                          </div>
+                          <Switch
+                            checked={r.events[ev.key] !== false}
+                            onCheckedChange={(v) => handleEventToggle(r, ev.key, v)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Recent logs */}
@@ -212,7 +367,7 @@ export default function AdminTelegramTab() {
         </div>
         {logs.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            Nenhuma notificação enviada ainda. Configure seu Chat ID e clique em "Testar".
+            Nenhuma notificação enviada ainda. Adicione um destinatário e clique em "Testar".
           </div>
         ) : (
           <div className="space-y-2">
@@ -229,6 +384,9 @@ export default function AdminTelegramTab() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="text-xs">{log.event_type}</Badge>
+                    {log.recipient_name && (
+                      <Badge variant="secondary" className="text-xs">→ {log.recipient_name}</Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(log.created_at).toLocaleString("pt-BR")}
                     </span>
