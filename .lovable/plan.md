@@ -1,85 +1,91 @@
 
+## Plano — Provar por que o GB “não recebe” e corrigir o fluxo sem depender dos toggles
 
-## Plano — Mensagem de boas-vindas obrigatória + outros eventos opcionais
+Os toggles de eventos do GB já estão coerentes com o código atual: no backend, um evento só é bloqueado quando o campo correspondente está explicitamente como `false`. Então, se está tudo ativado, o próximo passo não é mexer nos eventos — é deixar visível **se o Telegram aceitou o envio, para qual conta ele está apontando, e quando foi a última entrega aceita**.
 
-Entendi! A imagem que você mostrou é a notificação de **`new_signup`** (novo cadastro chegando pra você como admin). Mas o que você quer é diferente:
+### 1. Destravar o build primeiro
+Há um bloqueio de build em componentes com gráficos (`GrowthCharts`, `CourierReportSection`, `HomeTab` e possivelmente outros charts com `recharts`).
 
-> **Toda vez que alguém adicionar um novo destinatário no Telegram (admin OU lojista), o bot deve mandar AUTOMATICAMENTE uma mensagem de boas-vindas pra esse destinatário** — sem precisar clicar em "Testar".
+Vou corrigir isso antes de qualquer ajuste funcional, padronizando os gráficos para o padrão já existente no projeto (`src/components/ui/chart.tsx` / primitives compatíveis), mantendo o visual atual e eliminando os erros de JSX/TypeScript dos componentes `XAxis`, `YAxis`, `Tooltip`, `Area`, `Bar`.
 
-E os outros eventos (pedidos, pagamentos, erros) continuam como estão hoje, disparando só quando faz sentido.
+### 2. Adicionar diagnóstico real de entrega no Admin Telegram
+Hoje a aba admin mostra só “mandou” ou “falhou”. Vou adicionar duas confirmações objetivas por destinatário:
 
-### Como vai funcionar
-
-**1. Admin adiciona destinatário novo (ex: "GB", "Sócio", "Financeiro")**
-→ Backend envia automaticamente pra esse Chat ID:
-
-```text
-🎉 Bem-vindo ao TrendFood Admin!
-
-Você foi adicionado como destinatário de notificações 
-da plataforma por [Nome do Admin].
-
-A partir de agora você vai receber:
-• 🆕 Novos cadastros
-• 💳 Pagamentos e mudanças de plano
-• 🤝 Conversões de afiliados
-• ⚠️ Erros críticos do sistema
-
-Se não quiser mais receber, peça pro admin remover seu Chat ID.
-
-— Bot oficial TrendFood
-```
-
-**2. Lojista cadastra Chat ID dele na aba Telegram**
-→ Backend envia automaticamente pra esse Chat ID:
+**A. Último envio aceito pelo Telegram**
+Mostrar na linha do destinatário algo como:
 
 ```text
-🎉 Bem-vindo, [Nome da Loja]!
-
-Seu Telegram foi conectado com sucesso ao TrendFood.
-
-A partir de agora você vai receber aqui:
-• 🛎️ Novos pedidos chegando
-• 📊 Resumo diário de vendas (se ativado)
-• ⚠️ Alertas operacionais importantes
-
-Para parar de receber, é só remover o Chat ID nas 
-configurações da sua loja.
-
-— Bot oficial TrendFood
+GB
+✅ Última mensagem aceita pelo Telegram às 22:17
 ```
 
-**3. Eventos operacionais (não mexer)**
-- `new_signup`, `subscription_change`, `referral_converted`, `critical_error` → continuam disparando como hoje, só pros admins
-- Pedidos pro lojista → continuam via `send-push-notification`
+Esse dado virá do `admin_telegram_log` filtrando o último `status = 'sent'` daquele destinatário.
 
-### Implementação
+**B. Verificar conta vinculada ao Chat ID**
+Adicionar um botão `Verificar conexão` que chama uma nova action `get_chat_info` no backend e retorna os dados reais da conta vinculada ao `chat_id`:
 
-**Backend — `admin-telegram-notify/index.ts`:**
-- Nova action `welcome_admin` — envia mensagem de boas-vindas pro chat_id passado, com nome de quem cadastrou
-- Verifica se já mandou boas-vindas pra esse Chat ID antes (usa tabela `admin_telegram_dedupe` com `event_type = 'welcome'` pra não mandar 2x se editar)
+```text
+Conectado como: João Silva (@joaosilva)
+```
 
-**Backend — `test-telegram/index.ts`:**
-- Nova action `welcome_merchant` — envia mensagem de boas-vindas pro lojista assim que ele cadastrar/atualizar o Chat ID
+Assim fica claro se:
+- o Chat ID é realmente do GB,
+- ele deu `/start` na conta correta,
+- ou está olhando outro bot / outra conta.
 
-**Frontend:**
-- `AdminTelegramTab.tsx` → ao salvar novo destinatário com sucesso, chama `welcome_admin` automaticamente em background. Se a chamada falhar com `chat not found`, mostra o toast educativo já existente (peça pro destinatário dar `/start` no bot)
-- `TelegramTab.tsx` (lojista) → ao salvar Chat ID novo (ou trocar pra um diferente), chama `welcome_merchant` em background. Mesmo tratamento de erro
+### 3. Melhorar o backend de diagnóstico do bot admin
+Em `admin-telegram-notify/index.ts`, vou adicionar uma action read-only:
 
-### Onde mexer
+- `get_chat_info`
+  - chama a API do Telegram para o `chat_id`
+  - retorna `first_name`, `username`, `type`
+  - quando falhar, retorna erro detalhado (`chat not found`, `blocked`, etc.)
 
-**Editados:**
-- `supabase/functions/admin-telegram-notify/index.ts` — adicionar action `welcome_admin` com texto e dedupe
-- `supabase/functions/test-telegram/index.ts` — adicionar action `welcome_merchant` com texto
-- `src/components/admin/AdminTelegramTab.tsx` — disparar `welcome_admin` após criar destinatário
-- `src/components/dashboard/TelegramTab.tsx` — disparar `welcome_merchant` após salvar Chat ID
+Também vou preservar a lógica atual de envio dos eventos, sem mexer nos triggers nem no roteamento dos eventos administrativos.
 
-**Não mexer:**
-- Triggers SQL (`trg_admin_notify_new_org`, `trg_admin_notify_subscription_change`, etc.)
-- `send-push-notification` (notificação de pedidos pro lojista)
-- Tabela `admin_telegram_recipients`, RLS, watchdog, digest
+### 4. Aplicar o mesmo diagnóstico para lojistas
+Como você já pediu para verificar os lojistas também, vou espelhar a mesma clareza na aba do lojista:
 
-### Resultado
+- mostrar **última mensagem aceita**
+- botão **Verificar conexão**
+- mostrar **nome/username real da conta vinculada**
+- manter o toast inteligente já existente para `chat not found`, `blocked`, etc.
 
-Adicionou destinatário → ele já recebe a mensagem de boas-vindas do bot oficial automaticamente, confirmando que a conexão funcionou. Não precisa mais clicar em "Testar" pra validar — a própria boas-vindas já é o teste. E os eventos operacionais (cadastros, pagamentos, erros) continuam fluindo normalmente como sempre estiveram.
+Isso evita o cenário “o painel diz que enviou mas não chegou” também no fluxo das lojas.
 
+### 5. Não mexer no que já está certo
+Não vou alterar:
+- triggers SQL de eventos admin
+- tabela `admin_telegram_recipients`
+- watchdog/digest
+- lógica de pedidos do lojista em `send-push-notification`
+- regra de toggle por evento (ela já está compatível com “ativado = envia”)
+
+## Arquivos que serão ajustados
+
+**Build / charts**
+- `src/components/admin/GrowthCharts.tsx`
+- `src/components/dashboard/CourierReportSection.tsx`
+- `src/components/dashboard/HomeTab.tsx`
+- e qualquer outro arquivo com chart que estiver no mesmo erro de build
+
+**Diagnóstico Telegram admin**
+- `supabase/functions/admin-telegram-notify/index.ts`
+- `src/components/admin/AdminTelegramTab.tsx`
+
+**Diagnóstico Telegram lojista**
+- `src/components/dashboard/TelegramTab.tsx`
+
+## Resultado esperado
+
+Depois dessa implementação, na própria interface você vai conseguir ver:
+
+```text
+GB
+✅ Última msg aceita às 22:17
+👤 Conta vinculada: GB Silva (@gbsilva)
+```
+
+Se o nome da conta não bater, o problema é Chat ID/conta errada.
+Se bater e o Telegram continuar aceitando, então o problema está no app do destinatário (bot silenciado, conversa arquivada, outra sessão, etc.).
+E os lojistas passam a ter esse mesmo nível de confirmação.
