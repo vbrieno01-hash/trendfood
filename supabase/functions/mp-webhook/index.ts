@@ -314,6 +314,38 @@ Deno.serve(async (req) => {
       console.log("[mp-webhook] Payment status:", mpData.status, "metadata:", JSON.stringify(mpData.metadata));
 
       if (mpData.status !== "approved") {
+        // Notify admin about rejected/failed payment
+        if (mpData.status === "rejected" || mpData.status === "cancelled") {
+          let failOrgId: string | null = mpData.metadata?.org_id || null;
+          let failPlan: string | null = mpData.metadata?.plan || null;
+          let failCycle: string | null = null;
+          if (!failOrgId && mpData.metadata?.preapproval_id) {
+            const { data: o } = await supabase
+              .from("organizations")
+              .select("id, name, subscription_plan, billing_cycle")
+              .eq("mp_subscription_id", mpData.metadata.preapproval_id)
+              .maybeSingle();
+            if (o) {
+              failOrgId = (o as any).id;
+              failPlan = (o as any).subscription_plan;
+              failCycle = (o as any).billing_cycle;
+            }
+          }
+          if (failOrgId) {
+            const { data: orgInfo } = await supabase
+              .from("organizations")
+              .select("name, subscription_plan, billing_cycle")
+              .eq("id", failOrgId)
+              .maybeSingle();
+            await notifyAdmin(supabase, "payment_failed", {
+              org_id: failOrgId,
+              org_name: (orgInfo as any)?.name || null,
+              plan: failPlan || (orgInfo as any)?.subscription_plan || null,
+              billing_cycle: failCycle || (orgInfo as any)?.billing_cycle || null,
+              reason: mpData.status_detail || mpData.status,
+            });
+          }
+        }
         return new Response(JSON.stringify({ received: true, status: mpData.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
