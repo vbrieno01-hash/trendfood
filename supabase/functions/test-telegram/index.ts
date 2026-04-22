@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -13,27 +11,50 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { chat_id, organization_id } = await req.json();
-
-    if (!chat_id || !organization_id) {
-      return new Response(JSON.stringify({ error: "chat_id and organization_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const body = await req.json().catch(() => ({}));
+    const { chat_id, organization_id, action } = body ?? {};
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+    const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
+
+    if (!LOVABLE_API_KEY || !TELEGRAM_API_KEY) {
+      return new Response(JSON.stringify({ ok: false, error: "Telegram não configurado na plataforma" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
-    if (!TELEGRAM_API_KEY) {
-      return new Response(JSON.stringify({ error: "TELEGRAM_API_KEY not configured" }), {
-        status: 500,
+    // Action: bot_info → retorna username/nome do bot via getMe
+    if (action === "bot_info") {
+      const meRes = await fetch(`${GATEWAY_URL}/getMe`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "X-Connection-Api-Key": TELEGRAM_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const meData = await meRes.json().catch(() => ({}));
+      if (!meRes.ok || !meData?.result) {
+        return new Response(JSON.stringify({ ok: false, error: "Não foi possível obter info do bot" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          username: meData.result.username,
+          first_name: meData.result.first_name,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!chat_id || !organization_id) {
+      return new Response(JSON.stringify({ ok: false, error: "chat_id e organization_id obrigatórios" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -52,24 +73,29 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       console.error("Telegram API error:", data);
-      return new Response(JSON.stringify({ error: `Telegram error: ${JSON.stringify(data)}` }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const tgError: string = data?.description || data?.error || JSON.stringify(data);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: "Falha ao enviar mensagem",
+          telegram_error: tgError,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ ok: true, success: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("Error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ ok: false, error: (e as Error).message }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
