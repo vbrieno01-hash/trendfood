@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.admin-telegram-digest]
 verify_jwt = false
+
+[functions.admin-telegram-watchdog]
+verify_jwt = false
