@@ -460,12 +460,33 @@ Deno.serve(async (req: Request) => {
     const skippedCount = results.filter((r: any) => r.skipped).length;
     const errorCount = results.filter((r: any) => !r.ok && !r.skipped).length;
 
+    // Extract first error detail for UI to show precise message
+    const firstFailed = results.find((r: any) => !r.ok && !r.skipped);
+    let first_error: string | null = null;
+    let first_error_recipient: string | null = null;
+    if (firstFailed) {
+      first_error_recipient = (firstFailed as any).recipient?.name ?? null;
+      const rawErr = (firstFailed as any).error;
+      const rawBody = (firstFailed as any).body;
+      // Telegram returns JSON like {"ok":false,"description":"Bad Request: chat not found"}
+      let desc: string | null = null;
+      if (rawBody) {
+        try {
+          const parsed = JSON.parse(rawBody);
+          desc = parsed?.description || null;
+        } catch { /* ignore */ }
+      }
+      first_error = desc || rawErr || (rawBody ? String(rawBody).slice(0, 200) : null) || `HTTP ${(firstFailed as any).status ?? "?"}`;
+    }
+
     return new Response(JSON.stringify({
       ok: sentCount > 0,
       sent: sentCount,
       skipped: skippedCount,
       errors: errorCount,
       total: recipients.length,
+      first_error,
+      first_error_recipient,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
