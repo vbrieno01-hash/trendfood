@@ -1,11 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { RefreshCw, Trash2, AlertCircle, Globe, Bug, Zap, Loader2 } from "lucide-react";
+import {
+  RefreshCw,
+  Trash2,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
+import { classifyError, SEVERITY_META, type Classification, type Severity } from "@/lib/errorClassifier";
 
 interface ErrorLog {
   id: string;
@@ -20,42 +29,54 @@ interface ErrorLog {
   metadata: Record<string, unknown> | null;
 }
 
-const SOURCE_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  error_boundary: { label: "Crash", icon: <AlertCircle className="w-3 h-3" />, className: "bg-destructive/15 text-destructive" },
-  unhandled_rejection: { label: "Promise", icon: <Zap className="w-3 h-3" />, className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
-  global_error: { label: "Global", icon: <Globe className="w-3 h-3" />, className: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
-  unknown: { label: "Outro", icon: <Bug className="w-3 h-3" />, className: "bg-muted text-muted-foreground" },
-};
+interface GroupedError {
+  patternKey: string;
+  classification: Classification;
+  count: number;
+  lastSeen: string;
+  firstSeen: string;
+  samples: ErrorLog[];
+}
 
-function shortUA(ua: string | null) {
-  if (!ua) return "—";
-  if (ua.includes("Samsung")) return "Samsung";
-  if (ua.includes("iPhone")) return "iPhone";
-  if (ua.includes("Android")) return "Android";
-  if (ua.includes("Firefox")) return "Firefox";
-  if (ua.includes("Chrome")) return "Chrome";
-  if (ua.includes("Safari")) return "Safari";
-  return ua.slice(0, 20);
+const RESOLVED_KEY = "admin_resolved_error_patterns";
+
+function getResolved(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(RESOLVED_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function setResolved(map: Record<string, string>) {
+  localStorage.setItem(RESOLVED_KEY, JSON.stringify(map));
+}
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `${min} min atrás`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h atrás`;
+  const d = Math.floor(h / 24);
+  return `${d}d atrás`;
 }
 
 export default function ErrorLogsTab() {
   const [logs, setLogs] = useState<ErrorLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [showIgnorable, setShowIgnorable] = useState(false);
+  const [showResolved, setShowResolved] = useState(false);
+  const [resolvedMap, setResolvedMapState] = useState<Record<string, string>>(getResolved());
 
   const fetchLogs = async () => {
     setLoading(true);
-    let query = supabase
+    const { data, error } = await supabase
       .from("client_error_logs" as never)
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(100);
-
-    if (sourceFilter !== "all") {
-      query = query.eq("source", sourceFilter);
-    }
-
-    const { data, error } = await query;
+      .limit(500);
     if (error) {
       toast.error("Erro ao carregar logs");
       console.error(error);
@@ -64,38 +85,127 @@ export default function ErrorLogsTab() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchLogs(); }, [sourceFilter]);
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  // Agrupa por padrão classificado
+  const grouped = useMemo<GroupedError[]>(() => {
+    const map = new Map<string, GroupedError>();
+    for (const log of logs) {
+      const cls = classifyError(log.error_message, log.url, log.error_stack);
+      const existing = map.get(cls.patternKey);
+      if (existing) {
+        existing.count++;
+        existing.samples.push(log);
+        if (log.created_at > existing.lastSeen) existing.lastSeen = log.created_at;
+        if (log.created_at < existing.firstSeen) existing.firstSeen = log.created_at;
+      } else {
+        map.set(cls.patternKey, {
+          patternKey: cls.patternKey,
+          classification: cls,
+          count: 1,
+          lastSeen: log.created_at,
+          firstSeen: log.created_at,
+          samples: [log],
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const order: Record<Severity, number> = { critical: 0, warning: 1, ignorable: 2 };
+      const sa = order[a.classification.severity];
+      const sb = order[b.classification.severity];
+      if (sa !== sb) return sa - sb;
+      return b.count - a.count;
+    });
+  }, [logs]);
+
+  const counts = useMemo(() => {
+    const c = { critical: 0, warning: 0, ignorable: 0, total: 0 };
+    for (const g of grouped) {
+      c[g.classification.severity] += g.count;
+      c.total += g.count;
+    }
+    return c;
+  }, [grouped]);
+
+  const healthPct = useMemo(() => {
+    if (counts.total === 0) return 100;
+    const bad = counts.critical * 10 + counts.warning;
+    const score = Math.max(0, 100 - bad);
+    return Math.min(100, score);
+  }, [counts]);
+
+  const visible = useMemo(() => {
+    return grouped.filter((g) => {
+      if (!showIgnorable && g.classification.severity === "ignorable") return false;
+      const isResolved = resolvedMap[g.patternKey] && resolvedMap[g.patternKey] >= g.lastSeen;
+      if (!showResolved && isResolved) return false;
+      return true;
+    });
+  }, [grouped, showIgnorable, showResolved, resolvedMap]);
+
+  const handleResolve = (patternKey: string, lastSeen: string) => {
+    const newMap = { ...resolvedMap, [patternKey]: lastSeen };
+    setResolved(newMap);
+    setResolvedMapState(newMap);
+    toast.success("Marcado como resolvido. Se voltar a aparecer, será destacado.");
+  };
+
+  const handleUnresolve = (patternKey: string) => {
+    const newMap = { ...resolvedMap };
+    delete newMap[patternKey];
+    setResolved(newMap);
+    setResolvedMapState(newMap);
+  };
 
   const handleClearAll = async () => {
-    if (!confirm("Apagar todos os logs de erro? Essa ação não pode ser desfeita.")) return;
-    const { error } = await supabase.from("client_error_logs" as never).delete().neq("id" as never, "00000000-0000-0000-0000-000000000000" as never);
-    if (error) { toast.error("Erro ao limpar logs"); return; }
+    if (!confirm("Apagar TODOS os logs de erro? Essa ação não pode ser desfeita.")) return;
+    const { error } = await supabase
+      .from("client_error_logs" as never)
+      .delete()
+      .neq("id" as never, "00000000-0000-0000-0000-000000000000" as never);
+    if (error) {
+      toast.error("Erro ao limpar logs");
+      return;
+    }
     setLogs([]);
     toast.success("Logs limpos!");
   };
 
-  const sources = ["all", "error_boundary", "unhandled_rejection", "global_error"];
-
   return (
     <div className="space-y-5 animate-admin-fade-in">
-      {/* Premium header */}
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-destructive/15 flex items-center justify-center">
             <AlertCircle className="w-5 h-5 text-destructive" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-foreground">Logs de Erro</h2>
-            <p className="text-xs text-muted-foreground">{logs.length} registros</p>
+            <h2 className="text-lg font-bold text-foreground">Saúde da Plataforma</h2>
+            <p className="text-xs text-muted-foreground">
+              {counts.total} ocorrências · {grouped.length} padrões distintos
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading} className="rounded-xl gap-1.5 hover:scale-105 transition-transform">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchLogs}
+            disabled={loading}
+            className="rounded-xl gap-1.5"
+          >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
           {logs.length > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleClearAll} className="rounded-xl gap-1.5 hover:scale-105 transition-transform">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleClearAll}
+              className="rounded-xl gap-1.5"
+            >
               <Trash2 className="w-4 h-4" />
               Limpar
             </Button>
@@ -103,110 +213,283 @@ export default function ErrorLogsTab() {
         </div>
       </div>
 
-      {/* Premium source filter pills */}
-      <div className="flex gap-1.5 flex-wrap animate-admin-fade-in admin-delay-1">
-        {sources.map((s) => {
-          const cfg = SOURCE_CONFIG[s] ?? SOURCE_CONFIG.unknown;
-          return (
-            <button
-              key={s}
-              onClick={() => setSourceFilter(s)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
-                sourceFilter === s
-                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 scale-105"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:scale-105"
-              }`}
-            >
-              {s === "all" ? "Todos" : cfg.label}
-            </button>
-          );
-        })}
+      {/* Cards de resumo */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-admin-fade-in admin-delay-1">
+        <SummaryCard
+          emoji={healthPct >= 95 ? "🟢" : healthPct >= 70 ? "🟡" : "🔴"}
+          label="Saúde"
+          value={`${healthPct}%`}
+          subtitle={
+            healthPct >= 95
+              ? "Tudo certo"
+              : healthPct >= 70
+                ? "Atenção"
+                : "Investigar agora"
+          }
+          tone={healthPct >= 95 ? "good" : healthPct >= 70 ? "warn" : "bad"}
+        />
+        <SummaryCard
+          emoji="🔴"
+          label="Críticos"
+          value={counts.critical.toString()}
+          subtitle={
+            counts.critical === 0
+              ? "Nenhum cliente afetado"
+              : "Pagamento ou impressão"
+          }
+          tone={counts.critical === 0 ? "good" : "bad"}
+        />
+        <SummaryCard
+          emoji="🟡"
+          label="Atenção"
+          value={counts.warning.toString()}
+          subtitle={
+            counts.warning === 0 ? "Nada a investigar" : "UI travou em algum momento"
+          }
+          tone={counts.warning === 0 ? "good" : "warn"}
+        />
+        <SummaryCard
+          emoji="⚪"
+          label="Ignoráveis"
+          value={counts.ignorable.toString()}
+          subtitle={counts.ignorable === 0 ? "Sem ruído" : "Ruído conhecido (ok)"}
+          tone="neutral"
+        />
       </div>
 
+      {/* Filtros */}
+      <div className="flex gap-2 flex-wrap animate-admin-fade-in admin-delay-2">
+        <button
+          onClick={() => setShowIgnorable((v) => !v)}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+            showIgnorable
+              ? "bg-muted text-foreground"
+              : "bg-primary text-primary-foreground shadow-md"
+          }`}
+        >
+          {showIgnorable ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+          {showIgnorable ? "Mostrando tudo" : "Só o que importa"}
+        </button>
+        <button
+          onClick={() => setShowResolved((v) => !v)}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+            showResolved ? "bg-muted text-foreground" : "bg-muted/60 text-muted-foreground"
+          }`}
+        >
+          <CheckCircle2 className="w-3 h-3" />
+          {showResolved ? "Mostrando resolvidos" : "Ocultar resolvidos"}
+        </button>
+      </div>
+
+      {/* Conteúdo */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
-      ) : logs.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="text-center py-20 animate-admin-fade-in">
-          <AlertCircle className="w-14 h-14 mx-auto mb-4 text-muted-foreground/20" />
-          <p className="text-sm font-medium text-muted-foreground">Nenhum erro registrado 🎉</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">A plataforma está funcionando sem erros</p>
+          <Sparkles className="w-14 h-14 mx-auto mb-4 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-muted-foreground">
+            {counts.total === 0
+              ? "Nenhum erro registrado 🎉"
+              : "Nada que precise da sua atenção agora 👌"}
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            {counts.total === 0
+              ? "A plataforma está saudável"
+              : `${counts.ignorable} erros ignoráveis ocultados`}
+          </p>
         </div>
       ) : (
-        <div className="admin-glass rounded-2xl overflow-hidden animate-admin-fade-in admin-delay-2">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b border-border/50 bg-muted/20">
-                <TableHead className="w-[140px] text-[11px] font-bold uppercase tracking-wider">Data/Hora</TableHead>
-                <TableHead className="text-[11px] font-bold uppercase tracking-wider">Erro</TableHead>
-                <TableHead className="w-[80px] text-[11px] font-bold uppercase tracking-wider">Source</TableHead>
-                <TableHead className="w-[100px] hidden md:table-cell text-[11px] font-bold uppercase tracking-wider">Navegador</TableHead>
-                <TableHead className="w-[200px] hidden lg:table-cell text-[11px] font-bold uppercase tracking-wider">URL</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.map((log) => {
-                const cfg = SOURCE_CONFIG[log.source] ?? SOURCE_CONFIG.unknown;
-                return (
-                  <Collapsible key={log.id} asChild>
-                    <>
-                      <TableRow className="group hover:bg-gradient-to-r hover:from-primary/[0.03] hover:to-transparent transition-all duration-200 border-b border-border/30">
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString("pt-BR", {
-                            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
-                          })}
-                        </TableCell>
-                        <TableCell>
-                          <CollapsibleTrigger className="text-left w-full">
-                            <p className="text-sm font-mono text-destructive truncate max-w-[300px] lg:max-w-[500px] cursor-pointer hover:underline">
-                              {log.error_message}
-                            </p>
-                          </CollapsibleTrigger>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`text-[10px] gap-1 rounded-full border-0 font-bold ${cfg.className}`} variant="secondary">
-                            {cfg.icon} {cfg.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground hidden md:table-cell">
-                          {shortUA(log.user_agent)}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground hidden lg:table-cell truncate max-w-[200px]">
-                          {log.url ?? "—"}
-                        </TableCell>
-                      </TableRow>
-                      <CollapsibleContent asChild>
-                        <tr>
-                          <td colSpan={5} className="px-5 py-4">
-                            <div className="admin-glass rounded-xl p-4 space-y-2">
-                              {log.error_stack && (
-                                <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-48 overflow-auto leading-relaxed">
-                                  {log.error_stack}
-                                </pre>
-                              )}
-                              {log.user_id && (
-                                <p className="text-[11px] text-muted-foreground">
-                                  <span className="font-bold uppercase tracking-wider">User:</span> {log.user_id}
-                                </p>
-                              )}
-                              {log.organization_id && (
-                                <p className="text-[11px] text-muted-foreground">
-                                  <span className="font-bold uppercase tracking-wider">Org:</span> {log.organization_id}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      </CollapsibleContent>
-                    </>
-                  </Collapsible>
-                );
-              })}
-            </TableBody>
-          </Table>
+        <div className="space-y-3 animate-admin-fade-in admin-delay-2">
+          {visible.map((g) => {
+            const isResolved =
+              resolvedMap[g.patternKey] && resolvedMap[g.patternKey] >= g.lastSeen;
+            const cameBack =
+              resolvedMap[g.patternKey] && resolvedMap[g.patternKey] < g.lastSeen;
+            return (
+              <ErrorCard
+                key={g.patternKey}
+                group={g}
+                isResolved={!!isResolved}
+                cameBack={!!cameBack}
+                onResolve={() => handleResolve(g.patternKey, g.lastSeen)}
+                onUnresolve={() => handleUnresolve(g.patternKey)}
+              />
+            );
+          })}
         </div>
       )}
     </div>
+  );
+}
+
+function SummaryCard({
+  emoji,
+  label,
+  value,
+  subtitle,
+  tone,
+}: {
+  emoji: string;
+  label: string;
+  value: string;
+  subtitle: string;
+  tone: "good" | "warn" | "bad" | "neutral";
+}) {
+  const toneClass = {
+    good: "from-emerald-500/10 to-emerald-500/5 border-emerald-500/20",
+    warn: "from-amber-500/10 to-amber-500/5 border-amber-500/20",
+    bad: "from-destructive/15 to-destructive/5 border-destructive/30",
+    neutral: "from-muted/40 to-muted/20 border-border",
+  }[tone];
+
+  return (
+    <div
+      className={`admin-glass rounded-2xl p-4 bg-gradient-to-br ${toneClass} border`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xl">{emoji}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+      </div>
+      <div className="text-2xl font-black text-foreground leading-none mb-1">{value}</div>
+      <p className="text-[11px] text-muted-foreground leading-tight">{subtitle}</p>
+    </div>
+  );
+}
+
+function ErrorCard({
+  group,
+  isResolved,
+  cameBack,
+  onResolve,
+  onUnresolve,
+}: {
+  group: GroupedError;
+  isResolved: boolean;
+  cameBack: boolean;
+  onResolve: () => void;
+  onUnresolve: () => void;
+}) {
+  const meta = SEVERITY_META[group.classification.severity];
+  const sample = group.samples[0];
+
+  return (
+    <Collapsible>
+      <div
+        className={`admin-glass rounded-2xl border ${meta.className} overflow-hidden transition-all ${
+          cameBack ? "ring-2 ring-destructive/50" : ""
+        } ${isResolved ? "opacity-60" : ""}`}
+      >
+        <div className="p-4">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-base">{meta.emoji}</span>
+              <span
+                className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${meta.className} border`}
+              >
+                {meta.label}
+              </span>
+              {cameBack && (
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground animate-pulse">
+                  Voltou!
+                </span>
+              )}
+              {isResolved && !cameBack && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                  ✓ Resolvido
+                </span>
+              )}
+              <span className="text-[11px] text-muted-foreground">
+                {group.count}× · última {timeAgo(group.lastSeen)}
+              </span>
+            </div>
+            {isResolved ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onUnresolve}
+                className="text-[11px] h-7 px-2 rounded-lg"
+              >
+                Desmarcar
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onResolve}
+                className="text-[11px] h-7 px-2 rounded-lg gap-1"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                Resolvido
+              </Button>
+            )}
+          </div>
+
+          <h3 className="text-base font-bold text-foreground mb-2 leading-snug">
+            {group.classification.title}
+          </h3>
+
+          <div className="space-y-1.5 text-[13px]">
+            <p className="text-muted-foreground">
+              <span className="font-bold text-foreground">O que é:</span>{" "}
+              {group.classification.whatItIs}
+            </p>
+            <p className="text-muted-foreground">
+              <span className="font-bold text-foreground">Impacto:</span>{" "}
+              {group.classification.impact}
+            </p>
+            <p className="text-muted-foreground">
+              <span className="font-bold text-foreground">Ação sugerida:</span>{" "}
+              {group.classification.suggestedAction}
+            </p>
+          </div>
+
+          <CollapsibleTrigger className="mt-3 text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 font-bold uppercase tracking-wider transition-colors">
+            <ChevronDown className="w-3 h-3 transition-transform data-[state=open]:rotate-180" />
+            Detalhes técnicos
+          </CollapsibleTrigger>
+        </div>
+
+        <CollapsibleContent>
+          <div className="px-4 pb-4 pt-1 border-t border-border/50 space-y-2 bg-background/30">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Mensagem original
+              </p>
+              <pre className="text-[11px] font-mono text-destructive whitespace-pre-wrap break-all">
+                {sample.error_message}
+              </pre>
+            </div>
+            {sample.error_stack && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Stack trace
+                </p>
+                <pre className="text-[10px] font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-auto leading-relaxed">
+                  {sample.error_stack}
+                </pre>
+              </div>
+            )}
+            {sample.url && (
+              <p className="text-[11px] text-muted-foreground break-all">
+                <span className="font-bold uppercase tracking-wider">URL:</span> {sample.url}
+              </p>
+            )}
+            {sample.user_agent && (
+              <p className="text-[11px] text-muted-foreground">
+                <span className="font-bold uppercase tracking-wider">Navegador:</span>{" "}
+                {sample.user_agent.slice(0, 100)}
+              </p>
+            )}
+            <p className="text-[10px] text-muted-foreground/70 pt-1">
+              Primeira ocorrência: {new Date(group.firstSeen).toLocaleString("pt-BR")}
+            </p>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }
