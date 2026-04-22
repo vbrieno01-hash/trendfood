@@ -7,11 +7,44 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Send, MessageCircle, CheckCircle2, Bell, Clock, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
+function explainTelegramError(rawError: string, botRef: string): string {
+  const err = (rawError || "").toLowerCase();
+  if (err.includes("chat not found")) {
+    return `Você ainda não iniciou o ${botRef}. Abra o ${botRef} no Telegram e envie /start, depois teste novamente. Iniciar o /start no @userinfobot só serve para descobrir seu Chat ID — cada bot exige um /start próprio.`;
+  }
+  if (err.includes("bot was blocked") || err.includes("blocked by the user")) {
+    return `Você bloqueou o ${botRef}. Desbloqueie o bot no Telegram e tente novamente.`;
+  }
+  if (err.includes("user is deactivated")) {
+    return "Esta conta de Telegram foi desativada. Use outro Chat ID.";
+  }
+  if (err.includes("unauthorized") || err.includes("invalid token")) {
+    return "Erro de configuração da plataforma. Avise o suporte.";
+  }
+  if (err.includes("chat_id is empty") || err.includes("invalid chat_id")) {
+    return "Chat ID inválido. Verifique se copiou o número corretamente do @userinfobot.";
+  }
+  return rawError || "Falha ao enviar teste";
+}
+
 export default function TelegramTab({ orgId }: { orgId: string }) {
   const { refreshOrganization } = useAuth();
   const [telegramChatId, setTelegramChatId] = useState("");
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+  const [botUsername, setBotUsername] = useState<string>("");
+
+  useEffect(() => {
+    // Busca username real do bot da plataforma
+    supabase.functions
+      .invoke("test-telegram", { body: { action: "bot_info" } })
+      .then(({ data }) => {
+        if (data?.ok && data?.username) setBotUsername(data.username);
+      })
+      .catch(() => {});
+  }, []);
+
+  const botRef = botUsername ? `@${botUsername}` : "bot da plataforma";
 
   useEffect(() => {
     if (!orgId) return;
@@ -32,10 +65,14 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
         body: { chat_id: telegramChatId.trim(), organization_id: orgId },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.ok === false) {
+        const tgError = data?.telegram_error || data?.error || "Falha ao enviar teste";
+        toast.error(explainTelegramError(tgError, botRef), { duration: 12000 });
+        return;
+      }
       toast.success("Mensagem de teste enviada! Verifique o Telegram.");
     } catch (err: any) {
-      toast.error(err.message || "Falha ao enviar teste");
+      toast.error(explainTelegramError(err?.message || "", botRef), { duration: 12000 });
     } finally {
       setTestLoading(false);
     }
@@ -80,13 +117,21 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
                 <p className="text-sm text-muted-foreground">
                   Abra o Telegram e procure o bot{" "}
                   <a href="https://t.me/userinfobot" target="_blank" rel="noopener" className="underline text-primary font-medium">@userinfobot</a>
+                  {" "}— envie qualquer mensagem e ele responderá com seu <strong>Chat ID</strong> (um número)
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">2</span>
-                <p className="text-sm text-muted-foreground">
-                  Envie qualquer mensagem para ele — ele responderá com seu <strong>Chat ID</strong> (um número)
-                </p>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-bold flex items-center justify-center">2</span>
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    <strong className="text-foreground">Abra o {botUsername ? (
+                      <a href={`https://t.me/${botUsername}`} target="_blank" rel="noopener" className="underline text-primary">@{botUsername}</a>
+                    ) : "bot da plataforma"} e envie <code className="px-1.5 py-0.5 rounded bg-muted text-xs">/start</code></strong> — passo obrigatório
+                  </p>
+                  <p className="text-xs mt-1 opacity-80">
+                    Sem esse <code>/start</code>, o Telegram bloqueia nosso bot de te enviar mensagens (erro <em>chat not found</em>).
+                  </p>
+                </div>
               </div>
               <div className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">3</span>
