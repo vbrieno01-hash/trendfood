@@ -1,30 +1,39 @@
+## Diagnóstico
 
+Em `supabase/functions/send-push-notification/index.ts` o envio de Telegram para o **lojista** está depois do `return early` que ocorre quando não há push subscriptions cadastradas. Confirmei chamando a função para a loja "Lanchonete Aguarias Do Eduardo" (chat_id `5305763589`): retornou `"No subscriptions found"` e o Telegram nunca foi disparado.
 
-## Plano — Esconder o badge "Edit with Lovable" via configuração
+Como a maioria dos lojistas não habilita push do navegador, nenhuma notificação chega no Telegram deles.
 
-O badge não vem do código do projeto, então não há arquivo pra editar. Ele é injetado pela Lovable nos sites publicados e é controlado por uma configuração de projeto.
+## Separação Admin vs Lojistas (sem conflito)
 
-### O que vou fazer
+Hoje as duas vias já usam funções diferentes, mas vou reforçar a separação para ficar 100% isolado:
 
-Chamar a ferramenta `publish_settings--set_badge_visibility` com `hide_badge: true`. Isso desliga o badge no site publicado (`https://trendfood.lovable.app`) sem alterar nenhum arquivo do código.
+- **Admin** (você, brenojackson30): `admin-telegram-notify` / `admin-telegram-digest` / `admin-telegram-watchdog` — disparados por triggers do banco. **Não toca neles.**
+- **Lojistas**: nova função dedicada `notify-merchant-telegram`, isolada do fluxo de push e do fluxo do admin. O `send-push-notification` deixa de cuidar do Telegram do lojista.
 
-### Pré-requisitos
+Assim não há risco de uma alteração no fluxo de push afetar o Telegram do lojista, nem do admin.
 
-- Plano **Pro ou superior** na sua conta Lovable (esconder o badge é recurso pago; mostrar funciona em qualquer plano).
-- Se a conta não estiver no plano Pro, a chamada vai falhar e eu te aviso pra você fazer upgrade primeiro.
+## Mudanças
 
-### Como vai funcionar
+1. **Criar `supabase/functions/notify-merchant-telegram/index.ts`** (nova, `verify_jwt = false`)
+   - Recebe `{ organization_id, order_number }`.
+   - Busca `telegram_chat_id` da org.
+   - Se existir, envia mensagem via gateway Telegram (`X-Connection-Api-Key: TELEGRAM_API_KEY`).
+   - Independente de push subscriptions — fluxo totalmente separado.
 
-1. Aplico `hide_badge: true` na configuração do projeto.
-2. Confirmo via `get_badge_visibility` que ficou desligado.
-3. Publico/republico se necessário pro deploy refletir a mudança.
+2. **Editar `supabase/functions/send-push-notification/index.ts`**
+   - Remover todo o bloco Telegram (linhas 226–262). Função volta a ser exclusiva de Web Push.
 
-### Reversível
+3. **Atualizar a trigger `notify_new_order`** (migration)
+   - Hoje só dispara `send-push-notification`.
+   - Adicionar segunda chamada `pg_net` para `notify-merchant-telegram` em paralelo (independente, fire-and-forget). Se uma falhar, a outra continua.
 
-Se um dia quiser voltar a mostrar o badge, é só pedir e eu rodo `set_badge_visibility` com `hide_badge: false`.
+4. **Adicionar `[functions.notify-merchant-telegram] verify_jwt = false`** em `supabase/config.toml`.
 
-### O que NÃO vou fazer
+5. **Validar** chamando `notify-merchant-telegram` manualmente para a loja de teste e confirmando recebimento no Telegram do lojista. Verificar que o admin continua recebendo normalmente pelo fluxo dele.
 
-- Não vou mexer em `index.html`, `App.tsx` nem em nenhum arquivo do projeto.
-- Não vou tentar bloquear o badge via CSS/JS (isso viola os termos da Lovable e pode quebrar o deploy).
+## Resultado
 
+- Telegram do **admin**: intacto, mesma função, mesmas triggers.
+- Telegram do **lojista**: função isolada, dispara em paralelo ao push, sem depender dele.
+- Zero acoplamento entre os dois fluxos.
