@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.admin-telegram-watchdog]
 verify_jwt = false
+
+[functions.notify-merchant-telegram]
+verify_jwt = false
