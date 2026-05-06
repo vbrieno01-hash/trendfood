@@ -1971,12 +1971,45 @@ export type Database = {
     Functions: {
       calc_trial_ends_at: { Args: never; Returns: string }
       cleanup_admin_telegram_dedupe: { Args: never; Returns: undefined }
+      courier_accept_delivery: {
+        Args: { _courier_id: string; _delivery_id: string }
+        Returns: undefined
+      }
+      courier_complete_delivery: {
+        Args: { _courier_id: string; _delivery_id: string }
+        Returns: undefined
+      }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
+      get_my_deliveries: {
+        Args: { _courier_id: string }
+        Returns: {
+          accepted_at: string
+          created_at: string
+          customer_address: string
+          distance_km: number
+          fee: number
+          id: string
+          order_id: string
+          status: string
+        }[]
+      }
       get_order_immutable_fields: {
         Args: { p_order_id: string }
         Returns: {
           organization_id: string
           table_number: number
+        }[]
+      }
+      get_pending_deliveries: {
+        Args: { _org_id: string }
+        Returns: {
+          created_at: string
+          customer_address: string
+          distance_km: number
+          fee: number
+          id: string
+          order_id: string
+          status: string
         }[]
       }
       get_store_status: { Args: { _org_id: string }; Returns: Json }
