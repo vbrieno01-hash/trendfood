@@ -398,7 +398,13 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, or
                         {d.fee != null && <span className="text-sm font-semibold text-primary text-right">R$ {d.fee.toFixed(2)}</span>}
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" title="Concluir"
-                            onClick={() => completeMutation.mutate(d.id, { onSuccess: () => toast.success("Entrega concluída!"), onError: () => toast.error("Erro") })}>
+                            onClick={() => {
+                              if (!d.courier_id) { toast.error("Entrega sem motoboy atribuído."); return; }
+                              completeMutation.mutate(
+                                { deliveryId: d.id, courierId: d.courier_id },
+                                { onSuccess: () => toast.success("Entrega concluída!"), onError: () => toast.error("Erro") }
+                              );
+                            }}>
                             <CheckCircle2 className="w-4 h-4" />
                           </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" title="Cancelar"
