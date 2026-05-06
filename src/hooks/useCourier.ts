@@ -133,14 +133,9 @@ export function useAvailableDeliveries(organizationId: string | undefined) {
   return useQuery({
     queryKey: ["deliveries", organizationId, "pendente"],
     queryFn: async () => {
-      const todayStart = getTodayStartUTC();
-      const { data, error } = await supabase
-        .from("deliveries" as any)
-        .select("*")
-        .eq("organization_id", organizationId!)
-        .eq("status", "pendente")
-        .gte("created_at", todayStart)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc("get_pending_deliveries" as any, {
+        _org_id: organizationId!,
+      });
       if (error) throw error;
       return (data ?? []) as unknown as Delivery[];
     },
@@ -148,6 +143,7 @@ export function useAvailableDeliveries(organizationId: string | undefined) {
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
+    refetchInterval: 10_000,
   });
 }
 
@@ -186,12 +182,9 @@ export function useMyDeliveries(courierId: string | null) {
   return useQuery({
     queryKey: ["deliveries", "mine", courierId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deliveries" as any)
-        .select("*")
-        .eq("courier_id", courierId!)
-        .in("status", ["em_rota"])
-        .order("accepted_at", { ascending: false });
+      const { data, error } = await supabase.rpc("get_my_deliveries" as any, {
+        _courier_id: courierId!,
+      });
       if (error) throw error;
       return (data ?? []) as unknown as Delivery[];
     },
@@ -199,6 +192,7 @@ export function useMyDeliveries(courierId: string | null) {
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
+    refetchInterval: 10_000,
   });
 }
 
@@ -206,10 +200,10 @@ export function useAcceptDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ deliveryId, courierId, orderId }: { deliveryId: string; courierId: string; orderId: string }) => {
-      const { error } = await supabase
-        .from("deliveries" as any)
-        .update({ courier_id: courierId, status: "em_rota", accepted_at: new Date().toISOString() } as any)
-        .eq("id", deliveryId);
+      const { error } = await supabase.rpc("courier_accept_delivery" as any, {
+        _delivery_id: deliveryId,
+        _courier_id: courierId,
+      });
       if (error) throw error;
 
       const { data: order } = await supabase
@@ -229,11 +223,11 @@ export function useAcceptDelivery() {
 export function useCompleteDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (deliveryId: string) => {
-      const { error } = await supabase
-        .from("deliveries" as any)
-        .update({ status: "entregue", delivered_at: new Date().toISOString() } as any)
-        .eq("id", deliveryId);
+    mutationFn: async ({ deliveryId, courierId }: { deliveryId: string; courierId: string }) => {
+      const { error } = await supabase.rpc("courier_complete_delivery" as any, {
+        _delivery_id: deliveryId,
+        _courier_id: courierId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {

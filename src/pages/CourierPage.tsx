@@ -583,8 +583,9 @@ const CourierPage = () => {
   };
 
   const handleComplete = async (deliveryId: string) => {
+    if (!courierId) return;
     try {
-      await completeMutation.mutateAsync(deliveryId);
+      await completeMutation.mutateAsync({ deliveryId, courierId });
       toast.success("Entrega finalizada! ✅");
     } catch {
       toast.error("Erro ao finalizar entrega.");
