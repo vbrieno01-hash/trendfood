@@ -167,6 +167,117 @@ async function processReferralBonus(
   }
 }
 
+/** Cria comissão de afiliado quando pagamento é aprovado (status=pending, libera em 7 dias) */
+async function processAffiliateCommission(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  paymentId: string | number | null | undefined,
+  amountPaid: number | null | undefined,
+  billingCycle: string | null | undefined,
+) {
+  try {
+    if (!amountPaid || amountPaid <= 0) return;
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("affiliate_id")
+      .eq("id", orgId)
+      .maybeSingle();
+    const affiliateId = (org as any)?.affiliate_id;
+    if (!affiliateId) return;
+
+    const { data: aff } = await supabase
+      .from("affiliates")
+      .select("id, commission_pct, active")
+      .eq("id", affiliateId)
+      .maybeSingle();
+    if (!aff || !(aff as any).active) return;
+
+    // Idempotência: se já existe linha pra esse payment_id, não duplica
+    const pidStr = paymentId ? String(paymentId) : null;
+    if (pidStr) {
+      const { data: existing } = await supabase
+        .from("affiliate_commissions")
+        .select("id")
+        .eq("payment_id", pidStr)
+        .maybeSingle();
+      if (existing) {
+        console.log("[mp-webhook] commission já existe para payment", pidStr);
+        return;
+      }
+    }
+
+    const amountCents = Math.round(Number(amountPaid) * 100);
+    const pct = Number((aff as any).commission_pct) || 50;
+    const commissionCents = Math.round(amountCents * (pct / 100));
+
+    const { data: inserted, error: insErr } = await supabase
+      .from("affiliate_commissions")
+      .insert({
+        affiliate_id: affiliateId,
+        organization_id: orgId,
+        payment_id: pidStr,
+        amount_paid_cents: amountCents,
+        commission_cents: commissionCents,
+        commission_pct: pct,
+        billing_cycle: billingCycle || null,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (insErr) {
+      console.error("[mp-webhook] insert commission err:", insErr);
+      return;
+    }
+
+    // Notifica afiliado (não bloqueia)
+    try {
+      await supabase.functions.invoke("notify-affiliate-telegram", {
+        body: {
+          event_type: "new_payment",
+          affiliate_id: affiliateId,
+          commission_id: (inserted as any).id,
+        },
+      });
+    } catch (e) {
+      console.error("[mp-webhook] notify affiliate err (non-blocking):", e);
+    }
+  } catch (err) {
+    console.error("[mp-webhook] processAffiliateCommission error (non-blocking):", err);
+  }
+}
+
+/** Marca comissões como refunded quando MP estorna o pagamento */
+async function processAffiliateRefund(
+  supabase: ReturnType<typeof createClient>,
+  paymentId: string | number,
+) {
+  try {
+    const pidStr = String(paymentId);
+    const { data: rows } = await supabase
+      .from("affiliate_commissions")
+      .select("id, affiliate_id, status")
+      .eq("payment_id", pidStr);
+    if (!rows?.length) return;
+    for (const row of rows as any[]) {
+      if (row.status === "refunded") continue;
+      await supabase
+        .from("affiliate_commissions")
+        .update({ status: "refunded", refunded_at: new Date().toISOString() })
+        .eq("id", row.id);
+      try {
+        await supabase.functions.invoke("notify-affiliate-telegram", {
+          body: { event_type: "refunded", affiliate_id: row.affiliate_id, commission_id: row.id },
+        });
+      } catch (e) {
+        console.error("[mp-webhook] notify refund err:", e);
+      }
+    }
+  } catch (err) {
+    console.error("[mp-webhook] processAffiliateRefund error:", err);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
