@@ -242,6 +242,11 @@ const DashboardPage = () => {
             autoPrintedIds.current.add(order.id);
             console.log("[AutoPrint] Novo pedido detectado:", order.id, "mesa:", order.table_number);
 
+            // Modo cabo (desktop): o job já foi criado em placeOrder e o robô local vai puxar.
+            // Não enfileirar de novo aqui para evitar reimpressão duplicada.
+            if (printModeRef.current === "desktop" && !btDeviceRef.current) {
+              console.log("[AutoPrint] modo desktop — robô local cuida da impressão, pulando.");
+            } else {
             printQueue.current.push(async () => {
               // Retry up to 3 times with 1.5s delay to wait for order_items (race condition fix)
               let items: any[] = [];
