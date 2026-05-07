@@ -44,9 +44,17 @@ const AuthPage = () => {
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   const planParam = searchParams.get("plan");
   const refParam = searchParams.get("ref") || null;
+  const affParam = searchParams.get("aff") || (typeof window !== "undefined" ? localStorage.getItem("aff_code") : null);
   const fullRedirect = planParam && redirectTo.includes("/planos")
     ? `${redirectTo}?plan=${planParam}`
     : redirectTo;
+
+  useEffect(() => {
+    const aff = searchParams.get("aff");
+    if (aff) {
+      try { localStorage.setItem("aff_code", aff); } catch {}
+    }
+  }, [searchParams]);
 
   // Redirect authenticated users (covers Google OAuth callback)
   const [googleOnboarding, setGoogleOnboarding] = useState(false);
