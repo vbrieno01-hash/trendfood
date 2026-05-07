@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Validate PRINTER_ROBOT_TOKEN
   const authHeader = req.headers.get("Authorization");
   const expectedToken = Deno.env.get("PRINTER_ROBOT_TOKEN");
 
@@ -26,7 +25,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Create admin client with service role
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -47,16 +45,17 @@ Deno.serve(async (req) => {
         );
       }
 
-      const { data, error } = await supabase
-        .from("fila_impressao")
-        .select("*")
-        .eq("organization_id", orgId)
-        .eq("status", "pendente")
-        .order("created_at", { ascending: true });
+      // Atomic claim: marks jobs as 'imprimindo' and returns them.
+      // Even with multiple polling robots/tabs, each job goes to exactly ONE caller.
+      // If the robot crashes mid-print, a pg_cron job returns 'imprimindo' jobs
+      // older than 60s back to 'pendente'.
+      const { data, error } = await supabase.rpc("claim_print_jobs", {
+        _org_id: orgId,
+      });
 
       if (error) throw error;
 
-      return new Response(JSON.stringify(data), {
+      return new Response(JSON.stringify(data ?? []), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -92,7 +91,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
