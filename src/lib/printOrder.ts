@@ -245,6 +245,9 @@ export async function printOrderByMode(
   const text = formatReceiptText(order, storeName, printerWidth);
 
   if (printMode === "desktop") {
+    // Em modo cabo, o job canônico já é criado em useOrders.placeOrder.
+    // O índice único parcial em fila_impressao + tratamento de 23505 em enqueuePrint
+    // garantem idempotência aqui, então é seguro chamar de novo.
     try {
       await enqueuePrint(orgId, order.id, stripFormatMarkers(text));
       toast.success("Pedido enviado para impressão");
