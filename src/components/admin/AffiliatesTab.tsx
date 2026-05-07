@@ -66,7 +66,8 @@ export default function AffiliatesTab() {
   const [saving, setSaving] = useState(false);
   const [detailsOf, setDetailsOf] = useState<Affiliate | null>(null);
 
-  const baseUrl = typeof window !== "undefined" ? `${window.location.origin}/auth` : "";
+  const PROD_URL = "https://trendfood.lovable.app";
+  const baseUrl = `${PROD_URL}/auth`;
 
   async function load() {
     setLoading(true);
