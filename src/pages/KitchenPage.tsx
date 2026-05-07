@@ -340,6 +340,12 @@ export default function KitchenPage() {
   // ─── Process pending auto-print queue (prints only, does NOT change status) ───
   useEffect(() => {
     if (pendingPrintIds.current.size === 0 || isPrintingRef.current) return;
+    // Modo cabo (desktop): o robô local cuida da impressão a partir da fila criada no placeOrder.
+    // Não reenfileirar aqui para evitar duplicidade.
+    if (printMode === "desktop" && !btDevice) {
+      pendingPrintIds.current.clear();
+      return;
+    }
     const toPrint = orders.filter(
       (o) => pendingPrintIds.current.has(o.id) && (o.order_items?.length ?? 0) > 0
     );
