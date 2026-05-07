@@ -23,7 +23,6 @@ AS $$
   RETURNING *;
 $$;
 
--- Watchdog: if robot crashes mid-print, return job to the queue after 60s
 DO $do$
 BEGIN
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reclaim-stuck-prints') THEN
