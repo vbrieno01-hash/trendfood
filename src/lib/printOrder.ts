@@ -245,12 +245,9 @@ export async function printOrderByMode(
   const text = formatReceiptText(order, storeName, printerWidth);
 
   if (printMode === "desktop") {
-    // Evita duplicata: o job já é criado em useOrders.placeOrder ao inserir o pedido.
-    // Quando há order.id, NÃO reenfileiramos aqui — o robô local já vai puxar.
-    if (order.id && !String(order.id).startsWith("manual-")) {
-      toast.success("Pedido enviado para impressão");
-      return;
-    }
+    // Em modo cabo, o job canônico já é criado em useOrders.placeOrder.
+    // O índice único parcial em fila_impressao + tratamento de 23505 em enqueuePrint
+    // garantem idempotência aqui, então é seguro chamar de novo.
     try {
       await enqueuePrint(orgId, order.id, stripFormatMarkers(text));
       toast.success("Pedido enviado para impressão");
