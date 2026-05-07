@@ -245,13 +245,8 @@ const AuthPage = () => {
       // Resolve afiliado pelo código (?aff=)
       let affiliateId: string | null = null;
       if (affParam) {
-        const { data: aff } = await supabase
-          .from("affiliates")
-          .select("id")
-          .eq("code", affParam)
-          .eq("active", true)
-          .maybeSingle();
-        if (aff?.id) affiliateId = aff.id;
+        const { data: resolvedId } = await supabase.rpc("resolve_affiliate_code", { _code: affParam });
+        if (resolvedId) affiliateId = resolvedId as unknown as string;
       }
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
