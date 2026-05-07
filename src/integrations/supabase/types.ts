@@ -604,6 +604,7 @@ export type Database = {
       }
       fila_impressao: {
         Row: {
+          claimed_at: string | null
           conteudo_txt: string
           created_at: string
           id: string
@@ -613,6 +614,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          claimed_at?: string | null
           conteudo_txt: string
           created_at?: string
           id?: string
@@ -622,6 +624,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          claimed_at?: string | null
           conteudo_txt?: string
           created_at?: string
           id?: string
@@ -1970,6 +1973,25 @@ export type Database = {
     }
     Functions: {
       calc_trial_ends_at: { Args: never; Returns: string }
+      claim_print_jobs: {
+        Args: { _org_id: string }
+        Returns: {
+          claimed_at: string | null
+          conteudo_txt: string
+          created_at: string
+          id: string
+          order_id: string | null
+          organization_id: string
+          printed_at: string | null
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "fila_impressao"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_admin_telegram_dedupe: { Args: never; Returns: undefined }
       courier_accept_delivery: {
         Args: { _courier_id: string; _delivery_id: string }
