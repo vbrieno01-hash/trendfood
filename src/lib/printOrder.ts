@@ -236,7 +236,8 @@ export async function printOrderByMode(
   orgId: string,
   btDevice: BluetoothDevice | null,
   pixPayload?: string | null,
-  printerWidth: '58mm' | '80mm' = '58mm'
+  printerWidth: '58mm' | '80mm' = '58mm',
+  forceReprint: boolean = false
 ) {
   if (printMode === "browser") {
     return printOrder(order, storeName, pixPayload, printerWidth);
@@ -245,15 +246,32 @@ export async function printOrderByMode(
   const text = formatReceiptText(order, storeName, printerWidth);
 
   if (printMode === "desktop") {
-    // Em modo cabo, o job canônico já é criado em useOrders.placeOrder.
-    // O índice único parcial em fila_impressao + tratamento de 23505 em enqueuePrint
-    // garantem idempotência aqui, então é seguro chamar de novo.
-    try {
-      await enqueuePrint(orgId, order.id, stripFormatMarkers(text));
-      toast.success("Pedido enviado para impressão");
-    } catch {
-      toast.error("Erro ao enviar para fila de impressão");
+    // Em modo cabo: o job canônico é criado UMA VEZ em useOrders.placeOrder.
+    // O índice único `fila_impressao_one_per_order` garante 1 job por order_id.
+    // Aqui não reenfileiramos para pedidos com id (evita reimpressão duplicada).
+    // Reimpressão manual usa forceReprint=true → enfileira sem order_id (com cabeçalho 2ª VIA).
+    if (forceReprint && order.id) {
+      const reprintText = `*** 2a VIA ***\n${stripFormatMarkers(text)}`;
+      try {
+        await enqueuePrint(orgId, null, reprintText);
+        toast.success("2ª via enviada para impressão");
+      } catch {
+        toast.error("Erro ao enviar 2ª via para impressão");
+      }
+      return;
     }
+    if (!order.id) {
+      // Caso de teste (PrinterTab) — sem id, libera enqueue.
+      try {
+        await enqueuePrint(orgId, null, stripFormatMarkers(text));
+        toast.success("Enviado para impressão");
+      } catch {
+        toast.error("Erro ao enviar para fila de impressão");
+      }
+      return;
+    }
+    // Pedido normal: o robô local já vai puxar o job criado em placeOrder.
+    toast.success("Pedido enviado para impressão");
     return;
   }
 

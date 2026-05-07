@@ -244,7 +244,7 @@ export default function KitchenTab({
       if (!confirmed) return;
     }
     try {
-      await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
+      await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth, alreadyPrinted);
       setPrintedIds((prev) => new Set(prev).add(order.id));
       toast.success("Comanda impressa!");
     } catch (err) {

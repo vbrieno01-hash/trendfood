@@ -1,71 +1,80 @@
-## Problema: impressora a cabo imprimindo várias vias do mesmo pedido
+## Diagnóstico real (confirmado em produção — WrBurg)
 
-### Causa raiz (3 fontes inserindo o mesmo job)
+Olhei a fila de impressão da WrBurg na última hora e encontrei pedidos com **6 jobs** distintos:
 
-No modo `desktop` (impressora a cabo via robô local que lê `fila_impressao`), o **mesmo pedido** está sendo enfileirado **3+ vezes**:
+| Pedido | Jobs criados | Janela |
+|---|---|---|
+| `d8065ca3…` | 6 | 22:24 → 22:32 (8 min) |
+| `4b1e1bbe…` | 5 | 22:56 → 23:00 (~4 min) |
+| `59761504…` | 2 | 22:22 |
 
-1. **`useOrders.placeOrder`** (linha 255) — sempre enfileira ao criar o pedido. ✅ Correto, é o fallback canônico.
-2. **`DashboardPage` auto-print** (linha 285) — quando o Realtime dispara, chama `printOrderByMode(..., 'desktop', ...)` que internamente faz `enqueuePrint` de novo (printOrder.ts:249). ❌ Duplicata.
-3. **`KitchenTab` / `KitchenPage` auto-print** (KitchenTab.tsx:314, KitchenPage.tsx:361) — mesma coisa, se o lojista tiver KDS aberto em outra aba/dispositivo. ❌ Duplicata por aba aberta.
-4. Botão **"Imprimir manual"** também chama `printOrderByMode` em desktop → mais um job, mesmo se já impresso.
+O índice único parcial (`status='pendente' AND order_id IS NOT NULL`) **não está segurando** porque cada job entra → o robô local imprime em ~5s → marca `status='impresso'` → o próximo INSERT passa pelo índice (o anterior já não está mais pendente). Ou seja, o índice só bloqueia inserts simultâneos, não bloqueia o ciclo "imprimi + alguém manda de novo".
 
-O `mark as impresso` no DashboardPage (linha 297) só ajuda parcialmente — o robô já pode ter puxado um job antes do mark, e cada KDS extra aberto cria sua própria cópia antes do mark global.
+E o que continua mandando são as fontes que a correção anterior **achou** ter neutralizado:
 
-### Solução: 1 pedido = 1 job, com trava no banco
+- **`printOrderByMode` modo `desktop`** continua chamando `enqueuePrint` (printOrder.ts:252). Foi mantido como "idempotente", mas só é idempotente se ainda houver job pendente.
+- **DashboardPage / KitchenTab / KitchenPage** só pulam `printOrderByMode` quando `printMode === 'desktop' && !btDevice`. Se a lojista pareou alguma impressora BT em algum momento, `btDevice` pode estar truthy mesmo usando o cabo, então cai no `else` e chama `printOrderByMode` → enqueue.
+- **`handlePrintOnly` manual** (botão "Imprimir" do KDS) chama `printOrderByMode` direto → mais 1 job. Provavelmente a lojista clicou várias vezes ou tem mais de um KDS aberto.
+- **`KitchenPage` standalone** (linha 296 e 367) não tem o guard de modo desktop nenhum — qualquer KDS aberto numa segunda tela enfileira de novo.
 
-Mudanças mínimas e à prova de race condition:
+Resultado: 1 INSERT canônico (`useOrders.placeOrder`) + N inserts dos listeners/botões = N+1 vias.
 
-**1. Banco — índice único parcial em `fila_impressao`**
+## Correção definitiva
+
+Mudar a regra no banco e centralizar a lógica num único guard que serve pra todas as fontes.
+
+### 1) Banco — índice único **forte** por order_id
+
+Substituir o índice atual por um que cobre **qualquer status** (não só `pendente`). 1 pedido = 1 job, fim. Reimpressões manuais entram com `order_id = NULL` (livres do índice).
 
 ```sql
--- Garante que só pode existir 1 job pendente por pedido
-CREATE UNIQUE INDEX IF NOT EXISTS fila_impressao_one_pending_per_order
+DROP INDEX IF EXISTS public.fila_impressao_one_pending_per_order;
+CREATE UNIQUE INDEX fila_impressao_one_per_order
   ON public.fila_impressao (order_id)
-  WHERE status = 'pendente' AND order_id IS NOT NULL;
+  WHERE order_id IS NOT NULL;
 ```
 
-Qualquer `INSERT` duplicado vira erro de constraint → fica como segurança final mesmo se o front errar.
+Isso resolve o problema mesmo se o front falhar amanhã.
 
-**2. `src/lib/printQueue.ts` — `enqueuePrint` idempotente**
+### 2) `enqueuePrint` continua idempotente em `23505`
 
-Capturar erro de unique violation (código `23505`) e ignorar silenciosamente. Mantém comportamento normal pra outros erros.
+Já está; só vai passar a engatilhar mais frequente, e isso é o comportamento desejado.
 
-**3. `src/lib/printOrder.ts` — não reenfileirar no modo desktop**
+### 3) `printOrderByMode` — modo `desktop` nunca reenfileira pra pedido com id
 
-No `printOrderByMode`, quando `printMode === 'desktop'` **e** `order.id` existir, **não chamar `enqueuePrint`** (a fila já foi criada no `placeOrder`). Só mostrar toast “Enviado para impressão”. Para casos sem `order.id` (ex: teste de impressão da `PrinterTab`), mantém o enqueue.
+Hoje sempre chama `enqueuePrint`. Passa a ser:
 
-**4. Auto-print do Dashboard / KitchenTab / KitchenPage — pular no modo desktop**
+- Se `order.id` existe → **no-op** + toast "Enviado para impressão" (o robô já vai puxar o job criado no `placeOrder`).
+- Se `order.id` não existe (PrinterTab teste) → enqueue normal.
+- Adicionar parâmetro opcional `forceReprint?: boolean`. Quando `true`, faz INSERT **sem `order_id`** (driblando o índice) e prefixa o conteúdo com `*** 2ª VIA ***`. Usado só pelo botão manual.
 
-Nos 3 listeners de Realtime que fazem auto-print, adicionar guard:
+### 4) `handlePrintOnly` (KitchenTab + KitchenPage) — usa `forceReprint`
 
-```ts
-if (printMode === 'desktop') {
-  // Nada a fazer: o robô já vai puxar o job criado pelo placeOrder.
-  return;
-}
+A 2ª via vira um job sem `order_id`, claramente marcada. Não conflita com o índice e não é puxada por listener nenhum.
+
+### 5) Remover os guards condicionais nos listeners
+
+Como o `printOrderByMode` no modo desktop virou no-op, os blocos `if (printMode === 'desktop' && !btDevice) return;` em `DashboardPage`, `KitchenTab` e `KitchenPage` ficam redundantes — pode até deixar, mas o importante é que **mesmo se o guard falhar**, nada duplica mais.
+
+### 6) `KitchenPage` standalone ganha o mesmo guard de modo desktop por consistência (defesa em profundidade).
+
+## Arquivos afetados
+
+- 1 migration nova (drop + create do índice)
+- `src/lib/printOrder.ts` — guard no branch desktop + parâmetro `forceReprint`
+- `src/components/dashboard/KitchenTab.tsx` — `handlePrintOnly` passa `forceReprint=true`
+- `src/pages/KitchenPage.tsx` — mesmo, + adicionar guard de desktop nos listeners
+
+## Resultado esperado (verificável)
+
+Após aplicar, rodando essa query depois de alguns pedidos novos:
+
+```sql
+SELECT order_id, COUNT(*) FROM fila_impressao
+WHERE organization_id = '28083a33-…' AND order_id IS NOT NULL
+GROUP BY order_id HAVING COUNT(*) > 1;
 ```
 
-Bluetooth e browser continuam passando pelo auto-print normalmente.
+deve retornar **0 linhas**. Cada pedido novo vira exatamente 1 cupom impresso. 2ª via só se a lojista clicar em "Imprimir" e confirmar — e sai com cabeçalho "2ª VIA".
 
-**5. Manual “Imprimir” no modo desktop — pedir confirmação reforçada e enviar como 2ª via marcada**
-
-No `handlePrintOnly` do `KitchenTab`/`KitchenPage`, no modo desktop a 2ª via passa a inserir um **novo** job (sem order_id, conteúdo com cabeçalho “2ª VIA”) — não conflita com o índice único e é claramente uma reimpressão pedida pelo lojista.
-
-### Arquivos afetados
-
-- 1 migration nova (índice único parcial)
-- `src/lib/printQueue.ts` — try/catch para 23505 (~5 linhas)
-- `src/lib/printOrder.ts` — guard no branch desktop (~5 linhas)
-- `src/pages/DashboardPage.tsx` — guard `if (printMode === 'desktop') return` no auto-print (~3 linhas)
-- `src/components/dashboard/KitchenTab.tsx` — mesmo guard (~3 linhas)
-- `src/pages/KitchenPage.tsx` — mesmo guard (~3 linhas)
-- `handlePrintOnly` (Kitchen*) — branch 2ª via no modo desktop (~10 linhas)
-
-### Resultado esperado
-
-- Cabo imprime **exatamente 1 via** por pedido novo, independente de quantas abas/dispositivos estejam abertos.
-- 2ª via só sai se o lojista clicar manualmente em “Imprimir” e confirmar.
-- Bluetooth e browser continuam funcionando exatamente como hoje.
-- Índice único garante a regra mesmo se algum bug futuro tentar enfileirar duas vezes.
-
-Quer que eu aplique?
+Posso aplicar?

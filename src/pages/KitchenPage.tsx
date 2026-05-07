@@ -293,7 +293,7 @@ export default function KitchenPage() {
       if (!confirmed) return;
     }
     try {
-      await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth);
+      await printOrderByMode(order, org?.name, printMode, org?.id ?? "", btDevice, getPixPayload(order, pixKey, org?.name), printerWidth, alreadyPrinted);
       setPrintedIds((prev) => new Set(prev).add(order.id));
       toast.success("Comanda impressa!");
     } catch (err) {
