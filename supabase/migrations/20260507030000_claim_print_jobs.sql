@@ -24,14 +24,19 @@ AS $$
 $$;
 
 -- Watchdog: if robot crashes mid-print, return job to the queue after 60s
-SELECT cron.unschedule('reclaim-stuck-prints')
-WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reclaim-stuck-prints');
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reclaim-stuck-prints') THEN
+    PERFORM cron.unschedule('reclaim-stuck-prints');
+  END IF;
+END
+$do$;
 
 SELECT cron.schedule(
   'reclaim-stuck-prints',
   '* * * * *',
-  $$UPDATE public.fila_impressao
+  $cron$UPDATE public.fila_impressao
     SET status = 'pendente', claimed_at = NULL
     WHERE status = 'imprimindo'
-      AND claimed_at < now() - interval '60 seconds'$$
+      AND claimed_at < now() - interval '60 seconds'$cron$
 );
