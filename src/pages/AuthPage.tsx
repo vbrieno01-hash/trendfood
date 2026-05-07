@@ -44,9 +44,17 @@ const AuthPage = () => {
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   const planParam = searchParams.get("plan");
   const refParam = searchParams.get("ref") || null;
+  const affParam = searchParams.get("aff") || (typeof window !== "undefined" ? localStorage.getItem("aff_code") : null);
   const fullRedirect = planParam && redirectTo.includes("/planos")
     ? `${redirectTo}?plan=${planParam}`
     : redirectTo;
+
+  useEffect(() => {
+    const aff = searchParams.get("aff");
+    if (aff) {
+      try { localStorage.setItem("aff_code", aff); } catch {}
+    }
+  }, [searchParams]);
 
   // Redirect authenticated users (covers Google OAuth callback)
   const [googleOnboarding, setGoogleOnboarding] = useState(false);
@@ -234,6 +242,18 @@ const AuthPage = () => {
     setSignupLoading(true);
 
     try {
+      // Resolve afiliado pelo código (?aff=)
+      let affiliateId: string | null = null;
+      if (affParam) {
+        const { data: aff } = await supabase
+          .from("affiliates")
+          .select("id")
+          .eq("code", affParam)
+          .eq("active", true)
+          .maybeSingle();
+        if (aff?.id) affiliateId = aff.id;
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: signupData.email,
         password: signupData.password,
@@ -281,6 +301,7 @@ const AuthPage = () => {
               whatsapp: null,
             };
             if (refParam) orgPayload.referred_by_id = refParam;
+            if (affiliateId) orgPayload.affiliate_id = affiliateId;
             const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
             if (orgError) {
               if (orgError.code === "23505") {
@@ -325,6 +346,7 @@ const AuthPage = () => {
         whatsapp: null,
       };
       if (refParam) orgPayload.referred_by_id = refParam;
+      if (affiliateId) orgPayload.affiliate_id = affiliateId;
       const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
 
       if (orgError) {

@@ -28,6 +28,7 @@ import AIBotAdminTab from "@/components/admin/AIBotAdminTab";
 import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
 import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
 import AdminTelegramTab from "@/components/admin/AdminTelegramTab";
+import AffiliatesTab from "@/components/admin/AffiliatesTab";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 import ThemeToggle from "@/components/ThemeToggle";
@@ -238,7 +239,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados";
 
 interface NavGroup {
   label: string;
@@ -252,6 +253,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "home", icon: <Home className="w-4 h-4" />, label: "Dashboard" },
       { key: "lojas", icon: <Store className="w-4 h-4" />, label: "Lojas" },
       { key: "indicacoes", icon: <Share2 className="w-4 h-4" />, label: "Indicações" },
+      { key: "afiliados", icon: <Share2 className="w-4 h-4" />, label: "Afiliados (50%)" },
     ],
   },
   {
@@ -947,6 +949,7 @@ function AdminContent() {
           {activeTab === "wa_instances" && <WhatsAppInstancesTab />}
           {activeTab === "versoes" && <StoreVersionsTab />}
           {activeTab === "telegram_admin" && <AdminTelegramTab />}
+          {activeTab === "afiliados" && <AffiliatesTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}

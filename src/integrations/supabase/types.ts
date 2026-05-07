@@ -134,6 +134,117 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_commissions: {
+        Row: {
+          affiliate_id: string
+          amount_paid_cents: number
+          billing_cycle: string | null
+          commission_cents: number
+          commission_pct: number
+          created_at: string
+          id: string
+          notes: string | null
+          organization_id: string
+          paid_at: string | null
+          payment_id: string | null
+          refunded_at: string | null
+          release_at: string
+          released_at: string | null
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount_paid_cents: number
+          billing_cycle?: string | null
+          commission_cents: number
+          commission_pct: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          paid_at?: string | null
+          payment_id?: string | null
+          refunded_at?: string | null
+          release_at?: string
+          released_at?: string | null
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount_paid_cents?: number
+          billing_cycle?: string | null
+          commission_cents?: number
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          refunded_at?: string | null
+          release_at?: string
+          released_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          active: boolean
+          code: string
+          commission_pct: number
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          pix_key: string | null
+          telegram_chat_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          pix_key?: string | null
+          telegram_chat_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          pix_key?: string | null
+          telegram_chat_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_bot_config: {
         Row: {
           enabled: boolean
@@ -1229,6 +1340,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          affiliate_id: string | null
           apk_url: string | null
           banner_url: string | null
           billing_alert_limit: number | null
@@ -1273,6 +1385,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          affiliate_id?: string | null
           apk_url?: string | null
           banner_url?: string | null
           billing_alert_limit?: number | null
@@ -1317,6 +1430,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          affiliate_id?: string | null
           apk_url?: string | null
           banner_url?: string | null
           billing_alert_limit?: number | null
@@ -1361,6 +1475,13 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "organizations_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "organizations_referred_by_id_fkey"
             columns: ["referred_by_id"]

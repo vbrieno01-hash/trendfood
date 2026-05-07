@@ -110,3 +110,9 @@ verify_jwt = false
 
 [functions.notify-merchant-telegram]
 verify_jwt = false
+
+[functions.notify-affiliate-telegram]
+verify_jwt = false
+
+[functions.release-affiliate-commissions]
+verify_jwt = false
