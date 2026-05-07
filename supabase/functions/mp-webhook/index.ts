@@ -459,6 +459,10 @@ Deno.serve(async (req) => {
             });
           }
         }
+        // Reembolso/estorno: cancela comissão do afiliado
+        if (mpData.status === "refunded" || mpData.status === "charged_back" || mpData.status === "cancelled") {
+          await processAffiliateRefund(supabase, paymentId);
+        }
         return new Response(JSON.stringify({ received: true, status: mpData.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -568,6 +572,15 @@ Deno.serve(async (req) => {
           // ── Referral bonus (first payment) ──
           await processReferralBonus(supabase, orgId, accessToken);
 
+          // ── Comissão de afiliado externo (recorrente) ──
+          await processAffiliateCommission(
+            supabase,
+            orgId,
+            paymentId,
+            mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+            org?.billing_cycle || null,
+          );
+
           return new Response(JSON.stringify({ success: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -638,6 +651,15 @@ Deno.serve(async (req) => {
 
       // ── Referral bonus ──
       await processReferralBonus(supabase, orgId, accessToken);
+
+      // ── Comissão de afiliado externo ──
+      await processAffiliateCommission(
+        supabase,
+        orgId,
+        paymentId,
+        mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+        org?.billing_cycle || null,
+      );
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
