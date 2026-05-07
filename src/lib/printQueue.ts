@@ -13,6 +13,12 @@ export async function enqueuePrint(
   } as any);
 
   if (error) {
+    // 23505 = unique_violation: já existe job pendente para este pedido (índice parcial).
+    // Idempotente: ignora silenciosamente para evitar duplicidade de impressão.
+    if ((error as any).code === "23505") {
+      console.warn("[enqueuePrint] Job pendente já existe para order:", orderId, "— ignorado");
+      return;
+    }
     console.error("Failed to enqueue print job for org:", orgId, error);
     throw error;
   }
