@@ -2173,6 +2173,7 @@ export type Database = {
         Args: { _event_type: string; _payload: Json }
         Returns: undefined
       }
+      resolve_affiliate_code: { Args: { _code: string }; Returns: string }
       validate_coupon_by_code: {
         Args: { _cart_total: number; _code: string; _org_id: string }
         Returns: Json
