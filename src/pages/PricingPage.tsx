@@ -105,10 +105,8 @@ const PricingPage = () => {
   const isAnnual = selectedBilling === "annual";
   const isQuarterly = selectedBilling === "quarterly";
 
-  // Promo eligibility
-  const trialEndsAt = organization?.trial_ends_at ? new Date(organization.trial_ends_at) : null;
-  const trialExpired = !!trialEndsAt && trialEndsAt <= new Date() && currentPlan === "free";
-  const promoEligible = trialExpired && !(organization as any)?.used_first_month_promo;
+  // Promo eligibility: aparece para todas as lojas até o 1º pagamento mensal aprovado.
+  const promoEligible = !(organization as any)?.used_first_month_promo;
 
   useEffect(() => {
     supabase

@@ -1,24 +1,23 @@
-## Problema
+## Restaurar promo de 50% no 1º mês para todas as lojas
 
-O arquivo de migration `20260507031500_claim_print_jobs.sql` está no repositório, mas o card de aprovação não apareceu no chat porque ele só é gerado quando eu **executo a migration via ferramenta** (não basta o arquivo existir no disco). Por isso `claimed_at`, `claim_print_jobs` e o cron `reclaim-stuck-prints` continuam ausentes no banco.
+**Problema:** O badge "🔥 1º MÊS COM 50% OFF" sumiu para lojas em trial Pro ativo e em Free puro. Só aparecia depois do trial expirar.
 
-## Plano
+**Causa:** Filtro `trialExpired && rawPlan === "free"` em `usePlanLimits.ts` e lógica equivalente em `PricingPage.tsx`.
 
-Ao aprovar este plano e voltar pro modo de execução, vou:
+### Mudanças
 
-1. **Rodar a migration via ferramenta de banco** (aí sim aparece o card "Aprovar" no chat com o SQL pra você revisar):
-   - `ALTER TABLE fila_impressao ADD COLUMN claimed_at timestamptz`
-   - `CREATE FUNCTION claim_print_jobs(_org_id uuid)` com `FOR UPDATE SKIP LOCKED LIMIT 50` (claim atômico)
-   - `cron.schedule('reclaim-stuck-prints', '* * * * *', ...)` que devolve jobs presos em `imprimindo` há mais de 60s pra `pendente`
+**1. `src/hooks/usePlanLimits.ts` (linha ~88)**
+- Trocar `const promoEligible = trialExpired && rawPlan === "free" && !usedPromo;`
+- Por `const promoEligible = !usedPromo;`
 
-2. **Você clica em Aprovar no card** que vai aparecer no chat.
+**2. `src/pages/PricingPage.tsx` (linha ~111)**
+- Garantir `const promoEligible = !(organization as any)?.used_first_month_promo;` (sem condicionar a trial/plano).
 
-3. **Validar no banco** que a coluna, função e cron foram criados.
+### Garantias mantidas
+- Promo só aplica em **plano mensal** (filtros existentes `selectedBilling === "monthly"` permanecem).
+- Plano Free (price 0), trimestral, anual, lifetime e enterprise **nunca** mostram promo.
+- Após 1º pagamento mensal aprovado, `mp-webhook` marca `used_first_month_promo = true` → badge desaparece para sempre **só para essa loja**.
+- Vale para lojas antigas e novas automaticamente (regra ligada a coluna do banco).
 
-4. **Deploy da edge `printer-queue`** (que já está com o código atualizado pra chamar `claim_print_jobs`).
-
-5. Confirmar funcionamento — sem tocar em nada do Bluetooth.
-
-## Observação
-
-O Bluetooth **não usa** essa RPC nem a edge `printer-queue` — ele continua com o fluxo atual intacto. A mudança é só pro robô do cabo USB parar de imprimir o mesmo pedido várias vezes quando há concorrência de polling.
+### Resultado visível
+Enquanto `used_first_month_promo = false`, o badge aparece em todos os pontos (landing pricing, SubscriptionTab, UpgradeDialog, UpgradePrompt) — em trial Pro, Free puro ou Free expirado.

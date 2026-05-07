@@ -84,8 +84,9 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
 
     const features = FEATURE_ACCESS[effectivePlan];
 
-    // Promo eligible: trial expired, free plan, never used promo before
-    const promoEligible = trialExpired && rawPlan === "free" && !usedPromo;
+    // Promo eligible: nunca pagou o 1º mês ainda. Aparece para todas as lojas
+    // (trial Pro ativo, Free puro, Free expirado) até o 1º pagamento mensal aprovado.
+    const promoEligible = !usedPromo;
 
     return {
       plan: rawPlan,
