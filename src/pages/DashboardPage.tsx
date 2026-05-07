@@ -308,6 +308,7 @@ const DashboardPage = () => {
               } catch { /* silently ignore */ }
             });
             processQueue();
+            }
           }
 
           // Bell + notificacao: usa knownIds para nao repetir
