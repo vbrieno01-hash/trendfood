@@ -318,7 +318,8 @@ const AuthPage = () => {
             };
             if (refParam) orgPayload.referred_by_id = refParam;
             if (affiliateId) orgPayload.affiliate_id = affiliateId;
-            const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
+            const { data: insOrg, error: orgError } = await supabase
+              .from("organizations").insert(orgPayload).select("id").maybeSingle();
             if (orgError) {
               if (orgError.code === "23505") {
                 toast.error("Este slug já está em uso. Escolha outro nome para a lanchonete.");
@@ -327,6 +328,14 @@ const AuthPage = () => {
               }
               setSignupLoading(false);
               return;
+            }
+            if (affiliateId && insOrg?.id) {
+              try {
+                await supabase.functions.invoke("notify-affiliate-telegram", {
+                  body: { event_type: "new_signup", affiliate_id: affiliateId, organization_id: insOrg.id },
+                });
+              } catch (e) { console.warn("[notify-affiliate new_signup]", e); }
+              try { localStorage.removeItem("aff_code"); } catch {}
             }
           }
 
@@ -363,7 +372,8 @@ const AuthPage = () => {
       };
       if (refParam) orgPayload.referred_by_id = refParam;
       if (affiliateId) orgPayload.affiliate_id = affiliateId;
-      const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
+      const { data: insertedOrg2, error: orgError } = await supabase
+        .from("organizations").insert(orgPayload).select("id").maybeSingle();
 
       if (orgError) {
         if (orgError.code === "23505") {
@@ -373,6 +383,15 @@ const AuthPage = () => {
         }
         setSignupLoading(false);
         return;
+      }
+
+      if (affiliateId && insertedOrg2?.id) {
+        try {
+          await supabase.functions.invoke("notify-affiliate-telegram", {
+            body: { event_type: "new_signup", affiliate_id: affiliateId, organization_id: insertedOrg2.id },
+          });
+        } catch (e) { console.warn("[notify-affiliate new_signup]", e); }
+        try { localStorage.removeItem("aff_code"); } catch {}
       }
 
       toast.success("Conta criada com sucesso! Bem-vindo! 🎉");
