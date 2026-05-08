@@ -88,6 +88,13 @@ const AuthPage = () => {
     }
     setGoogleOnboardLoading(true);
     try {
+      // Resolve afiliado pelo código (?aff=)
+      let affiliateId: string | null = null;
+      if (affParam) {
+        const { data: resolvedId } = await supabase.rpc("resolve_affiliate_code", { _code: affParam });
+        if (resolvedId) affiliateId = resolvedId as unknown as string;
+      }
+
       const orgPayload: any = {
         user_id: user!.id,
         name: googleBiz.name.trim(),
@@ -98,7 +105,12 @@ const AuthPage = () => {
         whatsapp: googleBiz.whatsapp || null,
       };
       if (refParam) orgPayload.referred_by_id = refParam;
-      const { error: orgError } = await supabase.from("organizations").insert(orgPayload);
+      if (affiliateId) orgPayload.affiliate_id = affiliateId;
+      const { data: insertedOrg, error: orgError } = await supabase
+        .from("organizations")
+        .insert(orgPayload)
+        .select("id")
+        .maybeSingle();
       if (orgError) {
         if (orgError.code === "23505") {
           toast.error("Este slug já está em uso. Escolha outro nome.");
@@ -112,6 +124,15 @@ const AuthPage = () => {
         user_id: user!.id,
         full_name: user!.user_metadata?.full_name || user!.email?.split("@")[0] || "",
       }).then(() => {});
+      // Notifica afiliado por Telegram (best-effort)
+      if (affiliateId && insertedOrg?.id) {
+        try {
+          await supabase.functions.invoke("notify-affiliate-telegram", {
+            body: { event_type: "new_signup", affiliate_id: affiliateId, organization_id: insertedOrg.id },
+          });
+        } catch (e) { console.warn("[notify-affiliate new_signup]", e); }
+        try { localStorage.removeItem("aff_code"); } catch {}
+      }
       toast.success("Loja criada com sucesso! 🎉");
       await refreshOrganizationForUser(user!.id);
       navigate(fullRedirect, { replace: true });
