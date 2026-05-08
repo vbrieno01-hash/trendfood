@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { event_type, affiliate_id, commission_id, test_chat_id } = body;
+    const { event_type, affiliate_id, commission_id, organization_id, test_chat_id } = body;
 
     // Test mode (sem persistir nada)
     if (event_type === "test") {
@@ -71,18 +71,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: commission } = await supabase
-      .from("affiliate_commissions")
-      .select("id, amount_paid_cents, commission_cents, commission_pct, billing_cycle, release_at, status, created_at, organization_id")
-      .eq("id", commission_id)
-      .maybeSingle();
+    let commission: any = null;
+    if (commission_id) {
+      const { data } = await supabase
+        .from("affiliate_commissions")
+        .select("id, amount_paid_cents, commission_cents, commission_pct, billing_cycle, release_at, status, created_at, organization_id")
+        .eq("id", commission_id)
+        .maybeSingle();
+      commission = data;
+    }
+    if (event_type !== "new_signup" && !commission) throw new Error("commission not found");
 
-    if (!commission) throw new Error("commission not found");
-
+    const orgId = commission?.organization_id || organization_id;
     const { data: org } = await supabase
       .from("organizations")
       .select("id, name, slug, created_at, subscription_plan")
-      .eq("id", commission.organization_id)
+      .eq("id", orgId)
       .maybeSingle();
 
     // Conta lojas ativas do afiliado
@@ -100,7 +104,13 @@ Deno.serve(async (req) => {
     const totalReleased = (pendingPayout || []).reduce((s, c: any) => s + (c.commission_cents || 0), 0);
 
     let msg = "";
-    if (event_type === "new_payment") {
+    if (event_type === "new_signup") {
+      msg = `🎉 <b>Nova loja cadastrada pelo seu link!</b>\n\n` +
+        `🏪 Loja: <b>${org?.name || "—"}</b>\n` +
+        `📅 Cadastrou: ${fmtDate(org?.created_at || new Date().toISOString())}\n` +
+        `📊 Suas lojas indicadas: <b>${activeStores || 0}</b>\n\n` +
+        `💡 Quando ela assinar o Pro, você recebe <b>50% do 1º mês</b> como comissão.`;
+    } else if (event_type === "new_payment") {
       msg = `💰 <b>Novo pagamento do seu indicado!</b>\n\n` +
         `🏪 Loja: <b>${org?.name || "—"}</b>\n` +
         `📅 Cadastrou: ${fmtDate(org?.created_at || commission.created_at)}\n` +

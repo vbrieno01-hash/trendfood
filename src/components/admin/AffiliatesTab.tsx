@@ -61,6 +61,7 @@ export default function AffiliatesTab() {
   const [items, setItems] = useState<Affiliate[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [orgsMap, setOrgsMap] = useState<Record<string, { name: string; slug: string; created_at: string }>>({});
+  const [storesByAff, setStoresByAff] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<Affiliate> | null>(null);
   const [saving, setSaving] = useState(false);
@@ -75,6 +76,16 @@ export default function AffiliatesTab() {
     const { data: com } = await supabase.from("affiliate_commissions").select("*").order("created_at", { ascending: false });
     setItems((aff as Affiliate[]) || []);
     setCommissions((com as Commission[]) || []);
+    // Conta lojas reais vinculadas a cada afiliado (independente de pagamento)
+    const { data: linkedOrgs } = await supabase
+      .from("organizations")
+      .select("id, affiliate_id")
+      .not("affiliate_id", "is", null);
+    const counts: Record<string, number> = {};
+    (linkedOrgs || []).forEach((o: any) => {
+      if (o.affiliate_id) counts[o.affiliate_id] = (counts[o.affiliate_id] || 0) + 1;
+    });
+    setStoresByAff(counts);
     const orgIds = Array.from(new Set([...(com || []).map((c: any) => c.organization_id)]));
     if (orgIds.length) {
       const { data: orgs } = await supabase.from("organizations").select("id, name, slug, created_at").in("id", orgIds);
@@ -97,7 +108,7 @@ export default function AffiliatesTab() {
       else if (c.status === "released") released += c.commission_cents;
       else if (c.status === "paid") paid += c.commission_cents;
     }
-    const stores = new Set(list.map(c => c.organization_id)).size;
+    const stores = storesByAff[affiliateId] ?? 0;
     return { pending, released, paid, stores };
   }
 
