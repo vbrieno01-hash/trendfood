@@ -100,7 +100,13 @@ Deno.serve(async (req) => {
     const totalReleased = (pendingPayout || []).reduce((s, c: any) => s + (c.commission_cents || 0), 0);
 
     let msg = "";
-    if (event_type === "new_payment") {
+    if (event_type === "new_signup") {
+      msg = `🎉 <b>Nova loja cadastrada pelo seu link!</b>\n\n` +
+        `🏪 Loja: <b>${org?.name || "—"}</b>\n` +
+        `📅 Cadastrou: ${fmtDate(org?.created_at || new Date().toISOString())}\n` +
+        `📊 Suas lojas indicadas: <b>${activeStores || 0}</b>\n\n` +
+        `💡 Quando ela assinar o Pro, você recebe <b>50% do 1º mês</b> como comissão.`;
+    } else if (event_type === "new_payment") {
       msg = `💰 <b>Novo pagamento do seu indicado!</b>\n\n` +
         `🏪 Loja: <b>${org?.name || "—"}</b>\n` +
         `📅 Cadastrou: ${fmtDate(org?.created_at || commission.created_at)}\n` +
