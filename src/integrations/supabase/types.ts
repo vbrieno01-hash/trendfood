@@ -1382,6 +1382,7 @@ export type Database = {
           trial_ends_at: string | null
           used_first_month_promo: boolean
           user_id: string
+          wa_auto_status: Json
           whatsapp: string | null
         }
         Insert: {
@@ -1427,6 +1428,7 @@ export type Database = {
           trial_ends_at?: string | null
           used_first_month_promo?: boolean
           user_id: string
+          wa_auto_status?: Json
           whatsapp?: string | null
         }
         Update: {
@@ -1472,6 +1474,7 @@ export type Database = {
           trial_ends_at?: string | null
           used_first_month_promo?: boolean
           user_id?: string
+          wa_auto_status?: Json
           whatsapp?: string | null
         }
         Relationships: [
@@ -2088,6 +2091,48 @@ export type Database = {
           },
         ]
       }
+      whatsapp_outbox: {
+        Row: {
+          attempts: number
+          created_at: string
+          event_type: string
+          id: string
+          last_error: string | null
+          message: string
+          order_id: string | null
+          organization_id: string
+          phone: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          event_type: string
+          id?: string
+          last_error?: string | null
+          message: string
+          order_id?: string | null
+          organization_id: string
+          phone: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          event_type?: string
+          id?: string
+          last_error?: string | null
+          message?: string
+          order_id?: string | null
+          organization_id?: string
+          phone?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2178,6 +2223,13 @@ export type Database = {
         Args: { _cart_total: number; _code: string; _org_id: string }
         Returns: Json
       }
+      wa_enqueue_status: {
+        Args: { p_event: string; p_order_id: string; p_org_id: string }
+        Returns: undefined
+      }
+      wa_extract_name: { Args: { p_notes: string }; Returns: string }
+      wa_extract_phone: { Args: { p_notes: string }; Returns: string }
+      wa_extract_tipo: { Args: { p_notes: string }; Returns: string }
     }
     Enums: {
       app_role: "admin"
