@@ -9,11 +9,19 @@ function formatBRL(value: number): string {
 
 const PRESETS = [5000, 10000, 20000, 50000];
 
+function charMinWidth(c: string): string {
+  if (/\d/.test(c)) return "0.55em";
+  if (c === "R" || c === "$") return "0.6em";
+  if (c === "." || c === ",") return "0.25em";
+  if (c === " " || c === "\u00A0") return "0.3em";
+  return "0.5em";
+}
+
 function FlipNumber({ value }: { value: string }) {
   return (
     <span className="inline-flex overflow-hidden tabular-nums">
       {value.split("").map((c, i) => (
-        <span key={`${i}-${c}`} className="relative inline-block" style={{ height: "1em", minWidth: /\d/.test(c) ? "0.55em" : undefined }}>
+        <span key={`${i}-${c}`} className="relative inline-block" style={{ height: "1em", minWidth: charMinWidth(c) }}>
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span
               key={c}
