@@ -87,7 +87,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scroll-smooth">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -130,6 +130,26 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
             </div>
           </div>
 
+          {/* Mobile plan quick-jump pills (so Enterprise não fica escondido) */}
+          {!loading && plans.length > 1 && (
+            <div className="flex sm:hidden items-center justify-center gap-2 pt-2">
+              {plans.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => {
+                    document
+                      .getElementById(`upgrade-plan-${p.key}`)
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className="px-3 py-1.5 rounded-full text-xs font-bold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                >
+                  Ver {p.name} ↓
+                </button>
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -160,8 +180,8 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
                 const originalPrice = showPromo ? formatPriceFull(plan.price_cents) : undefined;
 
                 return (
+                  <div key={plan.id} id={`upgrade-plan-${plan.key}`} className="scroll-mt-4">
                   <PlanCard
-                    key={plan.id}
                     name={plan.name}
                     price={displayPrice}
                     period={period}
@@ -179,6 +199,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
                     promoPrice={promoPrice}
                     originalPrice={originalPrice}
                   />
+                  </div>
                 );
               })}
             </div>
