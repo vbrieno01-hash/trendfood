@@ -1503,6 +1503,7 @@ export type Database = {
           default_trial_days: number
           delivery_config: Json
           exe_url: string | null
+          hot_lead_min_orders: number
           id: string
           updated_at: string
         }
@@ -1514,6 +1515,7 @@ export type Database = {
           default_trial_days?: number
           delivery_config?: Json
           exe_url?: string | null
+          hot_lead_min_orders?: number
           id?: string
           updated_at?: string
         }
@@ -1525,6 +1527,7 @@ export type Database = {
           default_trial_days?: number
           delivery_config?: Json
           exe_url?: string | null
+          hot_lead_min_orders?: number
           id?: string
           updated_at?: string
         }
