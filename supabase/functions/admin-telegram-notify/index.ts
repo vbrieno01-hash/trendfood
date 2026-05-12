@@ -562,7 +562,8 @@ Deno.serve(async (req: Request) => {
       if (event_type !== "test" && toggles[eventToggleKey(event_type)] === false) {
         return { recipient: r, skipped: true, reason: "disabled" };
       }
-      try {
+      // Retry uma vez em 502/503 (gateway transitório)
+      const sendOnce = async () => {
         const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
           method: "POST",
           headers: {
@@ -579,6 +580,14 @@ Deno.serve(async (req: Request) => {
           }),
         });
         const tgBody = await tgRes.text();
+        return { tgRes, tgBody };
+      };
+      try {
+        let { tgRes, tgBody } = await sendOnce();
+        if (!tgRes.ok && (tgRes.status === 502 || tgRes.status === 503)) {
+          await new Promise((res) => setTimeout(res, 1500));
+          ({ tgRes, tgBody } = await sendOnce());
+        }
         return { recipient: r, ok: tgRes.ok, status: tgRes.status, body: tgBody };
       } catch (err: any) {
         return { recipient: r, ok: false, error: err?.message || String(err) };
