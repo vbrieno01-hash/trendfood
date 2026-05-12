@@ -87,6 +87,34 @@ export default function AdminTelegramTab() {
   const [adding, setAdding] = useState(false);
   const [botUsername, setBotUsername] = useState<string | null>(null);
   const [botInfoLoading, setBotInfoLoading] = useState(false);
+  const [sweepLoading, setSweepLoading] = useState(false);
+
+  /** Roda manualmente o watchdog (trial expirando, lojas frias, leads quentes).
+   *  Útil pra testar agora em vez de esperar o cron das 09h/14h/18h/22h. */
+  async function handleRunSweep() {
+    setSweepLoading(true);
+    const { data, error } = await supabase.functions.invoke("admin-telegram-watchdog", {
+      body: { mode: "all" },
+    });
+    setSweepLoading(false);
+    if (error) {
+      toast.error("Falha ao rodar varredura: " + error.message);
+      return;
+    }
+    const d = (data as any) ?? {};
+    const totalSent = (d.trials ?? 0) + (d.cold ?? 0) + (d.hot ?? 0);
+    if (totalSent > 0) {
+      toast.success(
+        `Varredura concluída: ${d.trials ?? 0} trial, ${d.cold ?? 0} fria, ${d.hot ?? 0} quente.`,
+      );
+      void load();
+    } else {
+      toast.info(
+        "Varredura concluída — nenhum alerta novo (nada elegível ou já enviado hoje pelo dedupe).",
+        { duration: 8000 },
+      );
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -344,6 +372,25 @@ export default function AdminTelegramTab() {
         <p className="text-sm text-muted-foreground mt-1">
           Adicione você, sócios ou equipe — cada destinatário recebe só os eventos que importam pra ele.
         </p>
+        <div className="mt-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRunSweep}
+            disabled={sweepLoading}
+          >
+            {sweepLoading ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <Search className="w-4 h-4 mr-1" />
+            )}
+            Rodar verificações agora (trial / leads / lojas frias)
+          </Button>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Útil pra testar. Cron normal roda 09h, 14h, 18h e 22h. Eventos já disparados hoje
+            são ignorados pelo dedupe.
+          </p>
+        </div>
       </div>
 
       {/* Recipients */}

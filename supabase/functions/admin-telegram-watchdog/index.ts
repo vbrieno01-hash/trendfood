@@ -151,6 +151,18 @@ async function sweepHotLeads(supabase: ReturnType<typeof createClient>) {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
+  // Limiar configurável via platform_config.hot_lead_min_orders (padrão 10)
+  let minOrders = 10;
+  try {
+    const { data: cfg } = await supabase
+      .from("platform_config")
+      .select("hot_lead_min_orders")
+      .limit(1)
+      .maybeSingle();
+    const v = (cfg as any)?.hot_lead_min_orders;
+    if (typeof v === "number" && v > 0) minOrders = v;
+  } catch { /* fallback default */ }
+
   const { data: orgs } = await supabase
     .from("organizations")
     .select("id, name, slug, subscription_plan, whatsapp")
@@ -166,7 +178,7 @@ async function sweepHotLeads(supabase: ReturnType<typeof createClient>) {
       .eq("organization_id", org.id)
       .gte("created_at", startOfDay.toISOString());
 
-    if ((count ?? 0) < 30) continue;
+    if ((count ?? 0) < minOrders) continue;
 
     const eventKey = `hot_lead|${org.id}|${today}`;
     const ok = await notifyOnce(supabase, eventKey, "hot_lead", {

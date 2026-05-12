@@ -48,6 +48,15 @@ Deno.serve(async (req) => {
 
     console.log(`[cleanup-phantom-orders] Deleted ${ids.length} phantom orders`);
 
+    // Notifica admin via Telegram (não bloqueia a resposta)
+    try {
+      await supabase.functions.invoke("admin-telegram-notify", {
+        body: { event_type: "phantom_orders", payload: { count: ids.length } },
+      });
+    } catch (notifyErr) {
+      console.warn("[cleanup-phantom-orders] notify failed:", notifyErr);
+    }
+
     return new Response(JSON.stringify({ deleted: ids.length, ids }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

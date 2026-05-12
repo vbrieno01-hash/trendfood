@@ -1,32 +1,52 @@
-## Problema
+## Diagnóstico
 
-No mobile, o `UpgradeDialog` (usado em todas as abas/menu hambúrguer) mostra os planos em coluna única (`grid-cols-1`). O card Pro tem ~14 features listadas + botão grande, ocupando toda a tela — o usuário não percebe que existe um card Enterprise logo abaixo (precisa rolar bastante).
+Auditei todo o fluxo do Telegram Admin (cron jobs, watchdog, mp-webhook, logs e dados reais do banco). Resultado por evento:
 
-## Solução proposta (somente UI, mobile)
+| Evento | Status hoje | Por que você não vê |
+|---|---|---|
+| 🆕 Novo cadastro | ✅ Funciona | Última msg enviada 09/05 (mostrado no card "Principal") |
+| 💰 Mudança de assinatura | ✅ Funciona | Última msg enviada 10/05 |
+| 💵 Pagamento confirmado | ✅ Wired no `mp-webhook` | Sem cobranças aprovadas no período recente |
+| ❌ Falha de cobrança | ✅ Wired no `mp-webhook` | Nenhum cartão recusado de fato no período. Só dispara em recusa real do Mercado Pago |
+| 🔥 Lead quente | ⚠️ Wired no watchdog | Limite atual = **30+ pedidos/dia em loja Free**. A Free com mais pedidos hoje tem só **4**. Limiar nunca é atingido |
+| 😴 Loja fria | ⚠️ Wired no watchdog | Você só tem **1** loja Pro ativa (lanchonetedopastor) e ela tem pedido hoje. Nenhuma elegível |
+| ⏰ Trial acabando | ⚠️ Wired no watchdog | Zero orgs com trial expirando nos próximos 4 dias |
+| 📊 Resumos | ✅ Cron rodando 09h/dom | Funcionou ontem; ocasionalmente cai com `HTTP 502 connectors_gateway` (transitório do gateway Telegram) |
+| 🚨 Erro crítico | ❌ **NUNCA DISPARA** | `errorLogger` salva no banco mas **nunca chama** `admin-telegram-notify` |
+| 🛒 Pedidos fantasmas | ❌ **NUNCA DISPARA** | `cleanup-phantom-orders` deleta os pedidos mas **nunca chama** `admin-telegram-notify` |
 
-Editar `src/components/dashboard/UpgradeDialog.tsx` e `src/components/pricing/PlanCard.tsx`:
+Conclusão: a maioria dos canais está sã — você não recebe mensagem porque a condição real não acontece (sem trial, sem loja fria, sem cartão recusado). Os dois únicos eventos quebrados de fato são `critical_error` e `phantom_orders`.
 
-1. **Seletor de plano no topo (mobile only)**: adicionar pílulas "Pro / Enterprise" acima dos cards no mobile (`<sm`), funcionando como âncora que faz scroll suave até o card escolhido. No desktop continua mostrando os 2 lado a lado.
+## Mudanças propostas
 
-2. **Indicador visual "+1 plano abaixo"**: um chip flutuante discreto ("↓ Ver Enterprise") aparece no canto inferior do card Pro enquanto o Enterprise não está visível na viewport (IntersectionObserver). Some quando o Enterprise entra na tela.
+### 1. Wire dos 2 eventos quebrados
+- **`supabase/functions/cleanup-phantom-orders/index.ts`**: depois de deletar, se `count > 0`, invocar `admin-telegram-notify` com `event_type: "phantom_orders"`, `payload: { count }`.
+- **`src/lib/errorLogger.ts`**: quando `severity === "critical"` (ou origem `checkout`/`payment`/`print`), invocar `admin-telegram-notify` com `event_type: "critical_error"`, `payload: { error_message, url, source }`. Throttle simples no DB: dedupe por hash da mensagem nas últimas 1h pra não floodar (usar a tabela `admin_telegram_dedupe` que já existe).
 
-3. **Lista de features colapsável no mobile**: no `PlanCard`, quando `window` for mobile, mostrar as 5 primeiras features e um botão "Ver todos os X recursos" para expandir. Isso encurta o card Pro e o Enterprise aparece mais cedo no scroll.
+### 2. Tornar Lead Quente realista (configurável)
+O limiar hardcoded `>= 30 pedidos/dia` é alto demais pra base atual. Vou:
+- Adicionar uma chave `hot_lead_min_orders` em `platform_config` (default `10`).
+- O watchdog passa a ler esse valor em vez do `30` fixo.
+- Fica fácil você ajustar no painel sem deploy.
 
-4. **Garantir que o `DialogContent` use `max-h-[90vh] overflow-y-auto`** (já está) e adicionar `scroll-smooth` para o âncora funcionar bem.
+### 3. Botão "Forçar varredura agora" no painel
+No `AdminTelegramTab`, adicionar um botão "Rodar verificações agora" que invoca `admin-telegram-watchdog` com `mode:"all"`. Hoje só roda 09h/14h/18h/22h, então não dá pra testar na hora.
 
-Nada de alterar preços, lógica de cobrança ou planos.
+### 4. Retry leve no envio
+No `admin-telegram-notify`, em respostas `502`/`503` do connector gateway, fazer 1 retry com backoff de 1.5s. Reduz os ~3 erros 502 que aparecem nos logs por mês.
 
-## Resposta à dúvida do cliente — débito automático em cartão de débito
+## Ordem de execução
 
-A cobrança recorrente do TrendFood é feita pelo **Mercado Pago** usando o token de cartão salvo na assinatura. O Mercado Pago **só faz débito recorrente automático em cartão de crédito** (a fatura é gerada todo mês e debitada no cartão salvo).
+1. Migration: chave `hot_lead_min_orders` em `platform_config`.
+2. Editar `cleanup-phantom-orders/index.ts`.
+3. Editar `src/lib/errorLogger.ts`.
+4. Editar `admin-telegram-watchdog/index.ts` (ler config + retry interno se quiser).
+5. Editar `admin-telegram-notify/index.ts` (retry 502).
+6. Editar `AdminTelegramTab.tsx` (botão "Rodar agora").
+7. Testar acionando o watchdog manualmente.
 
-Cartão de **débito puro não é aceito** para assinaturas recorrentes — o MP exige cartão de crédito porque precisa autorizar o valor com antecedência. Alternativas que funcionam para o cliente:
-- Cartão de crédito (debita todo mês automaticamente)
-- PIX recorrente (cobrança gerada automática, mas o cliente precisa pagar o QR Code todo mês — não é "automático" como cartão)
+## Detalhes técnicos
 
-Se for cartão múltiplo (débito+crédito), ele precisa marcar a opção crédito na hora de cadastrar.
-
-## Arquivos a editar
-
-- `src/components/dashboard/UpgradeDialog.tsx` — seletor mobile + observer para chip
-- `src/components/pricing/PlanCard.tsx` — features colapsáveis no mobile
+- O watchdog tem dedupe por dia/semana via `admin_telegram_dedupe`, então rodar manualmente várias vezes no mesmo dia **não** vai te enviar a mesma loja duas vezes — isso é o comportamento correto.
+- `payment_confirmed` e `payment_failed` ficam como estão; só disparam em webhook real do Mercado Pago.
+- Não vou mexer no schema dos toggles do painel — todos os 13 já existem corretamente.
