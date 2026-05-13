@@ -1,0 +1,18 @@
+# TrendFood
+
+> Cardápio digital e sistema de delivery com taxa 0% para restaurantes. Receba pedidos no WhatsApp, gerencie cozinha e entregas, e aumente seu lucro real.
+
+TrendFood é uma plataforma SaaS brasileira alternativa ao iFood: o restaurante mantém 100% do faturamento (sem comissão por venda), com cardápio digital, KDS de cozinha, gestão de mesas, entregas com motoboys próprios, impressão térmica, pagamentos via Mercado Pago (PIX e cartão) e integração com WhatsApp.
+
+## Pages
+
+- [Home](/): Visão geral, benefícios e calculadora de economia vs marketplaces.
+- [Planos e Preços](/planos): Planos Free, Pro e Enterprise com recursos e limites.
+- [Instalar o App](/instalar): Instruções para instalar o TrendFood como PWA no celular ou desktop.
+- [Documentação de Impressora Térmica](/docs/impressora-termica): Guia para configurar impressoras Bluetooth/USB.
+- [Termos de Uso](/termos): Termos de uso da plataforma.
+- [Política de Privacidade](/privacidade): Política de privacidade e LGPD.
+
+## Optional
+
+- [Entrar ou Criar Conta](/auth): Login e cadastro de restaurantes.
