@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
 import FirstAccessBanner from "./FirstAccessBanner";
 import { getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrinter";
+import LockedFeatureBanner from "./LockedFeatureBanner";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useNavigate } from "react-router-dom";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
@@ -26,6 +29,9 @@ interface PrinterTabProps {
 
 export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onDisconnectBluetooth, btSupported, btPairing }: PrinterTabProps) {
   const { organization } = useAuth();
+  const navigate = useNavigate();
+  const { canAccess } = usePlanLimits(organization);
+  const printerAllowed = canAccess("thermal_printer");
 
   
 
@@ -115,6 +121,12 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   };
 
   const handleTestPrint = async () => {
+    if (!printerAllowed) {
+      toast.error("Impressora disponível apenas em planos pagos", {
+        description: "Pro, Enterprise, Vitalício ou durante o trial de 7 dias.",
+      });
+      return;
+    }
     if (!organization?.id) {
       toast.error("Organização não encontrada. Recarregue a página e tente novamente.");
       return;
