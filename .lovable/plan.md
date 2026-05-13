@@ -1,67 +1,67 @@
-## O que já protege hoje
+## Objetivo
 
-- `unique_referral_pair` (referrer, referred) → cada loja indicada só credita bônus **uma vez**, mesmo que o amigo cancele e reassine.
-- Bônus **só dispara quando o MP confirma pagamento** real (cartão/PIX). Não basta cadastrar.
-- Cartão precisa ser de CNPJ na conta MP PJ — barra teste com cartão de presente.
+Garantir que o sistema anti-fraude que construímos (trigger de validação, carência de 7d, reversão por refund, limite mensal) **não falhe silenciosamente em produção**. Hoje funciona, mas se algo quebrar você só descobre quando alguém reclamar.
 
-## Onde ainda dá pra burlar
+## 3 frentes
 
-1. **Auto-indicação**: criar uma 2ª loja com o próprio link (`referred_by_id = própria org`).
-2. **Mesmo dono, vários CNPJs/cartões**: a pessoa abre 5 lojas (e‑mails diferentes, CNPJs diferentes), usa o link da loja-mãe e paga um mês em cada uma → ganha 5 meses grátis na loja-mãe.
-3. **Mesmo cartão** em contas diferentes para se auto-creditar.
-4. **Refund após o crédito**: amigo paga, ganha o bônus, depois pede chargeback/cancela em 7 dias → o bônus já foi pra sempre.
-5. **Escala industrial**: alguém montar 50 contas e zerar a mensalidade pra sempre.
+### 1. Testes automatizados do anti-fraude (SQL puro)
 
-## Camadas de defesa propostas (todas em SQL — fonte da verdade)
+Criar `supabase/functions/_tests/referral-fraud.test.ts` rodando contra o banco com service role. Cobre os 6 cenários críticos:
 
-### 1. Trigger `validate_referral_bonus` em `referral_bonuses` BEFORE INSERT
-Bloqueia a criação do bônus quando detecta sinal de auto-indicação:
+1. **Auto-indicação direta** (`referrer = referred`) → trigger lança erro
+2. **Mesmo `user_id`** nas duas orgs → trigger lança erro
+3. **Mesmo CNPJ normalizado** → trigger lança erro
+4. **Mesmo WhatsApp normalizado** → trigger lança erro
+5. **Limite mensal excedido** (somar >180 dias em 30d) → insere com `flagged_reason = 'monthly_limit_exceeded'` e `released_at = NULL`
+6. **Refund flow**: insere bônus com `source_payment_id`, força `applied_at` via update, chama `revert_referral_bonus_by_payment(payment_id)` → confirma `reverted_at` preenchido e `trial_ends_at` reduzido pelos `bonus_days`
 
-- `referrer_org_id = referred_org_id` → erro
-- Mesmo `user_id` (dono) nas duas orgs → erro
-- Mesmo `cnpj` normalizado nas duas orgs → erro
-- Mesmo `whatsapp` normalizado (só dígitos) → erro
-- Mesmo `mp_payer_email` ou `mp_card_first6_last4` (a definir, se já guardamos no MP webhook) → erro
+Cada teste cria orgs efêmeras com prefixo `test-fraud-` e limpa no `finally`.
 
-Como o INSERT vem dos webhooks (service role), o trigger é a única defesa que não dá pra contornar via SDK.
+### 2. Watchdog do `pg_cron` de liberação
 
-### 2. Limite mensal de bônus por referrer
-Trigger soma `bonus_days` dos últimos 30 dias do mesmo `referrer_org_id`. Se passar de **180 dias/mês** (≈ 6 indicações mensais), bloqueia o crédito e marca pra revisão. Indicações honestas raramente passam disso; quem passar fica visível pro admin.
+Hoje `release_pending_referral_bonuses()` roda de hora em hora. Se o cron falhar/atrasar, bônus ficam pendentes para sempre.
 
-### 3. Reversão automática em refund/chargeback
-No `mp-webhook`, quando recebermos `payment.refunded` ou `chargeback`:
-- localizar o `referral_bonus` derivado daquele pagamento;
-- subtrair `bonus_days` do `trial_ends_at` do referrer;
-- marcar o bônus como `reverted = true` (nova coluna).
+- Criar tabela `cron_health` (job_name, last_success_at) ou reusar `activation_logs`.
+- Alterar a função pra registrar `last_success_at = now()` ao final.
+- Criar nova edge function `referral-cron-watchdog` (verify_jwt=false) que:
+  - Verifica se `last_success_at < now() - 2h` ou se existe bônus com `released_at < now() - 2h AND applied_at IS NULL AND reverted_at IS NULL`.
+  - Se sim, dispara `notify_admin_telegram('cron_lagging', {...})`.
+- Agendar essa watchdog via `pg_cron` a cada 30 min.
 
-Isso fecha o golpe "paga, ganha, estorna".
+### 3. Notificação Telegram quando bônus é bloqueado/flagged
 
-### 4. Carência (hold) de 7 dias
-Em vez de creditar `trial_ends_at` na hora, gravar o bônus com `released_at = now() + 7 dias` e um `pg_cron` diário libera os bônus que passaram do prazo **sem refund**. Mesma lógica que já existe em `affiliate_commissions`.
+Adicionar trigger `AFTER INSERT` em `referral_bonuses` que dispara `notify_admin_telegram('referral_flagged', {...})` quando `NEW.flagged_reason IS NOT NULL`. Atualizar `admin-telegram-notify` pra renderizar o caso novo (motivo + nomes + IDs + link admin).
 
-### 5. Auditoria + admin
-- Coluna `referral_bonuses.flagged_reason TEXT` para registrar o motivo quando algo é bloqueado/marcado.
-- Aba do admin lista bônus suspeitos (`flagged_reason IS NOT NULL` ou acima do limite mensal) com botão "anular".
-- Notificação Telegram pro admin quando um bloqueio acontece.
+Também cobrir os erros lançados pelo trigger (auto-indicação, mesmo CNPJ etc.): hoje eles abortam o INSERT e ninguém vê. Solução: encapsular o INSERT no `mp-webhook` e `universal-activation-webhook` num try/catch — quando der `P0001` com mensagem de auto-indicação/CNPJ/WA, registrar num novo `referral_block_logs` (org_referrer, org_referred, reason, payment_id) e disparar Telegram. Assim você vê tentativas de fraude que foram bloqueadas, não só as marcadas pra revisão.
 
 ## Mudanças concretas
 
-**Migration**:
-- `ALTER TABLE referral_bonuses ADD COLUMN released_at TIMESTAMPTZ, ADD COLUMN reverted BOOLEAN DEFAULT false, ADD COLUMN flagged_reason TEXT, ADD COLUMN source_payment_id TEXT;`
-- Função `validate_referral_bonus()` + trigger BEFORE INSERT (regras 1 e 2).
-- Função `release_pending_referral_bonuses()` + agendamento `pg_cron` diário (regra 4).
+**Migração SQL**:
+- Tabela `referral_block_logs` (referrer_org_id, referred_org_id, reason, source_payment_id, created_at) com RLS só admin.
+- Tabela `cron_health` (job_name PK, last_success_at) com RLS só admin.
+- Trigger `tr_notify_referral_flagged AFTER INSERT` em `referral_bonuses`.
+- Atualizar `release_pending_referral_bonuses()` pra fazer `UPSERT` em `cron_health` no final.
+- `pg_cron`: agendar `referral-cron-watchdog` a cada 30 min.
 
 **Edge functions**:
-- `mp-webhook`: gravar `source_payment_id` ao criar o bônus; no `payment.refunded` rodar reversão (regra 3); ao criar, em vez de somar em `trial_ends_at` direto, deixar `released_at = now() + 7d` e somar só na liberação.
-- `universal-activation-webhook` e `ManageSubscriptionDialog`: mesmo padrão — usar `released_at`.
+- `mp-webhook` e `universal-activation-webhook`: try/catch no insert de `referral_bonuses`, gravar `referral_block_logs` em caso de erro do trigger.
+- Nova: `referral-cron-watchdog` (verifica health + dispara Telegram).
+- `admin-telegram-notify`: novos casos `referral_flagged`, `referral_blocked`, `cron_lagging`.
+
+**Testes**:
+- `supabase/functions/_tests/referral-fraud.test.ts` com os 6 cenários acima.
 
 **Frontend**:
-- `ReferralSection`: mostrar bônus em "carência" como "+30 dias (libera em X dias)".
-- Admin: lista de bônus flagged com ação "anular".
+- Em `ReferralsTab` do admin (já existe), adicionar seção "Tentativas bloqueadas" lendo `referral_block_logs` (últimos 30 dias).
 
-## Decisões em aberto pra você confirmar
+## Detalhes técnicos
 
-1. **Limite mensal**: 180 dias/mês (≈6 indicações) tá bom ou prefere outro número?
-2. **Carência**: 7 dias OK, ou prefere alinhar com o ciclo do cartão (ex: 14 dias)?
-3. **Bloqueio por mesmo WhatsApp**: WhatsApp obrigatório no onboarding, então é checagem forte. Mantenho como bloqueio duro?
-4. **Bônus já creditados**: aplicar a carência só pra novos, ou recalcular os existentes? (sugestão: só pra novos — não mexe com quem já recebeu).
+- Os testes usam `VITE_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` via `Deno.env`.
+- O watchdog usa o mesmo padrão de `admin-telegram-watchdog` que já existe.
+- Nada disso muda comportamento normal — só adiciona observabilidade. Risco de regressão é baixo.
+
+## Fora do escopo
+
+- Reescrever lógica do trigger (já está correta).
+- Mudar a janela de carência (7d permanece).
+- Mexer no fluxo de bônus do usuário final na UI (já mostra carência/revisão).
