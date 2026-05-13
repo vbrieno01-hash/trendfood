@@ -116,7 +116,8 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
 
     if (existing) return;
 
-    const bonusDays = (activatedOrg as any)?.billing_cycle === "annual" ? 30 : 10;
+    // Mensal = +1 mês (30d) · Anual = +3 meses (90d)
+    const bonusDays = (activatedOrg as any)?.billing_cycle === "annual" ? 90 : 30;
 
     await (supabase.from("referral_bonuses") as any).insert({
       referrer_org_id: referrerId,

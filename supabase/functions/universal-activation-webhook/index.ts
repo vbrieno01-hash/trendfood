@@ -31,7 +31,8 @@ async function processReferralBonus(
 
     if (existing) return;
 
-    const bonusDays = activatedOrg.billing_cycle === "annual" ? 30 : 10;
+    // Mensal = +1 mês (30d) · Anual = +3 meses (90d)
+    const bonusDays = activatedOrg.billing_cycle === "annual" ? 90 : 30;
 
     // Insert bonus record
     await supabase.from("referral_bonuses").insert({
