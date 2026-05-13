@@ -1879,6 +1879,54 @@ export type Database = {
           },
         ]
       }
+      stock_alerts: {
+        Row: {
+          acknowledged: boolean
+          acknowledged_at: string | null
+          available_qty: number
+          created_at: string
+          id: string
+          menu_item_name: string | null
+          order_id: string | null
+          order_number: number | null
+          organization_id: string
+          requested_qty: number
+          shortage: number
+          stock_item_id: string | null
+          stock_item_name: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          available_qty?: number
+          created_at?: string
+          id?: string
+          menu_item_name?: string | null
+          order_id?: string | null
+          order_number?: number | null
+          organization_id: string
+          requested_qty?: number
+          shortage?: number
+          stock_item_id?: string | null
+          stock_item_name: string
+        }
+        Update: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          available_qty?: number
+          created_at?: string
+          id?: string
+          menu_item_name?: string | null
+          order_id?: string | null
+          order_number?: number | null
+          organization_id?: string
+          requested_qty?: number
+          shortage?: number
+          stock_item_id?: string | null
+          stock_item_name?: string
+        }
+        Relationships: []
+      }
       stock_items: {
         Row: {
           cost_per_unit: number
