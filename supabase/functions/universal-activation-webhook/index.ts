@@ -43,6 +43,29 @@ async function processReferralBonus(
     });
     if (insErr) {
       console.warn("[universal-webhook] referral_bonus blocked:", insErr.message);
+      const reason = insErr.message?.match(/Auto-indica|mesmo dono|mesmo CNPJ|mesmo WhatsApp/i)?.[0]
+        || "trigger_blocked";
+      try {
+        await supabase.from("referral_block_logs").insert({
+          referrer_org_id: referrerId,
+          referred_org_id: activatedOrgId,
+          reason,
+          raw_error: insErr.message,
+        });
+        await supabase.functions.invoke("admin-telegram-notify", {
+          body: {
+            event_type: "referral_blocked",
+            payload: {
+              referrer_org_id: referrerId,
+              referred_org_id: activatedOrgId,
+              referred_org_name: activatedOrg.name || null,
+              reason,
+            },
+          },
+        });
+      } catch (e) {
+        console.error("[universal-webhook] block log err:", e);
+      }
       return;
     }
 
