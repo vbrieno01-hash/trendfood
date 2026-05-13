@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import ReceiptPreview from "./ReceiptPreview";
 import FirstAccessBanner from "./FirstAccessBanner";
 import { getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrinter";
+import LockedFeatureBanner from "./LockedFeatureBanner";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useNavigate } from "react-router-dom";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
@@ -26,6 +29,9 @@ interface PrinterTabProps {
 
 export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onDisconnectBluetooth, btSupported, btPairing }: PrinterTabProps) {
   const { organization } = useAuth();
+  const navigate = useNavigate();
+  const { canAccess } = usePlanLimits(organization);
+  const printerAllowed = canAccess("thermal_printer");
 
   
 
@@ -115,6 +121,12 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   };
 
   const handleTestPrint = async () => {
+    if (!printerAllowed) {
+      toast.error("Impressora disponível apenas em planos pagos", {
+        description: "Pro, Enterprise, Vitalício ou durante o trial de 7 dias.",
+      });
+      return;
+    }
     if (!organization?.id) {
       toast.error("Organização não encontrada. Recarregue a página e tente novamente.");
       return;
@@ -152,6 +164,16 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
         description="1️⃣ Escolha o modo de impressão · 2️⃣ Selecione a largura do papel · 3️⃣ Clique em 'Testar Impressora' para confirmar"
       />
 
+      {!printerAllowed && (
+        <LockedFeatureBanner
+          variant="free"
+          title="Impressora térmica é um recurso pago"
+          description="Disponível em qualquer plano pago (Pro, Enterprise ou Vitalício) e durante o trial de 7 dias. Suas configurações ficam preservadas — assine para reativar."
+          ctaLabel="Ver planos"
+          onUpgrade={() => navigate("/dashboard?tab=subscription")}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3 animate-dashboard-fade-in">
         <div className="dashboard-section-icon">
@@ -182,7 +204,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
           ))}
           <Button
             className="w-full gap-2 mt-2"
-            disabled={testPrintLoading}
+            disabled={testPrintLoading || !printerAllowed}
             onClick={handleTestPrint}
           >
             {testPrintLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Printer className="w-4 h-4" /> 🖨️ Testar Impressora Agora</>}
@@ -200,7 +222,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
           {/* Print mode */}
           <div>
             <Label htmlFor="print-mode" className="text-sm font-medium">Modo de impressão</Label>
-            <Select value={printMode} onValueChange={handlePrintModeChange} disabled={printModeLoading}>
+            <Select value={printMode} onValueChange={handlePrintModeChange} disabled={printModeLoading || !printerAllowed}>
               <SelectTrigger id="print-mode" className="mt-1">
                 <SelectValue />
               </SelectTrigger>
@@ -248,8 +270,14 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
                   variant="outline"
                   size="sm"
                   className="gap-2"
-                  disabled={btPairing}
+                  disabled={btPairing || !printerAllowed}
                   onClick={() => {
+                    if (!printerAllowed) {
+                      toast.error("Impressora disponível apenas em planos pagos", {
+                        description: "Pro, Enterprise, Vitalício ou durante o trial de 7 dias.",
+                      });
+                      return;
+                    }
                     if (!btSupported) {
                       const status = getBluetoothStatus();
                       if (!status.supported) {
@@ -281,7 +309,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
           {/* Printer width */}
           <div>
             <Label htmlFor="printer-width" className="text-sm font-medium">Largura da impressora</Label>
-            <Select value={printerWidth} onValueChange={handlePrinterWidthChange} disabled={printerLoading}>
+            <Select value={printerWidth} onValueChange={handlePrinterWidthChange} disabled={printerLoading || !printerAllowed}>
               <SelectTrigger id="printer-width" className="mt-1">
                 <SelectValue />
               </SelectTrigger>
@@ -390,7 +418,7 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
             variant="outline"
             size="sm"
             className="h-9 gap-2"
-            disabled={testPrintLoading}
+            disabled={testPrintLoading || !printerAllowed}
             onClick={handleTestPrint}
           >
             {testPrintLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Printer className="w-4 h-4" /> Testar Impressora</>}

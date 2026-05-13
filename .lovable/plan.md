@@ -1,47 +1,59 @@
-## Problema
+## Objetivo
 
-Na vitrine pública (`/unidade/slug` e `/mesa/...`), a loja não muda de "Fechada" para "Aberta" sozinha quando bate o horário de abertura. O cliente precisa atualizar a página.
+Travar impressora térmica para planos pagos (Pro, Enterprise, Vitalício) + trial de 7 dias. Free puro = bloqueado. E alinhar a descrição "20 itens" → "30 itens" no plano Free.
 
-### Causa raiz
+## Mudanças
 
-`getStoreStatus(org.business_hours, org.force_open)` é executado a cada render usando `new Date()`. Mas o componente só re-renderiza quando:
+### 1. Free: descrição "30 itens"
+**Arquivo:** dado em `platform_plans` (key='free')
+- Trocar feature "Até 20 itens no cardápio" → "Até 30 itens no cardápio"
+- Sem código, sem deploy
 
-1. O React Query refaz a query e retorna **uma referência nova** de `org` (a cada 30s);
-2. ou o usuário interage.
+### 2. Impressora trancada para Pro+
 
-Como `business_hours` quase nunca muda, em muitos casos o React Query devolve dados estruturalmente iguais e o componente não re-renderiza — então o `Date()` nunca é reavaliado e a loja "trava" no estado em que estava quando a página foi aberta.
+#### 2a. `src/hooks/usePlanLimits.ts`
+- Adicionar `thermal_printer` em `Feature`
+- `FEATURE_ACCESS`:
+  - `free: { thermal_printer: false }`
+  - `pro / enterprise / lifetime: { thermal_printer: true }`
+- Trial pega de graça automaticamente (já vira `effectivePlan = pro` durante os 7 dias)
+- Plano pago expirado → cai pra Free → impressora bloqueia (consistente com a política de preservação de dados)
 
-A lógica em SQL (`get_store_status`) e em TS (`src/lib/storeStatus.ts`) está correta. As migrations de ontem (RLS de organizations/deliveries/couriers, PIX, cupons) não tocaram nesse fluxo.
+#### 2b. `src/components/dashboard/PrinterTab.tsx`
+- Ler `usePlanLimits(organization).canAccess('thermal_printer')`
+- Se `false`: renderizar `LockedFeatureBanner` (variant `free`) no topo, com CTA "Assinar Pro" abrindo o `UpgradeDialog` ou navegando para a aba Assinatura
+- Desabilitar botões "Conectar impressora" / "Imprimir teste" / "Reconectar"
+- Mostrar mensagem clara: "Disponível em qualquer plano pago (Pro, Enterprise ou Vitalício) e durante o trial de 7 dias"
 
-## Solução
+#### 2c. `src/lib/printOrder.ts` (gate na impressão automática)
+- Aceitar plano nas opções (ou ler `organization` direto onde for chamado)
+- Se Free puro: não enfileirar/imprimir, retornar silenciosamente
+- Garante que loja que pareou no Pro e depois caiu pra Free não tente mais imprimir
+- Sem erro, sem toast — só skip
 
-Adicionar um "tick" de tempo nas páginas da vitrine que força a recomputação do status a cada 30 segundos, independente de refetch.
+#### 2d. Defesa em outros pontos de chamada
+Verificar e gatear (se necessário):
+- `KitchenTab` / `OperationsTab` (botão imprimir manual)
+- Auto-print em novo pedido (KDS)
+- `printQueue.ts` (worker que processa fila local)
 
-### Arquivos a alterar
+Padrão: passar `effectivePlan` ou `canAccess('thermal_printer')` como flag e pular execução no Free.
 
-**1. `src/pages/UnitPage.tsx`**
-- Adicionar um `useState` numérico (`tick`) e um `useEffect` com `setInterval(() => setTick(t => t+1), 30_000)`.
-- Incluir `tick` na deps do `useMemo` que computa `storeStatus` (ou trocar a IIFE da linha 431 por `useMemo([org?.business_hours, org?.force_open, org?.paused, tick])`).
-- Resultado: a cada 30s a página reavalia o relógio e abre a loja sozinha quando bater `from`.
+## O que NÃO mexer
 
-**2. `src/pages/TableOrderPage.tsx`** (linha 91)
-- Mesmo padrão: `tick` + `useMemo` para `storeStatus`.
+- `src/lib/bluetoothPrinter.ts` (mantém Web Bluetooth genérico)
+- `src/lib/checkMenuItemLimit.ts` (segue 30)
+- `usePlanLimits.menuItemLimit` (segue 30)
+- Triggers SQL `gate_*_paid_plan`, preços, promo, trial, MP, lógica de expiração
+- Lógica de fila / reconexão BT em si — só adiciona o gate de plano por cima
 
-**3. `src/pages/CourierPage.tsx`** (linha 266 — já tem dependência de `activeShift, businessHours, forceOpen`)
-- Adicionar `tick` ao `useEffect` para que o painel do entregador também respeite a transição automática.
+## Resultado pro lojista
 
-### O que NÃO mexer
-
-- `src/lib/storeStatus.ts` — lógica correta, deixar como está.
-- Função SQL `get_store_status` / `validate_store_open_for_order` — corretas, mantidas como segunda linha de defesa no INSERT do pedido.
-- RLS de `organizations` — `business_hours` segue concedido a `anon` (migration `20260513015213`).
-- `useOrganization` — mantém `refetchInterval: 30s` (cobre mudanças reais de `paused`/`force_open`).
-
-### Validação
-
-- Abrir a vitrine de uma loja com `from: 23:59` (ou ajustar temporariamente) e esperar passar o minuto sem dar refresh → deve virar "Aberta" em até 30s.
-- Conferir nas duas páginas (`/unidade/slug` e `/mesa/N`).
-
-### Por que `setInterval` em vez de `refetchInterval`
-
-Refetch fala com o backend e depende de mudança de referência para re-renderizar. O `tick` local é gratuito (sem rede), garantido a cada 30s, e só serve para reavaliar `Date()`. Combinados, dão robustez total.
+| Cenário | Impressora |
+|---|---|
+| Trial 7 dias ativo | ✅ funciona |
+| Pro pagante | ✅ funciona |
+| Enterprise pagante | ✅ funciona |
+| Vitalício | ✅ funciona |
+| Free puro (nunca pagou) | 🔒 bloqueado + CTA upgrade |
+| Pago expirado → Free | 🔒 bloqueado, dados preservados, volta ao pagar |
