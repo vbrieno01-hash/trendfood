@@ -104,11 +104,13 @@ function IngredientsSection({
   stockItems,
   addIngredient,
   removeIngredient,
+  onCostChange,
 }: {
   menuItemId: string;
   stockItems: StockItem[];
   addIngredient: ReturnType<typeof useAddMenuItemIngredient>;
   removeIngredient: ReturnType<typeof useRemoveMenuItemIngredient>;
+  onCostChange?: (cost: number) => void;
 }) {
   const { data: ingredients = [], isLoading } = useMenuItemIngredients(menuItemId);
   const [selectedStockId, setSelectedStockId] = useState("");
@@ -116,6 +118,15 @@ function IngredientsSection({
 
   const linkedIds = new Set(ingredients.map((i) => i.stock_item_id));
   const available = stockItems.filter((s) => !linkedIds.has(s.id));
+
+  const totalCost = ingredients.reduce(
+    (sum, ing) => sum + (Number(ing.stock_item?.cost_per_unit ?? 0) * Number(ing.quantity_used ?? 0)),
+    0,
+  );
+
+  useEffect(() => {
+    onCostChange?.(totalCost);
+  }, [totalCost, onCostChange]);
 
   const handleAdd = () => {
     if (!selectedStockId || qtyUsed <= 0) return;
@@ -155,6 +166,12 @@ function IngredientsSection({
             </div>
           ))}
         </div>
+      )}
+
+      {totalCost > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Custo total dos insumos: <span className="font-medium text-foreground">R$ {totalCost.toFixed(2).replace(".", ",")}</span> · sugerido como preço mínimo
+        </p>
       )}
 
       {/* Add new */}
@@ -214,16 +231,27 @@ function PendingIngredientsSection({
   stockItems,
   pending,
   onChange,
+  onCostChange,
 }: {
   stockItems: StockItem[];
   pending: PendingIngredient[];
   onChange: (next: PendingIngredient[]) => void;
+  onCostChange?: (cost: number) => void;
 }) {
   const [selectedStockId, setSelectedStockId] = useState("");
   const [qtyUsed, setQtyUsed] = useState(1);
 
   const linkedIds = new Set(pending.map((p) => p.stock_item_id));
   const available = stockItems.filter((s) => !linkedIds.has(s.id));
+
+  const totalCost = pending.reduce((sum, p) => {
+    const si = stockItems.find((s) => s.id === p.stock_item_id);
+    return sum + (Number(si?.cost_per_unit ?? 0) * Number(p.quantity_used ?? 0));
+  }, 0);
+
+  useEffect(() => {
+    onCostChange?.(totalCost);
+  }, [totalCost, onCostChange]);
 
   const handleAdd = () => {
     if (!selectedStockId || qtyUsed <= 0) return;
@@ -265,6 +293,12 @@ function PendingIngredientsSection({
             );
           })}
         </div>
+      )}
+
+      {totalCost > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Custo total dos insumos: <span className="font-medium text-foreground">R$ {totalCost.toFixed(2).replace(".", ",")}</span> · sugerido como preço mínimo
+        </p>
       )}
 
       {stockItems.length === 0 ? (
@@ -593,6 +627,17 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingIngredients, setPendingIngredients] = useState<PendingIngredient[]>([]);
   const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
+  const [priceTouched, setPriceTouched] = useState(false);
+
+  const handleIngredientsCostChange = useCallback((cost: number) => {
+    if (priceTouched) return;
+    if (cost <= 0) return;
+    setForm((p) => {
+      const current = Number(p.price ?? 0);
+      if (current > 0) return p;
+      return { ...p, price: Number(cost.toFixed(2)) };
+    });
+  }, [priceTouched]);
   const [importOpen, setImportOpen] = useState(false);
   const [moveCatOpen, setMoveCatOpen] = useState<string | null>(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
@@ -718,6 +763,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setPendingIngredients([]);
     setPendingAddons([]);
     setPendingHideGlobalAddons(false);
+    setPriceTouched(false);
     setModalOpen(true);
   };
 
@@ -726,6 +772,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setEditItemId(item.id);
     setPendingIngredients([]);
     setPendingAddons([]);
+    setPriceTouched(Number(item.price ?? 0) > 0);
     setForm({
       name: item.name,
       description: item.description ?? "",
@@ -1328,7 +1375,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                 <CurrencyInput
                   id="item-price"
                   value={form.price}
-                  onChange={(v) => setForm((p) => ({ ...p, price: v }))}
+                  onChange={(v) => { setPriceTouched(true); setForm((p) => ({ ...p, price: v })); }}
                   className="mt-1"
                   required
                 />
@@ -1421,12 +1468,14 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                     stockItems={stockItems}
                     addIngredient={addIngredient}
                     removeIngredient={removeIngredient}
+                    onCostChange={handleIngredientsCostChange}
                   />
                 ) : (
                   <PendingIngredientsSection
                     stockItems={stockItems}
                     pending={pendingIngredients}
                     onChange={setPendingIngredients}
+                    onCostChange={handleIngredientsCostChange}
                   />
                 )
               ) : (
