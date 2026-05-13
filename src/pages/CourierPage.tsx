@@ -210,11 +210,9 @@ const CourierPage = () => {
   useEffect(() => {
     if (orgSlug || !courierId) return;
     supabase
-      .from("couriers")
-      .select("organization_id")
-      .eq("id", courierId)
-      .single()
-      .then(({ data: courierData }) => {
+      .rpc("courier_get_self" as any, { courier_id: courierId })
+      .then(({ data }) => {
+        const courierData = Array.isArray(data) ? data[0] : data;
         if (!courierData) return;
         supabase
           .from("organizations")
