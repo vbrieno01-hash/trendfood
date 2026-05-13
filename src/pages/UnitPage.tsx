@@ -944,6 +944,16 @@ const UnitPage = () => {
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily }}>
+      <Helmet>
+        <title>{`${org.name} — Cardápio Digital`}</title>
+        <meta name="description" content={`Peça online no ${org.name}. Cardápio digital, entrega e retirada com pagamento por PIX ou cartão.`} />
+        <link rel="canonical" href={`https://trendfood.site/unidade/${slug}`} />
+        <meta property="og:title" content={`${org.name} — Cardápio Digital`} />
+        <meta property="og:description" content={`Peça online no ${org.name}. Cardápio digital, entrega e retirada com pagamento por PIX ou cartão.`} />
+        <meta property="og:url" content={`https://trendfood.site/unidade/${slug}`} />
+        {org.logo_url && <meta property="og:image" content={org.logo_url} />}
+        <script type="application/ld+json">{JSON.stringify(restaurantSchema)}</script>
+      </Helmet>
       {/* Header */}
       <header
         className="sticky top-0 z-40 shadow-sm"
