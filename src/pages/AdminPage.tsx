@@ -464,8 +464,12 @@ function AdminContent() {
       )
       .filter((org) => {
         if (statusFilter === "all") return true;
-        if (statusFilter === "active") return org.subscription_status === "active";
-        return org.subscription_status !== "active";
+        const isTrial = !!org.trial_ends_at && new Date(org.trial_ends_at) > new Date()
+          && org.subscription_plan !== "pro"
+          && org.subscription_plan !== "enterprise"
+          && org.subscription_plan !== "lifetime";
+        if (statusFilter === "active") return !isTrial && org.subscription_status === "active";
+        return isTrial;
       })
       .filter((org) => {
         if (addressFilter === "all") return true;
