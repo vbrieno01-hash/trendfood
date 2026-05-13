@@ -1,59 +1,45 @@
 ## Objetivo
 
-Travar impressora térmica para planos pagos (Pro, Enterprise, Vitalício) + trial de 7 dias. Free puro = bloqueado. E alinhar a descrição "20 itens" → "30 itens" no plano Free.
+Quando a loja estiver fechada, deixar claro **quando** ela reabre — não só o horário. Em vez de "Fechado · abre às 19:00" (que dá a impressão que é hoje), mostrar:
+
+- "Fechada hoje · abre amanhã às 19:00" → quando hoje está marcado como fechado e abre amanhã
+- "Fechada hoje · abre sexta às 19:00" → quando o próximo dia aberto não é amanhã
+- "Fechado · abre às 19:00" (mantém atual) → quando ainda é hoje, antes do horário de abrir
 
 ## Mudanças
 
-### 1. Free: descrição "30 itens"
-**Arquivo:** dado em `platform_plans` (key='free')
-- Trocar feature "Até 20 itens no cardápio" → "Até 30 itens no cardápio"
-- Sem código, sem deploy
+### 1. `src/lib/storeStatus.ts`
+- Estender `StoreStatus` com novos campos no caso `open: false`:
+  - `opensDayOffset: number` (0 = hoje, 1 = amanhã, 2+ = futuro)
+  - `opensDayLabel: string | null` (ex: "amanhã", "sexta", "segunda")
+- `findNextOpen()` passa a retornar `{ time, dayOffset }` em vez de só a string.
+- Os 3 retornos com `opensAt` (linhas 106, 133, 137) preenchem os novos campos:
+  - Linha 133 (hoje, antes do horário): `opensDayOffset: 0`, label `null`
+  - Linhas 106 e 137 (próximo dia aberto): offset e label calculados a partir do dia da semana
 
-### 2. Impressora trancada para Pro+
+### 2. Consumidores — formatar a mensagem
+Helper único (pode ficar no próprio `storeStatus.ts`) que recebe o status e devolve a string final:
+- offset 0 → `Fechado · abre às {hora}`
+- offset 1 → `Fechada hoje · abre amanhã às {hora}`
+- offset 2+ → `Fechada hoje · abre {dia} às {hora}`
+- `reason: "break"` → mantém comportamento atual (pausa intra-dia)
 
-#### 2a. `src/hooks/usePlanLimits.ts`
-- Adicionar `thermal_printer` em `Feature`
-- `FEATURE_ACCESS`:
-  - `free: { thermal_printer: false }`
-  - `pro / enterprise / lifetime: { thermal_printer: true }`
-- Trial pega de graça automaticamente (já vira `effectivePlan = pro` durante os 7 dias)
-- Plano pago expirado → cai pra Free → impressora bloqueia (consistente com a política de preservação de dados)
+Atualizar para usar o helper:
+- `src/pages/UnitPage.tsx` (linhas 1096, 1128, 1800)
+- `src/pages/TableOrderPage.tsx` (linha 796)
+- `src/components/unit/ItemDetailDrawer.tsx` (linha 198)
+- `src/hooks/useOrders.ts` (linha 197 — mensagem do toast ao tentar pedir com loja fechada)
 
-#### 2b. `src/components/dashboard/PrinterTab.tsx`
-- Ler `usePlanLimits(organization).canAccess('thermal_printer')`
-- Se `false`: renderizar `LockedFeatureBanner` (variant `free`) no topo, com CTA "Assinar Pro" abrindo o `UpgradeDialog` ou navegando para a aba Assinatura
-- Desabilitar botões "Conectar impressora" / "Imprimir teste" / "Reconectar"
-- Mostrar mensagem clara: "Disponível em qualquer plano pago (Pro, Enterprise ou Vitalício) e durante o trial de 7 dias"
+### 3. Sem mudanças de banco/lógica de negócio
+Nenhuma alteração em RLS, triggers, ou regras de bloqueio de pedido — apenas texto exibido.
 
-#### 2c. `src/lib/printOrder.ts` (gate na impressão automática)
-- Aceitar plano nas opções (ou ler `organization` direto onde for chamado)
-- Se Free puro: não enfileirar/imprimir, retornar silenciosamente
-- Garante que loja que pareou no Pro e depois caiu pra Free não tente mais imprimir
-- Sem erro, sem toast — só skip
+## Detalhes técnicos
 
-#### 2d. Defesa em outros pontos de chamada
-Verificar e gatear (se necessário):
-- `KitchenTab` / `OperationsTab` (botão imprimir manual)
-- Auto-print em novo pedido (KDS)
-- `printQueue.ts` (worker que processa fila local)
+Cálculo do label do dia (em `America/Sao_Paulo`, consistente com `getNowInBrasilia`):
+```
+const DAY_LABELS = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+// offset 1 → "amanhã"
+// offset 2..6 → DAY_LABELS[(todayIndex + offset) % 7]
+```
 
-Padrão: passar `effectivePlan` ou `canAccess('thermal_printer')` como flag e pular execução no Free.
-
-## O que NÃO mexer
-
-- `src/lib/bluetoothPrinter.ts` (mantém Web Bluetooth genérico)
-- `src/lib/checkMenuItemLimit.ts` (segue 30)
-- `usePlanLimits.menuItemLimit` (segue 30)
-- Triggers SQL `gate_*_paid_plan`, preços, promo, trial, MP, lógica de expiração
-- Lógica de fila / reconexão BT em si — só adiciona o gate de plano por cima
-
-## Resultado pro lojista
-
-| Cenário | Impressora |
-|---|---|
-| Trial 7 dias ativo | ✅ funciona |
-| Pro pagante | ✅ funciona |
-| Enterprise pagante | ✅ funciona |
-| Vitalício | ✅ funciona |
-| Free puro (nunca pagou) | 🔒 bloqueado + CTA upgrade |
-| Pago expirado → Free | 🔒 bloqueado, dados preservados, volta ao pagar |
+Compatibilidade: o tipo `StoreStatus` ganha campos opcionais — consumidores que ainda não usam o helper continuam funcionando lendo `opensAt`.

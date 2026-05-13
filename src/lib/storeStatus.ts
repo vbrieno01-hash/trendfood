@@ -48,7 +48,31 @@ function toMinutesClose(time: string): number {
 export type StoreStatus =
   | null
   | { open: true }
-  | { open: false; opensAt: string | null; reason?: "break" };
+  | {
+      open: false;
+      opensAt: string | null;
+      /** 0 = abre ainda hoje, 1 = amanhã, 2+ = futuro. null se não há próximo. */
+      opensDayOffset?: number | null;
+      /** Rótulo amigável: "amanhã", "sexta", etc. null quando offset=0 ou desconhecido. */
+      opensDayLabel?: string | null;
+      reason?: "break";
+    };
+
+const DAY_LABELS = [
+  "domingo",
+  "segunda",
+  "terça",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sábado",
+];
+
+function dayLabelFromOffset(todayIndex: number, offset: number): string | null {
+  if (offset <= 0) return null;
+  if (offset === 1) return "amanhã";
+  return DAY_LABELS[(todayIndex + offset) % 7] ?? null;
+}
 
 export function getStoreStatus(
   businessHours: BusinessHours | null | undefined,
@@ -70,7 +94,13 @@ export function getStoreStatus(
       const breakFrom = timeToMinutes(day.break_from);
       const breakTo = timeToMinutes(day.break_to);
       if (currentMinutes >= breakFrom && currentMinutes < breakTo) {
-        return { open: false, opensAt: day.break_to, reason: "break" };
+        return {
+          open: false,
+          opensAt: day.break_to,
+          opensDayOffset: 0,
+          opensDayLabel: null,
+          reason: "break",
+        };
       }
     }
     return null;
@@ -102,8 +132,13 @@ export function getStoreStatus(
       }
       return { open: true };
     }
-    const nextOpenAt = findNextOpen(businessHours, now.dayOfWeek);
-    return { open: false, opensAt: nextOpenAt };
+    const next = findNextOpen(businessHours, now.dayOfWeek);
+    return {
+      open: false,
+      opensAt: next?.time ?? null,
+      opensDayOffset: next?.dayOffset ?? null,
+      opensDayLabel: next ? dayLabelFromOffset(now.dayOfWeek, next.dayOffset) : null,
+    };
   }
 
   const fromMin = timeToMinutes(today.from);
@@ -130,22 +165,58 @@ export function getStoreStatus(
   }
 
   if (currentMinutes < fromMin) {
-    return { open: false, opensAt: today.from };
+    return {
+      open: false,
+      opensAt: today.from,
+      opensDayOffset: 0,
+      opensDayLabel: null,
+    };
   }
 
-  const nextOpenAt = findNextOpen(businessHours, now.dayOfWeek);
-  return { open: false, opensAt: nextOpenAt };
+  const next = findNextOpen(businessHours, now.dayOfWeek);
+  return {
+    open: false,
+    opensAt: next?.time ?? null,
+    opensDayOffset: next?.dayOffset ?? null,
+    opensDayLabel: next ? dayLabelFromOffset(now.dayOfWeek, next.dayOffset) : null,
+  };
 }
 
-function findNextOpen(bh: BusinessHours, todayIndex: number): string | null {
+function findNextOpen(
+  bh: BusinessHours,
+  todayIndex: number,
+): { time: string; dayOffset: number } | null {
   // Check next 7 days
   for (let i = 1; i <= 7; i++) {
     const nextIndex = (todayIndex + i) % 7;
     const key = DAY_MAP[nextIndex];
     const day = bh.schedule[key];
     if (day && day.open) {
-      return day.from;
+      return { time: day.from, dayOffset: i };
     }
   }
   return null;
+}
+
+/**
+ * Helper de exibição: devolve o sufixo após "abre".
+ * Ex: "às 19:00" | "amanhã às 19:00" | "sexta às 19:00".
+ * Retorna null se não há horário de reabertura conhecido.
+ */
+export function formatOpensAt(status: StoreStatus): string | null {
+  if (!status || status.open === true) return null;
+  const closed = status as Extract<StoreStatus, { open: false }>;
+  if (!closed.opensAt) return null;
+  const offset = closed.opensDayOffset ?? 0;
+  if (offset <= 0) return `às ${closed.opensAt}`;
+  const label = closed.opensDayLabel ?? (offset === 1 ? "amanhã" : null);
+  if (!label) return `às ${closed.opensAt}`;
+  return `${label} às ${closed.opensAt}`;
+}
+
+/** Retorna true quando a loja está fechada o dia inteiro de hoje. */
+export function isClosedAllDay(status: StoreStatus): boolean {
+  if (!status || status.open === true) return false;
+  const closed = status as Extract<StoreStatus, { open: false }>;
+  return (closed.opensDayOffset ?? 0) >= 1;
 }

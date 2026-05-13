@@ -22,7 +22,7 @@ import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 import { useMenuItems, buildCategoryOrder } from "@/hooks/useMenuItems";
-import { getStoreStatus } from "@/lib/storeStatus";
+import { getStoreStatus, formatOpensAt, isClosedAllDay } from "@/lib/storeStatus";
 import { Helmet } from "react-helmet-async";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliveryNeighborhoods";
@@ -1092,8 +1092,8 @@ const UnitPage = () => {
                 ? "Aberto agora"
                 : (storeStatus as any).reason === "break" && opensAt
                 ? `⏸ Em pausa · voltamos às ${opensAt}`
-                : opensAt
-                ? `Fechado · abre às ${opensAt}`
+                : formatOpensAt(storeStatus)
+                ? `${isClosedAllDay(storeStatus) ? "Fechada hoje" : "Fechado"} · abre ${formatOpensAt(storeStatus)}`
                 : "Fechado hoje"}
             </span>
           )}
@@ -1125,7 +1125,9 @@ const UnitPage = () => {
                   {isPaused ? (
                     <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Estamos em pausa. Voltamos em breve!</p>
                   ) : opensAt ? (
-                    <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">Abre às {opensAt}</p>
+                    <p className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5">
+                      Abre {formatOpensAt(storeStatus) ?? `às ${opensAt}`}
+                    </p>
                   ) : null}
                 </div>
               </div>
@@ -1797,7 +1799,9 @@ const UnitPage = () => {
                     : "🔒 Loja fechada · pedidos indisponíveis"}
                 </p>
                 {!(storeStatus && !storeStatus.open && (storeStatus as any).reason) && opensAt && (
-                  <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    Abre {formatOpensAt(storeStatus) ?? `às ${opensAt}`}
+                  </p>
                 )}
               </div>
             ) : whatsapp ? (
@@ -1848,6 +1852,7 @@ const UnitPage = () => {
         isClosed={isClosed}
         opensAt={opensAt}
         closedReason={storeStatus && !storeStatus.open ? (storeStatus as any).reason : undefined}
+        storeStatus={storeStatus}
         organizationId={org.id}
       />
 

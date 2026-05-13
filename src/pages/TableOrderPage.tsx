@@ -8,7 +8,7 @@ import { validateCoupon, incrementCouponUses } from "@/hooks/useCoupons";
 import type { Coupon } from "@/hooks/useCoupons";
 import { useGeneratePixPayload } from "@/hooks/useGeneratePixPayload";
 import { useCreatePixCharge, useCheckPixStatus } from "@/hooks/usePixAutomation";
-import { getStoreStatus } from "@/lib/storeStatus";
+import { getStoreStatus, formatOpensAt } from "@/lib/storeStatus";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -793,7 +793,7 @@ export default function TableOrderPage() {
                   {org?.paused
                     ? "A loja está temporariamente pausada."
                     : storeStatus && !storeStatus.open && (storeStatus as any).opensAt
-                      ? `Abre às ${(storeStatus as any).opensAt}`
+                      ? `Abre ${formatOpensAt(storeStatus) ?? `às ${(storeStatus as any).opensAt}`}`
                       : "Pedidos só podem ser feitos no horário de funcionamento."}
                 </p>
               </div>
