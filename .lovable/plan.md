@@ -1,45 +1,54 @@
 ## Objetivo
 
-Quando a loja estiver fechada, deixar claro **quando** ela reabre — não só o horário. Em vez de "Fechado · abre às 19:00" (que dá a impressão que é hoje), mostrar:
+Aumentar a recompensa do programa de indicação:
+- **Plano Mensal pago pelo amigo** → +30 dias (1 mês) para quem indicou (hoje: +10)
+- **Plano Anual pago pelo amigo** → +90 dias (3 meses) para quem indicou (hoje: +30)
+- **Plano Trimestral** (existe no mp-webhook) → +45 dias, mantendo a proporção (hoje: +15)
 
-- "Fechada hoje · abre amanhã às 19:00" → quando hoje está marcado como fechado e abre amanhã
-- "Fechada hoje · abre sexta às 19:00" → quando o próximo dia aberto não é amanhã
-- "Fechado · abre às 19:00" (mantém atual) → quando ainda é hoje, antes do horário de abrir
+## Pontos de alteração
 
-## Mudanças
+### 1. Backend — onde o bônus é calculado e creditado
+Todos os locais que decidem `bonusDays` precisam usar a nova tabela:
 
-### 1. `src/lib/storeStatus.ts`
-- Estender `StoreStatus` com novos campos no caso `open: false`:
-  - `opensDayOffset: number` (0 = hoje, 1 = amanhã, 2+ = futuro)
-  - `opensDayLabel: string | null` (ex: "amanhã", "sexta", "segunda")
-- `findNextOpen()` passa a retornar `{ time, dayOffset }` em vez de só a string.
-- Os 3 retornos com `opensAt` (linhas 106, 133, 137) preenchem os novos campos:
-  - Linha 133 (hoje, antes do horário): `opensDayOffset: 0`, label `null`
-  - Linhas 106 e 137 (próximo dia aberto): offset e label calculados a partir do dia da semana
+- `supabase/functions/mp-webhook/index.ts` (linha 93)
+  `annual ? 30 : quarterly ? 15 : 10` → `annual ? 90 : quarterly ? 45 : 30`
+- `supabase/functions/universal-activation-webhook/index.ts` (linha 34)
+  `annual ? 30 : 10` → `annual ? 90 : 30`
+- `src/pages/AdminPage.tsx` → `processReferralBonusClient` (linha ~119)
+  `annual ? 30 : 10` → `annual ? 90 : 30`
+- `src/components/admin/ManageSubscriptionDialog.tsx` (ativação manual pelo admin, linhas ~136 e ~150)
+  - `bonus_days: 10` → calcular pelo `billing_cycle` da org ativada (annual=90, quarterly=45, default=30)
+  - `+ 10 * 24*60*60*1000` → usar a mesma variável `bonusDays`
+  - mensagem do log de ativação atualizada para `+${bonusDays} dias`
 
-### 2. Consumidores — formatar a mensagem
-Helper único (pode ficar no próprio `storeStatus.ts`) que recebe o status e devolve a string final:
-- offset 0 → `Fechado · abre às {hora}`
-- offset 1 → `Fechada hoje · abre amanhã às {hora}`
-- offset 2+ → `Fechada hoje · abre {dia} às {hora}`
-- `reason: "break"` → mantém comportamento atual (pausa intra-dia)
+Sem alterações de schema. `referral_bonuses.bonus_days` já guarda o número real, então bônus antigos continuam exibindo o valor que foi efetivamente creditado.
 
-Atualizar para usar o helper:
-- `src/pages/UnitPage.tsx` (linhas 1096, 1128, 1800)
-- `src/pages/TableOrderPage.tsx` (linha 796)
-- `src/components/unit/ItemDetailDrawer.tsx` (linha 198)
-- `src/hooks/useOrders.ts` (linha 197 — mensagem do toast ao tentar pedir com loja fechada)
+### 2. Frontend — UI da aba "Ganhe Desconto"
+`src/components/dashboard/ReferralSection.tsx`:
+- Card "Sua Recompensa":
+  - "+10 dias" → **"+1 mês"** com sublinha "(30 dias grátis)"
+  - "+30 dias" → **"+3 meses"** com sublinha "(90 dias grátis)"
+- Atualizar o texto do passo 3 e a frase final do card para reforçar "ganha meses grátis".
+- Histórico de bônus mantém a exibição em dias (vem do banco), mas para entradas novas vai aparecer "+30 dias" / "+90 dias" naturalmente.
 
-### 3. Sem mudanças de banco/lógica de negócio
-Nenhuma alteração em RLS, triggers, ou regras de bloqueio de pedido — apenas texto exibido.
+### 3. Sem mudanças
+- Nenhum impacto em `affiliates` / `affiliate_commissions` (sistema separado, paga em R$).
+- Nenhuma mudança em RLS, schema, edge function configs ou cron jobs.
 
-## Detalhes técnicos
+## Plano de testes (executados antes de declarar pronto)
 
-Cálculo do label do dia (em `America/Sao_Paulo`, consistente com `getNowInBrasilia`):
-```
-const DAY_LABELS = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
-// offset 1 → "amanhã"
-// offset 2..6 → DAY_LABELS[(todayIndex + offset) % 7]
-```
+1. **Grep de cobertura** — após editar, rodar `rg "bonus_days|bonusDays|annual ? 30 : 10|annual ? 30 : quarterly"` para garantir que nenhum local antigo ficou para trás.
+2. **Build TypeScript** — verificar que compila sem erros (executado pelo harness automaticamente).
+3. **Teste unitário da regra de cálculo** — escrever um pequeno script `node` em `/tmp` que importa/replica a função `bonusFor(cycle)` e valida:
+   - `bonusFor("annual") === 90`
+   - `bonusFor("quarterly") === 45`
+   - `bonusFor("monthly") === 30`
+   - `bonusFor(undefined) === 30`
+4. **Inspeção dos 4 arquivos backend** — re-leitura final confirmando que cada um aplica a mesma tabela de valores.
+5. **Verificação de banco (read-only via psql)** — `SELECT bonus_days, count(*) FROM referral_bonuses GROUP BY 1;` para confirmar que os valores históricos continuam preservados (o ajuste é só para novas conversões).
+6. **Smoke test do componente** — abrir a aba `/dashboard?tab=referral` no preview e conferir visualmente os números "+1 mês" e "+3 meses".
 
-Compatibilidade: o tipo `StoreStatus` ganha campos opcionais — consumidores que ainda não usam o helper continuam funcionando lendo `opensAt`.
+## Observações
+
+- Bônus já creditados no passado ficam como estão (10/30 dias). A mudança vale para conversões futuras a partir do deploy das Edge Functions (deploy automático).
+- O cálculo de "economia total" no card de stats usa `totalDays * (priceCents / 30)`, então continua coerente — quando um amigo novo pagar mensal, o stat saltará +1 mensalidade inteira.
