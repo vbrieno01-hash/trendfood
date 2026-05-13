@@ -615,6 +615,18 @@ Deno.serve(async (req) => {
             org?.billing_cycle || null,
           );
 
+          // ── Ledger de receita real ──
+          await recordSubscriptionPayment(
+            supabase,
+            orgId,
+            paymentId,
+            mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+            org?.subscription_plan || null,
+            org?.billing_cycle || null,
+            !!org?.used_first_month_promo,
+            "mp_webhook",
+          );
+
           return new Response(JSON.stringify({ success: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -701,6 +713,18 @@ Deno.serve(async (req) => {
         paymentId,
         mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
         org?.billing_cycle || null,
+      );
+
+      // ── Ledger de receita real ──
+      await recordSubscriptionPayment(
+        supabase,
+        orgId,
+        paymentId,
+        mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+        plan,
+        org?.billing_cycle || null,
+        promoApplied,
+        "mp_webhook",
       );
 
       return new Response(JSON.stringify({ success: true }), {
