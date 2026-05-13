@@ -1,28 +1,24 @@
-## Backfill das 2 assinaturas Pro pagas
+## Diagnóstico
 
-Lançar no ledger `subscription_payments` os 2 pagamentos reais já recebidos com 50% de desconto, usando a data de hoje. Depois disso o painel admin vai mostrar a receita real (R$ 99,00) ao invés do valor cheio (R$ 198,00).
+O link novo **já foi salvo no banco** com sucesso:
+- `community_whatsapp_url` = `https://chat.whatsapp.com/GPW4EqThH0nCfDzZoscwwi`
 
-### Lançamentos
+O código do `DashboardPage.tsx` lê corretamente esse valor. O motivo de "não atualizar" é o **cache em memória** do hook `usePlatformContent` (TTL de 60s, módulo-level), combinado com o **Service Worker do PWA** que pode estar servindo o app em cache. Por isso o link antigo continua aparecendo até refresh forçado.
 
-| Loja | Plano | Ciclo | Valor | Promo | Fonte |
-|---|---|---|---|---|---|
-| lanchonetedopastor | pro | monthly | R$ 49,50 | sim | manual |
-| WrBurg | pro | monthly | R$ 49,50 | sim | manual |
+## Plano
 
-### O que faço
+1. **Reduzir/eliminar cache estático no `usePlatformContent`**
+   - Trocar o cache de 60s por um refetch a cada montagem (ou TTL de 5s alinhado ao padrão global).
+   - Adicionar listener Realtime na tabela `platform_content` para invalidar o cache automaticamente quando algo é editado no Admin.
 
-- Inserir 2 linhas em `public.subscription_payments` via tool de dados (não migração) com:
-  - `organization_id` das 2 lojas
-  - `amount_cents = 4950`
-  - `billing_cycle = 'monthly'`, `plan = 'pro'`
-  - `promo_applied = true`
-  - `source = 'manual'`
-  - `paid_at = now()`
-  - `payment_id = 'backfill-50pct-<org_id>-<yyyymm>'` para garantir idempotência
-  - `notes = 'Backfill manual: assinatura promo 50%'`
+2. **Forçar invalidação após salvar no Admin**
+   - Já é feito (`cache = null`), mas garantir que outras abas/sessões também recebam (via Realtime do passo 1).
 
-### Resultado
+3. **Sem mudanças no banco** — o valor já está correto.
 
-- MRR (últimos 30 dias) no admin passa a refletir R$ 99,00 reais.
-- As 7 lojas lifetime ficam fora do ledger (foram cortesia, sem cobrança).
-- Cobranças futuras pelo Mercado Pago caem automaticamente no ledger via `mp-webhook` com o valor real cobrado, sem precisar de novo backfill.
+## Detalhes técnicos
+
+- `src/hooks/usePlatformContent.ts`: remover `CACHE_TTL` longo, refetch on mount + canal Realtime `platform_content` que zera `cache` e re-busca.
+- Habilitar Realtime para `platform_content` se ainda não estiver (`ALTER PUBLICATION supabase_realtime ADD TABLE public.platform_content`).
+
+Após aplicar, basta fechar e reabrir o painel (ou esperar ~2s) que o link novo aparece sem precisar de hard-reload.
