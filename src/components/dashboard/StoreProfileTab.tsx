@@ -324,6 +324,18 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       setLogoUrl(url);
       await supabase.from("organizations").update({ logo_url: url }).eq("id", organization.id);
       await updateAllOrgs({ logo_url: url });
+      // Auto-tema: extrai paleta da nova logo (apenas se modo auto, default)
+      if ((themeConfig.color_mode ?? "auto") === "auto") {
+        try {
+          const palette = await extractBrandPalette(url);
+          const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
+          setThemeConfig(nextTheme);
+          await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
+          setForm((p) => ({ ...p, primary_color: palette.primary }));
+        } catch (e) {
+          console.warn("[auto-theme] extraction failed", e);
+        }
+      }
       await refreshOrganization();
       toast.success("Logo atualizado!");
     } catch (err) {
