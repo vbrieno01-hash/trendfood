@@ -84,7 +84,7 @@ const SavingsCalculator = () => {
               inputMode="numeric"
               value={display}
               onChange={handleChange}
-              className="w-full bg-transparent border-b border-white/30 pl-12 pb-3 text-3xl font-medium text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:border-white/60 transition-colors"
+              className="w-full bg-transparent border-b border-white/30 pl-12 pb-3 text-3xl font-medium text-white placeholder:text-white/70 focus-visible:outline-none focus-visible:border-white/60 transition-colors"
             />
           </div>
 
