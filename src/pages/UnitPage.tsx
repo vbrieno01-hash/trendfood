@@ -1852,6 +1852,7 @@ const UnitPage = () => {
         isClosed={isClosed}
         opensAt={opensAt}
         closedReason={storeStatus && !storeStatus.open ? (storeStatus as any).reason : undefined}
+        storeStatus={storeStatus}
         organizationId={org.id}
       />
 
