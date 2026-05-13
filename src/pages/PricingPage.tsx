@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import PlanCard from "@/components/pricing/PlanCard";
 import logoIcon from "@/assets/logo-icon.png";
+import PageSeo from "@/components/seo/PageSeo";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
@@ -160,6 +161,11 @@ const PricingPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <PageSeo
+        title="Planos e Preços — TrendFood"
+        description="Conheça os planos do TrendFood: cardápio digital com taxa 0%, gestão de pedidos, cozinha e entregas. Escolha o plano ideal para seu restaurante."
+        path="/planos"
+      />
       {/* Header */}
       <header className="border-b border-border/60">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">

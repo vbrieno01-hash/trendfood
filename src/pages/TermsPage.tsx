@@ -3,10 +3,16 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoIcon from "@/assets/logo-icon.png";
 import TermsContent from "@/components/checkout/TermsContent";
+import PageSeo from "@/components/seo/PageSeo";
 
 const TermsPage = () => {
   return (
     <div className="min-h-screen bg-background">
+      <PageSeo
+        title="Termos de Uso — TrendFood"
+        description="Termos de uso da plataforma TrendFood: regras, responsabilidades e condições para restaurantes que utilizam o cardápio digital e sistema de delivery."
+        path="/termos"
+      />
       <header className="border-b border-border">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
