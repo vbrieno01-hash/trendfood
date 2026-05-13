@@ -311,7 +311,7 @@ const Index = () => {
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
-          <p className="mt-4 text-white/40 text-sm">Sem cartão de crédito · Cancele quando quiser</p>
+          <p className="mt-4 text-white/75 text-sm">Sem cartão de crédito · Cancele quando quiser</p>
         </div>
       </section>
 

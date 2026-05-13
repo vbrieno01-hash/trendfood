@@ -63,7 +63,7 @@ const SavingsCalculator = () => {
           <h2 className="text-3xl md:text-5xl font-semibold text-white mb-4 tracking-tight">
             Quanto você <span className="text-red-500">perde</span> por mês?
           </h2>
-          <p className="text-white/40 text-base">
+          <p className="text-white/70 text-base">
             Veja quanto do seu faturamento vai direto pro marketplace
           </p>
         </div>
@@ -71,11 +71,11 @@ const SavingsCalculator = () => {
         {/* Card */}
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 md:p-12">
           {/* Input */}
-          <label htmlFor="revenue" className="block text-xs font-medium text-white/30 mb-6 tracking-widest uppercase">
+          <label htmlFor="revenue" className="block text-xs font-medium text-white/70 mb-6 tracking-widest uppercase">
             Faturamento mensal em marketplaces
           </label>
           <div className="relative mb-2">
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-medium text-white/20 select-none">
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-medium text-white/60 select-none">
               R$
             </span>
             <input
@@ -84,7 +84,7 @@ const SavingsCalculator = () => {
               inputMode="numeric"
               value={display}
               onChange={handleChange}
-              className="w-full bg-transparent border-b border-white/10 pl-12 pb-3 text-3xl font-medium text-white placeholder:text-white/10 focus-visible:outline-none focus-visible:border-white/30 transition-colors"
+              className="w-full bg-transparent border-b border-white/30 pl-12 pb-3 text-3xl font-medium text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:border-white/60 transition-colors"
             />
           </div>
 
@@ -110,7 +110,7 @@ const SavingsCalculator = () => {
                 className={`px-4 py-1.5 rounded-full text-sm transition-colors ${
                   revenue === v
                     ? "bg-white/10 text-white"
-                    : "text-white/30 hover:text-white/60"
+                    : "text-white/70 hover:text-white"
                 }`}
               >
                 {formatBRL(v)}
@@ -123,20 +123,20 @@ const SavingsCalculator = () => {
 
           {/* Loss block */}
           <div className="py-8">
-            <p className="text-xs font-medium text-white/30 tracking-widest uppercase mb-4">
+            <p className="text-xs font-medium text-white/70 tracking-widest uppercase mb-4">
               Você perde para o marketplace
             </p>
             <div className="flex items-baseline gap-3 mb-2">
               <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
                 <FlipNumber value={formatBRL(lossMin)} />
               </span>
-              <span className="text-white/20 text-lg">a</span>
+              <span className="text-white/60 text-lg">a</span>
               <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
                 <FlipNumber value={formatBRL(lossMax)} />
               </span>
-              <span className="text-white/20 text-sm">/mês</span>
+              <span className="text-white/60 text-sm">/mês</span>
             </div>
-            <p className="text-sm text-white/25">12% a 27% de taxa sobre vendas</p>
+            <p className="text-sm text-white/70">12% a 27% de taxa sobre vendas</p>
           </div>
 
           {/* Divider */}
@@ -144,13 +144,13 @@ const SavingsCalculator = () => {
 
           {/* TrendFood block */}
           <div className="py-8">
-            <p className="text-xs font-medium text-white/30 tracking-widest uppercase mb-4">
+            <p className="text-xs font-medium text-white/70 tracking-widest uppercase mb-4">
               Com o TrendFood
             </p>
             <p className="text-3xl md:text-4xl font-semibold text-emerald-400 tabular-nums mb-2">
-              <FlipNumber value={formatBRL(revenue)} /> <span className="text-white/40 text-lg font-normal">fica com você</span>
+              <FlipNumber value={formatBRL(revenue)} /> <span className="text-white/70 text-lg font-normal">fica com você</span>
             </p>
-            <p className="text-sm text-emerald-400/60">0% de comissão sobre vendas</p>
+            <p className="text-sm text-emerald-400/90">0% de comissão sobre vendas</p>
           </div>
 
           {/* CTA */}
