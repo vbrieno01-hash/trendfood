@@ -188,13 +188,13 @@ export const usePlaceOrder = () => {
         }
         if (!freshOrg.force_open && freshOrg.business_hours) {
           // Dynamic import to avoid circular deps
-          const { getStoreStatus } = await import("@/lib/storeStatus");
+          const { getStoreStatus, formatOpensAt } = await import("@/lib/storeStatus");
           const bh = freshOrg.business_hours as unknown as import("@/hooks/useOrganization").BusinessHours;
           const status = getStoreStatus(bh, false);
           if (status && !status.open) {
-            const closedStatus = status as { open: false; opensAt: string | null };
-            const msg = closedStatus.opensAt
-              ? `Loja fechada no momento. Abre às ${closedStatus.opensAt}.`
+            const opensText = formatOpensAt(status);
+            const msg = opensText
+              ? `Loja fechada no momento. Abre ${opensText}.`
               : "Loja fechada no momento. Pedidos só podem ser feitos no horário de funcionamento.";
             throw new Error(msg);
           }
