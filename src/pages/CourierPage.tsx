@@ -290,14 +290,11 @@ const CourierPage = () => {
       setSearching(true);
       setPhoneError(false);
       try {
-        const { data, error } = await supabase
-          .from("couriers")
-          .select("*")
-          .eq("active", true);
+        const { data, error } = await supabase.rpc("courier_login_by_phone" as any, {
+          phone_input: phoneSearch,
+        });
         if (error) throw error;
-        const match = (data ?? []).find(
-          (c: any) => normalizePhone(c.phone) === normalized
-        );
+        const match: any = Array.isArray(data) ? data[0] : data;
         if (!match) {
           setPhoneError(true);
           setSearching(false);
