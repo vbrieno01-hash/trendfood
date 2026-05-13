@@ -5,30 +5,61 @@ type ContentMap = Record<string, any>;
 
 let cache: ContentMap | null = null;
 let cacheTime = 0;
-const CACHE_TTL = 60_000; // 1 min
+const CACHE_TTL = 5_000; // 5s — alinhado ao padrão global
+
+// Realtime: invalida cache em todas as abas quando admin edita
+let realtimeStarted = false;
+const subscribers = new Set<() => void>();
+function startRealtime() {
+  if (realtimeStarted) return;
+  realtimeStarted = true;
+  supabase
+    .channel("platform_content_changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "platform_content" },
+      () => {
+        cache = null;
+        cacheTime = 0;
+        subscribers.forEach((fn) => fn());
+      }
+    )
+    .subscribe();
+}
 
 export function usePlatformContent() {
   const [content, setContent] = useState<ContentMap>(cache ?? {});
   const [loading, setLoading] = useState(!cache);
 
   useEffect(() => {
-    if (cache && Date.now() - cacheTime < CACHE_TTL) {
-      setContent(cache);
-      setLoading(false);
-      return;
-    }
-    (supabase.from("platform_content") as any)
-      .select("key, value")
-      .then(({ data }: any) => {
-        if (data) {
-          const map: ContentMap = {};
-          data.forEach((r: any) => { map[r.key] = r.value; });
-          cache = map;
-          cacheTime = Date.now();
-          setContent(map);
-        }
+    startRealtime();
+    let cancelled = false;
+    const fetchNow = () => {
+      if (cache && Date.now() - cacheTime < CACHE_TTL) {
+        setContent(cache);
         setLoading(false);
-      });
+        return;
+      }
+      (supabase.from("platform_content") as any)
+        .select("key, value")
+        .then(({ data }: any) => {
+          if (cancelled) return;
+          if (data) {
+            const map: ContentMap = {};
+            data.forEach((r: any) => { map[r.key] = r.value; });
+            cache = map;
+            cacheTime = Date.now();
+            setContent(map);
+          }
+          setLoading(false);
+        });
+    };
+    fetchNow();
+    subscribers.add(fetchNow);
+    return () => {
+      cancelled = true;
+      subscribers.delete(fetchNow);
+    };
   }, []);
 
   return { content, loading };
