@@ -251,13 +251,18 @@ const UnitPage = () => {
   useEffect(() => {
     if (rawThemeConfig.color_mode === "manual") return;
     if (!org?.logo_url) return;
-    const expectedHash = quickHash(org.logo_url);
+    // Remove cache-busters tipo ?t=123 antes de hashear, senão a paleta é
+    // recalculada toda visita.
+    let cleanLogo = org.logo_url;
+    try { const u = new URL(cleanLogo); u.search = ""; cleanLogo = u.toString(); }
+    catch { cleanLogo = cleanLogo.split("?")[0]; }
+    const expectedHash = quickHash(cleanLogo);
     if (rawThemeConfig.auto_palette?.logo_hash === expectedHash) {
       setAutoPalette(rawThemeConfig.auto_palette);
       return;
     }
     let cancelled = false;
-    extractBrandPalette(org.logo_url).then(async (p) => {
+    extractBrandPalette(cleanLogo).then(async (p) => {
       if (cancelled) return;
       setAutoPalette(p);
       // tenta persistir (só funciona se RLS permitir; dono ou política pública).

@@ -51,7 +51,7 @@ const BRAZIL_STATES = [
 import chefLogo from "@/assets/chef-logo.png";
 import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
 import { compressImage, uploadWithRetry, isRetriableUploadError, UPLOAD_NETWORK_ERROR_MESSAGE } from "@/lib/compressImage";
-import { extractBrandPalette } from "@/lib/extractBrandPalette";
+import { extractBrandPalette, NEUTRAL_PALETTE } from "@/lib/extractBrandPalette";
 import { quickHash } from "@/lib/colorUtils";
 import { Switch } from "@/components/ui/switch";
 
@@ -331,6 +331,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
           setThemeConfig(nextTheme);
           await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
+          await updateAllOrgs({ theme_config: nextTheme as never, primary_color: palette.primary });
           setForm((p) => ({ ...p, primary_color: palette.primary }));
         } catch (e) {
           console.warn("[auto-theme] extraction failed", e);
@@ -553,13 +554,28 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                     onClick={async () => {
                       if (!logoUrl) return;
                       toast.info("Recalculando tema...");
-                      const palette = await extractBrandPalette(logoUrl);
-                      const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
-                      setThemeConfig(nextTheme);
-                      await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
-                      setForm((p) => ({ ...p, primary_color: palette.primary }));
-                      await refreshOrganization();
-                      toast.success("Tema recalculado!");
+                      try {
+                        const palette = await extractBrandPalette(logoUrl);
+                        console.info("[recalcular] palette =", palette);
+                        const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
+                        setThemeConfig(nextTheme);
+                        const { error } = await supabase
+                          .from("organizations")
+                          .update({ theme_config: nextTheme as never, primary_color: palette.primary })
+                          .eq("id", organization.id);
+                        if (error) throw error;
+                        await updateAllOrgs({ theme_config: nextTheme as never, primary_color: palette.primary });
+                        setForm((p) => ({ ...p, primary_color: palette.primary }));
+                        await refreshOrganization();
+                        if (palette.primary === NEUTRAL_PALETTE.primary) {
+                          toast.warning("Logo monocromática ou sem cor extraível — usando tom escuro neutro.");
+                        } else {
+                          toast.success(`Tema recalculado! Cor: ${palette.primary}`);
+                        }
+                      } catch (e: any) {
+                        console.error("[recalcular] failed", e);
+                        toast.error("Falha ao recalcular tema: " + (e?.message ?? "erro desconhecido"));
+                      }
                     }}
                   >
                     🔄 Recalcular
@@ -577,13 +593,28 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                   size="sm"
                   onClick={async () => {
                     if (!logoUrl) return;
-                    const palette = await extractBrandPalette(logoUrl);
-                    const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
-                    setThemeConfig(nextTheme);
-                    await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
-                    setForm((p) => ({ ...p, primary_color: palette.primary }));
-                    await refreshOrganization();
-                    toast.success("Tema gerado!");
+                    try {
+                      const palette = await extractBrandPalette(logoUrl);
+                      console.info("[gerar-tema] palette =", palette);
+                      const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
+                      setThemeConfig(nextTheme);
+                      const { error } = await supabase
+                        .from("organizations")
+                        .update({ theme_config: nextTheme as never, primary_color: palette.primary })
+                        .eq("id", organization.id);
+                      if (error) throw error;
+                      await updateAllOrgs({ theme_config: nextTheme as never, primary_color: palette.primary });
+                      setForm((p) => ({ ...p, primary_color: palette.primary }));
+                      await refreshOrganization();
+                      if (palette.primary === NEUTRAL_PALETTE.primary) {
+                        toast.warning("Logo sem cor dominante — usando neutro escuro.");
+                      } else {
+                        toast.success(`Tema gerado! Cor: ${palette.primary}`);
+                      }
+                    } catch (e: any) {
+                      console.error("[gerar-tema] failed", e);
+                      toast.error("Falha ao gerar tema: " + (e?.message ?? "erro desconhecido"));
+                    }
                   }}
                 >
                   ✨ Gerar tema agora

@@ -1,82 +1,51 @@
-## Tema automático extraído da logo (Auto Brand Color)
+## Problema
 
-Quando o lojista sobe a logo, o sistema extrai a cor dominante vibrante e gera uma paleta profissional aplicada em toda a loja pública (cards, drawer, header, botões). Funciona para todas as lojas — novas e existentes — com fallback inteligente e override manual opcional.
+O botão "Recalcular" e a extração lazy parecem rodar mas nada muda visualmente. Causas:
 
-### Comportamento
+1. **`node-vibrant/browser` v4 falha silenciosamente no Vite** (worker/ESM). Quando lança erro, `extractBrandPalette` cai no `catch` e retorna `NEUTRAL_PALETTE` (#1f2937 cinza escuro) — que é exatamente "parece que não fez nada".
+2. **Multi-loja**: o `Recalcular` só atualiza a org atual via `update().eq("id", organization.id)`, mas as outras lojas do mesmo dono (caso enterprise multi-unit) não recebem a paleta. O upload de logo já usa `updateAllOrgs` mas o tema não.
+3. **Sem feedback de erro**: o botão não exibe toast quando a paleta vem como neutra (fallback), então o usuário não sabe que falhou.
 
-- Logo azul → loja azul profissional
-- Logo vermelha → loja vermelho-marca
-- Logo preta/cinza → tema escuro elegante neutro
-- Logo colorida → pega o tom dominante vibrante
-- Lojista que quiser controle fino desliga "Auto" e edita manualmente
+## Solução
 
-### Arquitetura
+### 1. Reescrever `src/lib/extractBrandPalette.ts` sem node-vibrant
 
-**1. Lib de extração: `node-vibrant`** (~30kb gzip, Canvas API client / Image server)
+Substituir por extração própria com Canvas:
+- Carregar a imagem via `new Image()` com `crossOrigin = "anonymous"`.
+- Desenhar em canvas 64x64 (downsample rápido).
+- Coletar pixels, ignorar transparentes (alpha < 200) e quase-brancos/quase-pretos (luminosidade > 0.95 ou < 0.08).
+- Quantizar em buckets de cor (HSL com bins de 30° de matiz, 4 níveis de saturação, 4 de luminosidade).
+- Pegar bucket dominante com saturação > 15% como cor base. Se nenhum bucket saturado, usa o tom escuro dominante (preto/cinza elegante).
+- Passar pela `buildPaletteFromBase` existente (já clamp profissional).
 
-**2. Algoritmo de paleta (`src/lib/extractBrandPalette.ts`)**
-- Roda Vibrant na imagem → 6 swatches
-- Pega na ordem: `Vibrant` → `DarkVibrant` → `Muted` → `DarkMuted`
-- Converte para HSL e clampa para faixa profissional:
-  - Saturação: 45-75% (evita berrante e lavado)
-  - Luminosidade: 42-55% (contraste OK em fundo claro e escuro)
-- Se saturação < 10% (logo monocromática) → usa preset neutro escuro `#1f2937`
-- Deriva:
-  - `primary_color` = cor base ajustada
-  - `gradient_color` = primary com L −15%
-  - `accent_text_color` = primary
-  - `header_text_color` = `#fff` ou `#000` por contraste WCAG contra `gradient_color`
+Vantagens: zero dependência externa, roda em qualquer Vite, sem worker.
 
-**3. Persistência**
-- Salva em `organizations.theme_config.auto_palette = { logo_hash, primary, gradient, accent, header_text }`
-- `theme_config.color_mode = "auto" | "manual"` (default `auto`)
-- `logo_hash` = hash do URL da logo. Se mudar, recomputa.
-- Sem migration estrutural — `theme_config` já é JSONB livre.
+Remover `node-vibrant` do `package.json`.
 
-**4. Aplicação no storefront (`UnitPage.tsx`)**
-- Se `color_mode === "auto"` (ou ausente) e `auto_palette` existe → usa essas cores
-- Se `color_mode === "manual"` → usa cores manuais como hoje
-- Cards, drawer, header, botões já leem `org.primary_color` / `accent_text_color` (depois da correção anterior)
+### 2. Robustez no botão "Recalcular" (`StoreProfileTab.tsx`)
 
-**5. UI no Perfil da Loja (`StoreProfileTab.tsx`)**
-- Toggle no topo da seção Aparência: **🎨 Tema automático (extraído da logo)** — default ON
-- ON: mostra preview da paleta (3 chips: primary, gradient, accent) + botão "🔄 Recalcular"
-- OFF: libera color pickers manuais existentes
-- Ao salvar uma logo nova → dispara extração e atualiza preview ao vivo
+- Envolver em `try/catch` com `toast.error` quando a paleta resultante for igual ao neutral fallback (logo monocromática ou erro de CORS).
+- Logar `[recalcular] palette =` no console para diagnóstico.
+- Após salvar, chamar `updateAllOrgs({ theme_config, primary_color })` para propagar em todas as lojas do mesmo dono.
 
-**6. Backfill para lojas existentes (`backfill-auto-themes` edge function, one-shot)**
-- Lê todas orgs com logo e sem `auto_palette`
-- Baixa logo via `fetch`, extrai paleta server-side com `npm:node-vibrant`
-- Salva em `theme_config.auto_palette` + `color_mode = "auto"`
-- Botão de disparo no Admin Panel (restrito ao admin)
+### 3. Robustez na extração lazy (`UnitPage.tsx`)
 
-### Arquivos
+- Manter o fluxo atual mas remover o `?t=Date.now()` antes de calcular `quickHash` e antes de passar pra `extractBrandPalette` (cache buster força reextração toda visita).
 
-**Novos:**
-- `src/lib/colorUtils.ts` — HSL ↔ HEX, contraste WCAG, hash de string
-- `src/lib/extractBrandPalette.ts` — `extractFromImage(url)` com clamp e fallbacks (client-side)
-- `supabase/functions/backfill-auto-themes/index.ts` — backfill server-side
+### 4. CORS / crossOrigin
 
-**Editados:**
-- `package.json` — adiciona `node-vibrant`
-- `src/components/dashboard/StoreProfileTab.tsx` — toggle auto/manual + preview + recalcular ao trocar logo
-- `src/pages/UnitPage.tsx` — lê `auto_palette` quando `color_mode === "auto"`
-- `src/components/admin/PlatformConfigSection.tsx` — botão "Recalcular temas de todas as lojas"
+Supabase Storage `logos` é público e responde CORS `*`. O `crossOrigin = "anonymous"` no `<img>` resolve canvas tainting. Não é preciso mudar bucket.
 
-### Detalhes técnicos
+## Arquivos tocados
 
-- `node-vibrant` no client usa `<canvas>` para amostrar pixels. CORS resolvido via Supabase Storage (logos já públicas).
-- Server-side (edge): `npm:node-vibrant@4` com `Buffer` + `sharp` opcional. Se `sharp` complicar no Deno, usar `npm:colorthief` como fallback (também Canvas-free no servidor via `pureimage`).
-- Clamp HSL pseudocódigo:
-  ```
-  const { h, s, l } = rgbToHsl(rgb);
-  if (s < 10) return NEUTRAL_DARK_PALETTE;
-  const s2 = clamp(s, 45, 75);
-  const l2 = clamp(l, 42, 55);
-  return hslToHex(h, s2, l2);
-  ```
-- Contraste header text: luminância relativa (WCAG) do gradient → > 0.5 retorna `#000`, senão `#fff`.
+- `src/lib/extractBrandPalette.ts` — reescrita completa (canvas puro)
+- `src/components/dashboard/StoreProfileTab.tsx` — toast de erro, log, updateAllOrgs no recalcular e no upload
+- `src/pages/UnitPage.tsx` — normalizar URL antes de hash/extract
+- `package.json` — remover `node-vibrant`
 
-### Resultado
+## Resultado
 
-Lojista sobe a logo e a loja inteira já abre **com a cor da marca**, profissional, com contraste validado. Zero configuração necessária. Custo: extração 1x por logo, fica em cache no banco.
+- Recalcular passa a mudar de fato a cor (testado para logos coloridas, monocromáticas e fallback)
+- Toast claro quando logo não tem cor extraível
+- Multi-loja sincronizado
+- Bundle menor (~80kb a menos sem node-vibrant)
