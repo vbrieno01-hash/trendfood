@@ -11,6 +11,10 @@ interface ReferralBonus {
   bonus_days: number;
   referred_org_name: string | null;
   created_at: string;
+  released_at: string | null;
+  applied_at: string | null;
+  reverted_at: string | null;
+  flagged_reason: string | null;
 }
 
 interface ReferralSectionProps {
@@ -37,13 +41,18 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
 
     supabase
       .from("referral_bonuses" as any)
-      .select("id, bonus_days, referred_org_name, created_at")
+      .select("id, bonus_days, referred_org_name, created_at, released_at, applied_at, reverted_at, flagged_reason")
       .eq("referrer_org_id", orgId)
       .order("created_at", { ascending: false })
       .then(({ data }: any) => {
         if (data) {
           setBonuses(data);
-          setTotalDays(data.reduce((sum: number, b: ReferralBonus) => sum + b.bonus_days, 0));
+          // Total considera apenas bônus efetivamente aplicados (sem reversão)
+          setTotalDays(
+            data
+              .filter((b: ReferralBonus) => b.applied_at && !b.reverted_at)
+              .reduce((sum: number, b: ReferralBonus) => sum + b.bonus_days, 0),
+          );
         }
       });
 
