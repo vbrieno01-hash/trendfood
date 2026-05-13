@@ -331,6 +331,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
           setThemeConfig(nextTheme);
           await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
+          await updateAllOrgs({ theme_config: nextTheme as never, primary_color: palette.primary });
           setForm((p) => ({ ...p, primary_color: palette.primary }));
         } catch (e) {
           console.warn("[auto-theme] extraction failed", e);
