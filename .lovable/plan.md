@@ -1,35 +1,81 @@
-## Objetivo
-Eliminar os erros nas páginas públicas de loja/pedido para qualquer cliente, inclusive quando ele estiver logado, sem abrir acesso indevido a dados sensíveis.
 
-## O que vou corrigir
-1. Ajustar as permissões de leitura da loja pública para funcionar tanto para visitantes anônimos quanto para usuários autenticados.
-2. Ajustar a permissão de atualização de `distance_km` para não quebrar checkout/pedido quando o cliente tiver sessão ativa.
-3. Revisar todas as consultas usadas nas páginas públicas (`/unidade/:slug`, `/unidade/:slug/mesa/:tableNumber`, `/avaliar/:slug/:orderId`) para garantir compatibilidade com acesso público real.
-4. Validar que a correção não afeta painel, cozinha, pagamentos, motoboy nem dados privados.
+## Problema
 
-## Causa provável encontrada
-A página pública busca a loja em `organizations`, mas a policy pública atual está liberada só para `anon`. Se o cliente estiver logado, ele entra como `authenticated` e pode receber `null`, o que leva a 404 em lojas públicas.
+O painel admin mostra MRR e receita usando valores **fixos** de tabela (R$ 99 Pro / R$ 249 Enterprise), ignorando:
+- Ciclo de cobrança (mensal, trimestral, anual têm preços diferentes em `platform_plans`)
+- Promoções (ex.: 50% no primeiro mês)
+- Cupons / descontos manuais
 
-Também encontrei a policy nova de `deliveries_update_distance_anon` limitada a `anon`, o que pode explicar por que a correção funcionou só para parte dos usuários e não para todos.
+Resultado: 2 assinaturas suas com 50% off aparecem como R$ 198 quando você lucrou ~R$ 99. Hoje **não existe** lugar no banco que registre quanto cada cliente realmente pagou em cada cobrança — `pending_subscription_payments` está vazio e `activation_logs` não guarda valor.
 
-## Implementação
-- Criar migração aditiva para:
-  - permitir leitura pública segura das informações básicas da loja para `public` (ou política equivalente cobrindo `anon` + `authenticated`), sem expor colunas sensíveis;
-  - permitir o update restrito de `distance_km` nas mesmas condições atuais, mas cobrindo clientes com ou sem sessão, mantendo os filtros de segurança (`status = 'pendente'` e `courier_id IS NULL`).
-- Conferir se há outras tabelas usadas pela vitrine pública que precisem da mesma cobertura de role.
-- Manter RLS restritivo em tudo que contém PII ou dados operacionais privados.
+## Solução
 
-## Validação
-- Testar carregamento de lojas públicas com sessão anônima e autenticada.
-- Testar fluxo de pedido/checkout em página pública.
-- Confirmar que dashboard/cozinha/motoboy continuam com acesso isolado.
-- Verificar que nenhuma coluna sensível da loja foi exposta por engano.
+Criar um **ledger de pagamentos** que registra cada cobrança aprovada (valor real), alimentado automaticamente pelos webhooks e editável manualmente pelo admin. O painel passa a somar receita a partir desse ledger.
+
+### 1. Nova tabela `subscription_payments` (migration)
+
+Campos: `organization_id`, `payment_id` (único, vindo do Mercado Pago), `plan`, `billing_cycle`, `amount_cents` (valor REAL pago), `promo_applied`, `paid_at`, `source` (`mp_webhook` | `manual` | `cakto` | `lifetime`), `notes`.
+
+RLS: somente admin lê/escreve. Service role insere via webhook.
+
+### 2. Webhook `mp-webhook` grava cada cobrança
+
+Quando o MP envia evento `payment.approved`, insere uma linha em `subscription_payments` com `amount_cents = round(transaction_amount * 100)` e `payment_id` único (idempotente: ON CONFLICT DO NOTHING). Já temos esse valor disponível no código (`mpData.transaction_amount`).
+
+Mesma coisa em `universal-activation-webhook` (Cakto) — usa o `amount` do payload.
+
+### 3. Painel admin: receita real
+
+Em `AdminPage.tsx` (linhas 348–369):
+- **MRR** = soma de `amount_cents` em `subscription_payments` dos últimos 30 dias.
+- **Receita total** = `SUM(amount_cents)` agregada por organização.
+- **Por loja**: lista de pagamentos reais (data, valor, ciclo, promo) substitui o cálculo `monthsActive * planValue`.
+
+### 4. Backfill + entrada manual
+
+Nova aba/seção em "Detalhe da loja" (admin) com:
+- Lista de pagamentos da loja (tabela editável).
+- Botão **"Adicionar pagamento manual"** com campos: data, valor (R$), plano, ciclo, observação. Use isso agora para registrar suas 2 cobranças de 50%.
+- Editar/excluir entrada manual (não permite editar `mp_webhook` para preservar auditoria, só `manual`).
+
+### 5. Exportação para declaração fiscal
+
+Botão **"Exportar receita (CSV)"** com filtro de período (mês/trimestre/ano). Colunas: `data, loja, cnpj/cpf, plano, ciclo, valor_pago, payment_id, fonte`. Um único CSV serve tanto para conferência interna quanto para entregar ao contador na hora de declarar (DAS-MEI, IRPF Carnê-Leão, ou DRE da empresa, dependendo do regime).
 
 ## Detalhes técnicos
-- Arquivos/áreas a revisar na implementação:
-  - `src/hooks/useOrganization.ts`
-  - `src/pages/UnitPage.tsx`
-  - `src/pages/TableOrderPage.tsx`
-  - migrações RLS em `supabase/migrations/*`
-- A correção deve ser feita no backend via RLS, não com workaround no frontend, porque o bug é de role (`anon` vs `authenticated`) nas páginas públicas.
-- A migração será aditiva e visível para aprovação antes de aplicar.
+
+```text
+subscription_payments
+├─ id (uuid pk)
+├─ organization_id (fk organizations)
+├─ payment_id (text unique nullable)   ← dedupe webhook
+├─ plan (text)                          ← pro|enterprise|lifetime
+├─ billing_cycle (text)                 ← monthly|quarterly|annual|one_time
+├─ amount_cents (int not null)          ← VALOR REAL PAGO
+├─ promo_applied (bool default false)
+├─ paid_at (timestamptz default now())
+├─ source (text default 'mp_webhook')
+├─ notes (text)
+└─ created_at (timestamptz default now())
+
+índices: (organization_id, paid_at desc), (paid_at desc)
+RLS: SELECT/INSERT/UPDATE/DELETE somente admin; INSERT também service_role
+```
+
+Arquivos tocados:
+- `supabase/migrations/<novo>.sql` — tabela + RLS + índices
+- `supabase/functions/mp-webhook/index.ts` — insert idempotente após `subscription_status='active'`
+- `supabase/functions/universal-activation-webhook/index.ts` — mesmo padrão para Cakto
+- `src/pages/AdminPage.tsx` — substituir `mrr`, `subscriberDetails`, `totalRevenue` por dados reais
+- `src/components/admin/StorePaymentsTab.tsx` (novo) — lista + adicionar/editar/excluir manual
+- `src/components/admin/AdminStoreManager.tsx` — incluir nova aba "Pagamentos"
+- `src/components/admin/RevenueExportButton.tsx` (novo) — export CSV por período
+
+## Como você "declara" depois
+
+O CSV exportado já lista cada cobrança individual com data e valor real recebido. Esse é o documento que você (ou seu contador) usa:
+- **MEI / Simples**: somar a coluna `valor_pago` no período da declaração e jogar no DAS / DEFIS.
+- **Lucro Presumido / Real**: o CSV vira a base do livro-caixa; valor real recebido = receita bruta para apurar IRPJ/CSLL/PIS/COFINS.
+- **Pessoa física (Carnê-Leão)**: cada linha vira um lançamento mensal.
+
+Como o ledger é a fonte da verdade, nunca mais vai aparecer R$ 198 quando você recebeu R$ 99.

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Store, UtensilsCrossed, History, Tag, BarChart2, Grid3X3, Package, Wallet, FileText } from "lucide-react";
+import { ArrowLeft, Store, UtensilsCrossed, History, Tag, BarChart2, Grid3X3, Package, Wallet, FileText, DollarSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import StockTab from "@/components/dashboard/StockTab";
 import CaixaTab from "@/components/dashboard/CaixaTab";
 import ReportsTab from "@/components/dashboard/ReportsTab";
 import StoreProfileTab from "@/components/dashboard/StoreProfileTab";
+import StorePaymentsTab from "@/components/admin/StorePaymentsTab";
 
 interface AdminStoreManagerProps {
   org: {
@@ -99,6 +100,7 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
     { key: "estoque", label: "Estoque", icon: <Package className="w-3.5 h-3.5" /> },
     { key: "caixa", label: "Caixa", icon: <Wallet className="w-3.5 h-3.5" /> },
     { key: "relatorios", label: "Relatórios", icon: <FileText className="w-3.5 h-3.5" /> },
+    { key: "pagamentos", label: "Pagamentos", icon: <DollarSign className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -174,6 +176,10 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
 
           <TabsContent value="relatorios" className="mt-4">
             <ReportsTab orgId={org.id} orgName={org.name} />
+          </TabsContent>
+
+          <TabsContent value="pagamentos" className="mt-4">
+            <StorePaymentsTab orgId={org.id} orgName={org.name} />
           </TabsContent>
         </Tabs>
       )}

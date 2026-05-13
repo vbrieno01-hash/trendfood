@@ -247,6 +247,40 @@ async function processAffiliateCommission(
   }
 }
 
+/** Registra pagamento real no ledger subscription_payments (idempotente por payment_id) */
+async function recordSubscriptionPayment(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  paymentId: string | number | null | undefined,
+  amountPaid: number | null | undefined,
+  plan: string | null | undefined,
+  billingCycle: string | null | undefined,
+  promoApplied: boolean,
+  source: string,
+) {
+  try {
+    if (!amountPaid || amountPaid <= 0 || !plan) return;
+    const amountCents = Math.round(Number(amountPaid) * 100);
+    const pidStr = paymentId ? String(paymentId) : null;
+    const { error } = await supabase
+      .from("subscription_payments")
+      .insert({
+        organization_id: orgId,
+        payment_id: pidStr,
+        plan,
+        billing_cycle: billingCycle || null,
+        amount_cents: amountCents,
+        promo_applied: promoApplied,
+        source,
+      });
+    if (error && !String(error.message || "").includes("duplicate")) {
+      console.error("[mp-webhook] subscription_payments insert err:", error);
+    }
+  } catch (e) {
+    console.error("[mp-webhook] recordSubscriptionPayment error (non-blocking):", e);
+  }
+}
+
 /** Marca comissões como refunded quando MP estorna o pagamento */
 async function processAffiliateRefund(
   supabase: ReturnType<typeof createClient>,
@@ -581,6 +615,18 @@ Deno.serve(async (req) => {
             org?.billing_cycle || null,
           );
 
+          // ── Ledger de receita real ──
+          await recordSubscriptionPayment(
+            supabase,
+            orgId,
+            paymentId,
+            mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+            org?.subscription_plan || null,
+            org?.billing_cycle || null,
+            !!org?.used_first_month_promo,
+            "mp_webhook",
+          );
+
           return new Response(JSON.stringify({ success: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -667,6 +713,18 @@ Deno.serve(async (req) => {
         paymentId,
         mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
         org?.billing_cycle || null,
+      );
+
+      // ── Ledger de receita real ──
+      await recordSubscriptionPayment(
+        supabase,
+        orgId,
+        paymentId,
+        mpData.transaction_amount || mpData.transaction_details?.total_paid_amount || null,
+        plan,
+        org?.billing_cycle || null,
+        promoApplied,
+        "mp_webhook",
       );
 
       return new Response(JSON.stringify({ success: true }), {

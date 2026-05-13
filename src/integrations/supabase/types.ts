@@ -1998,6 +1998,56 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_payments: {
+        Row: {
+          amount_cents: number
+          billing_cycle: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          organization_id: string
+          paid_at: string
+          payment_id: string | null
+          plan: string
+          promo_applied: boolean
+          source: string
+        }
+        Insert: {
+          amount_cents: number
+          billing_cycle?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          paid_at?: string
+          payment_id?: string | null
+          plan: string
+          promo_applied?: boolean
+          source?: string
+        }
+        Update: {
+          amount_cents?: number
+          billing_cycle?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          paid_at?: string
+          payment_id?: string | null
+          plan?: string
+          promo_applied?: boolean
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suggestions: {
         Row: {
           created_at: string
