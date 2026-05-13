@@ -627,6 +627,17 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [pendingIngredients, setPendingIngredients] = useState<PendingIngredient[]>([]);
   const [pendingAddons, setPendingAddons] = useState<PendingAddon[]>([]);
   const [pendingHideGlobalAddons, setPendingHideGlobalAddons] = useState(false);
+  const [priceTouched, setPriceTouched] = useState(false);
+
+  const handleIngredientsCostChange = useCallback((cost: number) => {
+    if (priceTouched) return;
+    if (cost <= 0) return;
+    setForm((p) => {
+      const current = Number(p.price ?? 0);
+      if (current > 0) return p;
+      return { ...p, price: Number(cost.toFixed(2)) };
+    });
+  }, [priceTouched]);
   const [importOpen, setImportOpen] = useState(false);
   const [moveCatOpen, setMoveCatOpen] = useState<string | null>(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
@@ -752,6 +763,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setPendingIngredients([]);
     setPendingAddons([]);
     setPendingHideGlobalAddons(false);
+    setPriceTouched(false);
     setModalOpen(true);
   };
 
@@ -760,6 +772,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setEditItemId(item.id);
     setPendingIngredients([]);
     setPendingAddons([]);
+    setPriceTouched(Number(item.price ?? 0) > 0);
     setForm({
       name: item.name,
       description: item.description ?? "",
