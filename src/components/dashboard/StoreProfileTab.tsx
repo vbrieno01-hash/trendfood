@@ -51,6 +51,9 @@ const BRAZIL_STATES = [
 import chefLogo from "@/assets/chef-logo.png";
 import { AddressFields, EMPTY_ADDRESS, buildStoreAddress, parseStoreAddress } from "@/lib/storeAddress";
 import { compressImage, uploadWithRetry, isRetriableUploadError, UPLOAD_NETWORK_ERROR_MESSAGE } from "@/lib/compressImage";
+import { extractBrandPalette } from "@/lib/extractBrandPalette";
+import { quickHash } from "@/lib/colorUtils";
+import { Switch } from "@/components/ui/switch";
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
@@ -321,6 +324,18 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       setLogoUrl(url);
       await supabase.from("organizations").update({ logo_url: url }).eq("id", organization.id);
       await updateAllOrgs({ logo_url: url });
+      // Auto-tema: extrai paleta da nova logo (apenas se modo auto, default)
+      if ((themeConfig.color_mode ?? "auto") === "auto") {
+        try {
+          const palette = await extractBrandPalette(url);
+          const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
+          setThemeConfig(nextTheme);
+          await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
+          setForm((p) => ({ ...p, primary_color: palette.primary }));
+        } catch (e) {
+          console.warn("[auto-theme] extraction failed", e);
+        }
+      }
       await refreshOrganization();
       toast.success("Logo atualizado!");
     } catch (err) {
@@ -497,6 +512,88 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
             </div>
           </div>
+        </div>
+
+        {/* Tema automático extraído da logo */}
+        <div className="mb-5 rounded-xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <p className="text-sm font-semibold flex items-center gap-1.5">🎨 Tema automático</p>
+              <p className="text-xs text-muted-foreground mt-0.5">A loja inteira pega a cor da sua logo automaticamente.</p>
+            </div>
+            <Switch
+              checked={(themeConfig.color_mode ?? "auto") === "auto"}
+              onCheckedChange={(checked) => {
+                setThemeConfig((t) => ({ ...t, color_mode: checked ? "auto" : "manual" }));
+              }}
+            />
+          </div>
+          {(themeConfig.color_mode ?? "auto") === "auto" && (
+            <div className="space-y-2">
+              {themeConfig.auto_palette ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    {[
+                      { c: themeConfig.auto_palette.primary, label: "Principal" },
+                      { c: themeConfig.auto_palette.gradient, label: "Gradiente" },
+                      { c: themeConfig.auto_palette.accent, label: "Destaque" },
+                    ].map(({ c, label }) => (
+                      <div key={label} className="flex flex-col items-center">
+                        <div className="w-9 h-9 rounded-lg border border-border" style={{ backgroundColor: c }} title={`${label}: ${c}`} />
+                        <span className="text-[10px] text-muted-foreground mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    disabled={!logoUrl}
+                    onClick={async () => {
+                      if (!logoUrl) return;
+                      toast.info("Recalculando tema...");
+                      const palette = await extractBrandPalette(logoUrl);
+                      const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
+                      setThemeConfig(nextTheme);
+                      await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
+                      setForm((p) => ({ ...p, primary_color: palette.primary }));
+                      await refreshOrganization();
+                      toast.success("Tema recalculado!");
+                    }}
+                  >
+                    🔄 Recalcular
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {logoUrl ? "Clique em recalcular para gerar a paleta." : "Suba uma logo para ativar."}
+                </p>
+              )}
+              {logoUrl && !themeConfig.auto_palette && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!logoUrl) return;
+                    const palette = await extractBrandPalette(logoUrl);
+                    const nextTheme = { ...themeConfig, color_mode: "auto" as const, auto_palette: palette };
+                    setThemeConfig(nextTheme);
+                    await supabase.from("organizations").update({ theme_config: nextTheme as never, primary_color: palette.primary }).eq("id", organization.id);
+                    setForm((p) => ({ ...p, primary_color: palette.primary }));
+                    await refreshOrganization();
+                    toast.success("Tema gerado!");
+                  }}
+                >
+                  ✨ Gerar tema agora
+                </Button>
+              )}
+            </div>
+          )}
+          {(themeConfig.color_mode ?? "auto") === "manual" && (
+            <p className="text-xs text-muted-foreground">Modo manual ativo — defina as cores na seção Aparência abaixo.</p>
+          )}
         </div>
 
         {/* Banner */}

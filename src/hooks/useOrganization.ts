@@ -46,6 +46,16 @@ export interface ThemeConfig {
   button_style?: "rounded" | "pill" | "square";
   card_style?: "flat" | "shadow" | "bordered";
   font?: "default" | "modern" | "classic" | "playful" | "roboto" | "poppins" | "opensans";
+  /** "auto" = paleta extraída da logo. "manual" = cores definidas pelo lojista. Default: "auto". */
+  color_mode?: "auto" | "manual";
+  /** Paleta calculada a partir da logo (cache). */
+  auto_palette?: {
+    primary: string;
+    gradient: string;
+    accent: string;
+    header_text: string;
+    logo_hash: string;
+  };
 }
 
 export interface Organization {

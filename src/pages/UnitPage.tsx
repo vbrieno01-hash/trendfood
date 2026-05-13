@@ -32,6 +32,8 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
 import { useLoyaltyConfig, useLoyaltyPoints, useAccumulateLoyalty, useRedeemLoyalty } from "@/hooks/useLoyalty";
 import { useCustomerPush } from "@/hooks/useCustomerPush";
+import { extractBrandPalette } from "@/lib/extractBrandPalette";
+import { quickHash } from "@/lib/colorUtils";
 
 type CartItemAddon = { id: string; name: string; price: number; qty: number };
 type CartItem = { id: string; menuItemId: string; name: string; price: number; qty: number; addons: CartItemAddon[]; notes: string };
@@ -241,7 +243,47 @@ const UnitPage = () => {
   }, [forcedOrderType, orderType]);
 
   // Theme config
-  const themeConfig = (org as any)?.theme_config ?? {};
+  const rawThemeConfig = (org as any)?.theme_config ?? {};
+  // Auto-tema: paleta extraída da logo (lazy, persistido em theme_config.auto_palette).
+  const [autoPalette, setAutoPalette] = useState<{ primary: string; gradient: string; accent: string; header_text: string; logo_hash: string } | null>(
+    rawThemeConfig.auto_palette ?? null
+  );
+  useEffect(() => {
+    if (rawThemeConfig.color_mode === "manual") return;
+    if (!org?.logo_url) return;
+    const expectedHash = quickHash(org.logo_url);
+    if (rawThemeConfig.auto_palette?.logo_hash === expectedHash) {
+      setAutoPalette(rawThemeConfig.auto_palette);
+      return;
+    }
+    let cancelled = false;
+    extractBrandPalette(org.logo_url).then(async (p) => {
+      if (cancelled) return;
+      setAutoPalette(p);
+      // tenta persistir (só funciona se RLS permitir; dono ou política pública).
+      try {
+        const next = { ...rawThemeConfig, color_mode: rawThemeConfig.color_mode ?? "auto", auto_palette: p };
+        await supabase.from("organizations").update({ theme_config: next as never }).eq("id", org.id);
+      } catch {
+        /* silencioso: só usamos a paleta em memória nesta visita */
+      }
+    });
+    return () => { cancelled = true; };
+  }, [org?.logo_url, org?.id, rawThemeConfig.color_mode, rawThemeConfig.auto_palette?.logo_hash]);
+
+  const useAuto = rawThemeConfig.color_mode !== "manual" && !!autoPalette;
+  const themeConfig = useAuto
+    ? {
+        ...rawThemeConfig,
+        gradient_color: rawThemeConfig.gradient_color ?? autoPalette!.gradient,
+        accent_text_color: rawThemeConfig.accent_text_color ?? autoPalette!.accent,
+        header_text_color: rawThemeConfig.header_text_color ?? autoPalette!.header_text,
+        button_color: rawThemeConfig.button_color ?? autoPalette!.primary,
+        category_color: rawThemeConfig.category_color ?? autoPalette!.primary,
+      }
+    : rawThemeConfig;
+  // Cor primária efetiva (usada em cards, drawer e botões via prop primary_color).
+  const effectivePrimaryColor = useAuto ? autoPalette!.primary : org?.primary_color;
   // Lojas migradas têm gradient_color/accent_text_color limpos; se faltarem, usa o default neutro.
   const gradientColor = themeConfig.gradient_color ?? "#1e293b";
   const accentTextColor = themeConfig.accent_text_color ?? "#1e293b";
@@ -252,8 +294,8 @@ const UnitPage = () => {
   const fontFamily = themeConfig.font === "modern" ? "'Inter', sans-serif" : themeConfig.font === "classic" ? "'Merriweather', serif" : themeConfig.font === "playful" ? "'Nunito', sans-serif" : themeConfig.font === "roboto" ? "'Roboto', sans-serif" : themeConfig.font === "poppins" ? "'Poppins', sans-serif" : themeConfig.font === "opensans" ? "'Open Sans', sans-serif" : undefined;
 
   useEffect(() => {
-    if (org?.primary_color) {
-      document.documentElement.style.setProperty("--org-primary", org.primary_color);
+    if (effectivePrimaryColor) {
+      document.documentElement.style.setProperty("--org-primary", effectivePrimaryColor);
     }
     document.documentElement.style.setProperty("--org-gradient", gradientColor);
     document.documentElement.style.setProperty("--org-accent-text", accentTextColor);
@@ -286,7 +328,7 @@ const UnitPage = () => {
       document.documentElement.style.removeProperty("--org-accent-text");
       document.documentElement.style.removeProperty("--org-header-text");
     };
-  }, [org?.primary_color, themeConfig.secondary_color, gradientColor, accentTextColor, headerTextColor, themeConfig.font]);
+  }, [effectivePrimaryColor, themeConfig.secondary_color, gradientColor, accentTextColor, headerTextColor, themeConfig.font]);
 
   // Helper: build category groups dynamically using saved order or defaults
   const buildGroups = (sourceItems: typeof menuItems) => {
@@ -363,11 +405,10 @@ const UnitPage = () => {
 
   if (!org) return null;
 
-  // Cor padrão TrendFood — todas as lojas usam laranja por padrão.
-  // Estilos (header_style, button_style, card_style, font) ainda são personalizáveis.
-  const primaryColor = "#f97316";
-  const buttonColor = "#f97316";
-  const categoryColor = "#f97316";
+  // Cor da marca: vem da paleta automática (extraída da logo) ou do override manual.
+  const primaryColor = effectivePrimaryColor || "#f97316";
+  const buttonColor = themeConfig.button_color || primaryColor;
+  const categoryColor = themeConfig.category_color || primaryColor;
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
   // Sanitize WhatsApp number for reliable wa.me links
@@ -933,7 +974,7 @@ const UnitPage = () => {
             style={{
               maxHeight: 180,
               minHeight: 120,
-              background: `linear-gradient(135deg, ${org.primary_color || "#f97316"} 0%, ${org.primary_color || "#f97316"}cc 60%, ${org.primary_color || "#f97316"}99 100%)`,
+              background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
             }}
           >
             <div className="flex items-center gap-3">
@@ -1142,7 +1183,7 @@ const UnitPage = () => {
                                 <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
                                 <span
                                   className="font-extrabold text-base"
-                                  style={{ color: org?.primary_color || "hsl(var(--primary))" }}
+                                  style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
                                 >
                                   {fmt(item.price)}
                                 </span>
