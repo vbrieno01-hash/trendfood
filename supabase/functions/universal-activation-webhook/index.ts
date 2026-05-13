@@ -221,6 +221,47 @@ Deno.serve(async (req) => {
       notes: `+${days} dias via webhook${email ? ` (email: ${email})` : ""}`,
     });
 
+    // ── Ledger de receita real (Cakto / outro gateway) ──
+    try {
+      const amountRaw =
+        url.searchParams.get("amount") ??
+        body?.amount ??
+        body?.transaction_amount ??
+        body?.value ??
+        null;
+      const amountCentsRaw = url.searchParams.get("amount_cents") ?? body?.amount_cents ?? null;
+      let amountCents: number | null = null;
+      if (amountCentsRaw != null && amountCentsRaw !== "") {
+        amountCents = Math.round(Number(amountCentsRaw));
+      } else if (amountRaw != null && amountRaw !== "") {
+        amountCents = Math.round(Number(amountRaw) * 100);
+      }
+      const billingCycle =
+        url.searchParams.get("billing_cycle") ?? body?.billing_cycle ?? null;
+      const paymentId =
+        url.searchParams.get("payment_id") ??
+        body?.payment_id ??
+        body?.transaction_id ??
+        body?.id ??
+        null;
+      const sourceTag =
+        url.searchParams.get("source") ?? body?.source ?? "universal_webhook";
+      if (amountCents && amountCents > 0) {
+        await supabase.from("subscription_payments").insert({
+          organization_id: orgId!,
+          payment_id: paymentId ? String(paymentId) : null,
+          plan,
+          billing_cycle: billingCycle,
+          amount_cents: amountCents,
+          promo_applied: false,
+          source: sourceTag,
+          notes: `+${days} dias`,
+        });
+      }
+    } catch (ledgerErr) {
+      console.error("[universal-webhook] subscription_payments insert err (non-blocking):", ledgerErr);
+    }
+
     // ── Referral bonus ──
     await processReferralBonus(supabase, orgId!);
 
