@@ -23,6 +23,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 import { useMenuItems, buildCategoryOrder } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
+import { Helmet } from "react-helmet-async";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliveryNeighborhoods";
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
@@ -431,6 +432,37 @@ const UnitPage = () => {
   const isPaused = !!(org as any).paused;
   const isClosed = isPaused || (storeStatus !== null && !storeStatus.open);
   const opensAt = !isPaused && isClosed && storeStatus && "opensAt" in storeStatus ? storeStatus.opensAt : null;
+
+  // Restaurant JSON-LD for SEO rich results
+  const restaurantSchema = (() => {
+    const dayMap: Record<string, string> = {
+      dom: "Sunday", seg: "Monday", ter: "Tuesday", qua: "Wednesday",
+      qui: "Thursday", sex: "Friday", sab: "Saturday",
+    };
+    const bh = org.business_hours as any;
+    const opening = bh?.enabled && bh?.schedule
+      ? Object.entries(bh.schedule)
+          .filter(([, v]: any) => v?.open && v?.from && v?.to)
+          .map(([k, v]: any) => ({
+            "@type": "OpeningHoursSpecification",
+            dayOfWeek: dayMap[k],
+            opens: v.from,
+            closes: v.to,
+          }))
+      : undefined;
+    const url = `https://trendfood.site/unidade/${slug}`;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      name: org.name,
+      url,
+      ...(org.logo_url ? { image: org.logo_url } : {}),
+      ...(whatsappValid ? { telephone: `+${cleanWa}` } : {}),
+      ...(opening && opening.length ? { openingHoursSpecification: opening } : {}),
+      servesCuisine: "Brazilian",
+      priceRange: "$$",
+    };
+  })();
 
   // Scheduling slots
   const schedulingConfig = (org as any).scheduling_config as { enabled?: boolean; min_advance_minutes?: number } | null;
@@ -912,6 +944,16 @@ const UnitPage = () => {
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily }}>
+      <Helmet>
+        <title>{`${org.name} — Cardápio Digital`}</title>
+        <meta name="description" content={`Peça online no ${org.name}. Cardápio digital, entrega e retirada com pagamento por PIX ou cartão.`} />
+        <link rel="canonical" href={`https://trendfood.site/unidade/${slug}`} />
+        <meta property="og:title" content={`${org.name} — Cardápio Digital`} />
+        <meta property="og:description" content={`Peça online no ${org.name}. Cardápio digital, entrega e retirada com pagamento por PIX ou cartão.`} />
+        <meta property="og:url" content={`https://trendfood.site/unidade/${slug}`} />
+        {org.logo_url && <meta property="og:image" content={org.logo_url} />}
+        <script type="application/ld+json">{JSON.stringify(restaurantSchema)}</script>
+      </Helmet>
       {/* Header */}
       <header
         className="sticky top-0 z-40 shadow-sm"
