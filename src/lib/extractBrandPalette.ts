@@ -101,8 +101,13 @@ export async function extractBrandPalette(logoUrl: string): Promise<BrandPalette
   if (!logoUrl) return NEUTRAL_PALETTE;
   const cleanUrl = normalizeUrl(logoUrl);
   const hash = quickHash(cleanUrl);
+  // Bypass do cache HTTP: a logo é gravada sempre no mesmo path (upsert),
+  // então sem cache-buster o <img> serve a versão antiga e a paleta nunca muda.
+  const fetchUrl = logoUrl.includes("?")
+    ? `${logoUrl}&_cb=${Date.now()}`
+    : `${logoUrl}?_cb=${Date.now()}`;
   try {
-    const img = await loadImage(cleanUrl);
+    const img = await loadImage(fetchUrl);
     const dominant = dominantColorFromImage(img);
     if (!dominant) {
       console.info("[extractBrandPalette] no dominant color found, using neutral");
