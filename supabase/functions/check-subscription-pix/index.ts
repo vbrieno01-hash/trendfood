@@ -122,6 +122,14 @@ Deno.serve(async (req) => {
         source: "mercadopago_pix",
         notes: `PIX payment ${payment_id} approved (${billing})${promoApplied ? " (promo 50% off)" : ""}`,
       });
+
+      // Mark pending row as approved (idempotent)
+      try {
+        await serviceClient
+          .from("pending_subscription_payments")
+          .update({ status: "approved", resolved_at: new Date().toISOString() })
+          .eq("payment_id", String(payment_id));
+      } catch (_) { /* non-blocking */ }
     }
 
     return new Response(JSON.stringify({ paid, status: mpData.status }), {
