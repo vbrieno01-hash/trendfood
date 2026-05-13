@@ -164,7 +164,7 @@ const PricingPage = () => {
       <PageSeo
         title="Planos e Preços — TrendFood"
         description="Conheça os planos do TrendFood: cardápio digital com taxa 0%, gestão de pedidos, cozinha e entregas. Escolha o plano ideal para seu restaurante."
-        path="/precos"
+        path="/planos"
       />
       {/* Header */}
       <header className="border-b border-border/60">
