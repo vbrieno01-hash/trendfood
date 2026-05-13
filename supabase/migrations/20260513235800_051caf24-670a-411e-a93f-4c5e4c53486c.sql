@@ -1,0 +1,1 @@
+REVOKE ALL ON public.top_stores_showcase FROM anon, authenticated;
