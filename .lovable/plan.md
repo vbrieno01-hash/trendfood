@@ -1,57 +1,54 @@
-## Problema
+## Objetivo
+Eliminar qualquer exposição pública de leitura na tabela `deliveries` e garantir que apenas membros da organização (dono) e admins da plataforma possam ler entregas.
 
-Hoje o trigger `deduct_stock_and_disable` apenas subtrai do estoque quando `paid` vira `true`, e desativa o produto se a quantidade ficar ≤ 0. Mas:
+## Situação atual
+Ao inspecionar `pg_policies` para `public.deliveries`, encontrei estas policies de SELECT:
 
-- Não avisa o lojista quando o estoque ficou negativo (cliente pediu mais do que havia).
-- Não há alerta visual/sonoro no painel quando isso acontece.
-- O lojista só descobre depois, quebrando a operação (ex: 10 pedidos x estoque 3 = 7 clientes sem produto).
+- `deliveries_select_owner` — restrita ao dono da organização (`organizations.user_id = auth.uid()`).
+- `deliveries_select_admin` — restrita a `has_role(auth.uid(),'admin')`.
 
-## Solução proposta
+A policy `deliveries_select_public` mencionada no scan **não existe mais** no banco (provavelmente foi removida em migração anterior, mas o scanner ainda referencia o snapshot). Mesmo assim, vou garantir a remoção idempotente e adicionar a policy nominal solicitada para fechar o aviso.
 
-### 1. Detectar "ruptura de estoque" no banco
+Os entregadores (couriers) **não dependem de policy pública** — eles leem via funções `SECURITY DEFINER` (`get_pending_deliveries`, `get_my_deliveries`), então a remoção do acesso público não os quebra.
 
-Criar nova tabela `stock_alerts`:
-- `organization_id`, `order_id`, `stock_item_id`, `stock_item_name`
-- `requested_qty`, `available_qty`, `shortage` (quanto faltou)
-- `menu_item_name`, `acknowledged` (boolean), `created_at`
+Não há tabela `profiles` com `organization_id` neste projeto; o vínculo dono↔org é feito via `organizations.user_id`. A policy nova segue esse padrão (não a sugestão genérica que assume `profiles.organization_id`).
 
-Alterar a função `deduct_stock_and_disable`:
-- Antes de subtrair, comparar `quantity_used * order_qty` com `stock_items.quantity`.
-- Se `requested > available`, inserir registro em `stock_alerts` com o "shortage".
-- Continuar subtraindo (estoque pode ficar negativo) e desativar o produto como já faz hoje.
+## Mudanças (apenas RLS — nenhuma alteração de schema, dados ou código)
 
-Habilitar Realtime em `stock_alerts` (REPLICA IDENTITY FULL + publicação).
+Migration única:
 
-### 2. RLS
+```sql
+-- 1. Remover qualquer resquício da policy pública
+DROP POLICY IF EXISTS deliveries_select_public ON public.deliveries;
 
-- SELECT/UPDATE: apenas membros da organização (mesmo padrão das outras tabelas do dono).
-- INSERT: apenas via trigger (SECURITY DEFINER), sem policy pública.
+-- 2. Policy nominal pedida pelo usuário (escopo: dono da organização autenticado)
+DROP POLICY IF EXISTS users_can_select_their_org_deliveries ON public.deliveries;
+CREATE POLICY users_can_select_their_org_deliveries
+ON public.deliveries
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.organizations o
+    WHERE o.id = deliveries.organization_id
+      AND o.user_id = auth.uid()
+  )
+);
 
-### 3. Notificação ao lojista
+-- 3. Garantir policy de admin (idempotente)
+DROP POLICY IF EXISTS deliveries_select_admin ON public.deliveries;
+CREATE POLICY deliveries_select_admin
+ON public.deliveries
+FOR SELECT
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'));
+```
 
-Três camadas, todas disparadas pelo mesmo evento de inserção em `stock_alerts`:
+A policy `deliveries_select_owner` pré-existente é equivalente a `users_can_select_their_org_deliveries` e pode coexistir (policies SELECT são OR). Mantida para não quebrar nada.
 
-a) **Painel (tempo real)**: novo badge vermelho no header do dashboard + toast sonoro quando chega um alerta novo. Subscribe via Realtime no `Dashboard` (canal global).
-
-b) **Aba Insumos**: card destacado no topo listando rupturas pendentes ("Pediram 10 de X-Burger, só havia 3 — faltaram 7"), com botão "Resolvi / Repor estoque" que marca `acknowledged = true`.
-
-c) **Push + Telegram do lojista**: trigger `AFTER INSERT` em `stock_alerts` chama via `pg_net` as Edge Functions já existentes (`send-push-notification` e `notify-merchant-telegram`) com um novo `event_type = 'stock_shortage'`. Atualizar essas funções para formatar a mensagem ("⚠️ Faltou estoque: 7 unidades de Carne no pedido #123").
-
-### 4. UI
-
-- `StockTab.tsx`: bloco `StockAlertsPanel` no topo (só aparece se houver alertas não reconhecidos), com lista, botão "Marcar como resolvido" e link para o pedido.
-- `Dashboard` header: ícone sino com contador de alertas pendentes.
-
-### 5. Detalhes técnicos
-
-- Tabela `stock_alerts` com índice em `(organization_id, acknowledged, created_at DESC)`.
-- Reutilizar `useQueryClient().invalidateQueries(['stock-alerts'])` no Realtime subscriber.
-- Som de alerta: usar o mesmo `Audio` do KDS.
-- Edge Functions: ramo extra no payload — se `event_type === 'stock_shortage'`, montar título "Estoque insuficiente" e corpo com produto + quantidade faltante.
-
-## Fora de escopo
-
-- Reserva preditiva de estoque no checkout (bloquear o pedido antes de cair). Pode ser uma 2ª fase se você quiser.
-- Histórico/relatório de rupturas (já fica registrado em `stock_alerts`, mas sem tela de relatório agora).
-
-Quer que eu siga assim ou prefere também **bloquear o pedido no checkout** quando o estoque é insuficiente (em vez de só avisar depois)?
+## Garantias de segurança
+- **Anônimos**: zero acesso de SELECT em `deliveries`.
+- **Donos**: continuam vendo entregas da própria organização.
+- **Admins da plataforma**: continuam vendo tudo.
+- **Couriers**: continuam funcionando via RPCs `SECURITY DEFINER` já existentes.
+- Coluna `organization_id` preservada, nenhum dado removido, nenhuma alteração de front-end.
