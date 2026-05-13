@@ -318,6 +318,7 @@ function AdminContent() {
   const navigate = useNavigate();
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "trial">("all");
   const [addressFilter, setAddressFilter] = useState<"all" | "with" | "without">("all");
@@ -328,12 +329,16 @@ function AdminContent() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: orgsData }, { data: menuData }] = await Promise.all([
+      const [{ data: orgsData }, { data: menuData }, { data: paymentsData }] = await Promise.all([
         supabase
           .from("organizations")
           .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours")
           .order("created_at", { ascending: false }),
         supabase.from("menu_items").select("organization_id"),
+        supabase
+          .from("subscription_payments")
+          .select("id, organization_id, payment_id, plan, billing_cycle, amount_cents, promo_applied, paid_at, source, notes")
+          .order("paid_at", { ascending: false }),
       ]);
 
       if (!orgsData) { setLoading(false); return; }
@@ -353,6 +358,7 @@ function AdminContent() {
       }));
 
       setOrgs(enriched);
+      setPayments((paymentsData as PaymentRow[]) ?? []);
       setLoading(false);
     }
     load();
@@ -361,7 +367,25 @@ function AdminContent() {
   const payingOrgs = useMemo(() => orgs.filter((o) => o.subscription_plan !== "free" && o.subscription_plan !== "lifetime"), [orgs]);
   const proCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "pro").length, [orgs]);
   const enterpriseCount = useMemo(() => orgs.filter((o) => o.subscription_plan === "enterprise").length, [orgs]);
-  const mrr = proCount * 99 + enterpriseCount * 249;
+
+  // ── Receita REAL a partir do ledger subscription_payments ──
+  const paymentsByOrg = useMemo(() => {
+    const map = new Map<string, PaymentRow[]>();
+    payments.forEach((p) => {
+      const arr = map.get(p.organization_id) ?? [];
+      arr.push(p);
+      map.set(p.organization_id, arr);
+    });
+    return map;
+  }, [payments]);
+
+  // MRR = soma do que entrou nos últimos 30 dias
+  const mrr = useMemo(() => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return payments
+      .filter((p) => new Date(p.paid_at).getTime() >= cutoff)
+      .reduce((acc, p) => acc + p.amount_cents, 0) / 100;
+  }, [payments]);
 
   const trialCount = useMemo(() => orgs.filter((o) => {
     if (!o.trial_ends_at) return false;
@@ -369,17 +393,56 @@ function AdminContent() {
   }).length, [orgs]);
 
   const subscriberDetails = useMemo(() => {
-    const now = new Date();
     return payingOrgs.map((o) => {
-      const created = new Date(o.created_at);
-      const monthsActive = Math.max(1, Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24 * 30)));
-      const planValue = o.subscription_plan === "enterprise" ? 249 : 99;
-      const totalEstimated = monthsActive * planValue;
-      return { ...o, monthsActive, planValue, totalEstimated };
+      const orgPayments = paymentsByOrg.get(o.id) ?? [];
+      const totalPaid = orgPayments.reduce((acc, p) => acc + p.amount_cents, 0) / 100;
+      const paymentCount = orgPayments.length;
+      const lastPayment = orgPayments[0] ?? null;
+      const lastPaidValue = lastPayment ? lastPayment.amount_cents / 100 : 0;
+      return {
+        ...o,
+        paymentCount,
+        lastPaidValue,
+        totalPaid,
+        lastPaidAt: lastPayment?.paid_at ?? null,
+      };
     });
-  }, [payingOrgs]);
+  }, [payingOrgs, paymentsByOrg]);
 
-  const totalRevenue = useMemo(() => subscriberDetails.reduce((acc, s) => acc + s.totalEstimated, 0), [subscriberDetails]);
+  const totalRevenue = useMemo(
+    () => payments.reduce((acc, p) => acc + p.amount_cents, 0) / 100,
+    [payments],
+  );
+
+  const exportRevenueCSV = () => {
+    const orgsById = new Map(orgs.map((o) => [o.id, o] as const));
+    const lines = ["Data,Loja,Slug,Plano,Ciclo,Valor (R$),Promo,Origem,Payment ID,Observacao"];
+    payments.forEach((p) => {
+      const o = orgsById.get(p.organization_id);
+      const date = new Date(p.paid_at).toLocaleDateString("pt-BR");
+      const amount = (p.amount_cents / 100).toFixed(2).replace(".", ",");
+      const safe = (s: string | null | undefined) => `"${(s ?? "").replace(/"/g, '""')}"`;
+      lines.push([
+        date,
+        safe(o?.name ?? "—"),
+        safe(o?.slug ?? "—"),
+        safe(p.plan),
+        safe(p.billing_cycle ?? ""),
+        amount,
+        p.promo_applied ? "sim" : "nao",
+        safe(p.source),
+        safe(p.payment_id ?? ""),
+        safe(p.notes ?? ""),
+      ].join(","));
+    });
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `receita-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const { newThisMonth, newLastMonth } = useMemo(() => {
     const now = new Date();
