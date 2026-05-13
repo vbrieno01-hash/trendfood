@@ -481,9 +481,10 @@ Deno.serve(async (req) => {
             });
           }
         }
-        // Reembolso/estorno: cancela comissão do afiliado
+        // Reembolso/estorno: cancela comissão do afiliado e reverte bônus de indicação
         if (mpData.status === "refunded" || mpData.status === "charged_back" || mpData.status === "cancelled") {
           await processAffiliateRefund(supabase, paymentId);
+          await processReferralRefund(supabase, paymentId);
         }
         return new Response(JSON.stringify({ received: true, status: mpData.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -592,7 +593,7 @@ Deno.serve(async (req) => {
           }
 
           // ── Referral bonus (first payment) ──
-          await processReferralBonus(supabase, orgId, accessToken);
+          await processReferralBonus(supabase, orgId, accessToken, paymentId);
 
           // ── Comissão de afiliado externo (recorrente) ──
           await processAffiliateCommission(
@@ -692,7 +693,7 @@ Deno.serve(async (req) => {
       }
 
       // ── Referral bonus ──
-      await processReferralBonus(supabase, orgId, accessToken);
+      await processReferralBonus(supabase, orgId, accessToken, paymentId);
 
       // ── Comissão de afiliado externo ──
       await processAffiliateCommission(
