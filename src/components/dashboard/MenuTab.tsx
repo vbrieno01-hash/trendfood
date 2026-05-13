@@ -1375,7 +1375,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                 <CurrencyInput
                   id="item-price"
                   value={form.price}
-                  onChange={(v) => setForm((p) => ({ ...p, price: v }))}
+                  onChange={(v) => { setPriceTouched(true); setForm((p) => ({ ...p, price: v })); }}
                   className="mt-1"
                   required
                 />
@@ -1468,12 +1468,14 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                     stockItems={stockItems}
                     addIngredient={addIngredient}
                     removeIngredient={removeIngredient}
+                    onCostChange={handleIngredientsCostChange}
                   />
                 ) : (
                   <PendingIngredientsSection
                     stockItems={stockItems}
                     pending={pendingIngredients}
                     onChange={setPendingIngredients}
+                    onCostChange={handleIngredientsCostChange}
                   />
                 )
               ) : (
