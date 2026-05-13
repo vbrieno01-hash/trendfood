@@ -538,6 +538,27 @@ export type Database = {
           },
         ]
       }
+      cron_health: {
+        Row: {
+          job_name: string
+          last_run_count: number | null
+          last_success_at: string
+          notes: string | null
+        }
+        Insert: {
+          job_name: string
+          last_run_count?: number | null
+          last_success_at?: string
+          notes?: string | null
+        }
+        Update: {
+          job_name?: string
+          last_run_count?: number | null
+          last_success_at?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
       customer_push_subscriptions: {
         Row: {
           auth: string
@@ -1729,6 +1750,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      referral_block_logs: {
+        Row: {
+          created_at: string
+          id: string
+          raw_error: string | null
+          reason: string
+          referred_org_id: string | null
+          referrer_org_id: string | null
+          source_payment_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          raw_error?: string | null
+          reason: string
+          referred_org_id?: string | null
+          referrer_org_id?: string | null
+          source_payment_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          raw_error?: string | null
+          reason?: string
+          referred_org_id?: string | null
+          referrer_org_id?: string | null
+          source_payment_id?: string | null
+        }
+        Relationships: []
       }
       referral_bonuses: {
         Row: {

@@ -298,6 +298,38 @@ function buildMessage(eventType: string, payload: any): string | null {
       ].filter(Boolean).join("\n");
     }
 
+    case "referral_flagged":
+      return [
+        "🚩 <b>Bônus de indicação em revisão</b>",
+        "",
+        `🎁 +${payload.bonus_days} dias para org <code>${escapeHtml(payload.referrer_org_id)}</code>`,
+        payload.referred_org_name ? `↳ Indicado: ${escapeHtml(payload.referred_org_name)}` : "",
+        `📋 Motivo: ${escapeHtml(payload.reason)}`,
+        "",
+        "👉 Painel Admin → Indicações para liberar ou anular",
+      ].filter(Boolean).join("\n");
+
+    case "referral_blocked":
+      return [
+        "🛑 <b>Tentativa de bônus bloqueada</b>",
+        "",
+        `🏪 Indicado: ${escapeHtml(payload.referred_org_name || payload.referred_org_id)}`,
+        `📋 Motivo: ${escapeHtml(payload.reason)}`,
+        payload.payment_id ? `💳 Pagamento: <code>${escapeHtml(payload.payment_id)}</code>` : "",
+        "",
+        "👉 Painel Admin → Indicações → Tentativas bloqueadas",
+      ].filter(Boolean).join("\n");
+
+    case "cron_lagging": {
+      const lines = ["⚠️ <b>Cron parado / atrasado</b>", "", `🔧 Job: ${escapeHtml(payload.job)}`];
+      const alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
+      for (const a of alerts) {
+        lines.push(`• <b>${escapeHtml(a.type)}</b>: ${escapeHtml(a.detail)}`);
+      }
+      lines.push("", "👉 Verifique pg_cron e logs da função release_pending_referral_bonuses");
+      return lines.join("\n");
+    }
+
     default:
       return null;
   }

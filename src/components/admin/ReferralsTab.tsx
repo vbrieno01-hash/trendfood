@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, TrendingUp, Store } from "lucide-react";
+import { Users, TrendingUp, Store, ShieldAlert } from "lucide-react";
 
 interface ReferralOrg {
   id: string;
@@ -25,6 +25,7 @@ export default function ReferralsTab() {
   const [referrals, setReferrals] = useState<ReferralOrg[]>([]);
   const [allOrgs, setAllOrgs] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [blocks, setBlocks] = useState<Array<{ id: string; reason: string; referrer_org_id: string | null; referred_org_id: string | null; source_payment_id: string | null; created_at: string }>>([]);
 
   useEffect(() => {
     async function load() {
@@ -39,6 +40,13 @@ export default function ReferralsTab() {
         setAllOrgs(orgMap);
         setReferrals((data as any[]).filter((o) => o.referred_by_id));
       }
+      const { data: blockData } = await supabase
+        .from("referral_block_logs")
+        .select("id, reason, referrer_org_id, referred_org_id, source_payment_id, created_at")
+        .gte("created_at", new Date(Date.now() - 30 * 86400_000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setBlocks((blockData as any) ?? []);
       setLoading(false);
     }
     load();
@@ -132,6 +140,40 @@ export default function ReferralsTab() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {blocks.length > 0 && (
+        <div className="admin-glass rounded-2xl overflow-hidden animate-admin-fade-in">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-destructive/5">
+            <ShieldAlert className="w-4 h-4 text-destructive" />
+            <h3 className="text-sm font-bold text-foreground">Tentativas bloqueadas (últimos 30 dias)</h3>
+            <Badge variant="secondary" className="ml-auto rounded-full border-0 text-[10px] bg-destructive/15 text-destructive font-bold">{blocks.length}</Badge>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/30 bg-muted/10">
+                  <th className="text-left px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase">Quando</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase">Motivo</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase">Indicador</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase">Indicado</th>
+                  <th className="text-left px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase">Pagamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {blocks.map((b) => (
+                  <tr key={b.id} className="border-b border-border/20 last:border-0">
+                    <td className="px-4 py-2 text-muted-foreground text-xs">{new Date(b.created_at).toLocaleString("pt-BR")}</td>
+                    <td className="px-4 py-2"><Badge variant="secondary" className="rounded-full border-0 text-[10px] bg-destructive/10 text-destructive font-bold">{b.reason}</Badge></td>
+                    <td className="px-4 py-2 text-xs">{b.referrer_org_id ? (allOrgs.get(b.referrer_org_id) ?? b.referrer_org_id.slice(0, 8)) : "—"}</td>
+                    <td className="px-4 py-2 text-xs">{b.referred_org_id ? (allOrgs.get(b.referred_org_id) ?? b.referred_org_id.slice(0, 8)) : "—"}</td>
+                    <td className="px-4 py-2 text-xs font-mono text-muted-foreground">{b.source_payment_id ?? "—"}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
