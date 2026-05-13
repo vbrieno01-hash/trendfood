@@ -116,7 +116,7 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
         try {
           const { data: activatedOrg } = await supabase
             .from("organizations")
-            .select("referred_by_id")
+            .select("referred_by_id, billing_cycle")
             .eq("id", org.id)
             .single();
 
@@ -130,10 +130,13 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
               .maybeSingle();
 
             if (!existing) {
+              // Mensal = +1 mês (30d) · Trimestral = +1.5 mês (45d) · Anual = +3 meses (90d)
+              const cycle = (activatedOrg as any)?.billing_cycle;
+              const bonusDays = cycle === "annual" ? 90 : cycle === "quarterly" ? 45 : 30;
               await (supabase.from("referral_bonuses") as any).insert({
                 referrer_org_id: referrerId,
                 referred_org_id: org.id,
-                bonus_days: 10,
+                bonus_days: bonusDays,
                 referred_org_name: org.name,
               });
 
@@ -147,7 +150,7 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
                 const currentExpiry = referrerOrg.trial_ends_at
                   ? new Date(referrerOrg.trial_ends_at)
                   : new Date();
-                const newExpiry = new Date(currentExpiry.getTime() + 10 * 24 * 60 * 60 * 1000);
+                const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
 
                 await supabase
                   .from("organizations")
@@ -158,7 +161,7 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
                   organization_id: referrerId,
                   org_name: referrerOrg.name || null,
                   source: "referral_bonus",
-                  notes: `+10 dias por indicar "${org.name}" (org ${org.id})`,
+                  notes: `+${bonusDays} dias por indicar "${org.name}" (org ${org.id})`,
                 });
               }
             }
