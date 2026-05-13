@@ -1,27 +1,47 @@
-# Plano: Corrigir tema automático que não recalcula ao trocar a logo
+## Problema
 
-## Diagnóstico
+Na vitrine pública (`/unidade/slug` e `/mesa/...`), a loja não muda de "Fechada" para "Aberta" sozinha quando bate o horário de abertura. O cliente precisa atualizar a página.
 
-Em `src/lib/extractBrandPalette.ts` o fluxo é:
+### Causa raiz
 
-```ts
-const cleanUrl = normalizeUrl(logoUrl);   // remove "?t=12345"
-const img = await loadImage(cleanUrl);    // <-- carrega a URL SEM cache-buster
-```
+`getStoreStatus(org.business_hours, org.force_open)` é executado a cada render usando `new Date()`. Mas o componente só re-renderiza quando:
 
-E `loadImage` usa `<img crossOrigin="anonymous">`. O upload da logo em `StoreProfileTab.handleLogoUpload` sempre grava no mesmo path (`<orgId>/logo.<ext>`, `upsert: true`) e gera a URL com `?t=Date.now()` **justamente para furar o cache do navegador**. Mas a função de extração descarta o cache-buster antes de baixar — então o `<img>` devolve a logo antiga do disk cache, a "cor dominante" continua igual e o tema nunca muda.
+1. O React Query refaz a query e retorna **uma referência nova** de `org` (a cada 30s);
+2. ou o usuário interage.
 
-O cache-buster é descartado de propósito só pra hashear a URL canônica (`logo_hash`). O bug é usar essa URL canônica também no `loadImage`.
+Como `business_hours` quase nunca muda, em muitos casos o React Query devolve dados estruturalmente iguais e o componente não re-renderiza — então o `Date()` nunca é reavaliado e a loja "trava" no estado em que estava quando a página foi aberta.
 
-## Correção
+A lógica em SQL (`get_store_status`) e em TS (`src/lib/storeStatus.ts`) está correta. As migrations de ontem (RLS de organizations/deliveries/couriers, PIX, cupons) não tocaram nesse fluxo.
 
-`src/lib/extractBrandPalette.ts`:
-- Manter `cleanUrl` apenas para gerar o `quickHash`.
-- Passar a URL **original** (com `?t=...`) para `loadImage`, garantindo bypass de cache.
-- Se a URL recebida não tem cache-buster, anexar `?cb=Date.now()` antes de baixar (defesa pro botão "Recalcular", que recebe a `logoUrl` já em estado, possivelmente sem buster fresco).
+## Solução
 
-Resultado: cada upload/recalcular busca a imagem nova de fato e a paleta é recomputada.
+Adicionar um "tick" de tempo nas páginas da vitrine que força a recomputação do status a cada 30 segundos, independente de refetch.
 
-## Fora de escopo
-- Não mexer em `colorUtils`, no UI da aba, no fluxo multi-loja ou em qualquer outra lógica.
-- Não tocar em CORS do bucket (já está OK porque `crossOrigin="anonymous"` funciona — o problema é só o cache HTTP).
+### Arquivos a alterar
+
+**1. `src/pages/UnitPage.tsx`**
+- Adicionar um `useState` numérico (`tick`) e um `useEffect` com `setInterval(() => setTick(t => t+1), 30_000)`.
+- Incluir `tick` na deps do `useMemo` que computa `storeStatus` (ou trocar a IIFE da linha 431 por `useMemo([org?.business_hours, org?.force_open, org?.paused, tick])`).
+- Resultado: a cada 30s a página reavalia o relógio e abre a loja sozinha quando bater `from`.
+
+**2. `src/pages/TableOrderPage.tsx`** (linha 91)
+- Mesmo padrão: `tick` + `useMemo` para `storeStatus`.
+
+**3. `src/pages/CourierPage.tsx`** (linha 266 — já tem dependência de `activeShift, businessHours, forceOpen`)
+- Adicionar `tick` ao `useEffect` para que o painel do entregador também respeite a transição automática.
+
+### O que NÃO mexer
+
+- `src/lib/storeStatus.ts` — lógica correta, deixar como está.
+- Função SQL `get_store_status` / `validate_store_open_for_order` — corretas, mantidas como segunda linha de defesa no INSERT do pedido.
+- RLS de `organizations` — `business_hours` segue concedido a `anon` (migration `20260513015213`).
+- `useOrganization` — mantém `refetchInterval: 30s` (cobre mudanças reais de `paused`/`force_open`).
+
+### Validação
+
+- Abrir a vitrine de uma loja com `from: 23:59` (ou ajustar temporariamente) e esperar passar o minuto sem dar refresh → deve virar "Aberta" em até 30s.
+- Conferir nas duas páginas (`/unidade/slug` e `/mesa/N`).
+
+### Por que `setInterval` em vez de `refetchInterval`
+
+Refetch fala com o backend e depende de mudança de referência para re-renderizar. O `tick` local é gratuito (sem rede), garantido a cada 30s, e só serve para reavaliar `Date()`. Combinados, dão robustez total.

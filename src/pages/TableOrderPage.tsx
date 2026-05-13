@@ -87,6 +87,13 @@ export default function TableOrderPage() {
 
   const tableNum = parseInt(tableNumber || "0", 10);
 
+  // Tick a cada 30s para forçar reavaliação do horário (loja abre/fecha sozinha sem refresh)
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Store status check
   const storeStatus = org ? getStoreStatus(org.business_hours, org.force_open) : null;
   const isClosed = org?.paused || (storeStatus !== null && !storeStatus.open);

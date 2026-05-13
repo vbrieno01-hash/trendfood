@@ -175,9 +175,9 @@ const UnitPage = () => {
   const [scheduledTime, setScheduledTime] = useState("");
   const [_tick, setTick] = useState(0);
 
-  // Auto-refresh store status every 60s so UI updates when business hours change
+  // Auto-refresh store status every 30s so UI flips Aberta/Fechada sem refresh
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
     return () => clearInterval(id);
   }, []);
 
