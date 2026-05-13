@@ -1,24 +1,28 @@
-## Diagnóstico
+# Trocar imagem de compartilhamento social
 
-O link novo **já foi salvo no banco** com sucesso:
-- `community_whatsapp_url` = `https://chat.whatsapp.com/GPW4EqThH0nCfDzZoscwwi`
+## Problema
+A imagem que aparece quando o link do TrendFood é compartilhado (WhatsApp, Telegram, Twitter, Facebook) é a logo preta sobre fundo branco — fica pobre e amadora no preview.
 
-O código do `DashboardPage.tsx` lê corretamente esse valor. O motivo de "não atualizar" é o **cache em memória** do hook `usePlatformContent` (TTL de 60s, módulo-level), combinado com o **Service Worker do PWA** que pode estar servindo o app em cache. Por isso o link antigo continua aparecendo até refresh forçado.
+## O que vou fazer
 
-## Plano
+1. **Gerar uma nova imagem social profissional 1200×630** (`src/assets/og-trendfood.jpg`) usando o gerador de imagens em qualidade `premium` (texto legível, visual de marketing). Estilo:
+   - Fundo escuro com gradiente sutil (laranja/preto, alinhado à brand `#f97316` do `theme-color`)
+   - Logo TRENDFOOD em destaque (chapéu de chef + wordmark)
+   - Tagline curta: "Delivery próprio. Taxa 0%."
+   - Glow/glassmorphism leve combinando com o tema Premium Live do app
+   - Layout pensado pra preview de WhatsApp/Twitter (margens seguras)
 
-1. **Reduzir/eliminar cache estático no `usePlatformContent`**
-   - Trocar o cache de 60s por um refetch a cada montagem (ou TTL de 5s alinhado ao padrão global).
-   - Adicionar listener Realtime na tabela `platform_content` para invalidar o cache automaticamente quando algo é editado no Admin.
+2. **Substituir as meta tags em `index.html`**:
+   - `og:image` e `twitter:image` apontando para o asset novo
+   - Adicionar `og:title`, `og:description`, `og:url`, `og:image:width=1200`, `og:image:height=630`, `twitter:title`, `twitter:description` (faltam hoje, ajudam o preview a renderizar bonito)
 
-2. **Forçar invalidação após salvar no Admin**
-   - Já é feito (`cache = null`), mas garantir que outras abas/sessões também recebam (via Realtime do passo 1).
-
-3. **Sem mudanças no banco** — o valor já está correto.
+3. **QA visual**: abrir a imagem gerada, conferir legibilidade do texto, contraste e enquadramento. Se ficar ruim, regenerar.
 
 ## Detalhes técnicos
+- Arquivo final: `src/assets/og-trendfood.jpg` (JPG ~1200×630, ideal pra OG)
+- Importado no `index.html` via caminho `/assets/...` após build (Vite copia da pasta `src/assets` quando referenciado), **ou** colocado em `public/og-trendfood.jpg` para URL estável `/og-trendfood.jpg` — vou usar `public/` porque OG/Twitter precisam de URL absoluta servida direto sem hash de build.
+- Cache: redes sociais (WhatsApp/FB) cacheiam OG agressivamente. Vou avisar pra revalidar via Facebook Sharing Debugger / forçar `?v=2` na URL se necessário.
 
-- `src/hooks/usePlatformContent.ts`: remover `CACHE_TTL` longo, refetch on mount + canal Realtime `platform_content` que zera `cache` e re-busca.
-- Habilitar Realtime para `platform_content` se ainda não estiver (`ALTER PUBLICATION supabase_realtime ADD TABLE public.platform_content`).
-
-Após aplicar, basta fechar e reabrir o painel (ou esperar ~2s) que o link novo aparece sem precisar de hard-reload.
+## Fora de escopo
+- Trocar o nome "TrendFood" por outro (você ainda não escolheu — fica pra depois se quiser)
+- Mudar a logo dentro do app
