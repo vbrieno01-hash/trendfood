@@ -184,7 +184,9 @@ const Index = () => {
       />
 
       {/* Marquee social proof */}
-      <MarqueeSocialProof />
+      <Suspense fallback={null}>
+        <MarqueeSocialProof />
+      </Suspense>
 
       {/* Benefit Cards */}
       <section className="py-10 md:py-16 px-4 bg-background md:border-b md:border-border/60">
@@ -203,23 +205,25 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Problems with stacked 3D cards */}
-      <StackedProblemCards
-        title={c("problems_title", "Você já passou por isso?")}
-        subtitle={c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}
-        problems={problemsData as any}
-      />
+      <Suspense fallback={null}>
+        {/* Problems with stacked 3D cards */}
+        <StackedProblemCards
+          title={c("problems_title", "Você já passou por isso?")}
+          subtitle={c("problems_subtitle", "Esses problemas custam dinheiro e clientes todo dia")}
+          problems={problemsData as any}
+        />
 
-      {/* Animated comparison */}
-      <AnimatedComparison rows={comparisonData as any} />
+        {/* Animated comparison */}
+        <AnimatedComparison rows={comparisonData as any} />
 
-      <SavingsCalculator />
+        <SavingsCalculator />
 
-      {/* Timeline-style steps */}
-      <TimelineSteps steps={stepsData as any} />
+        {/* Timeline-style steps */}
+        <TimelineSteps steps={stepsData as any} />
 
-      {/* Sticky scroll showcase */}
-      <StickyShowcase />
+        {/* Sticky scroll showcase */}
+        <StickyShowcase />
+      </Suspense>
 
       {/* Features */}
       <section id="funcionalidades" className="py-12 md:py-20 px-4 bg-background">
@@ -230,15 +234,17 @@ const Index = () => {
             <p className="text-muted-foreground text-lg">Do cardápio digital ao controle de caixa — sem precisar de vários sistemas</p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 perspective-[1200px]" style={{ perspective: 1200 }}>
-            {featuresData.map((f: any, i: number) => (
-              <MagneticFeatureCard
-                key={f.title}
-                title={f.title}
-                description={f.description}
-                icon={featureIconMap[f.title] || <Zap className="w-5 h-5" />}
-                index={i}
-              />
-            ))}
+            <Suspense fallback={null}>
+              {featuresData.map((f: any, i: number) => (
+                <MagneticFeatureCard
+                  key={f.title}
+                  title={f.title}
+                  description={f.description}
+                  icon={featureIconMap[f.title] || <Zap className="w-5 h-5" />}
+                  index={i}
+                />
+              ))}
+            </Suspense>
           </div>
         </div>
       </section>
