@@ -24,6 +24,7 @@ import {
 import PlanCard from "@/components/pricing/PlanCard";
 import logoIcon from "@/assets/logo-icon.png";
 import PageSeo from "@/components/seo/PageSeo";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
@@ -166,6 +167,17 @@ const PricingPage = () => {
         description="Conheça os planos do TrendFood: cardápio digital com taxa 0%, gestão de pedidos, cozinha e entregas. Escolha o plano ideal para seu restaurante."
         path="/planos"
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faqs.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        })}</script>
+      </Helmet>
       {/* Header */}
       <header className="border-b border-border/60">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
