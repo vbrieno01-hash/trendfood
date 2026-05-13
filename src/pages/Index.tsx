@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { usePlatformContent } from "@/hooks/usePlatformContent";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import SavingsCalculator from "@/components/landing/SavingsCalculator";
 import HeroCinematic from "@/components/landing/HeroCinematic";
-import MarqueeSocialProof from "@/components/landing/MarqueeSocialProof";
-import StackedProblemCards from "@/components/landing/StackedProblemCards";
-import TimelineSteps from "@/components/landing/TimelineSteps";
-import StickyShowcase from "@/components/landing/StickyShowcase";
-import AnimatedComparison from "@/components/landing/AnimatedComparison";
-import MagneticFeatureCard from "@/components/landing/MagneticFeatureCard";
+const SavingsCalculator = lazy(() => import("@/components/landing/SavingsCalculator"));
+const MarqueeSocialProof = lazy(() => import("@/components/landing/MarqueeSocialProof"));
+const StackedProblemCards = lazy(() => import("@/components/landing/StackedProblemCards"));
+const TimelineSteps = lazy(() => import("@/components/landing/TimelineSteps"));
+const StickyShowcase = lazy(() => import("@/components/landing/StickyShowcase"));
+const AnimatedComparison = lazy(() => import("@/components/landing/AnimatedComparison"));
+const MagneticFeatureCard = lazy(() => import("@/components/landing/MagneticFeatureCard"));
 import PlanCard from "@/components/pricing/PlanCard";
 import { supabase } from "@/integrations/supabase/client";
 import PageSeo from "@/components/seo/PageSeo";
