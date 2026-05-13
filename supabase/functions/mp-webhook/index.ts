@@ -107,6 +107,27 @@ async function processReferralBonus(
 
     if (insErr) {
       console.warn("[mp-webhook] referral_bonus insert blocked:", insErr.message);
+      // Registra tentativa bloqueada e notifica admin no Telegram
+      const reason = insErr.message?.match(/Auto-indica|mesmo dono|mesmo CNPJ|mesmo WhatsApp/i)?.[0]
+        || "trigger_blocked";
+      try {
+        await supabase.from("referral_block_logs").insert({
+          referrer_org_id: referrerId,
+          referred_org_id: activatedOrgId,
+          reason,
+          source_payment_id: paymentId ? String(paymentId) : null,
+          raw_error: insErr.message,
+        });
+        await notifyAdmin(supabase, "referral_blocked", {
+          referrer_org_id: referrerId,
+          referred_org_id: activatedOrgId,
+          referred_org_name: activatedOrg.name || null,
+          reason,
+          payment_id: paymentId ? String(paymentId) : null,
+        });
+      } catch (e) {
+        console.error("[mp-webhook] block log err:", e);
+      }
       return;
     }
 
