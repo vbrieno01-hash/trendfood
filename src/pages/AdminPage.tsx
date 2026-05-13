@@ -795,9 +795,20 @@ function AdminContent() {
               {/* ── Subscriber details with premium table ── */}
               {!loading && (
                 <section className="animate-admin-slide-up admin-delay-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Crown className="w-4 h-4 text-primary/60" />
-                    <h2 className="text-sm font-bold text-foreground">Detalhamento de Assinantes</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-primary/60" />
+                      <h2 className="text-sm font-bold text-foreground">Detalhamento de Assinantes</h2>
+                    </div>
+                    {payments.length > 0 && (
+                      <button
+                        onClick={exportRevenueCSV}
+                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full bg-muted hover:bg-muted/80"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Exportar receita (CSV)
+                      </button>
+                    )}
                   </div>
                   {subscriberDetails.length === 0 ? (
                     <div className="admin-glass rounded-2xl p-8 text-center">
