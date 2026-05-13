@@ -34,45 +34,30 @@ async function processReferralBonus(
     // Mensal = +1 mês (30d) · Anual = +3 meses (90d)
     const bonusDays = activatedOrg.billing_cycle === "annual" ? 90 : 30;
 
-    // Insert bonus record
-    await supabase.from("referral_bonuses").insert({
+    // Insere bônus em carência (validate_referral_bonus + cron horário aplicam)
+    const { error: insErr } = await supabase.from("referral_bonuses").insert({
       referrer_org_id: referrerId,
       referred_org_id: activatedOrgId,
       bonus_days: bonusDays,
       referred_org_name: activatedOrg.name || null,
     });
-
-    // Add bonus days to referrer's trial_ends_at
-    const { data: referrerOrg } = await supabase
-      .from("organizations")
-      .select("trial_ends_at, name")
-      .eq("id", referrerId)
-      .single();
-
-    if (referrerOrg) {
-      const currentExpiry = referrerOrg.trial_ends_at
-        ? new Date(referrerOrg.trial_ends_at)
-        : new Date();
-      const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
-
-      await supabase
-        .from("organizations")
-        .update({ trial_ends_at: newExpiry.toISOString() })
-        .eq("id", referrerId);
-
-      await supabase.from("activation_logs").insert({
-        organization_id: referrerId,
-        org_name: referrerOrg.name || null,
-        old_plan: null,
-        new_plan: null,
-        old_status: null,
-        new_status: null,
-        source: "referral_bonus",
-        notes: `+${bonusDays} dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
-      });
-
-      console.log(`[universal-webhook] Referral bonus: +${bonusDays} days for org`, referrerId);
+    if (insErr) {
+      console.warn("[universal-webhook] referral_bonus blocked:", insErr.message);
+      return;
     }
+
+    const { data: referrerOrg } = await supabase
+      .from("organizations").select("name").eq("id", referrerId).maybeSingle();
+
+    await supabase.from("activation_logs").insert({
+      organization_id: referrerId,
+      org_name: referrerOrg?.name || null,
+      old_plan: null, new_plan: null, old_status: null, new_status: null,
+      source: "referral_bonus",
+      notes: `+${bonusDays} dias em carência (libera em 7d) por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
+    });
+
+    console.log(`[universal-webhook] Referral bonus queued: +${bonusDays}d for`, referrerId);
   } catch (err) {
     console.error("[universal-webhook] Referral bonus error (non-blocking):", err);
   }
