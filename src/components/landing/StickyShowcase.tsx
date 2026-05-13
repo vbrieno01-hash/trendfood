@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3, Wallet, TrendingUp, UtensilsCrossed, Flame } from "lucide-react";
-import dashboardImg from "@/assets/dashboard-screenshot.png";
+import dashboardImg from "@/assets/dashboard-screenshot.webp";
 
 const tabs = [
   { icon: TrendingUp, label: "Pedidos ao vivo", desc: "Receba pedidos em tempo real, com alerta sonoro e impressão automática para a cozinha." },

@@ -4,7 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform, useScroll } from "fram
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap, Flame } from "lucide-react";
-import dashboardImg from "@/assets/dashboard-screenshot.png";
+import dashboardImg from "@/assets/dashboard-screenshot.webp";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 interface HeroProps {
