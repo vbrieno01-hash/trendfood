@@ -1,52 +1,76 @@
 ## Diagnóstico
 
-Auditei todo o fluxo do Telegram Admin (cron jobs, watchdog, mp-webhook, logs e dados reais do banco). Resultado por evento:
+Investiguei a fila completa do PIX de assinatura. O fluxo atual depende **100% do navegador do cliente ficar aberto na tela do QR Code**:
 
-| Evento | Status hoje | Por que você não vê |
-|---|---|---|
-| 🆕 Novo cadastro | ✅ Funciona | Última msg enviada 09/05 (mostrado no card "Principal") |
-| 💰 Mudança de assinatura | ✅ Funciona | Última msg enviada 10/05 |
-| 💵 Pagamento confirmado | ✅ Wired no `mp-webhook` | Sem cobranças aprovadas no período recente |
-| ❌ Falha de cobrança | ✅ Wired no `mp-webhook` | Nenhum cartão recusado de fato no período. Só dispara em recusa real do Mercado Pago |
-| 🔥 Lead quente | ⚠️ Wired no watchdog | Limite atual = **30+ pedidos/dia em loja Free**. A Free com mais pedidos hoje tem só **4**. Limiar nunca é atingido |
-| 😴 Loja fria | ⚠️ Wired no watchdog | Você só tem **1** loja Pro ativa (lanchonetedopastor) e ela tem pedido hoje. Nenhuma elegível |
-| ⏰ Trial acabando | ⚠️ Wired no watchdog | Zero orgs com trial expirando nos próximos 4 dias |
-| 📊 Resumos | ✅ Cron rodando 09h/dom | Funcionou ontem; ocasionalmente cai com `HTTP 502 connectors_gateway` (transitório do gateway Telegram) |
-| 🚨 Erro crítico | ❌ **NUNCA DISPARA** | `errorLogger` salva no banco mas **nunca chama** `admin-telegram-notify` |
-| 🛒 Pedidos fantasmas | ❌ **NUNCA DISPARA** | `cleanup-phantom-orders` deleta os pedidos mas **nunca chama** `admin-telegram-notify` |
+1. `create-mp-payment` cria o PIX no Mercado Pago e devolve o `payment_id`.
+2. O componente `PixPaymentTab.tsx` faz polling a cada 5s chamando `check-subscription-pix`, que consulta a API do MP. Se aprovou → ativa o plano.
+3. **Existe** o webhook `mp-webhook` que ativaria o plano automaticamente quando o MP avisa do pagamento — porém, ao consultar os logs, **há ZERO chamadas para `mp-webhook` em todo o histórico recente**. Só o `ifood-webhook` aparece. Ou seja: o MP **nunca** notifica nossa plataforma.
 
-Conclusão: a maioria dos canais está sã — você não recebe mensagem porque a condição real não acontece (sem trial, sem loja fria, sem cartão recusado). Os dois únicos eventos quebrados de fato são `critical_error` e `phantom_orders`.
+Resultado prático:
+- Cliente que **espera o QR aparecer aprovado** na tela → ativa (foi o caso da WrBurg e da lanchonetedopastor — os dois últimos PIX, ambos com source `mercadopago_pix` = polling do front).
+- Cliente que **paga e fecha o navegador** antes do polling detectar → **nunca ativa**. Foi exatamente o que aconteceu com o estabelecimento que você visitou.
 
-## Mudanças propostas
+A causa-raiz é que a URL de webhook `https://xrzudhylpphnzousilye.supabase.co/functions/v1/mp-webhook` **não está cadastrada no painel do Mercado Pago** da conta CNPJ. Sem cadastrar lá, o MP não tem como nos avisar.
 
-### 1. Wire dos 2 eventos quebrados
-- **`supabase/functions/cleanup-phantom-orders/index.ts`**: depois de deletar, se `count > 0`, invocar `admin-telegram-notify` com `event_type: "phantom_orders"`, `payload: { count }`.
-- **`src/lib/errorLogger.ts`**: quando `severity === "critical"` (ou origem `checkout`/`payment`/`print`), invocar `admin-telegram-notify` com `event_type: "critical_error"`, `payload: { error_message, url, source }`. Throttle simples no DB: dedupe por hash da mensagem nas últimas 1h pra não floodar (usar a tabela `admin_telegram_dedupe` que já existe).
+## Plano de correção (em camadas, redundante de propósito)
 
-### 2. Tornar Lead Quente realista (configurável)
-O limiar hardcoded `>= 30 pedidos/dia` é alto demais pra base atual. Vou:
-- Adicionar uma chave `hot_lead_min_orders` em `platform_config` (default `10`).
-- O watchdog passa a ler esse valor em vez do `30` fixo.
-- Fica fácil você ajustar no painel sem deploy.
+### 1. Persistir pagamentos PIX pendentes
+Hoje, quando `create-mp-payment` cria um PIX, o `payment_id` só vive na memória da aba do navegador. Vou criar a tabela `pending_subscription_payments`:
+- `org_id`, `plan`, `billing_cycle`, `promo_applied`, `payment_id`, `amount_cents`, `status` (`pending`/`approved`/`expired`/`failed`), `created_at`, `expires_at`.
+- `create-mp-payment` insere uma linha sempre que devolve um QR PIX.
+- `check-subscription-pix` e o webhook marcam como `approved` ao confirmar.
 
-### 3. Botão "Forçar varredura agora" no painel
-No `AdminTelegramTab`, adicionar um botão "Rodar verificações agora" que invoca `admin-telegram-watchdog` com `mode:"all"`. Hoje só roda 09h/14h/18h/22h, então não dá pra testar na hora.
+### 2. Cron de reconciliação (rede de segurança)
+Edge function nova `reconcile-pending-pix` que roda a cada 1 minuto via `pg_cron` + `pg_net`:
+- Pega todas as linhas `pending` com menos de 35 min de vida (PIX MP expira em 30 min).
+- Para cada uma, consulta `https://api.mercadopago.com/v1/payments/{payment_id}`.
+- Se aprovado → ativa o plano (mesma lógica de `check-subscription-pix`), grava `activation_logs` com source `mercadopago_pix_reconcile`, marca a linha como `approved`.
+- Se expirado/rejeitado → marca como `expired`/`failed`.
 
-### 4. Retry leve no envio
-No `admin-telegram-notify`, em respostas `502`/`503` do connector gateway, fazer 1 retry com backoff de 1.5s. Reduz os ~3 erros 502 que aparecem nos logs por mês.
+Assim, mesmo que o cliente feche o navegador imediatamente após pagar, em até 1 minuto o plano ativa sozinho.
 
-## Ordem de execução
+### 3. Botão "Já paguei, verificar agora" no dashboard
+Em `SubscriptionTab.tsx`, se houver um `pending_subscription_payments` ativo da org, mostrar um aviso amarelo: "Pagamento PIX em verificação" com botão **Verificar agora** que dispara `reconcile-pending-pix` para aquele `payment_id` específico. Resolve o caso de o cliente entrar em pânico e clicar.
 
-1. Migration: chave `hot_lead_min_orders` em `platform_config`.
-2. Editar `cleanup-phantom-orders/index.ts`.
-3. Editar `src/lib/errorLogger.ts`.
-4. Editar `admin-telegram-watchdog/index.ts` (ler config + retry interno se quiser).
-5. Editar `admin-telegram-notify/index.ts` (retry 502).
-6. Editar `AdminTelegramTab.tsx` (botão "Rodar agora").
-7. Testar acionando o watchdog manualmente.
+### 4. Configurar a URL do webhook no Mercado Pago (ação manual sua)
+Eu vou deixar o `mp-webhook` pronto (já está). Você precisa entrar no painel da sua conta MP CNPJ → **Suas integrações → Webhooks** → cadastrar:
+```
+https://xrzudhylpphnzousilye.supabase.co/functions/v1/mp-webhook
+```
+Eventos: `payment` e `subscription_preapproval`. Vou te lembrar disso ao finalizar a implementação. Mesmo sem isso o cron resolve, mas o webhook deixa a ativação **instantânea** em vez de até 60s.
+
+### 5. Notificação Telegram quando reconciliação ativar
+Quando o cron ativar um plano que estava parado, dispara `admin-telegram-notify` com evento `payment_confirmed_reconcile` para você ver que a rede de segurança pegou um caso.
 
 ## Detalhes técnicos
 
-- O watchdog tem dedupe por dia/semana via `admin_telegram_dedupe`, então rodar manualmente várias vezes no mesmo dia **não** vai te enviar a mesma loja duas vezes — isso é o comportamento correto.
-- `payment_confirmed` e `payment_failed` ficam como estão; só disparam em webhook real do Mercado Pago.
-- Não vou mexer no schema dos toggles do painel — todos os 13 já existem corretamente.
+**Migration:**
+- Cria `pending_subscription_payments` com RLS (admin + dono da org SELECT; INSERT/UPDATE só service_role).
+- Habilita `pg_cron` e `pg_net` (já habilitados se outros crons existem).
+- Cria job `reconcile-pix-every-minute` chamando a edge function via `net.http_post` com `apikey` anon.
+
+**Edge function `reconcile-pending-pix`:**
+- `verify_jwt = false` (chamada por cron e pelo botão).
+- Aceita opcionalmente `{ payment_id }` para verificar uma cobrança específica (botão); sem body, processa todas as pendentes.
+- Reusa exatamente a lógica de ativação do `check-subscription-pix`.
+
+**Mudanças em `create-mp-payment`:**
+- Após gerar o PIX, faz `INSERT` em `pending_subscription_payments`.
+- Após aprovar cartão, marca como `approved` (consistência).
+
+**Mudanças em `check-subscription-pix` e `mp-webhook`:**
+- Ao ativar, fazer `UPDATE pending_subscription_payments SET status='approved'` para o `payment_id`.
+
+**Frontend `SubscriptionTab.tsx`:**
+- Query `pending_subscription_payments` por org → se houver pendente < 30min, mostra card "Aguardando confirmação do PIX" com botão Verificar agora.
+
+## Arquivos afetados
+- novo: `supabase/migrations/<timestamp>_pending_pix_reconcile.sql`
+- novo: `supabase/functions/reconcile-pending-pix/index.ts`
+- editado: `supabase/config.toml` (adiciona `verify_jwt = false` para a nova função)
+- editado: `supabase/functions/create-mp-payment/index.ts`
+- editado: `supabase/functions/check-subscription-pix/index.ts`
+- editado: `supabase/functions/mp-webhook/index.ts`
+- editado: `src/components/dashboard/SubscriptionTab.tsx`
+
+Posso seguir? Se aprovar, implemento tudo e te passo o passo-a-passo de como cadastrar o webhook no painel do MP no final.
