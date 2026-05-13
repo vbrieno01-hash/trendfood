@@ -165,6 +165,11 @@ function PrinterCard({ name, model, price }: { name: string; model: string; pric
 export default function DocsTerminalPage() {
   return (
     <div className="min-h-screen bg-background">
+      <PageSeo
+        title="Documentação de Impressora Térmica — TrendFood"
+        description="Guia completo para configurar impressoras térmicas Bluetooth e USB no TrendFood. Passo a passo de pareamento, testes e solução de problemas."
+        path="/docs/impressora-termica"
+      />
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
