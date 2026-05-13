@@ -2260,6 +2260,46 @@ export type Database = {
         Args: { _courier_id: string; _delivery_id: string }
         Returns: undefined
       }
+      courier_get_self: {
+        Args: { courier_id: string }
+        Returns: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          phone: string
+          pix_key: string | null
+          plate: string
+          whatsapp: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "couriers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      courier_login_by_phone: {
+        Args: { org_id?: string; phone_input: string }
+        Returns: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          phone: string
+          pix_key: string | null
+          plate: string
+          whatsapp: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "couriers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
       get_my_deliveries: {
         Args: { _courier_id: string }

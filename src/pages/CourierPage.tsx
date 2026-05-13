@@ -210,11 +210,9 @@ const CourierPage = () => {
   useEffect(() => {
     if (orgSlug || !courierId) return;
     supabase
-      .from("couriers")
-      .select("organization_id")
-      .eq("id", courierId)
-      .single()
-      .then(({ data: courierData }) => {
+      .rpc("courier_get_self" as any, { courier_id: courierId })
+      .then(({ data }) => {
+        const courierData = Array.isArray(data) ? data[0] : data;
         if (!courierData) return;
         supabase
           .from("organizations")
@@ -292,14 +290,11 @@ const CourierPage = () => {
       setSearching(true);
       setPhoneError(false);
       try {
-        const { data, error } = await supabase
-          .from("couriers")
-          .select("*")
-          .eq("active", true);
+        const { data, error } = await supabase.rpc("courier_login_by_phone" as any, {
+          phone_input: phoneSearch,
+        });
         if (error) throw error;
-        const match = (data ?? []).find(
-          (c: any) => normalizePhone(c.phone) === normalized
-        );
+        const match: any = Array.isArray(data) ? data[0] : data;
         if (!match) {
           setPhoneError(true);
           setSearching(false);
