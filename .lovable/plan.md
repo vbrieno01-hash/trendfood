@@ -1,52 +1,29 @@
-## Objetivo
-Garantir que apenas usuários autenticados pertencentes à organização da entrega possam executar UPDATE em `deliveries`. Couriers continuam atualizando via RPCs `SECURITY DEFINER` (`courier_accept_delivery`, `courier_complete_delivery`).
+## Migração: reabrir UPDATE de `deliveries` para o anon (apenas `distance_km`)
 
-## Situação atual
-- A policy `deliveries_update_operational` mencionada no scan **não existe mais** (o snapshot atual do schema não lista nenhuma policy UPDATE em `deliveries` — atualmente "Can't UPDATE"). O dono não consegue atualizar diretamente, mas o frontend chama `useCancelDelivery` (`update status='cancelada'`) e há fluxos de "marcar como paga". Hoje esses updates falham silenciosamente.
-- Não há tabela `profiles` com `organization_id`; o vínculo dono↔org é via `organizations.user_id`.
+**Por que:** A migração das 014219 restringiu UPDATE de `deliveries` para `authenticated`. Isso quebra silenciosamente o `useCreateDelivery` quando ele tenta gravar `distance_km` em sessões anônimas (checkout do cliente). Não derruba o pedido, mas perde a distância calculada.
 
-## Mudanças (apenas RLS — nenhuma alteração de código frontend, schema ou dados)
+**O que vai mudar:**
+- Criar policy `deliveries_update_distance_anon` em `public.deliveries`
+- Permite UPDATE pelo papel `anon` **somente** quando:
+  - `courier_id IS NULL` (entrega ainda não atribuída)
+  - `status = 'pendente'`
+- E o `WITH CHECK` mantém as mesmas condições, garantindo que o anon não consegue mudar status, atribuir motoboy, nem alterar valores sensíveis.
 
+**O que NÃO muda:**
+- Nada em `orders`, `order_items`, `organizations`, `couriers`, pagamentos, cozinha.
+- Lojista autenticado continua com acesso total via policies já existentes.
+- Motoboy continua usando RPCs `SECURITY DEFINER`.
+
+**SQL planejado:**
 ```sql
--- 1. Remover qualquer resquício da policy pública
-DROP POLICY IF EXISTS deliveries_update_operational ON public.deliveries;
-
--- 2. Policy nominal pedida: só autenticado dono da organização
-DROP POLICY IF EXISTS authenticated_users_update_operational ON public.deliveries;
-CREATE POLICY authenticated_users_update_operational
+CREATE POLICY "deliveries_update_distance_anon"
 ON public.deliveries
 FOR UPDATE
-TO authenticated
-USING (
-  auth.uid() IS NOT NULL
-  AND EXISTS (
-    SELECT 1 FROM public.organizations o
-    WHERE o.id = deliveries.organization_id
-      AND o.user_id = auth.uid()
-  )
-)
-WITH CHECK (
-  auth.uid() IS NOT NULL
-  AND EXISTS (
-    SELECT 1 FROM public.organizations o
-    WHERE o.id = deliveries.organization_id
-      AND o.user_id = auth.uid()
-  )
-);
-
--- 3. Garantir UPDATE para admin da plataforma (idempotente)
-DROP POLICY IF EXISTS deliveries_update_admin ON public.deliveries;
-CREATE POLICY deliveries_update_admin
-ON public.deliveries
-FOR UPDATE
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
+TO anon
+USING (courier_id IS NULL AND status = 'pendente')
+WITH CHECK (courier_id IS NULL AND status = 'pendente');
 ```
 
-## Garantias
-- **Anônimos**: bloqueados de qualquer UPDATE em `deliveries`.
-- **Donos**: podem cancelar entrega, marcar como paga, etc. (mantém `useCancelDelivery` e fluxos existentes funcionando).
-- **Admins da plataforma**: continuam com acesso total.
-- **Couriers**: continuam aceitando/completando via funções `SECURITY DEFINER` — não dependem de policy UPDATE.
-- Nenhuma coluna alterada, nenhum dado removido, nenhum código de frontend tocado.
+**Risco:** baixíssimo. Apenas devolve uma capacidade de UPDATE muito restrita que existia antes da migração de hoje.
+
+**Próximo passo:** Ao aprovar este plano (botão "Implement plan"), eu disparo a migração e a **caixinha de aprovação da migração aparece pra você confirmar antes de aplicar de fato no banco**. Nada vai pro banco sem esse segundo OK.
