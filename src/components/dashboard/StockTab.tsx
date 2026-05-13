@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Package, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import StockAlertsPanel from "./StockAlertsPanel";
 
 const UNITS = ["un", "kg", "g", "L", "ml", "pct", "cx"];
 
@@ -93,6 +94,7 @@ export default function StockTab({ orgId }: StockTabProps) {
 
   return (
     <div className="space-y-4">
+      <StockAlertsPanel orgId={orgId} />
       <div className="flex items-center justify-between animate-dashboard-fade-in">
         <div className="flex items-center gap-3">
           <div className="dashboard-section-icon">
