@@ -1494,6 +1494,48 @@ export type Database = {
           },
         ]
       }
+      pending_subscription_payments: {
+        Row: {
+          amount_cents: number
+          billing_cycle: string
+          created_at: string
+          expires_at: string
+          id: string
+          organization_id: string
+          payment_id: string
+          plan: string
+          promo_applied: boolean
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          amount_cents?: number
+          billing_cycle?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          organization_id: string
+          payment_id: string
+          plan: string
+          promo_applied?: boolean
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          amount_cents?: number
+          billing_cycle?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          organization_id?: string
+          payment_id?: string
+          plan?: string
+          promo_applied?: boolean
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       platform_config: {
         Row: {
           admin_telegram_chat_id: string | null

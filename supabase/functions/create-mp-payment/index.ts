@@ -213,6 +213,22 @@ Deno.serve(async (req) => {
       result.pix_qr_code = mpData.point_of_interaction.transaction_data.qr_code;
       result.pix_qr_code_base64 = mpData.point_of_interaction.transaction_data.qr_code_base64;
       result.pix_expiration = mpData.date_of_expiration;
+
+      // Persist pending PIX so the reconcile cron can activate the plan
+      // even if the user closes the browser before the front-end polling detects approval.
+      try {
+        await serviceClient.from("pending_subscription_payments").insert({
+          organization_id: org_id,
+          payment_id: String(mpData.id),
+          plan,
+          billing_cycle: billing,
+          promo_applied: promoApplied,
+          amount_cents: finalCents,
+          status: "pending",
+        });
+      } catch (persistErr) {
+        console.error("[create-mp-payment] Failed to persist pending PIX (non-blocking):", persistErr);
+      }
     }
 
     return new Response(JSON.stringify(result), {

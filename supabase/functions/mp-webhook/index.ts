@@ -633,6 +633,14 @@ Deno.serve(async (req) => {
 
       console.log("[mp-webhook] Org updated:", orgId, "plan:", plan);
 
+      // Mark pending PIX row as approved (idempotent)
+      try {
+        await supabase
+          .from("pending_subscription_payments")
+          .update({ status: "approved", resolved_at: new Date().toISOString() })
+          .eq("payment_id", String(paymentId));
+      } catch (_) { /* non-blocking */ }
+
       // ── Notify admin about confirmed payment (legacy one-time / first PIX) ──
       {
         const mrr = await computeMRR(supabase);

@@ -93,6 +93,58 @@ const SubscriptionTab = () => {
   const [subDetailsLoading, setSubDetailsLoading] = useState(false);
   const [paymentsOpen, setPaymentsOpen] = useState(false);
 
+  // Pending PIX awaiting reconciliation
+  const [pendingPix, setPendingPix] = useState<{ payment_id: string; created_at: string; plan: string } | null>(null);
+  const [verifyingPix, setVerifyingPix] = useState(false);
+
+  const loadPendingPix = async () => {
+    if (!organization?.id) return;
+    const cutoff = new Date(Date.now() - 35 * 60 * 1000).toISOString();
+    const { data } = await supabase
+      .from("pending_subscription_payments")
+      .select("payment_id, created_at, plan")
+      .eq("organization_id", organization.id)
+      .eq("status", "pending")
+      .gt("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setPendingPix(data || null);
+  };
+
+  useEffect(() => {
+    loadPendingPix();
+    if (!organization?.id) return;
+    const interval = setInterval(loadPendingPix, 15000);
+    return () => clearInterval(interval);
+  }, [organization?.id]);
+
+  const handleVerifyPix = async () => {
+    if (!pendingPix) return;
+    setVerifyingPix(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reconcile-pending-pix", {
+        body: { payment_id: pendingPix.payment_id },
+      });
+      if (error) throw new Error(error.message);
+      const result = (data as any)?.results?.[0];
+      if (result?.activated) {
+        toast.success("Pagamento confirmado! Plano ativado.");
+        setTimeout(() => window.location.reload(), 1500);
+      } else if (result?.status === "approved") {
+        toast.success("Pagamento já confirmado.");
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        toast.info("Pagamento ainda não foi confirmado pelo Mercado Pago. Tente novamente em instantes.");
+      }
+      await loadPendingPix();
+    } catch (err: any) {
+      toast.error("Erro ao verificar pagamento", { description: err?.message });
+    } finally {
+      setVerifyingPix(false);
+    }
+  };
+
   // Fetch subscription details from MP
   useEffect(() => {
     const isPaid = currentPlan === "pro" || currentPlan === "enterprise";
@@ -213,6 +265,22 @@ const SubscriptionTab = () => {
       </div>
 
       {/* Current subscription status */}
+      {pendingPix && (
+        <div className="max-w-md mx-auto rounded-2xl p-5 space-y-3 border border-yellow-500/40 bg-yellow-500/10 animate-dashboard-fade-in">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-yellow-600" />
+            <span className="font-semibold text-foreground">Pagamento PIX em verificação</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Detectamos um pagamento PIX recente do plano <span className="font-medium text-foreground capitalize">{pendingPix.plan}</span>.
+            Se você já pagou, clique no botão abaixo para confirmar agora. Caso contrário, aguarde — confirmamos automaticamente em até 1 minuto.
+          </p>
+          <Button onClick={handleVerifyPix} disabled={verifyingPix} className="w-full">
+            {verifyingPix ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verificando...</>) : "Já paguei, verificar agora"}
+          </Button>
+        </div>
+      )}
+
       {(isPaid || isLifetime) && (
         <div className="max-w-md mx-auto dashboard-glass rounded-2xl p-5 space-y-3 animate-dashboard-fade-in dash-delay-1">
           <div className="flex items-center justify-between">
