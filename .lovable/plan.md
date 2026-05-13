@@ -1,29 +1,35 @@
-## Migração: reabrir UPDATE de `deliveries` para o anon (apenas `distance_km`)
+## Objetivo
+Eliminar os erros nas páginas públicas de loja/pedido para qualquer cliente, inclusive quando ele estiver logado, sem abrir acesso indevido a dados sensíveis.
 
-**Por que:** A migração das 014219 restringiu UPDATE de `deliveries` para `authenticated`. Isso quebra silenciosamente o `useCreateDelivery` quando ele tenta gravar `distance_km` em sessões anônimas (checkout do cliente). Não derruba o pedido, mas perde a distância calculada.
+## O que vou corrigir
+1. Ajustar as permissões de leitura da loja pública para funcionar tanto para visitantes anônimos quanto para usuários autenticados.
+2. Ajustar a permissão de atualização de `distance_km` para não quebrar checkout/pedido quando o cliente tiver sessão ativa.
+3. Revisar todas as consultas usadas nas páginas públicas (`/unidade/:slug`, `/unidade/:slug/mesa/:tableNumber`, `/avaliar/:slug/:orderId`) para garantir compatibilidade com acesso público real.
+4. Validar que a correção não afeta painel, cozinha, pagamentos, motoboy nem dados privados.
 
-**O que vai mudar:**
-- Criar policy `deliveries_update_distance_anon` em `public.deliveries`
-- Permite UPDATE pelo papel `anon` **somente** quando:
-  - `courier_id IS NULL` (entrega ainda não atribuída)
-  - `status = 'pendente'`
-- E o `WITH CHECK` mantém as mesmas condições, garantindo que o anon não consegue mudar status, atribuir motoboy, nem alterar valores sensíveis.
+## Causa provável encontrada
+A página pública busca a loja em `organizations`, mas a policy pública atual está liberada só para `anon`. Se o cliente estiver logado, ele entra como `authenticated` e pode receber `null`, o que leva a 404 em lojas públicas.
 
-**O que NÃO muda:**
-- Nada em `orders`, `order_items`, `organizations`, `couriers`, pagamentos, cozinha.
-- Lojista autenticado continua com acesso total via policies já existentes.
-- Motoboy continua usando RPCs `SECURITY DEFINER`.
+Também encontrei a policy nova de `deliveries_update_distance_anon` limitada a `anon`, o que pode explicar por que a correção funcionou só para parte dos usuários e não para todos.
 
-**SQL planejado:**
-```sql
-CREATE POLICY "deliveries_update_distance_anon"
-ON public.deliveries
-FOR UPDATE
-TO anon
-USING (courier_id IS NULL AND status = 'pendente')
-WITH CHECK (courier_id IS NULL AND status = 'pendente');
-```
+## Implementação
+- Criar migração aditiva para:
+  - permitir leitura pública segura das informações básicas da loja para `public` (ou política equivalente cobrindo `anon` + `authenticated`), sem expor colunas sensíveis;
+  - permitir o update restrito de `distance_km` nas mesmas condições atuais, mas cobrindo clientes com ou sem sessão, mantendo os filtros de segurança (`status = 'pendente'` e `courier_id IS NULL`).
+- Conferir se há outras tabelas usadas pela vitrine pública que precisem da mesma cobertura de role.
+- Manter RLS restritivo em tudo que contém PII ou dados operacionais privados.
 
-**Risco:** baixíssimo. Apenas devolve uma capacidade de UPDATE muito restrita que existia antes da migração de hoje.
+## Validação
+- Testar carregamento de lojas públicas com sessão anônima e autenticada.
+- Testar fluxo de pedido/checkout em página pública.
+- Confirmar que dashboard/cozinha/motoboy continuam com acesso isolado.
+- Verificar que nenhuma coluna sensível da loja foi exposta por engano.
 
-**Próximo passo:** Ao aprovar este plano (botão "Implement plan"), eu disparo a migração e a **caixinha de aprovação da migração aparece pra você confirmar antes de aplicar de fato no banco**. Nada vai pro banco sem esse segundo OK.
+## Detalhes técnicos
+- Arquivos/áreas a revisar na implementação:
+  - `src/hooks/useOrganization.ts`
+  - `src/pages/UnitPage.tsx`
+  - `src/pages/TableOrderPage.tsx`
+  - migrações RLS em `supabase/migrations/*`
+- A correção deve ser feita no backend via RLS, não com workaround no frontend, porque o bug é de role (`anon` vs `authenticated`) nas páginas públicas.
+- A migração será aditiva e visível para aprovação antes de aplicar.
