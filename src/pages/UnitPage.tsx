@@ -22,7 +22,7 @@ import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 import { useMenuItems, buildCategoryOrder } from "@/hooks/useMenuItems";
-import { getStoreStatus } from "@/lib/storeStatus";
+import { getStoreStatus, formatOpensAt, isClosedAllDay } from "@/lib/storeStatus";
 import { Helmet } from "react-helmet-async";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliveryNeighborhoods";
