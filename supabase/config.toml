@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.release-affiliate-commissions]
 verify_jwt = false
+
+[functions.reconcile-pending-pix]
+verify_jwt = false
