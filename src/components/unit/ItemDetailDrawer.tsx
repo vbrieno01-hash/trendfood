@@ -34,7 +34,7 @@ const fmt = (v: number) =>
 
 const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, categoryColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
   // Padrão TrendFood: laranja em tudo. Estilos visuais ainda são herdados via props.
-  const priceColor = "#1e293b";
+  const priceColor = primaryColor || accentColor || "#f97316";
   const btnColor = "#f97316";
   const catColor = "#f97316";
   const [selectedAddons, setSelectedAddons] = useState<CartItemAddon[]>([]);
