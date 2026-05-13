@@ -1,28 +1,31 @@
-# Trocar imagem de compartilhamento social
-
 ## Problema
-A imagem que aparece quando o link do TrendFood é compartilhado (WhatsApp, Telegram, Twitter, Facebook) é a logo preta sobre fundo branco — fica pobre e amadora no preview.
 
-## O que vou fazer
+Na página pública de vendas (`/unidade/[slug]`), o preço de cada produto fica quase invisível dentro do card.
 
-1. **Gerar uma nova imagem social profissional 1200×630** (`src/assets/og-trendfood.jpg`) usando o gerador de imagens em qualidade `premium` (texto legível, visual de marketing). Estilo:
-   - Fundo escuro com gradiente sutil (laranja/preto, alinhado à brand `#f97316` do `theme-color`)
-   - Logo TRENDFOOD em destaque (chapéu de chef + wordmark)
-   - Tagline curta: "Delivery próprio. Taxa 0%."
-   - Glow/glassmorphism leve combinando com o tema Premium Live do app
-   - Layout pensado pra preview de WhatsApp/Twitter (margens seguras)
+Causa: o preço é renderizado com cor inline `accentTextColor`, cujo padrão é `#1e293b` (slate quase preto). O card usa `bg-card`, que no tema escuro também é escuro — então fica **texto escuro sobre fundo escuro**. Em telas com brilho mais alto fica ainda pior.
 
-2. **Substituir as meta tags em `index.html`**:
-   - `og:image` e `twitter:image` apontando para o asset novo
-   - Adicionar `og:title`, `og:description`, `og:url`, `og:image:width=1200`, `og:image:height=630`, `twitter:title`, `twitter:description` (faltam hoje, ajudam o preview a renderizar bonito)
+Mesmo arquivo afeta:
+- Grade de produtos (`UnitPage.tsx`, linha ~1143)
+- Drawer de detalhe do item (`ItemDetailDrawer.tsx` — `priceColor` hardcoded `#1e293b`, linhas 37, 113, 164)
 
-3. **QA visual**: abrir a imagem gerada, conferir legibilidade do texto, contraste e enquadramento. Se ficar ruim, regenerar.
+## Plano
 
-## Detalhes técnicos
-- Arquivo final: `src/assets/og-trendfood.jpg` (JPG ~1200×630, ideal pra OG)
-- Importado no `index.html` via caminho `/assets/...` após build (Vite copia da pasta `src/assets` quando referenciado), **ou** colocado em `public/og-trendfood.jpg` para URL estável `/og-trendfood.jpg` — vou usar `public/` porque OG/Twitter precisam de URL absoluta servida direto sem hash de build.
-- Cache: redes sociais (WhatsApp/FB) cacheiam OG agressivamente. Vou avisar pra revalidar via Facebook Sharing Debugger / forçar `?v=2` na URL se necessário.
+1. **Trocar a cor do preço por uma cor de destaque legível**:
+   - Usar `org.primary_color` (laranja da marca) como cor padrão dos preços, em vez de `accentTextColor`. A cor primária da loja sempre tem contraste alto contra `bg-card` (claro **ou** escuro) e reforça hierarquia visual ("preço = destaque").
+   - Manter `accentTextColor` apenas se a loja explicitamente o configurou via tema customizado (ou seja, deixar de usar o default `#1e293b` que está quebrando tudo).
 
-## Fora de escopo
-- Trocar o nome "TrendFood" por outro (você ainda não escolheu — fica pra depois se quiser)
-- Mudar a logo dentro do app
+2. **Garantir contraste mínimo**:
+   - Aumentar levemente o tamanho/peso (`text-base font-extrabold` no grid) para o preço respirar.
+   - No drawer, aplicar a mesma cor primária ao bloco de preço grande e ao "+ R$ x,xx" dos addons.
+
+3. **Arquivos tocados**:
+   - `src/pages/UnitPage.tsx` — preço do card (linha 1143) passa a usar `org.primary_color` (com fallback `hsl(var(--primary))`).
+   - `src/components/unit/ItemDetailDrawer.tsx` — `priceColor` recebe `accentColor` (já vinda como prop) ou fallback `hsl(var(--primary))`, em vez do `#1e293b` chumbado.
+
+4. **Sem mudança de schema, sem migration, sem mexer em business logic.** Apenas ajuste visual frontend.
+
+## Resultado esperado
+
+- Preço do card: laranja da marca, em destaque, **legível em qualquer tema**.
+- Drawer de detalhe: mesmo tratamento, consistente.
+- Lojas que personalizaram `accent_text_color` continuam respeitadas.

@@ -1140,7 +1140,10 @@ const UnitPage = () => {
                               {/* Info */}
                               <div className="p-2.5 flex flex-col gap-1 flex-1">
                                 <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
-                                <span className="font-bold text-sm" style={{ color: accentTextColor }}>
+                                <span
+                                  className="font-extrabold text-base"
+                                  style={{ color: org?.primary_color || "hsl(var(--primary))" }}
+                                >
                                   {fmt(item.price)}
                                 </span>
 
