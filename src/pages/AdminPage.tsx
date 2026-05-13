@@ -812,9 +812,9 @@ function AdminContent() {
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Loja</th>
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Plano</th>
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Status</th>
-                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Valor/mês</th>
-                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Meses</th>
-                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Estimado</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Último valor pago</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Pagamentos</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total recebido</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -844,9 +844,9 @@ function AdminContent() {
                                     <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Ativo</span>
                                   </div>
                                 </td>
-                                <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{fmt(s.planValue)}</td>
-                                <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{s.monthsActive}</td>
-                                <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">{fmt(s.totalEstimated)}</td>
+                                <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{s.lastPaidValue > 0 ? fmt(s.lastPaidValue) : "—"}</td>
+                                <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{s.paymentCount}</td>
+                                <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">{fmt(s.totalPaid)}</td>
                               </tr>
                             ))}
                           </tbody>
