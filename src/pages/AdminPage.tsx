@@ -119,37 +119,27 @@ async function processReferralBonusClient(activatedOrgId: string, activatedOrgNa
     // Mensal = +1 mês (30d) · Anual = +3 meses (90d)
     const bonusDays = (activatedOrg as any)?.billing_cycle === "annual" ? 90 : 30;
 
-    await (supabase.from("referral_bonuses") as any).insert({
+    // Insere em carência. Trigger valida anti-fraude e cron horário aplica os dias após 7d.
+    const { error: insErr } = await (supabase.from("referral_bonuses") as any).insert({
       referrer_org_id: referrerId,
       referred_org_id: activatedOrgId,
       bonus_days: bonusDays,
       referred_org_name: activatedOrgName,
     });
+    if (insErr) {
+      console.warn("[referral] insert blocked:", insErr.message);
+      return;
+    }
 
     const { data: referrerOrg } = await supabase
-      .from("organizations")
-      .select("trial_ends_at, name")
-      .eq("id", referrerId)
-      .single();
+      .from("organizations").select("name").eq("id", referrerId).maybeSingle();
 
-    if (referrerOrg) {
-      const currentExpiry = referrerOrg.trial_ends_at
-        ? new Date(referrerOrg.trial_ends_at)
-        : new Date();
-      const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
-
-      await supabase
-        .from("organizations")
-        .update({ trial_ends_at: newExpiry.toISOString() })
-        .eq("id", referrerId);
-
-      await (supabase.from("activation_logs") as any).insert({
-        organization_id: referrerId,
-        org_name: referrerOrg.name || null,
-        source: "referral_bonus",
-        notes: `+${bonusDays} dias por indicar "${activatedOrgName}" (org ${activatedOrgId})`,
-      });
-    }
+    await (supabase.from("activation_logs") as any).insert({
+      organization_id: referrerId,
+      org_name: referrerOrg?.name || null,
+      source: "referral_bonus",
+      notes: `+${bonusDays} dias em carência (libera em 7d) por indicar "${activatedOrgName}" (org ${activatedOrgId})`,
+    });
   } catch (err) {
     console.error("[referral] Bonus error (non-blocking):", err);
   }
