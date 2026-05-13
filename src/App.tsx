@@ -9,22 +9,22 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
-import AuthPage from "./pages/AuthPage";
-import UnitPage from "./pages/UnitPage";
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-import KitchenPage from "./pages/KitchenPage";
-import WaiterPage from "./pages/WaiterPage";
-import TableOrderPage from "./pages/TableOrderPage";
-import AdminPage from "./pages/AdminPage";
-import DocsTerminalPage from "./pages/DocsTerminalPage";
-import PricingPage from "./pages/PricingPage";
-import CourierPage from "./pages/CourierPage";
-import TermsPage from "./pages/TermsPage";
-import PrivacyPage from "./pages/PrivacyPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import ReviewPage from "./pages/ReviewPage";
-import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const UnitPage = lazy(() => import("./pages/UnitPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const KitchenPage = lazy(() => import("./pages/KitchenPage"));
+const WaiterPage = lazy(() => import("./pages/WaiterPage"));
+const TableOrderPage = lazy(() => import("./pages/TableOrderPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const DocsTerminalPage = lazy(() => import("./pages/DocsTerminalPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const CourierPage = lazy(() => import("./pages/CourierPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const ReviewPage = lazy(() => import("./pages/ReviewPage"));
+const InstallPage = lazy(() => import("./pages/InstallPage"));
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
@@ -42,6 +42,12 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+  </div>
+);
 
 const ConditionalSupportChat = () => {
   const { pathname } = useLocation();
@@ -138,6 +144,7 @@ const AppInner = () => {
           <Sonner />
           <BrowserRouter>
             <ScrollToTop />
+            <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
@@ -146,11 +153,7 @@ const AppInner = () => {
               <Route path="/unidade/:slug/mesa/:tableNumber" element={<TableOrderPage />} />
               <Route path="/cozinha" element={<KitchenPage />} />
               <Route path="/garcom" element={<WaiterPage />} />
-              <Route path="/dashboard" element={
-                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
-                  <DashboardPage />
-                </Suspense>
-              } />
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/planos" element={<PricingPage />} />
               <Route path="/docs/impressora-termica" element={<DocsTerminalPage />} />
@@ -163,6 +166,7 @@ const AppInner = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
             <ConditionalSupportChat />
             <PWAUpdatePrompt />
           </BrowserRouter>
