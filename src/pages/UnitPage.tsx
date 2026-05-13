@@ -23,6 +23,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 import { useMenuItems, buildCategoryOrder } from "@/hooks/useMenuItems";
 import { getStoreStatus } from "@/lib/storeStatus";
+import { Helmet } from "react-helmet-async";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliveryNeighborhoods";
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
