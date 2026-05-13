@@ -163,7 +163,7 @@ export default function HeroCinematic({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-sm md:text-base text-white/45 max-w-lg mx-auto lg:mx-0 mb-10 leading-relaxed"
+              className="text-sm md:text-base text-white/75 max-w-lg mx-auto lg:mx-0 mb-10 leading-relaxed"
             >
               {subtitle2}
             </motion.p>

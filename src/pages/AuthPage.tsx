@@ -232,7 +232,7 @@ const AuthPage = () => {
       </Button>
       <div className="flex items-center gap-3 my-5">
         <div className="flex-1 h-px bg-white/10" />
-        <span className="text-[11px] uppercase tracking-widest text-white/40 font-medium">ou</span>
+        <span className="text-[11px] uppercase tracking-widest text-white/70 font-medium">ou</span>
         <div className="flex-1 h-px bg-white/10" />
       </div>
     </>
@@ -493,15 +493,15 @@ const AuthPage = () => {
               </div>
               <div>
                 <Label htmlFor="g-biz" className="text-sm font-medium mb-1.5 block text-white/80">Nome da lanchonete</Label>
-                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
+                <Input id="g-biz" placeholder="Ex: Burguer do João" value={googleBiz.name} onChange={(e) => handleGoogleBizNameChange(e.target.value)} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60" required />
               </div>
               <div>
                 <Label htmlFor="g-slug" className="text-sm font-medium mb-1.5 block text-white/80">Slug (URL)</Label>
-                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
+                <Input id="g-slug" value={googleBiz.slug} onChange={(e) => setGoogleBiz((p) => ({ ...p, slug: generateSlug(e.target.value) }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60" required />
               </div>
               <div>
                 <Label htmlFor="g-wpp" className="text-sm font-medium mb-1.5 block text-white/80">WhatsApp (com DDD)</Label>
-                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30" required />
+                <Input id="g-wpp" placeholder="11999999999" value={googleBiz.whatsapp} onChange={(e) => setGoogleBiz((p) => ({ ...p, whatsapp: e.target.value }))} className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60" required />
               </div>
               <Button type="submit" className="w-full h-12 rounded-full font-semibold bg-primary hover:bg-primary/90 text-primary-foreground" disabled={googleOnboardLoading}>
                 {googleOnboardLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -554,7 +554,7 @@ const AuthPage = () => {
                     placeholder="João da Silva"
                     value={signupData.fullName}
                     onChange={(e) => setSignupData((p) => ({ ...p, fullName: e.target.value }))}
-                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
@@ -568,7 +568,7 @@ const AuthPage = () => {
                     placeholder="joao@email.com"
                     value={signupData.email}
                     onChange={(e) => setSignupData((p) => ({ ...p, email: e.target.value }))}
-                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
@@ -582,7 +582,7 @@ const AuthPage = () => {
                     placeholder="joao@email.com"
                     value={signupData.confirmEmail}
                     onChange={(e) => setSignupData((p) => ({ ...p, confirmEmail: e.target.value }))}
-                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                     required
                   />
                 </div>
@@ -597,13 +597,13 @@ const AuthPage = () => {
                       placeholder="Mínimo 6 caracteres"
                       value={signupData.password}
                       onChange={(e) => setSignupData((p) => ({ ...p, password: e.target.value }))}
-                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                       minLength={6}
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
                       onClick={() => setShowSignupPwd((v) => !v)}
                     >
                       {showSignupPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -622,13 +622,13 @@ const AuthPage = () => {
                       placeholder="Repita a senha"
                       value={signupData.confirmPassword}
                       onChange={(e) => setSignupData((p) => ({ ...p, confirmPassword: e.target.value }))}
-                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                      className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                       minLength={6}
                       required
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
                       onClick={() => setShowSignupConfirmPwd((v) => !v)}
                     >
                       {showSignupConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -638,7 +638,7 @@ const AuthPage = () => {
 
                 {/* Dados do estabelecimento */}
                 <div className="pt-4 border-t border-white/10">
-                  <p className="text-xs text-white/50 mb-3 font-semibold uppercase tracking-wide">
+                  <p className="text-xs text-white/70 mb-3 font-semibold uppercase tracking-wide">
                     Dados do estabelecimento
                   </p>
                   <div className="space-y-4">
@@ -651,7 +651,7 @@ const AuthPage = () => {
                         placeholder="Burguer da Vila"
                         value={signupData.businessName}
                         onChange={(e) => handleBusinessNameChange(e.target.value)}
-                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
@@ -660,12 +660,12 @@ const AuthPage = () => {
                         URL pública
                       </Label>
                       <div className="flex items-center rounded-lg border border-white/10 bg-white/5 overflow-hidden focus-within:ring-2 focus-within:ring-primary/50 focus-within:ring-offset-0 h-11">
-                        <span className="px-3 text-xs text-white/50 bg-white/5 border-r border-white/10 h-full flex items-center shrink-0 font-mono">
+                        <span className="px-3 text-xs text-white/70 bg-white/5 border-r border-white/10 h-full flex items-center shrink-0 font-mono">
                           /u/
                         </span>
                         <input
                           id="slug"
-                          className="flex-1 px-3 text-sm bg-transparent text-white placeholder:text-white/30 outline-none h-full"
+                          className="flex-1 px-3 text-sm bg-transparent text-white placeholder:text-white/60 outline-none h-full"
                           placeholder="burguer-da-vila"
                           value={signupData.slug}
                           onChange={(e) =>
@@ -713,7 +713,7 @@ const AuthPage = () => {
                         placeholder="joao@email.com"
                         value={loginData.email}
                         onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
-                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
@@ -728,12 +728,12 @@ const AuthPage = () => {
                           placeholder="••••••••"
                           value={loginData.password}
                           onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
-                          className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                          className="h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                           required
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
                           onClick={() => setShowLoginPwd((v) => !v)}
                         >
                           {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -778,7 +778,7 @@ const AuthPage = () => {
                         placeholder="joao@email.com"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary/50"
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary/50"
                         required
                       />
                     </div>
@@ -800,7 +800,7 @@ const AuthPage = () => {
           </Tabs>
           )}
 
-          <p className="text-center text-xs text-white/40 mt-8">
+          <p className="text-center text-xs text-white/70 mt-8">
             Ao criar sua conta, você concorda com nossos{" "}
             <Link to="/termos" target="_blank" className="underline cursor-pointer hover:text-white transition-colors">Termos de Uso</Link>.
           </p>
