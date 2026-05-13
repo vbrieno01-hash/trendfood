@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { organization_id, order_number } = await req.json();
+    const { organization_id, order_number, event_type, stock_item_name, menu_item_name, shortage } = await req.json();
 
     if (!organization_id) {
       return new Response(JSON.stringify({ error: "organization_id required" }), {
@@ -214,11 +214,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const payloadJson = JSON.stringify({
-      title: "🔔 Novo Pedido!",
-      body: order_number ? `Pedido #${order_number} recebido` : "Novo pedido recebido!",
-      url: "/dashboard?tab=home",
-    });
+    const isShortage = event_type === "stock_shortage";
+    const payloadJson = isShortage
+      ? JSON.stringify({
+          title: "⚠️ Estoque insuficiente",
+          body:
+            `Faltaram ${shortage} de "${stock_item_name}"` +
+            (menu_item_name ? ` em ${menu_item_name}` : "") +
+            (order_number ? ` (pedido #${order_number})` : ""),
+          url: "/dashboard?tab=stock",
+        })
+      : JSON.stringify({
+          title: "🔔 Novo Pedido!",
+          body: order_number ? `Pedido #${order_number} recebido` : "Novo pedido recebido!",
+          url: "/dashboard?tab=home",
+        });
 
     let sent = 0;
     let failed = 0;
