@@ -25,6 +25,7 @@ import {
   Smartphone,
   Ban,
 } from "lucide-react";
+import PageSeo from "@/components/seo/PageSeo";
 
 // ── Receipt preview component ──────────────────────────────────────────────────
 function ReceiptPreview() {
