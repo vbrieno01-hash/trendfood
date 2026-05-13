@@ -49,6 +49,7 @@ import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
 import StockTab from "@/components/dashboard/StockTab";
 import PricingTab from "@/components/dashboard/PricingTab";
 import ReferralSection from "@/components/dashboard/ReferralSection";
+import { usePlatformContent } from "@/hooks/usePlatformContent";
 import ReviewsTab from "@/components/dashboard/ReviewsTab";
 import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
 import OperationsTab from "@/components/dashboard/OperationsTab";
