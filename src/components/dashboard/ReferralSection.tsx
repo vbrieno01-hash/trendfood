@@ -11,6 +11,10 @@ interface ReferralBonus {
   bonus_days: number;
   referred_org_name: string | null;
   created_at: string;
+  released_at: string | null;
+  applied_at: string | null;
+  reverted_at: string | null;
+  flagged_reason: string | null;
 }
 
 interface ReferralSectionProps {
@@ -37,13 +41,18 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
 
     supabase
       .from("referral_bonuses" as any)
-      .select("id, bonus_days, referred_org_name, created_at")
+      .select("id, bonus_days, referred_org_name, created_at, released_at, applied_at, reverted_at, flagged_reason")
       .eq("referrer_org_id", orgId)
       .order("created_at", { ascending: false })
       .then(({ data }: any) => {
         if (data) {
           setBonuses(data);
-          setTotalDays(data.reduce((sum: number, b: ReferralBonus) => sum + b.bonus_days, 0));
+          // Total considera apenas bônus efetivamente aplicados (sem reversão)
+          setTotalDays(
+            data
+              .filter((b: ReferralBonus) => b.applied_at && !b.reverted_at)
+              .reduce((sum: number, b: ReferralBonus) => sum + b.bonus_days, 0),
+          );
         }
       });
 
@@ -228,25 +237,53 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
             Bônus recebidos
           </h3>
           <div className="space-y-3">
-            {bonuses.map((b) => (
-              <div
-                key={b.id}
-                className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    +{b.bonus_days} dias por indicar{" "}
-                    <span className="font-bold">{b.referred_org_name || "uma loja"}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(b.created_at), "dd/MM/yyyy")}
-                  </p>
+            {bonuses.map((b) => {
+              const reverted = !!b.reverted_at;
+              const flagged = !reverted && !b.applied_at && !!b.flagged_reason;
+              const pending = !reverted && !flagged && !b.applied_at && b.released_at;
+              const applied = !!b.applied_at && !reverted;
+
+              let statusLabel = "";
+              let statusClass = "text-primary bg-primary/10";
+              if (reverted) {
+                statusLabel = "estornado";
+                statusClass = "text-destructive bg-destructive/10 line-through";
+              } else if (flagged) {
+                statusLabel = "em revisão";
+                statusClass = "text-amber-600 bg-amber-500/10";
+              } else if (pending) {
+                const releaseDate = new Date(b.released_at!);
+                const daysLeft = Math.max(
+                  0,
+                  Math.ceil((releaseDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
+                );
+                statusLabel = daysLeft > 0 ? `libera em ${daysLeft}d` : "liberando…";
+                statusClass = "text-muted-foreground bg-muted/40";
+              } else if (applied) {
+                statusLabel = "creditado";
+              }
+
+              return (
+                <div
+                  key={b.id}
+                  className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3"
+                >
+                  <div>
+                    <p className={`text-sm font-medium ${reverted ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                      +{b.bonus_days} dias por indicar{" "}
+                      <span className="font-bold">{b.referred_org_name || "uma loja"}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(b.created_at), "dd/MM/yyyy")}
+                      {statusLabel && <> · {statusLabel}</>}
+                    </p>
+                  </div>
+                  <span className={`text-xs font-semibold rounded-full px-2.5 py-1 ${statusClass}`}>
+                    +{b.bonus_days}d
+                  </span>
                 </div>
-                <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-1">
-                  +{b.bonus_days}d
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

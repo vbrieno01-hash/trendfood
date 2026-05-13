@@ -133,35 +133,22 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
               // Mensal = +1 mês (30d) · Trimestral = +1.5 mês (45d) · Anual = +3 meses (90d)
               const cycle = (activatedOrg as any)?.billing_cycle;
               const bonusDays = cycle === "annual" ? 90 : cycle === "quarterly" ? 45 : 30;
-              await (supabase.from("referral_bonuses") as any).insert({
+              const { error: insErr } = await (supabase.from("referral_bonuses") as any).insert({
                 referrer_org_id: referrerId,
                 referred_org_id: org.id,
                 bonus_days: bonusDays,
                 referred_org_name: org.name,
               });
-
-              const { data: referrerOrg } = await supabase
-                .from("organizations")
-                .select("trial_ends_at, name")
-                .eq("id", referrerId)
-                .single();
-
-              if (referrerOrg) {
-                const currentExpiry = referrerOrg.trial_ends_at
-                  ? new Date(referrerOrg.trial_ends_at)
-                  : new Date();
-                const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
-
-                await supabase
-                  .from("organizations")
-                  .update({ trial_ends_at: newExpiry.toISOString() })
-                  .eq("id", referrerId);
-
+              if (insErr) {
+                console.warn("[ManageSubscription] referral_bonus blocked:", insErr.message);
+              } else {
+                const { data: referrerOrg } = await supabase
+                  .from("organizations").select("name").eq("id", referrerId).maybeSingle();
                 await (supabase.from("activation_logs") as any).insert({
                   organization_id: referrerId,
-                  org_name: referrerOrg.name || null,
+                  org_name: referrerOrg?.name || null,
                   source: "referral_bonus",
-                  notes: `+${bonusDays} dias por indicar "${org.name}" (org ${org.id})`,
+                  notes: `+${bonusDays} dias em carência (libera em 7d) por indicar "${org.name}" (org ${org.id})`,
                 });
               }
             }

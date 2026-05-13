@@ -1,54 +1,67 @@
-## Objetivo
+## O que já protege hoje
 
-Aumentar a recompensa do programa de indicação:
-- **Plano Mensal pago pelo amigo** → +30 dias (1 mês) para quem indicou (hoje: +10)
-- **Plano Anual pago pelo amigo** → +90 dias (3 meses) para quem indicou (hoje: +30)
-- **Plano Trimestral** (existe no mp-webhook) → +45 dias, mantendo a proporção (hoje: +15)
+- `unique_referral_pair` (referrer, referred) → cada loja indicada só credita bônus **uma vez**, mesmo que o amigo cancele e reassine.
+- Bônus **só dispara quando o MP confirma pagamento** real (cartão/PIX). Não basta cadastrar.
+- Cartão precisa ser de CNPJ na conta MP PJ — barra teste com cartão de presente.
 
-## Pontos de alteração
+## Onde ainda dá pra burlar
 
-### 1. Backend — onde o bônus é calculado e creditado
-Todos os locais que decidem `bonusDays` precisam usar a nova tabela:
+1. **Auto-indicação**: criar uma 2ª loja com o próprio link (`referred_by_id = própria org`).
+2. **Mesmo dono, vários CNPJs/cartões**: a pessoa abre 5 lojas (e‑mails diferentes, CNPJs diferentes), usa o link da loja-mãe e paga um mês em cada uma → ganha 5 meses grátis na loja-mãe.
+3. **Mesmo cartão** em contas diferentes para se auto-creditar.
+4. **Refund após o crédito**: amigo paga, ganha o bônus, depois pede chargeback/cancela em 7 dias → o bônus já foi pra sempre.
+5. **Escala industrial**: alguém montar 50 contas e zerar a mensalidade pra sempre.
 
-- `supabase/functions/mp-webhook/index.ts` (linha 93)
-  `annual ? 30 : quarterly ? 15 : 10` → `annual ? 90 : quarterly ? 45 : 30`
-- `supabase/functions/universal-activation-webhook/index.ts` (linha 34)
-  `annual ? 30 : 10` → `annual ? 90 : 30`
-- `src/pages/AdminPage.tsx` → `processReferralBonusClient` (linha ~119)
-  `annual ? 30 : 10` → `annual ? 90 : 30`
-- `src/components/admin/ManageSubscriptionDialog.tsx` (ativação manual pelo admin, linhas ~136 e ~150)
-  - `bonus_days: 10` → calcular pelo `billing_cycle` da org ativada (annual=90, quarterly=45, default=30)
-  - `+ 10 * 24*60*60*1000` → usar a mesma variável `bonusDays`
-  - mensagem do log de ativação atualizada para `+${bonusDays} dias`
+## Camadas de defesa propostas (todas em SQL — fonte da verdade)
 
-Sem alterações de schema. `referral_bonuses.bonus_days` já guarda o número real, então bônus antigos continuam exibindo o valor que foi efetivamente creditado.
+### 1. Trigger `validate_referral_bonus` em `referral_bonuses` BEFORE INSERT
+Bloqueia a criação do bônus quando detecta sinal de auto-indicação:
 
-### 2. Frontend — UI da aba "Ganhe Desconto"
-`src/components/dashboard/ReferralSection.tsx`:
-- Card "Sua Recompensa":
-  - "+10 dias" → **"+1 mês"** com sublinha "(30 dias grátis)"
-  - "+30 dias" → **"+3 meses"** com sublinha "(90 dias grátis)"
-- Atualizar o texto do passo 3 e a frase final do card para reforçar "ganha meses grátis".
-- Histórico de bônus mantém a exibição em dias (vem do banco), mas para entradas novas vai aparecer "+30 dias" / "+90 dias" naturalmente.
+- `referrer_org_id = referred_org_id` → erro
+- Mesmo `user_id` (dono) nas duas orgs → erro
+- Mesmo `cnpj` normalizado nas duas orgs → erro
+- Mesmo `whatsapp` normalizado (só dígitos) → erro
+- Mesmo `mp_payer_email` ou `mp_card_first6_last4` (a definir, se já guardamos no MP webhook) → erro
 
-### 3. Sem mudanças
-- Nenhum impacto em `affiliates` / `affiliate_commissions` (sistema separado, paga em R$).
-- Nenhuma mudança em RLS, schema, edge function configs ou cron jobs.
+Como o INSERT vem dos webhooks (service role), o trigger é a única defesa que não dá pra contornar via SDK.
 
-## Plano de testes (executados antes de declarar pronto)
+### 2. Limite mensal de bônus por referrer
+Trigger soma `bonus_days` dos últimos 30 dias do mesmo `referrer_org_id`. Se passar de **180 dias/mês** (≈ 6 indicações mensais), bloqueia o crédito e marca pra revisão. Indicações honestas raramente passam disso; quem passar fica visível pro admin.
 
-1. **Grep de cobertura** — após editar, rodar `rg "bonus_days|bonusDays|annual ? 30 : 10|annual ? 30 : quarterly"` para garantir que nenhum local antigo ficou para trás.
-2. **Build TypeScript** — verificar que compila sem erros (executado pelo harness automaticamente).
-3. **Teste unitário da regra de cálculo** — escrever um pequeno script `node` em `/tmp` que importa/replica a função `bonusFor(cycle)` e valida:
-   - `bonusFor("annual") === 90`
-   - `bonusFor("quarterly") === 45`
-   - `bonusFor("monthly") === 30`
-   - `bonusFor(undefined) === 30`
-4. **Inspeção dos 4 arquivos backend** — re-leitura final confirmando que cada um aplica a mesma tabela de valores.
-5. **Verificação de banco (read-only via psql)** — `SELECT bonus_days, count(*) FROM referral_bonuses GROUP BY 1;` para confirmar que os valores históricos continuam preservados (o ajuste é só para novas conversões).
-6. **Smoke test do componente** — abrir a aba `/dashboard?tab=referral` no preview e conferir visualmente os números "+1 mês" e "+3 meses".
+### 3. Reversão automática em refund/chargeback
+No `mp-webhook`, quando recebermos `payment.refunded` ou `chargeback`:
+- localizar o `referral_bonus` derivado daquele pagamento;
+- subtrair `bonus_days` do `trial_ends_at` do referrer;
+- marcar o bônus como `reverted = true` (nova coluna).
 
-## Observações
+Isso fecha o golpe "paga, ganha, estorna".
 
-- Bônus já creditados no passado ficam como estão (10/30 dias). A mudança vale para conversões futuras a partir do deploy das Edge Functions (deploy automático).
-- O cálculo de "economia total" no card de stats usa `totalDays * (priceCents / 30)`, então continua coerente — quando um amigo novo pagar mensal, o stat saltará +1 mensalidade inteira.
+### 4. Carência (hold) de 7 dias
+Em vez de creditar `trial_ends_at` na hora, gravar o bônus com `released_at = now() + 7 dias` e um `pg_cron` diário libera os bônus que passaram do prazo **sem refund**. Mesma lógica que já existe em `affiliate_commissions`.
+
+### 5. Auditoria + admin
+- Coluna `referral_bonuses.flagged_reason TEXT` para registrar o motivo quando algo é bloqueado/marcado.
+- Aba do admin lista bônus suspeitos (`flagged_reason IS NOT NULL` ou acima do limite mensal) com botão "anular".
+- Notificação Telegram pro admin quando um bloqueio acontece.
+
+## Mudanças concretas
+
+**Migration**:
+- `ALTER TABLE referral_bonuses ADD COLUMN released_at TIMESTAMPTZ, ADD COLUMN reverted BOOLEAN DEFAULT false, ADD COLUMN flagged_reason TEXT, ADD COLUMN source_payment_id TEXT;`
+- Função `validate_referral_bonus()` + trigger BEFORE INSERT (regras 1 e 2).
+- Função `release_pending_referral_bonuses()` + agendamento `pg_cron` diário (regra 4).
+
+**Edge functions**:
+- `mp-webhook`: gravar `source_payment_id` ao criar o bônus; no `payment.refunded` rodar reversão (regra 3); ao criar, em vez de somar em `trial_ends_at` direto, deixar `released_at = now() + 7d` e somar só na liberação.
+- `universal-activation-webhook` e `ManageSubscriptionDialog`: mesmo padrão — usar `released_at`.
+
+**Frontend**:
+- `ReferralSection`: mostrar bônus em "carência" como "+30 dias (libera em X dias)".
+- Admin: lista de bônus flagged com ação "anular".
+
+## Decisões em aberto pra você confirmar
+
+1. **Limite mensal**: 180 dias/mês (≈6 indicações) tá bom ou prefere outro número?
+2. **Carência**: 7 dias OK, ou prefere alinhar com o ciclo do cartão (ex: 14 dias)?
+3. **Bloqueio por mesmo WhatsApp**: WhatsApp obrigatório no onboarding, então é checagem forte. Mantenho como bloqueio duro?
+4. **Bônus já creditados**: aplicar a carência só pra novos, ou recalcular os existentes? (sugestão: só pra novos — não mexe com quem já recebeu).

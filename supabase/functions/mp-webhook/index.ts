@@ -63,6 +63,7 @@ async function processReferralBonus(
   supabase: ReturnType<typeof createClient>,
   activatedOrgId: string,
   accessToken: string,
+  paymentId?: string | number | null,
 ) {
   try {
     // Get the activated org's referred_by_id
@@ -93,78 +94,64 @@ async function processReferralBonus(
     // Mensal = +1 mês (30d) · Trimestral = +1.5 mês (45d) · Anual = +3 meses (90d)
     const bonusDays = activatedOrg.billing_cycle === "annual" ? 90 : activatedOrg.billing_cycle === "quarterly" ? 45 : 30;
 
-    // Insert bonus record
-    await supabase.from("referral_bonuses").insert({
+    // Registra o bônus em carência. O trigger valida anti-fraude
+    // e a função release_pending_referral_bonuses (pg_cron horário)
+    // credita os dias após 7 dias sem refund.
+    const { error: insErr } = await supabase.from("referral_bonuses").insert({
       referrer_org_id: referrerId,
       referred_org_id: activatedOrgId,
       bonus_days: bonusDays,
       referred_org_name: activatedOrg.name || null,
+      source_payment_id: paymentId ? String(paymentId) : null,
     });
 
-    // Add bonus days to referrer's trial_ends_at
+    if (insErr) {
+      console.warn("[mp-webhook] referral_bonus insert blocked:", insErr.message);
+      return;
+    }
+
     const { data: referrerOrg } = await supabase
       .from("organizations")
-      .select("trial_ends_at, mp_subscription_id, name")
+      .select("name")
       .eq("id", referrerId)
-      .single();
+      .maybeSingle();
 
-    if (referrerOrg) {
-      const currentExpiry = referrerOrg.trial_ends_at
-        ? new Date(referrerOrg.trial_ends_at)
-        : new Date();
-      const newExpiry = new Date(currentExpiry.getTime() + bonusDays * 24 * 60 * 60 * 1000);
+    await supabase.from("activation_logs").insert({
+      organization_id: referrerId,
+      org_name: referrerOrg?.name || null,
+      old_plan: null,
+      new_plan: null,
+      old_status: null,
+      new_status: null,
+      source: "referral_bonus",
+      notes: `+${bonusDays} dias em carência (libera em 7d) por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
+    });
 
-      await supabase
-        .from("organizations")
-        .update({ trial_ends_at: newExpiry.toISOString() })
-        .eq("id", referrerId);
-
-      console.log(`[mp-webhook] Referral bonus: +${bonusDays} days for org`, referrerId);
-
-      // Best-effort: postpone next MP billing by bonus days
-      if (referrerOrg.mp_subscription_id) {
-        try {
-          const mpRes = await fetch(
-            `https://api.mercadopago.com/preapproval/${referrerOrg.mp_subscription_id}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } },
-          );
-          const sub = await mpRes.json();
-          if (mpRes.ok && sub.next_payment_date) {
-            const nextPayment = new Date(sub.next_payment_date);
-            nextPayment.setDate(nextPayment.getDate() + bonusDays);
-            await fetch(
-              `https://api.mercadopago.com/preapproval/${referrerOrg.mp_subscription_id}`,
-              {
-                method: "PUT",
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  next_payment_date: nextPayment.toISOString(),
-                }),
-              },
-            );
-            console.log(`[mp-webhook] MP next_payment_date postponed +${bonusDays} days for`, referrerId);
-          }
-        } catch (mpErr) {
-          console.error("[mp-webhook] Failed to postpone MP billing (non-blocking):", mpErr);
-        }
-      }
-
-      await supabase.from("activation_logs").insert({
-        organization_id: referrerId,
-        org_name: referrerOrg.name || null,
-        old_plan: null,
-        new_plan: null,
-        old_status: null,
-        new_status: null,
-        source: "referral_bonus",
-        notes: `+${bonusDays} dias por indicar "${activatedOrg.name}" (org ${activatedOrgId})`,
-      });
-    }
+    console.log(`[mp-webhook] Referral bonus queued: +${bonusDays}d for`, referrerId);
   } catch (err) {
     console.error("[mp-webhook] Referral bonus error (non-blocking):", err);
+  }
+}
+
+/** Reverte bônus de indicação quando o pagamento de origem é estornado */
+async function processReferralRefund(
+  supabase: ReturnType<typeof createClient>,
+  paymentId: string | number,
+) {
+  try {
+    const pidStr = String(paymentId);
+    const { data, error } = await supabase.rpc("revert_referral_bonus_by_payment", {
+      _payment_id: pidStr,
+    });
+    if (error) {
+      console.error("[mp-webhook] revert referral bonus err:", error);
+      return;
+    }
+    if (data && Number(data) > 0) {
+      console.log(`[mp-webhook] reverted ${data} referral bonus(es) for payment`, pidStr);
+    }
+  } catch (err) {
+    console.error("[mp-webhook] processReferralRefund error (non-blocking):", err);
   }
 }
 
@@ -494,9 +481,10 @@ Deno.serve(async (req) => {
             });
           }
         }
-        // Reembolso/estorno: cancela comissão do afiliado
+        // Reembolso/estorno: cancela comissão do afiliado e reverte bônus de indicação
         if (mpData.status === "refunded" || mpData.status === "charged_back" || mpData.status === "cancelled") {
           await processAffiliateRefund(supabase, paymentId);
+          await processReferralRefund(supabase, paymentId);
         }
         return new Response(JSON.stringify({ received: true, status: mpData.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -605,7 +593,7 @@ Deno.serve(async (req) => {
           }
 
           // ── Referral bonus (first payment) ──
-          await processReferralBonus(supabase, orgId, accessToken);
+          await processReferralBonus(supabase, orgId, accessToken, paymentId);
 
           // ── Comissão de afiliado externo (recorrente) ──
           await processAffiliateCommission(
@@ -705,7 +693,7 @@ Deno.serve(async (req) => {
       }
 
       // ── Referral bonus ──
-      await processReferralBonus(supabase, orgId, accessToken);
+      await processReferralBonus(supabase, orgId, accessToken, paymentId);
 
       // ── Comissão de afiliado externo ──
       await processAffiliateCommission(

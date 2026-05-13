@@ -1732,28 +1732,43 @@ export type Database = {
       }
       referral_bonuses: {
         Row: {
+          applied_at: string | null
           bonus_days: number
           created_at: string
+          flagged_reason: string | null
           id: string
           referred_org_id: string
           referred_org_name: string | null
           referrer_org_id: string
+          released_at: string | null
+          reverted_at: string | null
+          source_payment_id: string | null
         }
         Insert: {
+          applied_at?: string | null
           bonus_days?: number
           created_at?: string
+          flagged_reason?: string | null
           id?: string
           referred_org_id: string
           referred_org_name?: string | null
           referrer_org_id: string
+          released_at?: string | null
+          reverted_at?: string | null
+          source_payment_id?: string | null
         }
         Update: {
+          applied_at?: string | null
           bonus_days?: number
           created_at?: string
+          flagged_reason?: string | null
           id?: string
           referred_org_id?: string
           referred_org_name?: string | null
           referrer_org_id?: string
+          released_at?: string | null
+          reverted_at?: string | null
+          source_payment_id?: string | null
         }
         Relationships: [
           {
@@ -2401,7 +2416,12 @@ export type Database = {
         Args: { _event_type: string; _payload: Json }
         Returns: undefined
       }
+      release_pending_referral_bonuses: { Args: never; Returns: number }
       resolve_affiliate_code: { Args: { _code: string }; Returns: string }
+      revert_referral_bonus_by_payment: {
+        Args: { _payment_id: string }
+        Returns: number
+      }
       validate_coupon_by_code: {
         Args: { _cart_total: number; _code: string; _org_id: string }
         Returns: Json
