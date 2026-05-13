@@ -405,11 +405,10 @@ const UnitPage = () => {
 
   if (!org) return null;
 
-  // Cor padrão TrendFood — todas as lojas usam laranja por padrão.
-  // Estilos (header_style, button_style, card_style, font) ainda são personalizáveis.
-  const primaryColor = "#f97316";
-  const buttonColor = "#f97316";
-  const categoryColor = "#f97316";
+  // Cor da marca: vem da paleta automática (extraída da logo) ou do override manual.
+  const primaryColor = effectivePrimaryColor || "#f97316";
+  const buttonColor = themeConfig.button_color || primaryColor;
+  const categoryColor = themeConfig.category_color || primaryColor;
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
   // Sanitize WhatsApp number for reliable wa.me links
