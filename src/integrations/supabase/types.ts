@@ -201,6 +201,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "affiliate_commissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       affiliates: {
@@ -293,6 +300,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_bot_config_test_org_id_fkey"
+            columns: ["test_org_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cash_sessions: {
@@ -334,6 +348,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cash_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cash_withdrawals: {
@@ -367,6 +388,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_withdrawals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
           {
@@ -465,6 +493,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "coupons_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       courier_shifts: {
@@ -534,6 +569,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couriers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -659,6 +701,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "deliveries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       delivery_neighborhoods: {
@@ -697,6 +746,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "delivery_neighborhoods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       device_tokens: {
@@ -730,6 +786,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_tokens_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -778,6 +841,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -884,6 +954,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "global_addons_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       guide_screenshots: {
@@ -947,6 +1024,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ifood_credentials_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -1020,6 +1104,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "loyalty_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       loyalty_points: {
@@ -1056,6 +1147,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_points_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -1101,6 +1199,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_redemptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -1227,6 +1332,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "menu_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       order_items: {
@@ -1322,6 +1434,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       organization_secrets: {
@@ -1355,6 +1474,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: true
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_secrets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -1511,6 +1637,13 @@ export type Database = {
             columns: ["referred_by_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizations_referred_by_id_fkey"
+            columns: ["referred_by_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -1749,6 +1882,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "push_subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       referral_block_logs: {
@@ -1830,10 +1970,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "referral_bonuses_referred_org_id_fkey"
+            columns: ["referred_org_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "referral_bonuses_referrer_org_id_fkey"
             columns: ["referrer_org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_bonuses_referrer_org_id_fkey"
+            columns: ["referrer_org_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -1879,6 +2033,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -2032,6 +2193,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       store_version_heartbeat: {
@@ -2112,6 +2280,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "subscription_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       suggestions: {
@@ -2150,6 +2325,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "suggestions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tables: {
@@ -2180,6 +2362,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tables_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
         ]
@@ -2298,6 +2487,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_instances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
         ]
       }
       whatsapp_outbox: {
@@ -2344,7 +2540,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      top_stores_showcase: {
+        Row: {
+          id: string | null
+          logo_url: string | null
+          name: string | null
+          order_count_30d: number | null
+          primary_color: string | null
+          slug: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calc_trial_ends_at: { Args: never; Returns: string }
@@ -2450,6 +2656,17 @@ export type Database = {
         }[]
       }
       get_store_status: { Args: { _org_id: string }; Returns: Json }
+      get_top_stores_showcase: {
+        Args: never
+        Returns: {
+          id: string
+          logo_url: string
+          name: string
+          order_count_30d: number
+          primary_color: string
+          slug: string
+        }[]
+      }
       get_total_order_count: { Args: never; Returns: number }
       has_role: {
         Args: {
@@ -2467,6 +2684,7 @@ export type Database = {
         Args: { _event_type: string; _payload: Json }
         Returns: undefined
       }
+      refresh_top_stores_showcase: { Args: never; Returns: undefined }
       release_pending_referral_bonuses: { Args: never; Returns: number }
       resolve_affiliate_code: { Args: { _code: string }; Returns: string }
       revert_referral_bonus_by_payment: {

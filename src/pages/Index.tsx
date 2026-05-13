@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import HeroCinematic from "@/components/landing/HeroCinematic";
+import HeroOfferBanner from "@/components/landing/HeroOfferBanner";
 const SavingsCalculator = lazy(() => import("@/components/landing/SavingsCalculator"));
-const MarqueeSocialProof = lazy(() => import("@/components/landing/MarqueeSocialProof"));
+const TopStoresMarquee = lazy(() => import("@/components/landing/TopStoresMarquee"));
 const StackedProblemCards = lazy(() => import("@/components/landing/StackedProblemCards"));
 const TimelineSteps = lazy(() => import("@/components/landing/TimelineSteps"));
 const StickyShowcase = lazy(() => import("@/components/landing/StickyShowcase"));
@@ -168,6 +169,9 @@ const Index = () => {
         description="TrendFood é o cardápio digital e sistema de delivery com taxa 0% para restaurantes. Receba pedidos no WhatsApp, gerencie cozinha e aumente seu lucro real."
         path="/"
       />
+      {/* Banner de oferta + urgência */}
+      <HeroOfferBanner />
+
       {/* Hero Cinematic */}
       <HeroCinematic
         badgeText={c("hero_badge_text", "Zero taxas sobre vendas")}
@@ -183,9 +187,9 @@ const Index = () => {
         heroImageUrl={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
       />
 
-      {/* Marquee social proof */}
+      {/* Carrossel automático das top 15 lojas */}
       <Suspense fallback={null}>
-        <MarqueeSocialProof />
+        <TopStoresMarquee />
       </Suspense>
 
       {/* Benefit Cards */}

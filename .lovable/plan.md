@@ -1,67 +1,75 @@
 ## Objetivo
 
-Garantir que o sistema anti-fraude que construímos (trigger de validação, carência de 7d, reversão por refund, limite mensal) **não falhe silenciosamente em produção**. Hoje funciona, mas se algo quebrar você só descobre quando alguém reclamar.
+Fazer o visitante da landing pensar "quero usar agora" através de:
+1. **Banner fixo de oferta** no topo do hero, com urgência e CTA gigante.
+2. **Carrossel infinito 100% automático** das 15 lojas com mais pedidos nos últimos 30 dias, substituindo a faixa atual de ícones genéricos (`MarqueeSocialProof`).
 
-## 3 frentes
+---
 
-### 1. Testes automatizados do anti-fraude (SQL puro)
+## Parte 1 — Carrossel "Lojas em destaque" (automático)
 
-Criar `supabase/functions/_tests/referral-fraud.test.ts` rodando contra o banco com service role. Cobre os 6 cenários críticos:
+### Critérios definidos
+- **Ranking:** soma de pedidos pagos (`orders.paid = true`) nos últimos 30 dias.
+- **Filtro mínimo:** loja precisa ter **logo** (`organizations.logo_url IS NOT NULL`) **e ≥ 5 pedidos** no período.
+- **Top:** 15 lojas. Ordenação desc por contagem.
+- **Atualização:** automática via `pg_cron` a cada 1h. Se uma loja nova ultrapassar a 15ª, ela toma o lugar — sem intervenção manual.
 
-1. **Auto-indicação direta** (`referrer = referred`) → trigger lança erro
-2. **Mesmo `user_id`** nas duas orgs → trigger lança erro
-3. **Mesmo CNPJ normalizado** → trigger lança erro
-4. **Mesmo WhatsApp normalizado** → trigger lança erro
-5. **Limite mensal excedido** (somar >180 dias em 30d) → insere com `flagged_reason = 'monthly_limit_exceeded'` e `released_at = NULL`
-6. **Refund flow**: insere bônus com `source_payment_id`, força `applied_at` via update, chama `revert_referral_bonus_by_payment(payment_id)` → confirma `reverted_at` preenchido e `trial_ends_at` reduzido pelos `bonus_days`
+### Banco de dados (migration)
 
-Cada teste cria orgs efêmeras com prefixo `test-fraud-` e limpa no `finally`.
+1. Criar **view materializada** `top_stores_showcase` que retorna `id, slug, name, logo_url, order_count_30d` das top 15 lojas que atendem os filtros.
+2. Criar índice `UNIQUE` em `id` (necessário pra `REFRESH CONCURRENTLY`).
+3. Criar função `refresh_top_stores_showcase()` que executa `REFRESH MATERIALIZED VIEW CONCURRENTLY` + grava em `cron_health` pra ficar visível no watchdog admin.
+4. Política RLS na view: `SELECT` público (logo + nome de loja já são públicos via `/unidade/[slug]`).
+5. Agendar `pg_cron`: `'refresh-top-stores-showcase'` a cada hora.
 
-### 2. Watchdog do `pg_cron` de liberação
+### Frontend
 
-Hoje `release_pending_referral_bonuses()` roda de hora em hora. Se o cron falhar/atrasar, bônus ficam pendentes para sempre.
+- Novo componente `src/components/landing/TopStoresMarquee.tsx`:
+  - Faz `supabase.from('top_stores_showcase').select('*')` (cache `staleTime: 10min`).
+  - Renderiza marquee infinito (mesmo padrão visual do `MarqueeSocialProof`: gradiente lateral, animação `landing-marquee-track`, `hover:[animation-play-state:paused]`).
+  - Cada item: logo redonda 48px + nome da loja embaixo, em chip glassmorphism. Clique abre `/unidade/[slug]` em nova aba.
+  - Fallback elegante se < 3 lojas elegíveis: usa o `MarqueeSocialProof` antigo.
+- Substituir `<MarqueeSocialProof />` por `<TopStoresMarquee />` em `src/pages/Index.tsx` (manter o componente antigo no projeto como fallback).
 
-- Criar tabela `cron_health` (job_name, last_success_at) ou reusar `activation_logs`.
-- Alterar a função pra registrar `last_success_at = now()` ao final.
-- Criar nova edge function `referral-cron-watchdog` (verify_jwt=false) que:
-  - Verifica se `last_success_at < now() - 2h` ou se existe bônus com `released_at < now() - 2h AND applied_at IS NULL AND reverted_at IS NULL`.
-  - Se sim, dispara `notify_admin_telegram('cron_lagging', {...})`.
-- Agendar essa watchdog via `pg_cron` a cada 30 min.
+---
 
-### 3. Notificação Telegram quando bônus é bloqueado/flagged
+## Parte 2 — Banner de oferta + urgência no hero
 
-Adicionar trigger `AFTER INSERT` em `referral_bonuses` que dispara `notify_admin_telegram('referral_flagged', {...})` quando `NEW.flagged_reason IS NOT NULL`. Atualizar `admin-telegram-notify` pra renderizar o caso novo (motivo + nomes + IDs + link admin).
+### Componente novo
+`src/components/landing/HeroOfferBanner.tsx`:
+- Faixa logo abaixo da nav (acima do hero atual `HeroCinematic`).
+- Conteúdo: "🔥 7 dias Pro grátis + 30 dias bônus se indicar 1 amigo" + CTA "Começar agora →" + selo "Sem cartão".
+- Visual: gradiente laranja vibrante (`from-primary` to `--primary-glow`), texto branco, micro-animação de pulse no badge.
+- Dismissible? **Não** — ele é a oferta principal, fica fixo. (Se quiser dismissible depois, dá pra adicionar.)
+- Mobile-first: empilha CTA embaixo no `< sm`.
+- Clique no CTA → `/auth?mode=signup`.
 
-Também cobrir os erros lançados pelo trigger (auto-indicação, mesmo CNPJ etc.): hoje eles abortam o INSERT e ninguém vê. Solução: encapsular o INSERT no `mp-webhook` e `universal-activation-webhook` num try/catch — quando der `P0001` com mensagem de auto-indicação/CNPJ/WA, registrar num novo `referral_block_logs` (org_referrer, org_referred, reason, payment_id) e disparar Telegram. Assim você vê tentativas de fraude que foram bloqueadas, não só as marcadas pra revisão.
+### Integração
+- Adicionar no topo de `src/pages/Index.tsx`, antes do `<HeroCinematic />`.
 
-## Mudanças concretas
+---
 
-**Migração SQL**:
-- Tabela `referral_block_logs` (referrer_org_id, referred_org_id, reason, source_payment_id, created_at) com RLS só admin.
-- Tabela `cron_health` (job_name PK, last_success_at) com RLS só admin.
-- Trigger `tr_notify_referral_flagged AFTER INSERT` em `referral_bonuses`.
-- Atualizar `release_pending_referral_bonuses()` pra fazer `UPSERT` em `cron_health` no final.
-- `pg_cron`: agendar `referral-cron-watchdog` a cada 30 min.
+## Fora do escopo
+- Não vou mexer no `HeroCinematic` em si (só adicionar banner acima).
+- Não vou criar landing dedicada de afiliados.
+- Não vou mexer no comparativo, calculadora, depoimentos.
 
-**Edge functions**:
-- `mp-webhook` e `universal-activation-webhook`: try/catch no insert de `referral_bonuses`, gravar `referral_block_logs` em caso de erro do trigger.
-- Nova: `referral-cron-watchdog` (verifica health + dispara Telegram).
-- `admin-telegram-notify`: novos casos `referral_flagged`, `referral_blocked`, `cron_lagging`.
-
-**Testes**:
-- `supabase/functions/_tests/referral-fraud.test.ts` com os 6 cenários acima.
-
-**Frontend**:
-- Em `ReferralsTab` do admin (já existe), adicionar seção "Tentativas bloqueadas" lendo `referral_block_logs` (últimos 30 dias).
+---
 
 ## Detalhes técnicos
 
-- Os testes usam `VITE_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` via `Deno.env`.
-- O watchdog usa o mesmo padrão de `admin-telegram-watchdog` que já existe.
-- Nada disso muda comportamento normal — só adiciona observabilidade. Risco de regressão é baixo.
+```text
+src/pages/Index.tsx
+  ├── <HeroOfferBanner />          ← novo
+  ├── <HeroCinematic />            ← inalterado
+  ├── <TopStoresMarquee />         ← novo (substitui MarqueeSocialProof)
+  └── ...resto inalterado
 
-## Fora do escopo
+DB:
+  - MATERIALIZED VIEW top_stores_showcase
+  - FUNCTION refresh_top_stores_showcase()
+  - pg_cron job 'refresh-top-stores-showcase' (hourly)
+  - cron_health entry pra monitorar (já cobertO pelo watchdog existente)
+```
 
-- Reescrever lógica do trigger (já está correta).
-- Mudar a janela de carência (7d permanece).
-- Mexer no fluxo de bônus do usuário final na UI (já mostra carência/revisão).
+Pronto pra implementar quando você aprovar.
