@@ -1184,7 +1184,7 @@ const UnitPage = () => {
                                 <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
                                 <span
                                   className="font-extrabold text-base"
-                                  style={{ color: org?.primary_color || "hsl(var(--primary))" }}
+                                  style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
                                 >
                                   {fmt(item.price)}
                                 </span>
