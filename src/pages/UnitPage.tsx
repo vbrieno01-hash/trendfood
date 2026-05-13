@@ -975,7 +975,7 @@ const UnitPage = () => {
             style={{
               maxHeight: 180,
               minHeight: 120,
-              background: `linear-gradient(135deg, ${org.primary_color || "#f97316"} 0%, ${org.primary_color || "#f97316"}cc 60%, ${org.primary_color || "#f97316"}99 100%)`,
+              background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
             }}
           >
             <div className="flex items-center gap-3">
