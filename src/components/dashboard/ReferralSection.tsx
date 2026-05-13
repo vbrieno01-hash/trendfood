@@ -106,16 +106,18 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center">
-              <p className="text-3xl font-extrabold">+10 dias</p>
+              <p className="text-3xl font-extrabold">+1 mês</p>
+              <p className="text-xs opacity-80 mt-0.5">(30 dias grátis)</p>
               <p className="text-sm opacity-90 mt-1">quando seu amigo assinar o <strong>Plano Mensal</strong></p>
             </div>
             <div className="bg-white/15 backdrop-blur-sm rounded-xl p-4 text-center">
-              <p className="text-3xl font-extrabold">+30 dias</p>
+              <p className="text-3xl font-extrabold">+3 meses</p>
+              <p className="text-xs opacity-80 mt-0.5">(90 dias grátis)</p>
               <p className="text-sm opacity-90 mt-1">quando seu amigo assinar o <strong>Plano Anual</strong></p>
             </div>
           </div>
           <p className="text-sm opacity-80 text-center">
-            Os dias são adicionados automaticamente ao seu plano atual!
+            Os meses são adicionados automaticamente ao seu plano atual!
           </p>
         </div>
       </div>
@@ -152,7 +154,7 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
               <span className="w-6 h-6 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center">3</span>
               <span className="font-semibold text-sm text-foreground">Amigo paga</span>
             </div>
-            <p className="text-xs text-muted-foreground">Quando ele assinar um plano, você ganha dias grátis!</p>
+            <p className="text-xs text-muted-foreground">Quando ele assinar um plano, você ganha meses grátis!</p>
           </div>
         </div>
       </div>
