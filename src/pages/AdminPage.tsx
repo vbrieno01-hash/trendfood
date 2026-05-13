@@ -175,6 +175,19 @@ interface OrgRow {
   business_hours: object | null;
 }
 
+interface PaymentRow {
+  id: string;
+  organization_id: string;
+  payment_id: string | null;
+  plan: string;
+  billing_cycle: string | null;
+  amount_cents: number;
+  promo_applied: boolean;
+  paid_at: string;
+  source: string;
+  notes: string | null;
+}
+
 type FeatureStatus = "available" | "beta" | "soon" | "planned";
 
 interface Feature {
