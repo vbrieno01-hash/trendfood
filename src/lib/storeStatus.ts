@@ -204,17 +204,19 @@ function findNextOpen(
  * Retorna null se não há horário de reabertura conhecido.
  */
 export function formatOpensAt(status: StoreStatus): string | null {
-  if (!status || status.open) return null;
-  if (!status.opensAt) return null;
-  const offset = status.opensDayOffset ?? 0;
-  if (offset <= 0) return `às ${status.opensAt}`;
-  const label = status.opensDayLabel ?? (offset === 1 ? "amanhã" : null);
-  if (!label) return `às ${status.opensAt}`;
-  return `${label} às ${status.opensAt}`;
+  if (!status || status.open === true) return null;
+  const closed = status as Extract<StoreStatus, { open: false }>;
+  if (!closed.opensAt) return null;
+  const offset = closed.opensDayOffset ?? 0;
+  if (offset <= 0) return `às ${closed.opensAt}`;
+  const label = closed.opensDayLabel ?? (offset === 1 ? "amanhã" : null);
+  if (!label) return `às ${closed.opensAt}`;
+  return `${label} às ${closed.opensAt}`;
 }
 
 /** Retorna true quando a loja está fechada o dia inteiro de hoje. */
 export function isClosedAllDay(status: StoreStatus): boolean {
-  if (!status || status.open) return false;
-  return (status.opensDayOffset ?? 0) >= 1;
+  if (!status || status.open === true) return false;
+  const closed = status as Extract<StoreStatus, { open: false }>;
+  return (closed.opensDayOffset ?? 0) >= 1;
 }
