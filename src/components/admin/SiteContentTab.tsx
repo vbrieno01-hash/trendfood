@@ -195,6 +195,7 @@ export default function SiteContentTab() {
       <section className="admin-glass rounded-2xl p-6 space-y-4">
         <h3 className="font-bold text-foreground flex items-center gap-2"><MessageCircle className="w-4 h-4 text-primary" /> Configurações Gerais</h3>
         <FieldEditor label="WhatsApp de Suporte (com DDI)" icon={<MessageCircle className="w-3 h-3" />} value={str("support_whatsapp")} onChange={(v) => set("support_whatsapp", v)} />
+        <FieldEditor label="Link da Comunidade WhatsApp (botão no painel)" icon={<MessageCircle className="w-3 h-3" />} value={str("community_whatsapp_url")} onChange={(v) => set("community_whatsapp_url", v)} />
         <FieldEditor label="Texto do Contador de Pedidos" icon={<Type className="w-3 h-3" />} value={str("order_counter_text")} onChange={(v) => set("order_counter_text", v)} />
       </section>
 
