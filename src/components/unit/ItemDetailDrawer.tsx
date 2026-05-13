@@ -9,6 +9,7 @@ import { useMenuItemAddons } from "@/hooks/useMenuItemAddons";
 import { useGlobalAddons } from "@/hooks/useGlobalAddons";
 import { useGlobalAddonExclusions } from "@/hooks/useGlobalAddonExclusions";
 import type { MenuItem } from "@/hooks/useMenuItems";
+import { formatOpensAt, type StoreStatus } from "@/lib/storeStatus";
 
 type CartItemAddon = { id: string; name: string; price: number; qty: number };
 
@@ -26,13 +27,15 @@ interface ItemDetailDrawerProps {
   isClosed: boolean;
   opensAt: string | null;
   closedReason?: string;
+  /** Status completo da loja para gerar mensagem detalhada (hoje/amanhã/dia). */
+  storeStatus?: StoreStatus;
   organizationId?: string;
 }
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, categoryColor, isClosed, opensAt, closedReason, organizationId }: ItemDetailDrawerProps) => {
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, categoryColor, isClosed, opensAt, closedReason, storeStatus, organizationId }: ItemDetailDrawerProps) => {
   // Respeita o tema da loja (paleta automática extraída da logo ou cores manuais).
   const priceColor = accentColor || primaryColor || "#f97316";
   const btnColor = buttonColor || primaryColor || "#f97316";
@@ -195,7 +198,11 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
                   ? `⏸ Em pausa · voltamos às ${opensAt || "breve"}`
                   : "🔒 Loja fechada · pedidos indisponíveis"}
               </p>
-              {opensAt && <p className="text-muted-foreground text-xs mt-1">Abre às {opensAt}</p>}
+              {opensAt && (
+                <p className="text-muted-foreground text-xs mt-1">
+                  Abre {(storeStatus && formatOpensAt(storeStatus)) || `às ${opensAt}`}
+                </p>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-3">
