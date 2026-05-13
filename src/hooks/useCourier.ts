@@ -59,12 +59,10 @@ export function useMyCourier() {
     queryFn: async () => {
       if (!courierId) return null;
       const { data, error } = await supabase
-        .from("couriers" as any)
-        .select("*")
-        .eq("id", courierId)
-        .single();
+        .rpc("courier_get_self" as any, { courier_id: courierId });
       if (error) return null;
-      return data as unknown as Courier;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as Courier | null;
     },
     enabled: !!courierId,
   });
@@ -244,16 +242,12 @@ export function useLoginCourier() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { organization_id: string; phone: string }) => {
-      const normalized = normalizePhone(input.phone);
-      const { data, error } = await supabase
-        .from("couriers" as any)
-        .select("*")
-        .eq("organization_id", input.organization_id)
-        .eq("active", true);
+      const { data, error } = await supabase.rpc("courier_login_by_phone" as any, {
+        phone_input: input.phone,
+        org_id: input.organization_id,
+      });
       if (error) throw error;
-      const match = (data ?? []).find(
-        (c: any) => normalizePhone(c.phone) === normalized
-      );
+      const match = Array.isArray(data) ? data[0] : data;
       if (!match) throw new Error("NOT_FOUND");
       const courier = match as unknown as Courier;
       saveCourierId(courier.id);
