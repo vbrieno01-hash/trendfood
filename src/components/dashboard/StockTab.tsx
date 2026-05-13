@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useStockItems, useAddStockItem, useUpdateStockItem, useDeleteStockItem, StockItem } from "@/hooks/useStockItems";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,24 @@ export default function StockTab({ orgId }: StockTabProps) {
   const addMut = useAddStockItem(orgId);
   const updateMut = useUpdateStockItem(orgId);
   const deleteMut = useDeleteStockItem(orgId);
+
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel(`stock_items-${orgId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "stock_items", filter: `organization_id=eq.${orgId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["stock_items", orgId] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orgId, qc]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StockItem | null>(null);
