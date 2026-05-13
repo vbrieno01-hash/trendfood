@@ -294,8 +294,8 @@ const UnitPage = () => {
   const fontFamily = themeConfig.font === "modern" ? "'Inter', sans-serif" : themeConfig.font === "classic" ? "'Merriweather', serif" : themeConfig.font === "playful" ? "'Nunito', sans-serif" : themeConfig.font === "roboto" ? "'Roboto', sans-serif" : themeConfig.font === "poppins" ? "'Poppins', sans-serif" : themeConfig.font === "opensans" ? "'Open Sans', sans-serif" : undefined;
 
   useEffect(() => {
-    if (org?.primary_color) {
-      document.documentElement.style.setProperty("--org-primary", org.primary_color);
+    if (effectivePrimaryColor) {
+      document.documentElement.style.setProperty("--org-primary", effectivePrimaryColor);
     }
     document.documentElement.style.setProperty("--org-gradient", gradientColor);
     document.documentElement.style.setProperty("--org-accent-text", accentTextColor);
@@ -328,7 +328,7 @@ const UnitPage = () => {
       document.documentElement.style.removeProperty("--org-accent-text");
       document.documentElement.style.removeProperty("--org-header-text");
     };
-  }, [org?.primary_color, themeConfig.secondary_color, gradientColor, accentTextColor, headerTextColor, themeConfig.font]);
+  }, [effectivePrimaryColor, themeConfig.secondary_color, gradientColor, accentTextColor, headerTextColor, themeConfig.font]);
 
   // Helper: build category groups dynamically using saved order or defaults
   const buildGroups = (sourceItems: typeof menuItems) => {
