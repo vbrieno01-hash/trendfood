@@ -18,6 +18,7 @@ export default function TopStoresMarquee() {
   const firstGroupRef = useRef<HTMLDivElement | null>(null);
   const pausedRef = useRef(false);
   const resumeTimerRef = useRef<number | null>(null);
+  const posRef = useRef(0);
   const dragStateRef = useRef<{ startX: number; startScroll: number; dragging: boolean; moved: boolean }>({
     startX: 0,
     startScroll: 0,
@@ -39,20 +40,22 @@ export default function TopStoresMarquee() {
     if (!scroller || !firstGroup) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const SPEED = 0.5; // px por frame (~30px/s)
+    const SPEED = 0.6; // px por frame (~35px/s)
     let raf = 0;
+
+    posRef.current = scroller.scrollLeft;
 
     const tick = () => {
       const groupWidth = firstGroup.offsetWidth;
       if (groupWidth > 0) {
-        if (!pausedRef.current && !reduced) {
-          scroller.scrollLeft += SPEED;
-        }
-        // Loop invisível: ao passar do primeiro grupo, volta a largura dele
-        if (scroller.scrollLeft >= groupWidth) {
-          scroller.scrollLeft -= groupWidth;
-        } else if (scroller.scrollLeft < 0) {
-          scroller.scrollLeft += groupWidth;
+        if (pausedRef.current || reduced) {
+          // Sincroniza com o scroll real (drag/touch/wheel) para retomar suave
+          posRef.current = scroller.scrollLeft;
+        } else {
+          posRef.current += SPEED;
+          if (posRef.current >= groupWidth) posRef.current -= groupWidth;
+          if (posRef.current < 0) posRef.current += groupWidth;
+          scroller.scrollLeft = Math.round(posRef.current);
         }
       }
       raf = requestAnimationFrame(tick);
