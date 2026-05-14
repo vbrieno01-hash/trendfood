@@ -33,7 +33,6 @@ export default function TopStoresMarquee() {
     const firstGroup = firstGroupRef.current;
     if (!track || !firstGroup) return;
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const SPEED = 0.6; // px/frame @60fps (~36px/s)
     let raf = 0;
     let last = performance.now();
@@ -44,7 +43,7 @@ export default function TopStoresMarquee() {
       const groupWidth = firstGroup.offsetWidth;
       if (groupWidth > 0) {
         const paused = draggingRef.current || now < pausedUntilRef.current;
-        if (!paused && !reduced) {
+        if (!paused) {
           posRef.current += SPEED * (dt / (1000 / 60));
         }
         if (posRef.current >= groupWidth) posRef.current -= groupWidth;

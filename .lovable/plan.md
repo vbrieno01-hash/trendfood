@@ -1,32 +1,20 @@
 ## Objetivo
-Fazer o carrossel de lojas voltar a rodar em loop automático sem perder o arraste livre, e validar isso no preview antes de te dar a confirmação.
+Fazer o carrossel “Lojas em destaque agora” voltar a andar sozinho sem depender do usuário arrastar, mantendo o arraste livre e o loop contínuo.
 
-## O que vou implementar
-1. Ajustar a lógica de pausa/retomada do `TopStoresMarquee` para o auto-scroll não ficar preso em estado pausado.
-2. Garantir que o loop infinito continue suave depois de mouse hover, touch, wheel e drag manual.
-3. Preservar o comportamento atual pedido por você: por padrão mostrar só logo + nome da loja, com arraste livre funcionando.
-4. Validar no preview com teste real:
-   - observar movimento automático após alguns segundos;
-   - arrastar manualmente o carrossel;
-   - confirmar que ele retoma sozinho e continua em loop.
+## O que vou fazer
+1. Revisar a lógica de animação do `TopStoresMarquee` para eliminar o estado em que ele monta parado.
+2. Remover a dependência que hoje pode estar bloqueando o auto-scroll no preview (`prefers-reduced-motion`) e garantir um estado inicial de movimento confiável.
+3. Manter o drag manual, o pause curto após interação e a retomada automática do loop.
+4. Validar no preview antes de encerrar: abrir a home, observar o movimento automático, arrastar manualmente e confirmar que ele retoma sozinho.
 
-## Diagnóstico encontrado
-- O componente `TopStoresMarquee` hoje usa `requestAnimationFrame` com `scrollLeft` e um estado de pausa via `pausedRef`.
-- A lógica atual pausa em vários eventos (`mouseenter`, `touchstart`, `wheel`, `pointerdown`) e agenda retomada por timer.
-- O sintoma mais provável é a retomada ficar inconsistente por conflito entre eventos de interação e o sincronismo de `scrollLeft`, então o loop não reaparece de forma confiável.
-
-## Arquivo principal
-- `src/components/landing/TopStoresMarquee.tsx`
-
-## Critério de pronto
-- O carrossel se move sozinho sem intervenção.
-- O usuário consegue arrastar livremente.
-- Após soltar, o carrossel volta sozinho em pouco tempo.
-- Não há clique acidental ao arrastar.
-- O comportamento é confirmado visualmente no preview antes de eu te responder como concluído.
+## Critérios de pronto
+- O carrossel começa a se mover sozinho sem qualquer interação.
+- O usuário consegue arrastar livremente para qualquer lado.
+- Após soltar, o carrossel volta a se mover sozinho em pouco tempo.
+- O loop continua sem travar ou “sumir”.
+- A validação é feita no preview antes de eu te confirmar a correção.
 
 ## Detalhes técnicos
-- Centralizar a retomada automática em uma única rotina confiável.
-- Sincronizar a posição interna do loop com o `scrollLeft` real após interações.
-- Revisar os eventos que hoje pausam o loop para evitar travamento permanente em mobile/desktop.
-- Revalidar no preview com captura após espera e teste manual de interação.
+- Arquivo principal: `src/components/landing/TopStoresMarquee.tsx`
+- Verificação complementar: `src/index.css`
+- A causa mais provável encontrada é o gate de movimento reduzido somado à lógica atual de animação, deixando o componente renderizado mas sem iniciar o auto-scroll em certas condições do preview.
