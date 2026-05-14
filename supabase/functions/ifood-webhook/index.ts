@@ -7,7 +7,6 @@ const corsHeaders = {
 
 const IFOOD_API = "https://merchant-api.ifood.com.br";
 
-// ----- Helpers de extração de campos -----
 function fmtMoney(cents: number | null | undefined): string {
   const n = Number(cents ?? 0);
   if (!isFinite(n)) return "R$ 0,00";
@@ -19,14 +18,15 @@ function buildOrderNotes(io: any): string {
   const orderType = String(io.orderType || "DELIVERY").toUpperCase();
   const isPickup = orderType === "TAKEOUT";
   parts.push(`TIPO:${isPickup ? "Retirada" : "Entrega"}`);
-
   const cust = io.customer || {};
   if (cust.name) parts.push(`CLIENTE:${cust.name}`);
   const phone = cust.phone?.number || cust.phone || "";
   if (phone) parts.push(`TEL:${phone}`);
-  const doc = cust.documentNumber || cust.taxPayerIdentificationNumber;
-  if (doc) parts.push(`CPF:${doc}`);
-
+  const doc = String(cust.documentNumber || cust.taxPayerIdentificationNumber || "").replace(/\D/g, "");
+  if (doc) {
+    if (doc.length === 14) parts.push(`CNPJ:${doc}`);
+    else parts.push(`CPF:${doc}`);
+  }
   const da = io.delivery?.deliveryAddress;
   if (!isPickup && da) {
     const addr = da.formattedAddress
@@ -37,38 +37,42 @@ function buildOrderNotes(io: any): string {
     const fee = io.total?.deliveryFee ?? io.delivery?.deliveryFee;
     if (fee != null) parts.push(`FRETE:${fmtMoney(fee)}`);
   }
+  const pickupCode = io.delivery?.pickupCode || io.takeout?.takeoutDateTime || io.pickupCode;
+  if (isPickup && pickupCode) parts.push(`COLETA:${pickupCode}`);
 
-  // Pagamento
   const pay = io.payments?.methods?.[0] || {};
   const method = pay.method || pay.type || "iFood";
   const prepaid = io.payments?.prepaid === true || pay.prepaid === true;
   parts.push(`PGTO:${prepaid ? "Pago no iFood" : method}`);
+  const brand = pay.card?.brand || pay.brand;
+  if (brand && /CREDIT|DEBIT|CARD/i.test(method)) parts.push(`BANDEIRA:${brand}`);
   const changeFor = pay.cash?.changeFor;
-  if (changeFor && Number(changeFor) > 0) {
-    parts.push(`TROCO:${fmtMoney(changeFor)}`);
-  }
+  if (changeFor && Number(changeFor) > 0) parts.push(`TROCO:${fmtMoney(changeFor)}`);
 
-  // Voucher / benefícios
   const benefits = io.benefits || [];
   if (Array.isArray(benefits) && benefits.length) {
-    const labels = benefits.map((b: any) => {
-      const name = b.target || b.targetId || b.sponsorshipValues?.[0]?.name || "Voucher";
-      const value = b.value ?? b.sponsorshipValues?.[0]?.value ?? 0;
-      return `${name} -${fmtMoney(value)}`;
-    });
-    parts.push(`CUPOM:${labels.join("; ")}`);
+    const labels: string[] = [];
+    for (const b of benefits) {
+      const sponsors = b.sponsorshipValues || [];
+      if (Array.isArray(sponsors) && sponsors.length) {
+        for (const s of sponsors) {
+          const who = String(s.name || "OUTRO").toUpperCase().includes("IFOOD") ? "IFOOD" : "LOJA";
+          labels.push(`${who} -${fmtMoney(s.value ?? 0)}`);
+        }
+      } else {
+        labels.push(`${b.target || "Voucher"} -${fmtMoney(b.value ?? 0)}`);
+      }
+    }
+    if (labels.length) parts.push(`CUPOM:${labels.join("; ")}`);
   }
 
-  // Agendamento
   if (String(io.orderTiming).toUpperCase() === "SCHEDULED") {
     const sched = io.schedule?.deliveryDateTimeStart
       || io.schedule?.scheduledDateTimeStart
       || io.scheduledDateTime;
     if (sched) parts.push(`AGENDADO:${sched}`);
   }
-
   if (io.extraInfo) parts.push(`OBS:${String(io.extraInfo).replace(/[|\n\r]+/g, " ").slice(0, 500)}`);
-
   parts.push(`IFOOD_DISPLAY:${io.displayId || ""}`);
   return parts.filter(Boolean).join("|");
 }
@@ -87,167 +91,92 @@ function buildItemName(item: any): string {
   return name;
 }
 
-async function logEvent(
+const EXTERNAL_STATUS_MAP: Record<string, string> = {
+  CFM: "preparing", CONFIRMED: "preparing",
+  RPR: "preparing", STARTED: "preparing",
+  RTP: "ready", READY_TO_PICKUP: "ready",
+  DSP: "delivered", DISPATCHED: "delivered",
+  CON: "delivered", CONCLUDED: "delivered",
+  CAN: "cancelled", CANCELLED: "cancelled",
+};
+
+async function logEventDedup(
   supabase: any,
-  organizationId: string | null,
+  orgId: string | null,
   event: any,
   source: string,
-  internalOrderId?: string | null
-) {
-  try {
-    await supabase.from("ifood_event_log").insert({
-      organization_id: organizationId,
-      ifood_event_id: event.id ?? null,
-      ifood_order_id: event.orderId ?? null,
-      ifood_display_id: event.displayId ?? null,
-      code: event.code ?? event.fullCode ?? "UNKNOWN",
-      payload: event,
-      internal_order_id: internalOrderId ?? null,
-      source,
-    });
-    if (organizationId) {
-      await supabase.from("ifood_credentials")
-        .update({ last_event_at: new Date().toISOString() })
-        .eq("organization_id", organizationId);
-    }
-  } catch (_) { /* swallow */ }
+  internalOrderId?: string | null,
+  extraPayload?: Record<string, any>,
+): Promise<{ duplicate: boolean }> {
+  if (!event?.id) {
+    try {
+      await supabase.from("ifood_event_log").insert({
+        organization_id: orgId,
+        ifood_event_id: null,
+        ifood_order_id: event?.orderId ?? null,
+        ifood_display_id: event?.displayId ?? null,
+        code: event?.code ?? event?.fullCode ?? "UNKNOWN",
+        payload: { ...event, ...extraPayload },
+        internal_order_id: internalOrderId ?? null,
+        source,
+      });
+    } catch (_) {}
+    return { duplicate: false };
+  }
+  const { error } = await supabase.from("ifood_event_log").insert({
+    organization_id: orgId,
+    ifood_event_id: event.id,
+    ifood_order_id: event.orderId ?? null,
+    ifood_display_id: event.displayId ?? null,
+    code: event.code ?? event.fullCode ?? "UNKNOWN",
+    payload: { ...event, ...extraPayload },
+    internal_order_id: internalOrderId ?? null,
+    source,
+  });
+  if (error && (error.code === "23505" || /duplicate/i.test(error.message))) {
+    return { duplicate: true };
+  }
+  if (orgId) {
+    await supabase.from("ifood_credentials")
+      .update({ last_event_at: new Date().toISOString() })
+      .eq("organization_id", orgId);
+  }
+  return { duplicate: false };
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  // Health-check (GET) usado pelo portal iFood para validar a URL
-  if (req.method === "GET") {
-    return new Response(JSON.stringify({ status: "ok" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-  }
-
-  try {
-    let body: any;
-    try {
-      body = await req.json();
-    } catch {
-      console.log("[ifood-webhook] Empty or invalid body, returning 200");
-      return new Response(JSON.stringify({ success: true, message: "No body" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-    console.log("[ifood-webhook] Received event:", JSON.stringify(body).slice(0, 500));
-
-    const serviceClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    const events = Array.isArray(body) ? body : [body];
-
-    for (const event of events) {
-      const { code, orderId, merchantId } = event;
-
-      if (!merchantId) {
-        console.warn("[ifood-webhook] Event without merchantId, skipping");
-        await logEvent(serviceClient, null, event, "webhook");
-        continue;
-      }
-
-      const { data: creds } = await serviceClient
-        .from("ifood_credentials")
-        .select("organization_id, access_token")
-        .eq("merchant_id", merchantId)
-        .single();
-
-      if (!creds) {
-        console.warn("[ifood-webhook] No org found for merchantId:", merchantId);
-        await logEvent(serviceClient, null, event, "webhook");
-        continue;
-      }
-
-      await logEvent(serviceClient, creds.organization_id, event, "webhook");
-
-      switch (code) {
-        case "PLC":
-        case "CFM":
-          await handleNewOrder(serviceClient, creds, event);
-          break;
-        case "CAN":
-        case "CANCELLED":
-          await handleCancellation(serviceClient, creds.organization_id, orderId);
-          break;
-        default:
-          console.log("[ifood-webhook] Unhandled event code:", code, "for order:", orderId);
-      }
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 202,
-    });
-  } catch (err) {
-    console.error("[ifood-webhook] Error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
-});
-
-async function handleNewOrder(
-  supabase: ReturnType<typeof createClient>,
-  creds: { organization_id: string; access_token: string | null },
-  event: any
-) {
+async function handleNewOrder(supabase: any, creds: any, event: any): Promise<{ confirmLatencyMs: number | null; internalOrderId: string | null }> {
   const { orderId } = event;
+  if (!creds.access_token) return { confirmLatencyMs: null, internalOrderId: null };
 
-  if (!creds.access_token) {
-    console.error("[ifood-webhook] No access token for org:", creds.organization_id);
-    return;
-  }
-
-  // Idempotência: já criamos esse pedido antes?
   const { data: existing } = await supabase
-    .from("orders")
-    .select("id")
+    .from("orders").select("id")
     .eq("organization_id", creds.organization_id)
     .eq("gateway_payment_id", `ifood:${orderId}`)
     .maybeSingle();
-  if (existing) {
-    console.log("[ifood-webhook] Order already exists, skipping:", orderId);
-    return;
-  }
+  if (existing) return { confirmLatencyMs: null, internalOrderId: existing.id };
 
   const orderRes = await fetch(`${IFOOD_API}/order/v1.0/orders/${orderId}`, {
     headers: { Authorization: `Bearer ${creds.access_token}` },
   });
-
   if (!orderRes.ok) {
-    console.error("[ifood-webhook] Failed to fetch order details:", await orderRes.text());
-    return;
+    console.error("[ifood-webhook] Failed to fetch order:", await orderRes.text());
+    return { confirmLatencyMs: null, internalOrderId: null };
   }
-
   const ifoodOrder = await orderRes.json();
   const isPickup = String(ifoodOrder.orderType || "DELIVERY").toUpperCase() === "TAKEOUT";
 
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .insert({
-      organization_id: creds.organization_id,
-      table_number: 0,
-      status: "pending",
-      payment_method: ifoodOrder.payments?.methods?.[0]?.method ?? "ifood",
-      notes: buildOrderNotes(ifoodOrder),
-      gateway_payment_id: `ifood:${orderId}`,
-    })
-    .select("id")
-    .single();
-
+  const { data: order, error: orderError } = await supabase.from("orders").insert({
+    organization_id: creds.organization_id,
+    table_number: 0,
+    status: "pending",
+    payment_method: ifoodOrder.payments?.methods?.[0]?.method ?? "ifood",
+    notes: buildOrderNotes(ifoodOrder),
+    gateway_payment_id: `ifood:${orderId}`,
+    ifood_synced_externally: true,
+  }).select("id").single();
   if (orderError || !order) {
     console.error("[ifood-webhook] Failed to create order:", orderError);
-    return;
+    return { confirmLatencyMs: null, internalOrderId: null };
   }
 
   const items = (ifoodOrder.items ?? []).map((item: any) => ({
@@ -257,13 +186,7 @@ async function handleNewOrder(
     quantity: item.quantity ?? 1,
     menu_item_id: null,
   }));
-
-  if (items.length > 0) {
-    const { error: itemsError } = await supabase.from("order_items").insert(items);
-    if (itemsError) {
-      console.error("[ifood-webhook] Failed to create order items:", itemsError);
-    }
-  }
+  if (items.length > 0) await supabase.from("order_items").insert(items);
 
   if (!isPickup && ifoodOrder.delivery?.deliveryAddress) {
     const da = ifoodOrder.delivery.deliveryAddress;
@@ -278,51 +201,151 @@ async function handleNewOrder(
     });
   }
 
-  // Loga vínculo do pedido interno
-  await logEvent(supabase, creds.organization_id, { ...event, displayId: ifoodOrder.displayId }, "webhook", order.id);
-
-  // Confirma no iFood
+  const t0 = Date.now();
+  let latency: number | null = null;
   try {
     await fetch(`${IFOOD_API}/order/v1.0/orders/${orderId}/confirm`, {
       method: "POST",
       headers: { Authorization: `Bearer ${creds.access_token}` },
     });
-    console.log("[ifood-webhook] Order confirmed on iFood:", orderId);
-  } catch (err) {
-    console.error("[ifood-webhook] Failed to confirm on iFood:", err);
+    latency = Date.now() - t0;
+  } catch (_) {
+    latency = Date.now() - t0;
   }
+  return { confirmLatencyMs: latency, internalOrderId: order.id };
 }
 
-async function handleCancellation(
-  supabase: ReturnType<typeof createClient>,
-  orgId: string,
-  ifoodOrderId: string
-) {
-  const { data: order } = await supabase
-    .from("orders")
-    .select("id")
+async function syncExternalStatus(supabase: any, orgId: string, ifoodOrderId: string, newStatus: string) {
+  if (!ifoodOrderId) return null;
+  const { data: order } = await supabase.from("orders")
+    .select("id, status")
     .eq("organization_id", orgId)
     .eq("gateway_payment_id", `ifood:${ifoodOrderId}`)
-    .single();
+    .maybeSingle();
+  if (!order || order.status === newStatus) return order?.id ?? null;
+  const update: Record<string, any> = { status: newStatus, ifood_synced_externally: true };
+  if (newStatus === "cancelled") update.cancellation_reason = "Cancelado via iFood";
+  await supabase.from("orders").update(update).eq("id", order.id);
 
-  if (order) {
-    await supabase
-      .from("orders")
-      .update({ status: "cancelled", cancellation_reason: "Cancelado pelo iFood" })
-      .eq("id", order.id);
-    console.log("[ifood-webhook] Order cancelled:", order.id);
-
-    // Notifica lojista via Telegram
+  if (newStatus === "cancelled") {
     try {
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-merchant-telegram`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          organization_id: orgId,
-          event_type: "ifood_cancelled",
-          ifood_order_id: ifoodOrderId,
-        }),
+        body: JSON.stringify({ organization_id: orgId, event_type: "ifood_cancelled", ifood_order_id: ifoodOrderId }),
       });
-    } catch (_) { /* swallow */ }
+    } catch (_) {}
   }
+  return order.id;
 }
+
+// ============= MAIN HANDLER =============
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "GET") {
+    return new Response(JSON.stringify({ status: "ok" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+    });
+  }
+
+  try {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ success: true, message: "No body" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+      });
+    }
+    console.log("[ifood-webhook] Received:", JSON.stringify(body).slice(0, 300));
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const events = Array.isArray(body) ? body : [body];
+
+    // Coleta tokens por merchant pra acknowledgment depois
+    const tokensByMerchant = new Map<string, { token: string | null; ackIds: string[] }>();
+
+    for (const event of events) {
+      const { code: rawCode, orderId, merchantId } = event;
+      const code = String(rawCode || event.fullCode || "").toUpperCase();
+
+      if (!merchantId) {
+        console.warn("[ifood-webhook] Event without merchantId, skipping");
+        await logEventDedup(supabase, null, event, "webhook");
+        continue;
+      }
+
+      const { data: creds } = await supabase
+        .from("ifood_credentials")
+        .select("organization_id, access_token, merchant_id")
+        .eq("merchant_id", merchantId)
+        .maybeSingle();
+
+      if (!creds) {
+        console.warn("[ifood-webhook] No org for merchantId:", merchantId);
+        await logEventDedup(supabase, null, event, "webhook");
+        continue;
+      }
+
+      // Coleta event.id pra ack (req #11)
+      if (event.id) {
+        const entry = tokensByMerchant.get(merchantId) ?? { token: creds.access_token, ackIds: [] };
+        entry.ackIds.push(event.id);
+        entry.token = creds.access_token;
+        tokensByMerchant.set(merchantId, entry);
+      }
+
+      // Dedup (req #8)
+      const { duplicate } = await logEventDedup(supabase, creds.organization_id, event, "webhook");
+      if (duplicate) continue;
+
+      if (code === "KEEPALIVE") continue;
+      if (code.startsWith("HANDSHAKE")) continue; // req #10 - apenas log
+
+      if (code === "PLC" || code === "PLACED" || code === "CFM" || code === "CONFIRMED") {
+        const { confirmLatencyMs, internalOrderId } = await handleNewOrder(supabase, creds, event);
+        if (internalOrderId && confirmLatencyMs != null && event.id) {
+          await supabase.from("ifood_event_log")
+            .update({ payload: { ...event, confirm_latency_ms: confirmLatencyMs }, internal_order_id: internalOrderId })
+            .eq("ifood_event_id", event.id);
+        }
+        continue;
+      }
+
+      const mapped = EXTERNAL_STATUS_MAP[code];
+      if (mapped) {
+        await syncExternalStatus(supabase, creds.organization_id, orderId, mapped);
+      } else {
+        console.log("[ifood-webhook] Unhandled code:", code, "order:", orderId);
+      }
+    }
+
+    // Acknowledgment de todos eventos recebidos via webhook (req #11)
+    for (const [_merchantId, entry] of tokensByMerchant) {
+      if (!entry.token || entry.ackIds.length === 0) continue;
+      try {
+        await fetch(`${IFOOD_API}/events/v1.0/events/acknowledgment`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${entry.token}`, "Content-Type": "application/json" },
+          body: JSON.stringify(entry.ackIds.map((id) => ({ id }))),
+        });
+      } catch (err) {
+        console.error("[ifood-webhook] ack failed:", err);
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 202,
+    });
+  } catch (err) {
+    console.error("[ifood-webhook] Error:", err);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500, headers: corsHeaders,
+    });
+  }
+});
