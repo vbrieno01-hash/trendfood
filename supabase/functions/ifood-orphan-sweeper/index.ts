@@ -249,18 +249,10 @@ Deno.serve(async (req) => {
           });
           // Marca como não mais pendente, independente do resultado;
           // se falhar de novo, nova entrada OUT_*_FAILED será criada e tentada na próxima rodada.
-          await service.from("ifood_event_log").insert({
-            organization_id: ev.organization_id,
-            ifood_order_id: ev.ifood_order_id,
-            internal_order_id: ev.internal_order_id,
-            code: r.ok ? `RETRY_OK` : `RETRY_FAILED`,
-            payload: { original_event_id: ev.id, retry_status: r.status },
-            source: "outbound",
-          });
-          // "Apaga" o retry_pending do evento original mantendo histórico:
-          // re-insere com payload atualizado é caro; em vez disso usamos uma ack table simples:
-          // como ifood_event_log não permite UPDATE público, deixamos o filtro retry_pending
-          // ser efetivado via window de 30min (eventos antigos saem automaticamente).
+          // Marca retry_pending=false no evento original para não tentar de novo
+          await service.from("ifood_event_log")
+            .update({ payload: { ...payload, retry_pending: false, retried_at: new Date().toISOString(), retry_status: r.status } })
+            .eq("id", ev.id);
           if (r.ok) retryOk++;
         } catch (e: any) {
           console.error("[orphan-sweeper] retry failed:", e?.message);
