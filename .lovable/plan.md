@@ -1,59 +1,46 @@
-## Problema
+## Objetivo
+Fazer os pedidos de teste do iFood voltarem a aparecer na Cozinha quando você gerar pedidos e clicar em Forçar polling.
 
-Ao clicar em **"Forçar polling"** na aba iFood, retorna `500: {"error":"Unexpected end of JSON input"}`.
+## O que vou corrigir
+1. Ajustar o fluxo de conexão do iFood para salvar e validar o `merchant_id` correto da loja conectada.
+2. Tornar o processamento de eventos mais resiliente quando o webhook receber um `merchantId` diferente do cadastrado manualmente.
+3. Reprocessar os eventos que já chegaram, mas ficaram órfãos/duplicados sem virar pedidos internos.
+4. Melhorar o feedback da aba Integração iFood para mostrar claramente quando há eventos recebidos sem vínculo com a loja.
 
-Causa, vista no log da edge function `ifood-poll-events` (linha 332 do `index.ts`):
+## Evidência encontrada
+- O polling respondeu `events: 7`, `acked: 7`, `processed: 0`, `duplicates: 7`.
+- O webhook registrou `No org for merchantId: 40ea...`.
+- Na credencial da loja, o `merchant_id` salvo está diferente (`ffe476df...`).
 
+## Implementação
+### Backend
+- Revisar `ifood-auth` para obter e persistir o identificador real da loja/merchant retornado pelo iFood.
+- Ajustar `ifood-webhook` e `ifood-poll-events` para não perder eventos quando houver divergência de `merchantId` e para permitir recuperação segura dos eventos órfãos.
+- Se necessário, adicionar uma migration pequena para suporte ao reaproveitamento/reprocessamento seguro dos logs existentes.
+
+### Frontend
+- Atualizar a aba `Integração iFood` para exibir melhor o estado real da conexão e alertar quando o `merchant_id` salvo não bate com o dos eventos recebidos.
+- Melhorar a mensagem do botão `Forçar polling` para não parecer sucesso quando os eventos forem todos ignorados por duplicidade ou vínculo incorreto.
+
+## Validação
+- Reconectar a loja iFood.
+- Gerar novo pedido teste.
+- Executar `Forçar polling`.
+- Confirmar que o evento entra no log com `internal_order_id` preenchido.
+- Confirmar que o card aparece na Cozinha/Produção.
+- Validar que webhook + polling não geram duplicação.
+
+## Detalhes técnicos
+Arquivos mais prováveis:
+- `supabase/functions/ifood-auth/index.ts`
+- `supabase/functions/ifood-webhook/index.ts`
+- `supabase/functions/ifood-poll-events/index.ts`
+- `src/components/dashboard/IFoodTab.tsx`
+- possivelmente uma migration em `supabase/migrations/`
+
+```text
+Problema atual
+Webhook recebe evento -> não encontra org pelo merchantId -> grava log órfão
+Polling depois acha o mesmo event.id -> trata como duplicado -> não cria order
+Resultado -> nada aparece na cozinha
 ```
-Poll error: SyntaxError: Unexpected end of JSON input
-  at Response.json (...)
-  at handler (.../ifood-poll-events/index.ts:332:38)
-```
-
-A API do iFood (`/events/v1.0/events:polling`) responde com **HTTP 200 + corpo vazio** (ou `204 No Content`) quando não há eventos novos. O código atual chama `eventsRes.json()` direto, o que estoura em corpo vazio e derruba todo o polling — nenhum org é processado nessa chamada.
-
-## Correção (1 arquivo, mudança mínima)
-
-`supabase/functions/ifood-poll-events/index.ts`, no bloco que hoje faz `const events = await eventsRes.json();` (linha 335):
-
-1. Tratar `204 No Content` como "sem eventos" (continua o loop com `events: 0`).
-2. Ler o corpo como texto primeiro; se vier vazio ou só whitespace, tratar como `[]`.
-3. Envolver o `JSON.parse` em try/catch para, em caso de payload inválido, registrar `parse_error` para aquele org e seguir para o próximo, em vez de derrubar a função inteira.
-
-Pseudo-diff:
-
-```ts
-if (eventsRes.status === 204) {
-  results.push({ org: cred.organization_id, events: 0 });
-  continue;
-}
-
-const raw = (await eventsRes.text()).trim();
-let events: any[] = [];
-if (raw.length > 0) {
-  try {
-    const parsed = JSON.parse(raw);
-    events = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    results.push({ org: cred.organization_id, error: "invalid_json" });
-    continue;
-  }
-}
-if (events.length === 0) {
-  results.push({ org: cred.organization_id, events: 0 });
-  continue;
-}
-```
-
-Resto do fluxo (ack, dedup, processamento de eventos) permanece igual.
-
-## Fora de escopo
-
-- Não mexer em `ifood-webhook`, KDS, `IFoodOrderChip` nem na allowlist de e-mails.
-- Não alterar config de `verify_jwt` nem secrets.
-
-## Verificação
-
-1. Deploy automático da função.
-2. Clicar em **"Forçar polling"** na aba iFood (`/dashboard?tab=ifood`).
-3. Esperado: resposta 200 com `results: [{ org: ..., events: 0 }]` quando não há pedidos novos, sem `Unexpected end of JSON input` nos logs.

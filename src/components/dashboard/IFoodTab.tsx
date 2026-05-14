@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Loader2, Link2, RefreshCw, Unplug, Copy, Zap,
+  Loader2, Link2, RefreshCw, Unplug, Copy, Zap, LifeBuoy,
 } from "lucide-react";
 
 interface IFoodTabProps { orgId: string; }
@@ -43,6 +43,19 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+
+  // OrderIds dos eventos iFood que ficaram presos por merchant_id divergente
+  // (recuperáveis pela API enquanto a loja iFood ainda os tem ativos)
+  const ORPHAN_ORDER_IDS = [
+    "89279574-ae24-499e-a9d7-ac91ff99fa08",
+    "3c70fd1b-7f63-4936-94fe-6745a01fdb00",
+    "e1c49f3c-b671-4636-a74c-4e7d8e28f560",
+    "2f1e7bbb-984b-4412-98c2-ffb8815d3fea",
+    "7402fd0c-57cd-4ca4-a5c6-491350b3ba14",
+    "bf1687b4-507c-426d-9c8b-01c2cfd40bd6",
+    "b9e9febd-c49f-4df3-a695-5bda890f354a",
+  ];
 
   const load = async () => {
     setLoading(true);
@@ -116,6 +129,26 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
     } finally { setPolling(false); }
   };
 
+  const recoverOrphans = async () => {
+    if (!confirm(`Tentar recuperar ${ORPHAN_ORDER_IDS.length} pedido(s) iFood que ficaram presos?`)) return;
+    setRecovering(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ifood-reprocess-orphans", {
+        body: { organization_id: orgId, order_ids: ORPHAN_ORDER_IDS },
+      });
+      if (error) throw error;
+      const created = (data as any)?.created ?? 0;
+      if (created > 0) {
+        toast.success(`${created} pedido(s) recuperado(s) e enviado(s) para a Cozinha!`);
+      } else {
+        toast.info("Nenhum pedido recuperado. Eles podem já estar finalizados no iFood.");
+      }
+      await load();
+    } catch (e: any) {
+      toast.error("Falha ao recuperar: " + (e.message || "desconhecido"));
+    } finally { setRecovering(false); }
+  };
+
   const pollAge = cred?.last_polled_at
     ? Math.round((Date.now() - new Date(cred.last_polled_at).getTime()) / 1000)
     : null;
@@ -176,6 +209,10 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
                 </Button>
                 <Button variant="outline" onClick={disconnect} disabled={busy}>
                   <Unplug className="w-4 h-4 mr-2" /> Desconectar
+                </Button>
+                <Button variant="outline" onClick={recoverOrphans} disabled={busy || recovering}>
+                  {recovering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LifeBuoy className="w-4 h-4 mr-2" />}
+                  Recuperar pedidos perdidos
                 </Button>
               </>
             )}
