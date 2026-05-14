@@ -7,10 +7,101 @@ const corsHeaders = {
 
 const IFOOD_API = "https://merchant-api.ifood.com.br";
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+function fmtMoney(cents: number | null | undefined): string {
+  const n = Number(cents ?? 0);
+  if (!isFinite(n)) return "R$ 0,00";
+  return "R$ " + n.toFixed(2).replace(".", ",");
+}
+
+function buildOrderNotes(io: any): string {
+  const parts: string[] = [];
+  const orderType = String(io.orderType || "DELIVERY").toUpperCase();
+  const isPickup = orderType === "TAKEOUT";
+  parts.push(`TIPO:${isPickup ? "Retirada" : "Entrega"}`);
+
+  const cust = io.customer || {};
+  if (cust.name) parts.push(`CLIENTE:${cust.name}`);
+  const phone = cust.phone?.number || cust.phone || "";
+  if (phone) parts.push(`TEL:${phone}`);
+  const doc = cust.documentNumber || cust.taxPayerIdentificationNumber;
+  if (doc) parts.push(`CPF:${doc}`);
+
+  const da = io.delivery?.deliveryAddress;
+  if (!isPickup && da) {
+    const addr = da.formattedAddress
+      || [da.streetName, da.streetNumber, da.neighborhood, da.city, da.state]
+        .filter(Boolean).join(", ");
+    if (addr) parts.push(`END.:${addr}`);
+    if (da.neighborhood) parts.push(`BAIRRO:${da.neighborhood}`);
+    const fee = io.total?.deliveryFee ?? io.delivery?.deliveryFee;
+    if (fee != null) parts.push(`FRETE:${fmtMoney(fee)}`);
   }
+
+  const pay = io.payments?.methods?.[0] || {};
+  const method = pay.method || pay.type || "iFood";
+  const prepaid = io.payments?.prepaid === true || pay.prepaid === true;
+  parts.push(`PGTO:${prepaid ? "Pago no iFood" : method}`);
+  const changeFor = pay.cash?.changeFor;
+  if (changeFor && Number(changeFor) > 0) parts.push(`TROCO:${fmtMoney(changeFor)}`);
+
+  const benefits = io.benefits || [];
+  if (Array.isArray(benefits) && benefits.length) {
+    const labels = benefits.map((b: any) => {
+      const name = b.target || b.targetId || b.sponsorshipValues?.[0]?.name || "Voucher";
+      const value = b.value ?? b.sponsorshipValues?.[0]?.value ?? 0;
+      return `${name} -${fmtMoney(value)}`;
+    });
+    parts.push(`CUPOM:${labels.join("; ")}`);
+  }
+
+  if (String(io.orderTiming).toUpperCase() === "SCHEDULED") {
+    const sched = io.schedule?.deliveryDateTimeStart
+      || io.schedule?.scheduledDateTimeStart
+      || io.scheduledDateTime;
+    if (sched) parts.push(`AGENDADO:${sched}`);
+  }
+
+  if (io.extraInfo) parts.push(`OBS:${String(io.extraInfo).replace(/[|\n\r]+/g, " ").slice(0, 500)}`);
+  parts.push(`IFOOD_DISPLAY:${io.displayId || ""}`);
+  return parts.filter(Boolean).join("|");
+}
+
+function buildItemName(item: any): string {
+  const base = item.name || "Item iFood";
+  const opts = (item.options || item.subItems || []) as any[];
+  const addons = opts.map((o) => {
+    const qty = o.quantity || 1;
+    const price = (o.totalPrice ?? o.price ?? o.unitPrice ?? 0);
+    return `${qty}x ${o.name || "Adicional"} ${fmtMoney(price)}`;
+  });
+  let name = base;
+  if (addons.length) name += ` (+ ${addons.join(", ")})`;
+  if (item.observations) name += ` | Obs: ${String(item.observations).slice(0, 200)}`;
+  return name;
+}
+
+async function logEvent(supabase: any, orgId: string | null, event: any, source: string, internalOrderId?: string | null) {
+  try {
+    await supabase.from("ifood_event_log").insert({
+      organization_id: orgId,
+      ifood_event_id: event.id ?? null,
+      ifood_order_id: event.orderId ?? null,
+      ifood_display_id: event.displayId ?? null,
+      code: event.code ?? "UNKNOWN",
+      payload: event,
+      internal_order_id: internalOrderId ?? null,
+      source,
+    });
+    if (orgId) {
+      await supabase.from("ifood_credentials")
+        .update({ last_event_at: new Date().toISOString() })
+        .eq("organization_id", orgId);
+    }
+  } catch (_) {}
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -18,7 +109,6 @@ Deno.serve(async (req) => {
   );
 
   try {
-    // Get all connected orgs
     const { data: creds, error: credsErr } = await supabase
       .from("ifood_credentials")
       .select("*")
@@ -32,28 +122,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results = [];
+    const results: any[] = [];
 
     for (const cred of creds) {
-      // Check if token expired, refresh if needed
       let accessToken = cred.access_token;
       if (cred.token_expires_at && new Date(cred.token_expires_at) < new Date()) {
-        const refreshRes = await refreshToken(supabase, cred);
-        if (!refreshRes) {
+        const refreshed = await refreshToken(supabase, cred);
+        if (!refreshed) {
           results.push({ org: cred.organization_id, error: "token_refresh_failed" });
           continue;
         }
-        accessToken = refreshRes;
+        accessToken = refreshed;
       }
 
-      // Poll events
       const eventsRes = await fetch(`${IFOOD_API}/events/v1.0/events:polling`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       });
+
+      await supabase.from("ifood_credentials")
+        .update({ last_polled_at: new Date().toISOString() })
+        .eq("id", cred.id);
 
       if (!eventsRes.ok) {
         results.push({ org: cred.organization_id, error: `poll_failed_${eventsRes.status}` });
@@ -66,24 +154,22 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Process each event
       const ackIds: string[] = [];
       for (const event of events) {
+        await logEvent(supabase, cred.organization_id, event, "polling");
+
         if (event.code === "PLC" || event.code === "CFM") {
-          // New order placed or confirmed
           await processNewOrder(supabase, cred, accessToken, event);
+        } else if (event.code === "CAN") {
+          await processCancellation(supabase, cred.organization_id, event.orderId);
         }
         if (event.id) ackIds.push(event.id);
       }
 
-      // Acknowledge events
       if (ackIds.length > 0) {
         await fetch(`${IFOOD_API}/events/v1.0/events/acknowledgment`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
           body: JSON.stringify(ackIds.map((id) => ({ id }))),
         });
       }
@@ -94,7 +180,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Poll error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
@@ -109,33 +195,34 @@ async function refreshToken(supabase: any, cred: any): Promise<string | null> {
     const clientSecret = Deno.env.get("IFOOD_CLIENT_SECRET");
     if (!clientId || !clientSecret) return null;
 
+    const params = new URLSearchParams();
+    if (cred.refresh_token) {
+      params.set("grantType", "refresh_token");
+      params.set("clientId", clientId);
+      params.set("clientSecret", clientSecret);
+      params.set("refreshToken", cred.refresh_token);
+    } else {
+      params.set("grantType", "client_credentials");
+      params.set("clientId", clientId);
+      params.set("clientSecret", clientSecret);
+    }
+
     const tokenRes = await fetch(`${IFOOD_API}/authentication/v1.0/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: cred.refresh_token,
-      }),
+      body: params.toString(),
     });
-
     if (!tokenRes.ok) return null;
     const tokenData = await tokenRes.json();
 
-    await supabase
-      .from("ifood_credentials")
-      .update({
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token || cred.refresh_token,
-        token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-      })
-      .eq("id", cred.id);
+    await supabase.from("ifood_credentials").update({
+      access_token: tokenData.accessToken ?? tokenData.access_token,
+      refresh_token: tokenData.refreshToken ?? tokenData.refresh_token ?? cred.refresh_token,
+      token_expires_at: new Date(Date.now() + (tokenData.expiresIn ?? tokenData.expires_in ?? 3600) * 1000).toISOString(),
+    }).eq("id", cred.id);
 
-    return tokenData.access_token;
-  } catch {
-    return null;
-  }
+    return tokenData.accessToken ?? tokenData.access_token;
+  } catch { return null; }
 }
 
 async function processNewOrder(supabase: any, cred: any, token: string, event: any) {
@@ -143,78 +230,73 @@ async function processNewOrder(supabase: any, cred: any, token: string, event: a
     const orderId = event.orderId || event.metadata?.orderId;
     if (!orderId) return;
 
-    // Fetch full order details
+    const { data: existing } = await supabase
+      .from("orders").select("id")
+      .eq("organization_id", cred.organization_id)
+      .eq("gateway_payment_id", `ifood:${orderId}`)
+      .maybeSingle();
+    if (existing) return;
+
     const orderRes = await fetch(`${IFOOD_API}/order/v1.0/orders/${orderId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!orderRes.ok) return;
     const ifoodOrder = await orderRes.json();
+    const isPickup = String(ifoodOrder.orderType || "DELIVERY").toUpperCase() === "TAKEOUT";
 
-    // Build notes
-    const customerName = ifoodOrder.customer?.name || "Cliente iFood";
-    const customerPhone = ifoodOrder.customer?.phone?.number || "";
-    const address = ifoodOrder.delivery?.deliveryAddress
-      ? `${ifoodOrder.delivery.deliveryAddress.streetName}, ${ifoodOrder.delivery.deliveryAddress.streetNumber} - ${ifoodOrder.delivery.deliveryAddress.neighborhood}`
-      : "";
-
-    const notes = [
-      `[iFood] Pedido #${ifoodOrder.displayId || orderId}`,
-      customerName,
-      customerPhone ? `Tel: ${customerPhone}` : "",
-      address ? `Endereço: ${address}` : "",
-      ifoodOrder.extraInfo || "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    // Create order in our system
-    const { data: newOrder, error: orderErr } = await supabase
-      .from("orders")
-      .insert({
-        organization_id: cred.organization_id,
-        table_number: 0,
-        status: "pending",
-        notes,
-        payment_method: ifoodOrder.payments?.methods?.[0]?.method || "ifood",
-      })
-      .select("id")
-      .single();
-
+    const { data: newOrder, error: orderErr } = await supabase.from("orders").insert({
+      organization_id: cred.organization_id,
+      table_number: 0,
+      status: "pending",
+      notes: buildOrderNotes(ifoodOrder),
+      payment_method: ifoodOrder.payments?.methods?.[0]?.method || "ifood",
+      gateway_payment_id: `ifood:${orderId}`,
+    }).select("id").single();
     if (orderErr || !newOrder) return;
 
-    // Create order items
     const items = (ifoodOrder.items || []).map((item: any) => ({
       order_id: newOrder.id,
-      name: item.name || "Item iFood",
-      price: (item.totalPrice || item.price || 0) / 100,
+      name: buildItemName(item),
+      price: Number(item.totalPrice ?? item.unitPrice ?? 0),
       quantity: item.quantity || 1,
-      customer_name: customerName,
     }));
+    if (items.length > 0) await supabase.from("order_items").insert(items);
 
-    if (items.length > 0) {
-      await supabase.from("order_items").insert(items);
-    }
-
-    // Confirm order on iFood
-    await fetch(`${IFOOD_API}/order/v1.0/orders/${orderId}/confirm`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    // Create delivery record if applicable
-    if (address && ifoodOrder.orderType === "DELIVERY") {
+    if (!isPickup && ifoodOrder.delivery?.deliveryAddress) {
+      const da = ifoodOrder.delivery.deliveryAddress;
+      const addr = da.formattedAddress
+        || [da.streetName, da.streetNumber, da.neighborhood, da.city].filter(Boolean).join(", ");
       await supabase.from("deliveries").insert({
         order_id: newOrder.id,
         organization_id: cred.organization_id,
-        customer_address: address,
-        fee: (ifoodOrder.delivery?.deliveryFee || 0) / 100,
+        customer_address: addr || "iFood delivery",
+        fee: Number(ifoodOrder.total?.deliveryFee ?? ifoodOrder.delivery?.deliveryFee ?? 0),
         status: "pendente",
       });
     }
+
+    await logEvent(supabase, cred.organization_id, { ...event, displayId: ifoodOrder.displayId }, "polling", newOrder.id);
+
+    await fetch(`${IFOOD_API}/order/v1.0/orders/${orderId}/confirm`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
   } catch (err) {
     console.error("Process order error:", err);
+  }
+}
+
+async function processCancellation(supabase: any, orgId: string, ifoodOrderId: string) {
+  if (!ifoodOrderId) return;
+  const { data: order } = await supabase.from("orders")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("gateway_payment_id", `ifood:${ifoodOrderId}`)
+    .maybeSingle();
+  if (order) {
+    await supabase.from("orders").update({
+      status: "cancelled",
+      cancellation_reason: "Cancelado pelo iFood",
+    }).eq("id", order.id);
   }
 }

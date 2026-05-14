@@ -923,6 +923,8 @@ export type Database = {
           available: boolean
           created_at: string
           id: string
+          ifood_group_id: string | null
+          ifood_option_id: string | null
           name: string
           organization_id: string
           price_cents: number
@@ -932,6 +934,8 @@ export type Database = {
           available?: boolean
           created_at?: string
           id?: string
+          ifood_group_id?: string | null
+          ifood_option_id?: string | null
           name: string
           organization_id: string
           price_cents?: number
@@ -941,6 +945,8 @@ export type Database = {
           available?: boolean
           created_at?: string
           id?: string
+          ifood_group_id?: string | null
+          ifood_option_id?: string | null
           name?: string
           organization_id?: string
           price_cents?: number
@@ -984,12 +990,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ifood_category_map: {
+        Row: {
+          category_name: string
+          created_at: string
+          id: string
+          ifood_id: string
+          organization_id: string
+        }
+        Insert: {
+          category_name: string
+          created_at?: string
+          id?: string
+          ifood_id: string
+          organization_id: string
+        }
+        Update: {
+          category_name?: string
+          created_at?: string
+          id?: string
+          ifood_id?: string
+          organization_id?: string
+        }
+        Relationships: []
+      }
       ifood_credentials: {
         Row: {
           access_token: string | null
           created_at: string
           id: string
+          last_event_at: string | null
+          last_polled_at: string | null
           merchant_id: string | null
+          merchant_name: string | null
           organization_id: string
           refresh_token: string | null
           status: string
@@ -1000,7 +1033,10 @@ export type Database = {
           access_token?: string | null
           created_at?: string
           id?: string
+          last_event_at?: string | null
+          last_polled_at?: string | null
           merchant_id?: string | null
+          merchant_name?: string | null
           organization_id: string
           refresh_token?: string | null
           status?: string
@@ -1011,7 +1047,10 @@ export type Database = {
           access_token?: string | null
           created_at?: string
           id?: string
+          last_event_at?: string | null
+          last_polled_at?: string | null
           merchant_id?: string | null
+          merchant_name?: string | null
           organization_id?: string
           refresh_token?: string | null
           status?: string
@@ -1034,6 +1073,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ifood_event_log: {
+        Row: {
+          code: string
+          id: string
+          ifood_display_id: string | null
+          ifood_event_id: string | null
+          ifood_order_id: string | null
+          internal_order_id: string | null
+          organization_id: string | null
+          payload: Json | null
+          received_at: string
+          source: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          ifood_display_id?: string | null
+          ifood_event_id?: string | null
+          ifood_order_id?: string | null
+          internal_order_id?: string | null
+          organization_id?: string | null
+          payload?: Json | null
+          received_at?: string
+          source?: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          ifood_display_id?: string | null
+          ifood_event_id?: string | null
+          ifood_order_id?: string | null
+          internal_order_id?: string | null
+          organization_id?: string | null
+          payload?: Json | null
+          received_at?: string
+          source?: string
+        }
+        Relationships: []
       }
       improvement_tasks: {
         Row: {
@@ -1293,6 +1371,7 @@ export type Database = {
           description: string | null
           hide_global_addons: boolean
           id: string
+          ifood_id: string | null
           image_url: string | null
           name: string
           organization_id: string
@@ -1306,6 +1385,7 @@ export type Database = {
           description?: string | null
           hide_global_addons?: boolean
           id?: string
+          ifood_id?: string | null
           image_url?: string | null
           name: string
           organization_id: string
@@ -1319,6 +1399,7 @@ export type Database = {
           description?: string | null
           hide_global_addons?: boolean
           id?: string
+          ifood_id?: string | null
           image_url?: string | null
           name?: string
           organization_id?: string
