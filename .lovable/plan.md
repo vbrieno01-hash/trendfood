@@ -1,33 +1,32 @@
-# Corrigir auto-scroll que parou de andar
+## Objetivo
+Fazer o carrossel de lojas voltar a rodar em loop automático sem perder o arraste livre, e validar isso no preview antes de te dar a confirmação.
 
-## Causa
-No tick uso `scroller.scrollLeft += 0.5`. A maioria dos browsers arredonda `scrollLeft` para inteiro, então incrementos < 1px viram 0 e o scroll nunca avança. Por isso o auto-scroll "não voltou" — ele está rodando mas sem se mover.
+## O que vou implementar
+1. Ajustar a lógica de pausa/retomada do `TopStoresMarquee` para o auto-scroll não ficar preso em estado pausado.
+2. Garantir que o loop infinito continue suave depois de mouse hover, touch, wheel e drag manual.
+3. Preservar o comportamento atual pedido por você: por padrão mostrar só logo + nome da loja, com arraste livre funcionando.
+4. Validar no preview com teste real:
+   - observar movimento automático após alguns segundos;
+   - arrastar manualmente o carrossel;
+   - confirmar que ele retoma sozinho e continua em loop.
 
-## Correção
-Em `TopStoresMarquee.tsx`, manter uma posição fracionária interna e só atribuir um inteiro ao `scrollLeft`:
+## Diagnóstico encontrado
+- O componente `TopStoresMarquee` hoje usa `requestAnimationFrame` com `scrollLeft` e um estado de pausa via `pausedRef`.
+- A lógica atual pausa em vários eventos (`mouseenter`, `touchstart`, `wheel`, `pointerdown`) e agenda retomada por timer.
+- O sintoma mais provável é a retomada ficar inconsistente por conflito entre eventos de interação e o sincronismo de `scrollLeft`, então o loop não reaparece de forma confiável.
 
-```ts
-const posRef = useRef(0);
-const SPEED = 0.6; // px/frame
+## Arquivo principal
+- `src/components/landing/TopStoresMarquee.tsx`
 
-const tick = () => {
-  const groupWidth = firstGroup.offsetWidth;
-  if (groupWidth > 0) {
-    if (!pausedRef.current && !reduced) {
-      posRef.current += SPEED;
-    } else {
-      // Sincroniza com scrollLeft real (caso o usuário tenha arrastado)
-      posRef.current = scroller.scrollLeft;
-    }
-    if (posRef.current >= groupWidth) posRef.current -= groupWidth;
-    if (posRef.current < 0) posRef.current += groupWidth;
-    scroller.scrollLeft = Math.round(posRef.current);
-  }
-  raf = requestAnimationFrame(tick);
-};
-```
+## Critério de pronto
+- O carrossel se move sozinho sem intervenção.
+- O usuário consegue arrastar livremente.
+- Após soltar, o carrossel volta sozinho em pouco tempo.
+- Não há clique acidental ao arrastar.
+- O comportamento é confirmado visualmente no preview antes de eu te responder como concluído.
 
-Bônus: durante o drag (`pausedRef.current === true`), sincronizo `posRef` com o scroll real para que, ao retomar, continue de onde o usuário soltou (sem "pulo de volta").
-
-## Fora do escopo
-Nada mais muda — visual, drag, fallback continuam iguais.
+## Detalhes técnicos
+- Centralizar a retomada automática em uma única rotina confiável.
+- Sincronizar a posição interna do loop com o `scrollLeft` real após interações.
+- Revisar os eventos que hoje pausam o loop para evitar travamento permanente em mobile/desktop.
+- Revalidar no preview com captura após espera e teste manual de interação.
