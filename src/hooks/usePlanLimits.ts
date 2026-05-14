@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 type Plan = "free" | "pro" | "enterprise" | "lifetime";
 
-type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports" | "addons" | "stock_ingredients" | "online_payment" | "pricing" | "loyalty" | "ai_bot" | "delivery_neighborhoods" | "thermal_printer";
+type Feature = "kds" | "caixa" | "cupons" | "bestsellers" | "waiter" | "history_full" | "multi_unit" | "reports" | "addons" | "stock_ingredients" | "online_payment" | "pricing" | "loyalty" | "ai_bot" | "delivery_neighborhoods" | "thermal_printer" | "ifood";
 
 interface OrgLike {
   subscription_status?: string;
@@ -31,25 +31,25 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
     kds: false, caixa: false, cupons: false, bestsellers: false,
     waiter: false, history_full: false, multi_unit: false, reports: false,
     addons: false, stock_ingredients: false, online_payment: false, pricing: false, loyalty: false,
-    ai_bot: false, delivery_neighborhoods: false, thermal_printer: false,
+    ai_bot: false, delivery_neighborhoods: false, thermal_printer: false, ifood: false,
   },
   pro: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
     waiter: true, history_full: true, multi_unit: false, reports: false,
     addons: true, stock_ingredients: false, online_payment: true, pricing: false, loyalty: true,
-    ai_bot: true, delivery_neighborhoods: true, thermal_printer: true,
+    ai_bot: true, delivery_neighborhoods: true, thermal_printer: true, ifood: true,
   },
   enterprise: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
     waiter: true, history_full: true, multi_unit: true, reports: true,
     addons: true, stock_ingredients: true, online_payment: true, pricing: true, loyalty: true,
-    ai_bot: true, delivery_neighborhoods: true, thermal_printer: true,
+    ai_bot: true, delivery_neighborhoods: true, thermal_printer: true, ifood: true,
   },
   lifetime: {
     kds: true, caixa: true, cupons: true, bestsellers: true,
     waiter: true, history_full: true, multi_unit: true, reports: true,
     addons: true, stock_ingredients: true, online_payment: true, pricing: true, loyalty: true,
-    ai_bot: true, delivery_neighborhoods: true, thermal_printer: true,
+    ai_bot: true, delivery_neighborhoods: true, thermal_printer: true, ifood: true,
   },
 };
 
