@@ -1,75 +1,45 @@
-## Objetivo
+# Carrossel "Lojas em destaque" — maior + loop realmente infinito
 
-Fazer o visitante da landing pensar "quero usar agora" através de:
-1. **Banner fixo de oferta** no topo do hero, com urgência e CTA gigante.
-2. **Carrossel infinito 100% automático** das 15 lojas com mais pedidos nos últimos 30 dias, substituindo a faixa atual de ícones genéricos (`MarqueeSocialProof`).
+## Problemas identificados
 
----
+1. **Logos pequenas demais** no mobile (atualmente 40×40px, nome em `text-sm`).
+2. **Loop com "salto"**: a animação termina e reinicia visivelmente em vez de fluir contínuo.
+   - Causa: usa 3 cópias com `translate -33.333%`, mas com `gap-6` no flex, o gap entre a última e a primeira cópia desalinha o ponto de retorno → visualmente "pula".
+   - Em mobile com poucas lojas (hoje 4), 12s é rápido demais e o reset fica óbvio.
 
-## Parte 1 — Carrossel "Lojas em destaque" (automático)
+## Mudanças (apenas frontend, em `TopStoresMarquee.tsx` + `index.css`)
 
-### Critérios definidos
-- **Ranking:** soma de pedidos pagos (`orders.paid = true`) nos últimos 30 dias.
-- **Filtro mínimo:** loja precisa ter **logo** (`organizations.logo_url IS NOT NULL`) **e ≥ 5 pedidos** no período.
-- **Top:** 15 lojas. Ordenação desc por contagem.
-- **Atualização:** automática via `pg_cron` a cada 1h. Se uma loja nova ultrapassar a 15ª, ela toma o lugar — sem intervenção manual.
+### 1. Logos e cards maiores
+- Logo: `w-10 h-10` → **`w-16 h-16`** (mobile) e **`md:w-20 md:h-20`** (desktop).
+- Card: padding `px-4 py-2.5` → `px-5 py-3`, raio `rounded-2xl` → `rounded-3xl`.
+- Nome da loja: `text-sm` → **`text-base md:text-lg`** + `font-bold`, `max-w-[160px]` → `max-w-[200px]`.
+- Pequeno chip extra abaixo do nome: "X pedidos / 30d" em `text-[10px] text-muted-foreground` (reforça prova social, opcional mas recomendo).
+- Gap entre cards: `gap-6` → `gap-4 md:gap-6`.
 
-### Banco de dados (migration)
+### 2. Loop verdadeiramente infinito
+- Trocar abordagem de "triplicar e translate -33.33%" por **duplicar e translate -50%**, que é o padrão sem salto.
+- O track passa a ser um wrapper com **dois grupos idênticos** (`<div className="marquee-group">…stores…</div>` × 2), ambos com `gap` interno. Isso elimina o gap "extra" entre cópias que causava o jump.
+- Atualizar keyframe:
+  ```css
+  @keyframes landing-marquee {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(-50%, 0, 0); }
+  }
+  ```
+- Adicionar `min-w-max` em cada grupo e `gap` apenas dentro do grupo (gap entre grupos vem do mesmo flex parent com `gap` igual, então alinha).
 
-1. Criar **view materializada** `top_stores_showcase` que retorna `id, slug, name, logo_url, order_count_30d` das top 15 lojas que atendem os filtros.
-2. Criar índice `UNIQUE` em `id` (necessário pra `REFRESH CONCURRENTLY`).
-3. Criar função `refresh_top_stores_showcase()` que executa `REFRESH MATERIALIZED VIEW CONCURRENTLY` + grava em `cron_health` pra ficar visível no watchdog admin.
-4. Política RLS na view: `SELECT` público (logo + nome de loja já são públicos via `/unidade/[slug]`).
-5. Agendar `pg_cron`: `'refresh-top-stores-showcase'` a cada hora.
+### 3. Velocidade adequada
+- Animação `12s` → **`40s` linear infinite** (com mais conteúdo visível, precisa ser mais lenta para parecer suave).
+- Manter `prefers-reduced-motion` desativando.
 
-### Frontend
-
-- Novo componente `src/components/landing/TopStoresMarquee.tsx`:
-  - Faz `supabase.from('top_stores_showcase').select('*')` (cache `staleTime: 10min`).
-  - Renderiza marquee infinito (mesmo padrão visual do `MarqueeSocialProof`: gradiente lateral, animação `landing-marquee-track`, `hover:[animation-play-state:paused]`).
-  - Cada item: logo redonda 48px + nome da loja embaixo, em chip glassmorphism. Clique abre `/unidade/[slug]` em nova aba.
-  - Fallback elegante se < 3 lojas elegíveis: usa o `MarqueeSocialProof` antigo.
-- Substituir `<MarqueeSocialProof />` por `<TopStoresMarquee />` em `src/pages/Index.tsx` (manter o componente antigo no projeto como fallback).
-
----
-
-## Parte 2 — Banner de oferta + urgência no hero
-
-### Componente novo
-`src/components/landing/HeroOfferBanner.tsx`:
-- Faixa logo abaixo da nav (acima do hero atual `HeroCinematic`).
-- Conteúdo: "🔥 7 dias Pro grátis + 30 dias bônus se indicar 1 amigo" + CTA "Começar agora →" + selo "Sem cartão".
-- Visual: gradiente laranja vibrante (`from-primary` to `--primary-glow`), texto branco, micro-animação de pulse no badge.
-- Dismissible? **Não** — ele é a oferta principal, fica fixo. (Se quiser dismissible depois, dá pra adicionar.)
-- Mobile-first: empilha CTA embaixo no `< sm`.
-- Clique no CTA → `/auth?mode=signup`.
-
-### Integração
-- Adicionar no topo de `src/pages/Index.tsx`, antes do `<HeroCinematic />`.
-
----
+### 4. Fallback de poucas lojas
+- Hoje exige ≥3 lojas. Manter, mas quando tiver 3-5 lojas, a duplicação garante que o marquee preencha a largura mesmo em desktop largo.
 
 ## Fora do escopo
-- Não vou mexer no `HeroCinematic` em si (só adicionar banner acima).
-- Não vou criar landing dedicada de afiliados.
-- Não vou mexer no comparativo, calculadora, depoimentos.
+- Não mexer no ranking, na view materializada nem no cron.
+- Não mexer no `HeroOfferBanner`.
+- Não tocar em `MarqueeSocialProof` (fallback continua igual).
 
----
-
-## Detalhes técnicos
-
-```text
-src/pages/Index.tsx
-  ├── <HeroOfferBanner />          ← novo
-  ├── <HeroCinematic />            ← inalterado
-  ├── <TopStoresMarquee />         ← novo (substitui MarqueeSocialProof)
-  └── ...resto inalterado
-
-DB:
-  - MATERIALIZED VIEW top_stores_showcase
-  - FUNCTION refresh_top_stores_showcase()
-  - pg_cron job 'refresh-top-stores-showcase' (hourly)
-  - cron_health entry pra monitorar (já cobertO pelo watchdog existente)
-```
-
-Pronto pra implementar quando você aprovar.
+## Arquivos
+- `src/components/landing/TopStoresMarquee.tsx` — refatorar markup (2 grupos), aumentar tamanhos.
+- `src/index.css` — ajustar keyframe `landing-marquee` para `-50%` e duração para `40s`.

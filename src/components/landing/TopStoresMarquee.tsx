@@ -25,9 +25,7 @@ export default function TopStoresMarquee() {
   if (stores === null) return null;
   if (stores.length < 3) return <MarqueeSocialProof />;
 
-  // Triplica para loop infinito suave
-  const tripled = [...stores, ...stores, ...stores];
-
+  // Loop infinito sem salto: dois grupos idênticos + translate -50%
   return (
     <section className="relative py-10 bg-background border-y border-border/60 overflow-hidden">
       <div className="text-center mb-6 px-4">
@@ -49,33 +47,42 @@ export default function TopStoresMarquee() {
         style={{ background: "linear-gradient(to left, hsl(var(--background)), transparent)" }}
       />
 
-      <div className="flex landing-marquee-track gap-6 whitespace-nowrap will-change-transform hover:[animation-play-state:paused]">
-        {tripled.map((store, i) => (
-          <a
-            key={`${store.id}-${i}`}
-            href={`/unidade/${store.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center gap-3 shrink-0 px-4 py-2.5 rounded-2xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md transition-all"
-            title={`${store.name} — ${store.order_count_30d} pedidos nos últimos 30 dias`}
-          >
-            <div
-              className="w-10 h-10 rounded-xl overflow-hidden bg-muted shrink-0 ring-2 ring-transparent group-hover:ring-primary/30 transition-all"
-              style={store.primary_color ? { backgroundColor: store.primary_color } : undefined}
-            >
-              {store.logo_url && (
-                <img
-                  src={store.logo_url}
-                  alt={store.name}
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-            <span className="text-sm font-semibold text-foreground max-w-[160px] truncate">
-              {store.name}
-            </span>
-          </a>
+      <div className="flex landing-marquee-track gap-4 md:gap-6 whitespace-nowrap will-change-transform hover:[animation-play-state:paused]">
+        {[0, 1].map((groupIdx) => (
+          <div key={groupIdx} className="flex gap-4 md:gap-6 shrink-0" aria-hidden={groupIdx === 1}>
+            {stores.map((store) => (
+              <a
+                key={`${groupIdx}-${store.id}`}
+                href={`/unidade/${store.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-3 shrink-0 px-5 py-3 rounded-3xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md transition-all"
+                title={`${store.name} — ${store.order_count_30d} pedidos nos últimos 30 dias`}
+              >
+                <div
+                  className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-muted shrink-0 ring-2 ring-transparent group-hover:ring-primary/30 transition-all"
+                  style={store.primary_color ? { backgroundColor: store.primary_color } : undefined}
+                >
+                  {store.logo_url && (
+                    <img
+                      src={store.logo_url}
+                      alt={store.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-base md:text-lg font-bold text-foreground max-w-[200px] truncate">
+                    {store.name}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                    {store.order_count_30d} pedidos / 30d
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
         ))}
       </div>
     </section>
