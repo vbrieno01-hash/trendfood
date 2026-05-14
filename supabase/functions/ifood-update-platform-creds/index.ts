@@ -58,11 +58,25 @@ Deno.serve(async (req) => {
         if (v.length <= 8) return "•".repeat(v.length);
         return v.slice(0, 4) + "•".repeat(Math.max(4, v.length - 8)) + v.slice(-4);
       };
+      const envClientId = Deno.env.get("IFOOD_CLIENT_ID") || "";
+      const envClientSecret = Deno.env.get("IFOOD_CLIENT_SECRET") || "";
+      const dbClientId = map.IFOOD_CLIENT_ID?.value || "";
+      const dbClientSecret = map.IFOOD_CLIENT_SECRET?.value || "";
+      const currentClientId = dbClientId || envClientId;
+      const currentClientSecret = dbClientSecret || envClientSecret;
+      const dbConfigured = !!(dbClientId && dbClientSecret);
+      const envConfigured = !!(envClientId && envClientSecret);
+      const activeSource: "db" | "env" | "none" = dbConfigured ? "db" : (envConfigured ? "env" : "none");
       return new Response(JSON.stringify({
         client_id_masked: mask(map.IFOOD_CLIENT_ID?.value),
         client_secret_masked: mask(map.IFOOD_CLIENT_SECRET?.value),
         client_id_set: !!map.IFOOD_CLIENT_ID,
         client_secret_set: !!map.IFOOD_CLIENT_SECRET,
+        current_client_id: currentClientId,
+        current_client_secret: currentClientSecret,
+        db_configured: dbConfigured,
+        env_configured: envConfigured,
+        active_source: activeSource,
         updated_at: map.IFOOD_CLIENT_ID?.updated_at || map.IFOOD_CLIENT_SECRET?.updated_at || null,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
