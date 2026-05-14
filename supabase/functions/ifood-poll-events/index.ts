@@ -332,8 +332,22 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const events = await eventsRes.json();
-      if (!Array.isArray(events) || events.length === 0) {
+      // iFood retorna 200 com corpo vazio (ou 204) quando não há eventos novos.
+      // Chamar .json() direto nesse caso estoura "Unexpected end of JSON input".
+      let events: any[] = [];
+      if (eventsRes.status !== 204) {
+        const raw = (await eventsRes.text()).trim();
+        if (raw.length > 0) {
+          try {
+            const parsed = JSON.parse(raw);
+            events = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            results.push({ org: cred.organization_id, error: "invalid_json" });
+            continue;
+          }
+        }
+      }
+      if (events.length === 0) {
         results.push({ org: cred.organization_id, events: 0 });
         continue;
       }
