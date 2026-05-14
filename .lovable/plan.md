@@ -1,35 +1,59 @@
-# Plano — Liberar iFood para `vendass945@gmail.com`
+## Problema
 
-## Mudança
+Ao clicar em **"Forçar polling"** na aba iFood, retorna `500: {"error":"Unexpected end of JSON input"}`.
 
-Hoje a aba **iFood** mostra o placeholder "EM BREVE" para todo mundo, exceto o admin (`brenojackson30@gmail.com`). Gate em `src/pages/DashboardPage.tsx:1081`:
+Causa, vista no log da edge function `ifood-poll-events` (linha 332 do `index.ts`):
 
-```tsx
-!featureFlags?.ifood_enabled && !isAdmin
+```
+Poll error: SyntaxError: Unexpected end of JSON input
+  at Response.json (...)
+  at handler (.../ifood-poll-events/index.ts:332:38)
 ```
 
-Adicionar uma allowlist de emails de teste para passar pelo mesmo gate, sem mexer em `featureFlags` (continua "EM BREVE" pros outros).
+A API do iFood (`/events/v1.0/events:polling`) responde com **HTTP 200 + corpo vazio** (ou `204 No Content`) quando não há eventos novos. O código atual chama `eventsRes.json()` direto, o que estoura em corpo vazio e derruba todo o polling — nenhum org é processado nessa chamada.
 
-```tsx
-const IFOOD_BETA_EMAILS = ["vendass945@gmail.com"];
-const ifoodBetaUser = !!user?.email && IFOOD_BETA_EMAILS.includes(user.email.toLowerCase());
+## Correção (1 arquivo, mudança mínima)
 
-// gate vira:
-!featureFlags?.ifood_enabled && !isAdmin && !ifoodBetaUser
+`supabase/functions/ifood-poll-events/index.ts`, no bloco que hoje faz `const events = await eventsRes.json();` (linha 335):
+
+1. Tratar `204 No Content` como "sem eventos" (continua o loop com `events: 0`).
+2. Ler o corpo como texto primeiro; se vier vazio ou só whitespace, tratar como `[]`.
+3. Envolver o `JSON.parse` em try/catch para, em caso de payload inválido, registrar `parse_error` para aquele org e seguir para o próximo, em vez de derrubar a função inteira.
+
+Pseudo-diff:
+
+```ts
+if (eventsRes.status === 204) {
+  results.push({ org: cred.organization_id, events: 0 });
+  continue;
+}
+
+const raw = (await eventsRes.text()).trim();
+let events: any[] = [];
+if (raw.length > 0) {
+  try {
+    const parsed = JSON.parse(raw);
+    events = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    results.push({ org: cred.organization_id, error: "invalid_json" });
+    continue;
+  }
+}
+if (events.length === 0) {
+  results.push({ org: cred.organization_id, events: 0 });
+  continue;
+}
 ```
 
-`user` já vem de `useAuth()` na linha 73 do mesmo arquivo, então não há import novo.
+Resto do fluxo (ack, dedup, processamento de eventos) permanece igual.
 
-## Onde mexer
+## Fora de escopo
 
-- **`src/pages/DashboardPage.tsx`** — declarar a constante perto do topo do componente e ajustar a condição na linha 1081.
+- Não mexer em `ifood-webhook`, KDS, `IFoodOrderChip` nem na allowlist de e-mails.
+- Não alterar config de `verify_jwt` nem secrets.
 
-## O que NÃO muda
+## Verificação
 
-- Nada em `supabase/`, `.env`, `package.json`, RLS, edge functions, plano de assinatura.
-- `lockedFeatures.ifood` (gate por plano Pro/Enterprise) continua valendo — o usuário precisa estar em um plano que libere iFood. Se o `vendass945@gmail.com` estiver no Free, ele veria o `UpgradePrompt`. Posso opcionalmente também pular esse gate pra ele — me confirma se quer (provavelmente sim, pra teste de homologação).
-- Nenhum outro usuário vê diferença.
-
-## Reversão
-
-Apagar o email da lista `IFOOD_BETA_EMAILS` quando o rollout for global (ou mudar `featureFlags.ifood_enabled` no admin pra true).
+1. Deploy automático da função.
+2. Clicar em **"Forçar polling"** na aba iFood (`/dashboard?tab=ifood`).
+3. Esperado: resposta 200 com `results: [{ org: ..., events: 0 }]` quando não há pedidos novos, sem `Unexpected end of JSON input` nos logs.
