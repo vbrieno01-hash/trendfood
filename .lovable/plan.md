@@ -1,78 +1,55 @@
-# Cancelamento iFood iniciado pelo lojista
+## Objetivo
 
-Hoje só temos o fluxo reverso (cliente pede cancelamento via app → lojista aceita/recusa). Falta o caminho oposto: **lojista cancela direto pelo nosso painel** quando o pedido ainda está em PLC (aguardando confirmação) — sem precisar abrir o portal do iFood.
+Quando o lojista clicar no botão genérico "Cancelar pedido" (Cozinha / Garçom) em um pedido iFood, o sistema deve **avisar o iFood** automaticamente, não só marcar como cancelado no banco.
 
-## Escopo
+## Como funciona hoje
 
-- Botão **"Cancelar pedido"** no chip iFood do KDS, **visível apenas em status `pending`** (PLC, antes do "Confirmar").
-- Após `CFM` (confirmado/preparando/pronto/despachado), botão some — esses status só podem ser cancelados pelo portal iFood (regras do iFood, fora do escopo).
-- Modal com **lista pronta de motivos** (códigos oficiais iFood pré-CFM).
-- Confirmação dupla ("Tem certeza? Esta ação não pode ser desfeita").
+- **Botão antigo (`useCancelOrder`)**: só faz `UPDATE orders SET status='cancelled'` no banco + cancela impressões/entregas. O pedido some do painel do lojista, mas continua ativo no iFood.
+- **Trigger `tg_orders_ifood_status_sync`**: existe e deveria chamar `ifood-update-status` ao mudar status. Mas falha silenciosamente (`EXCEPTION WHEN OTHERS RETURN NEW`), e nos pedidos 162/163 não gerou evento `OUT_REQUESTCANCELLATION`. Não é confiável como única defesa.
+- **Botão novo (`ifood-cancel-order`)**: chama o iFood corretamente, mas só aparece em status `pending` (antes de confirmar).
 
-## Motivos disponíveis (códigos iFood oficiais pré-CFM)
+## Mudanças
 
-| Código | Label |
-|---|---|
-| 501 | Problemas de sistema |
-| 502 | Pedido em duplicidade |
-| 503 | Item indisponível |
-| 504 | Sem entregador disponível |
-| 505 | Cardápio desatualizado |
-| 506 | Pedido fora da área de entrega |
-| 508 | Restaurante fechado |
-| 509 | Outros motivos |
+### 1. `supabase/functions/ifood-cancel-order/index.ts`
 
-## Fluxo técnico
+Aceitar um flag opcional `force: true` no body que permite cancelar também em `preparing` e `ready` (usado apenas pelo botão antigo). Sem o flag, segue restrito a `pending` (botão novo continua igual).
 
 ```text
-[Lojista clica Cancelar]
-        ↓
-[Modal escolhe motivo (501..509)]
-        ↓
-[POST ifood-cancel-order { order_id, code, reason }]
-        ↓
-[Edge Function chama:
-   POST iFood /order/v1.0/orders/{ifood_id}/requestCancellation
-   body: { reason, cancellationCode }]
-        ↓
-[iFood 202 → marca orders.status='cancelled',
-              cancellation_reason=<label>,
-              cancelled_by='merchant']
-        ↓
-[Webhook iFood depois confirma com CAN — idempotente, ignora se já cancelled]
+- if (order.status !== "pending") → 409
++ const allowed = body.force ? ["pending","preparing","ready"] : ["pending"];
++ if (!allowed.includes(order.status)) → 409
 ```
 
-## Arquivos
+### 2. `src/hooks/useOrders.ts` — `useCancelOrder`
 
-**Nova Edge Function** `supabase/functions/ifood-cancel-order/index.ts`
-- Input: `{ order_id, code, reason_label }`
-- Lê `gateway_payment_id` (`ifood:<id>`) e `organization_id`
-- Valida status atual = `pending` (defesa em profundidade)
-- Reusa `getIfoodAccessToken()` do shared (ou inline igual aos outros)
-- POST para iFood `/requestCancellation` com `merchantId` e `orderId`
-- Se 202: `UPDATE orders SET status='cancelled', cancellation_reason=$label`
-- Loga em `ifood_event_log` (`event_type='merchant_cancel_request'`)
-- `verify_jwt = false` no `config.toml` (chamada autenticada via JWT do front, validada in-code)
+Antes do `UPDATE` local, detectar se o pedido é iFood (`gateway_payment_id LIKE 'ifood:%'`) e chamar `ifood-cancel-order` com `force: true` e código padrão `509` (Outros motivos).
 
-**`src/components/dashboard/IFoodOrderChip.tsx`**
-- Adiciona prop `orderStatus`
-- Quando `orderStatus === 'pending'` && `ifoodOrderType` setado: mostra botão vermelho-outline "Cancelar pedido"
-- Abre `<IFoodCancelDialog>` (novo subcomponente no mesmo arquivo ou irmão)
-- Dialog: Select com os 8 motivos + botão "Cancelar definitivamente"
-- On confirm: `supabase.functions.invoke('ifood-cancel-order', { body: { order_id, code, reason_label } })`
-- Toast de sucesso/erro, `queryClient.invalidateQueries(['orders'])`
+```text
+1. SELECT gateway_payment_id, status FROM orders WHERE id = orderId
+2. Se gateway_payment_id começa com "ifood:":
+     await supabase.functions.invoke("ifood-cancel-order", {
+       body: { order_id, code: "509", reason_label: reason || "Outros motivos", force: true }
+     })
+   - Se sucesso: a edge function já marcou como cancelled → pular UPDATE local, seguir para cancelar prints/deliveries
+   - Se erro: lançar exceção (NÃO marcar como cancelado localmente, para evitar divergência com iFood)
+3. Senão (pedido normal): fluxo atual inalterado.
+```
 
-**`src/components/dashboard/KitchenTab.tsx`**
-- Passa `orderStatus={order.status}` para o `<IFoodOrderChip>`
+### 3. Sem mudanças em UI
 
-## Regras de segurança
+O botão e modal continuam idênticos. A mudança é transparente para o lojista — só fica mais confiável.
 
-- Edge Function valida que `order.organization_id` pertence ao `auth.uid()` (via JWT) antes de cancelar — evita lojista A cancelar pedido de loja B.
-- Idempotência: se `status` já for `cancelled`, retorna 200 sem chamar iFood.
-- Erros do iFood (4xx/5xx) retornam para o front com mensagem clara, **sem** marcar como cancelado localmente.
+## Resultado
 
-## Fora de escopo
+| Cenário | Antes | Depois |
+|---|---|---|
+| Cancelar pedido normal (não iFood) | OK | OK (igual) |
+| Cancelar iFood em `pending` pelo botão antigo | só DB | DB + iFood (código 509) |
+| Cancelar iFood em `preparing`/`ready` pelo botão antigo | só DB | DB + iFood (código 509) |
+| Botão novo (modal de motivos em `pending`) | OK | OK (igual) |
+| iFood retorna erro | marcava como cancelado local | **não marca**, mostra erro ao lojista |
 
-- Cancelamento pós-CFM (precisa de `/cancellationReasons` dinâmico + aprovação do iFood — fluxo bem mais complexo, raramente usado).
-- Reembolso parcial.
-- UI de "histórico de cancelamentos" (já temos no `ifood_event_log`).
+## Arquivos alterados
+
+- `supabase/functions/ifood-cancel-order/index.ts` (aceitar `force`)
+- `src/hooks/useOrders.ts` (detectar iFood em `useCancelOrder`)

@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
     const order_id: string | undefined = body?.order_id;
     const code: string = String(body?.code || "");
     const reason_label: string = String(body?.reason_label || ALLOWED_CODES[code] || "").slice(0, 200);
+    const force: boolean = body?.force === true;
 
     if (!order_id || !ALLOWED_CODES[code]) {
       return new Response(JSON.stringify({ error: "order_id e code (501..509) obrigatórios" }), {
@@ -55,8 +56,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Defesa em profundidade: só permite antes de confirmar
-    if (order.status !== "pending") {
+    // Defesa em profundidade: por padrão só antes de confirmar.
+    // Com force=true (botão antigo de cancelar), permite também preparing/ready.
+    const allowedStatuses = force ? ["pending", "preparing", "ready"] : ["pending"];
+    if (!allowedStatuses.includes(order.status)) {
       return new Response(JSON.stringify({
         error: "Cancelamento direto só é permitido antes de confirmar o pedido. Use o portal iFood.",
       }), {

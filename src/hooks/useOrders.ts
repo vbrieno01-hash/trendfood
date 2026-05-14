@@ -525,12 +525,35 @@ export const useCancelOrder = (organizationId: string) => {
     mutationFn: async (params: string | { orderId: string; reason?: string }) => {
       const orderId = typeof params === "string" ? params : params.orderId;
       const reason = typeof params === "string" ? null : params.reason ?? null;
-      // 1. Update order status to cancelled
-      const { error } = await supabase
+
+      // 1. Detectar se é pedido iFood — se for, avisar o iFood antes de marcar local
+      const { data: ord } = await supabase
         .from("orders")
-        .update({ status: "cancelled", cancellation_reason: reason } as never)
-        .eq("id", orderId);
-      if (error) throw error;
+        .select("gateway_payment_id, status")
+        .eq("id", orderId)
+        .maybeSingle();
+      const gpid = (ord as any)?.gateway_payment_id as string | null | undefined;
+      const isIfood = typeof gpid === "string" && gpid.startsWith("ifood:");
+
+      if (isIfood) {
+        const { data: fnData, error: fnErr } = await supabase.functions.invoke("ifood-cancel-order", {
+          body: {
+            order_id: orderId,
+            code: "509",
+            reason_label: reason || "Outros motivos",
+            force: true,
+          },
+        });
+        if (fnErr) throw new Error(fnErr.message || "Falha ao cancelar no iFood");
+        if (fnData && (fnData as any).error) throw new Error((fnData as any).error);
+        // edge function já marcou orders.status = 'cancelled'
+      } else {
+        const { error } = await supabase
+          .from("orders")
+          .update({ status: "cancelled", cancellation_reason: reason } as never)
+          .eq("id", orderId);
+        if (error) throw error;
+      }
 
       // 2. Cancel pending print jobs
       await cancelPendingPrints(orderId);
