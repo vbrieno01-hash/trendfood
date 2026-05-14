@@ -1787,6 +1787,7 @@ export type Database = {
           id: string
           ifood_enabled: boolean
           updated_at: string
+          whatsapp_enabled: boolean
         }
         Insert: {
           admin_telegram_chat_id?: string | null
@@ -1800,6 +1801,7 @@ export type Database = {
           id?: string
           ifood_enabled?: boolean
           updated_at?: string
+          whatsapp_enabled?: boolean
         }
         Update: {
           admin_telegram_chat_id?: string | null
@@ -1813,6 +1815,7 @@ export type Database = {
           id?: string
           ifood_enabled?: boolean
           updated_at?: string
+          whatsapp_enabled?: boolean
         }
         Relationships: []
       }
