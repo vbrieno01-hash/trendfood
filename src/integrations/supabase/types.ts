@@ -1473,6 +1473,9 @@ export type Database = {
           created_at: string
           gateway_payment_id: string | null
           id: string
+          ifood_concluded_at: string | null
+          ifood_dispatched_at: string | null
+          ifood_order_type: string | null
           ifood_synced_externally: boolean | null
           notes: string | null
           order_number: number | null
@@ -1487,6 +1490,9 @@ export type Database = {
           created_at?: string
           gateway_payment_id?: string | null
           id?: string
+          ifood_concluded_at?: string | null
+          ifood_dispatched_at?: string | null
+          ifood_order_type?: string | null
           ifood_synced_externally?: boolean | null
           notes?: string | null
           order_number?: number | null
@@ -1501,6 +1507,9 @@ export type Database = {
           created_at?: string
           gateway_payment_id?: string | null
           id?: string
+          ifood_concluded_at?: string | null
+          ifood_dispatched_at?: string | null
+          ifood_order_type?: string | null
           ifood_synced_externally?: boolean | null
           notes?: string | null
           order_number?: number | null
