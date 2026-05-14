@@ -72,14 +72,9 @@ export default function TopStoresMarquee() {
                     />
                   )}
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-base md:text-lg font-bold text-foreground max-w-[200px] truncate">
-                    {store.name}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                    {store.order_count_30d} pedidos / 30d
-                  </span>
-                </div>
+                <span className="text-base md:text-lg font-bold text-foreground max-w-[200px] truncate">
+                  {store.name}
+                </span>
               </a>
             ))}
           </div>
