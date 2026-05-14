@@ -322,3 +322,235 @@ function PlanPill({ label, count, color }: { label: string; count: number; color
     </div>
   );
 }
+
+interface AdminUser {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  provider: string;
+  org_count: number;
+  org_names: string[];
+  is_admin: boolean;
+}
+
+function fmtRelative(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days < 1) {
+    const h = Math.floor(diff / 3600000);
+    return h < 1 ? "agora" : `${h}h`;
+  }
+  if (days < 30) return `${days}d`;
+  if (days < 365) return `${Math.floor(days / 30)}mes`;
+  return `${Math.floor(days / 365)}a`;
+}
+
+function UsersSection() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [onlyNoOrg, setOnlyNoOrg] = useState(false);
+  const [onlyAdmins, setOnlyAdmins] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [confirmEmail, setConfirmEmail] = useState("");
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin-users-list"],
+    queryFn: async (): Promise<AdminUser[]> => {
+      const { data, error } = await supabase.rpc("admin_list_users" as any);
+      if (error) throw error;
+      return (data ?? []) as AdminUser[];
+    },
+    staleTime: 30_000,
+  });
+
+  const toggleAdminMut = useMutation({
+    mutationFn: async ({ userId, grant }: { userId: string; grant: boolean }) => {
+      const { error } = await supabase.rpc("admin_toggle_admin_role" as any, { _user_id: userId, _grant: grant });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      toast.success(vars.grant ? "Promovido a admin" : "Admin removido");
+      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc("admin_delete_user" as any, { _user_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Usuário deletado");
+      qc.invalidateQueries({ queryKey: ["admin-users-list"] });
+      qc.invalidateQueries({ queryKey: ["admin-capacity-stats"] });
+      setDeleteTarget(null);
+      setConfirmEmail("");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao deletar"),
+  });
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    const q = search.trim().toLowerCase();
+    return data.filter((u) => {
+      if (onlyNoOrg && u.org_count > 0) return false;
+      if (onlyAdmins && !u.is_admin) return false;
+      if (q && !u.email?.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [data, search, onlyNoOrg, onlyAdmins]);
+
+  return (
+    <div className="admin-glass rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="text-sm font-bold text-foreground">
+          Usuários cadastrados {data && <span className="text-muted-foreground font-normal">({filtered.length}/{data.length})</span>}
+        </h3>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 h-9 text-sm"
+          />
+        </div>
+        <Button
+          variant={onlyNoOrg ? "default" : "outline"}
+          size="sm"
+          className="h-9"
+          onClick={() => setOnlyNoOrg((v) => !v)}
+        >
+          Sem loja
+        </Button>
+        <Button
+          variant={onlyAdmins ? "default" : "outline"}
+          size="sm"
+          className="h-9"
+          onClick={() => setOnlyAdmins((v) => !v)}
+        >
+          Admins
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <p className="text-xs text-destructive">Erro: {(error as any)?.message}</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-6 text-center">Nenhum usuário encontrado.</p>
+      ) : (
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
+                <th className="py-2 px-2">Email</th>
+                <th className="py-2 px-2">Cadastro</th>
+                <th className="py-2 px-2">Último login</th>
+                <th className="py-2 px-2">Lojas</th>
+                <th className="py-2 px-2 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((u) => (
+                <tr key={u.id} className="border-b border-border/20 hover:bg-muted/20">
+                  <td className="py-2 px-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground truncate max-w-[200px]" title={u.email}>{u.email}</span>
+                      {u.is_admin && (
+                        <span className="text-[10px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded">admin</span>
+                      )}
+                      {u.provider === "google" && (
+                        <span className="text-[10px] text-muted-foreground">G</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-2 px-2 text-muted-foreground tabular-nums">{fmtRelative(u.created_at)}</td>
+                  <td className="py-2 px-2 text-muted-foreground tabular-nums">{fmtRelative(u.last_sign_in_at)}</td>
+                  <td className="py-2 px-2">
+                    {u.org_count === 0 ? (
+                      <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded uppercase">sem loja</span>
+                    ) : (
+                      <span
+                        className="text-xs font-medium text-foreground"
+                        title={u.org_names.join(", ")}
+                      >
+                        {u.org_count} {u.org_count === 1 ? "loja" : "lojas"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        title={u.is_admin ? "Remover admin" : "Tornar admin"}
+                        disabled={toggleAdminMut.isPending}
+                        onClick={() => toggleAdminMut.mutate({ userId: u.id, grant: !u.is_admin })}
+                      >
+                        {u.is_admin ? <ShieldOff className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Deletar usuário"
+                        onClick={() => { setDeleteTarget(u); setConfirmEmail(""); }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setConfirmEmail(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deletar usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso apaga permanentemente <strong>{deleteTarget?.email}</strong>
+              {deleteTarget && deleteTarget.org_count > 0 && (
+                <> e <strong>{deleteTarget.org_count} loja(s)</strong> vinculada(s) (com pedidos, cardápio, etc)</>
+              )}.
+              Não tem como desfazer. Digite o email pra confirmar:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={confirmEmail}
+            onChange={(e) => setConfirmEmail(e.target.value)}
+            placeholder={deleteTarget?.email}
+            className="text-sm"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmEmail !== deleteTarget?.email || deleteMut.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget) deleteMut.mutate(deleteTarget.id);
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deleteMut.isPending ? "Deletando..." : "Deletar definitivamente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
