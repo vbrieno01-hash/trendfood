@@ -217,10 +217,15 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
               {events.map((e) => (
                 <div key={e.id} className="flex items-center justify-between gap-2 p-2 rounded border text-xs">
                   <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                    <div className="flex gap-2 items-center">
+                     <div className="flex gap-2 items-center flex-wrap">
                       <Badge variant="outline">{e.code}</Badge>
                       <span className="text-muted-foreground">{e.source}</span>
                       <span className="text-muted-foreground">{new Date(e.received_at).toLocaleString("pt-BR")}</span>
+                      {e.ifood_event_id && (
+                        <span className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[180px]">
+                          evt: {e.ifood_event_id}
+                        </span>
+                      )}
                     </div>
                     {e.ifood_order_id && (
                       <div className="font-mono truncate">orderId: {e.ifood_order_id}{e.ifood_display_id ? ` (#${e.ifood_display_id})` : ""}</div>
