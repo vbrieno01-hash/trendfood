@@ -42,7 +42,16 @@ export default function IFoodHomologacaoTab() {
   const totalCount = CHECKLIST.length;
   const ready = completedCount === totalCount;
 
-  const [credInfo, setCredInfo] = useState<{ client_id_masked: string | null; client_secret_masked: string | null; updated_at: string | null } | null>(null);
+  const [credInfo, setCredInfo] = useState<{
+    client_id_masked: string | null;
+    client_secret_masked: string | null;
+    updated_at: string | null;
+    current_client_id?: string;
+    current_client_secret?: string;
+    db_configured?: boolean;
+    env_configured?: boolean;
+    active_source?: "db" | "env" | "none";
+  } | null>(null);
   const [loadingCreds, setLoadingCreds] = useState(true);
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
@@ -55,6 +64,8 @@ export default function IFoodHomologacaoTab() {
       const { data, error } = await supabase.functions.invoke("ifood-update-platform-creds", { body: { action: "read" } });
       if (error) throw error;
       setCredInfo(data);
+      if (data?.current_client_id) setClientId(data.current_client_id);
+      if (data?.current_client_secret) setClientSecret(data.current_client_secret);
     } catch (e: any) {
       toast.error("Falha ao carregar credenciais", { description: e?.message });
     } finally {
@@ -79,8 +90,6 @@ export default function IFoodHomologacaoTab() {
       toast.success("Credenciais salvas", {
         description: `${data?.disconnected_count ?? 0} loja(s) desconectada(s). Tokens antigos invalidados.`,
       });
-      setClientId("");
-      setClientSecret("");
       await loadCreds();
     } catch (e: any) {
       toast.error("Falha ao salvar", { description: e?.message });
@@ -176,8 +185,17 @@ export default function IFoodHomologacaoTab() {
               <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</div>
             ) : (
               <>
-                <div><span className="text-muted-foreground">Client ID: </span><code>{credInfo?.client_id_masked || <span className="text-yellow-600">não configurado no painel (usando fallback do servidor)</span>}</code></div>
-                <div><span className="text-muted-foreground">Client Secret: </span><code>{credInfo?.client_secret_masked || <span className="text-yellow-600">não configurado no painel (usando fallback do servidor)</span>}</code></div>
+                {credInfo?.active_source === "db" && (
+                  <div className="text-green-600 dark:text-green-400 font-medium">✓ Usando credenciais salvas no painel</div>
+                )}
+                {credInfo?.active_source === "env" && (
+                  <div className="text-green-600 dark:text-green-400 font-medium">✓ Usando credenciais antigas do servidor (já configuradas)</div>
+                )}
+                {credInfo?.active_source === "none" && (
+                  <div className="text-red-600 dark:text-red-400 font-medium">⚠ Nenhuma credencial configurada</div>
+                )}
+                <div><span className="text-muted-foreground">Client ID: </span><code>{credInfo?.client_id_masked || <span className="text-muted-foreground italic">(servidor)</span>}</code></div>
+                <div><span className="text-muted-foreground">Client Secret: </span><code>{credInfo?.client_secret_masked || <span className="text-muted-foreground italic">(servidor)</span>}</code></div>
                 {credInfo?.updated_at && (
                   <div className="text-muted-foreground pt-1">Atualizado em {new Date(credInfo.updated_at).toLocaleString("pt-BR")}</div>
                 )}
@@ -186,12 +204,12 @@ export default function IFoodHomologacaoTab() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ifood-cid" className="text-xs">Novo Client ID</Label>
+            <Label htmlFor="ifood-cid" className="text-xs">Client ID</Label>
             <Input id="ifood-cid" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="ex: 1a2b3c4d-..." autoComplete="off" />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ifood-cs" className="text-xs">Novo Client Secret</Label>
+            <Label htmlFor="ifood-cs" className="text-xs">Client Secret</Label>
             <div className="relative">
               <Input id="ifood-cs" type={showSecret ? "text" : "password"} value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="••••••••" autoComplete="off" className="pr-10" />
               <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowSecret((s) => !s)}>
@@ -201,7 +219,7 @@ export default function IFoodHomologacaoTab() {
           </div>
 
           <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-[11px] text-yellow-700 dark:text-yellow-400">
-            ⚠️ Ao salvar, todas as lojas conectadas terão tokens revogados e precisarão reconectar (re-vincular merchant). Use isso quando o iFood liberar credenciais de produção.
+            ⚠️ Os campos vêm preenchidos com as credenciais atuais. Edite apenas quando o iFood liberar novas — ao salvar, todas as lojas conectadas terão tokens revogados e precisarão reconectar (re-vincular merchant).
           </div>
 
           <Button onClick={saveCreds} disabled={saving || !clientId.trim() || !clientSecret.trim()} className="w-full">
