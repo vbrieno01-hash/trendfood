@@ -173,6 +173,7 @@ async function handleNewOrder(supabase: any, creds: any, event: any): Promise<{ 
     notes: buildOrderNotes(ifoodOrder),
     gateway_payment_id: `ifood:${orderId}`,
     ifood_synced_externally: true,
+    ifood_order_type: isPickup ? "TAKEOUT" : "DELIVERY",
   }).select("id").single();
   if (orderError || !order) {
     console.error("[ifood-webhook] Failed to create order:", orderError);
