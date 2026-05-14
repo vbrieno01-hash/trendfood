@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => ({
           supabase: ["@supabase/supabase-js"],
           query: ["@tanstack/react-query"],
           charts: ["recharts"],
+          icons: ["lucide-react"],
         },
       },
     },
