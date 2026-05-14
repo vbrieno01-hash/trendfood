@@ -1,6 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Database, Users, Store, ShoppingBag, AlertTriangle, CheckCircle2, ArrowUpRight, HardDrive } from "lucide-react";
+import { Loader2, Database, Users, Store, ShoppingBag, AlertTriangle, CheckCircle2, ArrowUpRight, HardDrive, Search, Trash2, Shield, ShieldOff } from "lucide-react";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CapacityStats {
   db_size_bytes: number;
@@ -156,6 +170,9 @@ export default function CapacityTab() {
           Trial ativo já é contado em "Free" (são lojas free com trial vigente).
         </p>
       </div>
+
+      {/* Lista de usuários */}
+      <UsersSection />
 
       {/* Barra de uso do banco */}
       <div className="admin-glass rounded-2xl p-5">
