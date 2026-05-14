@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, lazy, Suspense, useState } from "react";
 import { ThemeProvider } from "next-themes";
 import { logClientError, isIgnorableError } from "@/lib/errorLogger";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,21 +10,22 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-const AuthPage = lazy(() => import("./pages/AuthPage"));
-const UnitPage = lazy(() => import("./pages/UnitPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const KitchenPage = lazy(() => import("./pages/KitchenPage"));
-const WaiterPage = lazy(() => import("./pages/WaiterPage"));
-const TableOrderPage = lazy(() => import("./pages/TableOrderPage"));
-const AdminPage = lazy(() => import("./pages/AdminPage"));
-const DocsTerminalPage = lazy(() => import("./pages/DocsTerminalPage"));
-const PricingPage = lazy(() => import("./pages/PricingPage"));
-const CourierPage = lazy(() => import("./pages/CourierPage"));
-const TermsPage = lazy(() => import("./pages/TermsPage"));
-const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
-const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
-const ReviewPage = lazy(() => import("./pages/ReviewPage"));
-const InstallPage = lazy(() => import("./pages/InstallPage"));
+import { routeLoaders, prefetchRoute } from "@/lib/routeLoaders";
+const AuthPage = lazy(routeLoaders.auth);
+const UnitPage = lazy(routeLoaders.unit);
+const DashboardPage = lazy(routeLoaders.dashboard);
+const KitchenPage = lazy(routeLoaders.kitchen);
+const WaiterPage = lazy(routeLoaders.waiter);
+const TableOrderPage = lazy(routeLoaders.tableOrder);
+const AdminPage = lazy(routeLoaders.admin);
+const DocsTerminalPage = lazy(routeLoaders.docsTerminal);
+const PricingPage = lazy(routeLoaders.pricing);
+const CourierPage = lazy(routeLoaders.courier);
+const TermsPage = lazy(routeLoaders.terms);
+const PrivacyPage = lazy(routeLoaders.privacy);
+const ResetPasswordPage = lazy(routeLoaders.resetPassword);
+const ReviewPage = lazy(routeLoaders.review);
+const InstallPage = lazy(routeLoaders.install);
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
@@ -43,11 +44,20 @@ const queryClient = new QueryClient({
   },
 });
 
-const RouteFallback = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-  </div>
-);
+const RouteFallback = () => {
+  // Spinner só aparece após 250ms — evita "piscar" em chunks já em cache.
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(true), 250);
+    return () => clearTimeout(t);
+  }, []);
+  if (!show) return <div className="min-h-screen" aria-hidden />;
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+};
 
 const ConditionalSupportChat = () => {
   const { pathname } = useLocation();
@@ -134,6 +144,26 @@ const AppInner = () => {
         console.info("[AutoHeal] SW e caches limpos após crash anterior");
       }
     } catch (_) {}
+  }, []);
+
+  // Pré-carrega chunks das rotas críticas em idle — quando o usuário clicar,
+  // o chunk já está em memória/cache do browser → navegação instantânea.
+  useEffect(() => {
+    const ric: typeof requestIdleCallback =
+      (window as any).requestIdleCallback ||
+      ((cb: any) => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 1500));
+    const handle = ric(() => {
+      const path = window.location.pathname;
+      const critical: Array<keyof typeof routeLoaders> = path.startsWith("/dashboard")
+        ? ["kitchen", "waiter", "admin", "pricing"]
+        : path.startsWith("/unidade")
+        ? ["tableOrder", "review"]
+        : ["auth", "dashboard", "pricing", "unit"];
+      critical.forEach((k) => prefetchRoute(k));
+    });
+    return () => {
+      if ((window as any).cancelIdleCallback) (window as any).cancelIdleCallback(handle);
+    };
   }, []);
 
   return (

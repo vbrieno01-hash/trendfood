@@ -1,50 +1,75 @@
-# Por que está tudo lento — diagnóstico e plano
+# Por que cada página demora pra abrir na primeira vez
 
-## O que eu já verifiquei
+## Diagnóstico
 
-- **Backend Cloud:** está saudável, sem incidente.
-- **Edge Functions (1h):** rodando com latência alta — média de **1,1s** nas chamadas 200 e **uma função em 5,2s de média (pico 10,3s)**. Isso por si só já torna qualquer ação dependente dela arrastada.
-- **Console do preview:** apareceu `Failed to fetch dynamically imported module: AuthPage.tsx` — sintoma clássico de **chunk antigo** do PWA tentando baixar bundle que não existe mais (acontece quando a gente publica versões novas seguidas, como hoje).
-- **Lojistas reclamando há dias** + tudo lento (inclusive landing) → não é bug pontual, é **gargalo de capacidade + frontend pesado**.
+Toda rota do app está marcada como **`lazy()`** em `App.tsx`:
+```ts
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const KitchenPage = lazy(() => import("./pages/KitchenPage"));
+// ...e por aí vai
+```
 
-## Causas prováveis (em ordem de impacto)
+Isso significa que **o JavaScript daquela página só é baixado na hora que o usuário acessa pela primeira vez**. Em internet de loja (4G médio), cada chunk leva de 800ms a 3s pra baixar + parsear. Como o `RouteFallback` é só um spinnerzinho preto, dá a sensação de "tela travada carregando".
 
-1. **Instância da Lovable Cloud subdimensionada** para o volume atual (várias lojas, KDS realtime, webhooks WhatsApp/MP, push, iFood polling). Quando o banco satura, **toda** chamada fica lenta — landing inclusive, porque o `index.html` e SEO data passam pelo edge.
-2. **Edge functions pesadas** (uma com 5s de média) bloqueando workers e enfileirando as outras.
-3. **Bundle frontend grande** + chunks antigos servidos do cache do PWA causando recarregamentos e telas em branco.
-4. **Realtime + SupportChatWidget (SSE)** abertos em todas as rotas internas → conexões persistentes consumindo recursos.
-5. **Queries sem índice / N+1** em hooks que rodam no boot (useAuth, useOrganization, useOrders).
+Depois que o navegador baixou uma vez, fica em cache → as próximas visitas ficam instantâneas. Bate exatamente com o que você descreveu.
 
-## Plano em 3 frentes
+A landing page (`Index.tsx`) também sofre: vários componentes pesados são lazy (`SavingsCalculator`, `TopStoresMarquee`, `StackedProblemCards`, `TimelineSteps`, `StickyShowcase`, `AnimatedComparison`, `MagneticFeatureCard`). A primeira visita à home faz uma cascata de downloads.
 
-### 1. Quick wins (hoje, sem mexer em infra)
-- Identificar a função edge que está em **5s/10s de média** e otimizar (provavelmente `ai-bot`, `lucas-ai` ou um webhook de WhatsApp/iFood). Aplicar padrão **job assíncrono**: aceita request, grava job, retorna em <200ms, processa em `EdgeRuntime.waitUntil`.
-- Reduzir o `staleTime` agressivo onde não precisa ser realtime — hoje vários hooks têm `staleTime: 0` (KDS, courier) o que dispara refetch a cada foco/visibility. Manter 0 só onde é crítico.
-- Forçar **cleanup do PWA antigo** bumpando o `CLEANUP_FLAG` em `main.tsx` (de `sw_cleanup_v2` → `v3`) pra todo cliente limpar SW e cache na próxima abertura — resolve o "chunk velho" geral.
-- Restringir o `SupportChatWidget` a abrir SSE só sob demanda (quando o usuário clica), não no mount.
+Some a isso o **`useAuth`** que bloqueia o render com `loading: true` enquanto faz `getSession()` + `fetchOrganization()` — em rotas protegidas o usuário vê o spinner em duas camadas (Suspense + AuthLoading).
 
-### 2. Otimizações de carregamento (esta semana)
-- Audit do bundle: separar dependências pesadas (recharts, framer-motion, lucide) em chunks dedicados (já parcialmente feito em `vite.config.ts`).
-- Lazy-load do `AdminPage` filhos (AIBotAdminTab, GrowthCharts, etc) — hoje algumas tabs carregam tudo de uma.
-- Adicionar índices no banco para colunas usadas em filtros frequentes (`orders.org_id+status+created_at`, `whatsapp_outbox.status`).
-- Reduzir SELECT * em hooks principais para colunas necessárias.
+## Plano
 
-### 3. Capacidade de infra (recomendação ao dono da plataforma)
-- A instância da Lovable Cloud que roda o backend **pode estar pequena** para o tráfego atual. Como vários lojistas relatam lentidão simultânea, isso é forte indício de saturação.
-- **Ação:** abrir o painel da plataforma → **Backend (Lovable Cloud)** → **Advanced settings** → **Upgrade instance** para um tamanho maior. Isso aumenta CPU, RAM e I/O do banco, e melhora todas as queries e edge functions de uma vez.
-- Custo: aumenta o uso do Cloud no billing; ganho: estabilidade pra dezenas de lojas em horário de pico.
-- Doc oficial: https://docs.lovable.dev/features/cloud#advanced-settings-upgrade-instance
+### 1. Prefetch agressivo no hover/focus dos links (impacto alto)
+Criar um helper `<PrefetchLink>` que, ao passar o mouse ou focar num link interno, dispara o `import()` da página de destino antes do clique. Quando o usuário clicar, o chunk já estará no cache do browser → navegação instantânea.
 
-## O que eu vou implementar quando você aprovar
+Aplicar nos links principais: navegação do dashboard, botões da landing → Auth/Cadastro/Planos, links do header/footer.
 
-1. Bumpar flag de cleanup do SW (resolve cache velho geral imediatamente).
-2. Identificar via logs qual edge function é a de 5s e refatorar pra job assíncrono.
-3. Tornar o SupportChatWidget lazy/sob demanda.
-4. Revisar `staleTime` dos hooks pesados (orders, courier).
-5. Criar migração com índices nas tabelas mais consultadas.
+### 2. Pré-carregar rotas críticas no idle pós-boot
+Logo após o app montar, num `requestIdleCallback`, disparar em segundo plano os imports de:
+- `AuthPage` (todo mundo passa por aqui)
+- `DashboardPage` (loja logada)
+- `KitchenPage` + `WaiterPage` (operação)
+- `UnitPage` (cliente final)
 
-A frente **3 (upgrade da instância)** depende de você abrir o painel — eu não consigo fazer isso de dentro do código.
+Isso aproveita o tempo ocioso do navegador depois da primeira renderização.
 
-## Pergunta antes de começar
+### 3. Substituir o `RouteFallback` por um esqueleto contextual
+Hoje é só um spinner numa tela preta — dá sensação de freeze. Trocar por um skeleton que respeita o layout (header + áreas), e mostrar o spinner só se demorar mais de 300ms (`startTransition` + delay).
 
-Quer que eu execute as 5 ações da seção "vou implementar" de uma vez, ou prefere ir uma por uma medindo o ganho? Se topar tudo junto, mando em sequência e te aviso o que rodar.
+### 4. Reduzir lazy desnecessário na landing (`Index.tsx`)
+A landing é a página de venda — não pode "piscar" carregando seções. Vou:
+- Manter `lazy` apenas nos componentes **abaixo da dobra** (que o usuário rola pra ver).
+- Importar diretamente os componentes da primeira tela (`HeroCinematic` já é, tá ok; `TopStoresMarquee` e `StackedProblemCards` aparecem rápido também).
+
+### 5. Não bloquear render da rota com `useAuth.loading` em rotas públicas
+Hoje o `AuthProvider` segura toda a árvore. Para rotas públicas (`/`, `/unidade/*`, `/planos`, `/termos`, `/privacidade`), liberar render imediato e deixar a sessão hidratar em segundo plano.
+
+### 6. Pequenos ajustes de bundle (`vite.config.ts`)
+Já tem split por vendor — adicionar:
+- `lucide-react` em chunk separado (são muitos ícones).
+- `@tanstack/react-query` já está em `query`, ok.
+- Verificar se `recharts` e `framer-motion` estão isolados (já estão).
+
+## O que NÃO vou fazer
+
+- Tirar `lazy` de tudo (faria o bundle inicial gigante e pioraria).
+- Mexer em RLS, edge functions ou banco — esse problema é 100% frontend/carregamento.
+
+## Estimativa de ganho
+
+Com as 5 frentes:
+- **Primeira navegação para qualquer página:** de ~2-3s pra ~200-400ms (chunk já em cache via prefetch/preload).
+- **Landing:** primeira impressão visual mais rápida, sem "piscar" carregando seções.
+- **Sensação geral:** muito mais "app-like", menos "site travando".
+
+## Implementação proposta (ordem)
+
+1. Criar `src/components/PrefetchLink.tsx` (substitui `<Link>` em links críticos).
+2. Adicionar pré-carregamento idle das rotas chave em `App.tsx`.
+3. Trocar `RouteFallback` por skeleton + delay no spinner.
+4. Eager nos 2-3 componentes acima da dobra em `Index.tsx`.
+5. Liberar `AuthProvider` em rotas públicas.
+6. Ajuste fino do `vite.config.ts`.
+
+Pode aprovar que eu já implemento tudo em sequência.
