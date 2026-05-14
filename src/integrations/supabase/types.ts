@@ -2757,6 +2757,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_platform_capacity_stats: { Args: never; Returns: Json }
       get_store_status: { Args: { _org_id: string }; Returns: Json }
       get_top_stores_showcase: {
         Args: never
