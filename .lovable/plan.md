@@ -1,75 +1,134 @@
-# Retomar integração iFood — ativar recebimento de pedidos
+# Homologação iFood — Auditoria e Plano
 
-## Estado atual
+## Status atual
 
-- **Edge functions deployadas:** `ifood-auth`, `ifood-poll-events`, `ifood-update-status`, `ifood-webhook`.
-- **Tabelas:** `ifood_credentials` (1 registro de teste, status `pending`), `ifood_event_log`.
-- **Trigger SQL:** `tg_orders_ifood_status_sync` envia mudanças de status do nosso lado para o iFood.
-- **Aba no dashboard:** `IFoodTab.tsx` (conectar / desconectar / ver eventos).
+**O que já temos:**
+- Tabelas: `ifood_credentials`, `ifood_event_log`, `ifood_category_map`
+- Edge functions: `ifood-auth`, `ifood-poll-events`, `ifood-update-status`, `ifood-webhook`
+- Polling /events:polling + acknowledgment em lote
+- Refresh token automático
+- Confirmação automática no PLC/CFM
+- Mapeamento de status interno → endpoints iFood (startPreparation, readyToPickup, dispatch, requestCancellation)
+- Notas estruturadas (cliente, telefone, CPF, endereço, frete, pagamento, troco, cupom, agendamento, obs)
+- Idempotência via `gateway_payment_id = ifood:<orderId>`
+- UI básica em IFoodTab.tsx (Merchant ID + status)
 
-## Problemas que travam o fluxo
+## Auditoria do checklist iFood (11 requisitos)
 
-1. **Não existe `pg_cron` rodando o polling.** Como o iFood entrega pedidos via long-polling (`/events/v1.0/events:polling`), sem um job chamando `ifood-poll-events` periodicamente, nenhum pedido novo chega. Hoje `last_polled_at` está `null` em todas as credenciais.
-2. **`ifood-webhook` está incompleto.** Loga eventos mas só descarta os que não têm `merchantId`. Não resolve `merchant_id → organization_id`, não processa `PLC`/`CFM`/`CAN`, não dá ACK. Toda a lógica útil está duplicada dentro do `ifood-poll-events`.
-3. **Cancelamento manual no nosso painel não dispara cancelamento no iFood** — o trigger só sincroniza o ciclo de produção (preparing/ready/delivered), mas falta o caminho `cancelled` no `ifood-update-status`.
+| # | Requisito | Status | O que falta |
+|---|-----------|--------|-------------|
+| 1 | Polling 30s + /acknowledgment | ✅ OK | pg_cron já chama poll, ack roda em lote — só validar cron a cada 30s |
+| 2 | Confirmação DELIVERY/TAKEOUT no SLA | ⚠️ Parcial | Confirma só em PLC/CFM; falta tratar **PLACED** explicitamente e logar latência |
+| 3 | Cancelamento + /cancellationReasons | ❌ Faltando | Hoje hardcoda `cancellationCode: "501"`. Precisa: (a) buscar `/cancellationReasons` antes, (b) UI pra lojista escolher motivo, (c) tratar evento de cancelamento solicitado pelo cliente |
+| 4 | Bandeira do cartão + troco | ⚠️ Parcial | Troco OK; **bandeira do cartão** (`pay.card.brand`) não é extraída |
+| 5 | Cupom (valor + responsabilidade iFood/Loja) | ⚠️ Parcial | Extrai valor mas não diferencia `sponsorshipValues[].name` (IFOOD vs MERCHANT) |
+| 6 | CPF/CNPJ + código de coleta | ⚠️ Parcial | CPF OK; falta `code` de coleta (PICKUP code) e CNPJ separado |
+| 7 | Observações de itens (`item.observations`) | ✅ OK | Já incluído em `buildItemName` |
+| 8 | Detectar e descartar duplicatas | ⚠️ Parcial | Idempotência por orderId OK, mas **não dedupe por event.id** — mesmo evento pode entrar 2x via webhook + polling |
+| 9 | Sincronizar status quando outro app altera | ❌ Faltando | Não tratamos eventos `CFM` (confirmado fora), `RPR` (em preparo), `RTP` (pronto), `DSP` (despachado), `CON` (concluído) vindos de fora |
+| 10 | Plataforma de Negociação | ❌ Faltando | Não tratamos eventos `HANDSHAKE_*` / negociação |
+| 11 | Webhook responder /acknowledgment | ⚠️ Parcial | Webhook responde 202 mas **não chama /acknowledgment** dos eventos recebidos |
 
-## O que vou fazer
+## Plano de implementação
 
-### 1. Criar cron job de polling (a cada 30 segundos)
+### Fase 1 — Robustez (gaps críticos para passar)
 
-Inserir via `supabase--insert` (não migração — contém URL e chave do projeto):
+**1.1 Deduplicação por event.id**
+- Adicionar UNIQUE constraint em `ifood_event_log(ifood_event_id)` (allow null)
+- Em `ifood-poll-events` e `ifood-webhook`: tentar INSERT com `onConflict('ifood_event_id').ignoreDuplicates()`. Se já existe, pular processamento.
+
+**1.2 Webhook envia acknowledgment**
+- Em `ifood-webhook`, depois de processar cada evento com `event.id`, fazer POST em `/events/v1.0/events/acknowledgment` igual o polling faz.
+
+**1.3 Sincronizar status externos (req #9)**
+- Em `ifood-poll-events` e `ifood-webhook`, tratar codes adicionais: `CFM`, `RPR`, `RTP`, `DSP`, `CON`, `CAN` — atualizar `orders.status` correspondente quando vierem de fora (e marcar `notes` com `IFOOD_SYNC:1` pra evitar loop com `ifood-update-status`).
+- Em `ifood-update-status`: antes de mandar pro iFood, checar se origem é sync externo (skip).
+
+**1.4 Cancelamento com motivos reais**
+- Nova edge function `ifood-cancellation-reasons` (GET): chama `/order/v1.0/orders/{orderId}/cancellationReasons` e retorna lista.
+- Em `ifood-update-status` quando `new_status='cancelled'`: aceitar `cancellation_reason_code` e `cancellation_reason_description` no body.
+- UI: ao cancelar pedido iFood na aba Vendas/Produção, abrir modal com lista de motivos puxada da edge function.
+
+**1.5 Confirmação rastreável (req #2)**
+- Em `processNewOrder` / `handleNewOrder`: capturar `Date.now()` antes do `/confirm`, calcular latência, gravar em `ifood_event_log.payload.confirm_latency_ms`.
+- Tratar `PLACED` igual a `PLC`/`CFM`.
+
+### Fase 2 — Enriquecimento de dados (req #4, #5, #6)
+
+**2.1 Bandeira do cartão**
+- Em `buildOrderNotes`: adicionar `BANDEIRA:${pay.card?.brand}` quando method = CREDIT/DEBIT.
+
+**2.2 Cupom diferenciado**
+- Mudar parser de benefits pra mostrar `IFOOD:R$X | LOJA:R$Y` baseado em `sponsorshipValues[].name`.
+
+**2.3 Código de coleta + CNPJ**
+- Adicionar `COLETA:${ifoodOrder.delivery?.pickupCode || ifoodOrder.takeout?.takeoutDateTime}` 
+- Adicionar `CNPJ:${cust.taxPayerIdentificationNumber}` separado de CPF (decisão por tamanho/14 dígitos).
+
+### Fase 3 — Plataforma de Negociação (req #10)
+
+- Em `ifood-webhook` e `ifood-poll-events`: tratar codes `HANDSHAKE_DISPUTE`, `HANDSHAKE_SETTLEMENT`. Por ora apenas logar em `ifood_event_log` e notificar lojista via Telegram (sem ação automática). iFood aceita "exibir e notificar" como cumprimento mínimo.
+
+### Fase 4 — UI Homologação (IFoodTab)
+
+Adicionar painel "Status de Homologação" mostrando checklist com ✅/❌ baseado em flags reais:
+- Polling ativo (last_polled_at < 60s)
+- Webhook recebendo (last_event_at)
+- Total eventos processados (count em ifood_event_log)
+- Botão "Abrir ticket de homologação" → link `https://developer.ifood.com.br` + texto pré-pronto pra colar
+
+### Fase 5 — Documentação pro ticket
+
+Gerar arquivo `docs/IFOOD-HOMOLOGACAO.md` com:
+- Endpoints implementados
+- Tratamento de cada code
+- Política de dedup
+- Política de retry/refresh token
+- Exemplos de payloads recebidos/enviados
+
+## Detalhes técnicos (referência)
+
+### Migration nova necessária
 
 ```sql
-SELECT cron.schedule(
-  'ifood-poll-events-30s',
-  '30 seconds',
-  $$ SELECT net.http_post(
-       url := 'https://xrzudhylpphnzousilye.supabase.co/functions/v1/ifood-poll-events',
-       headers := '{"Content-Type":"application/json"}'::jsonb,
-       body := '{}'::jsonb
-     ); $$
-);
+-- 1. Dedup por event.id
+CREATE UNIQUE INDEX IF NOT EXISTS ifood_event_log_event_id_uniq 
+  ON public.ifood_event_log(ifood_event_id) 
+  WHERE ifood_event_id IS NOT NULL;
+
+-- 2. Coluna pra rastrear sync externa (evita loop)
+ALTER TABLE public.orders 
+  ADD COLUMN IF NOT EXISTS ifood_synced_externally boolean DEFAULT false;
 ```
 
-Como `pg_cron` mínimo é 1 minuto, vou agendar dois jobs defasados (`* * * * *` e outro com `pg_sleep(30)`) para conseguir 30s — ou aceitar 1min se o iFood tolerar (eles recomendam ≤30s, mas durante homologação 60s é aceito).
+### Codes iFood relevantes
+- `PLC` / `PLACED` — pedido novo
+- `CFM` / `CONFIRMED` — confirmado
+- `RPR` — em preparo
+- `RTP` — pronto pra retirada
+- `DSP` / `DISPATCHED` — despachado
+- `CON` / `CONCLUDED` — entregue
+- `CAN` / `CANCELLED` — cancelado
+- `KEEPALIVE` — heartbeat (só ack, sem ação)
+- `HANDSHAKE_*` — negociação
 
-### 2. Refatorar `ifood-webhook` para processar eventos de verdade
+### Arquivos a alterar
+- `supabase/functions/ifood-webhook/index.ts` (dedup + ack + sync codes)
+- `supabase/functions/ifood-poll-events/index.ts` (dedup + sync codes + extras notes)
+- `supabase/functions/ifood-update-status/index.ts` (motivos reais + skip se sync externo)
+- `supabase/functions/ifood-cancellation-reasons/index.ts` (NOVA)
+- `src/components/dashboard/IFoodTab.tsx` (painel homologação + modal motivos)
+- `src/components/dashboard/sales/SalesItem.tsx` (botão cancelar com modal motivos pra pedidos iFood)
+- Nova migration
 
-- Resolver `merchantId → organization_id` consultando `ifood_credentials.merchant_id`.
-- Reaproveitar o mesmo `processNewOrder` / `processCancellation` do `ifood-poll-events` (extrair pra função compartilhada inline).
-- Logar todos os eventos em `ifood_event_log` com `source='webhook'`.
-- Continuar respondendo 200 imediato pra não estourar timeout do iFood.
+## Ordem de execução sugerida
 
-Webhook + polling juntos = redundância exigida na homologação (se o webhook falha, o polling resgata; o ACK no polling evita reprocessar).
+1. Migration (dedup + ifood_synced_externally)
+2. Fase 1 inteira (4 PRs lógicos no mesmo commit)
+3. Fase 2 (notas enriquecidas)
+4. Fase 3 (negociação)
+5. Fase 4 (UI homologação)
+6. Fase 5 (docs)
+7. Você abre ticket no portal iFood com link pra docs
 
-### 3. Completar `ifood-update-status`
-
-Adicionar tratamento para:
-- `cancelled` → POST `/order/v1.0/orders/{id}/requestCancellation` com motivo padrão.
-- `ready` → POST `/order/v1.0/orders/{id}/dispatch` quando for entrega própria, ou marcar `readyToPickup` quando for retirada.
-
-### 4. Telinha de homologação na aba iFood
-
-Pequenos ajustes no `IFoodTab.tsx`:
-- Mostrar "Polling rodando há X segundos" baseado em `last_polled_at`.
-- Botão "Forçar polling agora" (chama `ifood-poll-events` manualmente).
-- Mostrar `merchantId` resolvido (validação rápida pro lojista ver que o ID está certo).
-
-## Detalhes técnicos
-
-```text
-Fluxo de pedido novo:
-iFood → [webhook POST]   → ifood-webhook → resolve merchant → cria order
-      → [polling /events] → ifood-poll-events → ACK + cria order (idempotente via gateway_payment_id)
-
-Fluxo de status:
-order UPDATE → trigger tg_orders_ifood_status_sync → ifood-update-status → POST /confirm /dispatch /requestCancellation
-```
-
-A **idempotência** já existe: ambos os caminhos verificam `gateway_payment_id = 'ifood:' + orderId` antes de inserir. Sem risco de duplicar pedidos.
-
-## Fora deste plano (deixar pra depois)
-
-- Cardápio sincronizado com o iFood (catalog API) — fase 2 da homologação.
-- Disputas / chargebacks.
-- Relatório financeiro iFood separado.
+Estimativa: ~6-8 alterações de código, 1 migration. Tudo backend + UI mínima.

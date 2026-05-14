@@ -7,25 +7,26 @@ const corsHeaders = {
 
 const IFOOD_API = "https://merchant-api.ifood.com.br";
 
-// Mapeia status interno → endpoint iFood
-function endpointForStatus(newStatus: string, oldStatus: string | null): { path: string; body?: any } | null {
+function endpointForStatus(
+  newStatus: string,
+  reasonCode?: string,
+  reasonDescription?: string,
+): { path: string; body?: any } | null {
   switch (newStatus) {
     case "preparing":
-      // Quando aceita: confirma + inicia preparo
       return { path: "startPreparation" };
     case "ready":
-      // Pronto para retirada/entrega
       return { path: "readyToPickup" };
     case "delivered":
       return { path: "dispatch" };
     case "cancelled":
       return {
         path: "requestCancellation",
-        body: { reason: "Cancelado pelo lojista", cancellationCode: "501" },
+        body: {
+          reason: reasonDescription || "Cancelado pelo lojista",
+          cancellationCode: reasonCode || "501",
+        },
       };
-    case "pending":
-      // Reabre? Não dispara nada
-      return null;
     default:
       return null;
   }
@@ -41,7 +42,6 @@ async function getValidToken(supabase: any, orgId: string): Promise<string | nul
     return cred.access_token;
   }
 
-  // Refresh
   const clientId = Deno.env.get("IFOOD_CLIENT_ID");
   const clientSecret = Deno.env.get("IFOOD_CLIENT_SECRET");
   if (!clientId || !clientSecret) return null;
@@ -77,7 +77,15 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { ifood_order_id, organization_id, new_status, old_status } = body;
+    const {
+      ifood_order_id,
+      organization_id,
+      new_status,
+      old_status,
+      order_id,
+      cancellation_reason_code,
+      cancellation_reason_description,
+    } = body;
     if (!ifood_order_id || !organization_id || !new_status) {
       return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: corsHeaders });
     }
@@ -87,7 +95,23 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const ep = endpointForStatus(new_status, old_status ?? null);
+    // Skip se a mudança veio do iFood (evita loop) — req #9
+    if (order_id) {
+      const { data: ord } = await supabase.from("orders")
+        .select("ifood_synced_externally")
+        .eq("id", order_id).maybeSingle();
+      if (ord?.ifood_synced_externally) {
+        // limpa flag e pula chamada outbound
+        await supabase.from("orders")
+          .update({ ifood_synced_externally: false })
+          .eq("id", order_id);
+        return new Response(JSON.stringify({ skipped: true, reason: "external_sync" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const ep = endpointForStatus(new_status, cancellation_reason_code, cancellation_reason_description);
     if (!ep) {
       return new Response(JSON.stringify({ skipped: true, reason: "no_mapping" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
