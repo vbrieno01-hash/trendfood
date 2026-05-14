@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Link2, RefreshCw, Unplug, Copy } from "lucide-react";
+import { Loader2, Link2, RefreshCw, Unplug, Copy, Zap } from "lucide-react";
 
 interface IFoodTabProps { orgId: string; }
 
@@ -39,6 +39,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
   const [merchantName, setMerchantName] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [polling, setPolling] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -93,6 +94,29 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
     } finally { setBusy(false); }
   };
 
+  const forcePoll = async () => {
+    setPolling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ifood-poll-events", { body: {} });
+      if (error) throw error;
+      const myResult = (data as any)?.results?.find((r: any) => r.org === orgId);
+      if (myResult?.error) {
+        toast.error("Polling falhou: " + myResult.error);
+      } else if (myResult) {
+        toast.success(`Polling ok — ${myResult.events ?? 0} evento(s), ${myResult.acked ?? 0} confirmado(s)`);
+      } else {
+        toast.success("Polling executado");
+      }
+      await load();
+    } catch (e: any) {
+      toast.error("Erro ao forçar polling: " + (e.message || "desconhecido"));
+    } finally { setPolling(false); }
+  };
+
+  const pollAge = cred?.last_polled_at
+    ? Math.round((Date.now() - new Date(cred.last_polled_at).getTime()) / 1000)
+    : null;
+
   const copyOrderId = (id: string) => {
     navigator.clipboard.writeText(id);
     toast.success("orderId copiado");
@@ -142,9 +166,15 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
               {cred?.status === "connected" ? "Reconectar" : "Conectar"}
             </Button>
             {cred?.status === "connected" && (
-              <Button variant="outline" onClick={disconnect} disabled={busy}>
-                <Unplug className="w-4 h-4 mr-2" /> Desconectar
-              </Button>
+              <>
+                <Button variant="outline" onClick={forcePoll} disabled={busy || polling}>
+                  {polling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                  Forçar polling
+                </Button>
+                <Button variant="outline" onClick={disconnect} disabled={busy}>
+                  <Unplug className="w-4 h-4 mr-2" /> Desconectar
+                </Button>
+              </>
             )}
             <Button variant="ghost" onClick={load} disabled={busy}>
               <RefreshCw className="w-4 h-4 mr-2" /> Atualizar
@@ -153,9 +183,23 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
 
           {cred?.status === "connected" && (
             <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-              <div>Último polling: {cred.last_polled_at ? new Date(cred.last_polled_at).toLocaleString("pt-BR") : "—"}</div>
+              <div>
+                Último polling:{" "}
+                {cred.last_polled_at ? (
+                  <>
+                    {new Date(cred.last_polled_at).toLocaleString("pt-BR")}{" "}
+                    <span className={pollAge != null && pollAge > 180 ? "text-red-500 font-semibold" : "text-green-600"}>
+                      ({pollAge}s atrás)
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-yellow-600">aguardando primeiro polling…</span>
+                )}
+              </div>
+              <div>Merchant ID: <span className="font-mono">{cred.merchant_id}</span></div>
               <div>Último evento: {cred.last_event_at ? new Date(cred.last_event_at).toLocaleString("pt-BR") : "—"}</div>
               <div>Token expira em: {cred.token_expires_at ? new Date(cred.token_expires_at).toLocaleString("pt-BR") : "—"}</div>
+              <div className="pt-1 italic">Polling automático rodando a cada 1 minuto via cron.</div>
             </div>
           )}
         </CardContent>
