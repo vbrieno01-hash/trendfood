@@ -1,44 +1,30 @@
-## Objetivo
-Forçar o **Cenário 4 (Aceitar/Recusar Cancelamento)** no dashboard, fazendo aparecer os botões verdes/vermelhos no card iFood da aba Cozinha, para testar o fluxo de UI antes da gravação.
+## Problema
+Ao clicar **Aceitar** no painel laranja, a edge function `ifood-handle-cancellation` chama `POST /requestCancellation` no iFood e recebe:
 
-## Pedido alvo
-Único pedido iFood ativo no momento:
-
-```text
-order_id  : 2d9602e6-da68-498e-bbfe-89b84469da03
-ifood_id  : ce6becd8-76e9-49e8-92fd-77088f42ffb7
-status    : pending
+```
+400 BAD_REQUEST: "Order ce6becd8... is already cancelled"
 ```
 
-## Como funciona o gatilho
-O `IFoodOrderChip` mostra o painel laranja **"Cliente pediu cancelamento" + Aceitar / Recusar** quando:
-- `orders.ifood_cancellation_requested_at IS NOT NULL`
-- `status != 'cancelled'`
+Esse pedido já foi cancelado no iFood em testes anteriores (lixeira), então qualquer nova chamada de cancelamento/aceite/recusa nele falha — não é bug do fluxo, é estado obsoleto do pedido de teste.
 
-(Em produção, isso é preenchido pelo `ifood-webhook` quando recebe `CONSUMER_CANCELLATION_REQUESTED` / `CCAN` / `CANR`.)
+## Correção (mesma lógica que já está em `ifood-cancel-order`)
+Aplicar tolerância a "already cancelled" também em `supabase/functions/ifood-handle-cancellation/index.ts`:
 
-## Passo único
-Rodar um UPDATE simulando que o iFood enviou a solicitação:
+- Se a resposta do iFood for **400 + body contém "already cancelled"**:
+  - Logar evento `OUT_CANCEL_ACCEPT_ALREADY` / `OUT_CANCEL_DENY_ALREADY` em `ifood_event_log`.
+  - Marcar `orders.status = 'cancelled'` e limpar `ifood_cancellation_requested_at`.
+  - Retornar **200 `{ success: true, already_cancelled_at_ifood: true }`** em vez de 502.
 
-```sql
-UPDATE orders
-   SET ifood_cancellation_requested_at = now()
- WHERE id = '2d9602e6-da68-498e-bbfe-89b84469da03';
-```
+Isso faz o card sumir da Cozinha mesmo quando o iFood já cancelou o pedido por timeout/teste anterior.
 
-Realtime já está ligado em `orders` → o card vai atualizar sozinho na tela em ~1 s, com o painel laranja e botões **Aceitar** / **Recusar**.
+## Para gravar o cenário 4 (homologação)
+O pedido `2d9602e6...` está queimado no iFood (já cancelado). Para gravação real:
 
-## O que esperar ao clicar
-Os botões chamam a edge function `ifood-handle-cancellation`, que faz POST real no iFood:
+1. Criar/disparar **novo pedido de teste** no iFood (homologação).
+2. Quando ele entrar como `pending`, rodar de novo o UPDATE `ifood_cancellation_requested_at = now()` para forçar o painel laranja **sem** ter cancelado antes.
+3. Clicar **Aceitar** ou **Recusar** → o iFood vai aceitar a chamada e o fluxo grava limpo.
 
-| Botão | Endpoint iFood | Resultado local |
-|---|---|---|
-| Aceitar | `POST /order/v1.0/orders/{id}/requestCancellation` (code 501) | status → `cancelled`, sai da Cozinha |
-| Recusar | `POST /order/v1.0/orders/{id}/denyCancellation` | timestamp limpo, painel some |
-
-⚠️ **Atenção:** como a solicitação **não foi feita pelo cliente real**, o iFood pode responder 400 ("no cancellation request to deny" / "order is not in cancellation request state"). Nesse caso o toast vermelho aparece mas o fluxo de UI já fica gravado — o que vale para a homologação é mostrar os botões reagindo ao evento e o POST sendo enviado.
-
-Para uma gravação "limpa" sem erro do iFood, o ideal é pedir ao próprio iFood (canal de homologação) para disparar um `CONSUMER_CANCELLATION_REQUESTED` em um pedido de teste — o resto do fluxo já está pronto. Mas para validar visualmente agora, o UPDATE acima é suficiente.
+Alternativa "limpa": pedir ao iFood (canal de homologação) para enviar um `CONSUMER_CANCELLATION_REQUESTED` real em um novo pedido — assim você grava sem o UPDATE manual.
 
 ## Próximo passo
-Aprovar para eu executar o UPDATE e você ver os botões aparecerem no card.
+Aprovar para eu aplicar a tolerância "already cancelled" em `ifood-handle-cancellation` e fazer deploy.
