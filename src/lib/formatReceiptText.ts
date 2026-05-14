@@ -15,12 +15,18 @@ export interface ParsedNotes {
   name?: string;
   phone?: string;
   address?: string;
+  bairro?: string;
   frete?: string;
   payment?: string;
+  brand?: string;
   troco?: string;
   doc?: string;
+  docKind?: "CPF" | "CNPJ";
   obs?: string;
   agendado?: string;
+  cupom?: string;
+  coleta?: string;
+  ifoodDisplay?: string;
   raw?: string;
 }
 
@@ -32,17 +38,27 @@ export function parseNotes(notes: string): ParsedNotes {
       return [part.slice(0, idx), part.slice(idx + 1)];
     })
   );
+  const cpf = parts["CPF"];
+  const cnpj = parts["CNPJ"];
+  const doc = parts["DOC"] || cpf || cnpj || undefined;
+  const docKind: "CPF" | "CNPJ" | undefined = cnpj ? "CNPJ" : cpf ? "CPF" : undefined;
   return {
     tipo: parts["TIPO"] || undefined,
     name: parts["CLIENTE"] || undefined,
     phone: parts["TEL"] || undefined,
     address: parts["END."] || undefined,
+    bairro: parts["BAIRRO"] || undefined,
     frete: parts["FRETE"] || undefined,
     payment: parts["PGTO"] || undefined,
+    brand: parts["BANDEIRA"] || undefined,
     troco: parts["TROCO"] || undefined,
-    doc: parts["DOC"] || undefined,
+    doc,
+    docKind,
     obs: parts["OBS"] || undefined,
     agendado: parts["AGENDADO"] || undefined,
+    cupom: parts["CUPOM"] || undefined,
+    coleta: parts["COLETA"] || undefined,
+    ifoodDisplay: parts["IFOOD_DISPLAY"] || undefined,
   };
 }
 
