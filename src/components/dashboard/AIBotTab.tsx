@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, PowerOff, CheckCircle2, MessageSquare, Bot, QrCode } from "lucide-react";
 import WhatsAppAutoStatusCard from "./WhatsAppAutoStatusCard";
+import { useAuth } from "@/hooks/useAuth";
+import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
 
 interface AIBotTabProps {
   orgId: string;
@@ -44,6 +46,9 @@ interface QueueRow {
 
 const AIBotTab = ({ orgId }: AIBotTabProps) => {
   const isBeta = BETA_ORG_IDS.includes(orgId);
+  const { isAdmin } = useAuth();
+  const { data: flags } = usePlatformFeatureFlags();
+  const waEnabled = !!flags?.whatsapp_enabled || isAdmin || isBeta;
   if (!isBeta) {
     return (
       <div className="space-y-8">
@@ -55,7 +60,7 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
             Avisa o cliente em cada etapa do pedido sem você apertar nada.
           </p>
         </div>
-        <WhatsAppAutoStatusCard orgId={orgId} />
+        {waEnabled && <WhatsAppAutoStatusCard orgId={orgId} />}
         <ComingSoonBot />
       </div>
     );
