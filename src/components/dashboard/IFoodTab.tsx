@@ -11,6 +11,7 @@ import {
   CheckCircle2, AlertCircle, Circle, ExternalLink, FileDown, ChevronDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAuth } from "@/hooks/useAuth";
 
 interface IFoodTabProps { orgId: string; }
 
@@ -70,6 +71,7 @@ const CHECKLIST: ChecklistItem[] = [
 ];
 
 const IFoodTab = ({ orgId }: IFoodTabProps) => {
+  const { isAdmin } = useAuth();
   const [cred, setCred] = useState<Cred | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [merchantId, setMerchantId] = useState("");
@@ -201,7 +203,8 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
         <p className="text-sm text-muted-foreground">Receba pedidos do iFood automaticamente na sua produção.</p>
       </div>
 
-      {/* Painel de Homologação */}
+      {/* Painel de Homologação — só admin (dono do app distribuído) */}
+      {isAdmin && (
       <Card className="border-primary/30">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -246,6 +249,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
