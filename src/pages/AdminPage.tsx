@@ -28,6 +28,7 @@ import AIBotAdminTab from "@/components/admin/AIBotAdminTab";
 import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
 import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
 import AdminTelegramTab from "@/components/admin/AdminTelegramTab";
+import IFoodHomologacaoTab from "@/components/admin/IFoodHomologacaoTab";
 import AffiliatesTab from "@/components/admin/AffiliatesTab";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
@@ -70,6 +71,7 @@ import {
   Bot,
   Activity,
   Send,
+  Utensils,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -243,7 +245,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog";
 
 interface NavGroup {
   label: string;
@@ -272,6 +274,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "wa_instances", icon: <Smartphone className="w-4 h-4" />, label: "Instâncias WhatsApp" },
       { key: "aibot", icon: <Bot className="w-4 h-4" />, label: "Robô IA" },
       { key: "telegram_admin", icon: <Send className="w-4 h-4" />, label: "Telegram Admin" },
+      { key: "ifood_homolog", icon: <Utensils className="w-4 h-4" />, label: "iFood Homologação" },
       { key: "melhorias", icon: <ListChecks className="w-4 h-4" />, label: "Melhorias" },
     ],
   },
@@ -1031,6 +1034,7 @@ function AdminContent() {
           {activeTab === "wa_instances" && <WhatsAppInstancesTab />}
           {activeTab === "versoes" && <StoreVersionsTab />}
           {activeTab === "telegram_admin" && <AdminTelegramTab />}
+          {activeTab === "ifood_homolog" && <IFoodHomologacaoTab />}
           {activeTab === "afiliados" && <AffiliatesTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
