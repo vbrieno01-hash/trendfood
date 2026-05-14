@@ -231,8 +231,6 @@ async function handleNewOrder(
 
   const ifoodOrder = await orderRes.json();
   const isPickup = String(ifoodOrder.orderType || "DELIVERY").toUpperCase() === "TAKEOUT";
-  const orderTotal = ifoodOrder.total?.orderAmount ?? ifoodOrder.totalPrice ?? null;
-  const subtotal = ifoodOrder.total?.subTotal ?? null;
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -242,8 +240,6 @@ async function handleNewOrder(
       status: "pending",
       payment_method: ifoodOrder.payments?.methods?.[0]?.method ?? "ifood",
       notes: buildOrderNotes(ifoodOrder),
-      total: orderTotal,
-      subtotal: subtotal,
       gateway_payment_id: `ifood:${orderId}`,
     })
     .select("id")
@@ -312,7 +308,7 @@ async function handleCancellation(
   if (order) {
     await supabase
       .from("orders")
-      .update({ status: "cancelled", cancellation_source: "ifood" } as any)
+      .update({ status: "cancelled", cancellation_reason: "Cancelado pelo iFood" })
       .eq("id", order.id);
     console.log("[ifood-webhook] Order cancelled:", order.id);
 
