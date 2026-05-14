@@ -276,7 +276,8 @@ Deno.serve(async (req) => {
 
       if (!merchantId) {
         console.warn("[ifood-webhook] Event without merchantId, skipping");
-        await logEventDedup(supabase, null, event, "webhook");
+        // Sem merchantId: log sem ifood_event_id pra NÃO bloquear o polling depois
+        await logEventDedup(supabase, null, { ...event, id: null }, "webhook");
         continue;
       }
 
@@ -288,7 +289,12 @@ Deno.serve(async (req) => {
 
       if (!creds) {
         console.warn("[ifood-webhook] No org for merchantId:", merchantId);
-        await logEventDedup(supabase, null, event, "webhook");
+        // Sem org pareada: log SEM ifood_event_id (id=null) pra liberar o polling
+        // a reprocessar esse mesmo evento quando a credencial for corrigida
+        await logEventDedup(supabase, null, { ...event, id: null }, "webhook", null, {
+          orphan_reason: "no_org_for_merchant",
+          original_event_id: event.id,
+        });
         continue;
       }
 
