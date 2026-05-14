@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Loader2, Flame, Printer, BellRing, Trash2, CheckCircle2, Pencil } from "lucide-react";
 import EditOrderDialog from "@/components/dashboard/EditOrderDialog";
+import IFoodOrderChip from "@/components/dashboard/IFoodOrderChip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -525,6 +526,7 @@ export default function KitchenTab({
                               🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
                             </span>
                           )}
+                          <IFoodOrderChip gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} />
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -679,6 +681,7 @@ export default function KitchenTab({
                               🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
                             </span>
                           )}
+                          <IFoodOrderChip gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} />
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
