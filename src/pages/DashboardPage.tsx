@@ -1077,9 +1077,35 @@ const DashboardPage = () => {
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} organization={organization} onNavigate={handleTabChange} />}
-          {activeTab === "ifood" && (lockedFeatures.ifood
-            ? <UpgradePrompt title="Integração iFood" description="Receba e gerencie pedidos do iFood direto no painel. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
-            : <IFoodTab orgId={organization.id} />)}
+          {activeTab === "ifood" && (
+            !featureFlags?.ifood_enabled && !isAdmin
+              ? (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <span>🛵</span> Integração iFood
+                      <Badge className="bg-orange-500 text-white">EM BREVE</Badge>
+                    </h2>
+                    <p className="text-sm text-muted-foreground">Receba pedidos do iFood automaticamente na sua produção.</p>
+                  </div>
+                  <Card className="border-orange-500/30">
+                    <CardContent className="py-12 text-center space-y-4">
+                      <div className="text-6xl">🛵</div>
+                      <h3 className="text-lg font-bold">Em breve</h3>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                        Estamos finalizando a homologação oficial com o iFood. Em breve você poderá receber pedidos automaticamente aqui no TrendFood, sem mexer em mais nada.
+                      </p>
+                      <Badge variant="outline" className="border-orange-500/40 text-orange-600 dark:text-orange-400">
+                        Liberação em rollout controlado
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+              : lockedFeatures.ifood
+                ? <UpgradePrompt title="Integração iFood" description="Receba e gerencie pedidos do iFood direto no painel. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+                : <IFoodTab orgId={organization.id} />
+          )}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
           {activeTab === "aibot" && (lockedFeatures.aibot
             ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
