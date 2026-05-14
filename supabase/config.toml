@@ -48,6 +48,9 @@ verify_jwt = false
 [functions.check-pix-status]
 verify_jwt = false
 
+[functions.ifood-orphan-sweeper]
+verify_jwt = false
+
 [functions.generate-pix-payload]
 verify_jwt = false
 
