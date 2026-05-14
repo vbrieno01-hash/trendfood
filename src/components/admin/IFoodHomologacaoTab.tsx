@@ -2,8 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { CheckCircle2, AlertCircle, Circle, ExternalLink, FileDown, ChevronDown } from "lucide-react";
+import { CheckCircle2, AlertCircle, Circle, ExternalLink, FileDown, ChevronDown, Eye, EyeOff, KeyRound, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 
 type ChecklistStatus = "ok" | "partial" | "missing";
 interface ChecklistItem { status: ChecklistStatus; title: string; detail: string; }
@@ -37,6 +41,53 @@ export default function IFoodHomologacaoTab() {
   const completedCount = CHECKLIST.filter((c) => c.status === "ok").length;
   const totalCount = CHECKLIST.length;
   const ready = completedCount === totalCount;
+
+  const [credInfo, setCredInfo] = useState<{ client_id_masked: string | null; client_secret_masked: string | null; updated_at: string | null } | null>(null);
+  const [loadingCreds, setLoadingCreds] = useState(true);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const loadCreds = async () => {
+    setLoadingCreds(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ifood-update-platform-creds", { body: { action: "read" } });
+      if (error) throw error;
+      setCredInfo(data);
+    } catch (e: any) {
+      toast.error("Falha ao carregar credenciais", { description: e?.message });
+    } finally {
+      setLoadingCreds(false);
+    }
+  };
+
+  useEffect(() => { loadCreds(); }, []);
+
+  const saveCreds = async () => {
+    if (!clientId.trim() || !clientSecret.trim()) {
+      toast.error("Preencha Client ID e Client Secret");
+      return;
+    }
+    if (!confirm("Ao salvar, TODAS as lojas conectadas ao iFood serão desconectadas e precisarão reconectar. Continuar?")) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ifood-update-platform-creds", {
+        body: { action: "save", client_id: clientId.trim(), client_secret: clientSecret.trim() },
+      });
+      if (error) throw error;
+      toast.success("Credenciais salvas", {
+        description: `${data?.disconnected_count ?? 0} loja(s) desconectada(s). Tokens antigos invalidados.`,
+      });
+      setClientId("");
+      setClientSecret("");
+      await loadCreds();
+    } catch (e: any) {
+      toast.error("Falha ao salvar", { description: e?.message });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const downloadDocs = async () => {
     try {
@@ -106,6 +157,57 @@ export default function IFoodHomologacaoTab() {
           <div className="text-[11px] text-muted-foreground pt-2 italic">
             Dica: ao abrir o ticket, escolha categoria "Homologação" → "Aplicativo distribuído" e anexe a documentação acima.
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/30">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <KeyRound className="w-4 h-4" /> Credenciais iFood (plataforma)
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Client ID e Client Secret usados por todas as lojas. Ao salvar, tokens antigos são invalidados automaticamente.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+            <div className="font-medium text-foreground">Atual</div>
+            {loadingCreds ? (
+              <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Carregando…</div>
+            ) : (
+              <>
+                <div><span className="text-muted-foreground">Client ID: </span><code>{credInfo?.client_id_masked || <span className="text-yellow-600">não configurado no painel (usando fallback do servidor)</span>}</code></div>
+                <div><span className="text-muted-foreground">Client Secret: </span><code>{credInfo?.client_secret_masked || <span className="text-yellow-600">não configurado no painel (usando fallback do servidor)</span>}</code></div>
+                {credInfo?.updated_at && (
+                  <div className="text-muted-foreground pt-1">Atualizado em {new Date(credInfo.updated_at).toLocaleString("pt-BR")}</div>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ifood-cid" className="text-xs">Novo Client ID</Label>
+            <Input id="ifood-cid" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="ex: 1a2b3c4d-..." autoComplete="off" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ifood-cs" className="text-xs">Novo Client Secret</Label>
+            <div className="relative">
+              <Input id="ifood-cs" type={showSecret ? "text" : "password"} value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder="••••••••" autoComplete="off" className="pr-10" />
+              <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowSecret((s) => !s)}>
+                {showSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-[11px] text-yellow-700 dark:text-yellow-400">
+            ⚠️ Ao salvar, todas as lojas conectadas terão tokens revogados e precisarão reconectar (re-vincular merchant). Use isso quando o iFood liberar credenciais de produção.
+          </div>
+
+          <Button onClick={saveCreds} disabled={saving || !clientId.trim() || !clientSecret.trim()} className="w-full">
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Salvar e invalidar tokens antigos
+          </Button>
         </CardContent>
       </Card>
     </div>
