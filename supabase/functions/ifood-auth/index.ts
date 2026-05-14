@@ -47,19 +47,24 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
     }
 
-    // Get iFood credentials from env (platform-level)
-    const clientId = Deno.env.get("IFOOD_CLIENT_ID");
-    const clientSecret = Deno.env.get("IFOOD_CLIENT_SECRET");
-
-    if (!clientId || !clientSecret) {
-      return new Response(JSON.stringify({ error: "iFood credentials not configured on platform" }), { status: 500, headers: corsHeaders });
-    }
-
-    // Get current credentials for this org
+    // Service client (lê platform_secrets bypassando RLS)
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Credenciais: DB (admin) primeiro, fallback env
+    const { data: secretsRows } = await serviceClient
+      .from("platform_secrets")
+      .select("key, value")
+      .in("key", ["IFOOD_CLIENT_ID", "IFOOD_CLIENT_SECRET"]);
+    const secretsMap = Object.fromEntries((secretsRows ?? []).map((r: any) => [r.key, r.value]));
+    const clientId = secretsMap.IFOOD_CLIENT_ID || Deno.env.get("IFOOD_CLIENT_ID");
+    const clientSecret = secretsMap.IFOOD_CLIENT_SECRET || Deno.env.get("IFOOD_CLIENT_SECRET");
+
+    if (!clientId || !clientSecret) {
+      return new Response(JSON.stringify({ error: "iFood credentials not configured on platform" }), { status: 500, headers: corsHeaders });
+    }
 
     const { data: creds } = await serviceClient
       .from("ifood_credentials")
