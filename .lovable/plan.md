@@ -1,55 +1,75 @@
-## Objetivo
+## Cenários da Homologação iFood — diagnóstico
 
-Quando o lojista clicar no botão genérico "Cancelar pedido" (Cozinha / Garçom) em um pedido iFood, o sistema deve **avisar o iFood** automaticamente, não só marcar como cancelado no banco.
-
-## Como funciona hoje
-
-- **Botão antigo (`useCancelOrder`)**: só faz `UPDATE orders SET status='cancelled'` no banco + cancela impressões/entregas. O pedido some do painel do lojista, mas continua ativo no iFood.
-- **Trigger `tg_orders_ifood_status_sync`**: existe e deveria chamar `ifood-update-status` ao mudar status. Mas falha silenciosamente (`EXCEPTION WHEN OTHERS RETURN NEW`), e nos pedidos 162/163 não gerou evento `OUT_REQUESTCANCELLATION`. Não é confiável como única defesa.
-- **Botão novo (`ifood-cancel-order`)**: chama o iFood corretamente, mas só aparece em status `pending` (antes de confirmar).
-
-## Mudanças
-
-### 1. `supabase/functions/ifood-cancel-order/index.ts`
-
-Aceitar um flag opcional `force: true` no body que permite cancelar também em `preparing` e `ready` (usado apenas pelo botão antigo). Sem o flag, segue restrito a `pending` (botão novo continua igual).
-
-```text
-- if (order.status !== "pending") → 409
-+ const allowed = body.force ? ["pending","preparing","ready"] : ["pending"];
-+ if (!allowed.includes(order.status)) → 409
-```
-
-### 2. `src/hooks/useOrders.ts` — `useCancelOrder`
-
-Antes do `UPDATE` local, detectar se o pedido é iFood (`gateway_payment_id LIKE 'ifood:%'`) e chamar `ifood-cancel-order` com `force: true` e código padrão `509` (Outros motivos).
-
-```text
-1. SELECT gateway_payment_id, status FROM orders WHERE id = orderId
-2. Se gateway_payment_id começa com "ifood:":
-     await supabase.functions.invoke("ifood-cancel-order", {
-       body: { order_id, code: "509", reason_label: reason || "Outros motivos", force: true }
-     })
-   - Se sucesso: a edge function já marcou como cancelled → pular UPDATE local, seguir para cancelar prints/deliveries
-   - Se erro: lançar exceção (NÃO marcar como cancelado localmente, para evitar divergência com iFood)
-3. Senão (pedido normal): fluxo atual inalterado.
-```
-
-### 3. Sem mudanças em UI
-
-O botão e modal continuam idênticos. A mudança é transparente para o lojista — só fica mais confiável.
-
-## Resultado
-
-| Cenário | Antes | Depois |
+| # | Cenário | Status atual |
 |---|---|---|
-| Cancelar pedido normal (não iFood) | OK | OK (igual) |
-| Cancelar iFood em `pending` pelo botão antigo | só DB | DB + iFood (código 509) |
-| Cancelar iFood em `preparing`/`ready` pelo botão antigo | só DB | DB + iFood (código 509) |
-| Botão novo (modal de motivos em `pending`) | OK | OK (igual) |
-| iFood retorna erro | marcava como cancelado local | **não marca**, mostra erro ao lojista |
+| 1 | Pedido agendado + cupom (VOUCHER_ENTGRATIS) | Backend grava `AGENDADO:` e `CUPOM:` no notes ✅. UI só mostra "🕐 Agendado: …". Cupom **não fica visível** de forma legível. |
+| 2 | Pedido manual + cancelamento (cartão na entrega) | Botão de cancelar com motivos iFood já pronto (este ciclo) ✅ |
+| 3 | Pedido para retirada (TAKEOUT) | Webhook seta `ifood_order_type = TAKEOUT` ✅. Chip mostra "Aguardando cliente retirar". OK. |
+| 4 | Cancelamento iniciado pelo iFood | `ifood-handle-cancellation` + botões Aceitar/Recusar no chip ✅ |
+| 5 | Pagamento dinheiro com troco + obs + CPF/CNPJ | Backend grava `PGTO:Dinheiro\|TROCO:…\|CPF:…\|OBS:…` ✅. UI mostra tudo concatenado em uma linha feia: `TIPO:Entrega\|CLIENTE:João\|TROCO:R$ 50,00\|CPF:123…` ❌ |
 
-## Arquivos alterados
+**Diagnóstico**: o backend já captura tudo. **O problema é a UI da Cozinha** mostrar a string `notes` com pipes em vez de campos rotulados — o avaliador iFood não vai conseguir confirmar visualmente os dados nos vídeos.
 
-- `supabase/functions/ifood-cancel-order/index.ts` (aceitar `force`)
-- `src/hooks/useOrders.ts` (detectar iFood em `useCancelOrder`)
+## Plano
+
+### 1. Componente `OrderMetadataDisplay.tsx` (novo)
+
+Pega `order.notes`, parseia com o helper existente `parseNotes` (de `src/lib/formatReceiptText.ts`) e renderiza um bloco organizado:
+
+```text
+┌────────────────────────────────────────┐
+│ 👤 Cliente: João Silva                 │
+│ 📞 (11) 98888-0000                     │
+│ 🆔 CPF: 123.456.789-00                 │
+│ 📍 Rua das Flores, 123 — Centro        │
+│ 🕐 Agendado: 15/05 às 19:30            │
+│ 💳 Pagamento: Dinheiro                 │
+│ 💵 Troco para: R$ 50,00                │
+│ 🎟️ Cupom: VOUCHER_ENTGRATIS (-R$ 6,00) │
+│ 📝 Obs: sem cebola                     │
+└────────────────────────────────────────┘
+```
+
+- Usa `parseNotes` já existente (não duplica regex).
+- Mostra apenas campos preenchidos.
+- Layout em flex, ícones lucide, bg `muted`.
+
+### 2. Substituir o bloco `Obs: {order.notes}` no `KitchenTab.tsx`
+
+Locais: linhas 587-591 (lista pendentes) e 754-758 (lista preparando).
+
+```diff
+- {order.notes && (
+-   <div className="bg-muted rounded-lg px-3 py-2 text-xs">
+-     <span>Obs:</span> {order.notes}
+-   </div>
+- )}
++ <OrderMetadataDisplay notes={order.notes} />
+```
+
+Remover também o "🕐 Agendado" duplicado (linhas 524-528 e 679-683) já que vai aparecer dentro do novo componente.
+
+### 3. Aplicar o mesmo componente em `OperationsTab.tsx` (se renderizar pedidos)
+
+Verificar e padronizar para que ambos os painéis (Cozinha e Operações) mostrem o bloco rico.
+
+### 4. Garantir parse de campos extras
+
+Estender `parseNotes` para incluir, se não tiver: `BAIRRO`, `BANDEIRA`, `COLETA`, `IFOOD_DISPLAY` (já tem AGENDADO, CPF, CNPJ, CUPOM, TROCO, FRETE).
+
+## Resultado para a homologação
+
+- **Cenário 1**: avaliador vê "🕐 Agendado: 15/05 às 19:30" + "🎟️ Cupom: VOUCHER_ENTGRATIS" no card.
+- **Cenário 2**: já funciona (botão cancelar com motivos iFood).
+- **Cenário 3**: avaliador vê chip "Retirada — Aguardando cliente retirar" + código de coleta.
+- **Cenário 4**: já funciona (botões aceitar/recusar quando iFood pede cancelamento).
+- **Cenário 5**: avaliador vê "💳 Dinheiro", "💵 Troco para: R$ X", "🆔 CPF: Y", "📝 Obs: Z" claramente separados.
+
+## Arquivos
+
+- **Novo**: `src/components/dashboard/OrderMetadataDisplay.tsx`
+- **Editado**: `src/components/dashboard/KitchenTab.tsx` (substituir 2 blocos)
+- **Editado**: `src/lib/formatReceiptText.ts` (estender `parseNotes` se faltar campo)
+- **Editado** (se aplicável): `src/components/dashboard/OperationsTab.tsx`
+
+Sem mudanças de banco, sem mudanças de Edge Functions.
