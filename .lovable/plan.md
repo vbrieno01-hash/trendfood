@@ -1,75 +1,44 @@
-## Cenários da Homologação iFood — diagnóstico
+## Objetivo
+Forçar o **Cenário 4 (Aceitar/Recusar Cancelamento)** no dashboard, fazendo aparecer os botões verdes/vermelhos no card iFood da aba Cozinha, para testar o fluxo de UI antes da gravação.
 
-| # | Cenário | Status atual |
-|---|---|---|
-| 1 | Pedido agendado + cupom (VOUCHER_ENTGRATIS) | Backend grava `AGENDADO:` e `CUPOM:` no notes ✅. UI só mostra "🕐 Agendado: …". Cupom **não fica visível** de forma legível. |
-| 2 | Pedido manual + cancelamento (cartão na entrega) | Botão de cancelar com motivos iFood já pronto (este ciclo) ✅ |
-| 3 | Pedido para retirada (TAKEOUT) | Webhook seta `ifood_order_type = TAKEOUT` ✅. Chip mostra "Aguardando cliente retirar". OK. |
-| 4 | Cancelamento iniciado pelo iFood | `ifood-handle-cancellation` + botões Aceitar/Recusar no chip ✅ |
-| 5 | Pagamento dinheiro com troco + obs + CPF/CNPJ | Backend grava `PGTO:Dinheiro\|TROCO:…\|CPF:…\|OBS:…` ✅. UI mostra tudo concatenado em uma linha feia: `TIPO:Entrega\|CLIENTE:João\|TROCO:R$ 50,00\|CPF:123…` ❌ |
-
-**Diagnóstico**: o backend já captura tudo. **O problema é a UI da Cozinha** mostrar a string `notes` com pipes em vez de campos rotulados — o avaliador iFood não vai conseguir confirmar visualmente os dados nos vídeos.
-
-## Plano
-
-### 1. Componente `OrderMetadataDisplay.tsx` (novo)
-
-Pega `order.notes`, parseia com o helper existente `parseNotes` (de `src/lib/formatReceiptText.ts`) e renderiza um bloco organizado:
+## Pedido alvo
+Único pedido iFood ativo no momento:
 
 ```text
-┌────────────────────────────────────────┐
-│ 👤 Cliente: João Silva                 │
-│ 📞 (11) 98888-0000                     │
-│ 🆔 CPF: 123.456.789-00                 │
-│ 📍 Rua das Flores, 123 — Centro        │
-│ 🕐 Agendado: 15/05 às 19:30            │
-│ 💳 Pagamento: Dinheiro                 │
-│ 💵 Troco para: R$ 50,00                │
-│ 🎟️ Cupom: VOUCHER_ENTGRATIS (-R$ 6,00) │
-│ 📝 Obs: sem cebola                     │
-└────────────────────────────────────────┘
+order_id  : 2d9602e6-da68-498e-bbfe-89b84469da03
+ifood_id  : ce6becd8-76e9-49e8-92fd-77088f42ffb7
+status    : pending
 ```
 
-- Usa `parseNotes` já existente (não duplica regex).
-- Mostra apenas campos preenchidos.
-- Layout em flex, ícones lucide, bg `muted`.
+## Como funciona o gatilho
+O `IFoodOrderChip` mostra o painel laranja **"Cliente pediu cancelamento" + Aceitar / Recusar** quando:
+- `orders.ifood_cancellation_requested_at IS NOT NULL`
+- `status != 'cancelled'`
 
-### 2. Substituir o bloco `Obs: {order.notes}` no `KitchenTab.tsx`
+(Em produção, isso é preenchido pelo `ifood-webhook` quando recebe `CONSUMER_CANCELLATION_REQUESTED` / `CCAN` / `CANR`.)
 
-Locais: linhas 587-591 (lista pendentes) e 754-758 (lista preparando).
+## Passo único
+Rodar um UPDATE simulando que o iFood enviou a solicitação:
 
-```diff
-- {order.notes && (
--   <div className="bg-muted rounded-lg px-3 py-2 text-xs">
--     <span>Obs:</span> {order.notes}
--   </div>
-- )}
-+ <OrderMetadataDisplay notes={order.notes} />
+```sql
+UPDATE orders
+   SET ifood_cancellation_requested_at = now()
+ WHERE id = '2d9602e6-da68-498e-bbfe-89b84469da03';
 ```
 
-Remover também o "🕐 Agendado" duplicado (linhas 524-528 e 679-683) já que vai aparecer dentro do novo componente.
+Realtime já está ligado em `orders` → o card vai atualizar sozinho na tela em ~1 s, com o painel laranja e botões **Aceitar** / **Recusar**.
 
-### 3. Aplicar o mesmo componente em `OperationsTab.tsx` (se renderizar pedidos)
+## O que esperar ao clicar
+Os botões chamam a edge function `ifood-handle-cancellation`, que faz POST real no iFood:
 
-Verificar e padronizar para que ambos os painéis (Cozinha e Operações) mostrem o bloco rico.
+| Botão | Endpoint iFood | Resultado local |
+|---|---|---|
+| Aceitar | `POST /order/v1.0/orders/{id}/requestCancellation` (code 501) | status → `cancelled`, sai da Cozinha |
+| Recusar | `POST /order/v1.0/orders/{id}/denyCancellation` | timestamp limpo, painel some |
 
-### 4. Garantir parse de campos extras
+⚠️ **Atenção:** como a solicitação **não foi feita pelo cliente real**, o iFood pode responder 400 ("no cancellation request to deny" / "order is not in cancellation request state"). Nesse caso o toast vermelho aparece mas o fluxo de UI já fica gravado — o que vale para a homologação é mostrar os botões reagindo ao evento e o POST sendo enviado.
 
-Estender `parseNotes` para incluir, se não tiver: `BAIRRO`, `BANDEIRA`, `COLETA`, `IFOOD_DISPLAY` (já tem AGENDADO, CPF, CNPJ, CUPOM, TROCO, FRETE).
+Para uma gravação "limpa" sem erro do iFood, o ideal é pedir ao próprio iFood (canal de homologação) para disparar um `CONSUMER_CANCELLATION_REQUESTED` em um pedido de teste — o resto do fluxo já está pronto. Mas para validar visualmente agora, o UPDATE acima é suficiente.
 
-## Resultado para a homologação
-
-- **Cenário 1**: avaliador vê "🕐 Agendado: 15/05 às 19:30" + "🎟️ Cupom: VOUCHER_ENTGRATIS" no card.
-- **Cenário 2**: já funciona (botão cancelar com motivos iFood).
-- **Cenário 3**: avaliador vê chip "Retirada — Aguardando cliente retirar" + código de coleta.
-- **Cenário 4**: já funciona (botões aceitar/recusar quando iFood pede cancelamento).
-- **Cenário 5**: avaliador vê "💳 Dinheiro", "💵 Troco para: R$ X", "🆔 CPF: Y", "📝 Obs: Z" claramente separados.
-
-## Arquivos
-
-- **Novo**: `src/components/dashboard/OrderMetadataDisplay.tsx`
-- **Editado**: `src/components/dashboard/KitchenTab.tsx` (substituir 2 blocos)
-- **Editado**: `src/lib/formatReceiptText.ts` (estender `parseNotes` se faltar campo)
-- **Editado** (se aplicável): `src/components/dashboard/OperationsTab.tsx`
-
-Sem mudanças de banco, sem mudanças de Edge Functions.
+## Próximo passo
+Aprovar para eu executar o UPDATE e você ver os botões aparecerem no card.
