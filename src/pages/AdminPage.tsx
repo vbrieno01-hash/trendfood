@@ -73,6 +73,7 @@ import {
   Activity,
   Send,
   Utensils,
+  Database,
 } from "lucide-react";
 
 const fmt = (v: number) =>
