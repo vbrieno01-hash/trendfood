@@ -1,21 +1,81 @@
-## Esconder painel de Homologação para lojistas
+## Objetivo
 
-O painel de "Status de Homologação iFood" (com checklist, botão **Baixar documentação**, botão **Abrir ticket no Portal**, e dica de categoria) na aba iFood do dashboard fica visível pra qualquer lojista hoje. Esse conteúdo só faz sentido pra você (dono do app distribuído) — quem abre ticket no iFood Developer Portal é o admin, não o cliente final.
+Permitir que **você (admin)** altere as credenciais do iFood (`Client ID` / `Client Secret`) direto pelo painel `/admin`, sem precisar mexer em secrets do backend. Quando o iFood liberar as credenciais de produção, é só colar e salvar — todas as edge functions passam a usar as novas **imediatamente**, e tokens antigos das lojas são invalidados pra evitar o problema do "antigo ainda ficava" (igual aconteceu com o WhatsApp).
 
-### Decisão: gating in-place na própria aba iFood
+## O que vai ser construído
 
-Mantenho o painel onde está (`src/components/dashboard/IFoodTab.tsx`), mas envolvo só o bloco de homologação num check `isAdmin`. Lojista comum continua vendo Conexão (Merchant ID, Conectar, Forçar polling) e Últimos eventos — que ele precisa pra operar a integração da loja dele.
+### 1. Armazenamento seguro no banco
+Criar tabela nova **`platform_secrets`** (`key`, `value`, `updated_at`):
+- RLS: SELECT e UPDATE **somente admin** (`has_role(auth.uid(), 'admin')`)
+- Edge functions leem via **service role** (bypassa RLS)
+- Não fica exposta como o `platform_config` (que tem SELECT público)
 
-Não duplico o painel no AdminPage porque:
-- O painel já depende do contexto da org conectada ao iFood (Merchant ID, status do polling), que é por loja
-- Você acessa o dashboard normalmente como admin, então vê tudo num lugar só
-- Evita manter dois lugares com a mesma documentação
+> Não dá pra usar `platform_config` porque ele tem `SELECT public` — secret iria vazar.
 
-### Mudanças
+### 2. UI no Admin
+Adicionar uma seção **"Credenciais iFood"** dentro da aba `iFood Homologação` (componente `IFoodHomologacaoTab`):
+- 2 inputs: `Client ID` e `Client Secret` (com toggle mostrar/ocultar)
+- Mostra valor atual mascarado (ex: `abc1...xyz9`)
+- Botão **Salvar**: grava em `platform_secrets` + invalida todos os tokens em `ifood_credentials` (zera `access_token`, `refresh_token`, `token_expires_at`, marca `status='disconnected'`) → forçando re-autenticação na próxima chamada
+- Aviso claro: "Ao salvar, todas as lojas conectadas vão precisar reconectar (re-vincular merchant)."
 
-**`src/components/dashboard/IFoodTab.tsx`**
-- Importar `useAuth` e desestruturar `isAdmin`
-- Envolver o `<Card>` do "Status de Homologação iFood" (linhas ~204-247) num `{isAdmin && (...)}`
-- Inclui dentro: checklist dos 11 requisitos, botão Baixar docs, botão Abrir ticket, dica do ticket
+### 3. Edge functions usam DB-first, env-fallback
+Atualizar as 4 edge functions (`ifood-auth`, `ifood-poll-events`, `ifood-update-status`, `ifood-cancellation-reasons`) pra ler credenciais com helper único:
 
-Nenhuma outra mudança — Conexão e Últimos eventos continuam públicos pra todo lojista.
+```ts
+async function getIfoodCreds(serviceClient) {
+  const { data } = await serviceClient
+    .from("platform_secrets")
+    .select("key, value")
+    .in("key", ["IFOOD_CLIENT_ID", "IFOOD_CLIENT_SECRET"]);
+  const map = Object.fromEntries((data ?? []).map(r => [r.key, r.value]));
+  return {
+    clientId: map.IFOOD_CLIENT_ID || Deno.env.get("IFOOD_CLIENT_ID"),
+    clientSecret: map.IFOOD_CLIENT_SECRET || Deno.env.get("IFOOD_CLIENT_SECRET"),
+  };
+}
+```
+
+Assim:
+- Se você setar pelo admin → usa o do admin
+- Se não setou → continua usando os secrets atuais (`IFOOD_CLIENT_ID` / `IFOOD_CLIENT_SECRET`) — zero quebra agora
+
+### 4. Garantia "anti-resíduo" (lição do WhatsApp)
+A operação de salvar é uma **transação SQL** (via edge function `ifood-update-platform-creds`):
+1. `UPSERT` em `platform_secrets`
+2. `UPDATE ifood_credentials SET access_token=NULL, refresh_token=NULL, token_expires_at=NULL, status='disconnected'` (todas as lojas)
+3. Retorna quantas lojas foram desconectadas
+
+Isso garante que **nenhum token antigo continua válido em cache**.
+
+## Detalhes técnicos
+
+**Migração:**
+```sql
+CREATE TABLE public.platform_secrets (
+  key text PRIMARY KEY,
+  value text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.platform_secrets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admin_select" ON public.platform_secrets FOR SELECT USING (has_role(auth.uid(),'admin'));
+CREATE POLICY "admin_all"    ON public.platform_secrets FOR ALL    USING (has_role(auth.uid(),'admin')) WITH CHECK (has_role(auth.uid(),'admin'));
+```
+
+**Nova edge function:** `ifood-update-platform-creds` (verify_jwt = true, valida que o user é admin)
+- Input: `{ client_id, client_secret }`
+- Faz UPSERT + invalida tokens
+- Output: `{ success: true, disconnected_count: N }`
+
+**Arquivos modificados:**
+- `supabase/functions/ifood-auth/index.ts` — usa helper
+- `supabase/functions/ifood-poll-events/index.ts` — usa helper
+- `supabase/functions/ifood-update-status/index.ts` — usa helper
+- `supabase/functions/ifood-cancellation-reasons/index.ts` — usa helper
+- `supabase/functions/ifood-update-platform-creds/index.ts` — **novo**
+- `src/components/admin/IFoodHomologacaoTab.tsx` — adiciona seção de credenciais
+
+## O que NÃO muda
+- Secrets `IFOOD_CLIENT_ID` / `IFOOD_CLIENT_SECRET` continuam existindo como fallback
+- Fluxo do lojista de conectar loja iFood (não muda nada pra ele, só vai precisar reconectar 1x quando você trocar a credencial)
+- Nenhuma outra parte do sistema é afetada
