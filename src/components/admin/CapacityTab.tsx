@@ -108,6 +108,8 @@ export default function CapacityTab() {
       </div>
 
       {/* Alerta de uso */}
+      <FeatureFlagsSection />
+
       {alertLevel !== "ok" && (
         <div
           className={`rounded-2xl p-4 border ${
