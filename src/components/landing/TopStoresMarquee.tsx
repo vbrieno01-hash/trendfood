@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import MarqueeSocialProof from "./MarqueeSocialProof";
 import { Sparkles } from "lucide-react";
@@ -14,6 +14,16 @@ interface Store {
 
 export default function TopStoresMarquee() {
   const [stores, setStores] = useState<Store[] | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const firstGroupRef = useRef<HTMLDivElement | null>(null);
+  const pausedRef = useRef(false);
+  const resumeTimerRef = useRef<number | null>(null);
+  const dragStateRef = useRef<{ startX: number; startScroll: number; dragging: boolean; moved: boolean }>({
+    startX: 0,
+    startScroll: 0,
+    dragging: false,
+    moved: false,
+  });
 
   useEffect(() => {
     (supabase.rpc as any)("get_top_stores_showcase").then(({ data }: any) => {
@@ -21,11 +31,89 @@ export default function TopStoresMarquee() {
     });
   }, []);
 
+  // Auto-scroll com requestAnimationFrame + loop infinito + drag livre
+  useEffect(() => {
+    if (!stores || stores.length < 3) return;
+    const scroller = scrollerRef.current;
+    const firstGroup = firstGroupRef.current;
+    if (!scroller || !firstGroup) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const SPEED = 0.5; // px por frame (~30px/s)
+    let raf = 0;
+
+    const tick = () => {
+      const groupWidth = firstGroup.offsetWidth;
+      if (groupWidth > 0) {
+        if (!pausedRef.current && !reduced) {
+          scroller.scrollLeft += SPEED;
+        }
+        // Loop invisível: ao passar do primeiro grupo, volta a largura dele
+        if (scroller.scrollLeft >= groupWidth) {
+          scroller.scrollLeft -= groupWidth;
+        } else if (scroller.scrollLeft < 0) {
+          scroller.scrollLeft += groupWidth;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [stores]);
+
+  const pauseAutoScroll = (resumeAfterMs = 2000) => {
+    pausedRef.current = true;
+    if (resumeTimerRef.current) window.clearTimeout(resumeTimerRef.current);
+    if (resumeAfterMs > 0) {
+      resumeTimerRef.current = window.setTimeout(() => {
+        pausedRef.current = false;
+      }, resumeAfterMs);
+    }
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    pauseAutoScroll(0);
+    dragStateRef.current = {
+      startX: e.clientX,
+      startScroll: scroller.scrollLeft,
+      dragging: true,
+      moved: false,
+    };
+    try {
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    } catch {}
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const state = dragStateRef.current;
+    const scroller = scrollerRef.current;
+    if (!state.dragging || !scroller) return;
+    const dx = e.clientX - state.startX;
+    if (Math.abs(dx) > 4) state.moved = true;
+    scroller.scrollLeft = state.startScroll - dx;
+  };
+
+  const endDrag = () => {
+    dragStateRef.current.dragging = false;
+    pauseAutoScroll(2000);
+  };
+
+  const onClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Se o usuário arrastou, suprime o clique no card (evita abrir loja sem querer)
+    if (dragStateRef.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragStateRef.current.moved = false;
+    }
+  };
+
   // Fallback enquanto carrega ou se ainda não há lojas suficientes no ranking
   if (stores === null) return null;
   if (stores.length < 3) return <MarqueeSocialProof />;
 
-  // Loop infinito sem salto: dois grupos idênticos + translate -50%
+  // Loop infinito + drag livre via scroll nativo
   return (
     <section className="relative py-10 bg-background border-y border-border/60 overflow-hidden">
       <div className="text-center mb-6 px-4">
@@ -47,15 +135,37 @@ export default function TopStoresMarquee() {
         style={{ background: "linear-gradient(to left, hsl(var(--background)), transparent)" }}
       />
 
-      <div className="flex landing-marquee-track whitespace-nowrap will-change-transform hover:[animation-play-state:paused]">
-        {[0, 1].map((groupIdx) => (
-          <div key={groupIdx} className="flex gap-4 md:gap-6 shrink-0 mr-4 md:mr-6" aria-hidden={groupIdx === 1}>
+      <div
+        ref={scrollerRef}
+        className="overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing select-none touch-pan-x"
+        style={{ overscrollBehaviorX: "contain", WebkitOverflowScrolling: "touch" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={endDrag}
+        onMouseEnter={() => pauseAutoScroll(0)}
+        onMouseLeave={() => pauseAutoScroll(1000)}
+        onWheel={() => pauseAutoScroll(2000)}
+        onTouchStart={() => pauseAutoScroll(0)}
+        onTouchEnd={() => pauseAutoScroll(2000)}
+        onClickCapture={onClickCapture}
+      >
+        <div className="flex whitespace-nowrap w-max">
+          {[0, 1].map((groupIdx) => (
+            <div
+              key={groupIdx}
+              ref={groupIdx === 0 ? firstGroupRef : undefined}
+              className="flex gap-4 md:gap-6 shrink-0 mr-4 md:mr-6"
+              aria-hidden={groupIdx === 1}
+            >
             {stores.map((store) => (
               <a
                 key={`${groupIdx}-${store.id}`}
                 href={`/unidade/${store.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                draggable={false}
                 className="group flex items-center gap-3 shrink-0 px-5 py-3 rounded-3xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md transition-all"
                 title={`${store.name} — ${store.order_count_30d} pedidos nos últimos 30 dias`}
               >
@@ -68,6 +178,7 @@ export default function TopStoresMarquee() {
                       src={store.logo_url}
                       alt={store.name}
                       loading="lazy"
+                      draggable={false}
                       className="w-full h-full object-cover"
                     />
                   )}
@@ -77,8 +188,9 @@ export default function TopStoresMarquee() {
                 </span>
               </a>
             ))}
-          </div>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

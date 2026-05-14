@@ -264,6 +264,14 @@ a[href*="lovable.dev"][style*="position: fixed"] {
   animation: landing-marquee 40s linear infinite;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .landing-conic-border {
   position: absolute;
   inset: -1px;
