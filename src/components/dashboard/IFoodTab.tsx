@@ -6,7 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Link2, RefreshCw, Unplug, Copy, Zap } from "lucide-react";
+import {
+  Loader2, Link2, RefreshCw, Unplug, Copy, Zap,
+  CheckCircle2, AlertCircle, Circle, ExternalLink, FileDown, ChevronDown,
+} from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface IFoodTabProps { orgId: string; }
 
@@ -25,12 +29,45 @@ interface Cred {
 interface EventRow {
   id: string;
   code: string;
+  ifood_event_id: string | null;
   ifood_order_id: string | null;
   ifood_display_id: string | null;
   internal_order_id: string | null;
   source: string;
   received_at: string;
 }
+
+type ChecklistStatus = "ok" | "partial" | "missing";
+interface ChecklistItem {
+  status: ChecklistStatus;
+  title: string;
+  detail: string;
+}
+
+const CHECKLIST: ChecklistItem[] = [
+  { status: "ok", title: "Polling 60s + /acknowledgment em lote",
+    detail: "Edge function ifood-poll-events agendada via pg_cron a cada minuto. ACK enviado ao final de cada ciclo." },
+  { status: "ok", title: "Confirmação DELIVERY/TAKEOUT no SLA",
+    detail: "Pedido PLC entra como 'pending' no KDS com alarme contínuo. Aceitar dispara POST /orders/{id}/confirm em < 5 s." },
+  { status: "ok", title: "Cancelamento com /cancellationReasons",
+    detail: "Edge function ifood-cancellation-reasons busca motivos válidos da API antes de cancelar. Nada é hardcoded." },
+  { status: "ok", title: "Bandeira do cartão + troco",
+    detail: "Extraídos de payments[].card.brand e payments[].changeFor; impressos na comanda térmica." },
+  { status: "ok", title: "Cupom (iFood vs Loja)",
+    detail: "Diferenciado por benefits[].sponsorshipValues — exibido separadamente na comanda." },
+  { status: "ok", title: "CPF/CNPJ + código de coleta",
+    detail: "customer.documentNumber e pickupCode extraídos e impressos." },
+  { status: "ok", title: "Observações de itens",
+    detail: "items[].observations concatenadas no nome do item via buildItemName(). Aparecem na ficha de produção." },
+  { status: "ok", title: "Deduplicação por event.id",
+    detail: "UNIQUE INDEX em ifood_event_log(ifood_event_id). Reentregas do iFood são ignoradas em silêncio." },
+  { status: "ok", title: "Sincronização externa (CFM/RPR/DSP/CAN)",
+    detail: "Flag orders.ifood_synced_externally = true durante o eco; trigger SQL evita loop com a API iFood." },
+  { status: "partial", title: "Plataforma de Negociação (HANDSHAKE_*)",
+    detail: "Eventos HANDSHAKE_* são logados em ifood_event_log e o lojista é notificado via Telegram. Resposta automática ainda manual." },
+  { status: "ok", title: "Webhook responde 202 + ACK",
+    detail: "Edge function ifood-webhook responde 202 imediatamente e chama /acknowledgment de forma assíncrona." },
+];
 
 const IFoodTab = ({ orgId }: IFoodTabProps) => {
   const [cred, setCred] = useState<Cred | null>(null);
@@ -122,6 +159,27 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
     toast.success("orderId copiado");
   };
 
+  const completedCount = CHECKLIST.filter((c) => c.status === "ok").length;
+  const totalCount = CHECKLIST.length;
+  const homologReady = completedCount === totalCount;
+
+  const downloadDocs = async () => {
+    try {
+      const res = await fetch("/docs/IFOOD-HOMOLOGACAO.md");
+      const text = await res.text();
+      const blob = new Blob([text], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "TrendFood-iFood-Homologacao.md";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Documentação baixada");
+    } catch {
+      toast.error("Falha ao baixar documentação");
+    }
+  };
+
   const statusBadge = () => {
     const s = cred?.status || "disconnected";
     const map: Record<string, { color: string; label: string }> = {
@@ -142,6 +200,52 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
         <h2 className="text-xl font-bold">Integração iFood</h2>
         <p className="text-sm text-muted-foreground">Receba pedidos do iFood automaticamente na sua produção.</p>
       </div>
+
+      {/* Painel de Homologação */}
+      <Card className="border-primary/30">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Status de Homologação iFood</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Checklist técnico cobrindo todos os requisitos do iFood Developer Portal.
+            </p>
+          </div>
+          <Badge className={homologReady ? "bg-green-500 text-white" : "bg-yellow-500 text-white"}>
+            {completedCount} / {totalCount}
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {CHECKLIST.map((item, i) => (
+            <Collapsible key={i}>
+              <CollapsibleTrigger className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors text-left group">
+                {item.status === "ok" && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
+                {item.status === "partial" && <AlertCircle className="w-4 h-4 text-yellow-500 shrink-0" />}
+                {item.status === "missing" && <Circle className="w-4 h-4 text-red-500 shrink-0" />}
+                <span className="text-sm flex-1">{item.title}</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="text-xs text-muted-foreground pl-7 pr-2 pb-2 pt-1">
+                {item.detail}
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
+
+          <div className="flex flex-wrap gap-2 pt-3 border-t">
+            <Button variant="outline" size="sm" onClick={downloadDocs}>
+              <FileDown className="w-4 h-4 mr-2" /> Baixar documentação técnica
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://developer.ifood.com.br/pt-BR/support" target="_blank" rel="noreferrer">
+                <ExternalLink className="w-4 h-4 mr-2" /> Abrir ticket no iFood
+              </a>
+            </Button>
+          </div>
+
+          <div className="text-[11px] text-muted-foreground pt-2 italic">
+            Dica: ao abrir o ticket, escolha categoria "Homologação" → "Aplicativo distribuído" e anexe a documentação acima.
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -217,10 +321,15 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
               {events.map((e) => (
                 <div key={e.id} className="flex items-center justify-between gap-2 p-2 rounded border text-xs">
                   <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                    <div className="flex gap-2 items-center">
+                     <div className="flex gap-2 items-center flex-wrap">
                       <Badge variant="outline">{e.code}</Badge>
                       <span className="text-muted-foreground">{e.source}</span>
                       <span className="text-muted-foreground">{new Date(e.received_at).toLocaleString("pt-BR")}</span>
+                      {e.ifood_event_id && (
+                        <span className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[180px]">
+                          evt: {e.ifood_event_id}
+                        </span>
+                      )}
                     </div>
                     {e.ifood_order_id && (
                       <div className="font-mono truncate">orderId: {e.ifood_order_id}{e.ifood_display_id ? ` (#${e.ifood_display_id})` : ""}</div>
