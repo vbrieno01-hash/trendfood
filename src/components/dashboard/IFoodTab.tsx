@@ -11,6 +11,7 @@ import {
   CheckCircle2, AlertCircle, Circle, ExternalLink, FileDown, ChevronDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAuth } from "@/hooks/useAuth";
 
 interface IFoodTabProps { orgId: string; }
 
