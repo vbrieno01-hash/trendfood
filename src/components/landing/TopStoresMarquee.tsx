@@ -47,9 +47,9 @@ export default function TopStoresMarquee() {
         style={{ background: "linear-gradient(to left, hsl(var(--background)), transparent)" }}
       />
 
-      <div className="flex landing-marquee-track gap-4 md:gap-6 whitespace-nowrap will-change-transform hover:[animation-play-state:paused]">
+      <div className="flex landing-marquee-track whitespace-nowrap will-change-transform hover:[animation-play-state:paused]">
         {[0, 1].map((groupIdx) => (
-          <div key={groupIdx} className="flex gap-4 md:gap-6 shrink-0" aria-hidden={groupIdx === 1}>
+          <div key={groupIdx} className="flex gap-4 md:gap-6 shrink-0 mr-4 md:mr-6" aria-hidden={groupIdx === 1}>
             {stores.map((store) => (
               <a
                 key={`${groupIdx}-${store.id}`}
