@@ -1,57 +1,50 @@
 ## O que vai ser feito
 
-Criar uma nova aba **"Capacidade"** no painel admin (`/admin`) que mostra em tempo real:
+Expandir a aba **Capacidade** (admin) com uma seção **"Usuários cadastrados"** que lista os 62 usuários do `auth.users`, mostrando quem nunca criou loja e permitindo ações administrativas.
 
-### 1. Uso atual da plataforma
-- **Usuários** cadastrados (auth.users)
-- **Lojas** totais, divididas por plano (Free / Pro / Enterprise / Lifetime / Trial ativo)
-- **Pedidos** totais e nos últimos 30 dias
-- **Tamanho do banco** (MB usados) com barra de progresso vs. limite da instância atual
+### 1. Função SQL nova: `admin_list_users()`
+- `SECURITY DEFINER`, restrita a `has_role(auth.uid(), 'admin')`.
+- Retorna por usuário: `id`, `email`, `created_at`, `last_sign_in_at`, `provider` (email/google), `org_count`, `org_names[]`, `is_admin` (bool).
+- JOIN `auth.users` ↔ `organizations` (LEFT) ↔ `user_roles`.
+- Ordenação: mais recentes primeiro.
 
-### 2. Capacidade por plano (tabela de referência)
-Como o Lovable Cloud é **usage-based** (não tem "X usuários por plano"), a tabela vai mostrar limites práticos por **tamanho de instância** do banco:
+### 2. Função SQL nova: `admin_delete_user(_user_id uuid)`
+- `SECURITY DEFINER`, só admin.
+- Bloqueia se for o próprio admin (`brenojackson30@gmail.com`) — não dá pra se auto-deletar.
+- Faz cascata: deleta `organizations` do usuário (que já cascateia o resto), `user_roles`, depois `auth.users`.
+- Retorna `jsonb` com `success` + contagem do que foi removido.
 
-| Instância | RAM | Banco confortável | Lojas estimadas* | Pedidos/mês* |
-|-----------|-----|-------------------|------------------|--------------|
-| Pico (atual) | 0.5 GB | até ~500 MB | ~30-50 | ~10k |
-| Micro | 1 GB | até ~1 GB | ~100 | ~30k |
-| Small | 2 GB | até ~4 GB | ~300 | ~100k |
-| Medium | 4 GB | até ~8 GB | ~800 | ~300k |
+### 3. Função SQL nova: `admin_toggle_admin_role(_user_id uuid, _grant boolean)`
+- `SECURITY DEFINER`, só admin.
+- `_grant=true` → INSERT em `user_roles (user_id, 'admin')` se não existir.
+- `_grant=false` → DELETE em `user_roles`. Bloqueia se for o próprio admin principal.
 
-*Estimativas baseadas no consumo médio atual (~10 MB por loja ativa, ~140 KB por pedido)
+### 4. UI na `CapacityTab.tsx`
+Nova seção abaixo do card "Lojas por plano":
 
-### 3. Alertas inteligentes
-- Banner vermelho se banco passar de **80%** da capacidade da instância
-- Banner amarelo se passar de **60%**
-- Sugestão de upgrade com link direto para Cloud → Advanced settings
+- Header com contagem total + filtros:
+  - Busca por email (input)
+  - Toggle "Só sem loja" (mostra apenas `org_count = 0`)
+  - Toggle "Só admins"
+- Tabela responsiva com colunas: Email • Cadastro (relativo, ex: "5d") • Último login • Lojas (badge com nº + tooltip com nomes) • Ações
+- Ações por linha:
+  - Botão "Tornar admin" / "Remover admin" (toggle visual)
+  - Botão "Deletar" (vermelho, abre `AlertDialog` de confirmação dupla — exige digitar o email pra confirmar)
+- Linhas com `org_count = 0` ganham badge cinza "sem loja" — fácil de identificar fantasmas
+- Paginação client-side simples (50 por página) — 62 usuários cabem em 2 páginas
+- React Query: `staleTime: 30s`, invalida ao deletar/promover
 
-### 4. Como vou buscar os dados
-Criar uma função SQL `get_platform_capacity_stats()` (SECURITY DEFINER, restrita a admin) que retorna em uma única chamada:
-- `pg_database_size()` em bytes
-- contagens de orgs por plano
-- contagem de auth.users
-- contagem de pedidos total e últimos 30 dias
-- tamanho das maiores tabelas (top 5)
+### 5. Integração com a aba existente
+- Mantém o card resumo "Usuários" que já existe no topo (62)
+- Adiciona link/scroll suave do card pra nova seção ("Ver lista")
 
-A aba consulta essa função a cada 30 segundos (React Query) para sentir "tempo real" sem martelar o banco.
+## Arquivos
 
-### Sobre as imagens (sua segunda pergunta)
-Já está implementado e funcionando:
-- **Logos**: comprimidos para 800x800 máx
-- **Banners**: 1200x800 máx
-- **Cardápio**: mesmo pipeline
-- Segundo passe automático se ainda passar de um limite
+- **Novo:** `supabase/migrations/<ts>_admin_users_management.sql` — três funções SQL acima
+- **Editado:** `src/components/admin/CapacityTab.tsx` — adiciona seção `<UsersSection />` (componente interno no mesmo arquivo, já que escopo é pequeno)
 
-Vou só **adicionar um card** no novo painel mostrando o tamanho total ocupado pelos buckets (`logos`, `menu-images`, `site-images`) pra você visualizar quanto espaço de imagem está sendo usado.
+## Notas técnicas
 
-## Arquivos que serão criados/editados
-
-- **Novo:** `supabase/migrations/<timestamp>_capacity_stats.sql` — função `get_platform_capacity_stats()` + função `get_storage_buckets_size()`
-- **Novo:** `src/components/admin/CapacityTab.tsx` — UI da aba com cards, tabela de planos e alertas
-- **Editado:** `src/pages/AdminPage.tsx` — adicionar nova aba "Capacidade" no menu admin
-
-## Observações técnicas
-
-- A função SQL precisa ser `SECURITY DEFINER` com `WHERE has_role(auth.uid(), 'admin')` no início para garantir que só o admin (`brenojackson30@gmail.com`) acesse.
-- Os "limites" de cada instância são **estimativas práticas**, não limites rígidos do Supabase — vou deixar isso explícito na UI pra não criar expectativa errada.
-- Não vou criar nenhum cron novo; é tudo on-demand.
+- `auth.users` só pode ser lido via `SECURITY DEFINER` — por isso a função SQL.
+- Deleção de usuário em `auth.users` exige permissões de service role; vamos fazer via função SQL com `SECURITY DEFINER` que tem grants suficientes (já é como `transfer-org-owner` opera). Se Postgres bloquear DELETE direto em `auth.users`, plano B é chamar uma Edge Function `admin-delete-user` com service role key.
+- Toda ação é logada em `activation_logs` (já existe) com `source = 'admin_user_action'`.
