@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Flame, Printer, BellRing, Trash2, CheckCircle2, Pencil } from "lucide-react";
 import EditOrderDialog from "@/components/dashboard/EditOrderDialog";
 import IFoodOrderChip from "@/components/dashboard/IFoodOrderChip";
+import OrderMetadataDisplay from "@/components/dashboard/OrderMetadataDisplay";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -584,11 +585,7 @@ export default function KitchenTab({
                         ))}
                       </ul>
 
-                      {order.notes && (
-                        <div className="bg-muted rounded-lg px-3 py-2 text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">Obs:</span> {order.notes}
-                        </div>
-                      )}
+                      <OrderMetadataDisplay notes={order.notes} />
 
                       {/* Printed badge */}
                       {wasPrinted && (
@@ -751,11 +748,7 @@ export default function KitchenTab({
                         ))}
                       </ul>
 
-                      {order.notes && (
-                        <div className="bg-muted rounded-lg px-3 py-2 text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">Obs:</span> {order.notes}
-                        </div>
-                      )}
+                      <OrderMetadataDisplay notes={order.notes} />
 
                       <div className="flex gap-2 pt-1">
                         <Button
