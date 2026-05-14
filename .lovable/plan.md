@@ -1,20 +1,33 @@
 ## Objetivo
-Fazer o carrossel “Lojas em destaque agora” voltar a andar sozinho sem depender do usuário arrastar, mantendo o arraste livre e o loop contínuo.
+Mover **iFood** e **Robô IA** para os planos pagos (Pro e Enterprise), mantendo eles liberados durante os **7 dias de teste Pro**. Hoje os dois ficam abertos no Free, então toda loja Free os usa indefinidamente.
 
-## O que vou fazer
-1. Revisar a lógica de animação do `TopStoresMarquee` para eliminar o estado em que ele monta parado.
-2. Remover a dependência que hoje pode estar bloqueando o auto-scroll no preview (`prefers-reduced-motion`) e garantir um estado inicial de movimento confiável.
-3. Manter o drag manual, o pause curto após interação e a retomada automática do loop.
-4. Validar no preview antes de encerrar: abrir a home, observar o movimento automático, arrastar manualmente e confirmar que ele retoma sozinho.
+## Como vai funcionar
+- Loja **Free pura** (sem trial ativo): iFood e Robô IA aparecem na sidebar com cadeado e abrem uma tela de upgrade (mesmo padrão de Caixa, Relatórios, Cupons, etc.).
+- Loja em **trial de 7 dias**: liberados normalmente (já hoje o trial vira “effectivePlan = pro”, então a trava automaticamente respeita).
+- Loja **Pro / Enterprise / Lifetime ativos**: liberados normalmente.
+- Loja **paga expirada** (volta pra free): bloqueia, igual o resto das features pagas.
+
+## O que vou alterar
+1. `src/hooks/usePlanLimits.ts`
+   - Adicionar a feature `ifood` (já existe `ai_bot`).
+   - Free → `false`. Pro / Enterprise / Lifetime → `true`.
+
+2. `src/pages/DashboardPage.tsx`
+   - Incluir `ifood` e `aibot` no `lockedFeatures`.
+   - Marcar os dois itens da seção INTEGRAÇÕES com `locked` (cadeado na sidebar).
+   - No render do conteúdo, mostrar a tela de bloqueio/upgrade quando travado, em vez do `<IFoodTab />` / `<AIBotTab />`.
+
+3. Banco — `platform_plans` (descrição dos planos exibida no dashboard e na landing)
+   - Adicionar “Integração iFood” e “Robô IA (vendas WhatsApp)” na lista de features do plano Pro, para o usuário enxergar que faz parte do pago.
 
 ## Critérios de pronto
-- O carrossel começa a se mover sozinho sem qualquer interação.
-- O usuário consegue arrastar livremente para qualquer lado.
-- Após soltar, o carrossel volta a se mover sozinho em pouco tempo.
-- O loop continua sem travar ou “sumir”.
-- A validação é feita no preview antes de eu te confirmar a correção.
+- Numa conta Free pura, iFood e Robô IA aparecem com cadeado e clicar leva pra upgrade.
+- Numa conta com trial Pro ativo, os dois funcionam normalmente.
+- Numa conta Pro/Enterprise paga, os dois funcionam normalmente.
+- A descrição do plano Pro (dashboard e landing) lista iFood e Robô IA.
+- Validação no preview antes de eu marcar como concluído.
 
 ## Detalhes técnicos
-- Arquivo principal: `src/components/landing/TopStoresMarquee.tsx`
-- Verificação complementar: `src/index.css`
-- A causa mais provável encontrada é o gate de movimento reduzido somado à lógica atual de animação, deixando o componente renderizado mas sem iniciar o auto-scroll em certas condições do preview.
+- O `effectivePlan` em `usePlanLimits` já promove trial Free para `pro`, então não precisa de lógica especial pro trial — basta usar `canAccess`.
+- Backend não precisa de migração de schema — só atualização do JSON `features` na tabela `platform_plans`.
+- A trava é de UX/gate de plano. Se quiser endurecer no servidor depois (ex.: bloquear o webhook do iFood pra Free), entra como passo separado, fora desse plano.
