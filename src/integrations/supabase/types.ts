@@ -2655,6 +2655,12 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_user: { Args: { _user_id: string }; Returns: Json }
+      admin_list_users: { Args: never; Returns: Json }
+      admin_toggle_admin_role: {
+        Args: { _grant: boolean; _user_id: string }
+        Returns: Json
+      }
       calc_trial_ends_at: { Args: never; Returns: string }
       claim_print_jobs: {
         Args: { _org_id: string }
