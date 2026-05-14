@@ -11,9 +11,9 @@ type IfoodAction = {
   path: string;
   body?: any;
   // campo a marcar em orders após sucesso (timestamp)
-  markField?: "ifood_dispatched_at" | "ifood_concluded_at";
+  markField?: "ifood_dispatched_at";
   // pular se este campo já estiver preenchido (idempotência)
-  skipIfFieldSet?: "ifood_dispatched_at" | "ifood_concluded_at";
+  skipIfFieldSet?: "ifood_dispatched_at";
 };
 
 function actionsForStatus(
@@ -30,13 +30,14 @@ function actionsForStatus(
     case "delivered": {
       const isPickup = (orderType || "DELIVERY").toUpperCase() === "TAKEOUT";
       if (isPickup) {
-        return [
-          { path: "concluded", markField: "ifood_concluded_at", skipIfFieldSet: "ifood_concluded_at" },
-        ];
+        // TAKEOUT: o iFood marca como concluído quando o cliente retira.
+        // Não há chamada outbound do merchant — readyToPickup já foi enviado em "ready".
+        return [];
       }
+      // DELIVERY: dispatch é o estado final do lado do merchant.
+      // O iFood marca como concluído sozinho quando o entregador/cliente confirma.
       return [
         { path: "dispatch", markField: "ifood_dispatched_at", skipIfFieldSet: "ifood_dispatched_at" },
-        { path: "concluded", markField: "ifood_concluded_at", skipIfFieldSet: "ifood_concluded_at" },
       ];
     }
     case "cancelled":
