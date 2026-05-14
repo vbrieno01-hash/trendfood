@@ -1,54 +1,62 @@
-## Problema
+# Finalizar integração iFood — 3 frentes restantes
 
-A última implementação adicionou uma chamada outbound para `POST /order/v1.0/orders/{id}/concluded` quando um pedido DELIVERY/TAKEOUT vai para "Entregue". Esse endpoint não existe na iFood Order API v1.0 — o gateway do iFood retorna 404 "no Route matched". Confirmado nos pedidos 156 e 157 (logs em `ifood_event_log` → código `OUT_CONCLUDED_FAILED`).
+Fluxo principal (CFM → STP → RTP → DSP) já validado em produção (pedidos 158/159 sem erros). Restam 3 lacunas para considerar a integração "production-ready".
 
-Na prática:
-- DELIVERY: o último estado que o merchant envia é `dispatch`. O iFood marca como "concluded" sozinho quando o entregador/cliente confirma.
-- TAKEOUT: o último estado que o merchant envia é `readyToPickup`. O iFood marca como "concluded" quando o cliente retira.
+## 1. Cancelamento iniciado pelo cliente / iFood
 
-## Correção
+Hoje só tratamos cancelamento outbound (lojista). Quando o **cliente cancela no app** ou o **iFood cancela** (CAN/CCAN), precisamos refletir isso na Cozinha.
 
-### 1. `supabase/functions/ifood-update-status/index.ts`
+**O que fazer (`supabase/functions/ifood-webhook/index.ts`):**
+- Adicionar handler para os codes:
+  - `CAN` (CANCELLED) → `status='cancelled'`, gravar `cancellation_reason` do payload em `notes`.
+  - `CCAN` (CONSUMER_CANCELLATION_REQUESTED) → marcar pedido com flag visual ("Cliente solicitou cancelamento") + tocar alarme no KDS, mas **não** cancelar automaticamente.
+- Para `CCAN` o lojista decide: aceitar (chama `requestCancellation` outbound, já existe) ou recusar (novo endpoint `denyCancellation`).
 
-Reescrever o mapa `endpointForStatus`:
+**UI (`IFoodOrderChip.tsx` / `KitchenTab.tsx`):**
+- Quando há solicitação pendente: badge laranja "Cliente quer cancelar" + 2 botões (Aceitar / Recusar).
+- `cancelled` pelo iFood → card vai para histórico com motivo.
 
-- `preparing` → `[startPreparation]`
-- `ready` → `[readyToPickup]`
-- `delivered` + DELIVERY → `[dispatch]` (com `skipIfFieldSet: ifood_dispatched_at`)
-- `delivered` + TAKEOUT → `[]` (nada a enviar — o cliente retira do lado do iFood)
-- `cancelled` → `[requestCancellation]` (mantém)
+**Edge function `ifood-deny-cancellation` (nova):** POST `/order/v1.0/orders/{id}/denyCancellation` com `{reason, cancellationCode}`.
 
-Remover toda referência ao path `concluded` e à lógica de `markField: ifood_concluded_at` no fluxo outbound.
+## 2. TAKEOUT marcado como "Entregue"
 
-A coluna `ifood_concluded_at` continua sendo populada **apenas pelo webhook inbound** quando chega o evento `CON` do iFood — isso permanece útil para mostrar "Entregue no iFood" na UI após confirmação real.
+Hoje TAKEOUT não envia nada outbound quando o lojista marca "Entregue" — o cliente confirma a retirada no app dele. Mas alguns merchants querem **forçar** essa marcação.
 
-### 2. `supabase/functions/ifood-orphan-sweeper/index.ts`
+**Decisão necessária (pergunto antes de codar):** manter como está (fail-open, esperar `CON` do webhook) ou tentar endpoint `/readyToPickup` repetido + aguardar `CON`? A doc oficial não expõe ação de "concluir" para o lojista em TAKEOUT — o caminho correto é não fazer nada e exibir badge "Aguardando retirada do cliente".
 
-Remover qualquer retry de `OUT_CONCLUDED_FAILED` (não faz sentido reprocessar). Limpar registros antigos pendentes.
+**Recomendação:** apenas ajustar a UI para deixar claro que TAKEOUT em estado "ready" fica esperando o `CON` do iFood (sem ação do lojista), e badge muda para "Retirado" quando `ifood_concluded_at` chega.
 
-### 3. UI (`KitchenTab.tsx` / `IFoodOrderChip.tsx`)
+## 3. Dashboard de saúde iFood (`IFoodTab.tsx`)
 
-Manter os badges como estão:
-- "Saiu para entrega" quando `ifood_dispatched_at` setado
-- "Entregue no iFood" quando `ifood_concluded_at` setado (vem só do webhook agora)
+Painel simples na aba `?tab=ifood` mostrando:
+- **Status do polling** (`ifood-poll-events` última execução, success rate 24h via `ifood_event_log`).
+- **Pedidos órfãos** (count de orders com `ifood_order_type` mas sem `ifood_dispatched_at` há mais de 2h).
+- **Falhas outbound** (count de eventos `OUT_*_FAILED` últimas 24h).
+- **Últimos 20 eventos** do `ifood_event_log` com filtro por code.
+- Botão "Forçar polling agora" → invoca `ifood-poll-events`.
+- Botão "Ressincronizar pedido" (dialog com `ifood_order_id`) → invoca `ifood-update-status` com retry.
 
-Nenhuma mudança visual.
+Tudo client-side via `useQuery` em `ifood_event_log` + 1 RPC `get_ifood_health_metrics()` que devolve os agregados em uma única chamada.
 
-### 4. Migração de limpeza (opcional)
+## Arquivos tocados
 
-Marcar os `OUT_CONCLUDED_FAILED` antigos como não-pendentes para o sweeper ignorar:
-
-```sql
--- nada a fazer no schema; só documentação
--- registros antigos de OUT_CONCLUDED_FAILED podem permanecer no log para auditoria
+```text
+supabase/functions/ifood-webhook/index.ts       (CAN, CCAN handlers)
+supabase/functions/ifood-deny-cancellation/     (nova)
+supabase/migrations/                            (RPC get_ifood_health_metrics)
+src/components/dashboard/IFoodTab.tsx           (dashboard de saúde)
+src/components/dashboard/IFoodOrderChip.tsx     (badges CCAN/cancelado)
+src/components/dashboard/KitchenTab.tsx         (botões aceitar/recusar cancelamento)
 ```
 
 ## Fora de escopo
 
-- Endpoint correto para TAKEOUT marcado como "entregue" no painel do lojista (se o iFood exigir algo, descobrir depois consultando docs reais).
-- Polling de cancelamento iniciado pelo cliente.
-- Health dashboard do iFood.
+- Reembolso parcial (iFood Refund API) — funcionalidade adicional, não bloqueia operação.
+- Catálogo iFood (sync de cardápio bidirecional) — escopo separado.
+- Logística própria via iFood (Driver API) — nicho.
 
-## Resultado esperado
+## Pergunta antes de implementar
 
-Próximo pedido DELIVERY movido para "Entregue" envia só `dispatch` e termina com sucesso. Sem mais 404 no log. Pedido TAKEOUT movido para "Entregue" não envia nada outbound (a UI continua refletindo "Entregue").
+**Sobre o item 2 (TAKEOUT "Entregue"):** confirma que está OK deixar sem ação outbound e só mostrar "Aguardando cliente retirar"? Ou você quer um botão "Marcar como retirado" que só atualiza localmente (não envia ao iFood)?
+
+Se "ok como está" → implemento os 3 itens em sequência.

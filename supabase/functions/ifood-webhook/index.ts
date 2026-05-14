@@ -350,6 +350,13 @@ Deno.serve(async (req) => {
       const mapped = EXTERNAL_STATUS_MAP[code];
       if (mapped) {
         await syncExternalStatus(supabase, creds.organization_id, orderId, mapped, code);
+      } else if (code === "CCAN" || code === "CONSUMER_CANCELLATION_REQUESTED" || code === "CANR" || code === "CANCELLATION_REQUESTED") {
+        // Cliente (ou iFood) solicitou cancelamento — marca pra lojista decidir na Cozinha.
+        await supabase.from("orders").update({
+          ifood_cancellation_requested_at: new Date().toISOString(),
+        })
+          .eq("organization_id", creds.organization_id)
+          .eq("gateway_payment_id", `ifood:${orderId}`);
       } else {
         console.log("[ifood-webhook] Unhandled code:", code, "order:", orderId);
       }
