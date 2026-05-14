@@ -1,34 +1,33 @@
-# Carrossel arrastável + auto-scroll mantendo loop infinito
+# Corrigir auto-scroll que parou de andar
 
-## Objetivo
-Permitir que o usuário arraste/deslize o carrossel livremente (mouse e touch) sem perder o auto-scroll contínuo nem o loop infinito.
+## Causa
+No tick uso `scroller.scrollLeft += 0.5`. A maioria dos browsers arredonda `scrollLeft` para inteiro, então incrementos < 1px viram 0 e o scroll nunca avança. Por isso o auto-scroll "não voltou" — ele está rodando mas sem se mover.
 
-## Por que não dá só "adicionar overflow-x-auto"
-Hoje o movimento vem de `transform: translateX(-50%)` via keyframe CSS. Scroll nativo (`overflow-x-auto`) não interage com `transform` — o usuário não consegue arrastar. Precisamos trocar a técnica de animação.
+## Correção
+Em `TopStoresMarquee.tsx`, manter uma posição fracionária interna e só atribuir um inteiro ao `scrollLeft`:
 
-## Solução
+```ts
+const posRef = useRef(0);
+const SPEED = 0.6; // px/frame
 
-Refatorar `TopStoresMarquee.tsx` para usar **scroll nativo animado por JS** em vez de keyframe CSS:
+const tick = () => {
+  const groupWidth = firstGroup.offsetWidth;
+  if (groupWidth > 0) {
+    if (!pausedRef.current && !reduced) {
+      posRef.current += SPEED;
+    } else {
+      // Sincroniza com scrollLeft real (caso o usuário tenha arrastado)
+      posRef.current = scroller.scrollLeft;
+    }
+    if (posRef.current >= groupWidth) posRef.current -= groupWidth;
+    if (posRef.current < 0) posRef.current += groupWidth;
+    scroller.scrollLeft = Math.round(posRef.current);
+  }
+  raf = requestAnimationFrame(tick);
+};
+```
 
-1. Container externo com `overflow-x-auto` + `scrollbar-hide` + `cursor-grab active:cursor-grabbing` + `touch-pan-x`.
-2. Conteúdo: continua sendo 2 grupos idênticos lado a lado (mantém o truque do loop).
-3. Substituir o keyframe `landing-marquee` por um `requestAnimationFrame` que incrementa `scrollLeft` em ~0.5px/frame (≈ 30px/s, equivalente aos 40s atuais).
-4. Quando `scrollLeft >= primeiroGrupo.offsetWidth`, subtrai a largura do primeiro grupo (loop invisível — usuário nem percebe).
-5. **Pausa o auto-scroll** quando o usuário:
-   - faz `pointerdown` / `touchstart` / `wheel` no container
-   - passa o mouse por cima (`mouseenter`)
-6. **Retoma o auto-scroll** após 2s de inatividade (`pointerup`/`touchend` + timer).
-7. Drag livre com mouse: handlers `pointerdown` → captura `startX` e `scrollLeft`, `pointermove` ajusta `scrollLeft`, `pointerup` solta. Touch funciona nativamente via `overflow-x-auto`.
-8. Respeitar `prefers-reduced-motion`: não auto-scrolla, mas continua arrastável.
-
-## CSS
-- Adicionar utilitário `.scrollbar-hide` em `index.css` (esconde barra em todos os browsers).
-- Remover/manter o keyframe `landing-marquee` (manter para o `MarqueeSocialProof` fallback que ainda o usa).
+Bônus: durante o drag (`pausedRef.current === true`), sincronizo `posRef` com o scroll real para que, ao retomar, continue de onde o usuário soltou (sem "pulo de volta").
 
 ## Fora do escopo
-- Nada de mudança em ranking, banco, edge functions, ou outros componentes.
-- Não mexer no `MarqueeSocialProof` fallback.
-
-## Arquivo
-- `src/components/landing/TopStoresMarquee.tsx` — reescrita do mecanismo de animação + handlers de drag.
-- `src/index.css` — adicionar `.scrollbar-hide`.
+Nada mais muda — visual, drag, fallback continuam iguais.
