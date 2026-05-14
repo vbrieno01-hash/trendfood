@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface PlatformFeatureFlags {
   ifood_enabled: boolean;
+  whatsapp_enabled: boolean;
 }
 
 export function usePlatformFeatureFlags() {
@@ -11,11 +12,14 @@ export function usePlatformFeatureFlags() {
     queryFn: async (): Promise<PlatformFeatureFlags> => {
       const { data, error } = await supabase
         .from("platform_config")
-        .select("ifood_enabled")
+        .select("ifood_enabled, whatsapp_enabled")
         .eq("id", "singleton")
         .maybeSingle();
       if (error) throw error;
-      return { ifood_enabled: !!(data as any)?.ifood_enabled };
+      return {
+        ifood_enabled: !!(data as any)?.ifood_enabled,
+        whatsapp_enabled: !!(data as any)?.whatsapp_enabled,
+      };
     },
     staleTime: 30_000,
     refetchOnWindowFocus: false,
