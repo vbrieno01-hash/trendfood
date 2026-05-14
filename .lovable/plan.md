@@ -1,75 +1,75 @@
-# Por que cada página demora pra abrir na primeira vez
+# Retomar integração iFood — ativar recebimento de pedidos
 
-## Diagnóstico
+## Estado atual
 
-Toda rota do app está marcada como **`lazy()`** em `App.tsx`:
-```ts
-const AuthPage = lazy(() => import("./pages/AuthPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const KitchenPage = lazy(() => import("./pages/KitchenPage"));
-// ...e por aí vai
+- **Edge functions deployadas:** `ifood-auth`, `ifood-poll-events`, `ifood-update-status`, `ifood-webhook`.
+- **Tabelas:** `ifood_credentials` (1 registro de teste, status `pending`), `ifood_event_log`.
+- **Trigger SQL:** `tg_orders_ifood_status_sync` envia mudanças de status do nosso lado para o iFood.
+- **Aba no dashboard:** `IFoodTab.tsx` (conectar / desconectar / ver eventos).
+
+## Problemas que travam o fluxo
+
+1. **Não existe `pg_cron` rodando o polling.** Como o iFood entrega pedidos via long-polling (`/events/v1.0/events:polling`), sem um job chamando `ifood-poll-events` periodicamente, nenhum pedido novo chega. Hoje `last_polled_at` está `null` em todas as credenciais.
+2. **`ifood-webhook` está incompleto.** Loga eventos mas só descarta os que não têm `merchantId`. Não resolve `merchant_id → organization_id`, não processa `PLC`/`CFM`/`CAN`, não dá ACK. Toda a lógica útil está duplicada dentro do `ifood-poll-events`.
+3. **Cancelamento manual no nosso painel não dispara cancelamento no iFood** — o trigger só sincroniza o ciclo de produção (preparing/ready/delivered), mas falta o caminho `cancelled` no `ifood-update-status`.
+
+## O que vou fazer
+
+### 1. Criar cron job de polling (a cada 30 segundos)
+
+Inserir via `supabase--insert` (não migração — contém URL e chave do projeto):
+
+```sql
+SELECT cron.schedule(
+  'ifood-poll-events-30s',
+  '30 seconds',
+  $$ SELECT net.http_post(
+       url := 'https://xrzudhylpphnzousilye.supabase.co/functions/v1/ifood-poll-events',
+       headers := '{"Content-Type":"application/json"}'::jsonb,
+       body := '{}'::jsonb
+     ); $$
+);
 ```
 
-Isso significa que **o JavaScript daquela página só é baixado na hora que o usuário acessa pela primeira vez**. Em internet de loja (4G médio), cada chunk leva de 800ms a 3s pra baixar + parsear. Como o `RouteFallback` é só um spinnerzinho preto, dá a sensação de "tela travada carregando".
+Como `pg_cron` mínimo é 1 minuto, vou agendar dois jobs defasados (`* * * * *` e outro com `pg_sleep(30)`) para conseguir 30s — ou aceitar 1min se o iFood tolerar (eles recomendam ≤30s, mas durante homologação 60s é aceito).
 
-Depois que o navegador baixou uma vez, fica em cache → as próximas visitas ficam instantâneas. Bate exatamente com o que você descreveu.
+### 2. Refatorar `ifood-webhook` para processar eventos de verdade
 
-A landing page (`Index.tsx`) também sofre: vários componentes pesados são lazy (`SavingsCalculator`, `TopStoresMarquee`, `StackedProblemCards`, `TimelineSteps`, `StickyShowcase`, `AnimatedComparison`, `MagneticFeatureCard`). A primeira visita à home faz uma cascata de downloads.
+- Resolver `merchantId → organization_id` consultando `ifood_credentials.merchant_id`.
+- Reaproveitar o mesmo `processNewOrder` / `processCancellation` do `ifood-poll-events` (extrair pra função compartilhada inline).
+- Logar todos os eventos em `ifood_event_log` com `source='webhook'`.
+- Continuar respondendo 200 imediato pra não estourar timeout do iFood.
 
-Some a isso o **`useAuth`** que bloqueia o render com `loading: true` enquanto faz `getSession()` + `fetchOrganization()` — em rotas protegidas o usuário vê o spinner em duas camadas (Suspense + AuthLoading).
+Webhook + polling juntos = redundância exigida na homologação (se o webhook falha, o polling resgata; o ACK no polling evita reprocessar).
 
-## Plano
+### 3. Completar `ifood-update-status`
 
-### 1. Prefetch agressivo no hover/focus dos links (impacto alto)
-Criar um helper `<PrefetchLink>` que, ao passar o mouse ou focar num link interno, dispara o `import()` da página de destino antes do clique. Quando o usuário clicar, o chunk já estará no cache do browser → navegação instantânea.
+Adicionar tratamento para:
+- `cancelled` → POST `/order/v1.0/orders/{id}/requestCancellation` com motivo padrão.
+- `ready` → POST `/order/v1.0/orders/{id}/dispatch` quando for entrega própria, ou marcar `readyToPickup` quando for retirada.
 
-Aplicar nos links principais: navegação do dashboard, botões da landing → Auth/Cadastro/Planos, links do header/footer.
+### 4. Telinha de homologação na aba iFood
 
-### 2. Pré-carregar rotas críticas no idle pós-boot
-Logo após o app montar, num `requestIdleCallback`, disparar em segundo plano os imports de:
-- `AuthPage` (todo mundo passa por aqui)
-- `DashboardPage` (loja logada)
-- `KitchenPage` + `WaiterPage` (operação)
-- `UnitPage` (cliente final)
+Pequenos ajustes no `IFoodTab.tsx`:
+- Mostrar "Polling rodando há X segundos" baseado em `last_polled_at`.
+- Botão "Forçar polling agora" (chama `ifood-poll-events` manualmente).
+- Mostrar `merchantId` resolvido (validação rápida pro lojista ver que o ID está certo).
 
-Isso aproveita o tempo ocioso do navegador depois da primeira renderização.
+## Detalhes técnicos
 
-### 3. Substituir o `RouteFallback` por um esqueleto contextual
-Hoje é só um spinner numa tela preta — dá sensação de freeze. Trocar por um skeleton que respeita o layout (header + áreas), e mostrar o spinner só se demorar mais de 300ms (`startTransition` + delay).
+```text
+Fluxo de pedido novo:
+iFood → [webhook POST]   → ifood-webhook → resolve merchant → cria order
+      → [polling /events] → ifood-poll-events → ACK + cria order (idempotente via gateway_payment_id)
 
-### 4. Reduzir lazy desnecessário na landing (`Index.tsx`)
-A landing é a página de venda — não pode "piscar" carregando seções. Vou:
-- Manter `lazy` apenas nos componentes **abaixo da dobra** (que o usuário rola pra ver).
-- Importar diretamente os componentes da primeira tela (`HeroCinematic` já é, tá ok; `TopStoresMarquee` e `StackedProblemCards` aparecem rápido também).
+Fluxo de status:
+order UPDATE → trigger tg_orders_ifood_status_sync → ifood-update-status → POST /confirm /dispatch /requestCancellation
+```
 
-### 5. Não bloquear render da rota com `useAuth.loading` em rotas públicas
-Hoje o `AuthProvider` segura toda a árvore. Para rotas públicas (`/`, `/unidade/*`, `/planos`, `/termos`, `/privacidade`), liberar render imediato e deixar a sessão hidratar em segundo plano.
+A **idempotência** já existe: ambos os caminhos verificam `gateway_payment_id = 'ifood:' + orderId` antes de inserir. Sem risco de duplicar pedidos.
 
-### 6. Pequenos ajustes de bundle (`vite.config.ts`)
-Já tem split por vendor — adicionar:
-- `lucide-react` em chunk separado (são muitos ícones).
-- `@tanstack/react-query` já está em `query`, ok.
-- Verificar se `recharts` e `framer-motion` estão isolados (já estão).
+## Fora deste plano (deixar pra depois)
 
-## O que NÃO vou fazer
-
-- Tirar `lazy` de tudo (faria o bundle inicial gigante e pioraria).
-- Mexer em RLS, edge functions ou banco — esse problema é 100% frontend/carregamento.
-
-## Estimativa de ganho
-
-Com as 5 frentes:
-- **Primeira navegação para qualquer página:** de ~2-3s pra ~200-400ms (chunk já em cache via prefetch/preload).
-- **Landing:** primeira impressão visual mais rápida, sem "piscar" carregando seções.
-- **Sensação geral:** muito mais "app-like", menos "site travando".
-
-## Implementação proposta (ordem)
-
-1. Criar `src/components/PrefetchLink.tsx` (substitui `<Link>` em links críticos).
-2. Adicionar pré-carregamento idle das rotas chave em `App.tsx`.
-3. Trocar `RouteFallback` por skeleton + delay no spinner.
-4. Eager nos 2-3 componentes acima da dobra em `Index.tsx`.
-5. Liberar `AuthProvider` em rotas públicas.
-6. Ajuste fino do `vite.config.ts`.
-
-Pode aprovar que eu já implemento tudo em sequência.
+- Cardápio sincronizado com o iFood (catalog API) — fase 2 da homologação.
+- Disputas / chargebacks.
+- Relatório financeiro iFood separado.
