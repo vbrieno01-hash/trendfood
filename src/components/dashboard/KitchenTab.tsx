@@ -526,7 +526,7 @@ export default function KitchenTab({
                               🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
                             </span>
                           )}
-                          <IFoodOrderChip gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} />
+                          <IFoodOrderChip gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} status={order.status} ifoodDispatchedAt={(order as any).ifood_dispatched_at} ifoodConcludedAt={(order as any).ifood_concluded_at} />
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -681,7 +681,7 @@ export default function KitchenTab({
                               🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
                             </span>
                           )}
-                          <IFoodOrderChip gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} />
+                          <IFoodOrderChip gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} status={order.status} ifoodDispatchedAt={(order as any).ifood_dispatched_at} ifoodConcludedAt={(order as any).ifood_concluded_at} />
                         </div>
                         <div className="flex items-center gap-2">
                           <Button

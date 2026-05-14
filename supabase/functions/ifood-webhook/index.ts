@@ -173,6 +173,7 @@ async function handleNewOrder(supabase: any, creds: any, event: any): Promise<{ 
     notes: buildOrderNotes(ifoodOrder),
     gateway_payment_id: `ifood:${orderId}`,
     ifood_synced_externally: true,
+    ifood_order_type: isPickup ? "TAKEOUT" : "DELIVERY",
   }).select("id").single();
   if (orderError || !order) {
     console.error("[ifood-webhook] Failed to create order:", orderError);
@@ -215,16 +216,39 @@ async function handleNewOrder(supabase: any, creds: any, event: any): Promise<{ 
   return { confirmLatencyMs: latency, internalOrderId: order.id };
 }
 
-async function syncExternalStatus(supabase: any, orgId: string, ifoodOrderId: string, newStatus: string) {
+async function syncExternalStatus(
+  supabase: any,
+  orgId: string,
+  ifoodOrderId: string,
+  newStatus: string,
+  rawCode: string,
+) {
   if (!ifoodOrderId) return null;
   const { data: order } = await supabase.from("orders")
-    .select("id, status")
+    .select("id, status, ifood_dispatched_at, ifood_concluded_at")
     .eq("organization_id", orgId)
     .eq("gateway_payment_id", `ifood:${ifoodOrderId}`)
     .maybeSingle();
-  if (!order || order.status === newStatus) return order?.id ?? null;
-  const update: Record<string, any> = { status: newStatus, ifood_synced_externally: true };
-  if (newStatus === "cancelled") update.cancellation_reason = "Cancelado via iFood";
+  if (!order) return null;
+
+  const isDispatch = rawCode === "DSP" || rawCode === "DISPATCHED";
+  const isConcluded = rawCode === "CON" || rawCode === "CONCLUDED";
+
+  const update: Record<string, any> = { ifood_synced_externally: true };
+  if (isDispatch && !order.ifood_dispatched_at) {
+    update.ifood_dispatched_at = new Date().toISOString();
+  }
+  if (isConcluded && !order.ifood_concluded_at) {
+    update.ifood_concluded_at = new Date().toISOString();
+  }
+  if (order.status !== newStatus) {
+    update.status = newStatus;
+    if (newStatus === "cancelled") update.cancellation_reason = "Cancelado via iFood";
+  }
+
+  // Nada novo a aplicar
+  if (Object.keys(update).length === 1) return order.id;
+
   await supabase.from("orders").update(update).eq("id", order.id);
 
   if (newStatus === "cancelled") {
@@ -325,7 +349,7 @@ Deno.serve(async (req) => {
 
       const mapped = EXTERNAL_STATUS_MAP[code];
       if (mapped) {
-        await syncExternalStatus(supabase, creds.organization_id, orderId, mapped);
+        await syncExternalStatus(supabase, creds.organization_id, orderId, mapped, code);
       } else {
         console.log("[ifood-webhook] Unhandled code:", code, "order:", orderId);
       }
