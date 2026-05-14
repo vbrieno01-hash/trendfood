@@ -99,6 +99,25 @@ Deno.serve(async (req) => {
     console.log(`[ifood-cancel-order] ${ifoodId} code=${code} → ${res.status}: ${text.slice(0, 200)}`);
 
     if (!res.ok) {
+      // Caso especial: pedido já estava cancelado no iFood (timeout, cancel pelo cliente, etc.)
+      // Tratamos como sucesso e marcamos como cancelado localmente para liberar a UI.
+      if (res.status === 400 && /already cancelled|already canceled/i.test(text)) {
+        await supabase.from("ifood_event_log").insert({
+          organization_id: order.organization_id,
+          ifood_order_id: ifoodId,
+          code: "OUT_MERCHANT_CANCEL_ALREADY",
+          payload: { code, reason_label, body: text.slice(0, 500) },
+          internal_order_id: order_id,
+          source: "outbound",
+        });
+        await supabase.from("orders").update({
+          status: "cancelled",
+          cancellation_reason: `[${code}] ${reason_label} (já cancelado no iFood)`,
+        }).eq("id", order_id);
+        return new Response(JSON.stringify({ success: true, already_cancelled_at_ifood: true }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       await supabase.from("ifood_event_log").insert({
         organization_id: order.organization_id,
         ifood_order_id: ifoodId,
