@@ -72,6 +72,8 @@ const DashboardPage = () => {
   const location = useLocation();
   const { user, organization, organizations, isAdmin, loading, signOut, refreshOrganizationForUser, refreshOrganization, switchOrganization } = useAuth();
   const { data: featureFlags } = usePlatformFeatureFlags();
+  const IFOOD_BETA_EMAILS = ["vendass945@gmail.com"];
+  const ifoodBetaUser = !!user?.email && IFOOD_BETA_EMAILS.includes(user.email.toLowerCase());
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const [deleteUnit, setDeleteUnit] = useState<{ id: string; name: string } | null>(null);
   const planLimits = usePlanLimits(organization);
@@ -1078,7 +1080,7 @@ const DashboardPage = () => {
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} organization={organization} onNavigate={handleTabChange} />}
           {activeTab === "ifood" && (
-            !featureFlags?.ifood_enabled && !isAdmin
+            !featureFlags?.ifood_enabled && !isAdmin && !ifoodBetaUser
               ? (
                 <div className="space-y-4">
                   <div>
