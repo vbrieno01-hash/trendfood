@@ -533,6 +533,8 @@ const DashboardPage = () => {
     reports: !planLimits.canAccess("reports"),
     stock: !planLimits.canAccess("stock_ingredients"),
     pricing: !planLimits.canAccess("pricing"),
+    ifood: !planLimits.canAccess("ifood"),
+    aibot: !planLimits.canAccess("ai_bot"),
   }), [planLimits.effectivePlan]);
 
   const sidebarGroups = useMemo(() => [
@@ -568,9 +570,9 @@ const DashboardPage = () => {
     {
       id: "integracoes", emoji: "🔗", title: "INTEGRAÇÕES",
       items: [
-        { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood" },
+        { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood", locked: lockedFeatures.ifood },
         { key: "telegram" as TabKey, icon: <Send className="w-4 h-4" />, label: "Telegram" },
-        { key: "aibot" as TabKey, icon: <span className="text-sm">🤖</span>, label: "Robô IA" },
+        { key: "aibot" as TabKey, icon: <span className="text-sm">🤖</span>, label: "Robô IA", locked: lockedFeatures.aibot },
       ],
     },
     {
@@ -1071,9 +1073,13 @@ const DashboardPage = () => {
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
           {activeTab === "loyalty" && <LoyaltyTab orgId={organization.id} organization={organization} onNavigate={handleTabChange} />}
-          {activeTab === "ifood" && <IFoodTab orgId={organization.id} />}
+          {activeTab === "ifood" && (lockedFeatures.ifood
+            ? <UpgradePrompt title="Integração iFood" description="Receba e gerencie pedidos do iFood direto no painel. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            : <IFoodTab orgId={organization.id} />)}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
-          {activeTab === "aibot" && <AIBotTab orgId={organization.id} />}
+          {activeTab === "aibot" && (lockedFeatures.aibot
+            ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            : <AIBotTab orgId={organization.id} />)}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
           </ErrorBoundary>
 
