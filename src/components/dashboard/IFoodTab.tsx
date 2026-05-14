@@ -45,18 +45,6 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
   const [polling, setPolling] = useState(false);
   const [recovering, setRecovering] = useState(false);
 
-  // OrderIds dos eventos iFood que ficaram presos por merchant_id divergente
-  // (recuperáveis pela API enquanto a loja iFood ainda os tem ativos)
-  const ORPHAN_ORDER_IDS = [
-    "89279574-ae24-499e-a9d7-ac91ff99fa08",
-    "3c70fd1b-7f63-4936-94fe-6745a01fdb00",
-    "e1c49f3c-b671-4636-a74c-4e7d8e28f560",
-    "2f1e7bbb-984b-4412-98c2-ffb8815d3fea",
-    "7402fd0c-57cd-4ca4-a5c6-491350b3ba14",
-    "bf1687b4-507c-426d-9c8b-01c2cfd40bd6",
-    "b9e9febd-c49f-4df3-a695-5bda890f354a",
-  ];
-
   const load = async () => {
     setLoading(true);
     const { data: c } = await supabase.from("ifood_credentials" as any)
@@ -130,18 +118,19 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
   };
 
   const recoverOrphans = async () => {
-    if (!confirm(`Tentar recuperar ${ORPHAN_ORDER_IDS.length} pedido(s) iFood que ficaram presos?`)) return;
+    if (!confirm("Forçar varredura de pedidos iFood órfãos agora?")) return;
     setRecovering(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ifood-reprocess-orphans", {
-        body: { organization_id: orgId, order_ids: ORPHAN_ORDER_IDS },
+      const { data, error } = await supabase.functions.invoke("ifood-orphan-sweeper", {
+        body: {},
       });
       if (error) throw error;
-      const created = (data as any)?.created ?? 0;
-      if (created > 0) {
-        toast.success(`${created} pedido(s) recuperado(s) e enviado(s) para a Cozinha!`);
+      const recovered = (data as any)?.recovered ?? 0;
+      const swept = (data as any)?.swept ?? 0;
+      if (recovered > 0) {
+        toast.success(`${recovered} pedido(s) recuperado(s) e enviado(s) para a Cozinha!`);
       } else {
-        toast.info("Nenhum pedido recuperado. Eles podem já estar finalizados no iFood.");
+        toast.info(`Varredura concluída — ${swept} evento(s) verificado(s), nenhum novo pedido para recuperar.`);
       }
       await load();
     } catch (e: any) {
@@ -212,7 +201,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
                 </Button>
                 <Button variant="outline" onClick={recoverOrphans} disabled={busy || recovering}>
                   {recovering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LifeBuoy className="w-4 h-4 mr-2" />}
-                  Recuperar pedidos perdidos
+                  Forçar varredura de órfãos
                 </Button>
               </>
             )}
@@ -240,6 +229,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
               <div>Último evento: {cred.last_event_at ? new Date(cred.last_event_at).toLocaleString("pt-BR") : "—"}</div>
               <div>Token expira em: {cred.token_expires_at ? new Date(cred.token_expires_at).toLocaleString("pt-BR") : "—"}</div>
               <div className="pt-1 italic">Polling automático rodando a cada 1 minuto via cron.</div>
+              <div className="italic">Varredura de pedidos órfãos rodando a cada 1 minuto via cron.</div>
             </div>
           )}
         </CardContent>
