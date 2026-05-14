@@ -40,6 +40,7 @@ const generateSlug = (name: string) =>
 const AuthPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { user, organization, loading: authLoading, refreshOrganizationForUser } = useAuth();
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
@@ -441,7 +442,16 @@ const AuthPage = () => {
     }
   };
 
+  const isCadastro = location.pathname.startsWith("/cadastro");
+  const seoTitle = isCadastro
+    ? "Cadastre sua loja — TrendFood"
+    : "Entrar — TrendFood";
+  const seoDesc = isCadastro
+    ? "Crie sua conta TrendFood e ative o cardápio digital com taxa 0%, pedidos no WhatsApp e gestão de cozinha em minutos."
+    : "Acesse o painel TrendFood: gerencie pedidos, cardápio e cozinha do seu restaurante com taxa 0%.";
   return (
+    <>
+    <PageSeo title={seoTitle} description={seoDesc} path={isCadastro ? "/cadastro" : "/auth"} noindex />
     <div
       className="min-h-screen flex relative overflow-hidden text-white"
       style={{
