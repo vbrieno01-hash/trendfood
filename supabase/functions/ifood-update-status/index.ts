@@ -11,9 +11,9 @@ type IfoodAction = {
   path: string;
   body?: any;
   // campo a marcar em orders após sucesso (timestamp)
-  markField?: "ifood_dispatched_at" | "ifood_concluded_at";
+  markField?: "ifood_dispatched_at";
   // pular se este campo já estiver preenchido (idempotência)
-  skipIfFieldSet?: "ifood_dispatched_at" | "ifood_concluded_at";
+  skipIfFieldSet?: "ifood_dispatched_at";
 };
 
 function actionsForStatus(
@@ -30,13 +30,14 @@ function actionsForStatus(
     case "delivered": {
       const isPickup = (orderType || "DELIVERY").toUpperCase() === "TAKEOUT";
       if (isPickup) {
-        return [
-          { path: "concluded", markField: "ifood_concluded_at", skipIfFieldSet: "ifood_concluded_at" },
-        ];
+        // TAKEOUT: o iFood marca como concluído quando o cliente retira.
+        // Não há chamada outbound do merchant — readyToPickup já foi enviado em "ready".
+        return [];
       }
+      // DELIVERY: dispatch é o estado final do lado do merchant.
+      // O iFood marca como concluído sozinho quando o entregador/cliente confirma.
       return [
         { path: "dispatch", markField: "ifood_dispatched_at", skipIfFieldSet: "ifood_dispatched_at" },
-        { path: "concluded", markField: "ifood_concluded_at", skipIfFieldSet: "ifood_concluded_at" },
       ];
     }
     case "cancelled":
@@ -134,14 +135,12 @@ Deno.serve(async (req) => {
     // Buscar dados do pedido para decidir fluxo (DELIVERY/TAKEOUT + idempotência)
     let orderType: string | null = null;
     let dispatched: string | null = null;
-    let concluded: string | null = null;
     if (order_id) {
       const { data: ord } = await supabase.from("orders")
-        .select("ifood_order_type, ifood_dispatched_at, ifood_concluded_at")
+        .select("ifood_order_type, ifood_dispatched_at")
         .eq("id", order_id).maybeSingle();
       orderType = ord?.ifood_order_type ?? null;
       dispatched = ord?.ifood_dispatched_at ?? null;
-      concluded = ord?.ifood_concluded_at ?? null;
     }
 
     const actions = actionsForStatus(new_status, orderType, cancellation_reason_code, cancellation_reason_description);
@@ -161,10 +160,6 @@ Deno.serve(async (req) => {
       // Idempotência: pula se timestamp já gravado
       if (ep.skipIfFieldSet === "ifood_dispatched_at" && dispatched) {
         results.push({ path: ep.path, skipped: true, reason: "already_dispatched" });
-        continue;
-      }
-      if (ep.skipIfFieldSet === "ifood_concluded_at" && concluded) {
-        results.push({ path: ep.path, skipped: true, reason: "already_concluded" });
         continue;
       }
 
@@ -213,7 +208,6 @@ Deno.serve(async (req) => {
         upd[ep.markField] = new Date().toISOString();
         await supabase.from("orders").update(upd).eq("id", order_id);
         if (ep.markField === "ifood_dispatched_at") dispatched = upd[ep.markField];
-        if (ep.markField === "ifood_concluded_at") concluded = upd[ep.markField];
       }
 
       results.push({ path: ep.path, status: resStatus, ok: success, retry_pending: retryable });
