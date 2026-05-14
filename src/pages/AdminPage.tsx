@@ -1039,6 +1039,7 @@ function AdminContent() {
           {activeTab === "telegram_admin" && <AdminTelegramTab />}
           {activeTab === "ifood_homolog" && <IFoodHomologacaoTab />}
           {activeTab === "afiliados" && <AffiliatesTab />}
+          {activeTab === "capacidade" && <CapacityTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}
