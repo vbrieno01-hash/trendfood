@@ -1,50 +1,34 @@
-## O que vai ser feito
+## Esconder a integração iFood atrás de uma chave global "Em breve"
 
-Expandir a aba **Capacidade** (admin) com uma seção **"Usuários cadastrados"** que lista os 62 usuários do `auth.users`, mostrando quem nunca criou loja e permitindo ações administrativas.
+Hoje a aba **iFood** aparece para qualquer loja Pro/Enterprise (DashboardPage.tsx renderiza `IFoodTab` ou `UpgradePrompt`). Como ainda está em homologação, ela precisa ficar escondida com selo "Em breve" até você ligar manualmente no admin.
 
-### 1. Função SQL nova: `admin_list_users()`
-- `SECURITY DEFINER`, restrita a `has_role(auth.uid(), 'admin')`.
-- Retorna por usuário: `id`, `email`, `created_at`, `last_sign_in_at`, `provider` (email/google), `org_count`, `org_names[]`, `is_admin` (bool).
-- JOIN `auth.users` ↔ `organizations` (LEFT) ↔ `user_roles`.
-- Ordenação: mais recentes primeiro.
+### Como vai funcionar
 
-### 2. Função SQL nova: `admin_delete_user(_user_id uuid)`
-- `SECURITY DEFINER`, só admin.
-- Bloqueia se for o próprio admin (`brenojackson30@gmail.com`) — não dá pra se auto-deletar.
-- Faz cascata: deleta `organizations` do usuário (que já cascateia o resto), `user_roles`, depois `auth.users`.
-- Retorna `jsonb` com `success` + contagem do que foi removido.
+- **Padrão: desligado.** Lojistas veem um placeholder "🛵 iFood — Em breve" (sem campos de Merchant ID, sem botão Conectar, sem listagem de eventos).
+- **Você liga no admin** (aba Capacidade ou Configurações da Plataforma) com um switch "Liberar integração iFood para os lojistas".
+- **Quando ligar:** todas as lojas Pro/Enterprise voltam a ver a tela de conexão normal, em tempo real (React Query refetch).
+- **Admin (você) sempre vê tudo** — a aba "iFood Homologação" no painel admin continua igual, sem trava, pra você seguir testando.
 
-### 3. Função SQL nova: `admin_toggle_admin_role(_user_id uuid, _grant boolean)`
-- `SECURITY DEFINER`, só admin.
-- `_grant=true` → INSERT em `user_roles (user_id, 'admin')` se não existir.
-- `_grant=false` → DELETE em `user_roles`. Bloqueia se for o próprio admin principal.
+### Mudanças
 
-### 4. UI na `CapacityTab.tsx`
-Nova seção abaixo do card "Lojas por plano":
+1. **Migration** — adicionar coluna `ifood_enabled boolean NOT NULL DEFAULT false` em `platform_config`. Sem mudança de RLS (a policy de SELECT já é pública).
 
-- Header com contagem total + filtros:
-  - Busca por email (input)
-  - Toggle "Só sem loja" (mostra apenas `org_count = 0`)
-  - Toggle "Só admins"
-- Tabela responsiva com colunas: Email • Cadastro (relativo, ex: "5d") • Último login • Lojas (badge com nº + tooltip com nomes) • Ações
-- Ações por linha:
-  - Botão "Tornar admin" / "Remover admin" (toggle visual)
-  - Botão "Deletar" (vermelho, abre `AlertDialog` de confirmação dupla — exige digitar o email pra confirmar)
-- Linhas com `org_count = 0` ganham badge cinza "sem loja" — fácil de identificar fantasmas
-- Paginação client-side simples (50 por página) — 62 usuários cabem em 2 páginas
-- React Query: `staleTime: 30s`, invalida ao deletar/promover
+2. **Hook novo `usePlatformFeatureFlags`** (`src/hooks/usePlatformFeatureFlags.ts`) — lê `ifood_enabled` de `platform_config` com `staleTime: 30s`.
 
-### 5. Integração com a aba existente
-- Mantém o card resumo "Usuários" que já existe no topo (62)
-- Adiciona link/scroll suave do card pra nova seção ("Ver lista")
+3. **`DashboardPage.tsx`** — na aba `ifood`:
+   - Se `ifood_enabled === false` → renderiza um card "Integração iFood — Em breve" (ícone 🛵, badge laranja "EM BREVE", texto curto: "Estamos finalizando a homologação oficial com o iFood. Em breve você poderá receber pedidos automaticamente aqui."). Sem inputs, sem botões de conexão.
+   - Se `ifood_enabled === true` → comportamento atual (`UpgradePrompt` para Free, `IFoodTab` para Pro/Enterprise).
+   - O item da aba na sidebar continua aparecendo (com badge "Em breve" quando desligado) — assim os lojistas sabem que vem aí.
 
-## Arquivos
+4. **Admin (`CapacityTab.tsx` ou nova mini-seção em `PlatformConfigSection.tsx`)** — adicionar um card "Funcionalidades em rollout" com switch:
+   - **iFood** (ON/OFF) — descrição: "Quando ligado, todas as lojas Pro/Enterprise enxergam a tela de conexão iFood. Quando desligado, veem só 'Em breve'."
+   - Mutation chama `update platform_config set ifood_enabled = ...` e invalida a query.
+   - Toast confirmando + aviso "Mudança aplicada para todos os lojistas em até 30s".
 
-- **Novo:** `supabase/migrations/<ts>_admin_users_management.sql` — três funções SQL acima
-- **Editado:** `src/components/admin/CapacityTab.tsx` — adiciona seção `<UsersSection />` (componente interno no mesmo arquivo, já que escopo é pequeno)
+### Detalhes técnicos
 
-## Notas técnicas
-
-- `auth.users` só pode ser lido via `SECURITY DEFINER` — por isso a função SQL.
-- Deleção de usuário em `auth.users` exige permissões de service role; vamos fazer via função SQL com `SECURITY DEFINER` que tem grants suficientes (já é como `transfer-org-owner` opera). Se Postgres bloquear DELETE direto em `auth.users`, plano B é chamar uma Edge Function `admin-delete-user` com service role key.
-- Toda ação é logada em `activation_logs` (já existe) com `source = 'admin_user_action'`.
+- A coluna fica em `platform_config` (singleton) — não precisa por loja.
+- `IFoodTab` em si **não muda** — só o gate na DashboardPage.
+- O selo "Em breve" reusa o estilo do banner laranja já visto no print do "Robô de Atendimento".
+- Admin é detectado via `has_role(auth.uid(), 'admin')` — quando você acessa o dashboard como sua própria loja, você também enxerga a tela completa mesmo com flag desligado (override por `is_admin`).
+- Não vou mexer em `usePlanLimits.canAccess('ifood')` — a lógica de plano continua valendo *depois* do flag global.
