@@ -1,43 +1,34 @@
-# Bug: Pro/Enterprise via admin não libera nada
+# Corrigir erro ao aceitar pedido no KDS
 
-## Causa raiz
+## Objetivo
+Restaurar o fluxo de aceite de pedidos na cozinha para que o pedido mude para `preparing` sem erro e as automações de mensagem voltem a funcionar.
 
-`src/hooks/usePlanLimits.ts` trata `pro` e `enterprise` como **vencidos** quando `trial_ends_at <= now`, e rebaixa o `effectivePlan` para `free`. O `lifetime` ignora a data, por isso é o único que "funciona" no admin.
+## O que vou fazer
+1. Corrigir a função do banco `wa_enqueue_status()` para não depender da coluna `orders.total`, que não existe no schema atual.
+2. Recalcular o valor do pedido a partir de `order_items` (ou aplicar fallback seguro para `0,00`) dentro da própria função SQL, sem quebrar o update de status.
+3. Preservar o trigger `trg_orders_wa_auto_status`, já que ele ainda é o responsável por enfileirar mensagens automáticas ao mudar o status do pedido.
+4. Validar que o clique em `Aceitar Pedido` volta a atualizar a linha em `orders` e que a fila `whatsapp_outbox` passa a receber registros novamente quando houver telefone e template configurados.
+5. Revisar se existe algum outro ponto do fluxo assumindo `orders.total` para evitar regressão parecida.
 
-No `ManageSubscriptionDialog` o campo de data ("Trial até") fica com o valor antigo da org (que normalmente já passou). Ao salvar Pro/Enterprise sem mexer na data, a org fica `pro/active` mas com expiração no passado → `usePlanLimits` devolve `free`.
+## Resultado esperado
+- O toast vermelho `record "v_order" has no field "total"` desaparece.
+- O pedido sai de `pending` para `preparing` normalmente.
+- As mensagens automáticas de status voltam a ser enfileiradas.
+- O fluxo manual de WhatsApp do KDS deixa de ser bloqueado pelo erro do banco.
 
-Clientes reais via Mercado Pago não pegam isso porque o webhook (`mp-webhook`) grava `trial_ends_at` no futuro.
+## Detalhes técnicos
+- O erro acontece no trigger `trg_orders_wa_auto_status`.
+- Esse trigger chama `public.wa_enqueue_status(p_org_id, p_order_id, p_event)`.
+- A função usa `v_order orders%ROWTYPE` e tenta acessar `v_order.total`, mas a tabela `public.orders` não possui essa coluna no schema atual.
+- Como a função roda durante o `UPDATE` do pedido, o Postgres aborta a mudança de status inteira.
 
-## Correção (frontend, escopo mínimo)
-
-Arquivo: `src/components/admin/ManageSubscriptionDialog.tsx`
-
-1. **Renomear o label** do campo dependendo do plano selecionado:
-   - `free` → "Trial até" (atual)
-   - `pro` / `enterprise` → "Assinatura vence em"
-   - `lifetime` → "Data de referência (não afeta acesso)"
-
-2. **Auto-preencher data ao trocar de plano** (`onValueChange` do Select de plano):
-   - Se mudar para `pro` ou `enterprise` e a data atual estiver `null` ou no passado → setar automaticamente para `hoje + 30 dias`.
-   - Se mudar para `free` → preserva como está.
-   - Se `lifetime` → preserva (irrelevante).
-
-3. **Validação no `handleSave`**:
-   - Se plano final é `pro` ou `enterprise` e `trialDate` é `null` ou `<= hoje` → bloquear com `toast.error("Para Pro/Enterprise, escolha uma data de vencimento futura.")` e não salvar.
-
-4. **Hint visual**: pequena linha de ajuda abaixo do date picker quando plano = `pro`/`enterprise`:
-   > "Após esta data a loja é rebaixada para Grátis automaticamente."
-
-## Não mexer
-
-- `usePlanLimits.ts` — comportamento de expiração está correto e é usado em produção pelo fluxo MP.
-- Webhook MP, triggers SQL, tabelas — sem mudanças.
-- Lógica de Vitalício — sem mudanças.
+## Arquivos / áreas que serão afetados
+- Nova migration SQL em `supabase/migrations/...`
+- Possível revisão rápida em `src/components/dashboard/KitchenTab.tsx` e/ou `src/hooks/useOrders.ts` apenas para confirmar que o frontend já trata o erro corretamente e não precisa de ajuste extra
 
 ## Validação
-
-1. Abrir admin → org TrendFood → Gerenciar.
-2. Trocar para Pro → data deve auto-pular para 13/06/2026 (hoje +30d).
-3. Salvar → no dashboard da loja, recursos Pro (KDS, iFood, Robô IA, etc.) devem liberar imediatamente.
-4. Repetir com Enterprise.
-5. Tentar salvar Pro com data no passado → deve bloquear com toast.
+1. Aceitar um pedido no KDS.
+2. Confirmar que o pedido muda de coluna/estado.
+3. Confirmar que não aparece mais o erro vermelho.
+4. Conferir se surgem entradas em `whatsapp_outbox` para eventos elegíveis.
+5. Conferir que os outros triggers de `orders` continuam funcionando.
