@@ -1,0 +1,1 @@
+ALTER TABLE public.platform_config ADD COLUMN IF NOT EXISTS ifood_enabled boolean NOT NULL DEFAULT false;

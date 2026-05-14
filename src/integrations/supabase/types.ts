@@ -1785,6 +1785,7 @@ export type Database = {
           exe_url: string | null
           hot_lead_min_orders: number
           id: string
+          ifood_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -1797,6 +1798,7 @@ export type Database = {
           exe_url?: string | null
           hot_lead_min_orders?: number
           id?: string
+          ifood_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -1809,6 +1811,7 @@ export type Database = {
           exe_url?: string | null
           hot_lead_min_orders?: number
           id?: string
+          ifood_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
