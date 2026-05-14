@@ -201,7 +201,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
                 </Button>
                 <Button variant="outline" onClick={recoverOrphans} disabled={busy || recovering}>
                   {recovering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LifeBuoy className="w-4 h-4 mr-2" />}
-                  Recuperar pedidos perdidos
+                  Forçar varredura de órfãos
                 </Button>
               </>
             )}
@@ -229,6 +229,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
               <div>Último evento: {cred.last_event_at ? new Date(cred.last_event_at).toLocaleString("pt-BR") : "—"}</div>
               <div>Token expira em: {cred.token_expires_at ? new Date(cred.token_expires_at).toLocaleString("pt-BR") : "—"}</div>
               <div className="pt-1 italic">Polling automático rodando a cada 1 minuto via cron.</div>
+              <div className="italic">Varredura de pedidos órfãos rodando a cada 1 minuto via cron.</div>
             </div>
           )}
         </CardContent>
