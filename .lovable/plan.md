@@ -1,30 +1,34 @@
-# Corrigir o "pulo" do carrossel
+# Carrossel arrastável + auto-scroll mantendo loop infinito
 
-## Causa raiz
+## Objetivo
+Permitir que o usuário arraste/deslize o carrossel livremente (mouse e touch) sem perder o auto-scroll contínuo nem o loop infinito.
 
-O track tem `gap-4 md:gap-6` no flex pai E também `gap-4 md:gap-6` dentro de cada grupo. Quando animamos `translate -50%`, esse 50% é metade da largura total — mas a largura total inclui **um gap extra** entre o grupo 1 e o grupo 2. Resultado: o ponto de retorno fica deslocado por meio-gap, gerando o "piscar/voltar" visível.
+## Por que não dá só "adicionar overflow-x-auto"
+Hoje o movimento vem de `transform: translateX(-50%)` via keyframe CSS. Scroll nativo (`overflow-x-auto`) não interage com `transform` — o usuário não consegue arrastar. Precisamos trocar a técnica de animação.
 
-## Correção
+## Solução
 
-Em `src/components/landing/TopStoresMarquee.tsx`:
+Refatorar `TopStoresMarquee.tsx` para usar **scroll nativo animado por JS** em vez de keyframe CSS:
 
-1. Remover o `gap` do flex pai (track). Pai vira só `flex` (sem gap).
-2. Manter `gap-4 md:gap-6` **dentro** de cada grupo.
-3. Adicionar a mesma medida como `mr-4 md:mr-6` em **cada grupo** — assim o espaço entre o último card do grupo 1 e o primeiro do grupo 2 é idêntico ao espaço entre cards normais, e o `translate -50%` cai exatamente no início do grupo 2 (sem desalinho).
+1. Container externo com `overflow-x-auto` + `scrollbar-hide` + `cursor-grab active:cursor-grabbing` + `touch-pan-x`.
+2. Conteúdo: continua sendo 2 grupos idênticos lado a lado (mantém o truque do loop).
+3. Substituir o keyframe `landing-marquee` por um `requestAnimationFrame` que incrementa `scrollLeft` em ~0.5px/frame (≈ 30px/s, equivalente aos 40s atuais).
+4. Quando `scrollLeft >= primeiroGrupo.offsetWidth`, subtrai a largura do primeiro grupo (loop invisível — usuário nem percebe).
+5. **Pausa o auto-scroll** quando o usuário:
+   - faz `pointerdown` / `touchstart` / `wheel` no container
+   - passa o mouse por cima (`mouseenter`)
+6. **Retoma o auto-scroll** após 2s de inatividade (`pointerup`/`touchend` + timer).
+7. Drag livre com mouse: handlers `pointerdown` → captura `startX` e `scrollLeft`, `pointermove` ajusta `scrollLeft`, `pointerup` solta. Touch funciona nativamente via `overflow-x-auto`.
+8. Respeitar `prefers-reduced-motion`: não auto-scrolla, mas continua arrastável.
 
-Ou seja:
-
-```tsx
-<div className="flex landing-marquee-track whitespace-nowrap will-change-transform hover:[animation-play-state:paused]">
-  {[0, 1].map((groupIdx) => (
-    <div key={groupIdx} className="flex gap-4 md:gap-6 shrink-0 mr-4 md:mr-6" aria-hidden={groupIdx === 1}>
-      {stores.map(...)}
-    </div>
-  ))}
-</div>
-```
-
-Nada mais muda: tamanhos das logos, duração 40s, keyframe `-50%` continuam iguais.
+## CSS
+- Adicionar utilitário `.scrollbar-hide` em `index.css` (esconde barra em todos os browsers).
+- Remover/manter o keyframe `landing-marquee` (manter para o `MarqueeSocialProof` fallback que ainda o usa).
 
 ## Fora do escopo
-- Não mexer em CSS, banco, ranking, ou qualquer outro componente.
+- Nada de mudança em ranking, banco, edge functions, ou outros componentes.
+- Não mexer no `MarqueeSocialProof` fallback.
+
+## Arquivo
+- `src/components/landing/TopStoresMarquee.tsx` — reescrita do mecanismo de animação + handlers de drag.
+- `src/index.css` — adicionar `.scrollbar-hide`.
