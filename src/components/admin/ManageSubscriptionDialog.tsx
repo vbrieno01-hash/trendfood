@@ -78,7 +78,33 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
     setOpen(isOpen);
   };
 
+  const handlePlanChange = (newPlan: string) => {
+    setPlan(newPlan);
+    if (newPlan === "pro" || newPlan === "enterprise") {
+      const now = new Date();
+      if (!trialDate || trialDate <= now) {
+        const future = new Date();
+        future.setDate(future.getDate() + 30);
+        setTrialDate(future);
+      }
+    }
+  };
+
+  const dateLabel =
+    plan === "pro" || plan === "enterprise"
+      ? "Assinatura vence em"
+      : plan === "lifetime"
+        ? "Data de referência (não afeta acesso)"
+        : "Trial até";
+
   const handleSave = async () => {
+    if ((plan === "pro" || plan === "enterprise")) {
+      const now = new Date();
+      if (!trialDate || trialDate <= now) {
+        toast.error("Para Pro/Enterprise, escolha uma data de vencimento futura.");
+        return;
+      }
+    }
     setSaving(true);
     try {
       const updateData: Record<string, unknown> = {
@@ -191,7 +217,7 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label className="text-xs font-medium">Plano</Label>
-            <Select value={plan} onValueChange={setPlan}>
+            <Select value={plan} onValueChange={handlePlanChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -218,7 +244,7 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium">Trial até</Label>
+            <Label className="text-xs font-medium">{dateLabel}</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -242,6 +268,11 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
                 />
               </PopoverContent>
             </Popover>
+            {(plan === "pro" || plan === "enterprise") && (
+              <p className="text-[10px] text-muted-foreground">
+                Após esta data a loja é rebaixada para Grátis automaticamente.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
