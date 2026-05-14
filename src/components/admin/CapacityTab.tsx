@@ -298,6 +298,54 @@ export default function CapacityTab() {
   );
 }
 
+function FeatureFlagsSection() {
+  const { data: flags, isLoading } = usePlatformFeatureFlags();
+  const updateMut = useUpdatePlatformFeatureFlags();
+
+  const toggleIfood = async (next: boolean) => {
+    try {
+      await updateMut.mutateAsync({ ifood_enabled: next });
+      toast.success(
+        next
+          ? "iFood liberado para todos os lojistas (até 30s para refletir)"
+          : "iFood escondido — lojistas verão 'Em breve'"
+      );
+    } catch (e: any) {
+      toast.error("Falha ao atualizar: " + (e.message || "erro desconhecido"));
+    }
+  };
+
+  return (
+    <div className="rounded-2xl p-4 border bg-card">
+      <div className="flex items-center gap-2 mb-3">
+        <Shield className="w-4 h-4 text-orange-500" />
+        <h3 className="text-sm font-bold">Funcionalidades em rollout</h3>
+      </div>
+      <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-muted/40">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🛵</span>
+            <span className="text-sm font-semibold">Integração iFood</span>
+            {!flags?.ifood_enabled && (
+              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                Em breve
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Quando ligado, lojas Pro/Enterprise enxergam a tela de conexão. Quando desligado, todos veem só "Em breve". Você (admin) sempre vê tudo.
+          </p>
+        </div>
+        <Switch
+          checked={!!flags?.ifood_enabled}
+          disabled={isLoading || updateMut.isPending}
+          onCheckedChange={toggleIfood}
+        />
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
   return (
     <div className="admin-glass rounded-2xl p-4">
