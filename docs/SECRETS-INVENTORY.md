@@ -6,21 +6,64 @@
 
 ---
 
-## 🚨 AÇÃO IMEDIATA — VAPID keys
+## 🚨 VAPID keys — realidade operacional
 
-**Antes de qualquer outra coisa, faça isso hoje:**
+**Descoberta importante:** o Lovable (como o Supabase) **oculta o valor das
+secrets depois de salvas**. No painel **Cloud → Edge Functions → Secrets**,
+`VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` aparecem com o nome e apenas o ícone
+de lixeira — **não há botão "Manage" / "Reveal"**. A UI não permite copiar
+os valores depois que foram criados.
 
-1. Abra **Cloud → Edge Functions → Secrets** no Lovable.
-2. Copie os valores de `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY`.
-3. Cole no seu cofre (1Password/Bitwarden), entrada **"TrendFood — VAPID Push"**.
-4. Marque a entrada como **NÃO ROTACIONAR**.
+### VAPID_PUBLIC_KEY — não é secreta
 
-**Por quê é crítico:** essas chaves assinam todas as inscrições de push
-notification (`push_subscriptions.endpoint` no banco). Se você perder e for
-forçado a regenerar, **todos os clientes e lojistas precisam reassinar push do
-zero**. Não é recuperável de outro jeito.
+A pública **não precisa ser secreta**: vai no bundle JavaScript servido ao
+navegador para o cliente conseguir se inscrever no push. Já está hardcoded em:
 
-Status: ☐ feito  ☐ pendente
+- `src/hooks/usePushSubscription.ts`
+- `src/hooks/useCustomerPush.ts`
+
+Valor atual:
+
+```
+BBATtReMYYfX0TzAWOBYZkVAZlvUZlQJGI-YRtlqpPRo3Y0enwYdArCVl4R1TzyoeJuPD8gbSlKippNGaim-6QM
+```
+
+**Ação:** copiar dali pro cofre (entrada **"TrendFood — VAPID Push"**, campo
+`public`). Marcar a entrada como **NÃO ROTACIONAR**.
+
+### VAPID_PRIVATE_KEY — existe no Lovable, valor não exportável pela UI
+
+A privada está salva como secret no Lovable e **funciona** dentro das edge
+functions (`Deno.env.get("VAPID_PRIVATE_KEY")` em `send-push-notification` e
+`send-customer-push`), mas **o valor não pode mais ser visualizado**.
+
+**Não deletar. Não rotacionar.** Isso invalidaria todas as inscrições push
+existentes (`push_subscriptions` e `customer_push_subscriptions`) e forçaria
+todos os clientes e lojistas a reassinar push do zero.
+
+#### Estratégia de backup da VAPID_PRIVATE_KEY
+
+Três caminhos possíveis, em ordem do mais seguro pro mais arriscado:
+
+- **Opção A — Aceitar perda controlada (oficial, em vigor).**
+  Não fazer nada agora. No dia de uma migração real (Onda 2 do
+  `docs/MIGRATION-PLAN.md`), gerar **um par VAPID novo** no backend de destino,
+  atualizar `VAPID_PUBLIC_KEY` no frontend e aceitar que os usuários reassinem
+  push uma vez. Custo: uma rodada de reassinatura. Risco hoje: zero.
+
+- **Opção B — Edge function temporária de extração (só com aprovação explícita).**
+  Function efêmera, protegida por token de uso único, que devolve
+  `Deno.env.get("VAPID_PRIVATE_KEY")`. Copiar o valor pro cofre e **deletar a
+  function imediatamente**. Janela curta, auditar logs. Envolve alteração de
+  código de produção — **não fazer sem aprovação explícita do dono em janela
+  controlada**.
+
+- **Opção C — Rotacionar agora.** **Proibido.** Quebra push de todos os
+  clientes ativos antes da migração.
+
+> Ver `docs/MIGRATION-PLAN.md` Onda 2: a geração do novo par VAPID e a
+> comunicação aos clientes ("reative as notificações") devem entrar no
+> checklist daquela onda.
 
 ---
 
@@ -49,8 +92,8 @@ Sem essas, partes do app param (entrega de pedido, notificação).
 | `UAZAPI_TOKEN` | Painel UAZAPI / Evolution | `whatsapp-webhook`, `notify-merchant-whatsapp` | ☐ |
 | `UAZAPI_BASE_URL` | URL da sua instância Evolution | Idem | ☐ |
 | `TELEGRAM_API_KEY` | @BotFather no Telegram | Todas as funções `*-telegram-*` | ☐ |
-| `VAPID_PUBLIC_KEY` | Cloud → Edge Functions → Secrets | `send-push-notification`, `send-customer-push` | ☐ ⚠️ |
-| `VAPID_PRIVATE_KEY` | Idem | Idem | ☐ ⚠️ |
+| `VAPID_PUBLIC_KEY` | Frontend (`src/hooks/usePushSubscription.ts`) — não é secreta | `send-push-notification`, `send-customer-push` | ☐ |
+| `VAPID_PRIVATE_KEY` | **Não exportável pela UI.** Backup só via Opção B (requer aprovação) | Idem | ⚠️ adiado |
 
 ---
 
@@ -95,7 +138,8 @@ anote a data no cofre.
 
 ## ✅ Checklist de preenchimento
 
-- [ ] **VAPID keys salvas no cofre** (prioridade absoluta)
+- [ ] **VAPID_PUBLIC_KEY** copiada do frontend e salva no cofre
+- [x] **VAPID_PRIVATE_KEY** documentada como "existe no Lovable, valor não exportável pela UI" — backup adiado para o dia da migração (Opção A)
 - [ ] Mercado Pago (3 secrets)
 - [ ] iFood (2 secrets) — se usar integração
 - [ ] UAZAPI (2 secrets)
