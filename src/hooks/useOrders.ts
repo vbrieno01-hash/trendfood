@@ -544,9 +544,18 @@ export const useCancelOrder = (organizationId: string) => {
             force: true,
           },
         });
-        if (fnErr) throw new Error(fnErr.message || "Falha ao cancelar no iFood");
-        if (fnData && (fnData as any).error) throw new Error((fnData as any).error);
-        // edge function já marcou orders.status = 'cancelled'
+        const errMsg = fnErr?.message || (fnData as any)?.error || "";
+        const alreadyCancelled = /already cancelled|already canceled|já cancelado/i.test(String(errMsg));
+        if (errMsg && !alreadyCancelled) throw new Error(errMsg);
+        // Fallback: se o iFood já estava cancelado mas o UPDATE local não rolou na edge,
+        // garante o cancelamento local aqui.
+        if (alreadyCancelled) {
+          await supabase
+            .from("orders")
+            .update({ status: "cancelled", cancellation_reason: reason || "Já cancelado no iFood" } as never)
+            .eq("id", orderId);
+        }
+        // edge function já marcou orders.status = 'cancelled' nos demais casos
       } else {
         const { error } = await supabase
           .from("orders")
