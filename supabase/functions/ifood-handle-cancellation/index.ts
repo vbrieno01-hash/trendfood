@@ -74,6 +74,8 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       const alreadyCancelled = res.status === 400 && /already cancelled/i.test(text);
+      const negotiationV2Required =
+        res.status === 400 && /Negotiation platform is only available in version 2/i.test(text);
       if (alreadyCancelled) {
         await supabase.from("ifood_event_log").insert({
           organization_id: order.organization_id,
@@ -91,6 +93,41 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true, action, already_cancelled_at_ifood: true }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+      // iFood retornou que esta solicitação só é tratada na Plataforma de Negociação v2.
+      // Para nossa app v1, a resposta correta é: limpar o alerta local; o lojista responde no portal/app iFood.
+      if (negotiationV2Required) {
+        await supabase.from("ifood_event_log").insert({
+          organization_id: order.organization_id,
+          ifood_order_id: ifoodId,
+          code: action === "accept" ? "OUT_CANCEL_ACCEPT_NEEDS_V2" : "OUT_CANCEL_DENY_NEEDS_V2",
+          payload: { status: res.status, body: text.slice(0, 500) },
+          internal_order_id: order_id,
+          source: "outbound",
+        });
+        if (action === "accept") {
+          // Aceitar: marca cancelado localmente (lojista ainda precisa confirmar no app iFood)
+          await supabase.from("orders").update({
+            status: "cancelled",
+            cancellation_reason: "Cancelamento aceito (responda também no app iFood — Plataforma de Negociação)",
+            ifood_cancellation_requested_at: null,
+          }).eq("id", order_id);
+        } else {
+          // Recusar: só limpa o alerta da Cozinha
+          await supabase.from("orders").update({
+            ifood_cancellation_requested_at: null,
+          }).eq("id", order_id);
+        }
+        return new Response(
+          JSON.stringify({
+            success: true,
+            action,
+            requires_ifood_app: true,
+            message:
+              "Esta solicitação usa a Plataforma de Negociação do iFood (v2). Atualizamos sua Cozinha — responda também no app/portal iFood para confirmar a decisão com o cliente.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
       await supabase.from("ifood_event_log").insert({
         organization_id: order.organization_id,
