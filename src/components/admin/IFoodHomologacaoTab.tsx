@@ -12,6 +12,91 @@ import { supabase } from "@/integrations/supabase/client";
 type ChecklistStatus = "ok" | "partial" | "missing";
 interface ChecklistItem { status: ChecklistStatus; title: string; detail: string; }
 
+interface Scenario {
+  number: number;
+  title: string;
+  status: ChecklistStatus;
+  steps: string[];
+  evidence: string[];
+  note?: string;
+}
+
+const SCENARIOS: Scenario[] = [
+  {
+    number: 1,
+    title: "Pedido agendado com voucher VOUCHER_ENTGRATIS",
+    status: "ok",
+    steps: [
+      "No app iFood, criar pedido para o dia seguinte e aplicar o cupom VOUCHER_ENTGRATIS.",
+      "Aguardar o pedido aparecer na Cozinha do TrendFood (≤60s).",
+      "Abrir o pedido e demonstrar na tela: data/hora do agendamento e linha CUPOM (IFOOD/LOJA).",
+      "Clicar em 'Copiar p/ chamado' no chip iFood para obter os IDs.",
+    ],
+    evidence: [
+      "Chip 'Agendado para …' visível na ficha (campo AGENDADO no notes).",
+      "Linha CUPOM com sponsorshipValues separados.",
+    ],
+  },
+  {
+    number: 2,
+    title: "Pedido manual com cartão na entrega + cancelamento",
+    status: "ok",
+    steps: [
+      "Criar pedido manual escolhendo cartão (crédito/débito) com pagamento NA ENTREGA.",
+      "Aceitar o pedido na Cozinha (botão Aceitar).",
+      "Clicar em 'Cancelar' no chip iFood, escolher motivo (lista vinda de /cancellationReasons).",
+      "Confirmar e mostrar status 'Cancelado' + log no ifood_event_log.",
+    ],
+    evidence: [
+      "BANDEIRA do cartão impressa na ficha.",
+      "Status final = cancelled; entrada OUT_MERCHANT_CANCEL no log.",
+    ],
+  },
+  {
+    number: 3,
+    title: "Pedido para retirada no local (TAKEOUT)",
+    status: "ok",
+    steps: [
+      "Criar pedido de retirada no app iFood.",
+      "Na Cozinha, percorrer todas as etapas: Aceitar → Iniciar preparo → Pronto p/ retirada → Retirado/Concluído.",
+      "Mostrar o chip 'Retirada' e o código de coleta (COLETA:) na ficha.",
+    ],
+    evidence: [
+      "ifood_order_type = TAKEOUT, sem registro em deliveries.",
+      "Eventos CFM/RPR/RTP/CON refletidos em tempo real.",
+    ],
+  },
+  {
+    number: 4,
+    title: "Cancelamento iniciado pela Plataforma de Negociação",
+    status: "partial",
+    steps: [
+      "Disparar cancelamento pelo cliente/iFood (evento CCAN/CANR).",
+      "Mostrar o alerta 'Cliente pediu cancelamento' aparecendo na Cozinha.",
+      "Demonstrar Aceitar e Recusar (gravar os 2 caminhos se possível).",
+    ],
+    evidence: [
+      "Campo orders.ifood_cancellation_requested_at preenchido pelo webhook.",
+      "Edge ifood-handle-cancellation chama /requestCancellation ou /denyCancellation.",
+    ],
+    note: "Quando a API responde 'Negotiation platform is only available in version 2', nossa edge marca cancelado localmente e o lojista finaliza no app/portal iFood — explicar isso na gravação.",
+  },
+  {
+    number: 5,
+    title: "Dinheiro com troco + observação + CPF/CNPJ",
+    status: "ok",
+    steps: [
+      "Criar pedido em DINHEIRO informando: valor para troco, observação e CPF ou CNPJ na nota.",
+      "Abrir o pedido na Cozinha e mostrar TROCO, OBS e CPF/CNPJ na tela.",
+      "Opcional: imprimir a comanda térmica para evidenciar os mesmos campos.",
+    ],
+    evidence: [
+      "Campos TROCO, OBS, CPF/CNPJ presentes em orders.notes.",
+      "OrderMetadataDisplay e ThermalReceipt renderizam os 3 campos.",
+    ],
+  },
+];
+
 const CHECKLIST: ChecklistItem[] = [
   { status: "ok", title: "Polling 60s + /acknowledgment em lote",
     detail: "Edge function ifood-poll-events agendada via pg_cron a cada minuto. ACK enviado ao final de cada ciclo." },
@@ -165,6 +250,52 @@ export default function IFoodHomologacaoTab() {
 
           <div className="text-[11px] text-muted-foreground pt-2 italic">
             Dica: ao abrir o ticket, escolha categoria "Homologação" → "Aplicativo distribuído" e anexe a documentação acima.
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/30">
+        <CardHeader>
+          <CardTitle className="text-base">Roteiro dos 5 cenários (gravação dos vídeos)</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Siga o passo a passo de cada cenário. Use o botão "Copiar p/ chamado" no chip iFood (na Cozinha) para obter o orderId interno + iFood e colar no ticket.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {SCENARIOS.map((s) => (
+            <Collapsible key={s.number} defaultOpen={false}>
+              <CollapsibleTrigger className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors text-left group">
+                {s.status === "ok" && <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />}
+                {s.status === "partial" && <AlertCircle className="w-4 h-4 text-yellow-500 shrink-0" />}
+                {s.status === "missing" && <Circle className="w-4 h-4 text-red-500 shrink-0" />}
+                <span className="text-sm flex-1">
+                  <strong>Cenário {s.number}</strong> — {s.title}
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pl-7 pr-2 pb-3 pt-1 space-y-2 text-xs">
+                <div>
+                  <div className="font-medium text-foreground mb-1">Passo a passo</div>
+                  <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground">
+                    {s.steps.map((st, i) => <li key={i}>{st}</li>)}
+                  </ol>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground mb-1">O que provar na tela</div>
+                  <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
+                    {s.evidence.map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                </div>
+                {s.note && (
+                  <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-[11px] text-yellow-700 dark:text-yellow-400">
+                    ⚠ {s.note}
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
+          <div className="text-[11px] text-muted-foreground pt-2 italic border-t">
+            Em cada chamado, informe ambos: <code>orderId iFood</code> (UUID retornado pela API) e o <code>orderId interno</code> do TrendFood.
           </div>
         </CardContent>
       </Card>
