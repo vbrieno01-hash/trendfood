@@ -95,7 +95,16 @@ export default function IFoodOrderChip({
         body: { order_id: orderId, action },
       });
       if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
-      toast.success(action === "accept" ? "Cancelamento aceito no iFood" : "Cancelamento recusado no iFood");
+      if ((data as any)?.requires_ifood_app) {
+        toast.warning("Responda também no app iFood", {
+          description:
+            (data as any)?.message ||
+            "Esta solicitação está na Plataforma de Negociação do iFood. Atualizamos sua Cozinha; confirme a decisão no app/portal iFood.",
+          duration: 8000,
+        });
+      } else {
+        toast.success(action === "accept" ? "Cancelamento aceito no iFood" : "Cancelamento recusado no iFood");
+      }
     } catch (e: any) {
       toast.error("Falha: " + (e?.message || "erro"));
     } finally { setBusy(null); }
