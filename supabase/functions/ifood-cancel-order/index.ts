@@ -58,7 +58,9 @@ Deno.serve(async (req) => {
 
     // Defesa em profundidade: por padrão só antes de confirmar.
     // Com force=true (botão antigo de cancelar), permite também preparing/ready.
-    const allowedStatuses = force ? ["pending", "preparing", "ready"] : ["pending"];
+    const allowedStatuses = force
+      ? ["pending", "preparing", "ready", "delivered", "awaiting_payment"]
+      : ["pending"];
     if (!allowedStatuses.includes(order.status)) {
       return new Response(JSON.stringify({
         error: "Cancelamento direto só é permitido antes de confirmar o pedido. Use o portal iFood.",
@@ -101,20 +103,30 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       // Caso especial: pedido já estava cancelado no iFood (timeout, cancel pelo cliente, etc.)
       // Tratamos como sucesso e marcamos como cancelado localmente para liberar a UI.
-      if (res.status === 400 && /already cancelled|already canceled/i.test(text)) {
+      const alreadyCancelled = res.status === 400 && /already cancelled|already canceled/i.test(text);
+      // Com force=true, se o iFood recusar (fora da janela após CONCLUDED, etc.),
+      // ainda assim marcamos como cancelado localmente para destravar a tela.
+      const forceLocalCancel = force && res.status >= 400 && res.status < 500;
+      if (alreadyCancelled || forceLocalCancel) {
         await supabase.from("ifood_event_log").insert({
           organization_id: order.organization_id,
           ifood_order_id: ifoodId,
-          code: "OUT_MERCHANT_CANCEL_ALREADY",
-          payload: { code, reason_label, body: text.slice(0, 500) },
+          code: alreadyCancelled ? "OUT_MERCHANT_CANCEL_ALREADY" : "OUT_MERCHANT_CANCEL_FORCED_LOCAL",
+          payload: { code, reason_label, status: res.status, body: text.slice(0, 500) },
           internal_order_id: order_id,
           source: "outbound",
         });
         await supabase.from("orders").update({
           status: "cancelled",
-          cancellation_reason: `[${code}] ${reason_label} (já cancelado no iFood)`,
+          cancellation_reason: alreadyCancelled
+            ? `[${code}] ${reason_label} (já cancelado no iFood)`
+            : `[${code}] ${reason_label} (cancelado localmente — iFood recusou: ${res.status})`,
         }).eq("id", order_id);
-        return new Response(JSON.stringify({ success: true, already_cancelled_at_ifood: true }), {
+        return new Response(JSON.stringify({
+          success: true,
+          already_cancelled_at_ifood: alreadyCancelled,
+          forced_local: !alreadyCancelled,
+        }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
