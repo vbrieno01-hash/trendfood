@@ -31,6 +31,7 @@ import AdminTelegramTab from "@/components/admin/AdminTelegramTab";
 import IFoodHomologacaoTab from "@/components/admin/IFoodHomologacaoTab";
 import AffiliatesTab from "@/components/admin/AffiliatesTab";
 import CapacityTab from "@/components/admin/CapacityTab";
+import CleanupTab from "@/components/admin/CleanupTab";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 import ThemeToggle from "@/components/ThemeToggle";
@@ -247,7 +248,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "capacidade";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "capacidade" | "limpeza";
 
 interface NavGroup {
   label: string;
@@ -287,6 +288,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "ativacoes", icon: <ScrollText className="w-4 h-4" />, label: "Ativações" },
       { key: "versoes", icon: <Activity className="w-4 h-4" />, label: "Versões" },
       { key: "capacidade", icon: <Database className="w-4 h-4" />, label: "Capacidade" },
+      { key: "limpeza", icon: <Trash2 className="w-4 h-4" />, label: "Limpeza" },
       { key: "guia", icon: <ScrollText className="w-4 h-4" />, label: "Guia" },
     ],
   },
@@ -1040,6 +1042,7 @@ function AdminContent() {
           {activeTab === "ifood_homolog" && <IFoodHomologacaoTab />}
           {activeTab === "afiliados" && <AffiliatesTab />}
           {activeTab === "capacidade" && <CapacityTab />}
+          {activeTab === "limpeza" && <CleanupTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}

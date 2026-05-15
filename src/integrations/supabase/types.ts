@@ -406,6 +406,66 @@ export type Database = {
           },
         ]
       }
+      cleanup_config: {
+        Row: {
+          dry_run: boolean
+          dry_run_until: string
+          enabled: boolean
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          dry_run?: boolean
+          dry_run_until?: string
+          enabled?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          dry_run?: boolean
+          dry_run_until?: string
+          enabled?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cleanup_logs: {
+        Row: {
+          bucket: string | null
+          created_at: string
+          dry_run: boolean
+          id: string
+          kind: string
+          metadata: Json | null
+          reason: string | null
+          size_bytes: number | null
+          target: string
+        }
+        Insert: {
+          bucket?: string | null
+          created_at?: string
+          dry_run?: boolean
+          id?: string
+          kind: string
+          metadata?: Json | null
+          reason?: string | null
+          size_bytes?: number | null
+          target: string
+        }
+        Update: {
+          bucket?: string | null
+          created_at?: string
+          dry_run?: boolean
+          id?: string
+          kind?: string
+          metadata?: Json | null
+          reason?: string | null
+          size_bytes?: number | null
+          target?: string
+        }
+        Relationships: []
+      }
       client_error_logs: {
         Row: {
           created_at: string
@@ -1591,6 +1651,7 @@ export type Database = {
           business_hours: Json | null
           category_emojis: Json
           category_order: Json | null
+          cleanup_warning_at: string | null
           cnpj: string | null
           courier_config: Json | null
           created_at: string
@@ -1637,6 +1698,7 @@ export type Database = {
           business_hours?: Json | null
           category_emojis?: Json
           category_order?: Json | null
+          cleanup_warning_at?: string | null
           cnpj?: string | null
           courier_config?: Json | null
           created_at?: string
@@ -1683,6 +1745,7 @@ export type Database = {
           business_hours?: Json | null
           category_emojis?: Json
           category_order?: Json | null
+          cleanup_warning_at?: string | null
           cnpj?: string | null
           courier_config?: Json | null
           created_at?: string
@@ -2700,6 +2763,7 @@ export type Database = {
         }
       }
       cleanup_admin_telegram_dedupe: { Args: never; Returns: undefined }
+      cleanup_inactive_organizations: { Args: never; Returns: Json }
       courier_accept_delivery: {
         Args: { _courier_id: string; _delivery_id: string }
         Returns: undefined
@@ -2748,6 +2812,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_cleanup_stats: { Args: never; Returns: Json }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
       get_my_deliveries: {
         Args: { _courier_id: string }
@@ -2818,6 +2883,8 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: number
       }
+      run_cleanup_orgs_manual: { Args: never; Returns: Json }
+      toggle_cleanup_dry_run: { Args: { _dry_run: boolean }; Returns: Json }
       validate_coupon_by_code: {
         Args: { _cart_total: number; _code: string; _org_id: string }
         Returns: Json
