@@ -243,6 +243,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
         </CardContent>
       </Card>
 
+      {canSeeDebug && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Últimos eventos (debug homologação)</CardTitle>
@@ -280,6 +281,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };
