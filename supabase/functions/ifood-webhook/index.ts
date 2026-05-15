@@ -176,6 +176,15 @@ async function handleNewOrder(supabase: any, creds: any, event: any): Promise<{ 
     ifood_order_type: isPickup ? "TAKEOUT" : "DELIVERY",
   }).select("id").single();
   if (orderError || !order) {
+    // Race com poller: pedido já foi criado por outro caminho (unique index 23505)
+    if ((orderError as any)?.code === "23505") {
+      const { data: dup } = await supabase
+        .from("orders").select("id")
+        .eq("organization_id", creds.organization_id)
+        .eq("gateway_payment_id", `ifood:${orderId}`)
+        .maybeSingle();
+      if (dup) return { confirmLatencyMs: null, internalOrderId: dup.id };
+    }
     console.error("[ifood-webhook] Failed to create order:", orderError);
     return { confirmLatencyMs: null, internalOrderId: null };
   }
