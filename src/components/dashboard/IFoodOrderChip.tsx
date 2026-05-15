@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Utensils, AlertTriangle, Check, X, Loader2, Ban } from "lucide-react";
+import { Copy, Utensils, AlertTriangle, Check, X, Loader2, Ban, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -87,6 +87,17 @@ export default function IFoodOrderChip({
     toast.success("orderId iFood copiado");
   };
 
+  const copyForTicket = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const lines = [
+      `iFood orderId: ${ifoodId}`,
+      displayId ? `iFood displayId: ${displayId}` : null,
+      orderId ? `Interno (TrendFood): ${orderId}` : null,
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(lines);
+    toast.success("IDs copiados p/ chamado iFood");
+  };
+
   const handleCancel = async (action: "accept" | "deny") => {
     if (!orderId) return;
     setBusy(action);
@@ -149,6 +160,17 @@ export default function IFoodOrderChip({
         <span className={`text-[10px] font-semibold border rounded-full px-2 py-0.5 ${sl.cls}`}>
           {sl.label}
         </span>
+      )}
+      {orderId && (
+        <button
+          type="button"
+          onClick={copyForTicket}
+          title="Copiar IDs (iFood + interno) p/ colar no chamado de homologação"
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-white border border-red-200 hover:bg-red-50 rounded-full px-2 py-0.5"
+        >
+          <ClipboardList className="w-3 h-3" />
+          Copiar p/ chamado
+        </button>
       )}
       {canMerchantCancel && (
         <Dialog open={merchantCancelOpen} onOpenChange={setMerchantCancelOpen}>
