@@ -223,7 +223,18 @@ async function processNewOrder(supabase: any, cred: any, token: string, event: a
     gateway_payment_id: `ifood:${orderId}`,
     ifood_synced_externally: true, // criação veio do iFood
   }).select("id").single();
-  if (orderErr || !newOrder) return { confirmLatencyMs: null, internalOrderId: null };
+  if (orderErr || !newOrder) {
+    // Race com webhook: pedido já foi criado por outro caminho (unique index 23505)
+    if ((orderErr as any)?.code === "23505") {
+      const { data: dup } = await supabase
+        .from("orders").select("id")
+        .eq("organization_id", cred.organization_id)
+        .eq("gateway_payment_id", `ifood:${orderId}`)
+        .maybeSingle();
+      if (dup) return { confirmLatencyMs: null, internalOrderId: dup.id };
+    }
+    return { confirmLatencyMs: null, internalOrderId: null };
+  }
 
   const items = (ifoodOrder.items || []).map((item: any) => ({
     order_id: newOrder.id,
