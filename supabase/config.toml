@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.reconcile-pending-pix]
 verify_jwt = false
+
+[functions.cleanup-orphan-storage]
+verify_jwt = false
