@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Loader2, Link2, RefreshCw, Unplug, Copy, Zap, LifeBuoy,
 } from "lucide-react";
@@ -36,6 +37,9 @@ interface EventRow {
 }
 
 const IFoodTab = ({ orgId }: IFoodTabProps) => {
+  const { user, isAdmin } = useAuth();
+  const canSeeDebug =
+    !!isAdmin || user?.email?.toLowerCase() === "vendass945@gmail.com";
   const [cred, setCred] = useState<Cred | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [merchantId, setMerchantId] = useState("");
@@ -54,14 +58,18 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
       setMerchantId((c as any).merchant_id || "");
       setMerchantName((c as any).merchant_name || "");
     }
-    const { data: ev } = await supabase.from("ifood_event_log" as any)
-      .select("*").eq("organization_id", orgId)
-      .order("received_at", { ascending: false }).limit(20);
-    setEvents((ev || []) as any);
+    if (canSeeDebug) {
+      const { data: ev } = await supabase.from("ifood_event_log" as any)
+        .select("*").eq("organization_id", orgId)
+        .order("received_at", { ascending: false }).limit(20);
+      setEvents((ev || []) as any);
+    } else {
+      setEvents([]);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [orgId]);
+  useEffect(() => { load(); }, [orgId, canSeeDebug]);
 
   const upsertAndConnect = async () => {
     if (!merchantId.trim()) { toast.error("Informe o Merchant ID"); return; }
@@ -235,6 +243,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
         </CardContent>
       </Card>
 
+      {canSeeDebug && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Últimos eventos (debug homologação)</CardTitle>
@@ -272,6 +281,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };
