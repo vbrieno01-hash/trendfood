@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.cleanup-orphan-storage]
 verify_jwt = false
+
+[functions.ifood-merchant-api]
+verify_jwt = false
