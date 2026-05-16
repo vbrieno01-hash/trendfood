@@ -73,6 +73,7 @@ interface WaiterTabProps {
   embedded?: boolean;
   /** Render only a specific section instead of all */
   section?: "ready" | "unpaid" | "all";
+  ifoodCourierCopy?: boolean;
 }
 
 export default function WaiterTab({
@@ -81,6 +82,7 @@ export default function WaiterTab({
   onPairBluetooth, btConnected, btSupported,
   autoPrint, onToggleAutoPrint, notificationsEnabled, onToggleNotifications,
   embedded = false, section = "all",
+  ifoodCourierCopy = false,
 }: WaiterTabProps) {
   const [showKds, setShowKds] = useState(false);
   const { data: readyOrders = [], isLoading: loadingReady } = useOrders(orgId, ["ready"]);
@@ -98,7 +100,7 @@ export default function WaiterTab({
   const handlePrintOrder = (order: Order) => {
     const total = calcTotal(order);
     const pix = pixKey && total > 0 ? buildPixPayload(pixKey, total, orgName ?? "LOJA") : undefined;
-    printOrderByMode(order, orgName, printMode, orgId, btDevice, pix, printerWidth);
+    printOrderByMode(order, orgName, printMode, orgId, btDevice, pix, printerWidth, false, ifoodCourierCopy);
   };
 
   const handleDeliver = (id: string) => {

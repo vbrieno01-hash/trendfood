@@ -71,6 +71,7 @@ interface KitchenTabProps {
   whatsapp?: string | null;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
   embedded?: boolean;
+  ifoodCourierCopy?: boolean;
 }
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -91,6 +92,7 @@ export default function KitchenTab({
   notificationsEnabled, onToggleNotifications,
   whatsapp, pixConfirmationMode,
   embedded = false,
+  ifoodCourierCopy = false,
 }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
@@ -246,7 +248,7 @@ export default function KitchenTab({
       if (!confirmed) return;
     }
     try {
-      await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth, alreadyPrinted);
+      await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth, alreadyPrinted, ifoodCourierCopy);
       setPrintedIds((prev) => new Set(prev).add(order.id));
       toast.success("Comanda impressa!");
     } catch (err) {
@@ -319,7 +321,7 @@ export default function KitchenTab({
       for (const order of toPrint) {
         pendingPrintIds.current.delete(order.id);
         try {
-          await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
+          await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth, false, ifoodCourierCopy);
           setPrintedIds((prev) => new Set(prev).add(order.id));
         } catch (err) {
           console.error("[KDS-Tab] Auto-print failed:", err);
