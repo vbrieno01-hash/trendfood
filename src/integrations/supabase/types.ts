@@ -1173,6 +1173,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ifood_merchant_interruptions: {
+        Row: {
+          created_at: string
+          end_at: string
+          id: string
+          ifood_interruption_id: string
+          ifood_merchant_id: string
+          organization_id: string
+          reason: string
+          removed_at: string | null
+          start_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_at: string
+          id?: string
+          ifood_interruption_id: string
+          ifood_merchant_id: string
+          organization_id: string
+          reason: string
+          removed_at?: string | null
+          start_at: string
+        }
+        Update: {
+          created_at?: string
+          end_at?: string
+          id?: string
+          ifood_interruption_id?: string
+          ifood_merchant_id?: string
+          organization_id?: string
+          reason?: string
+          removed_at?: string | null
+          start_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ifood_merchant_interruptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ifood_merchant_interruptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       improvement_tasks: {
         Row: {
           created_at: string

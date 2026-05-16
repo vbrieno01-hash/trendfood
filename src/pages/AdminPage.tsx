@@ -29,6 +29,7 @@ import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
 import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
 import AdminTelegramTab from "@/components/admin/AdminTelegramTab";
 import IFoodHomologacaoTab from "@/components/admin/IFoodHomologacaoTab";
+import IFoodMerchantHomologTab from "@/components/admin/IFoodMerchantHomologTab";
 import AffiliatesTab from "@/components/admin/AffiliatesTab";
 import CapacityTab from "@/components/admin/CapacityTab";
 import CleanupTab from "@/components/admin/CleanupTab";
@@ -248,7 +249,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "capacidade" | "limpeza";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "ifood_merchant" | "capacidade" | "limpeza";
 
 interface NavGroup {
   label: string;
@@ -278,6 +279,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "aibot", icon: <Bot className="w-4 h-4" />, label: "Robô IA" },
       { key: "telegram_admin", icon: <Send className="w-4 h-4" />, label: "Telegram Admin" },
       { key: "ifood_homolog", icon: <Utensils className="w-4 h-4" />, label: "iFood Homologação" },
+      { key: "ifood_merchant", icon: <Utensils className="w-4 h-4" />, label: "iFood Merchant API" },
       { key: "melhorias", icon: <ListChecks className="w-4 h-4" />, label: "Melhorias" },
     ],
   },
@@ -1040,6 +1042,7 @@ function AdminContent() {
           {activeTab === "versoes" && <StoreVersionsTab />}
           {activeTab === "telegram_admin" && <AdminTelegramTab />}
           {activeTab === "ifood_homolog" && <IFoodHomologacaoTab />}
+          {activeTab === "ifood_merchant" && <IFoodMerchantHomologTab />}
           {activeTab === "afiliados" && <AffiliatesTab />}
           {activeTab === "capacidade" && <CapacityTab />}
           {activeTab === "limpeza" && <CleanupTab />}
