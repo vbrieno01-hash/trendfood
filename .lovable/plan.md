@@ -1,96 +1,73 @@
-# Homologação iFood — Merchant API
+# 2ª Via "Entregador" para Pedidos iFood
 
-## Contexto
+## Objetivo
+Adicionar uma **2ª via opcional**, sanitizada (sem CPF e sem documento), apenas para pedidos vindos do iFood. A comanda padrão do TrendFood permanece **100% intocada** — mesmo layout, mesma fonte, mesmo fluxo.
 
-Já temos a **Order API v3** funcionando (recebe pedidos, confirma, cancela). Agora o iFood quer também a **Merchant API**, que é uma integração **separada** que serve pra **gerenciar a loja em si** dentro do iFood: status (aberto/fechado), horários de funcionamento e pausas/interrupções.
+## Como detectar pedido iFood
+Já existe convenção no projeto: `order.gateway_payment_id` começa com `ifood:`. Usamos exatamente esse check — fora dele, nada muda.
 
-Como o TrendFood já é o "sistema-mãe" do lojista, faz sentido a gente **espelhar** para o iFood o que o lojista configura aqui. Ex: quando ele pausa a loja no TrendFood, a gente também pausa no iFood automaticamente.
+## Onde aparece a 2ª via
+1. **Toggle por loja** em `PrinterTab` (Configurações → Impressora):
+   - "Imprimir 2ª via sem CPF para pedidos iFood (entregador)" — default **desligado**
+   - Persistido em `organizations.settings.ifood_courier_copy` (JSONB já existente)
+2. **Botão manual** em cada pedido iFood no KDS/Vendas: "2ª via entregador" (só aparece se `gateway_payment_id LIKE 'ifood:%'`)
+3. **Automático após a 1ª via**, somente quando o toggle estiver ligado e o pedido for iFood
 
-## O que vamos construir
+## O que muda na 2ª via (vs. comanda padrão)
+- **Remove**: linha "CPF/CNPJ" do bloco cliente
+- **Remove**: campos `CPF`, `CNPJ_INTERMED`, `AUT` se estiverem em notes
+- **Mantém**: nome, telefone, endereço, bairro, referência, itens, total, pagamento
+- **Adiciona** cabeçalho destacado: `*** VIA DO ENTREGADOR ***`
+- Mesmas dimensões (58/80mm), mesma fonte, mesmo template HTML
 
-### 1. Edge Function `ifood-merchant-api`
-Função única que abstrai todos os 8 endpoints da Merchant API:
+## Arquivos a tocar (mínimo)
 
-```text
-GET    /merchants                              → lista lojas vinculadas ao token
-GET    /merchants/{id}                         → dados completos + endereço
-GET    /merchants/{id}/status                  → state (OK/WARNING/CLOSED/ERROR)
-GET    /merchants/{id}/interruptions           → pausas ativas
-POST   /merchants/{id}/interruptions           → cria pausa
-DELETE /merchants/{id}/interruptions/{intId}   → remove pausa
-GET    /merchants/{id}/opening-hours           → horários (turnos)
-PUT    /merchants/{id}/opening-hours           → atualiza horários
+### Novos
+- `src/lib/courierReceipt.ts` — função `buildCourierReceiptData(order)` que chama `buildReceiptData` e zera `customer.doc` + filtra metadata sensível
+
+### Modificados (cirúrgico)
+- `src/lib/printOrder.ts` — nova export `printCourierCopy(order, ...)` que reusa `buildPrintHtml` mas com flag `isCourierCopy` (só troca o título e oculta CPF). **`printOrder` original continua idêntico.**
+- `src/lib/formatReceiptText.ts` — nova função `formatCourierReceiptText` (não altera `formatReceiptText`)
+- `src/components/dashboard/PrinterTab.tsx` — toggle novo
+- `src/components/dashboard/OperationsTab.tsx` (KDS) — botão "2ª via entregador" condicional
+- `src/hooks/useOrders.ts` ou local de auto-print — após print principal, se `ifood + toggle ligado`, dispara `printCourierCopy`
+
+### NÃO toca
+- `src/components/shared/ThermalReceipt.tsx` (preview)
+- `buildReceiptData` em `src/lib/receiptData.ts`
+- Layout/estilos da comanda padrão
+- Fluxo de pedidos TrendFood (cardápio, mesa, balcão)
+
+## Detalhe técnico (curto)
+```ts
+// courierReceipt.ts
+export function buildCourierReceiptData(order: PrintableOrder, storeName?: string) {
+  const data = buildReceiptData(order, storeName);
+  if (data.customer) {
+    data.customer = { ...data.customer, doc: undefined };
+  }
+  // generalObs: remove linhas CPF:/CNPJ_INTERMED:/AUT:/TAXAS_IFOOD: se vazarem
+  if (data.generalObs) {
+    data.generalObs = data.generalObs
+      .split('\n')
+      .filter(l => !/^(CPF|CNPJ_INTERMED|AUT|TAXAS_IFOOD):/i.test(l.trim()))
+      .join('\n') || undefined;
+  }
+  return data;
+}
 ```
 
-A função aceita `{ action, merchantId, payload }` e roteia internamente. Reaproveita `ifood-auth` para o token Bearer e trata retry/backoff para erros 5xx, respeitando `Retry-After` em 429.
+`printCourierCopy` reusa `buildPrintHtml` adicionando `<div class="bold center">*** VIA DO ENTREGADOR ***</div>` no topo.
 
-### 2. Sync automático TrendFood → iFood
+## Garantias de não-regressão
+1. Toggle default **off** → comportamento atual idêntico
+2. Check `gateway_payment_id LIKE 'ifood:%'` antes de qualquer chamada nova
+3. Pedidos TrendFood nunca entram em `printCourierCopy`
+4. Nenhuma alteração em `buildReceiptData`, `ThermalReceipt`, ou `formatReceiptText` (funções novas, não mexem nas existentes)
+5. Testes existentes (`e2e-receipt-sanitization.test.ts`, `receiptData.test.ts`) continuam passando
 
-Triggers SQL + edge function que mantêm a loja iFood em paridade:
-
-- Quando lojista **pausa loja** no TrendFood (`organizations.paused = true`) → cria interruption no iFood
-- Quando **despausa** → deleta a interruption
-- Quando **muda horários** (`business_hours` JSONB) → PUT em `/opening-hours` no iFood
-- Quando **fecha manualmente fora do horário** → respeita o status calculado pelo iFood
-
-Implementado via novo trigger `tg_orgs_sync_ifood_merchant` que chama a edge function por `pg_net` sempre que `paused` ou `business_hours` mudarem.
-
-### 3. Nova aba "Merchant iFood" no admin (homologação)
-
-Tab adicionada ao painel `IFoodHomologacaoTab` com:
-
-- **Lista de merchants** (dropdown com lojas do token)
-- **Card de status atual** (state + available + opening-hours)
-- **Lista de interrupções** com botão "Criar pausa de 30min" / "Remover"
-- **Editor de horários** (visualização dos turnos do iFood)
-- **Botão "Rodar checklist de homologação"** que executa as 8 chamadas em sequência e mostra ✅/❌ para cada uma com o critério de aprovação
-
-Esse painel é o que você vai gravar pro vídeo de homologação Merchant.
-
-### 4. Documento atualizado de homologação
-
-Adicionar seção 12 ao `docs/IFOOD-HOMOLOGACAO.md` cobrindo a Merchant API: arquitetura, endpoints, mapeamento de status, tratamento de erros (400/401/403/409/429/500), rate limit de 1000 req/s e polling mínimo de 30s para status.
-
-## Detalhes técnicos
-
-### Tabelas novas
-```text
-ifood_merchant_link
-├── organization_id (FK, unique)
-├── ifood_merchant_id (text, unique no escopo do client)
-├── last_synced_at
-├── last_status (jsonb)
-└── last_sync_error (text)
-
-ifood_merchant_interruptions
-├── ifood_merchant_id
-├── interruption_id (id retornado pelo iFood)
-├── trendfood_reason (paused_manual | break_hours | …)
-├── start, end
-└── created_at
-```
-
-### Tratamento de erros padronizado
-A edge function devolve sempre `{ code, message, details? }` mapeando:
-- 400 → `BadRequest`
-- 401 → `Unauthorized` (dispara refresh do token via `ifood-auth`)
-- 403 → `Forbidden`
-- 409 → código específico devolvido pelo iFood (ex: `InterruptionOverlap`)
-- 429 → respeita `Retry-After` e reenfileira
-- 5xx → retry com backoff exponencial (3 tentativas)
-
-### Vinculação merchant ↔ organization
-Na primeira chamada `GET /merchants`, popula `ifood_merchant_link` automaticamente, vinculando cada merchant retornado à organização ativa do admin (matching por CNPJ ou seleção manual). Resolve o problema de "qual loja TrendFood corresponde a qual merchant iFood".
-
-## Vídeos pra gravar depois
-
-Com tudo pronto, vai ser **1 vídeo só** mostrando:
-1. Abrir aba Merchant iFood no admin
-2. Clicar "Rodar checklist" → 8 ✅ verdes
-3. Mostrar uma interrupção sendo criada/deletada manualmente
-4. Atualizar horários e verificar no portal iFood
-
-## Fora de escopo (não vamos fazer agora)
-
-- Implementação dos endpoints `/merchants/{id}/categories` e `/menu` (são da Catalog API, outra homologação)
-- Webhooks push de mudança de status do iFood → TrendFood (a Merchant API é só consumida, não recebe webhooks)
+## Fora de escopo
+- Mudar layout da comanda padrão
+- Tornar a 2ª via obrigatória
+- Remover CPF de pedidos não-iFood
+- Privacidade LGPD em outros pontos (separado)
