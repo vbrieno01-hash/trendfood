@@ -71,6 +71,7 @@ interface KitchenTabProps {
   whatsapp?: string | null;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
   embedded?: boolean;
+  ifoodCourierCopy?: boolean;
 }
 
 const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
@@ -91,6 +92,7 @@ export default function KitchenTab({
   notificationsEnabled, onToggleNotifications,
   whatsapp, pixConfirmationMode,
   embedded = false,
+  ifoodCourierCopy = false,
 }: KitchenTabProps) {
   const { data: orders = [], isLoading } = useOrders(orgId, ["pending", "preparing"]);
   const updateStatus = useUpdateOrderStatus(orgId, ["pending", "preparing"]);
