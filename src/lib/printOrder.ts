@@ -4,6 +4,7 @@ import { buildReceiptData, type ReceiptData, type PrintableOrder } from "./recei
 import { enqueuePrint } from "./printQueue";
 import { sendToBluetoothPrinter } from "./bluetoothPrinter";
 import { toast } from "sonner";
+import { printCourierCopyByMode, isIFoodOrder } from "./courierReceipt";
 
 // Re-export for backward compatibility
 export type { PrintableOrder };
@@ -237,10 +238,24 @@ export async function printOrderByMode(
   btDevice: BluetoothDevice | null,
   pixPayload?: string | null,
   printerWidth: '58mm' | '80mm' = '58mm',
-  forceReprint: boolean = false
+  forceReprint: boolean = false,
+  /**
+   * Optional: when true and the order is from iFood, ALSO print a sanitized
+   * 2nd copy (no CPF) for the courier. Off by default to preserve TrendFood
+   * behaviour.
+   */
+  ifoodCourierCopy: boolean = false,
 ) {
   if (printMode === "browser") {
-    return printOrder(order, storeName, pixPayload, printerWidth);
+    await printOrder(order, storeName, pixPayload, printerWidth);
+    if (ifoodCourierCopy && isIFoodOrder(order as any)) {
+      // Small delay so the first window opens cleanly before the second
+      setTimeout(() => {
+        printCourierCopyByMode(order, storeName, "browser", orgId, btDevice, printerWidth)
+          .catch((err) => console.error("[courier copy] browser print failed:", err));
+      }, 800);
+    }
+    return;
   }
 
   const text = formatReceiptText(order, storeName, printerWidth);
@@ -272,6 +287,10 @@ export async function printOrderByMode(
     }
     // Pedido normal: o robô local já vai puxar o job criado em placeOrder.
     toast.success("Pedido enviado para impressão");
+    if (ifoodCourierCopy && isIFoodOrder(order as any)) {
+      printCourierCopyByMode(order, storeName, "desktop", orgId, btDevice, printerWidth)
+        .catch((err) => console.error("[courier copy] desktop enqueue failed:", err));
+    }
     return;
   }
 
@@ -280,6 +299,12 @@ export async function printOrderByMode(
       const success = await sendToBluetoothPrinter(btDevice, text);
       if (success) {
         toast.success("Impresso via Bluetooth");
+        if (ifoodCourierCopy && isIFoodOrder(order as any)) {
+          setTimeout(() => {
+            printCourierCopyByMode(order, storeName, "bluetooth", orgId, btDevice, printerWidth)
+              .catch((err) => console.error("[courier copy] BT print failed:", err));
+          }, 1500);
+        }
         return;
       }
       toast.warning("Bluetooth falhou, salvando na fila...", {
@@ -291,6 +316,10 @@ export async function printOrderByMode(
     try {
       await enqueuePrint(orgId, order.id, stripFormatMarkers(text));
       toast.info("Pedido salvo na fila de impressão");
+      if (ifoodCourierCopy && isIFoodOrder(order as any)) {
+        printCourierCopyByMode(order, storeName, "bluetooth", orgId, btDevice, printerWidth)
+          .catch((err) => console.error("[courier copy] BT queue failed:", err));
+      }
     } catch {
       toast.error("Erro ao salvar na fila de impressão");
     }
