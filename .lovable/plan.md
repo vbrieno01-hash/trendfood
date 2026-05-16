@@ -1,72 +1,96 @@
-# Limpeza automática — Storage e contas inativas (modo dry-run)
+# Homologação iFood — Merchant API
 
-Cria duas rotinas automáticas para reduzir custo do Lovable Cloud, com **modo dry-run ligado por padrão** durante os primeiros 7 dias. Nesse período nada é apagado — só fica registrado o que *seria* apagado, pra você revisar no painel admin.
+## Contexto
 
-## O que será criado
+Já temos a **Order API v3** funcionando (recebe pedidos, confirma, cancela). Agora o iFood quer também a **Merchant API**, que é uma integração **separada** que serve pra **gerenciar a loja em si** dentro do iFood: status (aberto/fechado), horários de funcionamento e pausas/interrupções.
 
-### Banco de dados (migration)
+Como o TrendFood já é o "sistema-mãe" do lojista, faz sentido a gente **espelhar** para o iFood o que o lojista configura aqui. Ex: quando ele pausa a loja no TrendFood, a gente também pausa no iFood automaticamente.
 
-- Tabela `cleanup_logs` — registra tudo que foi (ou seria) apagado: tipo, alvo, bucket, tamanho, motivo, modo dry-run sim/não, timestamp.
-- Tabela `cleanup_config` — flag global `dry_run` (começa `true`), `dry_run_until` (now() + 7 dias).
-- Coluna `cleanup_warning_at` em `organizations` — marca primeira detecção da org como inativa.
-- Função `cleanup_inactive_organizations()` — aplica os critérios rígidos abaixo, respeita dry-run.
-- Função `cleanup_orphan_users()` — deleta auth.users que ficaram sem nenhuma org (cascata da limpeza).
-- 2 jobs pg_cron agendados.
-- RLS: só admin lê `cleanup_logs` e `cleanup_config`.
+## O que vamos construir
 
-### Edge Function `cleanup-orphan-storage`
-
-- Lista todos os arquivos dos buckets `menu-images`, `logos`, `site-images`, `guide-images` (paginado, 1000 por vez).
-- Cruza com URLs referenciadas em `menu_items.image_url`, `organizations.logo_url`, `organizations.banner_url`, `platform_content` (JSONB).
-- **NÃO mexe** no bucket `downloads` (APK/EXE controlados manualmente).
-- Apaga apenas arquivos com >7 dias E sem nenhuma referência.
-- Respeita flag `dry_run` da `cleanup_config`.
-- Protegida por `UNIVERSAL_WEBHOOK_SECRET` (`verify_jwt = false`).
-
-### UI Admin — nova aba "Limpeza"
-
-- Banner mostrando status do dry-run e quantos dias faltam.
-- Botão "Desativar dry-run agora" (só admin).
-- Botão "Rodar limpeza manual agora" (storage + lojas).
-- Tabela com últimos 100 registros de `cleanup_logs` (filtros: tipo, dry-run sim/não, período).
-- Stats no topo: total de itens marcados, MB que seriam liberados.
-
-## Critérios (relembrando, não muda)
-
-**Imagem órfã:**
-- Está em bucket de imagem
-- Nenhuma URL no banco aponta pra ela
-- Criada há >7 dias
-
-**Loja inativa (todos cumulativos):**
-- Criada há >5 meses
-- `subscription_plan = 'free'`
-- `trial_ends_at` no passado
-- Zero pedidos jamais
-- Onboarding incompleto OU zero produtos no cardápio
-- `user_id` NÃO é admin (`brenojackson30@gmail.com`)
-- Sem `referred_by_id` nem `affiliate_id`
-- **Janela de aviso:** primeira detecção só marca `cleanup_warning_at`. Só apaga 7 dias depois se ainda continuar nos critérios.
-
-## Agendamento
+### 1. Edge Function `ifood-merchant-api`
+Função única que abstrai todos os 8 endpoints da Merchant API:
 
 ```text
-cleanup-orphan-storage  → diário 03:00 BRT
-cleanup-inactive-orgs   → segunda 04:00 BRT
+GET    /merchants                              → lista lojas vinculadas ao token
+GET    /merchants/{id}                         → dados completos + endereço
+GET    /merchants/{id}/status                  → state (OK/WARNING/CLOSED/ERROR)
+GET    /merchants/{id}/interruptions           → pausas ativas
+POST   /merchants/{id}/interruptions           → cria pausa
+DELETE /merchants/{id}/interruptions/{intId}   → remove pausa
+GET    /merchants/{id}/opening-hours           → horários (turnos)
+PUT    /merchants/{id}/opening-hours           → atualiza horários
 ```
 
-## Como você sai do dry-run
+A função aceita `{ action, merchantId, payload }` e roteia internamente. Reaproveita `ifood-auth` para o token Bearer e trata retry/backoff para erros 5xx, respeitando `Retry-After` em 429.
 
-Após 7 dias, no painel admin:
-- Revisa a aba "Limpeza" → confere a lista
-- Se tá tudo certo, clica "Desativar dry-run" → próxima execução começa a apagar de verdade
-- Se algo suspeito, me chama e ajustamos critérios antes de ligar
+### 2. Sync automático TrendFood → iFood
 
-## Arquivos
+Triggers SQL + edge function que mantêm a loja iFood em paridade:
 
-- `supabase/migrations/<ts>_cleanup_routines.sql`
-- `supabase/functions/cleanup-orphan-storage/index.ts`
-- `supabase/config.toml` — adicionar `[functions.cleanup-orphan-storage] verify_jwt = false`
-- `src/components/admin/CleanupTab.tsx`
-- `src/pages/AdminPage.tsx` — adicionar aba "Limpeza"
-- Memória: nova entrada `mem://features/storage-and-orgs-cleanup-routine`
+- Quando lojista **pausa loja** no TrendFood (`organizations.paused = true`) → cria interruption no iFood
+- Quando **despausa** → deleta a interruption
+- Quando **muda horários** (`business_hours` JSONB) → PUT em `/opening-hours` no iFood
+- Quando **fecha manualmente fora do horário** → respeita o status calculado pelo iFood
+
+Implementado via novo trigger `tg_orgs_sync_ifood_merchant` que chama a edge function por `pg_net` sempre que `paused` ou `business_hours` mudarem.
+
+### 3. Nova aba "Merchant iFood" no admin (homologação)
+
+Tab adicionada ao painel `IFoodHomologacaoTab` com:
+
+- **Lista de merchants** (dropdown com lojas do token)
+- **Card de status atual** (state + available + opening-hours)
+- **Lista de interrupções** com botão "Criar pausa de 30min" / "Remover"
+- **Editor de horários** (visualização dos turnos do iFood)
+- **Botão "Rodar checklist de homologação"** que executa as 8 chamadas em sequência e mostra ✅/❌ para cada uma com o critério de aprovação
+
+Esse painel é o que você vai gravar pro vídeo de homologação Merchant.
+
+### 4. Documento atualizado de homologação
+
+Adicionar seção 12 ao `docs/IFOOD-HOMOLOGACAO.md` cobrindo a Merchant API: arquitetura, endpoints, mapeamento de status, tratamento de erros (400/401/403/409/429/500), rate limit de 1000 req/s e polling mínimo de 30s para status.
+
+## Detalhes técnicos
+
+### Tabelas novas
+```text
+ifood_merchant_link
+├── organization_id (FK, unique)
+├── ifood_merchant_id (text, unique no escopo do client)
+├── last_synced_at
+├── last_status (jsonb)
+└── last_sync_error (text)
+
+ifood_merchant_interruptions
+├── ifood_merchant_id
+├── interruption_id (id retornado pelo iFood)
+├── trendfood_reason (paused_manual | break_hours | …)
+├── start, end
+└── created_at
+```
+
+### Tratamento de erros padronizado
+A edge function devolve sempre `{ code, message, details? }` mapeando:
+- 400 → `BadRequest`
+- 401 → `Unauthorized` (dispara refresh do token via `ifood-auth`)
+- 403 → `Forbidden`
+- 409 → código específico devolvido pelo iFood (ex: `InterruptionOverlap`)
+- 429 → respeita `Retry-After` e reenfileira
+- 5xx → retry com backoff exponencial (3 tentativas)
+
+### Vinculação merchant ↔ organization
+Na primeira chamada `GET /merchants`, popula `ifood_merchant_link` automaticamente, vinculando cada merchant retornado à organização ativa do admin (matching por CNPJ ou seleção manual). Resolve o problema de "qual loja TrendFood corresponde a qual merchant iFood".
+
+## Vídeos pra gravar depois
+
+Com tudo pronto, vai ser **1 vídeo só** mostrando:
+1. Abrir aba Merchant iFood no admin
+2. Clicar "Rodar checklist" → 8 ✅ verdes
+3. Mostrar uma interrupção sendo criada/deletada manualmente
+4. Atualizar horários e verificar no portal iFood
+
+## Fora de escopo (não vamos fazer agora)
+
+- Implementação dos endpoints `/merchants/{id}/categories` e `/menu` (são da Catalog API, outra homologação)
+- Webhooks push de mudança de status do iFood → TrendFood (a Merchant API é só consumida, não recebe webhooks)
