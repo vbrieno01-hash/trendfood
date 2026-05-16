@@ -1058,6 +1058,7 @@ const DashboardPage = () => {
                 onToggleNotifications={toggleNotifications}
                 whatsapp={organization.whatsapp}
                 pixConfirmationMode={organization.pix_confirmation_mode as any}
+                ifoodCourierCopy={!!(organization as any).ifood_courier_copy}
               />)}
           {activeTab === "caixa" && (lockedFeatures.caixa
             ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
