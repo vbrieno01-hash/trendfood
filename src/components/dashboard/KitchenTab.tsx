@@ -246,7 +246,7 @@ export default function KitchenTab({
       if (!confirmed) return;
     }
     try {
-      await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth, alreadyPrinted);
+      await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth, alreadyPrinted, ifoodCourierCopy);
       setPrintedIds((prev) => new Set(prev).add(order.id));
       toast.success("Comanda impressa!");
     } catch (err) {
@@ -319,7 +319,7 @@ export default function KitchenTab({
       for (const order of toPrint) {
         pendingPrintIds.current.delete(order.id);
         try {
-          await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth);
+          await printOrderByMode(order, orgName, printMode, orgId, btDevice, getPixPayload(order, pixKey, orgName), printerWidth, false, ifoodCourierCopy);
           setPrintedIds((prev) => new Set(prev).add(order.id));
         } catch (err) {
           console.error("[KDS-Tab] Auto-print failed:", err);
