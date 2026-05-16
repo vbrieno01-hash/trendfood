@@ -305,7 +305,9 @@ const DashboardPage = () => {
                 orgId!,
                 btDeviceRef.current,
                 getPixPayload(fullOrder),
-                printerWidthRef.current
+                printerWidthRef.current,
+                false,
+                !!(organization as any)?.ifood_courier_copy,
               );
 
               // Marcar job na fila_impressao como impresso para evitar reimpressão pelo polling
