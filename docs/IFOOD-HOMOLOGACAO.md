@@ -118,3 +118,55 @@ Resultado: zero loop entre TrendFood e iFood.
 ---
 
 _Documento gerado em 14/05/2026. Versão da integração: 1.0._
+
+---
+
+## 12. Merchant API (gestão da loja)
+
+Além da Order API, o TrendFood implementa a **Merchant API** para sincronizar status, horários e pausas da loja no iFood com o que o lojista configura no painel TrendFood.
+
+### Endpoints consumidos
+
+| Método | Path | Edge | Critério |
+|---|---|---|---|
+| GET    | `/merchants` | `ifood-merchant-api` (action `list_merchants`) | array com id/name/corporateName |
+| GET    | `/merchants/{id}` | action `get_merchant` | dados + endereço |
+| GET    | `/merchants/{id}/status` | action `get_status` | state OK/WARNING/CLOSED/ERROR |
+| GET    | `/merchants/{id}/interruptions` | action `list_interruptions` | array de pausas ativas |
+| POST   | `/merchants/{id}/interruptions` | action `create_interruption` | retorna id da pausa criada |
+| DELETE | `/merchants/{id}/interruptions/{intId}` | action `delete_interruption` | remove pausa |
+| GET    | `/merchants/{id}/opening-hours` | action `get_opening_hours` | array de shifts com dayOfWeek/start/duration |
+| PUT    | `/merchants/{id}/opening-hours` | action `update_opening_hours` | atualiza turnos |
+
+### Sync automático TrendFood → iFood
+
+Trigger SQL `tg_orgs_sync_ifood_merchant` em `organizations` dispara `pg_net.http_post` para `ifood-merchant-api` (action `sync`) sempre que:
+
+- `organizations.paused` muda → cria/remove interruption (12h padrão)
+- `organizations.business_hours` muda → PUT `/opening-hours` com shifts mapeados
+
+Pausas criadas são registradas em `ifood_merchant_interruptions` para permitir o DELETE ao despausar.
+
+### Tratamento de erros
+
+| HTTP | Code retornado | Ação |
+|---|---|---|
+| 400 | `BadRequest` | exibe `message` ao admin |
+| 401 | `Unauthorized` | dispara refresh via `ifood-auth` e re-tenta uma vez |
+| 403 | `Forbidden` | erro definitivo, loja sem acesso ao merchant |
+| 409 | código específico (ex `InterruptionOverlap`) | preservado de `body.error.code` |
+| 429 | `RateLimited` | respeita `Retry-After` |
+| 5xx | `ServerError` | retry com backoff exponencial (3 tentativas) |
+
+### Rate limit e polling
+
+- Limite respeitado: 1000 req/s (chamadas só sob demanda no painel ou via trigger de mudança de estado)
+- Polling de status: mínimo 30s (não há polling automático — admin recarrega manualmente)
+
+### Como validar (analista iFood)
+
+1. Abrir painel admin → aba **iFood Merchant API**
+2. Selecionar a loja conectada e clicar **Rodar checklist**
+3. Aguardar — os 8 endpoints rodam em sequência e mostram ✅/❌ com o HTTP status real
+4. Cards individuais mostram payload bruto de `merchant`, `status`, `opening-hours` e `interruptions`
+5. Botão **+ Pausa 30min** demonstra POST + GET + DELETE ao vivo
