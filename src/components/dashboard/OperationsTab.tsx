@@ -24,6 +24,7 @@ interface OperationsTabProps {
   onToggleNotifications: (val: boolean) => void;
   whatsapp?: string | null;
   pixConfirmationMode?: "direct" | "manual" | "automatic";
+  ifoodCourierCopy?: boolean;
 }
 
 export default function OperationsTab(props: OperationsTabProps) {
@@ -46,6 +47,7 @@ export default function OperationsTab(props: OperationsTabProps) {
     notificationsEnabled: props.notificationsEnabled,
     onToggleNotifications: props.onToggleNotifications,
     embedded: true,
+    ifoodCourierCopy: props.ifoodCourierCopy,
   } as const;
 
   return (
@@ -113,6 +115,7 @@ export default function OperationsTab(props: OperationsTabProps) {
             onToggleNotifications={props.onToggleNotifications}
             whatsapp={props.whatsapp}
             pixConfirmationMode={props.pixConfirmationMode}
+            ifoodCourierCopy={props.ifoodCourierCopy}
           />
         </div>
 
