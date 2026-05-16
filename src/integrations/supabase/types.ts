@@ -1713,6 +1713,7 @@ export type Database = {
           exe_url: string | null
           force_open: boolean
           id: string
+          ifood_courier_copy: boolean
           logo_url: string | null
           mp_subscription_id: string | null
           name: string
@@ -1760,6 +1761,7 @@ export type Database = {
           exe_url?: string | null
           force_open?: boolean
           id?: string
+          ifood_courier_copy?: boolean
           logo_url?: string | null
           mp_subscription_id?: string | null
           name: string
@@ -1807,6 +1809,7 @@ export type Database = {
           exe_url?: string | null
           force_open?: boolean
           id?: string
+          ifood_courier_copy?: boolean
           logo_url?: string | null
           mp_subscription_id?: string | null
           name?: string
