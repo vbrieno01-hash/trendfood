@@ -17,6 +17,8 @@ function fmtMoney(cents: number | null | undefined): string {
 
 function buildOrderNotes(io: any): string {
   const parts: string[] = [];
+  // Pedido de homologação/teste — sinaliza pro operador
+  if (io.isTest === true) parts.push(`TESTE:SIM`);
   const orderType = String(io.orderType || "DELIVERY").toUpperCase();
   const isPickup = orderType === "TAKEOUT";
   parts.push(`TIPO:${isPickup ? "Retirada" : "Entrega"}`);
@@ -44,9 +46,9 @@ function buildOrderNotes(io: any): string {
     if (fee != null) parts.push(`FRETE:${fmtMoney(fee)}`);
   }
 
-  // Pickup code (req #6)
-  const pickupCode = io.delivery?.pickupCode || io.takeout?.takeoutDateTime || io.pickupCode;
-  if (isPickup && pickupCode) parts.push(`COLETA:${pickupCode}`);
+  // Pickup/handover code: SÓ delivery.pickupCode (não confundir com takeoutDateTime, que é DATA)
+  const pickupCode = io.delivery?.pickupCode || io.pickupCode;
+  if (pickupCode) parts.push(`COLETA:${pickupCode}`);
 
   // Pagamento + bandeira (req #4)
   const pay = io.payments?.methods?.[0] || {};
@@ -57,6 +59,20 @@ function buildOrderNotes(io: any): string {
   if (brand && /CREDIT|DEBIT|CARD/i.test(method)) parts.push(`BANDEIRA:${brand}`);
   const changeFor = pay.cash?.changeFor;
   if (changeFor && Number(changeFor) > 0) parts.push(`TROCO:${fmtMoney(changeFor)}`);
+
+  // Dados fiscais da transação (NFe: cAut + CNPJ intermediador)
+  const tx = pay.transaction || {};
+  if (tx.authorizationCode) parts.push(`AUT:${String(tx.authorizationCode).slice(0, 32)}`);
+  if (tx.acquirerDocument) parts.push(`CNPJ_INTERMED:${String(tx.acquirerDocument).replace(/\D/g, "").slice(0, 14)}`);
+
+  // Taxas adicionais do iFood (NÃO somar como receita do lojista — só exibir)
+  const fees = io.additionalFees || [];
+  if (Array.isArray(fees) && fees.length) {
+    const labels = fees
+      .map((f: any) => `${f.description || f.type || "Taxa"} ${fmtMoney(f.value ?? 0)}`)
+      .join("; ");
+    if (labels) parts.push(`TAXAS_IFOOD:${labels}`);
+  }
 
   // Cupom diferenciado iFood vs Loja (req #5)
   const benefits = io.benefits || [];
