@@ -17,6 +17,7 @@ import { getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrin
 import LockedFeatureBanner from "./LockedFeatureBanner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useNavigate } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
@@ -46,6 +47,10 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
   const [testPrintLoading, setTestPrintLoading] = useState(false);
   const [globalApkUrl, setGlobalApkUrl] = useState<string | null>(null);
   const [globalExeUrl, setGlobalExeUrl] = useState<string | null>(null);
+  const [ifoodCourierCopy, setIfoodCourierCopy] = useState<boolean>(
+    !!(organization as any)?.ifood_courier_copy
+  );
+  const [ifoodCourierLoading, setIfoodCourierLoading] = useState(false);
 
   // Fetch global download URLs from platform_config
   useEffect(() => {
@@ -117,6 +122,25 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       toast.error("Erro ao salvar configuração.");
     } finally {
       setPrintModeLoading(false);
+    }
+  };
+
+  const handleIfoodCourierToggle = async (checked: boolean) => {
+    if (!organization?.id) return;
+    setIfoodCourierCopy(checked);
+    setIfoodCourierLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ ifood_courier_copy: checked } as any)
+        .eq("user_id", organization.user_id);
+      if (error) throw error;
+      toast.success(checked ? "2ª via iFood ativada" : "2ª via iFood desativada");
+    } catch {
+      setIfoodCourierCopy(!checked); // rollback
+      toast.error("Erro ao salvar configuração.");
+    } finally {
+      setIfoodCourierLoading(false);
     }
   };
 
@@ -321,6 +345,26 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
             <p className="text-xs text-muted-foreground mt-1.5">
               Escolha a largura do papel da sua impressora térmica.
             </p>
+          </div>
+
+          {/* iFood courier 2nd copy */}
+          <div className="rounded-lg border border-border p-3 flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <Label htmlFor="ifood-courier" className="text-sm font-medium block">
+                2ª via sem CPF (entregador) — pedidos iFood
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Quando ativado, pedidos vindos do iFood imprimem uma 2ª via sanitizada
+                (sem CPF e sem dados fiscais sensíveis) destinada ao entregador.
+                A comanda padrão da cozinha continua igual.
+              </p>
+            </div>
+            <Switch
+              id="ifood-courier"
+              checked={ifoodCourierCopy}
+              onCheckedChange={handleIfoodCourierToggle}
+              disabled={ifoodCourierLoading || !printerAllowed}
+            />
           </div>
         </div>
       </div>
