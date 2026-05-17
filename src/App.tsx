@@ -10,6 +10,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import PreviewFallback from "./pages/_PreviewFallback";
 import { routeLoaders, prefetchRoute } from "@/lib/routeLoaders";
 const AuthPage = lazy(routeLoaders.auth);
 const UnitPage = lazy(routeLoaders.unit);
