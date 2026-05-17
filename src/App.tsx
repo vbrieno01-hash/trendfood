@@ -10,6 +10,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import PreviewFallback from "./pages/_PreviewFallback";
 import { routeLoaders, prefetchRoute } from "@/lib/routeLoaders";
 const AuthPage = lazy(routeLoaders.auth);
 const UnitPage = lazy(routeLoaders.unit);
@@ -44,17 +45,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const RouteFallback = () => {
+export const RouteFallback = ({ forceStage }: { forceStage?: 1 | 2 } = {}) => {
   // Estágios:
   //  0 (0-250ms): nada — evita "piscar" em chunks já em cache.
   //  1 (250ms-8s): spinner.
   //  2 (>8s): aviso "Conexão lenta" com botão de tentar de novo.
-  const [stage, setStage] = useState<0 | 1 | 2>(0);
+  const [stage, setStage] = useState<0 | 1 | 2>(forceStage ?? 0);
   useEffect(() => {
+    if (forceStage !== undefined) return;
     const t1 = setTimeout(() => setStage(1), 250);
     const t2 = setTimeout(() => setStage(2), 8000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+  }, [forceStage]);
   if (stage === 0) {
     return <div className="min-h-screen bg-background" aria-hidden />;
   }
@@ -333,6 +335,7 @@ const AppInner = () => {
               <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
               <Route path="/avaliar/:slug/:orderId" element={<ReviewPage />} />
               <Route path="/instalar" element={<InstallPage />} />
+              <Route path="/_preview/fallback" element={<PreviewFallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
