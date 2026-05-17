@@ -45,16 +45,45 @@ const queryClient = new QueryClient({
 });
 
 const RouteFallback = () => {
-  // Spinner só aparece após 250ms — evita "piscar" em chunks já em cache.
-  const [show, setShow] = useState(false);
+  // Estágios:
+  //  0 (0-250ms): nada — evita "piscar" em chunks já em cache.
+  //  1 (250ms-8s): spinner.
+  //  2 (>8s): aviso "Conexão lenta" com botão de tentar de novo.
+  const [stage, setStage] = useState<0 | 1 | 2>(0);
   useEffect(() => {
-    const t = setTimeout(() => setShow(true), 250);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setStage(1), 250);
+    const t2 = setTimeout(() => setStage(2), 8000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
-  if (!show) return <div className="min-h-screen" aria-hidden />;
+  if (stage === 0) {
+    return <div className="min-h-screen bg-background" aria-hidden />;
+  }
+  if (stage === 1) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="text-center space-y-4 max-w-sm">
+        <p className="text-4xl">📶</p>
+        <h1 className="text-xl font-bold text-foreground">Sua internet está lenta</h1>
+        <p className="text-sm text-muted-foreground">
+          Estamos tentando carregar a loja, mas sua conexão está muito devagar.
+          Verifique seu Wi-Fi ou dados móveis e toque no botão abaixo.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow hover:opacity-90 transition w-full"
+        >
+          Tentar novamente
+        </button>
+        <p className="text-[11px] text-muted-foreground">
+          Se continuar, troque de rede ou aguarde alguns segundos.
+        </p>
+      </div>
     </div>
   );
 };
@@ -66,27 +95,54 @@ const ConditionalSupportChat = () => {
   return <SupportChatWidget />;
 };
 
+const isChunkError = (msg: string) =>
+  msg.includes("Failed to fetch dynamically imported module") ||
+  msg.includes("Importing a module script failed") ||
+  msg.includes("error loading dynamically imported module") ||
+  msg.includes("Loading chunk") ||
+  msg.includes("Loading CSS chunk");
+
+// Recupera de chunk velho com até 2 tentativas, limpando SW+caches antes de recarregar.
+async function recoverFromStaleChunk(source: string): Promise<boolean> {
+  try {
+    const KEY = "chunk_reload_count";
+    const LAST = "chunk_reload_last_ts";
+    const now = Date.now();
+    const last = Number(sessionStorage.getItem(LAST) || "0");
+    const count = Number(sessionStorage.getItem(KEY) || "0");
+    if (count >= 2) return false;
+    if (now - last < 5000) return false; // gap mínimo de 5s
+    sessionStorage.setItem(KEY, String(count + 1));
+    sessionStorage.setItem(LAST, String(now));
+    console.info(`[Auto-Reload] chunk velho detectado (${source}), limpando caches e recarregando…`);
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ("caches" in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+    } catch (e) {
+      console.warn("[Auto-Reload] cache clear falhou:", e);
+    }
+    window.location.reload();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const AppInner = () => {
   useEffect(() => {
     const rejectionHandler = (e: PromiseRejectionEvent) => {
       const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
       if (isIgnorableError(msg)) return;
-      // Auto-reload em chunk velho de PWA: depois de um deploy, abas antigas tentam
-      // baixar chunks que não existem mais. Recarrega 1x (sessionStorage flag pra não loopar).
-      if (
-        msg.includes("Failed to fetch dynamically imported module") ||
-        msg.includes("Importing a module script failed") ||
-        msg.includes("error loading dynamically imported module")
-      ) {
-        try {
-          const FLAG = "chunk_reload_done";
-          if (!sessionStorage.getItem(FLAG)) {
-            sessionStorage.setItem(FLAG, "1");
-            console.info("[Auto-Reload] chunk velho detectado, recarregando…");
-            window.location.reload();
-            return;
-          }
-        } catch {}
+      if (isChunkError(msg)) {
+        e.preventDefault();
+        void recoverFromStaleChunk("rejection");
+        return;
       }
       console.error("[Unhandled Rejection]", e.reason);
       e.preventDefault();
@@ -96,19 +152,9 @@ const AppInner = () => {
 
     const errorHandler = (e: ErrorEvent) => {
       if (isIgnorableError(e.message)) return;
-      if (
-        e.message.includes("Failed to fetch dynamically imported module") ||
-        e.message.includes("Importing a module script failed")
-      ) {
-        try {
-          const FLAG = "chunk_reload_done";
-          if (!sessionStorage.getItem(FLAG)) {
-            sessionStorage.setItem(FLAG, "1");
-            console.info("[Auto-Reload] chunk velho detectado (error), recarregando…");
-            window.location.reload();
-            return;
-          }
-        } catch {}
+      if (isChunkError(e.message)) {
+        void recoverFromStaleChunk("error");
+        return;
       }
       logClientError({
         message: e.message,
