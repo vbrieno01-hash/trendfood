@@ -335,6 +335,7 @@ const AppInner = () => {
               <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
               <Route path="/avaliar/:slug/:orderId" element={<ReviewPage />} />
               <Route path="/instalar" element={<InstallPage />} />
+              <Route path="/_preview/fallback" element={<PreviewFallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
