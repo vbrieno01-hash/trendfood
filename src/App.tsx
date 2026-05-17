@@ -44,17 +44,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const RouteFallback = () => {
+export const RouteFallback = ({ forceStage }: { forceStage?: 1 | 2 } = {}) => {
   // Estágios:
   //  0 (0-250ms): nada — evita "piscar" em chunks já em cache.
   //  1 (250ms-8s): spinner.
   //  2 (>8s): aviso "Conexão lenta" com botão de tentar de novo.
-  const [stage, setStage] = useState<0 | 1 | 2>(0);
+  const [stage, setStage] = useState<0 | 1 | 2>(forceStage ?? 0);
   useEffect(() => {
+    if (forceStage !== undefined) return;
     const t1 = setTimeout(() => setStage(1), 250);
     const t2 = setTimeout(() => setStage(2), 8000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+  }, [forceStage]);
   if (stage === 0) {
     return <div className="min-h-screen bg-background" aria-hidden />;
   }
