@@ -45,75 +45,17 @@ const queryClient = new QueryClient({
   },
 });
 
-export const RouteFallback = ({ forceStage }: { forceStage?: 1 | 2 } = {}) => {
-  // Estágios:
-  //  0 (0-250ms): nada — evita "piscar" em chunks já em cache.
-  //  1 (250ms-8s): spinner.
-  //  2 (>8s): aviso "Conexão lenta" com botão de tentar de novo.
-  const [stage, setStage] = useState<0 | 1 | 2>(forceStage ?? 0);
+export const RouteFallback = ({ forceShow }: { forceShow?: boolean } = {}) => {
+  // 0–250ms: tela em branco (evita piscar em chunks já em cache).
+  // >250ms: já mostra o card com botão grande de "Reconectar agora".
+  const [show, setShow] = useState<boolean>(!!forceShow);
   useEffect(() => {
-    if (forceStage !== undefined) return;
-    const t1 = setTimeout(() => setStage(1), 250);
-    const t2 = setTimeout(() => setStage(2), 8000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [forceStage]);
-  if (stage === 0) {
+    if (forceShow) return;
+    const t = setTimeout(() => setShow(true), 250);
+    return () => clearTimeout(t);
+  }, [forceShow]);
+  if (!show) {
     return <div className="min-h-screen bg-background" aria-hidden />;
-  }
-  if (stage === 1) {
-    return (
-      <div
-        role="status"
-        aria-label="Carregando"
-        className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18),transparent_55%),radial-gradient(ellipse_at_bottom,hsl(var(--accent)/0.15),transparent_60%),hsl(var(--background))]"
-      >
-        {/* grid futurista */}
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(hsl(var(--foreground))_1px,transparent_1px),linear-gradient(90deg,hsl(var(--foreground))_1px,transparent_1px)] [background-size:42px_42px]"
-        />
-        {/* halo */}
-        <div
-          aria-hidden
-          className="absolute h-72 w-72 rounded-full bg-primary/20 blur-3xl animate-pulse"
-        />
-        <div className="relative flex flex-col items-center gap-6">
-          {/* anel orbital */}
-          <div className="relative h-28 w-28">
-            <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
-              <circle cx="50" cy="50" r="46" fill="none" stroke="hsl(var(--foreground)/0.08)" strokeWidth="2" />
-              <circle
-                cx="50" cy="50" r="46" fill="none"
-                stroke="hsl(var(--primary))" strokeWidth="2"
-                strokeLinecap="round" strokeDasharray="60 240"
-                className="[transform-origin:50%_50%] [animation:spin_1.4s_linear_infinite]"
-              />
-            </svg>
-            <svg viewBox="0 0 100 100" className="absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)] rotate-90">
-              <circle
-                cx="50" cy="50" r="44" fill="none"
-                stroke="hsl(var(--accent))" strokeWidth="1.5"
-                strokeLinecap="round" strokeDasharray="20 200"
-                className="[transform-origin:50%_50%] [animation:spin_2.2s_linear_infinite_reverse]"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-3 w-3 rounded-full bg-primary shadow-[0_0_24px_hsl(var(--primary))] animate-pulse" />
-            </div>
-          </div>
-          {/* wordmark com shimmer */}
-          <div className="text-center">
-            <h1 className="text-2xl font-black tracking-[0.3em] bg-clip-text text-transparent bg-[linear-gradient(110deg,hsl(var(--foreground))_30%,hsl(var(--primary))_50%,hsl(var(--foreground))_70%)] bg-[length:200%_100%] [animation:shimmer_2.4s_linear_infinite]">
-              TRENDFOOD
-            </h1>
-            <p className="mt-2 text-[11px] uppercase tracking-[0.4em] text-muted-foreground">
-              Inicializando<span className="inline-block w-4 text-left animate-pulse">…</span>
-            </p>
-          </div>
-        </div>
-        <style>{`@keyframes shimmer{to{background-position:-200% 0}}`}</style>
-      </div>
-    );
   }
   return (
     <div
