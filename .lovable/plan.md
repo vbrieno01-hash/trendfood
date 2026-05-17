@@ -1,153 +1,43 @@
-# Roteiro de Homologação iFood — TrendFood
+## Objetivo
 
-Tudo que já implementamos (Pacote 1 + 2ª via entregador) está pronto. Abaixo está exatamente **o que gravar, como gravar e o que falar**.
+Trocar a tela atual de "internet lenta" (emoji 📶 + caixinha simples = parece o dinossauro do Chrome) por uma tela **futurista, premium, com cara de Trendfood** — mostrando potência da marca em vez de aparentar erro genérico.
 
----
+Escopo: **só visual da tela de fallback** em `src/App.tsx` (componente `RouteFallback`, estágios 1 e 2). Nada de lógica, timing, recuperação de chunk ou rotas muda.
 
-## 1. Como gravar (setup técnico)
+## Como vai ficar
 
-**Ferramenta sugerida:** Loom, OBS Studio ou a gravação nativa do Windows (Win+G) / Mac (Cmd+Shift+5).
+**Estágio 1 (250ms – 8s) — Loading premium:**
+- Fundo escuro com gradiente radial animado (cores do tema `--primary` / `--accent`).
+- Partículas/grid sutil ao fundo (CSS puro, sem libs).
+- Logo "TRENDFOOD" centralizado com efeito de **shimmer/glow pulsante** (gradiente animado no texto).
+- Anel orbital girando ao redor do logo (dois círculos SVG concêntricos com `stroke-dasharray` animado).
+- Texto sutil "Carregando experiência…" com pontinhos animados.
 
-**Configuração:**
-- Resolução: 1920×1080 (Full HD)
-- Áudio: microfone do headset/notebook, ambiente silencioso
-- Mostrar **mouse + clique destacado** (Loom já faz; no OBS ative "Click highlight")
-- Duração-alvo: **5 a 8 minutos** (analista iFood não assiste vídeo longo)
-- Formato final: **MP4**
-- Subir no Google Drive / YouTube **não-listado** e mandar o link para o analista
+**Estágio 2 (>8s) — Conexão lenta, versão futurista:**
+- Mesmo fundo gradiente + grid.
+- Card central **glassmorphism** (`backdrop-blur-xl`, borda com gradiente, sombra com glow do primary) — alinhado ao tema Premium Live já existente na memória do projeto.
+- Ícone de sinal customizado em SVG (ondas de Wi-Fi animadas, uma delas "quebrada" em vermelho/laranja sutil) em vez do emoji 📶.
+- Título grande: **"Sinal fraco detectado"** com tipografia bold e gradiente no texto.
+- Subtítulo limpo: "Sua conexão está instável. Vamos tentar novamente em segundos."
+- Botão CTA premium: gradiente `primary → accent`, ícone de refresh girando no hover, glow ao redor, micro-animação de pulse.
+- Linha de status técnica embaixo em mono pequena: `TRENDFOOD · status: reconectando` com bolinha verde piscando — passa sensação de sistema profissional monitorando.
+- Footer minúsculo: "Powered by Trendfood".
 
-**Abas/janelas a deixar abertas antes de começar** (para não perder tempo navegando):
-1. Painel TrendFood logado → aba **Produção (KDS)**
-2. Painel TrendFood → aba **Integração iFood** (mostra eventos)
-3. Painel TrendFood → aba **Configurações → Impressora** (mostra toggle 2ª via)
-4. **Portal do Lojista iFood** (homologação) em outra aba
-5. App **iFood Gestor de Pedidos** no celular OU portal homologação para criar o pedido teste
+## Detalhes técnicos
 
----
+- Arquivo único: `src/App.tsx` — substituir JSX dos estágios 1 e 2 do `RouteFallback`.
+- 100% Tailwind + tokens semânticos (`bg-background`, `text-foreground`, `text-primary`, `bg-gradient-to-*`) — sem hex hardcoded, segue regra do design system.
+- Animações via classes Tailwind + `@keyframes` no `index.css` (adicionar `animate-shimmer`, `animate-orbit`, `animate-signal-pulse` se necessário).
+- SVG inline para o ícone de sinal e o anel orbital — zero dependência nova.
+- Mobile-first: card max-w-sm, padding generoso, texto responsivo.
+- Acessibilidade: `role="status"` no loading, `aria-live="polite"` no estágio 2, contraste AA.
 
-## 2. O que gravar (sequência de cenas)
+## O que NÃO muda
 
-### Cena 1 — Apresentação (30s)
-Tela: home do TrendFood logado.
-**Fale:**
-> "Olá, sou Breno Jackson, responsável técnico do TrendFood, CNPJ 66.067.207/0001-91. Este vídeo demonstra a homologação da integração com a Order API v1 e Merchant API do iFood. Vou criar um pedido de teste, mostrar a recepção, confirmação, mudança de status e cancelamento."
+- Lógica de detecção de chunk velho, `recoverFromStaleChunk`, `ErrorBoundary`, timing dos estágios (250ms / 8s), `sessionStorage`, service worker — tudo intacto.
+- Nenhum outro arquivo além de `src/App.tsx` (e possivelmente 3-5 linhas de keyframes em `src/index.css`).
+- Funcionalidade da loja, checkout, dashboard, edge functions — zero risco.
 
-### Cena 2 — Criar pedido teste no iFood (45s)
-Tela: Portal do Lojista iFood (homologação) ou app Gestor de Pedidos.
-- Crie um pedido marcado como **TESTE** (`isTest: true`)
-- Inclua: 1 item com observação, 1 adicional, pagamento online (prepaid)
+## Resultado
 
-**Fale:**
-> "Estou criando um pedido de teste no merchant homologado, com um item, um adicional e pagamento online."
-
-### Cena 3 — Recepção no KDS (1min)
-Tela: TrendFood → aba **Produção (KDS)** + abrir a aba **Integração iFood** lado a lado se possível.
-- Aguarde o card aparecer (até 60s pelo polling)
-- Mostre o card iFood com o chip vermelho
-- Abra o card e mostre: cliente, endereço, itens, **marcação TESTE:SIM**, código de coleta, AUT, taxas
-
-**Fale:**
-> "O evento PLC chega via polling a cada 60 segundos. O pedido aparece no KDS com o selo TESTE, código de coleta, taxas do iFood separadas da receita do lojista, e o código de autorização para a nota fiscal."
-
-### Cena 4 — Confirmação (30s)
-- Clique em **Aceitar** no KDS
-- Vá na aba **Integração iFood** e mostre o `event.id` único e a latência de confirmação
-
-**Fale:**
-> "Ao clicar em Aceitar, chamamos POST /orders/{id}/confirm. A latência é registrada em milissegundos. Cada evento tem ID único, garantindo deduplicação."
-
-### Cena 5 — Mudança de status sem loop (45s)
-- Vá no **Portal iFood** e mude o status (ex.: marque como Pronto)
-- Volte para o TrendFood e mostre o KDS refletindo
-- Fale do anti-loop
-
-**Fale:**
-> "Quando o lojista muda o status pelo Portal iFood, o TrendFood reflete a mudança sem disparar de volta para o iFood. A flag `ifood_synced_externally` impede o loop."
-
-### Cena 6 — 2ª via do entregador (sem CPF) (1min)
-Tela: TrendFood → **Configurações → Impressora**.
-- Mostre o toggle **"2ª via sem CPF (entregador)"** — ative
-- Volte ao pedido iFood no KDS
-- Imprima — mostre que sai 1 comanda completa + 1 comanda **sem CPF**, **sem CNPJ intermediador**, **sem código de autorização**, e com o cabeçalho **VIA DO ENTREGADOR**
-
-**Fale:**
-> "Para proteger dados sensíveis do cliente (LGPD), o lojista pode ativar uma 2ª via opcional para o entregador. Essa via remove CPF, CNPJ do intermediador e dados fiscais, mantendo só nome, telefone, endereço e itens. A comanda padrão e os pedidos do nosso PDV não são afetados."
-
-### Cena 7 — Cancelamento com motivos da API (45s)
-- Crie outro pedido teste
-- No KDS clique em **Cancelar**
-- Mostre o modal listando motivos vindos de `GET /orders/{id}/cancellationReasons`
-- Escolha um motivo e confirme
-- Mostre que o status virou **cancelled**
-
-**Fale:**
-> "Os motivos de cancelamento são sempre buscados em tempo real pela API iFood — nunca usamos códigos hardcoded. O lojista escolhe e enviamos o cancellationCode real."
-
-### Cena 8 — Merchant API (45s)
-Tela: Painel **admin → aba iFood Merchant API**.
-- Selecione a loja → clique **Rodar checklist**
-- Mostre os 8 endpoints (GET merchants, status, opening-hours, interruptions etc.) com ✅
-- Clique em **+ Pausa 30min** e mostre POST + GET + DELETE
-
-**Fale:**
-> "Implementamos também a Merchant API: listagem de lojas, status, horários, e gestão de pausas. Mudanças de horário ou pausa no TrendFood são sincronizadas automaticamente para o iFood via trigger no banco."
-
-### Cena 9 — Encerramento (15s)
-**Fale:**
-> "Integração validada nos requisitos de Order API e Merchant API. Documentação técnica completa está em trendfood.site/docs/IFOOD-HOMOLOGACAO.md. Obrigado."
-
----
-
-## 3. Checklist antes de gravar
-
-- [ ] Está logado com a loja **homologada** (com `ifood_credentials` válidas)
-- [ ] Toggle **2ª via entregador** começa **desligado** (vai ativar no vídeo)
-- [ ] Impressora térmica conectada OU usar modo "Navegador" para visualizar o PDF
-- [ ] Limpar pedidos antigos da Produção pra não poluir a tela
-- [ ] Testar 1 vez sem gravar pra cronometrar
-- [ ] Microfone testado, sem eco
-
----
-
-## 4. O que enviar junto com o vídeo
-
-No e-mail para o analista iFood:
-
-```
-Assunto: Homologação TrendFood — CNPJ 66.067.207/0001-91
-
-Olá,
-
-Segue homologação da integração TrendFood com Order API v1 + Merchant API:
-
-• Vídeo demonstrativo: [link Drive/YouTube não-listado]
-• Documentação técnica: https://trendfood.site/docs/IFOOD-HOMOLOGACAO.md
-• PDF da documentação: https://trendfood.site/docs/ifood-homologacao-trendfood.pdf
-• Merchant ID de teste: [preencher]
-• Contato técnico: suporte@trendfood.site
-
-Pontos demonstrados:
-1. Recepção via polling (60s) com dedup por event.id
-2. Confirmação POST /orders/{id}/confirm dentro do SLA
-3. Sincronização bidirecional sem loop (ifood_synced_externally)
-4. Cancelamento com motivos buscados em /cancellationReasons
-5. Marcação isTest, código de coleta, AUT, CNPJ intermediador e taxas iFood
-6. 2ª via opcional do entregador (LGPD)
-7. Merchant API completa (8 endpoints + sync de pausas/horários)
-
-Aguardo retorno.
-```
-
----
-
-## 5. Erros comuns a evitar durante a gravação
-
-- **Não** mostre tela com dados de outras lojas (use só a homologação)
-- **Não** mude o status manualmente pelo banco — sempre pela UI ou Portal iFood
-- **Não** corte cenas com edição agressiva — analista quer ver o fluxo real e contínuo
-- Se algo der errado durante a gravação (pedido demora, internet caiu), **regrave aquela cena** em vez de explicar o erro
-- Mantenha o tom **objetivo e técnico** — sem música, sem efeitos
-
----
-
-Pronto pra gravar. Quer que eu gere também um **PDF imprimível** com esse roteiro pra você seguir durante a gravação?
+Quando aparecer (raro, só em internet ruim de verdade), o cliente vê a marca **Trendfood se apresentando com presença**, não uma página de erro. Reforça profissionalismo perante o lojista e o consumidor final.
