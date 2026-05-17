@@ -30,6 +30,27 @@ class ErrorBoundary extends React.Component<Props, State> {
       return;
     }
 
+    // Chunk velho (após deploy): limpa cache + reload automático (até 2x).
+    const msg = error.message || "";
+    const isChunkError =
+      msg.includes("Failed to fetch dynamically imported module") ||
+      msg.includes("Importing a module script failed") ||
+      msg.includes("error loading dynamically imported module") ||
+      msg.includes("Loading chunk") ||
+      msg.includes("Loading CSS chunk");
+    if (isChunkError) {
+      try {
+        const KEY = "chunk_reload_count";
+        const count = Number(sessionStorage.getItem(KEY) || "0");
+        if (count < 2) {
+          sessionStorage.setItem(KEY, String(count + 1));
+          console.info("[ErrorBoundary] chunk velho, recuperando…");
+          this.handleClearAndReload();
+          return;
+        }
+      } catch {}
+    }
+
     this.lastErrorTime = Date.now();
     this.setState({
       errorMessage: `${error.name}: ${error.message}`,
