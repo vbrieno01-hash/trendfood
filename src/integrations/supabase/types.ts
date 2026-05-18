@@ -2571,6 +2571,95 @@ export type Database = {
           },
         ]
       }
+      support_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string
+          last_message_preview: string | null
+          organization_id: string
+          resolved_at: string | null
+          unread_for_admin: number
+          unread_for_store: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          organization_id: string
+          resolved_at?: string | null
+          unread_for_admin?: number
+          unread_for_store?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          organization_id?: string
+          resolved_at?: string | null
+          unread_for_admin?: number
+          unread_for_store?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_messages: {
+        Row: {
+          attachment_url: string | null
+          content: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          read_at: string | null
+          sender: string
+          sender_user_id: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender: string
+          sender_user_id?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender?: string
+          sender_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tables: {
         Row: {
           created_at: string
@@ -2938,6 +3027,29 @@ export type Database = {
         Returns: number
       }
       run_cleanup_orgs_manual: { Args: never; Returns: Json }
+      support_get_or_create_conversation: {
+        Args: { _org_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          last_message_at: string
+          last_message_preview: string | null
+          organization_id: string
+          resolved_at: string | null
+          unread_for_admin: number
+          unread_for_store: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_conversations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      support_mark_read: {
+        Args: { _as: string; _conversation_id: string }
+        Returns: undefined
+      }
       toggle_cleanup_dry_run: { Args: { _dry_run: boolean }; Returns: Json }
       validate_coupon_by_code: {
         Args: { _cart_total: number; _code: string; _org_id: string }
