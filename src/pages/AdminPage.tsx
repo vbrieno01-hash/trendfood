@@ -33,6 +33,7 @@ import IFoodMerchantHomologTab from "@/components/admin/IFoodMerchantHomologTab"
 import AffiliatesTab from "@/components/admin/AffiliatesTab";
 import CapacityTab from "@/components/admin/CapacityTab";
 import CleanupTab from "@/components/admin/CleanupTab";
+import SupportInboxTab from "@/components/admin/SupportInboxTab";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 import ThemeToggle from "@/components/ThemeToggle";
@@ -249,7 +250,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "ifood_merchant" | "capacidade" | "limpeza";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "ifood_merchant" | "capacidade" | "limpeza" | "suporte";
 
 interface NavGroup {
   label: string;
@@ -274,6 +275,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "relatorios", icon: <FileText className="w-4 h-4" />, label: "Relatórios" },
       { key: "features", icon: <Sparkles className="w-4 h-4" />, label: "Funcionalidades" },
       { key: "vendas", icon: <MessageCircle className="w-4 h-4" />, label: "Chat de Vendas" },
+      { key: "suporte", icon: <MessageCircle className="w-4 h-4" />, label: "Suporte (lojistas)" },
       { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
       { key: "wa_instances", icon: <Smartphone className="w-4 h-4" />, label: "Instâncias WhatsApp" },
       { key: "aibot", icon: <Bot className="w-4 h-4" />, label: "Robô IA" },
@@ -1046,6 +1048,7 @@ function AdminContent() {
           {activeTab === "afiliados" && <AffiliatesTab />}
           {activeTab === "capacidade" && <CapacityTab />}
           {activeTab === "limpeza" && <CleanupTab />}
+          {activeTab === "suporte" && <SupportInboxTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}
