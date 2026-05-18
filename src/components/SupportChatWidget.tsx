@@ -1,116 +1,94 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Bot, X, Send, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { HeadphonesIcon, X, Send, Image as ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useSupportChat, isSupportOnline } from "@/hooks/useSupportChat";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-type Msg = { role: "user" | "assistant"; content: string };
-
-const WELCOME_MESSAGE: Msg = {
-  role: "assistant",
-  content: "Olá! 👋 Sou o assistente do TrendFood. Como posso te ajudar?",
+const formatTime = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Sao_Paulo",
+    });
+  } catch {
+    return "";
+  }
 };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/support-chat`;
-
 const SupportChatWidget = () => {
+  const { organization } = useAuth();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [online, setOnline] = useState(isSupportOnline());
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
+  const { conversation, messages, loading, sending, sendText, sendImage, markRead } =
+    useSupportChat(organization?.id);
+
+  // tick a cada minuto pra atualizar badge online/offline
+  useEffect(() => {
+    const id = setInterval(() => setOnline(isSupportOnline()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // autoscroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, open]);
 
+  // marcar lida ao abrir + focar input
   useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus();
+    if (open) {
+      markRead();
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [open]);
+  }, [open, markRead]);
 
-  const send = useCallback(async () => {
+  if (!organization) return null;
+
+  const unread = conversation?.unread_for_store ?? 0;
+
+  const handleSendText = async () => {
     const text = input.trim();
-    if (!text || loading) return;
-
-    const userMsg: Msg = { role: "user", content: text };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    if (!text || sending) return;
     setInput("");
-    setLoading(true);
-
-    let assistantSoFar = "";
-
-    const upsertAssistant = (chunk: string) => {
-      assistantSoFar += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && prev.length > newMessages.length) {
-          return prev.map((m, i) =>
-            i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
-          );
-        }
-        return [...prev.slice(0, newMessages.length), { role: "assistant", content: assistantSoFar }];
-      });
-    };
-
     try {
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          messages: newMessages.filter((m) => m !== WELCOME_MESSAGE),
-        }),
-      });
-
-      if (!resp.ok || !resp.body) {
-        const err = await resp.json().catch(() => ({}));
-        upsertAssistant(err.error || "Desculpe, ocorreu um erro. Tente novamente.");
-        setLoading(false);
-        return;
-      }
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-          let line = buffer.slice(0, newlineIndex);
-          buffer = buffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) upsertAssistant(content);
-          } catch {
-            buffer = line + "\n" + buffer;
-            break;
-          }
-        }
-      }
-    } catch {
-      upsertAssistant("Desculpe, não consegui me conectar. Verifique sua internet e tente novamente.");
+      await sendText(text);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao enviar mensagem");
+      setInput(text);
     }
+  };
 
-    setLoading(false);
-  }, [input, loading, messages]);
+  const handlePickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx 5 MB).");
+      return;
+    }
+    try {
+      await sendImage(file);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao enviar imagem");
+    }
+  };
+
+  // Resolve URL para imagens (algumas podem ser apenas o path).
+  const resolveAttachment = (url: string | null): string | null => {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    const { data } = supabase.storage.from("support-attachments").getPublicUrl(url);
+    return data.publicUrl;
+  };
 
   return (
     <>
@@ -121,18 +99,40 @@ const SupportChatWidget = () => {
           className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
           aria-label="Abrir chat de suporte"
         >
-          <Bot className="h-6 w-6" />
+          <HeadphonesIcon className="h-6 w-6" />
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+          <span
+            className={cn(
+              "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
+              online ? "bg-emerald-500" : "bg-amber-500"
+            )}
+          />
         </button>
       )}
 
-      {/* Chat panel */}
+      {/* Panel */}
       {open && (
-        <div className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl sm:w-[380px] animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl sm:w-[400px] animate-in slide-in-from-bottom-4 fade-in duration-200">
           {/* Header */}
           <div className="flex items-center justify-between rounded-t-2xl bg-primary px-4 py-3 text-primary-foreground">
             <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              <span className="font-semibold text-sm">TrendFood Suporte</span>
+              <HeadphonesIcon className="h-5 w-5" />
+              <div className="flex flex-col leading-tight">
+                <span className="font-semibold text-sm">Suporte TrendFood</span>
+                <span className="text-[11px] opacity-90 flex items-center gap-1">
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      online ? "bg-emerald-300" : "bg-amber-300"
+                    )}
+                  />
+                  {online ? "Online agora" : "Atendimento 08h–22h"}
+                </span>
+              </div>
             </div>
             <button
               onClick={() => setOpen(false)}
@@ -143,55 +143,106 @@ const SupportChatWidget = () => {
             </button>
           </div>
 
+          {/* Off-hours notice */}
+          {!online && (
+            <div className="bg-amber-500/10 border-b border-amber-500/30 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300 leading-snug">
+              Fora do horário oficial (08h–22h). Pode mandar mesmo assim que respondo assim que vir 🙂
+            </div>
+          )}
+
           {/* Messages */}
           <div
             ref={scrollRef}
-            className="flex flex-col gap-3 overflow-y-auto px-4 py-3 h-[350px] sm:h-[400px]"
+            className="flex flex-col gap-2 overflow-y-auto px-4 py-3 h-[380px] sm:h-[420px] bg-muted/20"
           >
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap",
-                  msg.role === "assistant"
-                    ? "self-start bg-muted text-foreground rounded-bl-sm"
-                    : "self-end bg-primary text-primary-foreground rounded-br-sm"
-                )}
-              >
-                {msg.content}
-              </div>
-            ))}
-            {loading && messages[messages.length - 1]?.role === "user" && (
-              <div className="self-start flex items-center gap-1.5 text-muted-foreground text-xs px-1">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Digitando...
+            {loading && messages.length === 0 && (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
             )}
+            {!loading && messages.length === 0 && (
+              <div className="text-center text-xs text-muted-foreground py-6 px-2 leading-relaxed">
+                Mande sua dúvida, sugestão ou problema. Pode anexar fotos também 📎
+              </div>
+            )}
+            {messages.map((msg) => {
+              const mine = msg.sender === "store";
+              const att = resolveAttachment(msg.attachment_url);
+              return (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "max-w-[85%] flex flex-col gap-1",
+                    mine ? "self-end items-end" : "self-start items-start"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap shadow-sm",
+                      mine
+                        ? "bg-primary text-primary-foreground rounded-br-sm"
+                        : "bg-card border rounded-bl-sm"
+                    )}
+                  >
+                    {att && (
+                      <a href={att} target="_blank" rel="noreferrer" className="block">
+                        <img
+                          src={att}
+                          alt="anexo"
+                          className="max-w-[220px] rounded-lg mb-1"
+                          loading="lazy"
+                        />
+                      </a>
+                    )}
+                    {msg.content}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground px-1">
+                    {mine ? "Você" : "Suporte"} · {formatTime(msg.created_at)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           {/* Input */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              send();
+              handleSendText();
             }}
-            className="flex items-center gap-2 border-t px-3 py-2"
+            className="flex items-center gap-2 border-t px-3 py-2 bg-background rounded-b-2xl"
           >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePickFile}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={sending}
+              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors disabled:opacity-40"
+              aria-label="Anexar foto"
+            >
+              <ImageIcon className="h-4 w-4" />
+            </button>
             <input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua dúvida..."
+              placeholder="Digite sua mensagem..."
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              disabled={loading}
+              disabled={sending}
             />
             <button
               type="submit"
-              disabled={loading || !input.trim()}
+              disabled={sending || !input.trim()}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40 transition-opacity"
               aria-label="Enviar"
             >
-              <Send className="h-4 w-4" />
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </form>
         </div>
