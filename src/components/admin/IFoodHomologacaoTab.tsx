@@ -116,10 +116,20 @@ const CHECKLIST: ChecklistItem[] = [
     detail: "UNIQUE INDEX em ifood_event_log(ifood_event_id). Reentregas do iFood são ignoradas em silêncio." },
   { status: "ok", title: "Sincronização externa (CFM/RPR/DSP/CAN)",
     detail: "Flag orders.ifood_synced_externally = true durante o eco; trigger SQL evita loop com a API iFood." },
-  { status: "partial", title: "Plataforma de Negociação (HANDSHAKE_*)",
-    detail: "Eventos HANDSHAKE_* são logados em ifood_event_log e o lojista é notificado via Telegram. Resposta automática ainda manual." },
+  { status: "ok", title: "Plataforma de Negociação (HANDSHAKE / Disputes)",
+    detail: "Eventos HANDSHAKE_* / DISPUTE são persistidos em ifood_disputes com expires_at, e respondidos via edge function ifood-handshake-respond (POST /disputes/{id}/accept|reject|alternative). pg_cron marca como expired automaticamente." },
   { status: "ok", title: "Webhook responde 202 + ACK",
     detail: "Edge function ifood-webhook responde 202 imediatamente e chama /acknowledgment de forma assíncrona." },
+  { status: "ok", title: "ORDER_PATCHED — modificações de pedido",
+    detail: "Polling e webhook tratam ORDER_PATCHED: DELETE_ITEMS remove order_items por nome, ADD_ITEMS insere, e gera comanda 'ATUALIZACAO DE PEDIDO' na fila de impressão. orders.ifood_patched_at registra o evento." },
+  { status: "ok", title: "Pedidos agendados (orderTiming=SCHEDULED)",
+    detail: "schedule.deliveryDateTimeStart é persistido em orders.ifood_scheduled_for; KDS pode usar para suprimir alarme e exibir horário." },
+  { status: "ok", title: "Atribuição de entregador iFood (ASSIGN_DRIVER)",
+    detail: "Evento ASSIGN_DRIVER salva orders.ifood_driver_assigned_at e ifood_driver_name. Tracking via edge function ifood-tracking (GET /orders/{id}/tracking) com cache 30s respeitando rate-limit." },
+  { status: "ok", title: "validatePickupCode (coleta do entregador)",
+    detail: "Edge function ifood-validate-pickup-code → POST /orders/{id}/validatePickupCode. Loga OUT_PICKUP_CODE_VALID/INVALID." },
+  { status: "ok", title: "verifyDeliveryCode (entrega ao cliente)",
+    detail: "Edge function ifood-verify-delivery-code → POST /orders/{id}/verifyDeliveryCode. Loga OUT_DELIVERY_CODE_VALID/INVALID." },
 ];
 
 export default function IFoodHomologacaoTab() {

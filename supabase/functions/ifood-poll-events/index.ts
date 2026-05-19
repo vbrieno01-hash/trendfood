@@ -104,6 +104,110 @@ function buildOrderNotes(io: any): string {
   return parts.filter(Boolean).join("|");
 }
 
+function extractScheduledFor(io: any): string | null {
+  if (String(io?.orderTiming).toUpperCase() !== "SCHEDULED") return null;
+  const raw = io?.schedule?.deliveryDateTimeStart
+    || io?.schedule?.scheduledDateTimeStart
+    || io?.scheduledDateTime
+    || null;
+  if (!raw) return null;
+  try { return new Date(raw).toISOString(); } catch { return null; }
+}
+
+async function upsertDispute(supabase: any, orgId: string, event: any) {
+  const md = event?.metadata || {};
+  const disputeId = md.disputeId || md.id || event?.disputeId || event?.id;
+  if (!disputeId) return;
+  const ifoodOrderId = event?.orderId || md.orderId || null;
+  const expiresAt = md.expiresAt || md.expireAt || null;
+
+  // resolve internal order
+  let internalOrderId: string | null = null;
+  if (ifoodOrderId) {
+    const { data: ord } = await supabase.from("orders").select("id")
+      .eq("organization_id", orgId)
+      .eq("gateway_payment_id", `ifood:${ifoodOrderId}`).maybeSingle();
+    internalOrderId = ord?.id ?? null;
+  }
+
+  await supabase.from("ifood_disputes").upsert({
+    organization_id: orgId,
+    dispute_id: String(disputeId),
+    ifood_order_id: ifoodOrderId,
+    order_id: internalOrderId,
+    dispute_type: event?.code || event?.fullCode || md.type || null,
+    expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+    payload: event,
+    status: "open",
+  }, { onConflict: "dispute_id" } as any);
+}
+
+async function applyOrderPatch(supabase: any, orgId: string, ifoodOrderId: string, event: any) {
+  if (!ifoodOrderId) return null;
+  const { data: order } = await supabase.from("orders")
+    .select("id").eq("organization_id", orgId)
+    .eq("gateway_payment_id", `ifood:${ifoodOrderId}`).maybeSingle();
+  if (!order) return null;
+
+  const md = event?.metadata || {};
+  const changeType = String(md.changeType || md.action || "").toUpperCase();
+  const items: any[] = Array.isArray(md.items) ? md.items : [];
+
+  if (changeType === "DELETE_ITEMS" && items.length) {
+    for (const it of items) {
+      const namePrefix = String(it.name || "").slice(0, 60);
+      if (!namePrefix) continue;
+      await supabase.from("order_items")
+        .delete()
+        .eq("order_id", order.id)
+        .ilike("name", `${namePrefix}%`);
+    }
+  } else if (changeType === "ADD_ITEMS" && items.length) {
+    const rows = items.map((it: any) => ({
+      order_id: order.id,
+      name: String(it.name || "Item iFood") + (it.observations ? ` | Obs: ${String(it.observations).slice(0, 200)}` : ""),
+      price: Number(it.totalPrice ?? it.unitPrice ?? 0),
+      quantity: it.quantity || 1,
+    }));
+    if (rows.length) await supabase.from("order_items").insert(rows);
+  }
+
+  await supabase.from("orders").update({
+    ifood_patched_at: new Date().toISOString(),
+    ifood_synced_externally: true,
+  }).eq("id", order.id);
+
+  // Comanda de atualização pra impressão
+  const lines = [
+    "*** ATUALIZACAO DE PEDIDO iFOOD ***",
+    `Tipo: ${changeType || "-"}`,
+    ...items.map((it: any) => ` ${changeType === "DELETE_ITEMS" ? "-" : "+"} ${it.quantity || 1}x ${it.name || "Item"}`),
+    "",
+    "Atualize a producao!",
+  ].join("\n");
+  await supabase.from("fila_impressao").insert({
+    organization_id: orgId,
+    order_id: order.id,
+    conteudo_txt: lines,
+    status: "pendente",
+  });
+
+  return order.id;
+}
+
+async function handleAssignDriver(supabase: any, orgId: string, ifoodOrderId: string, event: any) {
+  if (!ifoodOrderId) return null;
+  const md = event?.metadata || {};
+  const driverName = md.driverName || md.driver?.name || event?.driverName || null;
+  await supabase.from("orders").update({
+    ifood_driver_assigned_at: new Date().toISOString(),
+    ifood_driver_name: driverName,
+    ifood_synced_externally: true,
+  })
+    .eq("organization_id", orgId)
+    .eq("gateway_payment_id", `ifood:${ifoodOrderId}`);
+}
+
 function buildItemName(item: any): string {
   const base = item.name || "Item iFood";
   const opts = (item.options || item.subItems || []) as any[];
@@ -230,6 +334,7 @@ async function processNewOrder(supabase: any, cred: any, token: string, event: a
   const ifoodOrder = await orderRes.json();
   const isPickup = String(ifoodOrder.orderType || "DELIVERY").toUpperCase() === "TAKEOUT";
 
+  const scheduledFor = extractScheduledFor(ifoodOrder);
   const { data: newOrder, error: orderErr } = await supabase.from("orders").insert({
     organization_id: cred.organization_id,
     table_number: 0,
@@ -238,6 +343,7 @@ async function processNewOrder(supabase: any, cred: any, token: string, event: a
     payment_method: ifoodOrder.payments?.methods?.[0]?.method || "ifood",
     gateway_payment_id: `ifood:${orderId}`,
     ifood_synced_externally: true, // criação veio do iFood
+    ifood_scheduled_for: scheduledFor,
   }).select("id").single();
   if (orderErr || !newOrder) {
     // Race com webhook: pedido já foi criado por outro caminho (unique index 23505)
@@ -395,8 +501,23 @@ Deno.serve(async (req) => {
 
         if (code === "KEEPALIVE") continue;
 
-        // Negociação (req #10) - apenas log, sem ação
-        if (code.startsWith("HANDSHAKE")) continue;
+        // Negociação (Plataforma de Negociação iFood) — captura e persiste
+        if (code.startsWith("HANDSHAKE") || code === "DISPUTE" || code.includes("DISPUTE")) {
+          try { await upsertDispute(supabase, cred.organization_id, event); } catch (e) { console.error("upsertDispute", e); }
+          continue;
+        }
+
+        // Modificação de pedido pós-confirmação (req #16)
+        if (code === "ORDER_PATCHED" || code === "PTC" || code === "PATCH") {
+          try { await applyOrderPatch(supabase, cred.organization_id, event.orderId, event); } catch (e) { console.error("applyOrderPatch", e); }
+          continue;
+        }
+
+        // Entregador iFood atribuído (req #12)
+        if (code === "ASSIGN_DRIVER" || code === "DRIVER_ASSIGNED" || code === "ASSIGNED_DRIVER") {
+          try { await handleAssignDriver(supabase, cred.organization_id, event.orderId, event); } catch (e) { console.error("handleAssignDriver", e); }
+          continue;
+        }
 
         if (code === "PLC" || code === "PLACED" || code === "CFM" || code === "CONFIRMED") {
           const { confirmLatencyMs, internalOrderId } = await processNewOrder(supabase, cred, accessToken, event);

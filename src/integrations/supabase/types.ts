@@ -1134,6 +1134,54 @@ export type Database = {
           },
         ]
       }
+      ifood_disputes: {
+        Row: {
+          created_at: string
+          dispute_id: string
+          dispute_type: string | null
+          expires_at: string | null
+          id: string
+          ifood_order_id: string | null
+          order_id: string | null
+          organization_id: string
+          payload: Json | null
+          responded_at: string | null
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dispute_id: string
+          dispute_type?: string | null
+          expires_at?: string | null
+          id?: string
+          ifood_order_id?: string | null
+          order_id?: string | null
+          organization_id: string
+          payload?: Json | null
+          responded_at?: string | null
+          response_payload?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dispute_id?: string
+          dispute_type?: string | null
+          expires_at?: string | null
+          id?: string
+          ifood_order_id?: string | null
+          order_id?: string | null
+          organization_id?: string
+          payload?: Json | null
+          responded_at?: string | null
+          response_payload?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ifood_event_log: {
         Row: {
           code: string
@@ -1587,7 +1635,11 @@ export type Database = {
           ifood_cancellation_requested_at: string | null
           ifood_concluded_at: string | null
           ifood_dispatched_at: string | null
+          ifood_driver_assigned_at: string | null
+          ifood_driver_name: string | null
           ifood_order_type: string | null
+          ifood_patched_at: string | null
+          ifood_scheduled_for: string | null
           ifood_synced_externally: boolean | null
           notes: string | null
           order_number: number | null
@@ -1605,7 +1657,11 @@ export type Database = {
           ifood_cancellation_requested_at?: string | null
           ifood_concluded_at?: string | null
           ifood_dispatched_at?: string | null
+          ifood_driver_assigned_at?: string | null
+          ifood_driver_name?: string | null
           ifood_order_type?: string | null
+          ifood_patched_at?: string | null
+          ifood_scheduled_for?: string | null
           ifood_synced_externally?: boolean | null
           notes?: string | null
           order_number?: number | null
@@ -1623,7 +1679,11 @@ export type Database = {
           ifood_cancellation_requested_at?: string | null
           ifood_concluded_at?: string | null
           ifood_dispatched_at?: string | null
+          ifood_driver_assigned_at?: string | null
+          ifood_driver_name?: string | null
           ifood_order_type?: string | null
+          ifood_patched_at?: string | null
+          ifood_scheduled_for?: string | null
           ifood_synced_externally?: boolean | null
           notes?: string | null
           order_number?: number | null
