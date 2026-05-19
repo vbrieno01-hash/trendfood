@@ -501,8 +501,23 @@ Deno.serve(async (req) => {
 
         if (code === "KEEPALIVE") continue;
 
-        // Negociação (req #10) - apenas log, sem ação
-        if (code.startsWith("HANDSHAKE")) continue;
+        // Negociação (Plataforma de Negociação iFood) — captura e persiste
+        if (code.startsWith("HANDSHAKE") || code === "DISPUTE" || code.includes("DISPUTE")) {
+          try { await upsertDispute(supabase, cred.organization_id, event); } catch (e) { console.error("upsertDispute", e); }
+          continue;
+        }
+
+        // Modificação de pedido pós-confirmação (req #16)
+        if (code === "ORDER_PATCHED" || code === "PTC" || code === "PATCH") {
+          try { await applyOrderPatch(supabase, cred.organization_id, event.orderId, event); } catch (e) { console.error("applyOrderPatch", e); }
+          continue;
+        }
+
+        // Entregador iFood atribuído (req #12)
+        if (code === "ASSIGN_DRIVER" || code === "DRIVER_ASSIGNED" || code === "ASSIGNED_DRIVER") {
+          try { await handleAssignDriver(supabase, cred.organization_id, event.orderId, event); } catch (e) { console.error("handleAssignDriver", e); }
+          continue;
+        }
 
         if (code === "PLC" || code === "PLACED" || code === "CFM" || code === "CONFIRMED") {
           const { confirmLatencyMs, internalOrderId } = await processNewOrder(supabase, cred, accessToken, event);
