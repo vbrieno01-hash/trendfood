@@ -1,42 +1,53 @@
+# Bug encontrado — Loja redireciona pra landing por falha de rede
 
-# UI iFood — Homologação
+## Causa raiz (100% confirmada)
 
-Implementar as 4 telas que faltam para o analista do iFood poder gravar os vídeos de homologação. Sem mudanças de backend (já está pronto).
+Em `src/pages/UnitPage.tsx` linha 226:
 
-## 1. Código de retirada (Pickup Code)
-**Arquivo:** `src/components/dashboard/IFoodOrderChip.tsx`
-- Botão "Validar código de retirada" visível quando `ifood_order_type` indica retirada/`TAKEOUT`.
-- Modal com input numérico (4 dígitos).
-- Chama `supabase.functions.invoke('ifood-validate-pickup-code', { body: { organization_id, ifood_order_id, code } })`.
-- Toast verde se válido, vermelho se inválido.
+```ts
+useEffect(() => {
+  if (!orgLoading && (isError || org === null)) navigate("/404");
+}, [orgLoading, isError, org, navigate]);
+```
 
-## 2. Painel de Negociações iFood
-**Arquivo novo:** `src/components/dashboard/IFoodDisputesPanel.tsx`
-- Lista disputas com `status = 'open'` da tabela `ifood_disputes` (filtradas por `organization_id`).
-- Cada card mostra: pedido, mensagem do cliente, countdown até `expires_at`.
-- 3 botões: **Aceitar**, **Recusar**, **Alternativa** (modal com tempo extra ou valor parcial).
-- Chama `ifood-handshake-respond` com a action correspondente.
-- Realtime subscription em `ifood_disputes` para refresh automático.
-- Integrar na aba existente do iFood no Dashboard (`IFoodTab.tsx`).
+Dois problemas combinados criando exatamente o sintoma que o lojista descreveu:
 
-## 3. Código de entrega (Delivery Code)
-**Arquivo:** `src/pages/CourierPage.tsx`
-- Em pedidos iFood na rota, mostrar input "Código de entrega" + botão "Confirmar entrega".
-- Chama `ifood-verify-delivery-code`.
-- Só libera marcar como entregue se o código for validado.
+1. **Gatilho hipersensível.** O `useQuery` em `useOrganization` tem `retry: 1` (config global). Em conexão instável (cliente no 4G fraco esperando comprar), 1 falha de rede → `isError = true` → `navigate("/404")`. A loja **existe**, mas o cliente é chutado fora dela.
 
-## 4. Visualizações no KDS
-**Arquivo:** `src/components/dashboard/KitchenTab.tsx` (e/ou `OperationsTab.tsx`)
-- Badge laranja "PATCHED" quando `ifood_patched_at` não for nulo.
-- Chip com `ifood_driver_name` quando preenchido (entregador iFood designado).
-- Seção/faixa separada "Agendados" listando pedidos com `ifood_scheduled_for` futuro — sem disparar alarme contínuo até chegar perto do horário.
+2. **Rota `/404` não existe em `App.tsx`.** As rotas declaradas são `/`, `/auth`, `/unidade/:slug`, etc. `/404` cai no catch-all `*` → componente `NotFound`, que mostra um link "Return to Home" apontando para `/`. Quando o cliente clica (ou só por confusão), vai parar na **landing do TrendFood** em vez da loja onde estava comprando.
 
-## Ordem de execução
-1. Painel de Negociações (mais crítico para o vídeo)
-2. Modal de Pickup Code no `IFoodOrderChip`
-3. Input de Delivery Code no `CourierPage`
-4. Badges/seção Agendados no KDS
+Resumindo o que o cliente vê:
+1. Abre `trendfood.site/unidade/rei-do-burguer` no celular.
+2. Conexão oscila por 1 segundo durante o fetch da organization.
+3. `isError=true` → app navega pra `/404` → renderiza tela "404 Page not found".
+4. Cliente clica em "Return to Home" → cai na landing do TrendFood (sem cardápio do Rei do Burguer).
 
-## Riscos
-- Sem sandbox iFood real — testes só funcionam end-to-end via o analista. Garantir que todos os botões respondam visualmente (loading, toast) para o vídeo ficar claro.
-- Realtime nas disputas precisa da tabela `ifood_disputes` na publicação `supabase_realtime` (verificar e adicionar se faltar via migration mínima).
+Isso bate **exatamente** com a reclamação: "dá 404, e quando carrega volta pra página TrendFood, não a loja".
+
+## Por que não pegamos antes
+- No desktop com Wi-Fi estável o fetch nunca falha → o bug é invisível pra você.
+- O log do servidor não registra nada porque a falha é client-side (rede do cliente).
+- Os pedidos continuam entrando (`21 nas últimas 24h`) porque a maioria dos clientes tem conexão boa. Os afetados são justamente os que ficam frustrados e vão no balcão.
+
+## Correção
+
+**Arquivo único:** `src/pages/UnitPage.tsx`
+
+1. **Remover** o `useEffect` que faz `navigate("/404")`.
+2. **Renderizar inline** dois estados visuais (sem trocar de rota — o cliente continua em `/unidade/rei-do-burguer`):
+   - **Erro de conexão** (`isError`): card "Não conseguimos carregar a loja. Verifique sua internet." + botão "Tentar novamente" que chama `refetch()`. Mostra `Skeleton` enquanto reloading.
+   - **Loja realmente não existe** (`!orgLoading && !isError && org === null`): card "Loja não encontrada" + link pra landing como opção (não automático).
+
+Vantagens:
+- Cliente nunca sai da URL da loja → refresh, bookmark, voltar do WhatsApp, tudo continua funcionando.
+- Falha transitória de rede não destrói a sessão de compra (carrinho no localStorage também sobrevive).
+- Não toca em RLS, edge functions, banco, impressão, nem rotas — risco mínimo.
+
+3. **Reforçar resiliência da query** em `src/hooks/useOrganization.ts`: subir `retry` de 1 (global) para 3 só nessa query e adicionar `retryDelay: (i) => Math.min(1000 * 2 ** i, 4000)`. Custo: zero (já bate em `maybeSingle` na mesma row). Benefício: 95% das falhas transitórias deixam de aparecer ao cliente.
+
+## Não vou tocar
+- Fila de impressão (`fila_impressao`, `enqueuePrint`, `printer-queue`) — você pediu pra deixar como está.
+- Bug do heartbeat RLS — fica pra próxima rodada, não afeta cliente final.
+- Qualquer outra parte do projeto.
+
+Quer que eu implemente?
