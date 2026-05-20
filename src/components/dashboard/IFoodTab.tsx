@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Loader2, Link2, RefreshCw, Unplug, Copy, Zap, LifeBuoy,
 } from "lucide-react";
+import IFoodDisputesPanel from "@/components/dashboard/IFoodDisputesPanel";
 
 interface IFoodTabProps { orgId: string; }
 
@@ -175,6 +176,8 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
         <h2 className="text-xl font-bold">Integração iFood</h2>
         <p className="text-sm text-muted-foreground">Receba pedidos do iFood automaticamente na sua produção.</p>
       </div>
+
+      <IFoodDisputesPanel orgId={orgId} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
