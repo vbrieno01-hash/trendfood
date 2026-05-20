@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Utensils, AlertTriangle, Check, X, Loader2, Ban, ClipboardList } from "lucide-react";
+import { Copy, Utensils, AlertTriangle, Check, X, Loader2, Ban, ClipboardList, KeyRound, Bike, Edit3, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -32,6 +32,11 @@ interface Props {
   ifoodCancellationRequestedAt?: string | null;
   ifoodOrderType?: string | null;
   orderId?: string;
+  organizationId?: string;
+  ifoodPatchedAt?: string | null;
+  ifoodDriverName?: string | null;
+  ifoodDriverAssignedAt?: string | null;
+  ifoodScheduledFor?: string | null;
 }
 
 function parseDisplayId(notes?: string | null): string | null {
@@ -69,17 +74,24 @@ function statusLabel(
 export default function IFoodOrderChip({
   gatewayPaymentId, notes, status, ifoodDispatchedAt, ifoodConcludedAt,
   ifoodCancellationRequestedAt, ifoodOrderType, orderId,
+  organizationId,
+  ifoodPatchedAt, ifoodDriverName, ifoodDriverAssignedAt, ifoodScheduledFor,
 }: Props) {
   const ifoodId = parseIFoodOrderId(gatewayPaymentId);
   const [busy, setBusy] = useState<"accept" | "deny" | null>(null);
   const [merchantCancelOpen, setMerchantCancelOpen] = useState(false);
   const [merchantCancelCode, setMerchantCancelCode] = useState<string>("");
   const [merchantCancelBusy, setMerchantCancelBusy] = useState(false);
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickupCode, setPickupCode] = useState("");
+  const [pickupBusy, setPickupBusy] = useState(false);
   if (!ifoodId) return null;
   const displayId = parseDisplayId(notes);
   const sl = statusLabel(status, ifoodDispatchedAt, ifoodConcludedAt, ifoodOrderType);
   const cancelRequested = !!ifoodCancellationRequestedAt && status !== "cancelled";
   const canMerchantCancel = !!orderId && status === "pending" && !cancelRequested;
+  const isTakeout = String(ifoodOrderType || "").toUpperCase() === "TAKEOUT";
+  const canValidatePickup = isTakeout && !!organizationId && !ifoodConcludedAt && (status === "preparing" || status === "ready");
 
   const copy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -141,6 +153,34 @@ export default function IFoodOrderChip({
     }
   };
 
+  const handleValidatePickup = async () => {
+    if (!organizationId || !pickupCode.trim()) return;
+    setPickupBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ifood-validate-pickup-code", {
+        body: {
+          organization_id: organizationId,
+          ifood_order_id: ifoodId,
+          code: pickupCode.trim(),
+        },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.valid) {
+        toast.success("Código de retirada válido! ✅");
+        setPickupOpen(false);
+        setPickupCode("");
+      } else {
+        toast.error("Código inválido. Confira com o cliente.", {
+          description: (data as any)?.response?.message || undefined,
+        });
+      }
+    } catch (e: any) {
+      toast.error("Falha ao validar: " + (e?.message || "erro"));
+    } finally {
+      setPickupBusy(false);
+    }
+  };
+
   return (
     <div className="mt-1 inline-flex flex-wrap items-center gap-1.5">
       <button
@@ -160,6 +200,73 @@ export default function IFoodOrderChip({
         <span className={`text-[10px] font-semibold border rounded-full px-2 py-0.5 ${sl.cls}`}>
           {sl.label}
         </span>
+      )}
+      {ifoodPatchedAt && (
+        <span
+          title={`Pedido alterado pelo cliente em ${new Date(ifoodPatchedAt).toLocaleString("pt-BR")}`}
+          className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-800 bg-orange-100 border border-orange-300 rounded-full px-2 py-0.5"
+        >
+          <Edit3 className="w-3 h-3" /> ALTERADO
+        </span>
+      )}
+      {ifoodDriverName && (
+        <span
+          title={ifoodDriverAssignedAt ? `Designado em ${new Date(ifoodDriverAssignedAt).toLocaleString("pt-BR")}` : undefined}
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5"
+        >
+          <Bike className="w-3 h-3" /> {ifoodDriverName}
+        </span>
+      )}
+      {ifoodScheduledFor && (
+        <span
+          className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5"
+        >
+          <CalendarClock className="w-3 h-3" />
+          Agendado iFood: {new Date(ifoodScheduledFor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+        </span>
+      )}
+      {canValidatePickup && (
+        <Dialog open={pickupOpen} onOpenChange={setPickupOpen}>
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-800 bg-white border border-purple-300 hover:bg-purple-50 rounded-full px-2 py-0.5"
+              title="Validar código de retirada do cliente"
+            >
+              <KeyRound className="w-3 h-3" />
+              Validar código retirada
+            </button>
+          </DialogTrigger>
+          <DialogContent onClick={(e) => e.stopPropagation()} className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Validar código de retirada</DialogTitle>
+              <DialogDescription>
+                Peça o código de retirada que o cliente recebeu no app iFood e digite abaixo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              <input
+                inputMode="numeric"
+                autoFocus
+                maxLength={8}
+                value={pickupCode}
+                onChange={(e) => setPickupCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="Ex: 1234"
+                className="w-full text-center text-2xl font-mono tracking-[0.4em] border-2 border-purple-200 rounded-lg py-3 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPickupOpen(false)} disabled={pickupBusy}>
+                Cancelar
+              </Button>
+              <Button onClick={handleValidatePickup} disabled={!pickupCode.trim() || pickupBusy}>
+                {pickupBusy && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                Validar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
       {orderId && (
         <button
