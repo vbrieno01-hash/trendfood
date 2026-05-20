@@ -61,7 +61,7 @@ const UnitPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: org, isLoading: orgLoading, isError } = useOrganization(slug);
+  const { data: org, isLoading: orgLoading, isError, refetch: refetchOrg, isFetching: orgFetching } = useOrganization(slug);
   const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
   const planLimits = usePlanLimits(org);
 
@@ -222,9 +222,10 @@ const UnitPage = () => {
      freeAbove
    );
 
-  useEffect(() => {
-    if (!orgLoading && (isError || org === null)) navigate("/404");
-  }, [orgLoading, isError, org, navigate]);
+  // Nota: NÃO redirecionamos automaticamente para /404 em caso de erro ou
+  // org null. Falhas transitórias de rede (cliente em 4G fraco) tirariam o
+  // cliente da loja sem motivo. Em vez disso, renderizamos um estado inline
+  // com botão "Tentar novamente" (ver bloco no JSX abaixo).
 
   // Service modes (delivery/pickup) — auto-select when only one is enabled
   const serviceModes = (org as any)?.service_modes ?? { delivery: true, pickup: true };
@@ -409,7 +410,57 @@ const UnitPage = () => {
     );
   }
 
-  if (!org) return null;
+  // Erro de conexão: tentamos refetch antes de dizer "loja não existe".
+  // Mantém o cliente na URL da loja (refresh, voltar do WhatsApp, etc).
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 sm:p-8 text-center shadow-lg">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive text-2xl">
+            ⚠️
+          </div>
+          <h1 className="text-xl font-bold mb-2">Não conseguimos carregar a loja</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Sua conexão pode estar instável. Verifique sua internet e tente novamente — sua loja continua aqui.
+          </p>
+          <button
+            onClick={() => refetchOrg()}
+            disabled={orgFetching}
+            className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-3 font-semibold shadow hover:opacity-90 disabled:opacity-60"
+          >
+            {orgFetching ? "Tentando..." : "Tentar novamente"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loja realmente não existe (sem erro de rede e retornou null).
+  if (!org) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 sm:p-8 text-center shadow-lg">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-2xl">
+            🔎
+          </div>
+          <h1 className="text-xl font-bold mb-2">Loja não encontrada</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            O link "{slug}" não corresponde a nenhuma loja ativa. Confira o endereço com quem te enviou.
+          </p>
+          <button
+            onClick={() => refetchOrg()}
+            disabled={orgFetching}
+            className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-3 font-semibold shadow hover:opacity-90 disabled:opacity-60 mb-2"
+          >
+            {orgFetching ? "Verificando..." : "Verificar de novo"}
+          </button>
+          <Link to="/" className="text-xs text-muted-foreground underline">
+            Ir para a página inicial
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Cor da marca: vem da paleta automática (extraída da logo) ou do override manual.
   const primaryColor = effectivePrimaryColor || "#f97316";
