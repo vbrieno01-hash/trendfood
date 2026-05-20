@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut, Key, Save, Phone } from "lucide-react";
+import { Bike, MapPin, DollarSign, Package, CheckCircle2, Clock, Navigation, Download, ExternalLink, LogOut, Key, Save, Phone, KeyRound, Loader2 } from "lucide-react";
 
 import {
   getSavedCourierId,
@@ -36,6 +36,84 @@ import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { getStoreStatus } from "@/lib/storeStatus";
 import type { BusinessHours } from "@/hooks/useOrganization";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
+
+// Inline component: shows iFood delivery code input only when the order is from iFood.
+function IFoodDeliveryCodeBlock({ orderId, onValidated }: { orderId: string; onValidated?: () => void }) {
+  const [info, setInfo] = useState<{ orgId: string; ifoodOrderId: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [validated, setValidated] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("organization_id, gateway_payment_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (!active || !data) return;
+      const gp = (data as any).gateway_payment_id as string | null;
+      if (gp && gp.startsWith("ifood:")) {
+        setInfo({ orgId: (data as any).organization_id, ifoodOrderId: gp.slice("ifood:".length) });
+      }
+    })();
+    return () => { active = false; };
+  }, [orderId]);
+
+  if (!info) return null;
+
+  const validate = async () => {
+    if (!code.trim()) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ifood-verify-delivery-code", {
+        body: { organization_id: info.orgId, ifood_order_id: info.ifoodOrderId, code: code.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.valid) {
+        setValidated(true);
+        toast.success("Código de entrega válido! ✅");
+        onValidated?.();
+      } else {
+        toast.error("Código inválido. Confira com o cliente.");
+      }
+    } catch (e: any) {
+      toast.error("Falha: " + (e?.message || "erro"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (validated) {
+    return (
+      <div className="flex items-center gap-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1.5">
+        <CheckCircle2 className="w-3.5 h-3.5" /> Código iFood validado
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 p-2 rounded-md border border-purple-200 bg-purple-50/40">
+      <div className="flex items-center gap-1.5 text-xs font-bold text-purple-800">
+        <KeyRound className="w-3.5 h-3.5" /> Código de entrega iFood
+      </div>
+      <div className="flex gap-2">
+        <Input
+          inputMode="numeric"
+          maxLength={8}
+          placeholder="Código do cliente"
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+          className="font-mono text-center tracking-widest"
+        />
+        <Button onClick={validate} disabled={!code.trim() || busy} size="sm">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Validar"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function usePwaInstall() {
   const [prompt, setPrompt] = useState<any>(null);
@@ -739,10 +817,13 @@ const CourierPage = () => {
             ) : (
               myDeliveries.map((d) => (
                 <DeliveryCard key={d.id} d={d} actions={
-                  <Button onClick={() => handleComplete(d.id)} variant="outline"
-                    className="w-full border-green-500/30 text-green-600 hover:bg-green-500/10" disabled={completeMutation.isPending}>
-                    <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Entregue
-                  </Button>
+                  <div className="space-y-2 w-full">
+                    <IFoodDeliveryCodeBlock orderId={d.order_id} />
+                    <Button onClick={() => handleComplete(d.id)} variant="outline"
+                      className="w-full border-green-500/30 text-green-600 hover:bg-green-500/10" disabled={completeMutation.isPending}>
+                      <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Entregue
+                    </Button>
+                  </div>
                 } />
               ))
             )}
