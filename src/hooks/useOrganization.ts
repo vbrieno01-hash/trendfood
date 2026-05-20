@@ -111,5 +111,9 @@ export const useOrganization = (slug: string | undefined) => {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     staleTime: 15 * 1000,
+    // Cliente em 4G instável: tentar várias vezes antes de mostrar erro.
+    // Evita que uma única falha de rede tire o cliente da loja.
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
   });
 };
