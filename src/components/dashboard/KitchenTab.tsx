@@ -529,7 +529,7 @@ export default function KitchenTab({
                               🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
                             </span>
                           )}
-                          <IFoodOrderChip orderId={order.id} gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} status={order.status} ifoodDispatchedAt={(order as any).ifood_dispatched_at} ifoodConcludedAt={(order as any).ifood_concluded_at} ifoodCancellationRequestedAt={(order as any).ifood_cancellation_requested_at} ifoodOrderType={(order as any).ifood_order_type} />
+                            <IFoodOrderChip orderId={order.id} organizationId={orgId} gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} status={order.status} ifoodDispatchedAt={(order as any).ifood_dispatched_at} ifoodConcludedAt={(order as any).ifood_concluded_at} ifoodCancellationRequestedAt={(order as any).ifood_cancellation_requested_at} ifoodOrderType={(order as any).ifood_order_type} ifoodPatchedAt={(order as any).ifood_patched_at} ifoodDriverName={(order as any).ifood_driver_name} ifoodDriverAssignedAt={(order as any).ifood_driver_assigned_at} ifoodScheduledFor={(order as any).ifood_scheduled_for} />
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -680,7 +680,7 @@ export default function KitchenTab({
                               🕐 Agendado: {parseScheduledTimeFromNotes(order.notes)}
                             </span>
                           )}
-                          <IFoodOrderChip orderId={order.id} gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} status={order.status} ifoodDispatchedAt={(order as any).ifood_dispatched_at} ifoodConcludedAt={(order as any).ifood_concluded_at} ifoodCancellationRequestedAt={(order as any).ifood_cancellation_requested_at} ifoodOrderType={(order as any).ifood_order_type} />
+                            <IFoodOrderChip orderId={order.id} organizationId={orgId} gatewayPaymentId={(order as any).gateway_payment_id} notes={order.notes} status={order.status} ifoodDispatchedAt={(order as any).ifood_dispatched_at} ifoodConcludedAt={(order as any).ifood_concluded_at} ifoodCancellationRequestedAt={(order as any).ifood_cancellation_requested_at} ifoodOrderType={(order as any).ifood_order_type} ifoodPatchedAt={(order as any).ifood_patched_at} ifoodDriverName={(order as any).ifood_driver_name} ifoodDriverAssignedAt={(order as any).ifood_driver_assigned_at} ifoodScheduledFor={(order as any).ifood_scheduled_for} />
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
