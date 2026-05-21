@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface ChecklistStep { name: string; ok: boolean; status: number; detail?: any; }
 
 export default function IFoodMerchantHomologTab() {
-  const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]);
+  const [orgs, setOrgs] = useState<{ id: string; name: string; merchant_id: string | null; status: string | null }[]>([]);
   const [orgId, setOrgId] = useState<string>("");
   const [loading, setLoading] = useState<string | null>(null);
   const [merchant, setMerchant] = useState<any>(null);
@@ -19,6 +19,7 @@ export default function IFoodMerchantHomologTab() {
   const [hours, setHours] = useState<any>(null);
   const [interruptions, setInterruptions] = useState<any[]>([]);
   const [checklist, setChecklist] = useState<ChecklistStep[] | null>(null);
+  const [loadError, setLoadError] = useState<{ code?: string; message?: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -31,12 +32,19 @@ export default function IFoodMerchantHomologTab() {
         .from("organizations")
         .select("id, name")
         .in("id", (data || []).map((d: any) => d.organization_id));
-      setOrgs(orgsData || []);
-      if (orgsData?.[0]) setOrgId(orgsData[0].id);
+      const credByOrg = new Map((data || []).map((d: any) => [d.organization_id, d]));
+      const merged = (orgsData || []).map((o: any) => ({
+        id: o.id,
+        name: o.name,
+        merchant_id: credByOrg.get(o.id)?.merchant_id ?? null,
+        status: credByOrg.get(o.id)?.status ?? null,
+      }));
+      setOrgs(merged);
+      if (merged[0]) setOrgId(merged[0].id);
     })();
   }, []);
 
-  const call = async (action: string, payload?: any) => {
+  const call = async (action: string, payload?: any, opts: { silent?: boolean } = {}) => {
     if (!orgId) { toast.error("Selecione uma loja"); return null; }
     setLoading(action);
     try {
@@ -45,12 +53,18 @@ export default function IFoodMerchantHomologTab() {
       });
       if (error) throw error;
       if (data?.code || data?.error) {
-        toast.error(data.message || data.error || "Erro iFood", { description: JSON.stringify(data.details || data) });
+        if (!opts.silent) {
+          toast.error(data.message || data.error || "Erro iFood", { description: JSON.stringify(data.details || data) });
+        }
+        if (opts.silent) {
+          setLoadError({ code: data.code, message: data.message || data.error });
+        }
         return null;
       }
       return data;
     } catch (e: any) {
-      toast.error("Falha", { description: e?.message });
+      if (!opts.silent) toast.error("Falha", { description: e?.message });
+      else setLoadError({ code: "NetworkError", message: e?.message });
       return null;
     } finally {
       setLoading(null);
@@ -58,13 +72,20 @@ export default function IFoodMerchantHomologTab() {
   };
 
   const loadAll = async () => {
-    const m = await call("get_merchant"); if (m) setMerchant(m.data);
-    const s = await call("get_status"); if (s) setStatus(s.data);
-    const h = await call("get_opening_hours"); if (h) setHours(h.data);
-    const i = await call("list_interruptions"); if (i) setInterruptions(Array.isArray(i.data) ? i.data : []);
+    setLoadError(null);
+    setMerchant(null); setStatus(null); setHours(null); setInterruptions([]);
+    const m = await call("get_merchant", undefined, { silent: true }); if (m) setMerchant(m.data);
+    const s = await call("get_status", undefined, { silent: true }); if (s) setStatus(s.data);
+    const h = await call("get_opening_hours", undefined, { silent: true }); if (h) setHours(h.data);
+    const i = await call("list_interruptions", undefined, { silent: true }); if (i) setInterruptions(Array.isArray(i.data) ? i.data : []);
   };
 
-  useEffect(() => { if (orgId) loadAll(); /* eslint-disable-next-line */ }, [orgId]);
+  useEffect(() => {
+    const sel = orgs.find((o) => o.id === orgId);
+    if (orgId && sel?.merchant_id) loadAll();
+    else { setMerchant(null); setStatus(null); setHours(null); setInterruptions([]); setLoadError(null); }
+    /* eslint-disable-next-line */
+  }, [orgId, orgs]);
 
   const runChecklist = async () => {
     setChecklist(null);
@@ -93,6 +114,30 @@ export default function IFoodMerchantHomologTab() {
           Gerencia loja no iFood: status, horários e pausas. Os 8 endpoints exigidos na homologação.
         </p>
       </div>
+
+      {orgs.length === 0 && (
+        <Card className="border-muted">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            Nenhuma loja com credencial iFood ativa (status <code>connected</code> + <code>merchant_id</code>).
+            Conecte uma loja em <strong>Configurações → Integrações → iFood</strong> antes de homologar.
+          </CardContent>
+        </Card>
+      )}
+
+      {loadError && (
+        <Card className="border-yellow-500/40 bg-yellow-500/5">
+          <CardContent className="p-4 text-xs space-y-1">
+            <div className="font-semibold text-yellow-700 dark:text-yellow-400">
+              iFood retornou <code>{loadError.code || "Erro"}</code>: {loadError.message}
+            </div>
+            <div className="text-muted-foreground">
+              Verifique se o <code>merchant_id</code> está homologado em produção e se o token tem
+              os escopos <code>merchant.read</code> / <code>merchant.write</code>. Em ambiente de
+              homologação, esse 403 é esperado até a aprovação do iFood.
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
