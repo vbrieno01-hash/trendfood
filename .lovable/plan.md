@@ -1,53 +1,43 @@
-# Bug encontrado — Loja redireciona pra landing por falha de rede
+## O que encontrei no /admin
 
-## Causa raiz (100% confirmada)
+Fiz varredura completa: li o código + abri o painel + olhei logs do banco. Achei **3 bugs reais** e 1 ruído de log que já tínhamos discutido. Provavelmente o que você viu é o **bug nº 1** (números repetidos no topo).
 
-Em `src/pages/UnitPage.tsx` linha 226:
+---
 
-```ts
-useEffect(() => {
-  if (!orgLoading && (isError || org === null)) navigate("/404");
-}, [orgLoading, isError, org, navigate]);
+### Bug 1 — Card "A Receber (Mês)" mostra o mesmo valor que MRR
+No print do dashboard, os 3 primeiros cards aparecem todos com **R$ 99,00**: "Receita Estimada", "MRR" e "A Receber (Mês)". O terceiro está literalmente reutilizando a variável `mrr` no código (`AdminPage.tsx`, card "A Receber (Mês)" → `value={fmt(mrr)}`).
+
+**Correção:** trocar para o cálculo real de recorrência prevista nos próximos 30 dias — somar `platform_plans.price_cents` × assinantes ativos por ciclo (mensal cheio + anual rateado por 1/12).
+
+### Bug 2 — Gráfico "MRR por Mês" usa preço chumbado R$ 99 / R$ 249
+Em `GrowthCharts.tsx`:
 ```
+const mrr = pro * 99 + enterprise * 249;
+```
+Isso quebra duas regras do projeto:
+- Viola a memória **pricing-source-of-truth** (`platform_plans` é a verdade).
+- Não bate com o card MRR de cima: gráfico mostra **R$ 198** ("2 pro × 99") mas o card real (vindo do ledger `subscription_payments`) mostra **R$ 99**.
 
-Dois problemas combinados criando exatamente o sintoma que o lojista descreveu:
+**Correção:** buscar `platform_plans` (preço atual de pro/enterprise mensal) e usar esses valores; idealmente, derivar a série histórica direto de `subscription_payments` agrupado por mês — fica consistente com o card.
 
-1. **Gatilho hipersensível.** O `useQuery` em `useOrganization` tem `retry: 1` (config global). Em conexão instável (cliente no 4G fraco esperando comprar), 1 falha de rede → `isError = true` → `navigate("/404")`. A loja **existe**, mas o cliente é chutado fora dela.
+### Bug 3 — Gráfico MRR ignora status da assinatura
+Mesmo arquivo: conta toda org com `subscription_plan='pro'`, sem checar se está `active`. Lojas canceladas/expiradas continuam inflando o MRR histórico.
 
-2. **Rota `/404` não existe em `App.tsx`.** As rotas declaradas são `/`, `/auth`, `/unidade/:slug`, etc. `/404` cai no catch-all `*` → componente `NotFound`, que mostra um link "Return to Home" apontando para `/`. Quando o cliente clica (ou só por confusão), vai parar na **landing do TrendFood** em vez da loja onde estava comprando.
+**Correção:** filtrar por `subscription_status === 'active'` (ou, melhor, sumarizar do ledger como dito acima — mata os 3 problemas de uma vez).
 
-Resumindo o que o cliente vê:
-1. Abre `trendfood.site/unidade/rei-do-burguer` no celular.
-2. Conexão oscila por 1 segundo durante o fetch da organization.
-3. `isError=true` → app navega pra `/404` → renderiza tela "404 Page not found".
-4. Cliente clica em "Return to Home" → cai na landing do TrendFood (sem cardápio do Rei do Burguer).
+---
 
-Isso bate **exatamente** com a reclamação: "dá 404, e quando carrega volta pra página TrendFood, não a loja".
+### Bonus — Log poluído (já discutido, não fiz)
+Erros recorrentes no postgres: `new row violates row-level security policy for table "store_version_heartbeat"` (vinha em rajadas). Esse não é do admin — é o `useVersionHeartbeat` rodando pra usuário não-dono. Posso fazer junto se quiser, mas é independente.
 
-## Por que não pegamos antes
-- No desktop com Wi-Fi estável o fetch nunca falha → o bug é invisível pra você.
-- O log do servidor não registra nada porque a falha é client-side (rede do cliente).
-- Os pedidos continuam entrando (`21 nas últimas 24h`) porque a maioria dos clientes tem conexão boa. Os afetados são justamente os que ficam frustrados e vão no balcão.
+---
 
-## Correção
+## Plano de execução
 
-**Arquivo único:** `src/pages/UnitPage.tsx`
+1. **`src/components/admin/GrowthCharts.tsx`** — refatorar para receber `payments: PaymentRow[]` (já carregados no AdminPage) e construir a série MRR somando `amount_cents` dos pagamentos agrupados por mês. Remove o hardcode e o problema de status.
+2. **`src/pages/AdminPage.tsx`**:
+   - Passar `payments` para `<GrowthCharts/>`.
+   - Substituir o cálculo do card "A Receber (Mês)" por: `Σ(price_cents do plano ativo da org) / ciclo` para todas as orgs `subscription_status='active'` e `subscription_plan != 'free'`. Buscar preços de `platform_plans` no `useEffect` de load.
+3. **Validar:** abrir /admin no preview, conferir que os 3 KPIs do topo mostram valores diferentes e que o gráfico "MRR por Mês" bate com o card "MRR".
 
-1. **Remover** o `useEffect` que faz `navigate("/404")`.
-2. **Renderizar inline** dois estados visuais (sem trocar de rota — o cliente continua em `/unidade/rei-do-burguer`):
-   - **Erro de conexão** (`isError`): card "Não conseguimos carregar a loja. Verifique sua internet." + botão "Tentar novamente" que chama `refetch()`. Mostra `Skeleton` enquanto reloading.
-   - **Loja realmente não existe** (`!orgLoading && !isError && org === null`): card "Loja não encontrada" + link pra landing como opção (não automático).
-
-Vantagens:
-- Cliente nunca sai da URL da loja → refresh, bookmark, voltar do WhatsApp, tudo continua funcionando.
-- Falha transitória de rede não destrói a sessão de compra (carrinho no localStorage também sobrevive).
-- Não toca em RLS, edge functions, banco, impressão, nem rotas — risco mínimo.
-
-3. **Reforçar resiliência da query** em `src/hooks/useOrganization.ts`: subir `retry` de 1 (global) para 3 só nessa query e adicionar `retryDelay: (i) => Math.min(1000 * 2 ** i, 4000)`. Custo: zero (já bate em `maybeSingle` na mesma row). Benefício: 95% das falhas transitórias deixam de aparecer ao cliente.
-
-## Não vou tocar
-- Fila de impressão (`fila_impressao`, `enqueuePrint`, `printer-queue`) — você pediu pra deixar como está.
-- Bug do heartbeat RLS — fica pra próxima rodada, não afeta cliente final.
-- Qualquer outra parte do projeto.
-
-Quer que eu implemente?
+Mudanças escopadas só a UI/leitura — sem migrações, sem mexer em RLS, sem tocar em fluxo de venda/impressão.
