@@ -23,8 +23,14 @@ interface OrgLike {
   subscription_plan: string;
 }
 
+interface PaymentLike {
+  amount_cents: number;
+  paid_at: string;
+}
+
 interface GrowthChartsProps {
   orgs: OrgLike[];
+  payments?: PaymentLike[];
 }
 
 function getLast6Months() {
@@ -53,7 +59,7 @@ function countByMonth(items: { created_at: string }[], months: { key: string }[]
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-export default function GrowthCharts({ orgs }: GrowthChartsProps) {
+export default function GrowthCharts({ orgs, payments = [] }: GrowthChartsProps) {
   const months = useMemo(() => getLast6Months(), []);
 
   const storeData = useMemo(() => {
@@ -61,17 +67,17 @@ export default function GrowthCharts({ orgs }: GrowthChartsProps) {
     return months.map((m) => ({ name: m.label, value: counts[m.key] }));
   }, [orgs, months]);
 
+  // Receita real por mês (ledger subscription_payments). Consistente com o card "MRR" do topo.
   const mrrData = useMemo(() => {
-    return months.map((m) => {
-      const [year, month] = m.key.split("-").map(Number);
-      const monthEnd = new Date(year, month, 0, 23, 59, 59);
-      const orgsAtMonth = orgs.filter((o) => new Date(o.created_at) <= monthEnd);
-      const pro = orgsAtMonth.filter((o) => o.subscription_plan === "pro").length;
-      const enterprise = orgsAtMonth.filter((o) => o.subscription_plan === "enterprise").length;
-      const mrr = pro * 99 + enterprise * 249;
-      return { name: m.label, value: mrr };
+    const totals: Record<string, number> = {};
+    months.forEach((m) => (totals[m.key] = 0));
+    payments.forEach((p) => {
+      const d = new Date(p.paid_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (key in totals) totals[key] += p.amount_cents / 100;
     });
-  }, [orgs, months]);
+    return months.map((m) => ({ name: m.label, value: totals[m.key] }));
+  }, [payments, months]);
 
   return (
     <section className="animate-admin-slide-up admin-delay-3">
@@ -81,7 +87,7 @@ export default function GrowthCharts({ orgs }: GrowthChartsProps) {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="Novas Lojas por Mês" data={storeData} colorId="stores" color="hsl(24, 95%, 53%)" delay={1} />
-        <ChartCard title="MRR por Mês" data={mrrData} colorId="mrr" color="hsl(142, 71%, 45%)" isCurrency delay={2} />
+        <ChartCard title="Receita por Mês" data={mrrData} colorId="mrr" color="hsl(142, 71%, 45%)" isCurrency delay={2} />
       </div>
     </section>
   );
