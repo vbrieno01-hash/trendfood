@@ -171,6 +171,7 @@ interface OrgRow {
   menu_items_count: number;
   whatsapp: string | null;
   business_hours: object | null;
+  billing_cycle: string | null;
 }
 
 interface PaymentRow {
@@ -322,6 +323,7 @@ function AdminContent() {
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [planPrices, setPlanPrices] = useState<Record<string, { monthly: number; annual: number; quarterly: number | null }>>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "trial">("all");
   const [addressFilter, setAddressFilter] = useState<"all" | "with" | "without">("all");
@@ -335,7 +337,7 @@ function AdminContent() {
       const [{ data: orgsData }, { data: menuData }, { data: paymentsData }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours")
+          .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours, billing_cycle")
           .order("created_at", { ascending: false }),
         supabase.from("menu_items").select("organization_id"),
         supabase
@@ -343,6 +345,19 @@ function AdminContent() {
           .select("id, organization_id, payment_id, plan, billing_cycle, amount_cents, promo_applied, paid_at, source, notes")
           .order("paid_at", { ascending: false }),
       ]);
+
+      // Preços vigentes (source of truth: platform_plans).
+      const { data: plansData } = await (supabase.from("platform_plans") as any)
+        .select("key, price_cents, annual_price_cents, quarterly_price_cents");
+      const prices: Record<string, { monthly: number; annual: number; quarterly: number | null }> = {};
+      (plansData ?? []).forEach((p: any) => {
+        prices[p.key] = {
+          monthly: Number(p.price_cents ?? 0),
+          annual: Number(p.annual_price_cents ?? 0),
+          quarterly: p.quarterly_price_cents != null ? Number(p.quarterly_price_cents) : null,
+        };
+      });
+      setPlanPrices(prices);
 
       if (!orgsData) { setLoading(false); return; }
 
@@ -358,6 +373,7 @@ function AdminContent() {
         menu_items_count: menuCount[org.id] ?? 0,
         whatsapp: org.whatsapp ?? null,
         business_hours: org.business_hours as object | null,
+        billing_cycle: (org as any).billing_cycle ?? null,
       }));
 
       setOrgs(enriched);
@@ -394,6 +410,22 @@ function AdminContent() {
     if (!o.trial_ends_at) return false;
     return new Date(o.trial_ends_at) > new Date();
   }).length, [orgs]);
+
+  // ── A Receber (Mês): equivalente mensal das assinaturas ATIVAS pagas, com base em platform_plans ──
+  // Mensal = price_cents; Anual = annual_price/12; Trimestral = quarterly_price/3.
+  const monthlyRecurringForecast = useMemo(() => {
+    let totalCents = 0;
+    payingOrgs.forEach((o) => {
+      if (o.subscription_status !== "active") return;
+      const p = planPrices[o.subscription_plan];
+      if (!p) return;
+      const cycle = (o.billing_cycle ?? "monthly").toLowerCase();
+      if (cycle === "annual" || cycle === "yearly") totalCents += p.annual / 12;
+      else if (cycle === "quarterly" && p.quarterly) totalCents += p.quarterly / 3;
+      else totalCents += p.monthly;
+    });
+    return totalCents / 100;
+  }, [payingOrgs, planPrices]);
 
   const subscriberDetails = useMemo(() => {
     return payingOrgs.map((o) => {
