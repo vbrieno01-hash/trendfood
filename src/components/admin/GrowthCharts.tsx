@@ -87,7 +87,7 @@ export default function GrowthCharts({ orgs, payments = [] }: GrowthChartsProps)
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="Novas Lojas por Mês" data={storeData} colorId="stores" color="hsl(24, 95%, 53%)" delay={1} />
-        <ChartCard title="MRR por Mês" data={mrrData} colorId="mrr" color="hsl(142, 71%, 45%)" isCurrency delay={2} />
+        <ChartCard title="Receita por Mês" data={mrrData} colorId="mrr" color="hsl(142, 71%, 45%)" isCurrency delay={2} />
       </div>
     </section>
   );
