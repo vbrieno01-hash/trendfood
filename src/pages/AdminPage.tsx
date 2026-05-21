@@ -759,7 +759,7 @@ function AdminContent() {
                 <KpiCard
                   icon={<CalendarPlus className="w-4 h-4" />}
                   label="A Receber (Mês)"
-                  value={loading ? null : fmt(mrr)}
+                  value={loading ? null : fmt(monthlyRecurringForecast)}
                   gradient="from-violet-500/20 to-violet-500/5"
                   iconBg="bg-violet-500/15"
                   iconColor="text-violet-600 dark:text-violet-400"
@@ -829,7 +829,7 @@ function AdminContent() {
                 </div>
               )}
 
-              {!loading && <GrowthCharts orgs={orgs} />}
+              {!loading && <GrowthCharts orgs={orgs} payments={payments} />}
 
               {/* ── Subscriber details with premium table ── */}
               {!loading && (
