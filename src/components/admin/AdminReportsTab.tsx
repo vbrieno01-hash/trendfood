@@ -49,6 +49,7 @@ export default function AdminReportsTab() {
         .select("id, order_number, created_at, payment_method, organization_id, order_items(price, quantity)")
         .gte("created_at", startOfDay(from).toISOString())
         .lte("created_at", endOfDay(to).toISOString())
+        .not("status", "in", "(cancelled,rejected,refunded)")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
