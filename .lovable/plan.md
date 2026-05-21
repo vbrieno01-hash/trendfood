@@ -1,43 +1,38 @@
-## O que encontrei no /admin
+## Bug encontrado na aba iFood Merchant API
 
-Fiz varredura completa: li o código + abri o painel + olhei logs do banco. Achei **3 bugs reais** e 1 ruído de log que já tínhamos discutido. Provavelmente o que você viu é o **bug nº 1** (números repetidos no topo).
+Reproduzi: ao abrir a aba "iFood Merchant API", o painel dispara **4 chamadas em sequência** (`get_merchant`, `get_status`, `get_opening_hours`, `list_interruptions`) pra primeira loja conectada. Hoje a única loja listada (GBflix) tem `merchant_id` cadastrado mas o iFood responde **403 "User is forbidden to access this resource"** — ou seja, a credencial/merchant não tem permissão de produção pra esses endpoints.
 
----
+Resultado visto pelo usuário:
+- 4 toasts vermelhos empilhados, cada um com JSON cru.
+- Console com `RUNTIME_ERROR: Edge function returned 403`.
+- Nenhuma orientação do que fazer.
 
-### Bug 1 — Card "A Receber (Mês)" mostra o mesmo valor que MRR
-No print do dashboard, os 3 primeiros cards aparecem todos com **R$ 99,00**: "Receita Estimada", "MRR" e "A Receber (Mês)". O terceiro está literalmente reutilizando a variável `mrr` no código (`AdminPage.tsx`, card "A Receber (Mês)" → `value={fmt(mrr)}`).
-
-**Correção:** trocar para o cálculo real de recorrência prevista nos próximos 30 dias — somar `platform_plans.price_cents` × assinantes ativos por ciclo (mensal cheio + anual rateado por 1/12).
-
-### Bug 2 — Gráfico "MRR por Mês" usa preço chumbado R$ 99 / R$ 249
-Em `GrowthCharts.tsx`:
-```
-const mrr = pro * 99 + enterprise * 249;
-```
-Isso quebra duas regras do projeto:
-- Viola a memória **pricing-source-of-truth** (`platform_plans` é a verdade).
-- Não bate com o card MRR de cima: gráfico mostra **R$ 198** ("2 pro × 99") mas o card real (vindo do ledger `subscription_payments`) mostra **R$ 99**.
-
-**Correção:** buscar `platform_plans` (preço atual de pro/enterprise mensal) e usar esses valores; idealmente, derivar a série histórica direto de `subscription_payments` agrupado por mês — fica consistente com o card.
-
-### Bug 3 — Gráfico MRR ignora status da assinatura
-Mesmo arquivo: conta toda org com `subscription_plan='pro'`, sem checar se está `active`. Lojas canceladas/expiradas continuam inflando o MRR histórico.
-
-**Correção:** filtrar por `subscription_status === 'active'` (ou, melhor, sumarizar do ledger como dito acima — mata os 3 problemas de uma vez).
+Confirmei via `curl` direto na edge function: o 403 vem do iFood, não do nosso `verify_owner_or_admin` (esse passa — admin é reconhecido).
 
 ---
 
-### Bonus — Log poluído (já discutido, não fiz)
-Erros recorrentes no postgres: `new row violates row-level security policy for table "store_version_heartbeat"` (vinha em rajadas). Esse não é do admin — é o `useVersionHeartbeat` rodando pra usuário não-dono. Posso fazer junto se quiser, mas é independente.
+## O que vou fazer (UX puro, sem mexer em backend/credenciais)
+
+**`src/components/admin/IFoodMerchantHomologTab.tsx`:**
+
+1. **Empty state quando não há loja conectada** — em vez de só `option value=""`, mostrar card explicativo "Nenhuma loja com credencial iFood ativa".
+2. **Silenciar o toast de erro em `loadAll`** — chamadas automáticas de carregamento não devem disparar toast. Em vez disso, guardar o último erro em estado (`{ code, message }`) e renderizar um **banner inline amarelo** no topo: "iFood retornou {code}: {message}. Verifique se o `merchant_id` está homologado em produção e o token tem escopo `merchant.read`."
+3. **Manter toast para ações manuais do usuário** (criar pausa, rodar checklist, deletar pausa) — aí o feedback imediato faz sentido.
+4. **Mostrar "—" / skeleton** nos 4 cards (Dados, Status, Horários, Pausas) quando o fetch falhou, sem quebrar o layout atual.
+5. **Não chamar `loadAll` automaticamente** se o `merchant_id` estiver vazio ou a credencial estiver `expired` — evita 403 garantido.
 
 ---
 
-## Plano de execução
+## Sobre as outras abas
 
-1. **`src/components/admin/GrowthCharts.tsx`** — refatorar para receber `payments: PaymentRow[]` (já carregados no AdminPage) e construir a série MRR somando `amount_cents` dos pagamentos agrupados por mês. Remove o hardcode e o problema de status.
-2. **`src/pages/AdminPage.tsx`**:
-   - Passar `payments` para `<GrowthCharts/>`.
-   - Substituir o cálculo do card "A Receber (Mês)" por: `Σ(price_cents do plano ativo da org) / ciclo` para todas as orgs `subscription_status='active'` e `subscription_plan != 'free'`. Buscar preços de `platform_plans` no `useEffect` de load.
-3. **Validar:** abrir /admin no preview, conferir que os 3 KPIs do topo mostram valores diferentes e que o gráfico "MRR por Mês" bate com o card "MRR".
+Já varri o resto na pass anterior (Dashboard, KPIs, gráfico — corrigidos no commit anterior). Olhando o restante por código + network, **não vi outros bugs ativos** em Lojas, Configurações, Site, Relatórios, Logs de Erros, Ativações, Capacidade, Limpeza, Versões, Telegram, Indicações, Afiliados, WhatsApp, Suporte, Robô IA, Guia ou Funcionalidades.
 
-Mudanças escopadas só a UI/leitura — sem migrações, sem mexer em RLS, sem tocar em fluxo de venda/impressão.
+Se quiser que eu abra cada uma manualmente no preview pra dupla checagem visual, é só me dizer — mas tende a só consumir mais tempo. O risco real estava nos 3 bugs já consertados + esse da aba iFood.
+
+---
+
+## Escopo
+
+- 1 arquivo só (`IFoodMerchantHomologTab.tsx`)
+- Sem mudanças no banco, sem mudanças na edge function, sem mexer em RLS
+- Não afeta venda/impressão/qualquer outro fluxo
