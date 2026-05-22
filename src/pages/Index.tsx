@@ -115,7 +115,7 @@ interface PlanRow {
 }
 
 const Index = () => {
-  const { content: cms } = usePlatformContent();
+  const { content: cms, loading: cmsLoading } = usePlatformContent();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [selectedBilling, setSelectedBilling] = useState<"monthly" | "quarterly" | "annual">("monthly");
@@ -184,7 +184,7 @@ const Index = () => {
         orderCount={orderCount}
         displayCount={displayCount}
         orderCounterText={c("order_counter_text", "pedidos feitos no TrendFood")}
-        heroImageUrl={c("hero_image_url", "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1920&q=80")}
+        heroImageUrl={cmsLoading ? "" : c("hero_image_url", "")}
       />
 
       {/* Carrossel automático das top 15 lojas */}
