@@ -2967,6 +2967,7 @@ export type Database = {
       }
       cleanup_admin_telegram_dedupe: { Args: never; Returns: undefined }
       cleanup_inactive_organizations: { Args: never; Returns: Json }
+      cleanup_internal_postgres_logs: { Args: never; Returns: Json }
       courier_accept_delivery: {
         Args: { _courier_id: string; _delivery_id: string }
         Returns: undefined
@@ -3086,6 +3087,7 @@ export type Database = {
         Args: { _payment_id: string }
         Returns: number
       }
+      run_cleanup_internal_logs_manual: { Args: never; Returns: Json }
       run_cleanup_orgs_manual: { Args: never; Returns: Json }
       support_get_or_create_conversation: {
         Args: { _org_id: string }
