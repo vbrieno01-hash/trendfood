@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Trash2, ShieldAlert, PlayCircle, Loader2, Image as ImageIcon, Store, User, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Trash2, ShieldAlert, PlayCircle, Loader2, Image as ImageIcon, Store, User, AlertTriangle, CheckCircle2, Database } from "lucide-react";
 
 type LogRow = {
   id: string;
-  kind: "orphan_image" | "inactive_org_warned" | "inactive_org_deleted" | "orphan_user_deleted";
+  kind: "orphan_image" | "inactive_org_warned" | "inactive_org_deleted" | "orphan_user_deleted" | "internal_postgres_logs";
   target: string;
   bucket: string | null;
   size_bytes: number | null;
@@ -39,6 +39,7 @@ const KIND_META: Record<LogRow["kind"], { label: string; icon: React.ReactNode; 
   inactive_org_warned: { label: "Loja avisada", icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
   inactive_org_deleted: { label: "Loja apagada", icon: <Store className="w-3.5 h-3.5" />, color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
   orphan_user_deleted: { label: "Usuário apagado", icon: <User className="w-3.5 h-3.5" />, color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
+  internal_postgres_logs: { label: "Logs internos PG", icon: <Database className="w-3.5 h-3.5" />, color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
 };
 
 export default function CleanupTab() {
@@ -46,24 +47,28 @@ export default function CleanupTab() {
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<"orgs" | "storage" | null>(null);
+  const [runningInternal, setRunningInternal] = useState(false);
+  const [internalSizes, setInternalSizes] = useState<{ http_size: number; cron_size: number; total_size: number; last_run_at: string | null } | null>(null);
   const [toggling, setToggling] = useState(false);
   const [filter, setFilter] = useState<"all" | LogRow["kind"]>("all");
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [statsRes, logsRes] = await Promise.all([
+      const [statsRes, logsRes, sizesRes] = await Promise.all([
         supabase.rpc("get_cleanup_stats"),
         supabase
           .from("cleanup_logs")
           .select("*")
           .order("created_at", { ascending: false })
           .limit(200),
+        supabase.rpc("get_internal_logs_sizes"),
       ]);
       if (statsRes.error) throw statsRes.error;
       if (logsRes.error) throw logsRes.error;
       setStats(statsRes.data as Stats);
       setLogs((logsRes.data as LogRow[]) ?? []);
+      if (!sizesRes.error) setInternalSizes(sizesRes.data as any);
     } catch (e: any) {
       toast.error("Erro ao carregar limpeza", { description: e.message });
     } finally {
