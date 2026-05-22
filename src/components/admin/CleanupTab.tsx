@@ -238,13 +238,52 @@ export default function CleanupTab() {
           {running === "orgs" ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5 mr-1.5" />}
           Limpeza de lojas inativas
         </Button>
+        <Button size="sm" variant="outline" onClick={handleRunInternal} disabled={runningInternal}>
+          {runningInternal ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Database className="w-3.5 h-3.5 mr-1.5" />}
+          Logs internos do Postgres
+        </Button>
+      </div>
+
+      {/* Internal Postgres logs card */}
+      <div className="admin-glass rounded-2xl p-4 border border-emerald-500/20">
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-600">
+            <Database className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-sm font-bold text-foreground">Logs internos do Postgres</p>
+              <span className="text-[11px] text-muted-foreground">Diário às 03:30 BRT · auto</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Limpa <code className="text-[11px]">net._http_response</code> (&gt;2 dias) e <code className="text-[11px]">cron.job_run_details</code> (&gt;3 dias).
+              Não afeta nenhum dado de negócio.
+            </p>
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <div className="rounded-lg bg-muted/30 p-2.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">http_response</p>
+                <p className="text-sm font-bold text-foreground mt-0.5">{internalSizes ? fmtBytes(internalSizes.http_size) : "—"}</p>
+              </div>
+              <div className="rounded-lg bg-muted/30 p-2.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">job_run_details</p>
+                <p className="text-sm font-bold text-foreground mt-0.5">{internalSizes ? fmtBytes(internalSizes.cron_size) : "—"}</p>
+              </div>
+              <div className="rounded-lg bg-muted/30 p-2.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Última execução</p>
+                <p className="text-sm font-bold text-foreground mt-0.5">
+                  {internalSizes?.last_run_at ? new Date(internalSizes.last_run_at).toLocaleString("pt-BR") : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filtros + tabela */}
       <div className="admin-glass rounded-2xl p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider mr-1">Tipo:</span>
-          {(["all", "orphan_image", "inactive_org_warned", "inactive_org_deleted", "orphan_user_deleted"] as const).map((k) => (
+          {(["all", "orphan_image", "inactive_org_warned", "inactive_org_deleted", "orphan_user_deleted", "internal_postgres_logs"] as const).map((k) => (
             <button
               key={k}
               onClick={() => setFilter(k)}
