@@ -154,6 +154,25 @@ export default function CleanupTab() {
   };
 
   const filteredLogs = filter === "all" ? logs : logs.filter((l) => l.kind === filter);
+
+  const handleRunInternal = async () => {
+    setRunningInternal(true);
+    try {
+      const { data, error } = await supabase.rpc("run_cleanup_internal_logs_manual");
+      if (error) throw error;
+      const d: any = data ?? {};
+      const freed = (d.http_freed_bytes ?? 0) + (d.cron_freed_bytes ?? 0);
+      toast.success("Logs internos limpos", {
+        description: `Apagados: ${d.http_deleted ?? 0} http · ${d.cron_deleted ?? 0} cron${freed > 0 ? ` · liberados ${fmtBytes(freed)}` : ""}`,
+      });
+      await fetchAll();
+    } catch (e: any) {
+      toast.error("Erro", { description: e.message });
+    } finally {
+      setRunningInternal(false);
+    }
+  };
+
   const isDryRun = stats?.config?.dry_run ?? true;
   const dryRunUntil = stats?.config?.dry_run_until ? new Date(stats.config.dry_run_until) : null;
   const daysLeft = dryRunUntil ? Math.max(0, Math.ceil((dryRunUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
