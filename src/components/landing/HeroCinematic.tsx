@@ -71,16 +71,20 @@ export default function HeroCinematic({
   return (
     <section className="relative overflow-hidden min-h-[640px] md:min-h-screen">
       {/* Background image with parallax */}
-      <motion.div className="absolute inset-0 z-0" style={{ y: heroY }}>
-        <img
-          src={heroImageUrl}
-          alt=""
-          width={1920}
-          height={1080}
-          fetchPriority="high"
-          decoding="async"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-        />
+      <motion.div className="absolute inset-0 z-0 bg-[#0a0806]" style={{ y: heroY }}>
+        {heroImageUrl ? (
+          <img
+            src={heroImageUrl}
+            alt=""
+            width={1920}
+            height={1080}
+            fetchPriority="high"
+            decoding="async"
+            onLoad={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "1"; }}
+            style={{ opacity: 0, transition: "opacity 250ms ease-out" }}
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+        ) : null}
         <div
           className="absolute inset-0"
           style={{ background: "linear-gradient(to right, rgba(10,8,6,0.95) 0%, rgba(15,10,5,0.85) 45%, rgba(10,8,6,0.6) 100%)" }}
