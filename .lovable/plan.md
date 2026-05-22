@@ -1,34 +1,20 @@
-## O bug
+## Rodar simulação da limpeza de imagens órfãs
 
-Na landing page, a imagem do hero (hambúrguer) "pisca" / troca rapidamente quando a página carrega.
+A função `cleanup-orphan-storage` já existe e tem flag `dry_run` no `cleanup_config`. Em dry-run, ela:
 
-**Causa raiz:** o componente `HeroCinematic` recebe a URL da imagem via `usePlatformContent()` (CMS no banco). Enquanto o CMS não carrega, é usado um **fallback hard-coded** (uma foto do Unsplash) — e quando o CMS responde, a imagem real (webp do Storage) substitui o fallback. Resultado: dois renders visíveis = "pisca".
+1. Lê todas as URLs referenciadas no banco (`menu_items.image_url`, `organizations.logo_url`/`banner_url`, `platform_content`).
+2. Lista todos os arquivos dos buckets `menu-images`, `logos`, `site-images`, `guide-images`.
+3. Considera órfão todo arquivo **não referenciado** e com **mais de 7 dias** de criado.
+4. Registra cada órfão em `cleanup_logs` com `dry_run = true` — **nenhum arquivo é apagado**.
 
-- Fallback atual em `src/pages/Index.tsx:187`: `https://images.unsplash.com/photo-1514933651103-005eec06c04b…`
-- Imagem real no CMS: `…/storage/v1/object/public/site-images/cms/1774980403068.webp`
+### Passos
 
-## A correção
+1. Garantir que `cleanup_config` está com `enabled = true` e `dry_run = true` (consulta apenas; se já estiver assim, segue direto).
+2. Chamar `cleanup-orphan-storage` via curl com o `UNIVERSAL_WEBHOOK_SECRET`.
+3. Mostrar o resultado:
+   - Total de imagens órfãs identificadas
+   - Espaço total que seria liberado (em MB)
+   - Quebra por bucket (menu-images, logos, site-images, guide-images)
 
-Editar apenas a apresentação do hero — sem mexer em lógica de negócio, CMS, storage ou imagens das lojas.
-
-### Mudanças
-
-1. **`src/pages/Index.tsx`**
-   - Passar para o `HeroCinematic` a URL **só quando o CMS já carregou** (ex.: passar `heroImageUrl={cms ? c("hero_image_url", "") : ""}`).
-   - Deixar de usar a URL do Unsplash como fallback visível.
-
-2. **`src/components/landing/HeroCinematic.tsx`**
-   - Se `heroImageUrl` estiver vazio, **não renderizar o `<img>`** — mostrar apenas o fundo escuro (mesmo `bg-background` / gradient já existente atrás da imagem) como placeholder.
-   - Quando a URL chegar, renderizar a `<img>` com `fetchPriority="high"` + uma transição suave `opacity` (fade-in curto, ~200ms via Tailwind) ao disparar `onLoad`, para não dar "pop".
-   - Manter `loading="eager"` e `decoding="async"` para o LCP continuar rápido.
-
-### Por que assim
-
-- Elimina o flash: o usuário nunca vê a imagem errada.
-- Não atrasa o LCP percebido: o fundo escuro do hero + texto já aparecem imediatamente; só a foto entra suavemente.
-- Não toca em nenhum dado de loja, produto, storage ou cache global — é puramente frontend/apresentação na landing.
-
-### Fora do escopo
-- Não mexer em outras páginas, lojas, produtos, dashboard, admin.
-- Não trocar a imagem do CMS nem mexer no Storage.
-- Não alterar `usePlatformContent`.
+### Riscos
+Nenhum — modo simulação só insere linhas em `cleanup_logs`. Storage e banco de produção ficam intactos.
