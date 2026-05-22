@@ -3018,6 +3018,7 @@ export type Database = {
       }
       get_cleanup_stats: { Args: never; Returns: Json }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
+      get_internal_logs_sizes: { Args: never; Returns: Json }
       get_my_deliveries: {
         Args: { _courier_id: string }
         Returns: {
