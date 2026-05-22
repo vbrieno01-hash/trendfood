@@ -1,25 +1,28 @@
-## Correção do bug #6 — Relatório do Admin
+## Limpeza de logs internos do Postgres
 
-**Arquivo:** `src/components/admin/AdminReportsTab.tsx` (linha 48-52)
+**Objetivo:** liberar ~340 MB do banco (377 MB → ~40 MB) sem tocar em nenhum dado de negócio.
 
-**Mudança:** adicionar 1 filtro na query do Supabase para ignorar pedidos cancelados, recusados e estornados.
+### O que será feito
 
-```ts
-.from("orders")
-.select("...")
-.gte("created_at", ...)
-.lte("created_at", ...)
-.not("status", "in", "(cancelled,rejected,refunded)")  // ← linha nova
-.order("created_at", { ascending: false });
-```
+1. **Migration SQL** criando:
+   - Função `public.cleanup_internal_postgres_logs()` — apaga `net._http_response` > 2 dias, `cron.job_run_details` > 3 dias, roda `VACUUM` (não FULL), registra em `cleanup_logs` e atualiza `cron_health`.
+   - Job `pg_cron` `cleanup-internal-postgres-logs` diário às 03:30 BRT.
+   - RPC admin `run_cleanup_internal_logs_manual()` (apenas `brenojackson30@gmail.com`).
+   - Execução imediata da função dentro da própria migration → libera os 340 MB agora.
 
-**Resultado:**
-- "Total Faturado" e a lista de pedidos passam a mostrar **só pedidos válidos**.
-- Pedidos cancelados/recusados deixam de inflar o número.
+2. **Card no Admin → aba Limpeza:**
+   - Mostra tamanho atual de `net._http_response` e `cron.job_run_details`.
+   - Última execução do job (de `cron_health`).
+   - Botão "Limpar agora" chamando o RPC.
 
-**Impacto nas lojas:** zero.
-- Só altera a tela `/admin` → Relatórios (acesso restrito ao seu e-mail).
-- Não toca em RLS, triggers, edge functions, banco, fluxo de pedido, impressão, pagamento.
-- Reversível em 1 linha.
+### O que NÃO é tocado
 
-**Relatório do lojista (pro contador):** continua intacto — já filtra `status = "delivered"` corretamente.
+- `orders`, `order_items`, `organizations`, `platform_counters`, `top_stores_showcase`, cardápios, pagamentos, fidelidade, relatórios — **nenhum dado de negócio.**
+- Crons existentes (push, MP, iFood, WhatsApp, Telegram) continuam idênticos.
+- Apenas histórico interno do Postgres (`net.*` e `cron.*`) é limpo.
+
+### Resultado
+
+- Banco: **377 MB → ~40 MB** imediatamente.
+- Alerta amarelo de storage some.
+- Manutenção fica automática daqui pra frente.
