@@ -96,6 +96,27 @@ export default function AIBotAdminTab() {
     })();
   }, []);
 
+  // Realtime: pega o auto-pareamento feito pelo whatsapp-webhook na 1ª mensagem
+  useEffect(() => {
+    if (!config?.id) return;
+    const ch = supabase
+      .channel(`ai_bot_config_${config.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "ai_bot_config", filter: `id=eq.${config.id}` },
+        (payload) => {
+          const next = payload.new as Partial<BotConfig>;
+          setConfig((prev) => (prev ? { ...prev, ...next } : prev));
+          if (next.test_instance_token) setInstanceToken(next.test_instance_token);
+          if (next.test_instance_name) setInstanceName(next.test_instance_name);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [config?.id]);
+
   // Carrega histórico do test_phone + realtime
   useEffect(() => {
     if (!config?.test_phone) {
