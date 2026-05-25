@@ -206,19 +206,33 @@ export default function AIBotAdminTab() {
     setTestingStatus(true);
     setTestResult(null);
     try {
+      // uazapi: /instance/status é GET com header `token`
       const res = await fetch(`${url}/instance/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", token },
-        body: JSON.stringify({}),
+        method: "GET",
+        headers: { token },
       });
       const text = await res.text();
       let parsed: any = null;
       try { parsed = JSON.parse(text); } catch { /* ignore */ }
       const statusName = parsed?.instance?.status || parsed?.status || null;
-      const phone = parsed?.instance?.phoneConnected || parsed?.instance?.owner || parsed?.phone || null;
+      const phone =
+        parsed?.instance?.phoneConnected ||
+        parsed?.instance?.owner ||
+        parsed?.instance?.phone ||
+        parsed?.phone ||
+        null;
       setTestResult({ ok: res.ok, status: res.status, body: text.slice(0, 400), phone, statusName });
-      if (res.ok) toast.success(`Servidor respondeu: ${statusName || res.status}`);
-      else toast.error(`Servidor retornou ${res.status}`);
+      if (res.ok) {
+        toast.success(`Servidor respondeu: ${statusName || res.status}`);
+      } else if (res.status === 401 || res.status === 403) {
+        toast.error("Token recusado pelo servidor (401/403). Confira o token da instância.");
+      } else if (res.status === 404) {
+        toast.error("Endpoint /instance/status não encontrado (404). Confira a URL do servidor.");
+      } else if (res.status === 405) {
+        toast.error("Método não aceito (405). Esse servidor uazapi não expõe /instance/status via GET.");
+      } else {
+        toast.error(`Servidor retornou ${res.status}`);
+      }
     } catch (e: any) {
       setTestResult({ ok: false, body: e.message });
       toast.error("Falha ao alcançar o servidor: " + (e.message || "erro"));
