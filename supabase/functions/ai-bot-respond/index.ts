@@ -12,7 +12,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { phone, message, organization_id: orgIdOverride, instance_token: tokenOverride } = await req.json();
+    const {
+      phone,
+      message,
+      organization_id: orgIdOverride,
+      instance_token: tokenOverride,
+      server_url: serverUrlOverride,
+    } = await req.json();
     if (!phone || !message) {
       return new Response(JSON.stringify({ error: "phone and message required" }), {
         status: 400,
@@ -59,7 +65,9 @@ Deno.serve(async (req) => {
 
     const effectiveOrgId = orgIdOverride || config?.test_org_id || null;
     const defaultServerUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
-    let effectiveServerUrl = defaultServerUrl;
+    let effectiveServerUrl = serverUrlOverride
+      ? String(serverUrlOverride).replace(/\/$/, "")
+      : defaultServerUrl;
 
     // Token sempre vem vivo: do caller (webhook) ou buscado em whatsapp_instances.
     // Sem fallback pra token salvo no ai_bot_config (não existe mais).
