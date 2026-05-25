@@ -198,6 +198,28 @@ export default function AIBotAdminTab() {
     }
   };
 
+  const loadServerInfo = async (ping = false) => {
+    setPinging(ping);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        `uazapi-server-info${ping ? "?action=ping" : ""}`,
+        { method: "GET" as any },
+      );
+      if (error) throw error;
+      setServerInfo(data);
+      if (ping) toast.success("Diagnóstico do servidor atualizado");
+    } catch (e: any) {
+      toast.error("Falha no diagnóstico: " + (e.message || "erro"));
+    } finally {
+      setPinging(false);
+    }
+  };
+
+  useEffect(() => {
+    loadServerInfo(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleDisconnect = async (deleteInstance: boolean) => {
     if (!config?.test_org_id) return;
     const msg = deleteInstance
