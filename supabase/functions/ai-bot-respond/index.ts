@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     if (orgIdOverride) {
       const { data } = await supabase
         .from("ai_bot_config")
-        .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
+        .select("*")
         .eq("organization_id", orgIdOverride)
         .maybeSingle();
       config = data;
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (!config) {
       const { data } = await supabase
         .from("ai_bot_config")
-        .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
+        .select("*")
         .is("organization_id", null)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -57,12 +57,27 @@ Deno.serve(async (req) => {
       config = data;
     }
 
-    // Modo multi-tenant: organization_id + instance_token vieram do webhook (loja específica)
-    // Modo singleton legacy: usa test_org_id + uazapi_token do config (apenas teste admin)
     const effectiveOrgId = orgIdOverride || config?.test_org_id || null;
-    const effectiveServerUrl = (Deno.env.get("UAZAPI_SERVER_URL") || config?.uazapi_server_url || "https://free.uazapi.com").replace(/\/$/, "");
-    const effectiveToken = tokenOverride || config?.uazapi_token || null;
-    const isMultiTenant = !!orgIdOverride;
+    const effectiveServerUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+
+    // Token sempre vem vivo: do caller (webhook) ou buscado em whatsapp_instances.
+    // Sem fallback pra token salvo no ai_bot_config (não existe mais).
+    let effectiveToken: string | null = tokenOverride || null;
+    if (!effectiveToken && effectiveOrgId) {
+      const { data: inst } = await supabase
+        .from("whatsapp_instances")
+        .select("instance_token")
+        .eq("organization_id", effectiveOrgId)
+        .maybeSingle();
+      effectiveToken = inst?.instance_token || null;
+    }
+
+    if (!effectiveToken) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: "no_instance" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Respeitar enabled da config (singleton ou da loja)
     if (!config || !config.enabled) {
