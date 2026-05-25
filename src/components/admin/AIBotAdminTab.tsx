@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power,
-  QrCode, CheckCircle2, PowerOff, RefreshCw, AlertCircle, Check,
+  Trash, CheckCircle2, RefreshCw, AlertCircle, Check, Eye, EyeOff, Copy, Plug,
 } from "lucide-react";
 
 interface BotConfig {
@@ -32,6 +32,7 @@ interface InstanceRow {
   status: string;
   phone_connected: string | null;
   connected_at: string | null;
+  server_url: string | null;
 }
 
 interface QueueRow {
@@ -61,18 +62,23 @@ export default function AIBotAdminTab() {
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [orgs, setOrgs] = useState<OrgOption[]>([]);
   const [instance, setInstance] = useState<InstanceRow | null>(null);
-  const [qrcode, setQrcode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [serverInfo, setServerInfo] = useState<any>(null);
-  const [pinging, setPinging] = useState(false);
+  // Modo manual: o admin cola URL + token + nome de uma instância criada no painel uazapi
+  const [serverUrl, setServerUrl] = useState("");
+  const [instanceToken, setInstanceToken] = useState("");
+  const [instanceName, setInstanceName] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [savingCreds, setSavingCreds] = useState(false);
+  const [testingStatus, setTestingStatus] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; status?: number; body?: string; phone?: string | null; statusName?: string | null } | null>(null);
+  const [clearing, setClearing] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [conversation, setConversation] = useState<QueueRow[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
 
   // Carrega config + lojas
   useEffect(() => {
@@ -97,6 +103,10 @@ export default function AIBotAdminTab() {
   const loadInstance = async (orgId: string | null) => {
     if (!orgId) {
       setInstance(null);
+      setServerUrl("");
+      setInstanceToken("");
+      setInstanceName("");
+      setTestResult(null);
       return;
     }
     const { data } = await supabase
@@ -104,12 +114,16 @@ export default function AIBotAdminTab() {
       .select("*")
       .eq("organization_id", orgId)
       .maybeSingle();
-    setInstance(data as InstanceRow | null);
+    const row = data as InstanceRow | null;
+    setInstance(row);
+    setServerUrl(row?.server_url || "https://free.uazapi.com");
+    setInstanceToken(row?.instance_token || "");
+    setInstanceName(row?.instance_name || "");
+    setTestResult(null);
   };
 
   useEffect(() => {
     loadInstance(config?.test_org_id || null);
-    setQrcode(null);
   }, [config?.test_org_id]);
 
   // Carrega histórico do test_phone + realtime
@@ -147,103 +161,97 @@ export default function AIBotAdminTab() {
     };
   }, [config?.test_phone]);
 
-  const handleConnect = async () => {
+  const handleSaveCredentials = async () => {
     if (!config?.test_org_id) {
       toast.error("Escolha uma loja de teste primeiro");
       return;
     }
-    setConnecting(true);
-    setQrcode(null);
+    const url = serverUrl.trim().replace(/\/$/, "");
+    const token = instanceToken.trim();
+    const name = instanceName.trim() || `admin-test-${config.test_org_id.slice(0, 8)}`;
+    if (!url || !token) {
+      toast.error("URL do servidor e token são obrigatórios");
+      return;
+    }
+    setSavingCreds(true);
     try {
-      const { data, error } = await supabase.functions.invoke("uazapi-create-instance", {
-        body: { organization_id: config.test_org_id },
-      });
+      const payload = {
+        organization_id: config.test_org_id,
+        server_url: url,
+        instance_token: token,
+        instance_name: name,
+        status: "manual",
+        webhook_configured: true,
+      };
+      const { error } = await supabase
+        .from("whatsapp_instances")
+        .upsert(payload, { onConflict: "organization_id" });
       if (error) throw error;
-      const d = data as any;
-      if (d?.error) {
-        const hint = d.hint ? `\n${d.hint}` : "";
-        const attempts = Array.isArray(d.attempts)
-          ? "\n" + d.attempts.map((a: any) => `${a.path} → ${a.status}`).join(" | ")
-          : "";
-        throw new Error(`${d.error}${hint}${attempts}\nserver_url: ${d.server_url ?? "?"}`);
-      }
-      if ((data as any)?.instance) setInstance((data as any).instance);
-      if ((data as any)?.qrcode) setQrcode((data as any).qrcode);
-      toast.success("Escaneie o QR Code no WhatsApp");
-    } catch (e: any) {
-      console.error("connect error:", e);
-      toast.error("Falha ao iniciar conexão: " + (e.message || "erro"), { duration: 12000 });
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    if (!config?.test_org_id) return;
-    setRefreshing(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${config.test_org_id}`,
-        { headers: { Authorization: `Bearer ${session?.access_token}` } },
-      );
-      const json = await res.json();
-      if (json.instance) setInstance(json.instance);
-      if (json.qrcode) setQrcode(json.qrcode);
-      toast.success("Status atualizado");
-    } catch {
-      toast.error("Falha ao atualizar status");
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const loadServerInfo = async (ping = false) => {
-    setPinging(ping);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-server-info${ping ? "?action=ping" : ""}`;
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      setServerInfo(data);
-      if (ping) toast.success("Diagnóstico do servidor atualizado");
-    } catch (e: any) {
-      toast.error("Falha no diagnóstico: " + (e.message || "erro"));
-    } finally {
-      setPinging(false);
-    }
-  };
-
-  useEffect(() => {
-    loadServerInfo(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleDisconnect = async (deleteInstance: boolean) => {
-    if (!config?.test_org_id) return;
-    const msg = deleteInstance
-      ? "Apagar a instância? Vai precisar gerar QR Code novo."
-      : "Desconectar o WhatsApp? Vai precisar escanear o QR Code de novo.";
-    if (!confirm(msg)) return;
-    setDisconnecting(true);
-    try {
-      const { error } = await supabase.functions.invoke("uazapi-disconnect", {
-        body: { organization_id: config.test_org_id, delete_instance: deleteInstance },
-      });
-      if (error) throw error;
-      toast.success(deleteInstance ? "Instância apagada" : "WhatsApp desconectado");
-      setQrcode(null);
+      toast.success("Credenciais salvas");
       await loadInstance(config.test_org_id);
     } catch (e: any) {
-      toast.error("Falha: " + (e.message || "erro"));
+      toast.error("Erro ao salvar: " + (e.message || "erro"));
     } finally {
-      setDisconnecting(false);
+      setSavingCreds(false);
+    }
+  };
+
+  const handleTestStatus = async () => {
+    const url = serverUrl.trim().replace(/\/$/, "");
+    const token = instanceToken.trim();
+    if (!url || !token) {
+      toast.error("Preencha URL e token antes de testar");
+      return;
+    }
+    setTestingStatus(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`${url}/instance/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify({}),
+      });
+      const text = await res.text();
+      let parsed: any = null;
+      try { parsed = JSON.parse(text); } catch { /* ignore */ }
+      const statusName = parsed?.instance?.status || parsed?.status || null;
+      const phone = parsed?.instance?.phoneConnected || parsed?.instance?.owner || parsed?.phone || null;
+      setTestResult({ ok: res.ok, status: res.status, body: text.slice(0, 400), phone, statusName });
+      if (res.ok) toast.success(`Servidor respondeu: ${statusName || res.status}`);
+      else toast.error(`Servidor retornou ${res.status}`);
+    } catch (e: any) {
+      setTestResult({ ok: false, body: e.message });
+      toast.error("Falha ao alcançar o servidor: " + (e.message || "erro"));
+    } finally {
+      setTestingStatus(false);
+    }
+  };
+
+  const handleClearInstance = async () => {
+    if (!config?.test_org_id) return;
+    if (!confirm("Apagar credenciais salvas para esta loja de teste?")) return;
+    setClearing(true);
+    try {
+      const { error } = await supabase
+        .from("whatsapp_instances")
+        .delete()
+        .eq("organization_id", config.test_org_id);
+      if (error) throw error;
+      toast.success("Credenciais apagadas");
+      await loadInstance(config.test_org_id);
+    } catch (e: any) {
+      toast.error("Erro: " + (e.message || "erro"));
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const copyWebhook = async () => {
+    try {
+      await navigator.clipboard.writeText(WEBHOOK_URL);
+      toast.success("URL do webhook copiada");
+    } catch {
+      toast.error("Não foi possível copiar");
     }
   };
 
