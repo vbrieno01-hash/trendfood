@@ -204,7 +204,6 @@ export default function AIBotAdminTab() {
       ? "Apagar a instância? Vai precisar gerar QR Code novo."
       : "Desconectar o WhatsApp? Vai precisar escanear o QR Code de novo.";
     if (!confirm(msg)) return;
-    void msg;
     setDisconnecting(true);
     try {
       const { error } = await supabase.functions.invoke("uazapi-disconnect", {
