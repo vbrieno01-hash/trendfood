@@ -1,45 +1,102 @@
-## Problema
 
-A coluna **Último login** mostra "1mes", "2mes" para lojas que estão **online e ativas** todo dia. Isso acontece porque o Supabase só atualiza `last_sign_in_at` quando o usuário digita senha de novo — refresh automático de token (PWA/APK sempre logado) **não conta**. Então o número não reflete uso real.
+# Multi-loja completo no Robô WhatsApp
 
-## Solução
+Hoje cada loja já tem sua própria instância uazapi isolada (token único, webhook próprio, owner-check no servidor). Faltam 4 ajustes pra ficar 100% pronto pra qualquer lojista usar com segurança:
 
-Trocar a coluna por **Última atividade**, calculada como o **maior valor** entre estes sinais reais de uso:
+## 1. Config do bot por loja (não mais singleton)
 
-1. `MAX(orders.created_at)` das organizações do usuário — pedido recebido = loja operando.
-2. `MAX(organizations.updated_at)` — qualquer mudança no painel (mexer em cardápio, status, configurações).
-3. `last_sign_in_at` como fallback (caso a loja nunca tenha pedido nem editado nada).
+Hoje `ai_bot_config` tem 1 linha global — prompt do "Lucas" e modelo compartilhados entre todas as lojas.
 
-Quem tiver pedido hoje aparece "agora / Xh"; quem só configurou e abandonou continua aparecendo "1mes".
+- Adicionar coluna `organization_id uuid` em `ai_bot_config` (nullable pra preservar o singleton atual como "default global").
+- Índice único parcial `WHERE organization_id IS NOT NULL` (1 config por loja).
+- RLS: dono da org lê/edita a config da própria org; admin lê/edita tudo; singleton (org_id NULL) só admin.
+- Trigger que cria automaticamente uma linha pra org quando a loja conecta a 1ª instância, copiando defaults do singleton.
+- `AIBotTab.tsx`: passar a buscar `ai_bot_config` filtrando `organization_id = orgId` em vez de `.limit(1)`.
 
-## O que muda
+## 2. Isolar a fila de mensagens por loja
 
-**1. Migração SQL** — recriar a função `admin_list_users` para incluir o campo `last_activity_at`:
+`fila_whatsapp` não tem `organization_id` — se outra loja ativar o robô, mensagens se misturam no painel.
 
+- Adicionar `organization_id uuid` em `fila_whatsapp` + índice.
+- Webhook (`whatsapp-webhook`): preencher `organization_id` ao inserir, baseado no `instance_token` (já é resolvido lá).
+- RLS: dono da org vê só a fila da própria org; admin vê tudo.
+- `AIBotTab.tsx`: filtrar `.eq("organization_id", orgId)` no select e no realtime channel.
+
+## 3. Liberar pra todas as lojas (com gating de plano)
+
+Hoje só `BETA_ORG_IDS = TrendFood` vê o painel completo do bot.
+
+- Remover o `BETA_ORG_IDS` hardcoded.
+- Manter `usePlatformFeatureFlags().whatsapp_enabled` como kill-switch global do admin.
+- Adicionar gate por plano: robô IA só liga no **Pro/Enterprise** (gate via trigger `gate_ai_bot_enabled_paid_plan` quando `enabled=true`, igual aos outros gates já existentes — cupons, loyalty, etc).
+- Free pode conectar WhatsApp pra avisos automáticos (`WhatsAppAutoStatusCard`), mas não pra IA conversacional.
+
+## 4. Limite de instâncias por usuário
+
+Sem limite hoje, um usuário com 50 orgs cria 50 instâncias no uazapi (custo).
+
+- Em `uazapi-create-instance`: antes de criar, contar quantas instâncias ativas o `user_id` já tem (via join `whatsapp_instances`→`organizations`). Limite hardcoded: **3 instâncias por usuário** (admin bypassa).
+- Retornar 403 com mensagem clara se exceder.
+
+## Detalhes técnicos
+
+**Migrations (1 só, atômica):**
 ```sql
-SELECT
-  u.id, u.email, u.created_at, u.last_sign_in_at,
-  GREATEST(
-    COALESCE(act.last_order_at, 'epoch'::timestamptz),
-    COALESCE(act.last_org_update, 'epoch'::timestamptz),
-    COALESCE(u.last_sign_in_at, 'epoch'::timestamptz)
-  ) AS last_activity_at,
-  ...
-FROM auth.users u
-LEFT JOIN (
-  SELECT o.user_id,
-         MAX(ord.created_at) AS last_order_at,
-         MAX(o.updated_at)   AS last_org_update
-  FROM public.organizations o
-  LEFT JOIN public.orders ord ON ord.organization_id = o.id
-  GROUP BY o.user_id
-) act ON act.user_id = u.id
+-- ai_bot_config por org
+ALTER TABLE ai_bot_config ADD COLUMN organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE;
+CREATE UNIQUE INDEX ai_bot_config_org_unique ON ai_bot_config(organization_id) WHERE organization_id IS NOT NULL;
+
+-- RLS por owner
+DROP POLICY ai_bot_config_select_admin ON ai_bot_config;  -- recria abrindo pra owner também
+CREATE POLICY ai_bot_config_select_owner ON ai_bot_config
+  FOR SELECT USING (
+    organization_id IS NOT NULL
+    AND auth.uid() = (SELECT user_id FROM organizations WHERE id = ai_bot_config.organization_id)
+  );
+-- (políticas equivalentes pra UPDATE e INSERT do owner)
+
+-- fila_whatsapp por org
+ALTER TABLE fila_whatsapp ADD COLUMN organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE;
+CREATE INDEX fila_whatsapp_org_idx ON fila_whatsapp(organization_id, created_at DESC);
+
+CREATE POLICY fila_whatsapp_select_owner ON fila_whatsapp
+  FOR SELECT USING (
+    organization_id IS NOT NULL
+    AND auth.uid() = (SELECT user_id FROM organizations WHERE id = fila_whatsapp.organization_id)
+  );
+
+-- Gate de plano pro bot IA
+CREATE FUNCTION gate_ai_bot_enabled_paid_plan() RETURNS trigger AS $$
+BEGIN
+  IF NEW.enabled = true
+     AND NEW.organization_id IS NOT NULL
+     AND get_effective_plan(NEW.organization_id) = 'free'
+  THEN
+    RAISE EXCEPTION 'Robô de WhatsApp disponível apenas no plano Pro.' USING ERRCODE='P0001';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public;
+
+CREATE TRIGGER tg_gate_ai_bot BEFORE INSERT OR UPDATE ON ai_bot_config
+  FOR EACH ROW EXECUTE FUNCTION gate_ai_bot_enabled_paid_plan();
 ```
 
-**2. `src/components/admin/CapacityTab.tsx`:**
-- Adicionar `last_activity_at` à interface `AdminUser`.
-- Renomear o cabeçalho da coluna de **"Último login"** → **"Última atividade"**.
-- Trocar a célula para renderizar `fmtRelative(u.last_activity_at)` em vez de `u.last_sign_in_at`.
-- Manter a coluna "CADASTRO" como está (já está correta).
+**Edge functions:**
+- `uazapi-create-instance`: adicionar verificação de limite (3 instâncias / user, admin bypassa); ao criar instância, fazer `INSERT ai_bot_config (organization_id, system_prompt, model, greeting_message) SELECT $1, system_prompt, model, greeting_message FROM ai_bot_config WHERE organization_id IS NULL` se não existir ainda.
+- `whatsapp-webhook`: ao inserir em `fila_whatsapp`, passar `organization_id: matchedInst.organization_id`. Ao buscar config do bot, usar `WHERE organization_id = matchedInst.organization_id`.
 
-Nada mais muda — filtros, exclusão, promover admin, tudo continua igual.
+**Frontend (`src/components/dashboard/AIBotTab.tsx`):**
+- Remover `BETA_ORG_IDS` e `isBeta`; `BetaPanel` vira `BotPanel` exibido sempre que `waEnabled`.
+- `loadAll`: `ai_bot_config.eq("organization_id", orgId)`, `fila_whatsapp.eq("organization_id", orgId)`.
+- Realtime channel com filter `organization_id=eq.${orgId}`.
+- Se plano = free, mostrar `UpgradePrompt` em vez do switch "Ativar bot".
+
+## O que NÃO muda
+
+- Isolamento de instância uazapi (já correto).
+- Owner-check nas edge functions (já correto).
+- `WhatsAppAutoStatusCard` (avisos automáticos de pedido) — segue aberto pra todos os planos.
+- Admin panel `WhatsAppInstancesTab` — sem mudanças.
+
+Posso seguir e implementar?
