@@ -541,7 +541,7 @@ export default function AIBotAdminTab() {
         if (!config.enabled) missing.push('ativar o switch "Robô ativo"');
         if (!config.test_phone) missing.push('preencher "WhatsApp de teste"');
         if (!config.test_org_id) missing.push('escolher "Loja de teste"');
-        if (!hasInstance) missing.push("salvar URL + token da instância acima");
+        if (!hasInstance) missing.push("mandar a 1ª mensagem pro número conectado (ou colar token manual acima)");
 
         if (missing.length === 0) {
           return (
