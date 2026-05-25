@@ -12,7 +12,8 @@ import { Loader2, RefreshCw, PowerOff, CheckCircle2, MessageSquare, Bot, QrCode,
 import WhatsAppAutoStatusCard from "./WhatsAppAutoStatusCard";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
-import { useOrgEffectivePlan } from "@/hooks/useOrgEffectivePlan";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 interface AIBotTabProps {
@@ -76,8 +77,19 @@ export default AIBotTab;
 /* ======================== BOT PANEL (todas as lojas) ======================== */
 
 const BotPanel = ({ orgId }: { orgId: string }) => {
-  const { data: planInfo } = useOrgEffectivePlan(orgId);
-  const isPaidPlan = planInfo?.plan && planInfo.plan !== "free";
+  const { data: org } = useQuery({
+    queryKey: ["org-plan", orgId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("organizations")
+        .select("subscription_plan, subscription_status, trial_ends_at, used_first_month_promo")
+        .eq("id", orgId)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const plan = usePlanLimits(org as any);
+  const isPaidPlan = plan.canAccess("ai_bot");
   const [instance, setInstance] = useState<InstanceRow | null>(null);
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [queue, setQueue] = useState<QueueRow[]>([]);
