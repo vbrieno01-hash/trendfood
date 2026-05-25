@@ -1,36 +1,36 @@
-## Situação real (sem enrolação)
+## Por que o "Lojas em destaque" sumiu
 
-Os **arquivos físicos dos banners foram deletados** do storage no dia 22/05 e **não tenho como recuperar** — confirmei que a pasta `banners/` no bucket está vazia. As lojas vão precisar reenviar.
+Investiguei e a seção existe (`TopStoresMarquee` em `src/pages/Index.tsx`), mas está caindo no fallback (`MarqueeSocialProof`). Motivo:
 
-O que posso (e vou) fazer agora é **corrigir o bug que causou isso** pra nunca mais acontecer, e **avisar as lojas afetadas** com um botão fácil pra reenviar.
+- A view `top_stores_showcase` (usada pela RPC `get_top_stores_showcase`) só retorna lojas com:
+  - logo preenchido
+  - `paused = false`
+  - **>= 5 pedidos pagos nos últimos 30 dias**
+- Hoje só passam **2 lojas**: WrBurg (78) e GBflix (65).
+- O componente exige **>= 3 lojas** (`if (stores.length < 3) return <MarqueeSocialProof />`), então renderiza o fallback genérico em vez do marquee real.
+- Bônus: a loja mais ativa do sistema, **Rei do Burguer (691 pedidos)**, está com `paused = true` e por isso é excluída.
 
-## Causa raiz confirmada
+## Correção proposta
 
-A função `cleanup-orphan-storage`, ao varrer o bucket `menu-images`, só considerava "em uso" os arquivos referenciados em `menu_items.image_url`. **Esqueci** que os banners também moram nesse bucket (em `banners/<org_id>.<ext>`), referenciados em `organizations.banner_url`. Resultado: marcou tudo como órfão e apagou.
+### 1. Baixar o piso para mostrar o marquee
+- `src/components/landing/TopStoresMarquee.tsx`: trocar `stores.length < 3` por `stores.length < 2`. Com 2 lojas reais já dá pra rodar o marquee com loop suave (o código duplica o grupo, então fica visualmente ok).
 
-## Correções (4 ações)
+### 2. Afrouxar o critério da view para popular melhor
+Criar migration que recria `top_stores_showcase` com:
+- `HAVING count(ord.id) >= 3` (em vez de 5) — ainda exige tração mínima real.
+- Manter exclusão de `paused = true` e exigência de logo (lojas pausadas não devem ser anunciadas; isso é correto).
+- Manter `LIMIT 15` e ordenação por pedidos pagos nos últimos 30 dias.
 
-### 1. `supabase/functions/cleanup-orphan-storage/index.ts`
-- Ao montar a lista de "referenciados", incluir `organizations.banner_url` e `logo_url` em **ambos** os buckets (`menu-images` e `logos`), não só `logos`.
-- Adicionar **guarda extra**: qualquer arquivo em `banners/<uuid>.*` cujo UUID corresponda a uma org existente é automaticamente protegido, mesmo que o `banner_url` no banco esteja nulo (defesa em profundidade).
-- Logar no `cleanup_logs` o resumo do que foi protegido por essa guarda, pra eu auditar.
+Com isso passam a aparecer: WrBurg, GBflix e `lanchonetedopastor` (3 pagos) — 3 lojas, marquee fica natural.
 
-### 2. Religar `dry_run = true` por 7 dias
-- Via `toggle_cleanup_dry_run(true)`. Próximas execuções só vão **listar** o que apagariam, sem apagar. Depois de validar os logs por uma semana, volto a ligar.
+### 3. (Opcional, recomendado) Fallback inteligente quando só 1 loja qualifica
+Se em algum momento só houver 1 loja elegível, manter o fallback atual (`MarqueeSocialProof`). Nenhuma mudança extra necessária além do passo 1.
 
-### 3. `supabase/functions/cleanup-broken-banners/index.ts`
-- Exigir **2 falhas HEAD consecutivas com 10s de intervalo** antes de zerar `banner_url` (evita falso positivo por instabilidade de CDN).
-- Registrar em `cleanup_logs` (kind = `banner_cleared`) com a URL anterior, pra ter rastro.
+## O que NÃO vou fazer
+- Não vou incluir lojas pausadas (Rei do Burguer continua de fora enquanto estiver pausado — correto do ponto de vista de UX).
+- Não vou mexer no visual do marquee, no header, nem em outros componentes da landing.
+- Não vou tocar em nada de banners (assunto separado já resolvido).
 
-### 4. Aviso no painel das lojas afetadas
-- Banner discreto no topo do `HomeTab` **só** pra lojas com `banner_url IS NULL` cuja org foi criada antes de 22/05/2026:  
-  *"Detectamos que o banner da sua loja foi removido por uma falha técnica nossa. Reenvie em poucos segundos."*  
-  Com botão **"Reenviar banner"** que leva direto pro `StoreProfileTab` na seção de banner.
-- Some sozinho quando o banner for reenviado.
-
-## O que **não** estou prometendo
-
-- **Não vou "restaurar" banners automaticamente** — os bytes não existem mais. Qualquer um que diga o contrário tá mentindo.
-- Não vou mexer em mais nada além do que está acima nessa rodada.
-
-Aprova pra eu aplicar?
+## Arquivos afetados
+- `src/components/landing/TopStoresMarquee.tsx` (1 linha)
+- Nova migration recriando a view `top_stores_showcase` (threshold 5 → 3)
