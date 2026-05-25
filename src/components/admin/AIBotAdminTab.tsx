@@ -201,11 +201,16 @@ export default function AIBotAdminTab() {
   const loadServerInfo = async (ping = false) => {
     setPinging(ping);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        `uazapi-server-info${ping ? "?action=ping" : ""}`,
-        { method: "GET" as any },
-      );
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-server-info${ping ? "?action=ping" : ""}`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       setServerInfo(data);
       if (ping) toast.success("Diagnóstico do servidor atualizado");
     } catch (e: any) {
