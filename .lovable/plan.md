@@ -1,31 +1,53 @@
-# Limite: 1 instância por loja
+## Sandbox real do Robô IA no admin
 
-## Regra
-- Cada `organization` (loja/unidade) pode ter **1 instância** de WhatsApp ativa.
-- Se o usuário criar uma nova unidade, ele ganha direito a +1 instância automaticamente.
-- Admin (`brenojackson30@gmail.com`) continua bypassando.
+Transformar a aba "Robô IA" do admin em um sandbox que usa o mesmo fluxo do lojista (uazapi-create-instance + tabela whatsapp_instances), sem nunca persistir token manualmente.
 
-## Mudanças
+### 1. Migration
 
-### 1. Edge function `uazapi-create-instance`
-- Remover a contagem por `user_id` (limite de 3).
-- Adicionar contagem por `organization_id`:
-  - Buscar instâncias ativas em `whatsapp_instances` onde `organization_id = <orgAtual>`.
-  - Se já houver ≥1, retornar **403** com mensagem: *"Esta loja já tem uma instância de WhatsApp conectada. Para conectar outro número, crie uma nova unidade."*
-- Admin bypassa a checagem.
+Dropar colunas obsoletas de `ai_bot_config`:
+- `uazapi_server_url`
+- `uazapi_token`
+- `uazapi_instance_name`
 
-### 2. Frontend `WhatsAppInstancesTab` (ou onde fica o botão "Conectar WhatsApp")
-- Antes de chamar a edge, verificar se já existe instância na loja atual.
-- Se sim, esconder/desabilitar o botão "Conectar nova instância" e mostrar aviso:
-  *"Esta loja já tem WhatsApp conectado. Para conectar outro número, crie uma nova unidade no menu Unidades."*
-- Botão "Criar nova unidade" → leva pra tela de multi-unit existente.
+Manter: `enabled`, `system_prompt`, `greeting_message`, `model`, `test_phone`, `test_org_id`.
 
-### 3. Não muda
-- `ai_bot_config` por `organization_id` (multi-tenant já implementado).
-- `fila_whatsapp` por `organization_id`.
-- Gate de plano Free (continua bloqueando ativar bot).
-- Fluxo de criação de organization (já existente).
+### 2. Edge `ai-bot-respond`
 
-## Detalhes técnicos
-- A checagem usa `whatsapp_instances` filtrando por `organization_id` e status diferente de `disconnected`/`deleted` (instâncias órfãs/desconectadas não contam, pra permitir reconectar).
-- Caso o usuário delete a instância, libera o slot da loja imediatamente.
+- Remover leitura de token do `ai_bot_config`.
+- Sempre buscar token vivo em `whatsapp_instances` por `organization_id`.
+- Se não houver instância conectada: `return { skipped: 'no_instance' }`.
+- Sem fallback para token salvo.
+
+### 3. Edge `whatsapp-webhook`
+
+- Roteamento exclusivo pelo token da instância recebido no payload (`token` / `instance.token`).
+- Match com `whatsapp_instances.token` → resolve `organization_id`.
+- Sem match → ignora (descarta o "singleton legacy" do admin).
+
+### 4. Edge `uazapi-create-instance`
+
+- Garantir que após criar instância já chama `POST {server}/webhook` configurando URL do `whatsapp-webhook` + eventos `messages` automaticamente.
+- Mesmo fluxo serve para lojista e admin.
+
+### 5. UI — `AIBotAdminTab.tsx`
+
+Remover do card "Conexão WhatsApp (uazapiGO)":
+- Inputs de `uazapi_server_url`, `uazapi_token`, `uazapi_instance_name`.
+- Botão "Testar conexão" que dependia desses campos.
+- Lógica de espelhamento em `whatsapp_instances` no `handleSave`.
+
+Adicionar painel dinâmico de sandbox:
+- Dropdown "Loja de teste" (lista organizações; default = `test_org_id`).
+- Estado real da instância lido de `whatsapp_instances` (status + telefone conectado).
+- Botão **Conectar/Reconectar** → chama `uazapi-create-instance` e mostra QR Code inline.
+- Botão **Apagar instância** → chama `uazapi-disconnect`.
+- Campo "Telefone de teste" (`test_phone`) e botão "Enviar mensagem teste" continuam.
+
+Manter no card "Configuração do Robô": `enabled`, `system_prompt`, `greeting_message`, `model` (essas continuam salvas no `ai_bot_config`).
+
+### Resultado
+
+- Admin = sandbox real, cria/destrói em 1 clique, sem credencial fixa.
+- Lojista e admin usam o mesmo caminho de código.
+- Bug "token velho salvo no config" some.
+- Webhook auto-configurado: chip errado no painel uazapi não trava mais nada.

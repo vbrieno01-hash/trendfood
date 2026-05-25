@@ -262,9 +262,6 @@ export type Database = {
           system_prompt: string
           test_org_id: string | null
           test_phone: string | null
-          uazapi_instance_name: string | null
-          uazapi_server_url: string | null
-          uazapi_token: string | null
           updated_at: string
         }
         Insert: {
@@ -276,9 +273,6 @@ export type Database = {
           system_prompt?: string
           test_org_id?: string | null
           test_phone?: string | null
-          uazapi_instance_name?: string | null
-          uazapi_server_url?: string | null
-          uazapi_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -290,9 +284,6 @@ export type Database = {
           system_prompt?: string
           test_org_id?: string | null
           test_phone?: string | null
-          uazapi_instance_name?: string | null
-          uazapi_server_url?: string | null
-          uazapi_token?: string | null
           updated_at?: string
         }
         Relationships: [

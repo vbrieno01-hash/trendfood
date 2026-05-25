@@ -9,7 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power, Link2, Copy, Check, Wifi, WifiOff, AlertCircle } from "lucide-react";
+import {
+  Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power,
+  QrCode, CheckCircle2, PowerOff, RefreshCw, AlertCircle, Check,
+} from "lucide-react";
 
 interface BotConfig {
   id: string;
@@ -19,12 +22,17 @@ interface BotConfig {
   model: string;
   test_phone: string | null;
   test_org_id: string | null;
-  uazapi_server_url: string | null;
-  uazapi_token: string | null;
-  uazapi_instance_name: string | null;
 }
 
-const WEBHOOK_URL = "https://xrzudhylpphnzousilye.supabase.co/functions/v1/whatsapp-webhook";
+interface InstanceRow {
+  id: string;
+  organization_id: string;
+  instance_name: string;
+  instance_token: string;
+  status: string;
+  phone_connected: string | null;
+  connected_at: string | null;
+}
 
 interface QueueRow {
   id: string;
@@ -52,9 +60,14 @@ const MODELS = [
 export default function AIBotAdminTab() {
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [orgs, setOrgs] = useState<OrgOption[]>([]);
+  const [instance, setInstance] = useState<InstanceRow | null>(null);
+  const [qrcode, setQrcode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [conversation, setConversation] = useState<QueueRow[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -65,7 +78,8 @@ export default function AIBotAdminTab() {
       const [{ data: cfg }, { data: orgList }] = await Promise.all([
         supabase
           .from("ai_bot_config")
-          .select("*")
+          .select("id, enabled, system_prompt, greeting_message, model, test_phone, test_org_id")
+          .is("organization_id", null)
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -77,13 +91,33 @@ export default function AIBotAdminTab() {
     })();
   }, []);
 
+  // Carrega instância da loja de teste selecionada
+  const loadInstance = async (orgId: string | null) => {
+    if (!orgId) {
+      setInstance(null);
+      return;
+    }
+    const { data } = await supabase
+      .from("whatsapp_instances")
+      .select("*")
+      .eq("organization_id", orgId)
+      .maybeSingle();
+    setInstance(data as InstanceRow | null);
+  };
+
+  useEffect(() => {
+    loadInstance(config?.test_org_id || null);
+    setQrcode(null);
+  }, [config?.test_org_id]);
+
   // Carrega histórico do test_phone + realtime
   useEffect(() => {
     if (!config?.test_phone) {
       setConversation([]);
       return;
     }
-    const phone = config.test_phone;
+    const phone = config.test_phone.replace(/\D/g, "");
+    if (!phone) return;
 
     const fetchHistory = async () => {
       const { data } = await supabase
@@ -111,52 +145,68 @@ export default function AIBotAdminTab() {
     };
   }, [config?.test_phone]);
 
-  const [copied, setCopied] = useState<string | null>(null);
-  const copy = async (text: string, key: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 1500);
-  };
-
-  const [testingConn, setTestingConn] = useState(false);
-  const [connStatus, setConnStatus] = useState<{ ok: boolean; message: string } | null>(null);
-
-  const handleTestConnection = async () => {
-    if (!config?.uazapi_server_url || !config?.uazapi_token) {
-      toast.error("Preencha Server URL e Token primeiro");
+  const handleConnect = async () => {
+    if (!config?.test_org_id) {
+      toast.error("Escolha uma loja de teste primeiro");
       return;
     }
-    setTestingConn(true);
-    setConnStatus(null);
+    setConnecting(true);
+    setQrcode(null);
     try {
-      const url = `${config.uazapi_server_url.replace(/\/$/, "")}/instance/status`;
-      const res = await fetch(url, {
-        method: "GET",
-        headers: { token: config.uazapi_token },
+      const { data, error } = await supabase.functions.invoke("uazapi-create-instance", {
+        body: { organization_id: config.test_org_id },
       });
-      const text = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = { raw: text };
-      }
-      if (!res.ok) {
-        setConnStatus({ ok: false, message: `HTTP ${res.status}: ${data?.error || data?.message || text.slice(0, 200)}` });
-        return;
-      }
-      const state = data?.instance?.status || data?.status || data?.state || "unknown";
-      const connected = ["connected", "open", "authenticated"].includes(String(state).toLowerCase());
-      setConnStatus({
-        ok: connected,
-        message: connected
-          ? `Instância conectada ao WhatsApp (status: ${state})`
-          : `Token válido, mas WhatsApp não conectado (status: ${state}). Escaneie o QR Code no painel uazapi.`,
-      });
-    } catch (err: any) {
-      setConnStatus({ ok: false, message: "Erro de rede: " + (err.message || "falha desconhecida") });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if ((data as any)?.instance) setInstance((data as any).instance);
+      if ((data as any)?.qrcode) setQrcode((data as any).qrcode);
+      toast.success("Escaneie o QR Code no WhatsApp");
+    } catch (e: any) {
+      toast.error("Falha ao iniciar conexão: " + (e.message || "erro"));
     } finally {
-      setTestingConn(false);
+      setConnecting(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!config?.test_org_id) return;
+    setRefreshing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${config.test_org_id}`,
+        { headers: { Authorization: `Bearer ${session?.access_token}` } },
+      );
+      const json = await res.json();
+      if (json.instance) setInstance(json.instance);
+      if (json.qrcode) setQrcode(json.qrcode);
+      toast.success("Status atualizado");
+    } catch {
+      toast.error("Falha ao atualizar status");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleDisconnect = async (deleteInstance: boolean) => {
+    if (!config?.test_org_id) return;
+    const msg = deleteInstance
+      ? "Apagar a instância? Vai precisar gerar QR Code novo."
+      : "Desconectar o WhatsApp? Vai precisar escanear o QR Code de novo.";
+    if (!confirm(msg)) return;
+    setDisconnecting(true);
+    try {
+      const { error } = await supabase.functions.invoke("uazapi-disconnect", {
+        body: { organization_id: config.test_org_id, delete_instance: deleteInstance },
+      });
+      if (error) throw error;
+      toast.success(deleteInstance ? "Instância apagada" : "WhatsApp desconectado");
+      setQrcode(null);
+      await loadInstance(config.test_org_id);
+    } catch (e: any) {
+      toast.error("Falha: " + (e.message || "erro"));
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -172,32 +222,11 @@ export default function AIBotAdminTab() {
         model: config.model,
         test_phone: config.test_phone?.replace(/\D/g, "") || null,
         test_org_id: config.test_org_id,
-        uazapi_server_url: config.uazapi_server_url || "https://free.uazapi.com",
-        uazapi_token: config.uazapi_token || null,
-        uazapi_instance_name: config.uazapi_instance_name || null,
       })
       .eq("id", config.id);
-
-    // Espelhar em whatsapp_instances pra Branch 1 do webhook achar a loja de teste
-    if (!error && config.test_org_id && config.uazapi_token && config.uazapi_instance_name) {
-      const { error: instErr } = await (supabase.from("whatsapp_instances") as any)
-        .upsert({
-          organization_id: config.test_org_id,
-          instance_name: config.uazapi_instance_name,
-          instance_token: config.uazapi_token,
-          status: "connected",
-          webhook_configured: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "organization_id" });
-      if (instErr) console.warn("Falha ao espelhar em whatsapp_instances:", instErr.message);
-    }
-
     setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar: " + error.message);
-    } else {
-      toast.success("Configuração salva!");
-    }
+    if (error) toast.error("Erro ao salvar: " + error.message);
+    else toast.success("Configuração salva!");
   };
 
   const handleSimulate = async () => {
@@ -209,10 +238,18 @@ export default function AIBotAdminTab() {
       toast.error("Ative o robô primeiro");
       return;
     }
+    if (!config.test_org_id) {
+      toast.error("Selecione a loja de teste");
+      return;
+    }
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("ai-bot-respond", {
-        body: { phone: config.test_phone.replace(/\D/g, ""), message: testMessage.trim() },
+        body: {
+          phone: config.test_phone.replace(/\D/g, ""),
+          message: testMessage.trim(),
+          organization_id: config.test_org_id,
+        },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -228,15 +265,12 @@ export default function AIBotAdminTab() {
   const handleClearConversation = async () => {
     if (!config?.test_phone) return;
     if (!confirm("Apagar todo o histórico desta conversa de teste?")) return;
-    // RLS bloqueia delete normal — usamos service role via função? Por enquanto, marcamos como vazio só na UI:
-    // Como a tabela tem delete=false na RLS pública, fazemos via admin role:
     const { error } = await supabase
       .from("fila_whatsapp")
       .delete()
       .eq("phone", config.test_phone.replace(/\D/g, ""));
-    if (error) {
-      toast.error("Erro: " + error.message);
-    } else {
+    if (error) toast.error("Erro: " + error.message);
+    else {
       setConversation([]);
       toast.success("Conversa limpa");
     }
@@ -260,6 +294,8 @@ export default function AIBotAdminTab() {
     );
   }
 
+  const isConnected = instance?.status === "connected";
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -268,9 +304,10 @@ export default function AIBotAdminTab() {
           <Bot className="w-6 h-6 text-primary-foreground" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Robô de Atendimento — Sala de Testes</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Robô de Atendimento — Sandbox</h2>
           <p className="text-sm text-muted-foreground">
-            Configure e teste o atendente IA do WhatsApp em modo real antes de liberar pros lojistas.
+            Conecte uma instância de teste em uma loja e mande mensagens reais pra testar o robô.
+            Nada fica fixo: cria e apaga em 1 clique.
           </p>
         </div>
         <div className="ml-auto">
@@ -284,13 +321,121 @@ export default function AIBotAdminTab() {
         </div>
       </div>
 
-      {/* Banner de status: o que falta configurar */}
+      {/* Conexão WhatsApp (uazapiGO) — Sandbox real */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <QrCode className="w-5 h-5 text-primary" />
+            Conexão WhatsApp (Sandbox)
+          </CardTitle>
+          <CardDescription>
+            Cria uma instância uazapiGO real para a loja de teste escolhida — mesmo fluxo do lojista.
+            O webhook é configurado automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label>Loja de teste</Label>
+            <Select
+              value={config.test_org_id || ""}
+              onValueChange={(v) => setConfig({ ...config, test_org_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a loja..." />
+              </SelectTrigger>
+              <SelectContent>
+                {orgs.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {!config.test_org_id ? (
+            <div className="rounded-lg border-2 border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              Selecione uma loja acima para começar.
+            </div>
+          ) : isConnected ? (
+            <div className="rounded-lg border-2 border-emerald-500/40 bg-emerald-500/5 p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">WhatsApp conectado</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {instance?.phone_connected ? `+${instance.phone_connected}` : "Número não detectado"}
+                    {" · Instância: "}<span className="font-mono">{instance?.instance_name}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
+                  {refreshing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                  Atualizar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleDisconnect(false)} disabled={disconnecting}>
+                  <PowerOff className="h-4 w-4 mr-1.5" />
+                  Desconectar
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => handleDisconnect(true)} disabled={disconnecting}>
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Apagar instância
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-muted/20 p-6 space-y-4 text-center">
+              {qrcode ? (
+                <>
+                  <img
+                    src={qrcode.startsWith("data:") ? qrcode : `data:image/png;base64,${qrcode}`}
+                    alt="QR Code WhatsApp"
+                    className="mx-auto w-56 h-56 rounded border bg-white"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Abra o WhatsApp → Aparelhos conectados → Conectar aparelho
+                  </p>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
+                      {refreshing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+                      Já escaneei
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDisconnect(true)} disabled={disconnecting}>
+                      <Trash2 className="h-4 w-4 mr-1.5" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                    <QrCode className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Sem instância conectada</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Clique abaixo para criar uma instância e gerar o QR Code.
+                    </p>
+                  </div>
+                  <Button onClick={handleConnect} disabled={connecting}>
+                    {connecting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <QrCode className="h-4 w-4 mr-1.5" />}
+                    Conectar / Gerar QR Code
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Status do robô */}
       {(() => {
         const missing: string[] = [];
-        if (!config.enabled) missing.push("ativar o switch \"Robô ativo\"");
-        if (!config.test_phone) missing.push("preencher \"WhatsApp de teste\"");
-        if (!config.test_org_id) missing.push("escolher \"Loja de teste\"");
-        if (!config.uazapi_token) missing.push("preencher o Instance Token");
+        if (!config.enabled) missing.push('ativar o switch "Robô ativo"');
+        if (!config.test_phone) missing.push('preencher "WhatsApp de teste"');
+        if (!config.test_org_id) missing.push('escolher "Loja de teste"');
+        if (!isConnected) missing.push("conectar a instância acima");
 
         if (missing.length === 0) {
           return (
@@ -299,198 +444,24 @@ export default function AIBotAdminTab() {
               <div className="text-sm">
                 <p className="font-semibold text-emerald-700 dark:text-emerald-400">Robô ativo e configurado ✓</p>
                 <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-0.5">
-                  Mande WhatsApp do número <strong className="font-mono">{config.test_phone}</strong> pro número conectado no uazapiGO. A resposta aparece em segundos abaixo na "Conversa ao vivo".
+                  Mande WhatsApp do número <strong className="font-mono">{config.test_phone}</strong> pro número conectado. Resposta aparece em segundos abaixo.
                 </p>
               </div>
             </div>
           );
         }
-
         return (
           <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <div className="text-sm flex-1">
               <p className="font-semibold text-amber-700 dark:text-amber-400">Robô não vai responder ainda — falta:</p>
               <ul className="text-xs text-amber-700/90 dark:text-amber-400/90 mt-1.5 space-y-1 list-disc list-inside">
-                {missing.map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
+                {missing.map((m) => <li key={m}>{m}</li>)}
               </ul>
-              {!config.test_phone && (
-                <button
-                  type="button"
-                  onClick={() => setConfig({ ...config, test_phone: "558398244382" })}
-                  className="mt-2 text-xs underline text-amber-700 dark:text-amber-400 hover:no-underline"
-                >
-                  Usar 558398244382 (último número detectado nos logs)
-                </button>
-              )}
             </div>
           </div>
         );
       })()}
-
-      {/* Conexão WhatsApp (uazapiGO) */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-primary" />
-            Conexão WhatsApp (uazapiGO)
-          </CardTitle>
-          <CardDescription>
-            Credenciais da instância uazapiGO usada como ponte entre o WhatsApp e o robô.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2">
-              <Label>Server URL</Label>
-              <Input
-                value={config.uazapi_server_url || ""}
-                onChange={(e) => setConfig({ ...config, uazapi_server_url: e.target.value })}
-                placeholder="https://free.uazapi.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Nome da Instância</Label>
-              <Input
-                value={config.uazapi_instance_name || ""}
-                onChange={(e) => setConfig({ ...config, uazapi_instance_name: e.target.value })}
-                placeholder="HqrTf5"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Instance Token</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={config.uazapi_token || ""}
-                  onChange={(e) => setConfig({ ...config, uazapi_token: e.target.value })}
-                  placeholder="27e8406b-..."
-                  className="font-mono text-xs"
-                />
-                {config.uazapi_token && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copy(config.uazapi_token!, "token")}
-                  >
-                    {copied === "token" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Botão Testar conexão */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleTestConnection}
-              disabled={testingConn || !config.uazapi_server_url || !config.uazapi_token}
-            >
-              {testingConn ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Wifi className="w-4 h-4 mr-2" />
-              )}
-              Testar conexão
-            </Button>
-            {connStatus && (
-              <div
-                className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg border flex-1 ${
-                  connStatus.ok
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
-                    : "bg-destructive/10 border-destructive/30 text-destructive"
-                }`}
-              >
-                {connStatus.ok ? (
-                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
-                ) : (
-                  <WifiOff className="w-4 h-4 shrink-0 mt-0.5" />
-                )}
-                <span>{connStatus.message}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-            <p className="text-sm font-semibold">Como conectar a instância (passo a passo)</p>
-            <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
-              <li>
-                Acesse <span className="font-mono text-foreground">free.uazapi.com</span>, cole o token e clique em
-                <strong> Conectar → Gerar QR Code</strong>.
-              </li>
-              <li>Escaneie o QR Code com o WhatsApp do número que vai atender.</li>
-              <li>Use o botão <strong>"Testar conexão"</strong> acima pra confirmar se a instância está online.</li>
-            </ol>
-          </div>
-
-          <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-primary" />
-              <p className="text-sm font-semibold">Configurar o Webhook no uazapiGO</p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              No painel uazapi, abra <strong>Configurar Webhook → Criar Webhook</strong> e preencha exatamente assim:
-            </p>
-
-            <ol className="text-xs space-y-3 list-decimal list-inside">
-              <li>
-                <strong>Habilitado</strong>: ligar o switch (canto superior direito)
-              </li>
-              <li>
-                <strong>Método</strong>: deixar em <span className="font-mono">POST</span>
-              </li>
-              <li>
-                <strong>URL</strong>: cole exatamente esta:
-                <div className="flex gap-2 mt-1.5">
-                  <Input value={WEBHOOK_URL} readOnly className="font-mono text-xs h-9" />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copy(WEBHOOK_URL, "webhook")}
-                  >
-                    {copied === "webhook" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </li>
-              <li>
-                <strong>addUrlEvents</strong> e <strong>addUrlTypesMessages</strong>: deixar <em>desligados</em>
-              </li>
-              <li>
-                <strong>Escutar eventos</strong>: digite exatamente:
-                <div className="flex gap-2 mt-1.5">
-                  <Input value="messages" readOnly className="font-mono text-xs h-9" />
-                  <Button type="button" variant="outline" size="sm" onClick={() => copy("messages", "events")}>
-                    {copied === "events" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </li>
-              <li>
-                <strong>Excluir dos eventos escutados</strong>: digite exatamente (separado por vírgula, sem espaços):
-                <div className="flex gap-2 mt-1.5">
-                  <Input value="wasSentByApi,isGroupYes" readOnly className="font-mono text-xs h-9" />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copy("wasSentByApi,isGroupYes", "exclude")}
-                  >
-                    {copied === "exclude" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1.5 pl-1">
-                  ⚠️ <strong>wasSentByApi</strong> evita loop quando o robô responde a si mesmo. <strong>isGroupYes</strong> ignora grupos.
-                </p>
-              </li>
-              <li>Clique em <strong>Salvar</strong> e mande mensagem do seu WhatsApp pessoal pro número conectado.</li>
-            </ol>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Configuração */}
       <Card>
@@ -506,7 +477,7 @@ export default function AIBotAdminTab() {
             <div>
               <Label className="text-base font-semibold">Robô ativo</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Quando ativo, mensagens do WhatsApp de teste são respondidas pela IA
+                Quando ativo, mensagens recebidas pela instância de teste são respondidas pela IA
               </p>
             </div>
             <Switch
@@ -522,48 +493,22 @@ export default function AIBotAdminTab() {
                 value={config.model}
                 onValueChange={(v) => setConfig({ ...config, model: v })}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {MODELS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Loja de teste (contexto)</Label>
-              <Select
-                value={config.test_org_id || ""}
-                onValueChange={(v) => setConfig({ ...config, test_org_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a loja..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {orgs.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>WhatsApp de teste (somente números, ex: 5594981632225)</Label>
+              <Label>WhatsApp de teste (só números)</Label>
               <Input
                 value={config.test_phone || ""}
                 onChange={(e) => setConfig({ ...config, test_phone: e.target.value })}
                 placeholder="5594981632225"
               />
-              <p className="text-xs text-muted-foreground">
-                Mensagens deste número serão respondidas automaticamente pelo robô
-              </p>
             </div>
 
             <div className="space-y-2 md:col-span-2">
@@ -583,18 +528,14 @@ export default function AIBotAdminTab() {
                 className="font-mono text-xs"
               />
               <p className="text-xs text-muted-foreground">
-                O cardápio, horários e bairros da loja escolhida são injetados automaticamente.
+                Cardápio, horários e bairros da loja escolhida são injetados automaticamente.
               </p>
             </div>
           </div>
 
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={saving} size="lg">
-              {saving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Salvar configuração
             </Button>
           </div>
@@ -630,24 +571,19 @@ export default function AIBotAdminTab() {
               <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground">
                 <Bot className="w-10 h-10 mb-3 opacity-40" />
                 <p className="text-sm">Nenhuma mensagem ainda</p>
-                <p className="text-xs mt-1">Mande uma mensagem do WhatsApp ou use o simulador abaixo</p>
+                <p className="text-xs mt-1">Mande mensagem pelo WhatsApp ou use o simulador abaixo</p>
               </div>
             ) : (
               conversation.map((msg) => (
                 <div key={msg.id} className="space-y-2">
-                  {/* Mensagem do cliente */}
                   <div className="flex justify-start">
                     <div className="max-w-[75%] rounded-2xl rounded-tl-sm bg-card border px-4 py-2 shadow-sm">
                       <p className="text-sm whitespace-pre-wrap">{msg.incoming_message}</p>
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
                   </div>
-                  {/* Resposta do bot */}
                   {msg.ai_response && (
                     <div className="flex justify-end">
                       <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-2 shadow-sm">
@@ -655,10 +591,7 @@ export default function AIBotAdminTab() {
                         <div className="flex items-center gap-1 justify-end mt-1">
                           <Bot className="w-3 h-3 opacity-70" />
                           <p className="text-[10px] opacity-70">
-                            {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
                       </div>
@@ -685,17 +618,9 @@ export default function AIBotAdminTab() {
               }}
             />
             <Button onClick={handleSimulate} disabled={sending || !testMessage.trim()} size="lg">
-              {sending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            💡 Dica: Você também pode mandar mensagem do seu WhatsApp ({config.test_phone || "..."}) pro
-            número conectado no uazapiGO e ver a conversa rolando aqui em tempo real.
-          </p>
         </CardContent>
       </Card>
     </div>
