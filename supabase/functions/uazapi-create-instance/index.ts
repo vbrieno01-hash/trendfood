@@ -106,24 +106,72 @@ Deno.serve(async (req) => {
 
     // Cria instância nova no servidor uazapi
     const instanceName = `org-${org.slug}-${Date.now().toString(36)}`;
-    const initRes = await fetch(`${serverUrl}/instance/init`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        admintoken: adminToken,
-      },
-      body: JSON.stringify({ name: instanceName, systemName: "trendfood" }),
-    });
+    const candidatePaths = ["/instance/init", "/instance/create"];
+    let initRes: Response | null = null;
+    let initBody: string = "";
+    let usedPath: string | null = null;
+    const attempts: Array<{ path: string; status: number; body: string }> = [];
 
-    if (!initRes.ok) {
-      const errText = await initRes.text();
-      console.error("uazapi init error:", initRes.status, errText);
-      return new Response(JSON.stringify({ error: "uazapi_init_failed", detail: errText }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    for (const path of candidatePaths) {
+      const url = `${serverUrl}${path}`;
+      console.log("uazapi init attempt:", url);
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          admintoken: adminToken,
+        },
+        body: JSON.stringify({ name: instanceName, systemName: "trendfood" }),
       });
+      const text = await r.text();
+      attempts.push({ path, status: r.status, body: text.slice(0, 300) });
+      console.log(`uazapi init ${path} -> ${r.status}`);
+      if (r.ok) {
+        initRes = r;
+        initBody = text;
+        usedPath = path;
+        break;
+      }
+      // Se não for 404, não adianta tentar outros paths (erro de auth, etc)
+      if (r.status !== 404) {
+        initBody = text;
+        usedPath = path;
+        break;
+      }
     }
-    const initData = await initRes.json();
+
+    if (!initRes || !initRes.ok) {
+      const lastStatus = attempts[attempts.length - 1]?.status ?? 0;
+      console.error("uazapi init failed. attempts:", JSON.stringify(attempts));
+      return new Response(
+        JSON.stringify({
+          error: "uazapi_init_failed",
+          server_url: serverUrl,
+          attempts,
+          hint:
+            lastStatus === 404
+              ? "Servidor respondeu 404 em todos os paths. Verifique UAZAPI_SERVER_URL (sem /api no final) e se é mesmo um servidor uazapi."
+              : lastStatus === 401 || lastStatus === 403
+              ? "Servidor recusou o admintoken. Verifique UAZAPI_ADMIN_TOKEN."
+              : "Servidor retornou erro inesperado. Veja attempts[].body.",
+        }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    let initData: any;
+    try {
+      initData = JSON.parse(initBody);
+    } catch {
+      console.error("uazapi init non-json response:", initBody.slice(0, 500));
+      return new Response(
+        JSON.stringify({ error: "uazapi_init_not_json", server_url: serverUrl, path: usedPath, body: initBody.slice(0, 500) }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     // uazapi retorna a instance com token dentro
     const instanceToken = initData?.instance?.token || initData?.token;
     if (!instanceToken) {

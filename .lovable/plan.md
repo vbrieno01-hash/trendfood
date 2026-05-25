@@ -1,53 +1,50 @@
-## Sandbox real do Robô IA no admin
+# Diagnóstico
 
-Transformar a aba "Robô IA" do admin em um sandbox que usa o mesmo fluxo do lojista (uazapi-create-instance + tabela whatsapp_instances), sem nunca persistir token manualmente.
+O log da edge function `uazapi-create-instance` mostra:
 
-### 1. Migration
+```
+uazapi init error: 404 404 page not found
+```
 
-Dropar colunas obsoletas de `ai_bot_config`:
-- `uazapi_server_url`
-- `uazapi_token`
-- `uazapi_instance_name`
+Ou seja: o QR não abre porque a chamada `POST {UAZAPI_SERVER_URL}/instance/init` está respondendo **404**. O frontend só recebe o erro e não tem QR para renderizar.
 
-Manter: `enabled`, `system_prompt`, `greeting_message`, `model`, `test_phone`, `test_org_id`.
+Causas possíveis (em ordem):
 
-### 2. Edge `ai-bot-respond`
+1. **`UAZAPI_SERVER_URL` aponta para um host errado** (ex.: um Evolution API na Oracle, que não tem a rota `/instance/init` do uazapi).
+2. **`UAZAPI_SERVER_URL` tem path extra** (ex.: `https://x.com/api`) e a chamada vira `/api/instance/init` inexistente.
+3. **Servidor uazapi correto, mas versão antiga** que usa outra rota (ex.: `/instance/create`).
+4. **`UAZAPI_ADMIN_TOKEN` errado** — menos provável (uazapi normalmente devolve 401, não 404).
 
-- Remover leitura de token do `ai_bot_config`.
-- Sempre buscar token vivo em `whatsapp_instances` por `organization_id`.
-- Se não houver instância conectada: `return { skipped: 'no_instance' }`.
-- Sem fallback para token salvo.
+Hoje a tabela `whatsapp_instances` está **vazia** — nenhum lojista nunca conectou por esse caminho, então não dá pra inferir um valor que "já funciona".
 
-### 3. Edge `whatsapp-webhook`
+# Plano
 
-- Roteamento exclusivo pelo token da instância recebido no payload (`token` / `instance.token`).
-- Match com `whatsapp_instances.token` → resolve `organization_id`.
-- Sem match → ignora (descarta o "singleton legacy" do admin).
+## 1. Melhorar diagnóstico em `uazapi-create-instance`
 
-### 4. Edge `uazapi-create-instance`
+- Logar a URL final exata chamada (sem token), o status HTTP e o body devolvido.
+- No retorno HTTP 502 atual, incluir também o `server_url` usado e o `path` tentado, para facilitar identificar configuração errada sem precisar abrir logs.
+- Tentar **fallback de path** quando `/instance/init` der 404: tentar `/instance/create` (uazapi legacy) e logar qual funcionou. Se nenhum funcionar, devolver erro claro `"endpoint_not_found"` com os paths tentados.
 
-- Garantir que após criar instância já chama `POST {server}/webhook` configurando URL do `whatsapp-webhook` + eventos `messages` automaticamente.
-- Mesmo fluxo serve para lojista e admin.
+## 2. Tela admin — mensagem de erro útil
 
-### 5. UI — `AIBotAdminTab.tsx`
+- Em `AIBotAdminTab.tsx`, quando `uazapi-create-instance` falhar, exibir no toast a `detail` retornada pela função (status + path + body) ao invés de só "Falha ao conectar".
+- Adicionar um pequeno painel "Diagnóstico do servidor uazapi" com:
+  - URL atual do servidor (lida via nova edge function read-only `uazapi-server-info` que devolve só `{ server_url, has_admin_token }`, sem expor o token).
+  - Botão "Testar servidor" que faz `GET {server}/` e mostra o status — confirma se a URL é alcançável antes de tentar criar instância.
 
-Remover do card "Conexão WhatsApp (uazapiGO)":
-- Inputs de `uazapi_server_url`, `uazapi_token`, `uazapi_instance_name`.
-- Botão "Testar conexão" que dependia desses campos.
-- Lógica de espelhamento em `whatsapp_instances` no `handleSave`.
+## 3. Confirmar secrets com o usuário
 
-Adicionar painel dinâmico de sandbox:
-- Dropdown "Loja de teste" (lista organizações; default = `test_org_id`).
-- Estado real da instância lido de `whatsapp_instances` (status + telefone conectado).
-- Botão **Conectar/Reconectar** → chama `uazapi-create-instance` e mostra QR Code inline.
-- Botão **Apagar instância** → chama `uazapi-disconnect`.
-- Campo "Telefone de teste" (`test_phone`) e botão "Enviar mensagem teste" continuam.
+Depois do deploy, pedir ao usuário para verificar/atualizar dois secrets em Lovable Cloud → Configurações → Secrets:
 
-Manter no card "Configuração do Robô": `enabled`, `system_prompt`, `greeting_message`, `model` (essas continuam salvas no `ai_bot_config`).
+- `UAZAPI_SERVER_URL` — deve ser a raiz do servidor uazapi (ex.: `https://free.uazapi.com` **sem** `/api` no final).
+- `UAZAPI_ADMIN_TOKEN` — admintoken válido do painel uazapi.
 
-### Resultado
+Sem isso correto, nenhuma instância (admin **ou** lojista) consegue ser criada.
 
-- Admin = sandbox real, cria/destrói em 1 clique, sem credencial fixa.
-- Lojista e admin usam o mesmo caminho de código.
-- Bug "token velho salvo no config" some.
-- Webhook auto-configurado: chip errado no painel uazapi não trava mais nada.
+# Arquivos a alterar
+
+- `supabase/functions/uazapi-create-instance/index.ts` — logs detalhados + fallback `/instance/create`.
+- `supabase/functions/uazapi-server-info/index.ts` — **novo**, leitura segura da URL configurada.
+- `src/components/admin/AIBotAdminTab.tsx` — toast com detail, painel de diagnóstico, botão "Testar servidor".
+
+Nenhuma migration nova, nenhuma mudança no schema.
