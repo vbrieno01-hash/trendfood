@@ -365,8 +365,8 @@ export default function AIBotAdminTab() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Robô de Atendimento — Sandbox</h2>
           <p className="text-sm text-muted-foreground">
-            Conecte uma instância de teste em uma loja e mande mensagens reais pra testar o robô.
-            Nada fica fixo: cria e apaga em 1 clique.
+            Modo manual: cole URL + token de uma instância criada no painel uazapi
+            e atrele a uma loja de teste pra validar o robô.
           </p>
         </div>
         <div className="ml-auto">
