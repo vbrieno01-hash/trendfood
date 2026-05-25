@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Bot, Send, Trash2, Save, Loader2, Sparkles, MessageSquare, Power,
-  QrCode, CheckCircle2, PowerOff, RefreshCw, AlertCircle, Check,
+  Trash, CheckCircle2, RefreshCw, AlertCircle, Check, Eye, EyeOff, Copy, Plug,
 } from "lucide-react";
 
 interface BotConfig {
@@ -32,6 +32,7 @@ interface InstanceRow {
   status: string;
   phone_connected: string | null;
   connected_at: string | null;
+  server_url: string | null;
 }
 
 interface QueueRow {
@@ -61,18 +62,23 @@ export default function AIBotAdminTab() {
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [orgs, setOrgs] = useState<OrgOption[]>([]);
   const [instance, setInstance] = useState<InstanceRow | null>(null);
-  const [qrcode, setQrcode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [serverInfo, setServerInfo] = useState<any>(null);
-  const [pinging, setPinging] = useState(false);
+  // Modo manual: o admin cola URL + token + nome de uma instância criada no painel uazapi
+  const [serverUrl, setServerUrl] = useState("");
+  const [instanceToken, setInstanceToken] = useState("");
+  const [instanceName, setInstanceName] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [savingCreds, setSavingCreds] = useState(false);
+  const [testingStatus, setTestingStatus] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; status?: number; body?: string; phone?: string | null; statusName?: string | null } | null>(null);
+  const [clearing, setClearing] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [conversation, setConversation] = useState<QueueRow[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
 
   // Carrega config + lojas
   useEffect(() => {
@@ -97,6 +103,10 @@ export default function AIBotAdminTab() {
   const loadInstance = async (orgId: string | null) => {
     if (!orgId) {
       setInstance(null);
+      setServerUrl("");
+      setInstanceToken("");
+      setInstanceName("");
+      setTestResult(null);
       return;
     }
     const { data } = await supabase
@@ -104,12 +114,16 @@ export default function AIBotAdminTab() {
       .select("*")
       .eq("organization_id", orgId)
       .maybeSingle();
-    setInstance(data as InstanceRow | null);
+    const row = data as InstanceRow | null;
+    setInstance(row);
+    setServerUrl(row?.server_url || "https://free.uazapi.com");
+    setInstanceToken(row?.instance_token || "");
+    setInstanceName(row?.instance_name || "");
+    setTestResult(null);
   };
 
   useEffect(() => {
     loadInstance(config?.test_org_id || null);
-    setQrcode(null);
   }, [config?.test_org_id]);
 
   // Carrega histórico do test_phone + realtime
@@ -147,103 +161,97 @@ export default function AIBotAdminTab() {
     };
   }, [config?.test_phone]);
 
-  const handleConnect = async () => {
+  const handleSaveCredentials = async () => {
     if (!config?.test_org_id) {
       toast.error("Escolha uma loja de teste primeiro");
       return;
     }
-    setConnecting(true);
-    setQrcode(null);
+    const url = serverUrl.trim().replace(/\/$/, "");
+    const token = instanceToken.trim();
+    const name = instanceName.trim() || `admin-test-${config.test_org_id.slice(0, 8)}`;
+    if (!url || !token) {
+      toast.error("URL do servidor e token são obrigatórios");
+      return;
+    }
+    setSavingCreds(true);
     try {
-      const { data, error } = await supabase.functions.invoke("uazapi-create-instance", {
-        body: { organization_id: config.test_org_id },
-      });
+      const payload = {
+        organization_id: config.test_org_id,
+        server_url: url,
+        instance_token: token,
+        instance_name: name,
+        status: "manual",
+        webhook_configured: true,
+      };
+      const { error } = await supabase
+        .from("whatsapp_instances")
+        .upsert(payload, { onConflict: "organization_id" });
       if (error) throw error;
-      const d = data as any;
-      if (d?.error) {
-        const hint = d.hint ? `\n${d.hint}` : "";
-        const attempts = Array.isArray(d.attempts)
-          ? "\n" + d.attempts.map((a: any) => `${a.path} → ${a.status}`).join(" | ")
-          : "";
-        throw new Error(`${d.error}${hint}${attempts}\nserver_url: ${d.server_url ?? "?"}`);
-      }
-      if ((data as any)?.instance) setInstance((data as any).instance);
-      if ((data as any)?.qrcode) setQrcode((data as any).qrcode);
-      toast.success("Escaneie o QR Code no WhatsApp");
-    } catch (e: any) {
-      console.error("connect error:", e);
-      toast.error("Falha ao iniciar conexão: " + (e.message || "erro"), { duration: 12000 });
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    if (!config?.test_org_id) return;
-    setRefreshing(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${config.test_org_id}`,
-        { headers: { Authorization: `Bearer ${session?.access_token}` } },
-      );
-      const json = await res.json();
-      if (json.instance) setInstance(json.instance);
-      if (json.qrcode) setQrcode(json.qrcode);
-      toast.success("Status atualizado");
-    } catch {
-      toast.error("Falha ao atualizar status");
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const loadServerInfo = async (ping = false) => {
-    setPinging(ping);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-server-info${ping ? "?action=ping" : ""}`;
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      setServerInfo(data);
-      if (ping) toast.success("Diagnóstico do servidor atualizado");
-    } catch (e: any) {
-      toast.error("Falha no diagnóstico: " + (e.message || "erro"));
-    } finally {
-      setPinging(false);
-    }
-  };
-
-  useEffect(() => {
-    loadServerInfo(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleDisconnect = async (deleteInstance: boolean) => {
-    if (!config?.test_org_id) return;
-    const msg = deleteInstance
-      ? "Apagar a instância? Vai precisar gerar QR Code novo."
-      : "Desconectar o WhatsApp? Vai precisar escanear o QR Code de novo.";
-    if (!confirm(msg)) return;
-    setDisconnecting(true);
-    try {
-      const { error } = await supabase.functions.invoke("uazapi-disconnect", {
-        body: { organization_id: config.test_org_id, delete_instance: deleteInstance },
-      });
-      if (error) throw error;
-      toast.success(deleteInstance ? "Instância apagada" : "WhatsApp desconectado");
-      setQrcode(null);
+      toast.success("Credenciais salvas");
       await loadInstance(config.test_org_id);
     } catch (e: any) {
-      toast.error("Falha: " + (e.message || "erro"));
+      toast.error("Erro ao salvar: " + (e.message || "erro"));
     } finally {
-      setDisconnecting(false);
+      setSavingCreds(false);
+    }
+  };
+
+  const handleTestStatus = async () => {
+    const url = serverUrl.trim().replace(/\/$/, "");
+    const token = instanceToken.trim();
+    if (!url || !token) {
+      toast.error("Preencha URL e token antes de testar");
+      return;
+    }
+    setTestingStatus(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`${url}/instance/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify({}),
+      });
+      const text = await res.text();
+      let parsed: any = null;
+      try { parsed = JSON.parse(text); } catch { /* ignore */ }
+      const statusName = parsed?.instance?.status || parsed?.status || null;
+      const phone = parsed?.instance?.phoneConnected || parsed?.instance?.owner || parsed?.phone || null;
+      setTestResult({ ok: res.ok, status: res.status, body: text.slice(0, 400), phone, statusName });
+      if (res.ok) toast.success(`Servidor respondeu: ${statusName || res.status}`);
+      else toast.error(`Servidor retornou ${res.status}`);
+    } catch (e: any) {
+      setTestResult({ ok: false, body: e.message });
+      toast.error("Falha ao alcançar o servidor: " + (e.message || "erro"));
+    } finally {
+      setTestingStatus(false);
+    }
+  };
+
+  const handleClearInstance = async () => {
+    if (!config?.test_org_id) return;
+    if (!confirm("Apagar credenciais salvas para esta loja de teste?")) return;
+    setClearing(true);
+    try {
+      const { error } = await supabase
+        .from("whatsapp_instances")
+        .delete()
+        .eq("organization_id", config.test_org_id);
+      if (error) throw error;
+      toast.success("Credenciais apagadas");
+      await loadInstance(config.test_org_id);
+    } catch (e: any) {
+      toast.error("Erro: " + (e.message || "erro"));
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const copyWebhook = async () => {
+    try {
+      await navigator.clipboard.writeText(WEBHOOK_URL);
+      toast.success("URL do webhook copiada");
+    } catch {
+      toast.error("Não foi possível copiar");
     }
   };
 
@@ -331,7 +339,7 @@ export default function AIBotAdminTab() {
     );
   }
 
-  const isConnected = instance?.status === "connected";
+  const hasInstance = !!instance?.instance_token;
 
   return (
     <div className="space-y-6">
@@ -362,65 +370,15 @@ export default function AIBotAdminTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-primary" />
+            <Plug className="w-5 h-5 text-primary" />
             Conexão WhatsApp (Sandbox)
           </CardTitle>
           <CardDescription>
-            Cria uma instância uazapiGO real para a loja de teste escolhida — mesmo fluxo do lojista.
-            O webhook é configurado automaticamente.
+            Cole URL + token de uma instância criada no painel uazapi e atrele à loja de teste.
+            Configure o webhook abaixo no painel uazapi.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Diagnóstico do servidor uazapi */}
-          <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="font-medium text-foreground/80">Servidor uazapi</div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => loadServerInfo(true)}
-                disabled={pinging}
-                className="h-7 text-xs"
-              >
-                {pinging ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-                Testar servidor
-              </Button>
-            </div>
-            {serverInfo ? (
-              <div className="space-y-1 text-muted-foreground font-mono">
-                <div>URL: <span className="text-foreground">{serverInfo.server_url || "?"}</span></div>
-                <div>
-                  Admin token: {serverInfo.has_admin_token ? (
-                    <span className="text-emerald-600">configurado</span>
-                  ) : (
-                    <span className="text-destructive">FALTANDO (UAZAPI_ADMIN_TOKEN)</span>
-                  )}
-                </div>
-                {serverInfo.probes && (
-                  <>
-                    <div>
-                      GET / → <span className={serverInfo.probes.root?.ok ? "text-emerald-600" : "text-amber-600"}>
-                        {serverInfo.probes.root?.status ?? serverInfo.probes.root?.error}
-                      </span>
-                    </div>
-                    <div>
-                      POST /instance/init → <span className={serverInfo.probes.init?.status === 404 ? "text-destructive" : serverInfo.probes.init?.ok ? "text-emerald-600" : "text-amber-600"}>
-                        {serverInfo.probes.init?.status ?? serverInfo.probes.init?.error}
-                      </span>
-                      {serverInfo.probes.init?.status === 404 && (
-                        <div className="text-destructive">
-                          ⚠ 404: confira UAZAPI_SERVER_URL (sem /api no final) ou se é mesmo servidor uazapi.
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="text-muted-foreground">Carregando…</div>
-            )}
-          </div>
-
           <div className="space-y-2">
             <Label>Loja de teste</Label>
             <Select
@@ -442,76 +400,124 @@ export default function AIBotAdminTab() {
             <div className="rounded-lg border-2 border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
               Selecione uma loja acima para começar.
             </div>
-          ) : isConnected ? (
-            <div className="rounded-lg border-2 border-emerald-500/40 bg-emerald-500/5 p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold">WhatsApp conectado</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {instance?.phone_connected ? `+${instance.phone_connected}` : "Número não detectado"}
-                    {" · Instância: "}<span className="font-mono">{instance?.instance_name}</span>
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
-                  {refreshing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
-                  Atualizar
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleDisconnect(false)} disabled={disconnecting}>
-                  <PowerOff className="h-4 w-4 mr-1.5" />
-                  Desconectar
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDisconnect(true)} disabled={disconnecting}>
-                  <Trash2 className="h-4 w-4 mr-1.5" />
-                  Apagar instância
-                </Button>
-              </div>
-            </div>
           ) : (
-            <div className="rounded-lg border bg-muted/20 p-6 space-y-4 text-center">
-              {qrcode ? (
-                <>
-                  <img
-                    src={qrcode.startsWith("data:") ? qrcode : `data:image/png;base64,${qrcode}`}
-                    alt="QR Code WhatsApp"
-                    className="mx-auto w-56 h-56 rounded border bg-white"
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>URL do servidor uazapi</Label>
+                  <Input
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    placeholder="https://free.uazapi.com"
+                    className="font-mono text-xs"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Abra o WhatsApp → Aparelhos conectados → Conectar aparelho
-                  </p>
-                  <div className="flex justify-center gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" onClick={handleRefresh} disabled={refreshing}>
-                      {refreshing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
-                      Já escaneei
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Token da instância (do painel uazapi)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type={showToken ? "text" : "password"}
+                      value={instanceToken}
+                      onChange={(e) => setInstanceToken(e.target.value)}
+                      placeholder="cole aqui o token da instância"
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setShowToken((v) => !v)}
+                      title={showToken ? "Ocultar" : "Mostrar"}
+                    >
+                      {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDisconnect(true)} disabled={disconnecting}>
-                      <Trash2 className="h-4 w-4 mr-1.5" />
-                      Cancelar
-                    </Button>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <QrCode className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Sem instância conectada</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Clique abaixo para criar uma instância e gerar o QR Code.
-                    </p>
-                  </div>
-                  <Button onClick={handleConnect} disabled={connecting}>
-                    {connecting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <QrCode className="h-4 w-4 mr-1.5" />}
-                    Conectar / Gerar QR Code
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Nome da instância (referência)</Label>
+                  <Input
+                    value={instanceName}
+                    onChange={(e) => setInstanceName(e.target.value)}
+                    placeholder="teste-bruno"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleSaveCredentials} disabled={savingCreds}>
+                  {savingCreds ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
+                  Salvar credenciais
+                </Button>
+                <Button variant="outline" onClick={handleTestStatus} disabled={testingStatus}>
+                  {testingStatus ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
+                  Testar /status
+                </Button>
+                {instance && (
+                  <Button variant="destructive" onClick={handleClearInstance} disabled={clearing} className="ml-auto">
+                    <Trash className="w-4 h-4 mr-1.5" />
+                    Apagar credenciais
                   </Button>
-                </>
+                )}
+              </div>
+
+              {testResult && (
+                <div
+                  className={`rounded-lg border p-3 text-xs space-y-1 ${
+                    testResult.ok ? "border-emerald-500/40 bg-emerald-500/5" : "border-destructive/40 bg-destructive/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    {testResult.ok ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-destructive" />
+                    )}
+                    {testResult.ok
+                      ? `Servidor respondeu OK${testResult.statusName ? ` · status: ${testResult.statusName}` : ""}`
+                      : `Falha · HTTP ${testResult.status ?? "?"}`}
+                  </div>
+                  {testResult.phone && (
+                    <div className="font-mono">Telefone conectado: +{testResult.phone}</div>
+                  )}
+                  {testResult.body && (
+                    <div className="font-mono text-muted-foreground break-all whitespace-pre-wrap">
+                      {testResult.body}
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
+
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs space-y-2">
+                <div className="font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Configure o webhook no painel uazapi
+                </div>
+                <div className="text-muted-foreground">
+                  Na instância → Webhooks → habilite e cole:
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-2 py-1 rounded bg-background border font-mono text-[10px] break-all">
+                    {WEBHOOK_URL}
+                  </code>
+                  <Button size="sm" variant="outline" onClick={copyWebhook} className="h-7 text-xs shrink-0">
+                    <Copy className="w-3 h-3 mr-1" />
+                    Copiar
+                  </Button>
+                </div>
+                <div className="text-muted-foreground">
+                  Em "Escutar eventos" coloque: <code className="px-1 rounded bg-background border">messages</code>
+                </div>
+              </div>
+
+              {instance && (
+                <div className="rounded-lg border bg-muted/20 p-3 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Credenciais salvas para esta loja. O robô vai responder mensagens recebidas neste token.
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -522,7 +528,7 @@ export default function AIBotAdminTab() {
         if (!config.enabled) missing.push('ativar o switch "Robô ativo"');
         if (!config.test_phone) missing.push('preencher "WhatsApp de teste"');
         if (!config.test_org_id) missing.push('escolher "Loja de teste"');
-        if (!isConnected) missing.push("conectar a instância acima");
+        if (!hasInstance) missing.push("salvar URL + token da instância acima");
 
         if (missing.length === 0) {
           return (
