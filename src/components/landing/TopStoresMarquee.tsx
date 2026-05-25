@@ -172,16 +172,9 @@ export default function TopStoresMarquee() {
                       />
                     )}
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className={`text-base md:text-lg font-bold max-w-[200px] truncate ${store.paused ? "text-muted-foreground" : "text-foreground"}`}>
-                      {store.name}
-                    </span>
-                    {store.paused && (
-                      <span className="mt-0.5 inline-flex items-center px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-[10px] font-bold uppercase tracking-wide w-fit">
-                        Temporariamente fechada
-                      </span>
-                    )}
-                  </div>
+                  <span className={`text-base md:text-lg font-bold max-w-[200px] truncate ${store.paused ? "text-muted-foreground" : "text-foreground"}`}>
+                    {store.name}
+                  </span>
                 </a>
               ))}
             </div>
