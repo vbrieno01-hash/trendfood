@@ -9,7 +9,8 @@ interface Store {
   name: string;
   logo_url: string | null;
   primary_color: string | null;
-  order_count_30d: number;
+  paused: boolean;
+  order_count_total: number;
 }
 
 export default function TopStoresMarquee() {
@@ -149,10 +150,16 @@ export default function TopStoresMarquee() {
                   rel="noopener noreferrer"
                   draggable={false}
                   className="group flex items-center gap-3 shrink-0 px-5 py-3 rounded-3xl bg-card border border-border/60 hover:border-primary/40 hover:shadow-md transition-all"
-                  title={`${store.name} — ${store.order_count_30d} pedidos nos últimos 30 dias`}
+                  title={
+                    store.paused
+                      ? `${store.name} — temporariamente fechada (${store.order_count_total} pedidos no total)`
+                      : `${store.name} — ${store.order_count_total} pedidos no total`
+                  }
                 >
                   <div
-                    className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-muted shrink-0 ring-2 ring-transparent group-hover:ring-primary/30 transition-all"
+                    className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-muted shrink-0 ring-2 ring-transparent group-hover:ring-primary/30 transition-all ${
+                      store.paused ? "opacity-60 grayscale" : ""
+                    }`}
                     style={store.primary_color ? { backgroundColor: store.primary_color } : undefined}
                   >
                     {store.logo_url && (
@@ -165,9 +172,16 @@ export default function TopStoresMarquee() {
                       />
                     )}
                   </div>
-                  <span className="text-base md:text-lg font-bold text-foreground max-w-[200px] truncate">
-                    {store.name}
-                  </span>
+                  <div className="flex flex-col min-w-0">
+                    <span className={`text-base md:text-lg font-bold max-w-[200px] truncate ${store.paused ? "text-muted-foreground" : "text-foreground"}`}>
+                      {store.name}
+                    </span>
+                    {store.paused && (
+                      <span className="mt-0.5 inline-flex items-center px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-[10px] font-bold uppercase tracking-wide w-fit">
+                        Temporariamente fechada
+                      </span>
+                    )}
+                  </div>
                 </a>
               ))}
             </div>
