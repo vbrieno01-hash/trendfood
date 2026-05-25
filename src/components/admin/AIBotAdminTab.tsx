@@ -354,8 +354,8 @@ export default function AIBotAdminTab() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Robô de Atendimento — Sandbox</h2>
           <p className="text-sm text-muted-foreground">
-            Modo manual: cole URL + token de uma instância criada no painel uazapi
-            e atrele a uma loja de teste pra validar o robô.
+            Escolha a loja de teste, configure o webhook abaixo no painel uazapi
+            e mande a 1ª mensagem — o sandbox captura o token sozinho.
           </p>
         </div>
         <div className="ml-auto">
