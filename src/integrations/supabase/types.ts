@@ -260,6 +260,8 @@ export type Database = {
           model: string
           organization_id: string | null
           system_prompt: string
+          test_instance_name: string | null
+          test_instance_token: string | null
           test_org_id: string | null
           test_phone: string | null
           updated_at: string
@@ -271,6 +273,8 @@ export type Database = {
           model?: string
           organization_id?: string | null
           system_prompt?: string
+          test_instance_name?: string | null
+          test_instance_token?: string | null
           test_org_id?: string | null
           test_phone?: string | null
           updated_at?: string
@@ -282,6 +286,8 @@ export type Database = {
           model?: string
           organization_id?: string | null
           system_prompt?: string
+          test_instance_name?: string | null
+          test_instance_token?: string | null
           test_org_id?: string | null
           test_phone?: string | null
           updated_at?: string
