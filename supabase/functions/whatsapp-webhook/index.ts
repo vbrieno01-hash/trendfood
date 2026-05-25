@@ -262,8 +262,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // === Branch 1: Roteamento por instância (self-service por loja) ===
-    // uazapi envia 'token' (token da instância) ou 'instance' (nome) no payload.
+    // Identificadores de instância vindos do uazapi
     const instanceToken =
       body?.token ||
       body?.instance?.token ||
@@ -274,7 +273,58 @@ Deno.serve(async (req) => {
       body?.instanceName ||
       body?.data?.instance ||
       null;
+    const payloadBaseUrl =
+      body?.BaseUrl ||
+      body?.baseUrl ||
+      body?.instance?.serverUrl ||
+      null;
 
+    // === Branch 0: SANDBOX do admin ===
+    // Se a instância casa com test_instance_name/token salvos no ai_bot_config global,
+    // roteia direto pro ai-bot-respond usando test_org_id como contexto.
+    // Não toca em whatsapp_instances de loja nenhuma.
+    {
+      const { data: sandboxCfg } = await supabase
+        .from("ai_bot_config")
+        .select("test_instance_name, test_instance_token, test_org_id")
+        .is("organization_id", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const sbName = sandboxCfg?.test_instance_name?.trim() || null;
+      const sbToken = sandboxCfg?.test_instance_token?.trim() || null;
+      const matchesSandbox =
+        (sbToken && instanceToken && sbToken === instanceToken) ||
+        (sbName && instanceName && sbName === instanceName);
+
+      if (matchesSandbox && sandboxCfg?.test_org_id) {
+        const botRes = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              phone,
+              message,
+              organization_id: sandboxCfg.test_org_id,
+              instance_token: sbToken,
+              server_url: payloadBaseUrl || undefined,
+            }),
+          },
+        );
+        const botData = await botRes.json().catch(() => ({}));
+        return new Response(JSON.stringify({ ok: true, routed_by: "sandbox", ...botData }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // === Branch 1: Roteamento por instância (self-service por loja) ===
+    // uazapi envia 'token' (token da instância) ou 'instance' (nome) no payload.
     if (instanceToken || instanceName) {
       let instQuery = supabase.from("whatsapp_instances").select("organization_id, instance_token");
       if (instanceToken) {

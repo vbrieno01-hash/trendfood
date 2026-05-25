@@ -22,17 +22,8 @@ interface BotConfig {
   model: string;
   test_phone: string | null;
   test_org_id: string | null;
-}
-
-interface InstanceRow {
-  id: string;
-  organization_id: string;
-  instance_name: string;
-  instance_token: string;
-  status: string;
-  phone_connected: string | null;
-  connected_at: string | null;
-  server_url: string | null;
+  test_instance_name: string | null;
+  test_instance_token: string | null;
 }
 
 interface QueueRow {
@@ -61,11 +52,11 @@ const MODELS = [
 export default function AIBotAdminTab() {
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [orgs, setOrgs] = useState<OrgOption[]>([]);
-  const [instance, setInstance] = useState<InstanceRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
-  // Modo manual: o admin cola URL + token + nome de uma instância criada no painel uazapi
+  // Sandbox: URL + token + nome de uma instância criada no painel uazapi.
+  // Tudo persistido em ai_bot_config (global). NÃO toca em whatsapp_instances de loja.
   const [serverUrl, setServerUrl] = useState("");
   const [instanceToken, setInstanceToken] = useState("");
   const [instanceName, setInstanceName] = useState("");
@@ -86,45 +77,24 @@ export default function AIBotAdminTab() {
       const [{ data: cfg }, { data: orgList }] = await Promise.all([
         supabase
           .from("ai_bot_config")
-          .select("id, enabled, system_prompt, greeting_message, model, test_phone, test_org_id")
+          .select("id, enabled, system_prompt, greeting_message, model, test_phone, test_org_id, test_instance_name, test_instance_token")
           .is("organization_id", null)
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
         supabase.from("organizations").select("id, name, slug").order("name"),
       ]);
-      setConfig(cfg as BotConfig | null);
+      const typed = cfg as BotConfig | null;
+      setConfig(typed);
       setOrgs((orgList as OrgOption[]) || []);
+      if (typed) {
+        setInstanceToken(typed.test_instance_token || "");
+        setInstanceName(typed.test_instance_name || "");
+        setServerUrl("https://free.uazapi.com");
+      }
       setLoading(false);
     })();
   }, []);
-
-  // Carrega instância da loja de teste selecionada
-  const loadInstance = async (orgId: string | null) => {
-    if (!orgId) {
-      setInstance(null);
-      setServerUrl("");
-      setInstanceToken("");
-      setInstanceName("");
-      setTestResult(null);
-      return;
-    }
-    const { data } = await supabase
-      .from("whatsapp_instances")
-      .select("*")
-      .eq("organization_id", orgId)
-      .maybeSingle();
-    const row = data as InstanceRow | null;
-    setInstance(row);
-    setServerUrl(row?.server_url || "https://free.uazapi.com");
-    setInstanceToken(row?.instance_token || "");
-    setInstanceName(row?.instance_name || "");
-    setTestResult(null);
-  };
-
-  useEffect(() => {
-    loadInstance(config?.test_org_id || null);
-  }, [config?.test_org_id]);
 
   // Carrega histórico do test_phone + realtime
   useEffect(() => {
@@ -162,33 +132,29 @@ export default function AIBotAdminTab() {
   }, [config?.test_phone]);
 
   const handleSaveCredentials = async () => {
-    if (!config?.test_org_id) {
-      toast.error("Escolha uma loja de teste primeiro");
+    if (!config) return;
+    if (!config.test_org_id) {
+      toast.error("Escolha uma loja de teste primeiro (pra carregar cardápio/horários no contexto)");
       return;
     }
-    const url = serverUrl.trim().replace(/\/$/, "");
     const token = instanceToken.trim();
-    const name = instanceName.trim() || `admin-test-${config.test_org_id.slice(0, 8)}`;
-    if (!url || !token) {
-      toast.error("URL do servidor e token são obrigatórios");
+    const name = instanceName.trim();
+    if (!token && !name) {
+      toast.error("Informe pelo menos o token ou o nome da instância");
       return;
     }
     setSavingCreds(true);
     try {
-      const payload = {
-        organization_id: config.test_org_id,
-        server_url: url,
-        instance_token: token,
-        instance_name: name,
-        status: "manual",
-        webhook_configured: true,
-      };
       const { error } = await supabase
-        .from("whatsapp_instances")
-        .upsert(payload, { onConflict: "organization_id" });
+        .from("ai_bot_config")
+        .update({
+          test_instance_name: name || null,
+          test_instance_token: token || null,
+        })
+        .eq("id", config.id);
       if (error) throw error;
-      toast.success("Credenciais salvas");
-      await loadInstance(config.test_org_id);
+      setConfig({ ...config, test_instance_name: name || null, test_instance_token: token || null });
+      toast.success("Credenciais do sandbox salvas");
     } catch (e: any) {
       toast.error("Erro ao salvar: " + (e.message || "erro"));
     } finally {
@@ -242,17 +208,19 @@ export default function AIBotAdminTab() {
   };
 
   const handleClearInstance = async () => {
-    if (!config?.test_org_id) return;
-    if (!confirm("Apagar credenciais salvas para esta loja de teste?")) return;
+    if (!config) return;
+    if (!confirm("Apagar credenciais do sandbox?")) return;
     setClearing(true);
     try {
       const { error } = await supabase
-        .from("whatsapp_instances")
-        .delete()
-        .eq("organization_id", config.test_org_id);
+        .from("ai_bot_config")
+        .update({ test_instance_name: null, test_instance_token: null })
+        .eq("id", config.id);
       if (error) throw error;
+      setInstanceToken("");
+      setInstanceName("");
+      setConfig({ ...config, test_instance_name: null, test_instance_token: null });
       toast.success("Credenciais apagadas");
-      await loadInstance(config.test_org_id);
     } catch (e: any) {
       toast.error("Erro: " + (e.message || "erro"));
     } finally {
@@ -353,7 +321,7 @@ export default function AIBotAdminTab() {
     );
   }
 
-  const hasInstance = !!instance?.instance_token;
+  const hasInstance = !!(config.test_instance_token || config.test_instance_name);
 
   return (
     <div className="space-y-6">
@@ -466,7 +434,7 @@ export default function AIBotAdminTab() {
                   {testingStatus ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
                   Testar /status
                 </Button>
-                {instance && (
+                {hasInstance && (
                   <Button variant="destructive" onClick={handleClearInstance} disabled={clearing} className="ml-auto">
                     <Trash className="w-4 h-4 mr-1.5" />
                     Apagar credenciais
@@ -523,11 +491,11 @@ export default function AIBotAdminTab() {
                 </div>
               </div>
 
-              {instance && (
+              {hasInstance && (
                 <div className="rounded-lg border bg-muted/20 p-3 text-xs flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>
-                    Credenciais salvas para esta loja. O robô vai responder mensagens recebidas neste token.
+                    Credenciais do sandbox salvas. Mensagens recebidas nessa instância vão ser respondidas usando o contexto da loja de teste.
                   </span>
                 </div>
               )}
