@@ -321,7 +321,7 @@ export default function AIBotAdminTab() {
     );
   }
 
-  const hasInstance = !!instance?.instance_token;
+  const hasInstance = !!(config.test_instance_token || config.test_instance_name);
 
   return (
     <div className="space-y-6">
@@ -434,7 +434,7 @@ export default function AIBotAdminTab() {
                   {testingStatus ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
                   Testar /status
                 </Button>
-                {instance && (
+                {hasInstance && (
                   <Button variant="destructive" onClick={handleClearInstance} disabled={clearing} className="ml-auto">
                     <Trash className="w-4 h-4 mr-1.5" />
                     Apagar credenciais
@@ -491,11 +491,11 @@ export default function AIBotAdminTab() {
                 </div>
               </div>
 
-              {instance && (
+              {hasInstance && (
                 <div className="rounded-lg border bg-muted/20 p-3 text-xs flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>
-                    Credenciais salvas para esta loja. O robô vai responder mensagens recebidas neste token.
+                    Credenciais do sandbox salvas. Mensagens recebidas nessa instância vão ser respondidas usando o contexto da loja de teste.
                   </span>
                 </div>
               )}
