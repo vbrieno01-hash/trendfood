@@ -28,7 +28,7 @@ export default function TopStoresMarquee() {
   }, []);
 
   useEffect(() => {
-    if (!stores || stores.length < 3) return;
+    if (!stores || stores.length < 2) return;
     const track = trackRef.current;
     const firstGroup = firstGroupRef.current;
     if (!track || !firstGroup) return;
@@ -95,7 +95,7 @@ export default function TopStoresMarquee() {
   };
 
   if (stores === null) return null;
-  if (stores.length < 3) return <MarqueeSocialProof />;
+  if (stores.length < 2) return <MarqueeSocialProof />;
 
   return (
     <section className="relative py-10 bg-background border-y border-border/60 overflow-hidden">
