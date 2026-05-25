@@ -8,16 +8,17 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, PowerOff, CheckCircle2, MessageSquare, Bot, QrCode } from "lucide-react";
+import { Loader2, RefreshCw, PowerOff, CheckCircle2, MessageSquare, Bot, QrCode, Lock } from "lucide-react";
 import WhatsAppAutoStatusCard from "./WhatsAppAutoStatusCard";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 interface AIBotTabProps {
   orgId: string;
 }
-
-const BETA_ORG_IDS = ["c9d9db45-3e46-4b03-8a2e-7af4557c6a3e"]; // TrendFood
 
 interface InstanceRow {
   id: string;
@@ -45,11 +46,10 @@ interface QueueRow {
 }
 
 const AIBotTab = ({ orgId }: AIBotTabProps) => {
-  const isBeta = BETA_ORG_IDS.includes(orgId);
   const { isAdmin } = useAuth();
   const { data: flags } = usePlatformFeatureFlags();
-  const waEnabled = !!flags?.whatsapp_enabled || isAdmin || isBeta;
-  if (!isBeta) {
+  const waEnabled = !!flags?.whatsapp_enabled || isAdmin;
+  if (!waEnabled) {
     return (
       <div className="space-y-8">
         <div>
@@ -60,14 +60,13 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
             Avisa o cliente em cada etapa do pedido sem você apertar nada.
           </p>
         </div>
-        {waEnabled && <WhatsAppAutoStatusCard orgId={orgId} />}
         <ComingSoonBot />
       </div>
     );
   }
   return (
     <div className="space-y-8">
-      <BetaPanel orgId={orgId} />
+      <BotPanel orgId={orgId} />
       <WhatsAppAutoStatusCard orgId={orgId} />
     </div>
   );
@@ -75,9 +74,22 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
 
 export default AIBotTab;
 
-/* ======================== BETA PANEL (TrendFood) ======================== */
+/* ======================== BOT PANEL (todas as lojas) ======================== */
 
-const BetaPanel = ({ orgId }: { orgId: string }) => {
+const BotPanel = ({ orgId }: { orgId: string }) => {
+  const { data: org } = useQuery({
+    queryKey: ["org-plan", orgId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("organizations")
+        .select("subscription_plan, subscription_status, trial_ends_at, used_first_month_promo")
+        .eq("id", orgId)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const plan = usePlanLimits(org as any);
+  const isPaidPlan = plan.canAccess("ai_bot");
   const [instance, setInstance] = useState<InstanceRow | null>(null);
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [queue, setQueue] = useState<QueueRow[]>([]);
@@ -92,10 +104,11 @@ const BetaPanel = ({ orgId }: { orgId: string }) => {
   const loadAll = async () => {
     const [instRes, cfgRes, qRes] = await Promise.all([
       supabase.from("whatsapp_instances").select("*").eq("organization_id", orgId).maybeSingle(),
-      supabase.from("ai_bot_config").select("*").limit(1).maybeSingle(),
+      supabase.from("ai_bot_config").select("*").eq("organization_id", orgId).maybeSingle(),
       supabase
         .from("fila_whatsapp")
         .select("id,phone,incoming_message,ai_response,status,created_at")
+        .eq("organization_id", orgId)
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
@@ -108,8 +121,12 @@ const BetaPanel = ({ orgId }: { orgId: string }) => {
   useEffect(() => {
     loadAll();
     const channel = supabase
-      .channel("aibot-queue")
-      .on("postgres_changes", { event: "*", schema: "public", table: "fila_whatsapp" }, () => loadAll())
+      .channel(`aibot-queue-${orgId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "fila_whatsapp", filter: `organization_id=eq.${orgId}` },
+        () => loadAll(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -196,7 +213,10 @@ const BetaPanel = ({ orgId }: { orgId: string }) => {
       })
       .eq("id", config.id);
     setSaving(false);
-    if (error) toast.error("Falha ao salvar: " + error.message);
+    if (error) {
+      // Trigger de gate de plano retorna a mensagem pronta
+      toast.error(error.message || "Falha ao salvar");
+    }
     else toast.success("Configurações salvas");
   };
 
@@ -216,13 +236,30 @@ const BetaPanel = ({ orgId }: { orgId: string }) => {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" /> Robô de Atendimento
-            <Badge variant="secondary" className="ml-1">BETA</Badge>
           </h2>
           <p className="text-sm text-muted-foreground">
             Atendimento automático 24h via WhatsApp.
           </p>
         </div>
       </div>
+
+      {!isPaidPlan && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="pt-6 flex items-start gap-3">
+            <Lock className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div className="flex-1 space-y-2">
+              <p className="font-semibold">Robô de IA exige plano Pro</p>
+              <p className="text-sm text-muted-foreground">
+                Você pode conectar o WhatsApp e usar os avisos automáticos no plano Free.
+                Para que o robô responda os clientes automaticamente, ative o plano Pro.
+              </p>
+              <Button asChild size="sm">
+                <Link to="/dashboard?tab=plan">Ver planos</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Status card */}
       <Card>

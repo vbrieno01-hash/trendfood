@@ -36,13 +36,26 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // 1) Carregar config base (singleton com prompt/modelo padrão)
-    const { data: config } = await supabase
-      .from("ai_bot_config")
-      .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // 1) Carregar config: preferir config da própria loja; fallback no singleton
+    let config: any = null;
+    if (orgIdOverride) {
+      const { data } = await supabase
+        .from("ai_bot_config")
+        .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
+        .eq("organization_id", orgIdOverride)
+        .maybeSingle();
+      config = data;
+    }
+    if (!config) {
+      const { data } = await supabase
+        .from("ai_bot_config")
+        .select("*, uazapi_server_url, uazapi_token, uazapi_instance_name")
+        .is("organization_id", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      config = data;
+    }
 
     // Modo multi-tenant: organization_id + instance_token vieram do webhook (loja específica)
     // Modo singleton legacy: usa test_org_id + uazapi_token do config (apenas teste admin)
@@ -51,8 +64,8 @@ Deno.serve(async (req) => {
     const effectiveToken = tokenOverride || config?.uazapi_token || null;
     const isMultiTenant = !!orgIdOverride;
 
-    // No modo singleton, respeitar enabled. No multi-tenant, sempre roda (loja conectou via self-service).
-    if (!isMultiTenant && (!config || !config.enabled)) {
+    // Respeitar enabled da config (singleton ou da loja)
+    if (!config || !config.enabled) {
       return new Response(JSON.stringify({ ok: true, skipped: true, reason: "bot_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -132,13 +145,15 @@ Deno.serve(async (req) => {
     }
 
     // 3) Histórico (últimas 10 trocas)
-    const { data: history } = await supabase
+    let historyQuery = supabase
       .from("fila_whatsapp")
       .select("incoming_message, ai_response")
       .eq("phone", phone)
       .not("ai_response", "is", null)
       .order("created_at", { ascending: false })
       .limit(10);
+    if (effectiveOrgId) historyQuery = historyQuery.eq("organization_id", effectiveOrgId);
+    const { data: history } = await historyQuery;
 
     const defaultPrompt = `Voce e um atendente de restaurante/lanchonete via WhatsApp. Educado, simpatico, profissional e direto.
 
@@ -254,6 +269,7 @@ Seja util, rapido e nao enrole.`;
       ai_response: reply,
       status: "respondido",
       responded_at: new Date().toISOString(),
+      organization_id: effectiveOrgId,
     });
 
     return new Response(JSON.stringify({ ok: true, response: reply, sent, sendError }), {

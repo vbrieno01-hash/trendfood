@@ -77,6 +77,28 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Limite de 3 instâncias por usuário (admin bypassa)
+    if (!isAdmin) {
+      const { data: userOrgs } = await supabase
+        .from("organizations")
+        .select("id")
+        .eq("user_id", user.id);
+      const orgIds = (userOrgs || []).map((o) => o.id);
+      if (orgIds.length > 0) {
+        const { count: instCount } = await supabase
+          .from("whatsapp_instances")
+          .select("id", { count: "exact", head: true })
+          .in("organization_id", orgIds)
+          .neq("organization_id", organization_id);
+        if ((instCount || 0) >= 3) {
+          return new Response(
+            JSON.stringify({ error: "instance_limit_reached", message: "Limite de 3 WhatsApp conectados por usuário. Desconecte uma instância antes de criar outra." }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
+
     // Já existe instância? Retorna ela
     const { data: existing } = await supabase
       .from("whatsapp_instances")
@@ -172,6 +194,29 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "db_save_failed", detail: saveErr.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Garante uma linha de ai_bot_config pra essa loja (copia defaults do singleton se existir)
+    const { data: existingCfg } = await supabase
+      .from("ai_bot_config")
+      .select("id")
+      .eq("organization_id", organization_id)
+      .maybeSingle();
+    if (!existingCfg) {
+      const { data: defaultCfg } = await supabase
+        .from("ai_bot_config")
+        .select("system_prompt, greeting_message, model")
+        .is("organization_id", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      await supabase.from("ai_bot_config").insert({
+        organization_id,
+        enabled: false,
+        system_prompt: defaultCfg?.system_prompt ?? undefined,
+        greeting_message: defaultCfg?.greeting_message ?? undefined,
+        model: defaultCfg?.model ?? undefined,
       });
     }
 

@@ -258,6 +258,7 @@ export type Database = {
           greeting_message: string
           id: string
           model: string
+          organization_id: string | null
           system_prompt: string
           test_org_id: string | null
           test_phone: string | null
@@ -271,6 +272,7 @@ export type Database = {
           greeting_message?: string
           id?: string
           model?: string
+          organization_id?: string | null
           system_prompt?: string
           test_org_id?: string | null
           test_phone?: string | null
@@ -284,6 +286,7 @@ export type Database = {
           greeting_message?: string
           id?: string
           model?: string
+          organization_id?: string | null
           system_prompt?: string
           test_org_id?: string | null
           test_phone?: string | null
@@ -293,6 +296,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_bot_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_bot_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_bot_config_test_org_id_fkey"
             columns: ["test_org_id"]
@@ -918,6 +935,7 @@ export type Database = {
           created_at: string
           id: string
           incoming_message: string
+          organization_id: string | null
           phone: string
           responded_at: string | null
           status: string
@@ -927,6 +945,7 @@ export type Database = {
           created_at?: string
           id?: string
           incoming_message: string
+          organization_id?: string | null
           phone: string
           responded_at?: string | null
           status?: string
@@ -936,11 +955,27 @@ export type Database = {
           created_at?: string
           id?: string
           incoming_message?: string
+          organization_id?: string | null
           phone?: string
           responded_at?: string | null
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fila_whatsapp_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_whatsapp_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       global_addon_exclusions: {
         Row: {
