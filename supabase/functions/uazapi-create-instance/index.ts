@@ -77,27 +77,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Limite de 3 instâncias por usuário (admin bypassa)
-    if (!isAdmin) {
-      const { data: userOrgs } = await supabase
-        .from("organizations")
-        .select("id")
-        .eq("user_id", user.id);
-      const orgIds = (userOrgs || []).map((o) => o.id);
-      if (orgIds.length > 0) {
-        const { count: instCount } = await supabase
-          .from("whatsapp_instances")
-          .select("id", { count: "exact", head: true })
-          .in("organization_id", orgIds)
-          .neq("organization_id", organization_id);
-        if ((instCount || 0) >= 3) {
-          return new Response(
-            JSON.stringify({ error: "instance_limit_reached", message: "Limite de 3 WhatsApp conectados por usuário. Desconecte uma instância antes de criar outra." }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-      }
-    }
+    // Limite: 1 instância por loja (organization). Como cada loja só pode ter
+    // uma linha em whatsapp_instances, o bloco abaixo (retorna a existente)
+    // já garante o limite naturalmente. Para conectar outro número, o usuário
+    // deve criar uma nova unidade.
 
     // Já existe instância? Retorna ela
     const { data: existing } = await supabase
