@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
     }
 
     const effectiveOrgId = orgIdOverride || config?.test_org_id || null;
-    const effectiveServerUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+    const defaultServerUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+    let effectiveServerUrl = defaultServerUrl;
 
     // Token sempre vem vivo: do caller (webhook) ou buscado em whatsapp_instances.
     // Sem fallback pra token salvo no ai_bot_config (não existe mais).
@@ -66,10 +67,19 @@ Deno.serve(async (req) => {
     if (!effectiveToken && effectiveOrgId) {
       const { data: inst } = await supabase
         .from("whatsapp_instances")
-        .select("instance_token")
+        .select("instance_token, server_url")
         .eq("organization_id", effectiveOrgId)
         .maybeSingle();
       effectiveToken = inst?.instance_token || null;
+      if (inst?.server_url) effectiveServerUrl = inst.server_url.replace(/\/$/, "");
+    } else if (effectiveOrgId) {
+      // Token veio do caller; ainda assim tenta puxar server_url da loja
+      const { data: inst } = await supabase
+        .from("whatsapp_instances")
+        .select("server_url")
+        .eq("organization_id", effectiveOrgId)
+        .maybeSingle();
+      if (inst?.server_url) effectiveServerUrl = inst.server_url.replace(/\/$/, "");
     }
 
     if (!effectiveToken) {
