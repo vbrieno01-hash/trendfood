@@ -68,6 +68,8 @@ export default function AIBotAdminTab() {
   const [connecting, setConnecting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [serverInfo, setServerInfo] = useState<any>(null);
+  const [pinging, setPinging] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [conversation, setConversation] = useState<QueueRow[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
