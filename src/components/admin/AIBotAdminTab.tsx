@@ -521,6 +521,15 @@ export default function AIBotAdminTab() {
                   </span>
                 </div>
               )}
+
+              {!hasInstance && config.test_org_id && (
+                <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 p-3 text-xs flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 animate-spin" />
+                  <span>
+                    Sandbox armado. Mande a <strong>1ª mensagem</strong> pro número conectado — o token vai ser capturado automaticamente e esse aviso vira verde.
+                  </span>
+                </div>
+              )}
             </>
           )}
         </CardContent>
