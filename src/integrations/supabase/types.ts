@@ -2863,6 +2863,7 @@ export type Database = {
           instance_token: string
           organization_id: string
           phone_connected: string | null
+          server_url: string | null
           status: string
           updated_at: string
           webhook_configured: boolean
@@ -2875,6 +2876,7 @@ export type Database = {
           instance_token: string
           organization_id: string
           phone_connected?: string | null
+          server_url?: string | null
           status?: string
           updated_at?: string
           webhook_configured?: boolean
@@ -2887,6 +2889,7 @@ export type Database = {
           instance_token?: string
           organization_id?: string
           phone_connected?: string | null
+          server_url?: string | null
           status?: string
           updated_at?: string
           webhook_configured?: boolean
