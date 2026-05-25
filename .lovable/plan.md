@@ -1,60 +1,57 @@
-## Problema
+## Diagnóstico
 
-O webhook `whatsapp-webhook` só consegue rotear mensagem pro atendente da loja (`ai-bot-respond`) quando encontra uma linha em `whatsapp_instances` casando por `instance_token` ou `instance_name`. No admin (que é só sandbox) você não quer vincular instância a loja nenhuma — quer só colar URL+token de uma instância qualquer do painel uazapi e ver o robô responder usando a `test_org_id` configurada no `ai_bot_config` global.
-
-Hoje a mensagem da instância `mtHUNj` cai no fluxo do Lucas porque não bate com nenhuma loja.
-
-## Solução
-
-Tratar o sandbox como uma rota separada, identificada por `instance_name` ou `instance_token` salvos no próprio `ai_bot_config` global (não em `whatsapp_instances`).
-
-### 1. Banco
-
-Adicionar 2 colunas em `ai_bot_config`:
-- `test_instance_name text`
-- `test_instance_token text`
-
-Nada de mexer em `whatsapp_instances`. Nenhuma loja é tocada.
-
-### 2. Admin (`AIBotAdminTab.tsx`)
-
-Remover o upsert em `whatsapp_instances`. O "Salvar credenciais" passa a gravar **apenas no `ai_bot_config` global** (linha com `organization_id is null`):
-- `test_instance_name`
-- `test_instance_token`
-- `test_org_id` (loja que vai emprestar o contexto pro robô responder — continua sendo só pra carregar cardápio/horários, não cria vínculo)
-- `test_phone`
-
-Botão "Testar /status" continua igual (GET na URL+token informados).
-
-A URL do webhook exibida continua a mesma (`/whatsapp-webhook`).
-
-### 3. Edge function `whatsapp-webhook`
-
-Antes do branch atual de "match em whatsapp_instances", adicionar branch novo de **sandbox**:
+O alerta "Robô não vai responder ainda — falta salvar URL + token" aparece porque no banco `ai_bot_config` (linha global) os campos `test_instance_name` e `test_instance_token` continuam **nulos**:
 
 ```
-1. Ler ai_bot_config global (organization_id is null).
-2. Se body.instanceName == config.test_instance_name
-   OU body.token == config.test_instance_token:
-     → chamar ai-bot-respond com:
-         phone, message,
-         organization_id = config.test_org_id,
-         (sem instance_token, pra não confundir)
-     → retornar { routed_by: "sandbox" }
+test_instance_name | test_instance_token
+       (vazio)     |      (vazio)
 ```
 
-Se não bater, segue o fluxo atual (match em `whatsapp_instances` → Lucas). Nenhuma loja real é afetada.
+Ou seja, você configurou o webhook no painel uazapi e até conseguiu conectar, mas **não chegou a clicar em "Salvar credenciais"** no painel admin (ou clicou sem preencher os dois campos). O painel só considera o sandbox pronto quando algum dos dois (`token` ou `nome da instância`) está persistido no banco.
 
-### 4. Validação
+A migration, os tipos, e o branch sandbox da edge function `whatsapp-webhook` estão corretos. O problema é só de UX: hoje é manual demais.
 
-Mandar mensagem do seu segundo número pra instância `mtHUNj`. Esperado nos logs:
-- `[whatsapp-webhook] routed_by: sandbox`
-- Resposta gerada via `ai-bot-respond` usando contexto da `test_org_id` (GBflix)
-- Resposta volta pelo painel uazapi pro número que mandou
+## Plano
 
-## Detalhes técnicos
+Deixar o sandbox "se auto-configurar" assim que a primeira mensagem chega no webhook — exatamente o comportamento que você esperava.
 
-- `verify_jwt = false` no webhook permanece.
-- O fluxo do Lucas continua intocado.
-- `whatsapp_instances` da GBflix permanece como está (pode até deletar a linha órfã `org-mcd-mplkp8ig` depois — opcional, te aviso).
-- O `ai-bot-respond` já aceita `organization_id` no body, sem precisar mudar nada lá.
+### 1. Edge function `whatsapp-webhook` — auto-aprendizado
+
+Antes do branch 0 (sandbox) atual:
+
+- Ler `ai_bot_config` global (uma vez, já é feito).
+- Se a linha tem `test_org_id` preenchido **mas** `test_instance_name` e `test_instance_token` ainda estão nulos → tratar a primeira chamada como "pareamento":
+  - Pegar `instanceName` (ou `instance`) e `token` do payload da uazapi.
+  - Fazer `update ai_bot_config set test_instance_name=..., test_instance_token=... where id=<global>` usando a service role key (a function já roda com `verify_jwt=false` e tem acesso ao service role).
+  - Continuar o fluxo normal de resposta (chamar `ai-bot-respond` com `test_org_id`).
+- Se já tem credencial salva e ela bate → fluxo sandbox atual.
+- Se já tem credencial salva e **não** bate (mensagem veio de outra instância) → segue para o match de `whatsapp_instances` por loja (fluxo Lucas atual).
+
+Nenhuma alteração no fluxo das lojas reais. Nada toca `whatsapp_instances`.
+
+### 2. Painel admin (`AIBotAdminTab.tsx`) — UX
+
+- Mostrar o estado de "aguardando primeiro evento" quando `test_org_id` está preenchido mas ainda sem `test_instance_name`/`test_instance_token`:
+  > "Sandbox armado. Mande a 1ª mensagem pra esse número — vou capturar o token automaticamente."
+- Quando a credencial aparecer (via realtime em `ai_bot_config`), o card vira verde sozinho.
+- Os campos manuais (URL/token/nome) continuam existindo como fallback, mas saem de "obrigatório" para "opcional / avançado".
+- Botão "Salvar credenciais" continua funcionando igual, pra quem quiser preencher na mão.
+- A regra `missing.push("salvar URL + token da instância acima")` vira `"mandar a 1ª mensagem pro número conectado (ou preencher token manualmente)"`.
+
+### 3. Realtime no painel
+
+Adicionar um channel em `ai_bot_config` filtrado por `id=eq.<global>` pra que, quando a edge function gravar o token, o painel atualize sem refresh.
+
+## O que não muda
+
+- `verify_jwt = false` na `whatsapp-webhook` (já está assim).
+- Nenhuma loja real é tocada.
+- `ai-bot-respond` continua igual (já aceita `server_url` override).
+- Migrations já aplicadas seguem como estão — sem nova migration.
+
+## Arquivos afetados
+
+- `supabase/functions/whatsapp-webhook/index.ts` — auto-learn na primeira mensagem
+- `src/components/admin/AIBotAdminTab.tsx` — textos, status "aguardando", realtime em ai_bot_config
+
+Posso implementar?

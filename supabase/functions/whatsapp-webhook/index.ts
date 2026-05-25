@@ -286,17 +286,41 @@ Deno.serve(async (req) => {
     {
       const { data: sandboxCfg } = await supabase
         .from("ai_bot_config")
-        .select("test_instance_name, test_instance_token, test_org_id")
+        .select("id, test_instance_name, test_instance_token, test_org_id")
         .is("organization_id", null)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      const sbName = sandboxCfg?.test_instance_name?.trim() || null;
-      const sbToken = sandboxCfg?.test_instance_token?.trim() || null;
-      const matchesSandbox =
+      let sbName = sandboxCfg?.test_instance_name?.trim() || null;
+      let sbToken = sandboxCfg?.test_instance_token?.trim() || null;
+      let matchesSandbox =
         (sbToken && instanceToken && sbToken === instanceToken) ||
         (sbName && instanceName && sbName === instanceName);
+
+      // AUTO-LEARN: se o admin já escolheu uma loja de teste mas ainda não salvou
+      // credenciais, a primeira mensagem que chegar nesse webhook vira o "pareamento".
+      // Capturamos instance_name/token do payload e gravamos no ai_bot_config global.
+      if (
+        !matchesSandbox &&
+        sandboxCfg?.id &&
+        sandboxCfg?.test_org_id &&
+        !sbToken &&
+        !sbName &&
+        (instanceToken || instanceName)
+      ) {
+        await supabase
+          .from("ai_bot_config")
+          .update({
+            test_instance_name: instanceName || null,
+            test_instance_token: instanceToken || null,
+          })
+          .eq("id", sandboxCfg.id);
+        sbName = instanceName || null;
+        sbToken = instanceToken || null;
+        matchesSandbox = true;
+        console.log("[whatsapp-webhook] sandbox auto-pareado:", { instanceName, hasToken: !!instanceToken });
+      }
 
       if (matchesSandbox && sandboxCfg?.test_org_id) {
         const botRes = await fetch(

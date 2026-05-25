@@ -96,6 +96,27 @@ export default function AIBotAdminTab() {
     })();
   }, []);
 
+  // Realtime: pega o auto-pareamento feito pelo whatsapp-webhook na 1ª mensagem
+  useEffect(() => {
+    if (!config?.id) return;
+    const ch = supabase
+      .channel(`ai_bot_config_${config.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "ai_bot_config", filter: `id=eq.${config.id}` },
+        (payload) => {
+          const next = payload.new as Partial<BotConfig>;
+          setConfig((prev) => (prev ? { ...prev, ...next } : prev));
+          if (next.test_instance_token) setInstanceToken(next.test_instance_token);
+          if (next.test_instance_name) setInstanceName(next.test_instance_name);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [config?.id]);
+
   // Carrega histórico do test_phone + realtime
   useEffect(() => {
     if (!config?.test_phone) {
@@ -333,8 +354,8 @@ export default function AIBotAdminTab() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Robô de Atendimento — Sandbox</h2>
           <p className="text-sm text-muted-foreground">
-            Modo manual: cole URL + token de uma instância criada no painel uazapi
-            e atrele a uma loja de teste pra validar o robô.
+            Escolha a loja de teste, configure o webhook abaixo no painel uazapi
+            e mande a 1ª mensagem — o sandbox captura o token sozinho.
           </p>
         </div>
         <div className="ml-auto">
@@ -356,8 +377,9 @@ export default function AIBotAdminTab() {
             Conexão WhatsApp (Sandbox)
           </CardTitle>
           <CardDescription>
-            Cole URL + token de uma instância criada no painel uazapi e atrele à loja de teste.
-            Configure o webhook abaixo no painel uazapi.
+            Escolha a loja de teste, configure o webhook abaixo no painel uazapi e
+            mande a 1ª mensagem do seu número de teste. O sandbox captura o token
+            sozinho. Os campos manuais ficam só como fallback.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -499,6 +521,15 @@ export default function AIBotAdminTab() {
                   </span>
                 </div>
               )}
+
+              {!hasInstance && config.test_org_id && (
+                <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 p-3 text-xs flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 animate-spin" />
+                  <span>
+                    Sandbox armado. Mande a <strong>1ª mensagem</strong> pro número conectado — o token vai ser capturado automaticamente e esse aviso vira verde.
+                  </span>
+                </div>
+              )}
             </>
           )}
         </CardContent>
@@ -510,7 +541,7 @@ export default function AIBotAdminTab() {
         if (!config.enabled) missing.push('ativar o switch "Robô ativo"');
         if (!config.test_phone) missing.push('preencher "WhatsApp de teste"');
         if (!config.test_org_id) missing.push('escolher "Loja de teste"');
-        if (!hasInstance) missing.push("salvar URL + token da instância acima");
+        if (!hasInstance) missing.push("mandar a 1ª mensagem pro número conectado (ou colar token manual acima)");
 
         if (missing.length === 0) {
           return (
