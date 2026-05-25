@@ -2931,7 +2931,8 @@ export type Database = {
           id: string | null
           logo_url: string | null
           name: string | null
-          order_count_30d: number | null
+          order_count_total: number | null
+          paused: boolean | null
           primary_color: string | null
           slug: string | null
         }
@@ -3059,7 +3060,8 @@ export type Database = {
           id: string
           logo_url: string
           name: string
-          order_count_30d: number
+          order_count_total: number
+          paused: boolean
           primary_color: string
           slug: string
         }[]
