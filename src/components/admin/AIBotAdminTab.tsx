@@ -157,12 +157,20 @@ export default function AIBotAdminTab() {
         body: { organization_id: config.test_org_id },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const d = data as any;
+      if (d?.error) {
+        const hint = d.hint ? `\n${d.hint}` : "";
+        const attempts = Array.isArray(d.attempts)
+          ? "\n" + d.attempts.map((a: any) => `${a.path} → ${a.status}`).join(" | ")
+          : "";
+        throw new Error(`${d.error}${hint}${attempts}\nserver_url: ${d.server_url ?? "?"}`);
+      }
       if ((data as any)?.instance) setInstance((data as any).instance);
       if ((data as any)?.qrcode) setQrcode((data as any).qrcode);
       toast.success("Escaneie o QR Code no WhatsApp");
     } catch (e: any) {
-      toast.error("Falha ao iniciar conexão: " + (e.message || "erro"));
+      console.error("connect error:", e);
+      toast.error("Falha ao iniciar conexão: " + (e.message || "erro"), { duration: 12000 });
     } finally {
       setConnecting(false);
     }
