@@ -416,6 +416,7 @@ interface AdminUser {
   email: string;
   created_at: string;
   last_sign_in_at: string | null;
+  last_activity_at: string | null;
   provider: string;
   org_count: number;
   org_names: string[];
@@ -543,7 +544,7 @@ function UsersSection() {
               <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
                 <th className="py-2 px-2">Email</th>
                 <th className="py-2 px-2">Cadastro</th>
-                <th className="py-2 px-2">Último login</th>
+                <th className="py-2 px-2">Última atividade</th>
                 <th className="py-2 px-2">Lojas</th>
                 <th className="py-2 px-2 text-right">Ações</th>
               </tr>
@@ -563,7 +564,7 @@ function UsersSection() {
                     </div>
                   </td>
                   <td className="py-2 px-2 text-muted-foreground tabular-nums">{fmtRelative(u.created_at)}</td>
-                  <td className="py-2 px-2 text-muted-foreground tabular-nums">{fmtRelative(u.last_sign_in_at)}</td>
+                  <td className="py-2 px-2 text-muted-foreground tabular-nums">{fmtRelative(u.last_activity_at ?? u.last_sign_in_at)}</td>
                   <td className="py-2 px-2">
                     {u.org_count === 0 ? (
                       <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded uppercase">sem loja</span>
