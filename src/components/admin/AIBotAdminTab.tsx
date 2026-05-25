@@ -206,19 +206,33 @@ export default function AIBotAdminTab() {
     setTestingStatus(true);
     setTestResult(null);
     try {
+      // uazapi: /instance/status é GET com header `token`
       const res = await fetch(`${url}/instance/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", token },
-        body: JSON.stringify({}),
+        method: "GET",
+        headers: { token },
       });
       const text = await res.text();
       let parsed: any = null;
       try { parsed = JSON.parse(text); } catch { /* ignore */ }
       const statusName = parsed?.instance?.status || parsed?.status || null;
-      const phone = parsed?.instance?.phoneConnected || parsed?.instance?.owner || parsed?.phone || null;
+      const phone =
+        parsed?.instance?.phoneConnected ||
+        parsed?.instance?.owner ||
+        parsed?.instance?.phone ||
+        parsed?.phone ||
+        null;
       setTestResult({ ok: res.ok, status: res.status, body: text.slice(0, 400), phone, statusName });
-      if (res.ok) toast.success(`Servidor respondeu: ${statusName || res.status}`);
-      else toast.error(`Servidor retornou ${res.status}`);
+      if (res.ok) {
+        toast.success(`Servidor respondeu: ${statusName || res.status}`);
+      } else if (res.status === 401 || res.status === 403) {
+        toast.error("Token recusado pelo servidor (401/403). Confira o token da instância.");
+      } else if (res.status === 404) {
+        toast.error("Endpoint /instance/status não encontrado (404). Confira a URL do servidor.");
+      } else if (res.status === 405) {
+        toast.error("Método não aceito (405). Esse servidor uazapi não expõe /instance/status via GET.");
+      } else {
+        toast.error(`Servidor retornou ${res.status}`);
+      }
     } catch (e: any) {
       setTestResult({ ok: false, body: e.message });
       toast.error("Falha ao alcançar o servidor: " + (e.message || "erro"));
@@ -351,8 +365,8 @@ export default function AIBotAdminTab() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Robô de Atendimento — Sandbox</h2>
           <p className="text-sm text-muted-foreground">
-            Conecte uma instância de teste em uma loja e mande mensagens reais pra testar o robô.
-            Nada fica fixo: cria e apaga em 1 clique.
+            Modo manual: cole URL + token de uma instância criada no painel uazapi
+            e atrele a uma loja de teste pra validar o robô.
           </p>
         </div>
         <div className="ml-auto">
