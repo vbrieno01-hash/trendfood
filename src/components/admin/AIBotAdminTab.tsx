@@ -148,7 +148,6 @@ export default function AIBotAdminTab() {
   }, [config?.test_phone]);
 
   const handleConnect = async () => {
-    // placeholder anchor
     if (!config?.test_org_id) {
       toast.error("Escolha uma loja de teste primeiro");
       return;
