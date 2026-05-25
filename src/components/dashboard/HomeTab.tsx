@@ -36,6 +36,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
+import BannerRecoveryBanner from "@/components/dashboard/BannerRecoveryBanner";
 
 interface Organization {
   id: string;
@@ -299,6 +300,15 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           orgLogoUrl={organization.logo_url}
           orgBannerUrl={(organization as any)?.banner_url}
           orgPrintMode={(organization as any)?.print_mode}
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {/* ── Aviso de recuperação de banner (incidente 22/05) ─ */}
+      {onNavigate && (
+        <BannerRecoveryBanner
+          orgId={organization.id}
+          orgBannerUrl={(organization as any)?.banner_url}
           onNavigate={onNavigate}
         />
       )}
