@@ -68,6 +68,8 @@ export default function AIBotAdminTab() {
   const [connecting, setConnecting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [serverInfo, setServerInfo] = useState<any>(null);
+  const [pinging, setPinging] = useState(false);
   const [testMessage, setTestMessage] = useState("");
   const [conversation, setConversation] = useState<QueueRow[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -157,12 +159,20 @@ export default function AIBotAdminTab() {
         body: { organization_id: config.test_org_id },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const d = data as any;
+      if (d?.error) {
+        const hint = d.hint ? `\n${d.hint}` : "";
+        const attempts = Array.isArray(d.attempts)
+          ? "\n" + d.attempts.map((a: any) => `${a.path} → ${a.status}`).join(" | ")
+          : "";
+        throw new Error(`${d.error}${hint}${attempts}\nserver_url: ${d.server_url ?? "?"}`);
+      }
       if ((data as any)?.instance) setInstance((data as any).instance);
       if ((data as any)?.qrcode) setQrcode((data as any).qrcode);
       toast.success("Escaneie o QR Code no WhatsApp");
     } catch (e: any) {
-      toast.error("Falha ao iniciar conexão: " + (e.message || "erro"));
+      console.error("connect error:", e);
+      toast.error("Falha ao iniciar conexão: " + (e.message || "erro"), { duration: 12000 });
     } finally {
       setConnecting(false);
     }
@@ -187,6 +197,33 @@ export default function AIBotAdminTab() {
       setRefreshing(false);
     }
   };
+
+  const loadServerInfo = async (ping = false) => {
+    setPinging(ping);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-server-info${ping ? "?action=ping" : ""}`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      setServerInfo(data);
+      if (ping) toast.success("Diagnóstico do servidor atualizado");
+    } catch (e: any) {
+      toast.error("Falha no diagnóstico: " + (e.message || "erro"));
+    } finally {
+      setPinging(false);
+    }
+  };
+
+  useEffect(() => {
+    loadServerInfo(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDisconnect = async (deleteInstance: boolean) => {
     if (!config?.test_org_id) return;
@@ -334,6 +371,56 @@ export default function AIBotAdminTab() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* Diagnóstico do servidor uazapi */}
+          <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="font-medium text-foreground/80">Servidor uazapi</div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => loadServerInfo(true)}
+                disabled={pinging}
+                className="h-7 text-xs"
+              >
+                {pinging ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                Testar servidor
+              </Button>
+            </div>
+            {serverInfo ? (
+              <div className="space-y-1 text-muted-foreground font-mono">
+                <div>URL: <span className="text-foreground">{serverInfo.server_url || "?"}</span></div>
+                <div>
+                  Admin token: {serverInfo.has_admin_token ? (
+                    <span className="text-emerald-600">configurado</span>
+                  ) : (
+                    <span className="text-destructive">FALTANDO (UAZAPI_ADMIN_TOKEN)</span>
+                  )}
+                </div>
+                {serverInfo.probes && (
+                  <>
+                    <div>
+                      GET / → <span className={serverInfo.probes.root?.ok ? "text-emerald-600" : "text-amber-600"}>
+                        {serverInfo.probes.root?.status ?? serverInfo.probes.root?.error}
+                      </span>
+                    </div>
+                    <div>
+                      POST /instance/init → <span className={serverInfo.probes.init?.status === 404 ? "text-destructive" : serverInfo.probes.init?.ok ? "text-emerald-600" : "text-amber-600"}>
+                        {serverInfo.probes.init?.status ?? serverInfo.probes.init?.error}
+                      </span>
+                      {serverInfo.probes.init?.status === 404 && (
+                        <div className="text-destructive">
+                          ⚠ 404: confira UAZAPI_SERVER_URL (sem /api no final) ou se é mesmo servidor uazapi.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="text-muted-foreground">Carregando…</div>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label>Loja de teste</Label>
             <Select
