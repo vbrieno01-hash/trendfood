@@ -377,8 +377,9 @@ export default function AIBotAdminTab() {
             Conexão WhatsApp (Sandbox)
           </CardTitle>
           <CardDescription>
-            Cole URL + token de uma instância criada no painel uazapi e atrele à loja de teste.
-            Configure o webhook abaixo no painel uazapi.
+            Escolha a loja de teste, configure o webhook abaixo no painel uazapi e
+            mande a 1ª mensagem do seu número de teste. O sandbox captura o token
+            sozinho. Os campos manuais ficam só como fallback.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
