@@ -339,7 +339,7 @@ export default function AIBotAdminTab() {
     );
   }
 
-  const isConnected = instance?.status === "connected";
+  const hasInstance = !!instance?.instance_token;
 
   return (
     <div className="space-y-6">
