@@ -366,6 +366,56 @@ export default function AIBotAdminTab() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* Diagnóstico do servidor uazapi */}
+          <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="font-medium text-foreground/80">Servidor uazapi</div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => loadServerInfo(true)}
+                disabled={pinging}
+                className="h-7 text-xs"
+              >
+                {pinging ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                Testar servidor
+              </Button>
+            </div>
+            {serverInfo ? (
+              <div className="space-y-1 text-muted-foreground font-mono">
+                <div>URL: <span className="text-foreground">{serverInfo.server_url || "?"}</span></div>
+                <div>
+                  Admin token: {serverInfo.has_admin_token ? (
+                    <span className="text-emerald-600">configurado</span>
+                  ) : (
+                    <span className="text-destructive">FALTANDO (UAZAPI_ADMIN_TOKEN)</span>
+                  )}
+                </div>
+                {serverInfo.probes && (
+                  <>
+                    <div>
+                      GET / → <span className={serverInfo.probes.root?.ok ? "text-emerald-600" : "text-amber-600"}>
+                        {serverInfo.probes.root?.status ?? serverInfo.probes.root?.error}
+                      </span>
+                    </div>
+                    <div>
+                      POST /instance/init → <span className={serverInfo.probes.init?.status === 404 ? "text-destructive" : serverInfo.probes.init?.ok ? "text-emerald-600" : "text-amber-600"}>
+                        {serverInfo.probes.init?.status ?? serverInfo.probes.init?.error}
+                      </span>
+                      {serverInfo.probes.init?.status === 404 && (
+                        <div className="text-destructive">
+                          ⚠ 404: confira UAZAPI_SERVER_URL (sem /api no final) ou se é mesmo servidor uazapi.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="text-muted-foreground">Carregando…</div>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label>Loja de teste</Label>
             <Select
