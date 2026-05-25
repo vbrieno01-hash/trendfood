@@ -5,17 +5,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function isBroken(url: string): Promise<boolean> {
+async function singleCheckBroken(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, { method: "HEAD" });
-    // Treat 4xx as broken (400, 403, 404 typical when storage object missing)
     if (res.status >= 400 && res.status < 500) return true;
     return false;
   } catch (e) {
     console.warn("[cleanup-broken-banners] HEAD failed for", url, e);
-    // Network error → don't assume broken to avoid false positives
     return false;
   }
+}
+
+// Exige 2 falhas consecutivas com 10s de intervalo para evitar
+// falsos positivos por instabilidade momentânea da CDN.
+async function isBroken(url: string): Promise<boolean> {
+  const first = await singleCheckBroken(url);
+  if (!first) return false;
+  await new Promise((r) => setTimeout(r, 10_000));
+  const second = await singleCheckBroken(url);
+  return second;
 }
 
 Deno.serve(async (req) => {
@@ -68,6 +76,15 @@ Deno.serve(async (req) => {
           console.error("[cleanup-broken-banners] update failed", org, updErr);
         } else {
           cleaned.push({ id: (org as any).id, name: (org as any).name, url });
+          // Auditoria
+          await supabase.from("cleanup_logs").insert({
+            kind: "banner_cleared",
+            target: (org as any).id,
+            bucket: "menu-images",
+            reason: "banner_url retornou 4xx em 2 checagens HEAD consecutivas",
+            dry_run: false,
+            metadata: { previous_url: url, org_name: (org as any).name },
+          });
         }
       }
     }

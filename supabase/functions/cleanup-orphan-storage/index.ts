@@ -74,13 +74,20 @@ Deno.serve(async (req) => {
         if (p) referenced["menu-images"].add(p);
       }
     }
-    // organizations.logo_url + banner_url → logos
+    // organizations.logo_url + banner_url
+    // ⚠️ Banners ficam em menu-images/banners/<org_id>.<ext> (não em logos/).
+    // Marcamos como referenciado em AMBOS os buckets como defesa extra.
+    // Também guardamos os ids das orgs para a guarda final por basename.
+    const orgIds = new Set<string>();
     {
-      const { data } = await supabase.from("organizations").select("logo_url, banner_url");
+      const { data } = await supabase.from("organizations").select("id, logo_url, banner_url");
       for (const r of data ?? []) {
+        if (r.id) orgIds.add(r.id);
         for (const u of [r.logo_url, r.banner_url]) {
-          const p = extractPath(u ?? "", "logos");
-          if (p) referenced["logos"].add(p);
+          for (const b of ["logos", "menu-images"]) {
+            const p = extractPath(u ?? "", b);
+            if (p) referenced[b].add(p);
+          }
         }
       }
     }
@@ -143,6 +150,24 @@ Deno.serve(async (req) => {
             const created = f.created_at ? new Date(f.created_at).getTime() : 0;
             if (created > cutoff) continue; // too recent
             if (refs.has(fullPath)) continue; // referenced
+
+            // 🛡️ Guarda extra: nunca apagar arquivos cujo basename (sem extensão)
+            // seja o id de uma org existente. Cobre banner_url/logo_url nulos
+            // ou com domínio/querystring diferentes.
+            const basename = fullPath.split("/").pop() ?? "";
+            const uuidPart = basename.replace(/\.[^.]+$/, "");
+            if (orgIds.has(uuidPart)) {
+              await supabase.from("cleanup_logs").insert({
+                kind: "orphan_image_protected",
+                target: fullPath,
+                bucket,
+                size_bytes: size,
+                reason: "Protegido: basename corresponde a uma organização existente.",
+                dry_run: isDryRun,
+              });
+              continue;
+            }
+
             orphans.push({ path: fullPath, size });
           }
 
