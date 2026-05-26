@@ -15,17 +15,61 @@ import authLogoCinematic from "@/assets/auth-logo-cinematic.png";
 import { toast } from "sonner";
 import PasswordRequirements from "@/components/PasswordRequirements";
 
-const translateAuthError = (msg?: string): string | undefined => {
-  if (!msg) return undefined;
-  const map: Record<string, string> = {
-    "Invalid login credentials": "E-mail ou senha incorretos.",
-    "User already registered": "Este e-mail já está cadastrado. Use a aba \"Entrar\" para fazer login.",
-    "Password should be at least 6 characters": "A senha deve ter no mínimo 6 caracteres.",
-    "Unable to validate email address: invalid format": "Formato de e-mail inválido.",
-    "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",
-    "Signup requires a valid password": "Informe uma senha válida.",
-  };
-  return map[msg];
+const translateAuthError = (msg?: string): string => {
+  const raw = (msg ?? "").trim();
+  const m = raw.toLowerCase();
+  if (!m) {
+    return "Não foi possível concluir. Verifique os dados e tente novamente. Se persistir, fale com o suporte.";
+  }
+
+  if (m.includes("already registered") || m.includes("already been registered") || m.includes("user_already_exists")) {
+    return 'Este e-mail já está cadastrado. Vá em "Entrar" e use sua senha, ou clique em "Esqueci minha senha".';
+  }
+  if (m.includes("invalid login credentials") || m.includes("invalid_credentials")) {
+    return 'E-mail ou senha incorretos. Confira ou clique em "Esqueci minha senha".';
+  }
+  if (m.includes("email not confirmed") || m.includes("email_not_confirmed")) {
+    return "Você ainda não confirmou seu e-mail. Abra a caixa de entrada (e o spam) e clique no link de confirmação.";
+  }
+  const lenMatch = raw.match(/at least (\d+) character/i);
+  if (lenMatch) {
+    return `Senha muito curta. Use pelo menos ${lenMatch[1]} caracteres.`;
+  }
+  if (m.includes("weak_password") || m.includes("password is known to be weak") || m.includes("pwned") || m.includes("password is too weak")) {
+    return "Essa senha é fraca ou já vazou na internet. Use uma senha mais forte (letras, números e símbolos).";
+  }
+  if (m.includes("unable to validate email") || m.includes("invalid format") || m.includes("invalid email") || m.includes("email_address_invalid")) {
+    return "E-mail inválido. Confira se digitou certo (ex: nome@dominio.com).";
+  }
+  if (m.includes("rate limit") || m.includes("over_email_send_rate_limit") || m.includes("too many requests")) {
+    return "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.";
+  }
+  const secMatch = raw.match(/after (\d+) seconds?/i);
+  if (secMatch && m.includes("security")) {
+    return `Por segurança, aguarde ${secMatch[1]} segundos antes de tentar de novo.`;
+  }
+  if (m.includes("signup is disabled") || m.includes("signups not allowed") || m.includes("signup_disabled")) {
+    return "Cadastro temporariamente indisponível. Tente em alguns minutos.";
+  }
+  if (m.includes("anonymous sign-ins are disabled") || m.includes("anonymous_provider_disabled")) {
+    return "Cadastro anônimo desativado. Use seu e-mail e senha.";
+  }
+  if (m.includes("database error") || m.includes("unexpected_failure") || m.includes("saving new user")) {
+    return "Erro ao salvar sua conta. Tente novamente em alguns segundos — se continuar, fale com o suporte.";
+  }
+  if (m.includes("token has expired") || m.includes("otp_expired") || m.includes("invalid token") || m.includes("token is invalid")) {
+    return "Link expirado. Peça um novo link para continuar.";
+  }
+  if (m.includes("new password should be different") || m.includes("same_password")) {
+    return "A nova senha precisa ser diferente da anterior.";
+  }
+  if (m.includes("failed to fetch") || m.includes("networkerror") || m.includes("network error")) {
+    return "Sem conexão com a internet. Verifique sua rede e tente de novo.";
+  }
+  if (m.includes("signup requires a valid password")) {
+    return "Informe uma senha válida.";
+  }
+  return "Não foi possível concluir. Verifique os dados e tente novamente. Se persistir, fale com o suporte.";
 };
 
 const generateSlug = (name: string) =>
@@ -401,7 +445,7 @@ const AuthPage = () => {
       navigate(fullRedirect, { replace: true });
     } catch (err: unknown) {
       const error = err as { message?: string };
-      toast.error(translateAuthError(error.message) ?? error.message ?? "Erro ao criar conta.");
+      toast.error(translateAuthError(error.message), { duration: 7000 });
     } finally {
       setSignupLoading(false);
     }
@@ -436,7 +480,7 @@ const AuthPage = () => {
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
-      toast.error(translateAuthError(error.message) ?? error.message ?? "E-mail ou senha incorretos.");
+      toast.error(translateAuthError(error.message), { duration: 7000 });
     } finally {
       setLoginLoading(false);
     }
