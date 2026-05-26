@@ -1,57 +1,43 @@
-## Diagnóstico
+## Problema
 
-O alerta "Robô não vai responder ainda — falta salvar URL + token" aparece porque no banco `ai_bot_config` (linha global) os campos `test_instance_name` e `test_instance_token` continuam **nulos**:
+No cadastro/login, quando o Supabase retorna erro, a mensagem aparece **em inglês** (ex: "User already registered", "Password should be at least 6 characters"). O lojista não entende, fecha a tela e pode nunca mais voltar.
 
-```
-test_instance_name | test_instance_token
-       (vazio)     |      (vazio)
-```
+A função `translateAuthError` em `src/pages/AuthPage.tsx` (linhas 18-29) só cobre 6 mensagens e exige **match exato** — qualquer variação cai no `error.message` cru em inglês.
 
-Ou seja, você configurou o webhook no painel uazapi e até conseguiu conectar, mas **não chegou a clicar em "Salvar credenciais"** no painel admin (ou clicou sem preencher os dois campos). O painel só considera o sandbox pronto quando algum dos dois (`token` ou `nome da instância`) está persistido no banco.
+## Solução
 
-A migration, os tipos, e o branch sandbox da edge function `whatsapp-webhook` estão corretos. O problema é só de UX: hoje é manual demais.
+Reescrever `translateAuthError` para **sempre devolver uma mensagem clara em português explicando o problema real e o que fazer**. Nunca usar fallback genérico — se nenhum padrão bater, mostrar mensagem que ainda orienta ("Verifique os dados e tente novamente. Se persistir, fale com o suporte.").
 
-## Plano
+### Mensagens cobertas (matching por trecho, case-insensitive)
 
-Deixar o sandbox "se auto-configurar" assim que a primeira mensagem chega no webhook — exatamente o comportamento que você esperava.
+| Erro Supabase | Mensagem em PT |
+|---|---|
+| `User already registered` / `already been registered` | "Este e-mail já está cadastrado. Vá em **Entrar** e use sua senha, ou clique em **Esqueci minha senha**." |
+| `Invalid login credentials` | "E-mail ou senha incorretos. Confira ou clique em **Esqueci minha senha**." |
+| `Email not confirmed` | "Você ainda não confirmou seu e-mail. Abra a caixa de entrada (e o spam) e clique no link de confirmação." |
+| `Password should be at least N characters` | "Senha muito curta. Use pelo menos **N caracteres**." (extrai o N do texto) |
+| `weak_password` / `Password is known to be weak` / `pwned` | "Essa senha é fraca ou já vazou na internet. Use uma senha mais forte (letras, números e símbolos)." |
+| `Unable to validate email address` / `invalid format` | "E-mail inválido. Confira se digitou certo (ex: nome@dominio.com)." |
+| `Email rate limit exceeded` / `over_email_send_rate_limit` | "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo." |
+| `For security purposes, you can only request this after X seconds` | "Por segurança, aguarde **X segundos** antes de tentar de novo." (extrai X) |
+| `Signup is disabled` / `signups not allowed` | "Cadastro temporariamente indisponível. Tente em alguns minutos." |
+| `Anonymous sign-ins are disabled` | "Cadastro anônimo desativado. Use seu e-mail e senha." |
+| `Database error saving new user` / `unexpected_failure` | "Erro ao salvar sua conta. Tente novamente em alguns segundos — se continuar, fale com o suporte." |
+| `Token has expired or is invalid` | "Link expirado. Peça um novo link para continuar." |
+| `New password should be different` | "A nova senha precisa ser diferente da anterior." |
+| `Failed to fetch` / `NetworkError` | "Sem conexão com a internet. Verifique sua rede e tente de novo." |
+| Qualquer outro | "Não foi possível concluir. Verifique os dados e tente novamente. Se persistir, fale com o suporte." |
 
-### 1. Edge function `whatsapp-webhook` — auto-aprendizado
+### Onde aplica
 
-Antes do branch 0 (sandbox) atual:
+- `src/pages/AuthPage.tsx` linhas **404** (criar conta) e **439** (login) — `translateAuthError` passa a sempre retornar string em PT (nunca `undefined`), então remover o `?? error.message ?? "..."` redundante.
 
-- Ler `ai_bot_config` global (uma vez, já é feito).
-- Se a linha tem `test_org_id` preenchido **mas** `test_instance_name` e `test_instance_token` ainda estão nulos → tratar a primeira chamada como "pareamento":
-  - Pegar `instanceName` (ou `instance`) e `token` do payload da uazapi.
-  - Fazer `update ai_bot_config set test_instance_name=..., test_instance_token=... where id=<global>` usando a service role key (a function já roda com `verify_jwt=false` e tem acesso ao service role).
-  - Continuar o fluxo normal de resposta (chamar `ai-bot-respond` com `test_org_id`).
-- Se já tem credencial salva e ela bate → fluxo sandbox atual.
-- Se já tem credencial salva e **não** bate (mensagem veio de outra instância) → segue para o match de `whatsapp_instances` por loja (fluxo Lucas atual).
+### Toast longo
 
-Nenhuma alteração no fluxo das lojas reais. Nada toca `whatsapp_instances`.
+Como algumas mensagens são mais longas (com instrução), aumentar `duration` do toast pra 7s nesses dois casos via `toast.error(msg, { duration: 7000 })`, pra dar tempo de ler.
 
-### 2. Painel admin (`AIBotAdminTab.tsx`) — UX
+## Arquivos
 
-- Mostrar o estado de "aguardando primeiro evento" quando `test_org_id` está preenchido mas ainda sem `test_instance_name`/`test_instance_token`:
-  > "Sandbox armado. Mande a 1ª mensagem pra esse número — vou capturar o token automaticamente."
-- Quando a credencial aparecer (via realtime em `ai_bot_config`), o card vira verde sozinho.
-- Os campos manuais (URL/token/nome) continuam existindo como fallback, mas saem de "obrigatório" para "opcional / avançado".
-- Botão "Salvar credenciais" continua funcionando igual, pra quem quiser preencher na mão.
-- A regra `missing.push("salvar URL + token da instância acima")` vira `"mandar a 1ª mensagem pro número conectado (ou preencher token manualmente)"`.
+- `src/pages/AuthPage.tsx` — substituir função `translateAuthError` (linhas 18-29) e ajustar os 2 call-sites (linhas 404 e 439).
 
-### 3. Realtime no painel
-
-Adicionar um channel em `ai_bot_config` filtrado por `id=eq.<global>` pra que, quando a edge function gravar o token, o painel atualize sem refresh.
-
-## O que não muda
-
-- `verify_jwt = false` na `whatsapp-webhook` (já está assim).
-- Nenhuma loja real é tocada.
-- `ai-bot-respond` continua igual (já aceita `server_url` override).
-- Migrations já aplicadas seguem como estão — sem nova migration.
-
-## Arquivos afetados
-
-- `supabase/functions/whatsapp-webhook/index.ts` — auto-learn na primeira mensagem
-- `src/components/admin/AIBotAdminTab.tsx` — textos, status "aguardando", realtime em ai_bot_config
-
-Posso implementar?
+Sem migrations, sem mudança de UI, sem outros fluxos afetados.
