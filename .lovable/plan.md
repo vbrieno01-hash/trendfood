@@ -1,43 +1,79 @@
-## Problema
+## Objetivo
 
-No cadastro/login, quando o Supabase retorna erro, a mensagem aparece **em inglês** (ex: "User already registered", "Password should be at least 6 characters"). O lojista não entende, fecha a tela e pode nunca mais voltar.
+Fazer o painel do iFood marcar **"Entrega confirmada"** quando um pedido de entrega própria vira `delivered` na sua Produção. Hoje sai `0 de 4` porque falta uma chamada e o body do dispatch tá incompleto.
 
-A função `translateAuthError` em `src/pages/AuthPage.tsx` (linhas 18-29) só cobre 6 mensagens e exige **match exato** — qualquer variação cai no `error.message` cru em inglês.
+## Diagnóstico (já validado)
 
-## Solução
+Doc oficial iFood (`https://developer.ifood.com.br/pt-BR/docs/guides/modules/order/endpoints`):
 
-Reescrever `translateAuthError` para **sempre devolver uma mensagem clara em português explicando o problema real e o que fazer**. Nunca usar fallback genérico — se nenhum padrão bater, mostrar mensagem que ainda orienta ("Verifique os dados e tente novamente. Se persistir, fale com o suporte.").
+- `POST /orders/{id}/dispatch` exige body `{"deliveredBy":"MERCHANT"}` para entrega própria. Hoje enviamos **sem body**.
+- Pra fechar o ciclo, entrega própria precisa de `POST /orders/{id}/verifyDeliveryCode` com `{"code":"<localizador>"}`. O **localizador** é o campo `phone.localizer` do pedido — é o número "5509 5648" que aparece no painel iFood. Hoje essa edge existe (`ifood-verify-delivery-code`) mas só é chamada manualmente.
 
-### Mensagens cobertas (matching por trecho, case-insensitive)
+Confirmação no banco: os 4 pedidos de teste estão com `ifood_dispatched_at` preenchido e `ifood_concluded_at` ainda `null`. Bate com o sintoma do painel.
 
-| Erro Supabase | Mensagem em PT |
-|---|---|
-| `User already registered` / `already been registered` | "Este e-mail já está cadastrado. Vá em **Entrar** e use sua senha, ou clique em **Esqueci minha senha**." |
-| `Invalid login credentials` | "E-mail ou senha incorretos. Confira ou clique em **Esqueci minha senha**." |
-| `Email not confirmed` | "Você ainda não confirmou seu e-mail. Abra a caixa de entrada (e o spam) e clique no link de confirmação." |
-| `Password should be at least N characters` | "Senha muito curta. Use pelo menos **N caracteres**." (extrai o N do texto) |
-| `weak_password` / `Password is known to be weak` / `pwned` | "Essa senha é fraca ou já vazou na internet. Use uma senha mais forte (letras, números e símbolos)." |
-| `Unable to validate email address` / `invalid format` | "E-mail inválido. Confira se digitou certo (ex: nome@dominio.com)." |
-| `Email rate limit exceeded` / `over_email_send_rate_limit` | "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo." |
-| `For security purposes, you can only request this after X seconds` | "Por segurança, aguarde **X segundos** antes de tentar de novo." (extrai X) |
-| `Signup is disabled` / `signups not allowed` | "Cadastro temporariamente indisponível. Tente em alguns minutos." |
-| `Anonymous sign-ins are disabled` | "Cadastro anônimo desativado. Use seu e-mail e senha." |
-| `Database error saving new user` / `unexpected_failure` | "Erro ao salvar sua conta. Tente novamente em alguns segundos — se continuar, fale com o suporte." |
-| `Token has expired or is invalid` | "Link expirado. Peça um novo link para continuar." |
-| `New password should be different` | "A nova senha precisa ser diferente da anterior." |
-| `Failed to fetch` / `NetworkError` | "Sem conexão com a internet. Verifique sua rede e tente de novo." |
-| Qualquer outro | "Não foi possível concluir. Verifique os dados e tente novamente. Se persistir, fale com o suporte." |
+## Escopo
 
-### Onde aplica
+**Só pedidos iFood** (`gateway_payment_id LIKE 'ifood:%'`). Pedidos WhatsApp, balcão, mesa, PIX, MP — **nenhum** é tocado. Zero impacto em produção pra quem não usa iFood.
 
-- `src/pages/AuthPage.tsx` linhas **404** (criar conta) e **439** (login) — `translateAuthError` passa a sempre retornar string em PT (nunca `undefined`), então remover o `?? error.message ?? "..."` redundante.
+## O que muda
 
-### Toast longo
+### 1. Persistir o localizador quando o pedido entra (`ifood-poll-events`)
 
-Como algumas mensagens são mais longas (com instrução), aumentar `duration` do toast pra 7s nesses dois casos via `toast.error(msg, { duration: 7000 })`, pra dar tempo de ler.
+Hoje a edge salva `ifood_order_type`, `ifood_display_id`, etc. mas não guarda `phone.localizer`. Adiciono:
+- Coluna nova `ifood_delivery_localizer TEXT NULL` na tabela `orders`.
+- No parsing do pedido novo, extrair `order.phone?.localizer` e salvar.
+- Backfill opcional: na próxima leitura de detalhe via API, preencher se faltar.
 
-## Arquivos
+### 2. Dispatch com body correto (`ifood-update-status`)
 
-- `src/pages/AuthPage.tsx` — substituir função `translateAuthError` (linhas 18-29) e ajustar os 2 call-sites (linhas 404 e 439).
+Trocar:
+```ts
+{ path: "dispatch", markField: "ifood_dispatched_at", ... }
+```
+por:
+```ts
+{ path: "dispatch", body: { deliveredBy: "MERCHANT" }, markField: "ifood_dispatched_at", ... }
+```
 
-Sem migrations, sem mudança de UI, sem outros fluxos afetados.
+### 3. Confirmar entrega ao virar `delivered` (entrega própria iFood)
+
+No `actionsForStatus` (case `delivered`, ramo DELIVERY): além do dispatch, adicionar uma segunda ação encadeada:
+```ts
+{ path: "verifyDeliveryCode", body: { code: <localizer> }, markField: "ifood_concluded_at", skipIfFieldSet: "ifood_concluded_at" }
+```
+
+Regras de segurança:
+- Só dispara se `ifood_delivery_localizer` estiver preenchido. Sem localizador → pula e loga (não quebra o fluxo).
+- Idempotente: se `ifood_concluded_at` já existe, pula.
+- Se a chamada falhar (4xx/5xx), o pedido **continua marcado como `delivered`** localmente — só o status no iFood não fecha. Não bloqueia nada na sua loja.
+
+### 4. Bug colateral: `"ifood-n"` quebrado
+
+Encontrei em 2 arquivos do frontend chamadas para uma edge inexistente `"ifood-n"`:
+- `src/pages/CourierPage.tsx`
+- `src/components/admin/IFoodHomologacaoTab.tsx`
+
+E dentro de `supabase/functions/ifood-verify-delivery-code/index.ts` o path do fetch tá como `/orders/${ifoodOrderId}/n` (deveria ser `verifyDeliveryCode`).
+
+Corrigir todos os 3 para o nome certo. Isso já estava quebrado independente da homologação — entregadores tentando validar código falhavam silenciosamente.
+
+## Risco
+
+- **Lojas sem iFood**: nada muda. Código todo gated por `gateway_payment_id LIKE 'ifood:%'`.
+- **Lojas com iFood**: dispatch passa a enviar body que o iFood já esperava (compatível com o que já funcionava sem body, agora explícito). Nova chamada de `verifyDeliveryCode` só roda em entrega própria, idempotente, falha silenciosa.
+- **Migration**: só adiciona coluna nullable — zero impacto em dados existentes.
+
+## Como você testa antes de publicar
+
+1. Eu implemento no preview.
+2. Você abre o app no preview, faz um pedido iFood entrar (homologação).
+3. Avança até `delivered`.
+4. Confere no painel iFood se o contador "Entregas confirmadas" sobe.
+5. Só depois publica.
+
+## Não vou mexer em
+
+- Fluxo TAKEOUT (pickup) — já tá ok.
+- Pedidos não-iFood.
+- Cancelamento (`requestCancellation`) — já tá ok.
+- `phantom orders`, KDS, push, WhatsApp, MP — nada disso entra no escopo.
