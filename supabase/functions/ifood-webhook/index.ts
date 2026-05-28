@@ -293,6 +293,7 @@ async function handleNewOrder(supabase: any, creds: any, event: any): Promise<{ 
     ifood_synced_externally: true,
     ifood_order_type: isPickup ? "TAKEOUT" : "DELIVERY",
     ifood_scheduled_for: extractScheduledFor(ifoodOrder),
+    ifood_delivery_localizer: ifoodOrder.customer?.phone?.localizer ?? null,
   }).select("id").single();
   if (orderError || !order) {
     // Race com poller: pedido já foi criado por outro caminho (unique index 23505)
