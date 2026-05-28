@@ -344,6 +344,8 @@ async function processNewOrder(supabase: any, cred: any, token: string, event: a
     gateway_payment_id: `ifood:${orderId}`,
     ifood_synced_externally: true, // criação veio do iFood
     ifood_scheduled_for: scheduledFor,
+    ifood_order_type: isPickup ? "TAKEOUT" : "DELIVERY",
+    ifood_delivery_localizer: ifoodOrder.customer?.phone?.localizer ?? null,
   }).select("id").single();
   if (orderErr || !newOrder) {
     // Race com webhook: pedido já foi criado por outro caminho (unique index 23505)

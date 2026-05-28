@@ -1666,6 +1666,7 @@ export type Database = {
           id: string
           ifood_cancellation_requested_at: string | null
           ifood_concluded_at: string | null
+          ifood_delivery_localizer: string | null
           ifood_dispatched_at: string | null
           ifood_driver_assigned_at: string | null
           ifood_driver_name: string | null
@@ -1688,6 +1689,7 @@ export type Database = {
           id?: string
           ifood_cancellation_requested_at?: string | null
           ifood_concluded_at?: string | null
+          ifood_delivery_localizer?: string | null
           ifood_dispatched_at?: string | null
           ifood_driver_assigned_at?: string | null
           ifood_driver_name?: string | null
@@ -1710,6 +1712,7 @@ export type Database = {
           id?: string
           ifood_cancellation_requested_at?: string | null
           ifood_concluded_at?: string | null
+          ifood_delivery_localizer?: string | null
           ifood_dispatched_at?: string | null
           ifood_driver_assigned_at?: string | null
           ifood_driver_name?: string | null
