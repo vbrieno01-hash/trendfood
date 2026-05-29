@@ -200,8 +200,13 @@ function buildItemName(item: any): string {
   const opts = (item.options || item.subItems || []) as any[];
   const addons = opts.map((o) => {
     const qty = o.quantity || 1;
-    const price = (o.totalPrice ?? o.price ?? o.unitPrice ?? 0);
-    return `${qty}x ${o.name || "Adicional"} ${fmtMoney(price)}`;
+    // iFood: unitPrice = unitário; totalPrice = unitário × qty. Usar unitário pra não inflar.
+    const unit = o.unitPrice != null
+      ? Number(o.unitPrice)
+      : o.price != null
+        ? Number(o.price)
+        : Number(o.totalPrice ?? 0) / (Number(qty) || 1);
+    return `${qty}x ${o.name || "Adicional"} ${fmtMoney(unit)}`;
   });
   let name = base;
   if (addons.length) name += ` (+ ${addons.join(", ")})`;
