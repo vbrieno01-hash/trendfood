@@ -317,7 +317,11 @@ async function handleNewOrder(supabase: any, creds: any, event: any): Promise<{ 
   const items = (ifoodOrder.items ?? []).map((item: any) => ({
     order_id: order.id,
     name: buildItemName(item),
-    price: Number(item.totalPrice ?? item.unitPrice ?? 0),
+    // price = preço UNITÁRIO (qty é multiplicada no front/recibo).
+    // iFood totalPrice = unitPrice × quantity, então preferimos unitPrice.
+    price: item.unitPrice != null
+      ? Number(item.unitPrice)
+      : Number(item.totalPrice ?? 0) / (Number(item.quantity ?? 1) || 1),
     quantity: item.quantity ?? 1,
     menu_item_id: null,
   }));
