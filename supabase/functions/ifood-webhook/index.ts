@@ -155,7 +155,10 @@ async function applyOrderPatch(supabase: any, orgId: string, ifoodOrderId: strin
     const rows = items.map((it: any) => ({
       order_id: order.id,
       name: String(it.name || "Item iFood") + (it.observations ? ` | Obs: ${String(it.observations).slice(0, 200)}` : ""),
-      price: Number(it.totalPrice ?? it.unitPrice ?? 0),
+      // Salvar UNITÁRIO (qty é multiplicada no front/recibo)
+      price: it.unitPrice != null
+        ? Number(it.unitPrice)
+        : Number(it.totalPrice ?? 0) / (Number(it.quantity ?? 1) || 1),
       quantity: it.quantity || 1,
     }));
     if (rows.length) await supabase.from("order_items").insert(rows);
