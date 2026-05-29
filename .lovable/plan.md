@@ -1,79 +1,62 @@
-## Objetivo
+## Problema
 
-Fazer o painel do iFood marcar **"Entrega confirmada"** quando um pedido de entrega própria vira `delivered` na sua Produção. Hoje sai `0 de 4` porque falta uma chamada e o body do dispatch tá incompleto.
+Os valores dos pedidos iFood estão chegando inflados. Causa raiz confirmada no banco:
 
-## Diagnóstico (já validado)
+- Pedido `#6413` (qty=4) → `price = 231,60` (= 57,90 × 4)
+- Pedido `#3364` (qty=2) → `price = 115,80` (= 57,90 × 2)
+- Pedido qty=1 → `price = 57,90` ✓
 
-Doc oficial iFood (`https://developer.ifood.com.br/pt-BR/docs/guides/modules/order/endpoints`):
+Ou seja: estamos salvando o **total da linha** (`item.totalPrice`) no campo `price` da tabela `order_items`, mas a convenção do sistema é que `price` é o **preço unitário** — a quantidade é multiplicada depois no frontend/recibos. Resultado: pedidos com qty > 1 ficam multiplicados duas vezes (qty²).
 
-- `POST /orders/{id}/dispatch` exige body `{"deliveredBy":"MERCHANT"}` para entrega própria. Hoje enviamos **sem body**.
-- Pra fechar o ciclo, entrega própria precisa de `POST /orders/{id}/verifyDeliveryCode` com `{"code":"<localizador>"}`. O **localizador** é o campo `phone.localizer` do pedido — é o número "5509 5648" que aparece no painel iFood. Hoje essa edge existe (`ifood-verify-delivery-code`) mas só é chamada manualmente.
+Isso afeta:
+- Exibição na Produção/Vendas
+- Recibos térmicos
+- Relatórios financeiros
+- Telegram / WhatsApp de notificação
 
-Confirmação no banco: os 4 pedidos de teste estão com `ifood_dispatched_at` preenchido e `ifood_concluded_at` ainda `null`. Bate com o sintoma do painel.
+Tudo só para pedidos iFood (`gateway_payment_id LIKE 'ifood:%'`). Pedidos WhatsApp, balcão, mesa, PIX e MP não são afetados.
 
-## Escopo
+## Causa exata
 
-**Só pedidos iFood** (`gateway_payment_id LIKE 'ifood:%'`). Pedidos WhatsApp, balcão, mesa, PIX, MP — **nenhum** é tocado. Zero impacto em produção pra quem não usa iFood.
-
-## O que muda
-
-### 1. Persistir o localizador quando o pedido entra (`ifood-poll-events`)
-
-Hoje a edge salva `ifood_order_type`, `ifood_display_id`, etc. mas não guarda `phone.localizer`. Adiciono:
-- Coluna nova `ifood_delivery_localizer TEXT NULL` na tabela `orders`.
-- No parsing do pedido novo, extrair `order.phone?.localizer` e salvar.
-- Backfill opcional: na próxima leitura de detalhe via API, preencher se faltar.
-
-### 2. Dispatch com body correto (`ifood-update-status`)
-
-Trocar:
+Em 4 lugares (2 arquivos), o insert/patch do item faz:
 ```ts
-{ path: "dispatch", markField: "ifood_dispatched_at", ... }
+price: Number(it.totalPrice ?? it.unitPrice ?? 0)
 ```
-por:
+`totalPrice` no payload do iFood = `unitPrice × quantity`. Deveria priorizar `unitPrice`.
+
+Mesmo problema nos adicionais (`buildItemName`):
 ```ts
-{ path: "dispatch", body: { deliveredBy: "MERCHANT" }, markField: "ifood_dispatched_at", ... }
+const price = (o.totalPrice ?? o.price ?? o.unitPrice ?? 0);
 ```
+Faz o label do adicional mostrar o valor total da linha do adicional em vez do unitário.
 
-### 3. Confirmar entrega ao virar `delivered` (entrega própria iFood)
+## Correção proposta
 
-No `actionsForStatus` (case `delivered`, ramo DELIVERY): além do dispatch, adicionar uma segunda ação encadeada:
+**Itens (4 ocorrências):**
 ```ts
-{ path: "verifyDeliveryCode", body: { code: <localizer> }, markField: "ifood_concluded_at", skipIfFieldSet: "ifood_concluded_at" }
+const qty = Number(it.quantity ?? 1) || 1;
+const unit = it.unitPrice != null
+  ? Number(it.unitPrice)
+  : Number(it.totalPrice ?? 0) / qty;
+// ...
+price: unit,
 ```
 
-Regras de segurança:
-- Só dispara se `ifood_delivery_localizer` estiver preenchido. Sem localizador → pula e loga (não quebra o fluxo).
-- Idempotente: se `ifood_concluded_at` já existe, pula.
-- Se a chamada falhar (4xx/5xx), o pedido **continua marcado como `delivered`** localmente — só o status no iFood não fecha. Não bloqueia nada na sua loja.
+**Adicionais (label):** mesma lógica — priorizar `unitPrice`, dividir `totalPrice` por `quantity` se só vier o total.
 
-### 4. Bug colateral: `"ifood-n"` quebrado
+**Arquivos alterados:**
+- `supabase/functions/ifood-webhook/index.ts` (linhas 158, 203, 315)
+- `supabase/functions/ifood-poll-events/index.ts` (linhas 169, 216, 366)
 
-Encontrei em 2 arquivos do frontend chamadas para uma edge inexistente `"ifood-n"`:
-- `src/pages/CourierPage.tsx`
-- `src/components/admin/IFoodHomologacaoTab.tsx`
-
-E dentro de `supabase/functions/ifood-verify-delivery-code/index.ts` o path do fetch tá como `/orders/${ifoodOrderId}/n` (deveria ser `verifyDeliveryCode`).
-
-Corrigir todos os 3 para o nome certo. Isso já estava quebrado independente da homologação — entregadores tentando validar código falhavam silenciosamente.
+**Backfill (opcional, só recomendado se você quiser corrigir os pedidos de teste já registrados):** UPDATE em `order_items` dos pedidos iFood com qty > 1 dividindo `price` por `quantity`. Como são só pedidos de homologação/teste, dá pra **pular** o backfill e deixar valer só pra pedidos novos.
 
 ## Risco
 
-- **Lojas sem iFood**: nada muda. Código todo gated por `gateway_payment_id LIKE 'ifood:%'`.
-- **Lojas com iFood**: dispatch passa a enviar body que o iFood já esperava (compatível com o que já funcionava sem body, agora explícito). Nova chamada de `verifyDeliveryCode` só roda em entrega própria, idempotente, falha silenciosa.
-- **Migration**: só adiciona coluna nullable — zero impacto em dados existentes.
+- Mexe **só** em edges iFood, só na hora de inserir item novo.
+- Não toca em pedidos existentes (sem backfill).
+- Não afeta WhatsApp, balcão, mesa, KDS, MP, PIX, recibos não-iFood.
+- Não muda lógica de status, dispatch, verifyDeliveryCode (já implementados).
 
-## Como você testa antes de publicar
+## Validação
 
-1. Eu implemento no preview.
-2. Você abre o app no preview, faz um pedido iFood entrar (homologação).
-3. Avança até `delivered`.
-4. Confere no painel iFood se o contador "Entregas confirmadas" sobe.
-5. Só depois publica.
-
-## Não vou mexer em
-
-- Fluxo TAKEOUT (pickup) — já tá ok.
-- Pedidos não-iFood.
-- Cancelamento (`requestCancellation`) — já tá ok.
-- `phantom orders`, KDS, push, WhatsApp, MP — nada disso entra no escopo.
+Após deploy, próximo pedido iFood de teste com qty>1 deve mostrar o valor unitário correto em `order_items.price`, e o total na UI/recibo deve bater com o `total` do iFood.

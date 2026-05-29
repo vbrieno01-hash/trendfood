@@ -166,7 +166,10 @@ async function applyOrderPatch(supabase: any, orgId: string, ifoodOrderId: strin
     const rows = items.map((it: any) => ({
       order_id: order.id,
       name: String(it.name || "Item iFood") + (it.observations ? ` | Obs: ${String(it.observations).slice(0, 200)}` : ""),
-      price: Number(it.totalPrice ?? it.unitPrice ?? 0),
+      // Salvar UNITÁRIO (qty é multiplicada no front/recibo)
+      price: it.unitPrice != null
+        ? Number(it.unitPrice)
+        : Number(it.totalPrice ?? 0) / (Number(it.quantity ?? 1) || 1),
       quantity: it.quantity || 1,
     }));
     if (rows.length) await supabase.from("order_items").insert(rows);
@@ -213,8 +216,13 @@ function buildItemName(item: any): string {
   const opts = (item.options || item.subItems || []) as any[];
   const addons = opts.map((o) => {
     const qty = o.quantity || 1;
-    const price = (o.totalPrice ?? o.price ?? o.unitPrice ?? 0);
-    return `${qty}x ${o.name || "Adicional"} ${fmtMoney(price)}`;
+    // iFood: unitPrice = unitário; totalPrice = unitário × qty. Usar unitário.
+    const unit = o.unitPrice != null
+      ? Number(o.unitPrice)
+      : o.price != null
+        ? Number(o.price)
+        : Number(o.totalPrice ?? 0) / (Number(qty) || 1);
+    return `${qty}x ${o.name || "Adicional"} ${fmtMoney(unit)}`;
   });
   let name = base;
   if (addons.length) name += ` (+ ${addons.join(", ")})`;
@@ -363,7 +371,10 @@ async function processNewOrder(supabase: any, cred: any, token: string, event: a
   const items = (ifoodOrder.items || []).map((item: any) => ({
     order_id: newOrder.id,
     name: buildItemName(item),
-    price: Number(item.totalPrice ?? item.unitPrice ?? 0),
+    // price = UNITÁRIO (qty é multiplicada depois). totalPrice do iFood = unit × qty.
+    price: item.unitPrice != null
+      ? Number(item.unitPrice)
+      : Number(item.totalPrice ?? 0) / (Number(item.quantity ?? 1) || 1),
     quantity: item.quantity || 1,
   }));
   if (items.length > 0) await supabase.from("order_items").insert(items);
