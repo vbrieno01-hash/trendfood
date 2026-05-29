@@ -371,7 +371,10 @@ async function processNewOrder(supabase: any, cred: any, token: string, event: a
   const items = (ifoodOrder.items || []).map((item: any) => ({
     order_id: newOrder.id,
     name: buildItemName(item),
-    price: Number(item.totalPrice ?? item.unitPrice ?? 0),
+    // price = UNITÁRIO (qty é multiplicada depois). totalPrice do iFood = unit × qty.
+    price: item.unitPrice != null
+      ? Number(item.unitPrice)
+      : Number(item.totalPrice ?? 0) / (Number(item.quantity ?? 1) || 1),
     quantity: item.quantity || 1,
   }));
   if (items.length > 0) await supabase.from("order_items").insert(items);
