@@ -128,3 +128,11 @@ verify_jwt = false
 
 [functions.ifood-merchant-api]
 verify_jwt = false
+[functions.telegram-affiliate-webhook]
+verify_jwt = false
+
+[functions.affiliate-auto-choose]
+verify_jwt = false
+
+[functions.affiliate-monthly-payout]
+verify_jwt = false

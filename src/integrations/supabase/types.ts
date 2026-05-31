@@ -134,6 +134,139 @@ export type Database = {
         }
         Relationships: []
       }
+      affiliate_client_goals: {
+        Row: {
+          affiliate_id: string
+          choice_deadline_at: string
+          client_amount_cents: number
+          client_org_id: string
+          client_paid_at: string
+          completed_at: string | null
+          created_at: string
+          cycle: string
+          id: string
+          installments_paid: number
+          installments_total: number
+          mode: Database["public"]["Enums"]["affiliate_goal_mode"]
+          next_release_at: string | null
+          plan_key: string
+          source_payment_id: string | null
+          status: Database["public"]["Enums"]["affiliate_goal_status"]
+          telegram_message_id: string | null
+          tier_installment_pct: number
+          tier_upfront_pct: number
+          total_commission_cents: number
+          updated_at: string
+        }
+        Insert: {
+          affiliate_id: string
+          choice_deadline_at?: string
+          client_amount_cents: number
+          client_org_id: string
+          client_paid_at?: string
+          completed_at?: string | null
+          created_at?: string
+          cycle: string
+          id?: string
+          installments_paid?: number
+          installments_total?: number
+          mode?: Database["public"]["Enums"]["affiliate_goal_mode"]
+          next_release_at?: string | null
+          plan_key: string
+          source_payment_id?: string | null
+          status?: Database["public"]["Enums"]["affiliate_goal_status"]
+          telegram_message_id?: string | null
+          tier_installment_pct: number
+          tier_upfront_pct: number
+          total_commission_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          affiliate_id?: string
+          choice_deadline_at?: string
+          client_amount_cents?: number
+          client_org_id?: string
+          client_paid_at?: string
+          completed_at?: string | null
+          created_at?: string
+          cycle?: string
+          id?: string
+          installments_paid?: number
+          installments_total?: number
+          mode?: Database["public"]["Enums"]["affiliate_goal_mode"]
+          next_release_at?: string | null
+          plan_key?: string
+          source_payment_id?: string | null
+          status?: Database["public"]["Enums"]["affiliate_goal_status"]
+          telegram_message_id?: string | null
+          tier_installment_pct?: number
+          tier_upfront_pct?: number
+          total_commission_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_client_goals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_client_goals_client_org_id_fkey"
+            columns: ["client_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_client_goals_client_org_id_fkey"
+            columns: ["client_org_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_commission_tiers: {
+        Row: {
+          active: boolean
+          created_at: string
+          cycle: string
+          id: string
+          installment_pct: number
+          label: string
+          plan_key: string
+          sort_order: number
+          updated_at: string
+          upfront_pct: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          cycle: string
+          id?: string
+          installment_pct: number
+          label: string
+          plan_key: string
+          sort_order?: number
+          updated_at?: string
+          upfront_pct: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          cycle?: string
+          id?: string
+          installment_pct?: number
+          label?: string
+          plan_key?: string
+          sort_order?: number
+          updated_at?: string
+          upfront_pct?: number
+        }
+        Relationships: []
+      }
       affiliate_commissions: {
         Row: {
           affiliate_id: string
@@ -142,10 +275,13 @@ export type Database = {
           commission_cents: number
           commission_pct: number
           created_at: string
+          goal_id: string | null
           id: string
+          installment_index: number
           notes: string | null
           organization_id: string
           paid_at: string | null
+          paid_in_batch_id: string | null
           payment_id: string | null
           refunded_at: string | null
           release_at: string
@@ -159,10 +295,13 @@ export type Database = {
           commission_cents: number
           commission_pct: number
           created_at?: string
+          goal_id?: string | null
           id?: string
+          installment_index?: number
           notes?: string | null
           organization_id: string
           paid_at?: string | null
+          paid_in_batch_id?: string | null
           payment_id?: string | null
           refunded_at?: string | null
           release_at?: string
@@ -176,10 +315,13 @@ export type Database = {
           commission_cents?: number
           commission_pct?: number
           created_at?: string
+          goal_id?: string | null
           id?: string
+          installment_index?: number
           notes?: string | null
           organization_id?: string
           paid_at?: string | null
+          paid_in_batch_id?: string | null
           payment_id?: string | null
           refunded_at?: string | null
           release_at?: string
@@ -192,6 +334,13 @@ export type Database = {
             columns: ["affiliate_id"]
             isOneToOne: false
             referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_client_goals"
             referencedColumns: ["id"]
           },
           {
@@ -209,6 +358,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      affiliate_payout_batches: {
+        Row: {
+          affiliate_count: number
+          commission_count: number
+          created_at: string
+          csv_data: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          period_month: string
+          status: string
+          total_cents: number
+          updated_at: string
+        }
+        Insert: {
+          affiliate_count?: number
+          commission_count?: number
+          created_at?: string
+          csv_data?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          period_month: string
+          status?: string
+          total_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          affiliate_count?: number
+          commission_count?: number
+          created_at?: string
+          csv_data?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          period_month?: string
+          status?: string
+          total_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       affiliates: {
         Row: {
@@ -3167,6 +3358,13 @@ export type Database = {
       wa_extract_tipo: { Args: { p_notes: string }; Returns: string }
     }
     Enums: {
+      affiliate_goal_mode: "pending_choice" | "upfront" | "installments_3x"
+      affiliate_goal_status:
+        | "awaiting_choice"
+        | "active"
+        | "completed"
+        | "refunded"
+        | "cancelled"
       app_role: "admin"
     }
     CompositeTypes: {
@@ -3295,6 +3493,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      affiliate_goal_mode: ["pending_choice", "upfront", "installments_3x"],
+      affiliate_goal_status: [
+        "awaiting_choice",
+        "active",
+        "completed",
+        "refunded",
+        "cancelled",
+      ],
       app_role: ["admin"],
     },
   },
