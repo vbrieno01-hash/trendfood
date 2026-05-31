@@ -188,7 +188,7 @@ async function processAffiliateCommission(
     if (!amountPaid || amountPaid <= 0) return;
     const { data: org } = await supabase
       .from("organizations")
-      .select("affiliate_id")
+      .select("affiliate_id, subscription_plan")
       .eq("id", orgId)
       .maybeSingle();
     const affiliateId = (org as any)?.affiliate_id;
@@ -196,60 +196,112 @@ async function processAffiliateCommission(
 
     const { data: aff } = await supabase
       .from("affiliates")
-      .select("id, commission_pct, active")
+      .select("id, commission_pct, active, telegram_chat_id, name")
       .eq("id", affiliateId)
       .maybeSingle();
     if (!aff || !(aff as any).active) return;
 
-    // Idempotência: se já existe linha pra esse payment_id, não duplica
     const pidStr = paymentId ? String(paymentId) : null;
+
+    // Idempotência: se já existe goal pra esse payment_id, não duplica
     if (pidStr) {
-      const { data: existing } = await supabase
-        .from("affiliate_commissions")
+      const { data: existingGoal } = await supabase
+        .from("affiliate_client_goals")
         .select("id")
-        .eq("payment_id", pidStr)
+        .eq("source_payment_id", pidStr)
+        .eq("affiliate_id", affiliateId)
         .maybeSingle();
-      if (existing) {
-        console.log("[mp-webhook] commission já existe para payment", pidStr);
+      if (existingGoal) {
+        console.log("[mp-webhook] goal já existe para payment", pidStr);
         return;
       }
     }
 
     const amountCents = Math.round(Number(amountPaid) * 100);
-    const pct = Number((aff as any).commission_pct) || 50;
-    const commissionCents = Math.round(amountCents * (pct / 100));
 
-    const { data: inserted, error: insErr } = await supabase
-      .from("affiliate_commissions")
+    // Busca tier (plan_key + cycle)
+    const planKey = (org as any)?.subscription_plan === "lifetime" ? "lifetime" : "pro";
+    const cycleKey = planKey === "lifetime" ? "lifetime" : (billingCycle || "monthly");
+
+    const { data: tier } = await supabase
+      .from("affiliate_commission_tiers")
+      .select("upfront_pct, installment_pct, label")
+      .eq("plan_key", planKey)
+      .eq("cycle", cycleKey)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (!tier) {
+      console.warn("[mp-webhook] sem tier para", planKey, cycleKey);
+      return;
+    }
+
+    const upfrontCents = Math.round(amountCents * Number((tier as any).upfront_pct) / 100);
+    const monthlyCents = Math.round(amountCents * Number((tier as any).installment_pct) / 100);
+    const threeXTotal = monthlyCents * 3;
+
+    const { data: goal, error: gErr } = await supabase
+      .from("affiliate_client_goals")
       .insert({
         affiliate_id: affiliateId,
-        organization_id: orgId,
-        payment_id: pidStr,
-        amount_paid_cents: amountCents,
-        commission_cents: commissionCents,
-        commission_pct: pct,
-        billing_cycle: billingCycle || null,
-        status: "pending",
+        client_org_id: orgId,
+        source_payment_id: pidStr,
+        plan_key: planKey,
+        cycle: cycleKey,
+        client_amount_cents: amountCents,
+        tier_upfront_pct: (tier as any).upfront_pct,
+        tier_installment_pct: (tier as any).installment_pct,
+        mode: "pending_choice",
+        total_commission_cents: 0,
+        status: "awaiting_choice",
       })
       .select("id")
       .single();
 
-    if (insErr) {
-      console.error("[mp-webhook] insert commission err:", insErr);
+    if (gErr) {
+      console.error("[mp-webhook] insert goal err:", gErr);
       return;
     }
 
-    // Notifica afiliado (não bloqueia)
-    try {
-      await supabase.functions.invoke("notify-affiliate-telegram", {
-        body: {
-          event_type: "new_payment",
-          affiliate_id: affiliateId,
-          commission_id: (inserted as any).id,
-        },
-      });
-    } catch (e) {
-      console.error("[mp-webhook] notify affiliate err (non-blocking):", e);
+    // Envia Telegram com botões inline (se afiliado tem chat_id)
+    if ((aff as any).telegram_chat_id) {
+      try {
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+        const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
+        if (LOVABLE_API_KEY && TELEGRAM_API_KEY) {
+          const { data: orgInfo } = await supabase.from("organizations").select("name").eq("id", orgId).maybeSingle();
+          const orgName = (orgInfo as any)?.name || "—";
+          const fmt = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          const text = `🎉 <b>Nova loja: ${orgName}</b>\n\n` +
+            `📦 Plano: <b>${(tier as any).label}</b>\n` +
+            `💵 Valor: ${fmt(amountCents)}\n\n` +
+            `Como quer receber sua comissão?\n\n` +
+            `💰 <b>À Vista</b>: ${fmt(upfrontCents)} (libera em 7 dias)\n` +
+            `📅 <b>3x mensal</b>: ${fmt(monthlyCents)}/mês = ${fmt(threeXTotal)}\n\n` +
+            `⏰ Você tem 48h. Sem escolha = À Vista.`;
+          await fetch("https://connector-gateway.lovable.dev/telegram/sendMessage", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "X-Connection-Api-Key": TELEGRAM_API_KEY,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              chat_id: (aff as any).telegram_chat_id,
+              text,
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: `💰 À Vista (${fmt(upfrontCents)})`, callback_data: `aff:choice:${(goal as any).id}:upfront` },
+                  { text: `📅 3x (${fmt(monthlyCents)}/mês)`, callback_data: `aff:choice:${(goal as any).id}:3x` },
+                ]],
+              },
+            }),
+          });
+        }
+      } catch (e) {
+        console.error("[mp-webhook] telegram goal prompt err:", e);
+      }
     }
   } catch (err) {
     console.error("[mp-webhook] processAffiliateCommission error (non-blocking):", err);
