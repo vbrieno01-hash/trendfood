@@ -1,102 +1,103 @@
-## Visão geral
+## Objetivo
 
-Zera recorrência infinita. Cada cliente trazido pelo afiliado é uma **meta** com começo e fim:
-- **À Vista**: afiliado recebe 100% da comissão (% upfront da tabela v8) 7 dias após o pagamento do cliente. Cliente "morre" — não gera mais nada.
-- **3x**: afiliado recebe 1/3 da comissão (% 3x da tabela v8) por mês durante 3 meses corridos. No 3º mês o cliente "morre".
+UI admin completa do sistema de afiliados V8 numa **única aba** (`AffiliatesTab`), sem sub-abas — tudo empilhado em seções colapsáveis/acordeão pra não poluir.
 
-Quem escolhe é o **próprio afiliado, pelo Telegram**, quando o bot avisa que uma loja nova assinou (botões inline). Tem 48h pra escolher, senão vai automático pra **À Vista**.
+Backend já existe: `affiliate_commission_tiers`, `affiliate_client_goals`, `affiliate_payout_batches`, `affiliate_commissions`.
 
-Pagamento batch **todo dia 5 do mês** (manual via CSV/lista no Telegram do admin — você dispara o PIX em lote no app do banco).
+## Layout da aba (top → bottom)
 
-## Tabela v8 (referência)
+```text
+┌─ Header: "Afiliados" + botão "Novo afiliado"
+│
+├─ [SEÇÃO 1] KPIs globais (4 cards inline)
+│   • Afiliados ativos
+│   • Metas ativas
+│   • A pagar próximo dia 5
+│   • Já pago total
+│
+├─ [SEÇÃO 2] 💸 Próximo Pagamento — Dia 05/MM (destaque, expansível, aberto por padrão)
+│   • Data do próximo dia 5
+│   • Tabela: Afiliado | PIX | Parcelas | Valor — com total no rodapé
+│   • Botões: [Baixar CSV PIX] [Executar pagamento agora]
+│
+├─ [SEÇÃO 3] 📊 Tiers V8 (% comissões) — colapsável, fechada por padrão
+│   • Grid 6 linhas editáveis: Plano | À Vista % | 3x cada %
+│   • Salvar inline por linha
+│
+├─ [SEÇÃO 4] 👥 Afiliados (cards) — sempre visível
+│   • Cada card: nome, código, telegram, PIX
+│   • Mini-stats: Lojas | Metas ativas | Aguardando escolha | A pagar dia 5 | Já pago
+│   • Ações: Link, Testar TG, Ver metas (abre dialog filtrado), Editar
+│
+├─ [SEÇÃO 5] 🎯 Metas (clientes trazidos) — colapsável
+│   • Filtros chips: Todos / Aguardando / À Vista / 3x / Concluídas / Reembolsadas
+│   • Busca por afiliado ou loja
+│   • Tabela: Loja | Afiliado | Plano | Modo | Progresso | Comissão | Próxima | Status | Ações
+│   • Ações: Ver parcelas (popover), Forçar À Vista, Marcar reembolsado
+│
+└─ [SEÇÃO 6] 📜 Histórico de batches — colapsável
+    • Lista de affiliate_payout_batches desc
+    • Click expande as parcelas/afiliados do batch
+    • Botão "Baixar CSV" reconstrói CSV
+```
 
-| Plano cliente | À Vista | 3x (cada parcela) |
-|---|---|---|
-| Mensal R$ 79 | 30% | 25% |
-| Trimestral R$ 199 | 20% | 15% |
-| Anual R$ 599 | 15% | 10% |
-| Lifetime R$ 999 | 25% | 12% |
-| Add-on mensal | 15% | 12% |
-| Add-on único | 10% | 12% |
+Componente de seção: `<details>` estilizado OU `Collapsible` do shadcn com header clicável e chevron.
 
-## Mudanças no banco
+## Detalhes por seção
 
-**`affiliates`** — remove `commission_mode` (não é mais por afiliado, é por cliente). Mantém `pix_key`, `telegram_chat_id`.
+### 1. KPIs globais
+4 cards `admin-glass` no padrão do `ReferralsTab`. Queries paralelas via React Query.
 
-**`affiliate_commission_tiers`** (nova) — 6 linhas com `plan`, `cycle`, `upfront_pct`, `installment_pct`. Editável no admin.
+### 2. Próximo Pagamento Dia 5
+- Calcula próximo dia 5 (se hoje ≤ 5, mês atual; senão próximo mês)
+- Query: `affiliate_commissions` com `release_at <= próximo_dia_5` AND `paid_in_batch_id IS NULL` AND `status != 'cancelled'`
+- Agrupa por afiliado no client
+- CSV format: `chave_pix;valor;nome_favorecido;descricao`
+- "Executar pagamento agora": confirm dialog → `supabase.functions.invoke('affiliate-monthly-payout', { body: { manual: true } })`
 
-**`affiliate_client_goals`** (nova, substitui o modelo recorrente):
-- `id`, `affiliate_id`, `client_org_id`, `source_payment_id`, `plan`, `cycle`, `client_amount`
-- `mode` ENUM (`pending_choice`, `upfront`, `installments_3x`)
-- `total_commission` (valor fechado da meta)
-- `installments_total` (1 ou 3), `installments_paid` (0..3)
-- `next_release_at`
-- `status` ENUM (`awaiting_choice`, `active`, `completed`, `refunded`)
-- `choice_deadline_at` (default = now + 48h)
-- `completed_at`
+### 3. Tiers V8
+- 6 linhas: mensal/trimestral/anual/lifetime/addon_monthly/addon_one_time
+- Input numérico 0–100 (1 decimal) pra `upfront_pct` e `installment_pct`
+- Botão Salvar por linha; indicador "alterado" antes de salvar
+- Header explicativo: "Alterações não afetam metas já criadas."
 
-**`affiliate_commissions`** (existente) — vira "parcela da meta": adiciona `goal_id`, `installment_index` (1..3), `release_at`, `paid_in_batch_id`.
+### 4. Afiliados (refresh do existente)
+- **Remove** campo `commission_pct` do form (agora é por tier)
+- **Remove** badge de % do card
+- **Adiciona** mini-stats novos (metas ativas/aguardando/a pagar/pago)
+- Mantém: CRUD, Link copiar, Testar Telegram
+- "Ver metas" abre Dialog reaproveitando a tabela da Seção 5 filtrada por aquele afiliado
 
-**`affiliate_payout_batches`** (nova) — 1 linha por dia 5: `id`, `period_month`, `paid_at`, `total_amount`, `csv_url`, `notes`.
+### 5. Metas (Goals)
+- Filtros chips clicáveis no topo
+- Busca debounced
+- Badge de status colorido (Aguardando = amarelo, Ativo = azul, Concluída = verde, Reembolsada = vermelho)
+- Modo badge: Aguardando / À Vista / 3x (1/3, 2/3, 3/3)
+- Ações admin com `confirm()`:
+  - Forçar À Vista → UPDATE `affiliate_client_goals` SET `mode='upfront'`, recalcula parcela (via edge function `telegram-affiliate-webhook` ou nova RPC)
+  - Marcar reembolsado → UPDATE `status='refunded'` + UPDATE parcelas não-pagas para `cancelled`
 
-## Edge functions
+### 6. Histórico de batches
+- Lista de `affiliate_payout_batches` por `paid_at desc`
+- Linha clicável expande mostrando `affiliate_commissions` com `paid_in_batch_id = batch.id` agrupadas por afiliado
+- Botão "Baixar CSV" reconstrói a partir dessas parcelas
 
-**`mp-webhook`** (rewrite parcial): quando cliente paga, cria `affiliate_client_goals` com `status=awaiting_choice`, busca tier, calcula upfront e 3x, dispara `notify-affiliate-telegram` com botões inline `[À Vista 7d]` `[3x mensal]`.
+## Arquivos
 
-**`telegram-webhook-affiliate`** (nova): recebe `callback_query` do botão, atualiza `mode`, cria parcelas em `affiliate_commissions`:
-- À Vista: 1 linha, `release_at = payment_date + 7 dias`
-- 3x: 3 linhas, `release_at = payment_date + 30/60/90 dias`
-- Marca `status=active`, confirma no chat.
+- `src/components/admin/AffiliatesTab.tsx` — reescrito como composição das seções
+- `src/components/admin/affiliates/AffiliateKpis.tsx`
+- `src/components/admin/affiliates/NextPayoutSection.tsx`
+- `src/components/admin/affiliates/TiersGrid.tsx`
+- `src/components/admin/affiliates/AffiliateCards.tsx` (extraído + atualizado)
+- `src/components/admin/affiliates/GoalsSection.tsx`
+- `src/components/admin/affiliates/BatchesHistory.tsx`
+- `src/components/admin/affiliates/csvUtils.ts` — gera CSV PIX
+- `src/components/admin/affiliates/useAffiliateData.ts` — hooks React Query compartilhados
 
-**`affiliate-auto-choose`** (cron diário): goals com `choice_deadline_at < now` e `awaiting_choice` → força `upfront`, avisa afiliado.
+Tema: `admin-glass`, `animate-admin-fade-in`, badges semânticos. React Query com `staleTime: 30s`. Sem mexer em edge functions, banco, nem `ReferralsTab`.
 
-**`affiliate-monthly-payout`** (cron dia 5 às 09:00 BRT):
-- Pega `affiliate_commissions` com `release_at <= now` e `paid_in_batch_id IS NULL`
-- Agrupa por afiliado, cria `affiliate_payout_batches`
-- Marca parcelas como pagas, incrementa `installments_paid`
-- Se `installments_paid == installments_total` → `status=completed`, manda "🎯 Meta concluída"
-- Gera CSV (chave PIX + valor) e envia pro Telegram do admin pra pagar em lote
+## Fora do escopo
 
-**`mp-webhook` (refund)**: chargeback → `goal.status=refunded`, parcelas não-pagas viram `cancelled`.
-
-## Telegram do afiliado
-
-1. **Cliente novo** (com botões):
-   ```
-   🎉 Nova loja: Pizzaria do Zé
-   Plano: Mensal R$ 79
-   
-   💰 À Vista: R$ 23,70 em 7 dias
-   📅 3x: R$ 19,75/mês (total R$ 59,25)
-   
-   ⏰ Você tem 48h. Sem escolha = À Vista.
-   ```
-
-2. **Confirmação**: "✅ Escolha registrada: 3x. Próxima parcela libera em 30/06 (R$ 19,75)."
-
-3. **Dia 5 — pagamento**:
-   ```
-   💸 Pagamento de Maio — R$ 187,50
-   • Pizzaria do Zé (3x, 2/3): R$ 19,75
-   • Bar X (À Vista, final): R$ 23,70 ✅
-   • Lanches Y (3x, 1/3): R$ 19,75
-   PIX enviado pra xxx@xxx
-   ```
-
-4. **Meta concluída**: "🎯 Cliente XYZ encerrou (3/3 pago). Total: R$ 59,25. Bora trazer mais!"
-
-5. **Comando `/metas`**: lista goals ativas com próxima parcela e quanto falta.
-
-## Admin (`AffiliatesTab` + `ReferralsTab`)
-
-- **Tiers editáveis** (grid 6 linhas, upfront % e 3x %)
-- **Card por afiliado**: total recebido, metas ativas, metas concluídas, próximo pagamento dia 5
-- **Tabela de goals** filtrável por status
-- **Aba "Pagamento dia 5"**: preview do batch atual (quem recebe, quanto), botão "Marcar como pago" + upload de comprovante, download CSV
-- **Histórico de batches**
-
-## Fora do escopo (fica pra depois)
-
-- PIX automático via MP em lote
-- Portal web do afiliado (só Telegram + admin)
-- Comissão escalonada por volume
+- Backend (já pronto)
+- Portal afiliado externo
+- PIX automático via MP
