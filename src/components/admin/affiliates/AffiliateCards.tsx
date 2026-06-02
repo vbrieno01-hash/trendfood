@@ -34,7 +34,7 @@ export default function AffiliateCards({
   const [editing, setEditing] = useState<Partial<Affiliate> | null>(null);
   const [saving, setSaving] = useState(false);
   const [detailsOf, setDetailsOf] = useState<Affiliate | null>(null);
-  const PROD_URL = "https://trendfood.lovable.app";
+  const PROD_URL = "https://trendfood.site";
   const baseUrl = `${PROD_URL}/auth`;
   const cutoff = useMemo(() => nextPayoutDate(), []);
 
