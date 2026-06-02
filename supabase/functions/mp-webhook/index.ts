@@ -219,9 +219,10 @@ async function processAffiliateCommission(
 
     const amountCents = Math.round(Number(amountPaid) * 100);
 
-    // Busca tier (plan_key + cycle)
-    const planKey = (org as any)?.subscription_plan === "lifetime" ? "lifetime" : "pro";
-    const cycleKey = planKey === "lifetime" ? "lifetime" : (billingCycle || "monthly");
+    // Busca tier (plan_key + cycle) — apenas pro/enterprise estão na tabela V8
+    const subPlan = (org as any)?.subscription_plan;
+    const planKey = subPlan === "enterprise" ? "enterprise" : "pro";
+    const cycleKey = billingCycle || "monthly";
 
     const { data: tier } = await supabase
       .from("affiliate_commission_tiers")
