@@ -51,7 +51,17 @@ export default function IFoodMerchantHomologTab() {
       const { data, error } = await supabase.functions.invoke("ifood-merchant-api", {
         body: { action, organization_id: orgId, payload },
       });
-      if (error) throw error;
+      if (error) {
+        const msg = (error as any)?.message || String(error);
+        const status = (error as any)?.context?.status;
+        const isForbidden = status === 403 || /forbidden/i.test(msg);
+        if (opts.silent || isForbidden) {
+          setLoadError({ code: isForbidden ? "Forbidden" : "Error", message: msg });
+          return null;
+        }
+        toast.error("Erro iFood", { description: msg });
+        return null;
+      }
       if (data?.code || data?.error) {
         if (!opts.silent) {
           toast.error(data.message || data.error || "Erro iFood", { description: JSON.stringify(data.details || data) });
@@ -81,11 +91,8 @@ export default function IFoodMerchantHomologTab() {
   };
 
   useEffect(() => {
-    const sel = orgs.find((o) => o.id === orgId);
-    if (orgId && sel?.merchant_id) loadAll();
-    else { setMerchant(null); setStatus(null); setHours(null); setInterruptions([]); setLoadError(null); }
-    /* eslint-disable-next-line */
-  }, [orgId, orgs]);
+    setMerchant(null); setStatus(null); setHours(null); setInterruptions([]); setLoadError(null);
+  }, [orgId]);
 
   const runChecklist = async () => {
     setChecklist(null);
