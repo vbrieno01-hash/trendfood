@@ -327,6 +327,8 @@ function AdminContent() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "trial">("all");
   const [addressFilter, setAddressFilter] = useState<"all" | "with" | "without">("all");
+  const [planFilter, setPlanFilter] = useState<"all" | "free" | "trial" | "pro" | "enterprise" | "lifetime" | "expired">("all");
+  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "name" | "plan">("recent");
   const [activeTab, setActiveTab] = useState<AdminTab>("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
