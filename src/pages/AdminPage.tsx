@@ -495,7 +495,20 @@ function AdminContent() {
 
   const filteredOrgs = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return orgs
+    const now = Date.now();
+    const planBucket = (org: typeof orgs[number]) => {
+      const plan = org.subscription_plan;
+      const trialFuture = !!org.trial_ends_at && new Date(org.trial_ends_at).getTime() > now;
+      if (plan === "lifetime") return "lifetime";
+      if (plan === "free") return trialFuture ? "trial" : "free";
+      if (plan === "pro" || plan === "enterprise") {
+        if (!trialFuture && org.trial_ends_at) return "expired";
+        return plan;
+      }
+      return "free";
+    };
+    const planRank: Record<string, number> = { enterprise: 0, lifetime: 1, pro: 2, trial: 3, free: 4, expired: 5 };
+    const list = orgs
       .filter((org) =>
         q === "" || org.name.toLowerCase().includes(q) || org.slug.toLowerCase().includes(q)
       )
@@ -512,15 +525,40 @@ function AdminContent() {
         if (addressFilter === "all") return true;
         if (addressFilter === "with") return !!org.store_address;
         return !org.store_address;
-      });
-  }, [orgs, search, statusFilter, addressFilter]);
+      })
+      .filter((org) => planFilter === "all" || planBucket(org) === planFilter);
 
-  const hasActiveFilters = search !== "" || statusFilter !== "all" || addressFilter !== "all";
+    const sorted = [...list];
+    if (sortBy === "recent") sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    else if (sortBy === "oldest") sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    else if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    else if (sortBy === "plan") sorted.sort((a, b) => (planRank[planBucket(a)] ?? 9) - (planRank[planBucket(b)] ?? 9));
+    return sorted;
+  }, [orgs, search, statusFilter, addressFilter, planFilter, sortBy]);
+
+  const planCounts = useMemo(() => {
+    const now = Date.now();
+    const counts = { all: orgs.length, free: 0, trial: 0, pro: 0, enterprise: 0, lifetime: 0, expired: 0 };
+    for (const org of orgs) {
+      const plan = org.subscription_plan;
+      const trialFuture = !!org.trial_ends_at && new Date(org.trial_ends_at).getTime() > now;
+      if (plan === "lifetime") counts.lifetime++;
+      else if (plan === "free") trialFuture ? counts.trial++ : counts.free++;
+      else if (plan === "pro" || plan === "enterprise") {
+        if (!trialFuture && org.trial_ends_at) counts.expired++;
+        else counts[plan]++;
+      } else counts.free++;
+    }
+    return counts;
+  }, [orgs]);
+
+  const hasActiveFilters = search !== "" || statusFilter !== "all" || addressFilter !== "all" || planFilter !== "all";
 
   function clearFilters() {
     setSearch("");
     setStatusFilter("all");
     setAddressFilter("all");
+    setPlanFilter("all");
   }
 
   function exportStoresCSV() {
