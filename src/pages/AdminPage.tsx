@@ -1038,6 +1038,42 @@ function AdminContent() {
                         : `${filteredOrgs.length} de ${orgs.length}`}
                     </span>
                   </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 border-t border-border/30">
+                    <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider shrink-0">Plano:</span>
+                    {([
+                      { v: "all", label: "Todos", count: planCounts.all },
+                      { v: "free", label: "Free", count: planCounts.free },
+                      { v: "trial", label: "Trial Pro", count: planCounts.trial },
+                      { v: "pro", label: "Pro", count: planCounts.pro },
+                      { v: "enterprise", label: "Enterprise", count: planCounts.enterprise },
+                      { v: "lifetime", label: "Vitalício", count: planCounts.lifetime },
+                      { v: "expired", label: "Expirado", count: planCounts.expired },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.v}
+                        onClick={() => setPlanFilter(opt.v)}
+                        className={`text-xs px-3 py-1 rounded-full font-medium transition-all duration-200 ${
+                          planFilter === opt.v
+                            ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                            : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {opt.label} <span className="opacity-70">({opt.count})</span>
+                      </button>
+                    ))}
+
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                      className="ml-auto text-xs px-3 py-1 rounded-full font-medium bg-muted/60 text-foreground border-0 focus:ring-1 focus:ring-primary outline-none cursor-pointer"
+                    >
+                      <option value="recent">Mais recentes</option>
+                      <option value="oldest">Mais antigas</option>
+                      <option value="name">Nome A-Z</option>
+                      <option value="plan">Plano (Enterprise→Free)</option>
+                    </select>
+                  </div>
                 </div>
               )}
 
