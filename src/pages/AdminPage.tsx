@@ -1351,6 +1351,77 @@ function KpiCard({
   );
 }
 
+/* ── Health mini-card ── */
+function HealthCard({
+  label, value, sub, pct, color, icon,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  pct: number;
+  color: "emerald" | "amber" | "blue" | "violet" | "rose";
+  icon: React.ReactNode;
+}) {
+  const colorMap: Record<string, { text: string; bar: string; ring: string }> = {
+    emerald: { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", ring: "ring-emerald-500/20" },
+    amber:   { text: "text-amber-600 dark:text-amber-400",     bar: "bg-amber-500",   ring: "ring-amber-500/20" },
+    blue:    { text: "text-blue-600 dark:text-blue-400",       bar: "bg-blue-500",    ring: "ring-blue-500/20" },
+    violet:  { text: "text-violet-600 dark:text-violet-400",   bar: "bg-violet-500",  ring: "ring-violet-500/20" },
+    rose:    { text: "text-rose-600 dark:text-rose-400",       bar: "bg-rose-500",    ring: "ring-rose-500/20" },
+  };
+  const c = colorMap[color];
+  return (
+    <div className={`admin-glass rounded-2xl p-4 flex flex-col gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ring-1 ${c.ring}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className={`${c.text}`}>{icon}</span>
+      </div>
+      <div className={`text-2xl font-extrabold ${c.text} leading-none tabular-nums`}>{value}</div>
+      <div className="text-[11px] text-muted-foreground">{sub}</div>
+      <div className="h-1 bg-muted/60 rounded-full overflow-hidden mt-0.5">
+        <div
+          className={`h-full ${c.bar} rounded-full transition-all duration-500`}
+          style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── Quick action card ── */
+function QuickAction({
+  onClick, icon, title, sub, color,
+}: {
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  sub: string;
+  color: "primary" | "emerald" | "rose" | "blue";
+}) {
+  const map: Record<string, { iconBg: string; iconColor: string; hover: string }> = {
+    primary: { iconBg: "bg-primary/15",       iconColor: "text-primary",                       hover: "hover:border-primary/40" },
+    emerald: { iconBg: "bg-emerald-500/15",   iconColor: "text-emerald-600 dark:text-emerald-400", hover: "hover:border-emerald-500/40" },
+    rose:    { iconBg: "bg-rose-500/15",      iconColor: "text-rose-600 dark:text-rose-400",   hover: "hover:border-rose-500/40" },
+    blue:    { iconBg: "bg-blue-500/15",      iconColor: "text-blue-600 dark:text-blue-400",   hover: "hover:border-blue-500/40" },
+  };
+  const c = map[color];
+  return (
+    <button
+      onClick={onClick}
+      className={`admin-glass rounded-2xl p-4 flex items-center gap-3 text-left border border-transparent ${c.hover} hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group`}
+    >
+      <div className={`w-10 h-10 rounded-xl ${c.iconBg} ${c.iconColor} flex items-center justify-center group-hover:scale-110 transition-transform shrink-0`}>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-bold text-foreground leading-tight">{title}</div>
+        <div className="text-[11px] text-muted-foreground truncate">{sub}</div>
+      </div>
+      <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
+    </button>
+  );
+}
+
 /* ── Sparkline mini SVG ── */
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   const w = 100;
