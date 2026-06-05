@@ -493,6 +493,63 @@ function AdminContent() {
     return { newThisMonth: ntm, newLastMonth: nlm };
   }, [orgs]);
 
+  /* ── Séries mensais (últimos 6 meses) para sparklines ── */
+  const series = useMemo(() => {
+    const now = new Date();
+    const months: { start: Date; end: Date }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      months.push({ start, end });
+    }
+    const newOrgs = months.map(({ start, end }) =>
+      orgs.filter((o) => {
+        const d = new Date(o.created_at);
+        return d >= start && d < end;
+      }).length,
+    );
+    const revenue = months.map(({ start, end }) =>
+      payments
+        .filter((p) => {
+          const d = new Date(p.paid_at);
+          return d >= start && d < end;
+        })
+        .reduce((acc, p) => acc + p.amount_cents, 0) / 100,
+    );
+    // Assinantes acumulados ao fim de cada mês (lojas criadas até a data, plano pago hoje — aproximação)
+    const cumulativeOrgs = months.map(({ end }) => orgs.filter((o) => new Date(o.created_at) < end).length);
+    const delta = (arr: number[]) => {
+      const last = arr[arr.length - 1] ?? 0;
+      const prev = arr[arr.length - 2] ?? 0;
+      if (prev === 0) return last > 0 ? 100 : 0;
+      return Math.round(((last - prev) / prev) * 100);
+    };
+    return {
+      newOrgs,
+      revenue,
+      cumulativeOrgs,
+      revenueDelta: delta(revenue),
+      orgsDelta: delta(newOrgs),
+    };
+  }, [orgs, payments]);
+
+  /* ── Saúde da plataforma ── */
+  const platformHealth = useMemo(() => {
+    const total = orgs.length || 1;
+    const payingPct = Math.round((payingOrgs.length / total) * 100);
+    const trialPct = Math.round((trialCount / total) * 100);
+    const momPct = newLastMonth > 0
+      ? Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100)
+      : (newThisMonth > 0 ? 100 : 0);
+    // Conversão histórica de trial → pago: orgs pagas que já tiveram trial_ends_at no passado
+    const expiredTrialsThatPaid = orgs.filter(
+      (o) => o.trial_ends_at && new Date(o.trial_ends_at) < new Date() && o.subscription_plan !== "free",
+    ).length;
+    const totalEverTrialed = orgs.filter((o) => !!o.trial_ends_at).length;
+    const convPct = totalEverTrialed > 0 ? Math.round((expiredTrialsThatPaid / totalEverTrialed) * 100) : null;
+    return { payingPct, trialPct, momPct, convPct };
+  }, [orgs, payingOrgs, trialCount, newThisMonth, newLastMonth]);
+
   const filteredOrgs = useMemo(() => {
     const q = search.toLowerCase().trim();
     const now = Date.now();
