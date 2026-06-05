@@ -802,16 +802,28 @@ function AdminContent() {
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
           {/* ── Home Tab ── */}
           {activeTab === "home" && (
-            <div className="space-y-8">
+            <div className="relative space-y-8">
+              {/* Radial accent backdrop */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-20 right-0 w-[600px] h-[600px] rounded-full opacity-30 blur-3xl"
+                style={{ background: "radial-gradient(circle, hsl(24 95% 53% / 0.25), transparent 60%)" }}
+              />
               {/* Greeting header with avatar and live indicator */}
-              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-admin-fade-in">
+              <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-admin-fade-in">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold text-lg shadow-xl shadow-primary/30 ring-1 ring-primary/20">
                     {adminInitial}
                   </div>
                   <div>
-                    <h1 className="text-xl font-bold text-foreground">{greeting}, Admin 👋</h1>
-                    <p className="text-sm text-muted-foreground capitalize mt-0.5">{todayFormatted}</p>
+                    <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+                      {greeting}, <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Admin</span> 👋
+                    </h1>
+                    <p className="text-xs text-muted-foreground capitalize mt-1 flex items-center gap-2">
+                      <span>{todayFormatted}</span>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">Plataforma estável</span>
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -824,7 +836,7 @@ function AdminContent() {
                   </div>
                   <Link
                     to="/dashboard"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full admin-glass text-primary hover:bg-primary/10 transition-all"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
                     Dashboard
@@ -834,7 +846,7 @@ function AdminContent() {
               </div>
 
               {/* KPI cards with glassmorphism and staggered animation */}
-              <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
+              <div className="relative flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
                 <KpiCard
                   icon={<DollarSign className="w-4 h-4" />}
                   label="Receita Estimada"
@@ -842,6 +854,9 @@ function AdminContent() {
                   gradient="from-emerald-500/20 to-emerald-500/5"
                   iconBg="bg-emerald-500/15"
                   iconColor="text-emerald-600 dark:text-emerald-400"
+                  sparkline={series.revenue}
+                  sparkColor="hsl(160 84% 39%)"
+                  trend={loading ? undefined : series.revenueDelta}
                   delay={1}
                 />
                 <KpiCard
@@ -851,6 +866,9 @@ function AdminContent() {
                   gradient="from-blue-500/20 to-blue-500/5"
                   iconBg="bg-blue-500/15"
                   iconColor="text-blue-600 dark:text-blue-400"
+                  sparkline={series.revenue}
+                  sparkColor="hsl(217 91% 60%)"
+                  trend={loading ? undefined : series.revenueDelta}
                   delay={2}
                 />
                 <KpiCard
@@ -860,6 +878,8 @@ function AdminContent() {
                   gradient="from-violet-500/20 to-violet-500/5"
                   iconBg="bg-violet-500/15"
                   iconColor="text-violet-600 dark:text-violet-400"
+                  sparkline={series.cumulativeOrgs}
+                  sparkColor="hsl(262 83% 65%)"
                   delay={3}
                 />
                 <KpiCard
@@ -870,6 +890,8 @@ function AdminContent() {
                   iconBg="bg-cyan-500/15"
                   iconColor="text-cyan-600 dark:text-cyan-400"
                   trend={newLastMonth > 0 ? Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100) : undefined}
+                  sparkline={series.cumulativeOrgs}
+                  sparkColor="hsl(189 94% 43%)"
                   delay={4}
                 />
                 <KpiCard
@@ -879,6 +901,9 @@ function AdminContent() {
                   gradient="from-orange-500/20 to-orange-500/5"
                   iconBg="bg-orange-500/15"
                   iconColor="text-orange-600 dark:text-orange-400"
+                  sparkline={series.newOrgs}
+                  sparkColor="hsl(24 95% 53%)"
+                  trend={loading ? undefined : series.orgsDelta}
                   delay={5}
                 />
                 <KpiCard
@@ -888,41 +913,81 @@ function AdminContent() {
                   gradient="from-amber-500/20 to-amber-500/5"
                   iconBg="bg-amber-500/15"
                   iconColor="text-amber-600 dark:text-amber-400"
+                  sparkline={series.newOrgs}
+                  sparkColor="hsl(38 92% 50%)"
                   delay={6}
                 />
               </div>
 
+              {/* ── Saúde da Plataforma ── */}
+              {!loading && (
+                <section className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 animate-admin-fade-in admin-delay-2">
+                  <HealthCard
+                    label="Assinantes pagantes"
+                    value={`${payingOrgs.length}`}
+                    sub={`${platformHealth.payingPct}% do total`}
+                    pct={platformHealth.payingPct}
+                    color="emerald"
+                    icon={<Crown className="w-3.5 h-3.5" />}
+                  />
+                  <HealthCard
+                    label="Trials ativos"
+                    value={`${trialCount}`}
+                    sub={`${platformHealth.trialPct}% da base`}
+                    pct={platformHealth.trialPct}
+                    color="amber"
+                    icon={<Sparkles className="w-3.5 h-3.5" />}
+                  />
+                  <HealthCard
+                    label="Crescimento MoM"
+                    value={`${platformHealth.momPct > 0 ? "+" : ""}${platformHealth.momPct}%`}
+                    sub={`${newThisMonth} novas / ${newLastMonth} mês ant.`}
+                    pct={Math.min(Math.abs(platformHealth.momPct), 100)}
+                    color={platformHealth.momPct >= 0 ? "blue" : "rose"}
+                    icon={platformHealth.momPct >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                  />
+                  <HealthCard
+                    label="Conversão de trial"
+                    value={platformHealth.convPct === null ? "—" : `${platformHealth.convPct}%`}
+                    sub={platformHealth.convPct === null ? "sem histórico" : "trial → pago"}
+                    pct={platformHealth.convPct ?? 0}
+                    color="violet"
+                    icon={<TrendingUp className="w-3.5 h-3.5" />}
+                  />
+                </section>
+              )}
+
               {/* Quick actions with colored icons */}
               {!loading && (
-                <div className="flex items-center gap-2 flex-wrap animate-admin-fade-in admin-delay-3">
-                  <button
+                <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 animate-admin-fade-in admin-delay-3">
+                  <QuickAction
                     onClick={() => setActiveTab("lojas")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105 transition-all duration-200 shadow-sm"
-                  >
-                    <Store className="w-3.5 h-3.5" />
-                    Ver Lojas
-                  </button>
-                  <button
+                    icon={<Store className="w-4 h-4" />}
+                    title="Ver Lojas"
+                    sub={`${orgs.length} cadastradas`}
+                    color="primary"
+                  />
+                  <QuickAction
                     onClick={() => setActiveTab("ativacoes")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
-                  >
-                    <ScrollText className="w-3.5 h-3.5" />
-                    Ver Ativações
-                  </button>
-                  <button
+                    icon={<ScrollText className="w-4 h-4" />}
+                    title="Ativações"
+                    sub="histórico recente"
+                    color="emerald"
+                  />
+                  <QuickAction
                     onClick={() => setActiveTab("logs")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
-                  >
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    Logs de Erros
-                  </button>
-                  <button
+                    icon={<AlertCircle className="w-4 h-4" />}
+                    title="Logs de Erros"
+                    sub="monitorar incidentes"
+                    color="rose"
+                  />
+                  <QuickAction
                     onClick={() => setActiveTab("vendas")}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Chat de Vendas
-                  </button>
+                    icon={<MessageCircle className="w-4 h-4" />}
+                    title="Chat de Vendas"
+                    sub="conversas com leads"
+                    color="blue"
+                  />
                 </div>
               )}
 
@@ -932,9 +997,14 @@ function AdminContent() {
               {!loading && (
                 <section className="animate-admin-slide-up admin-delay-4">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Crown className="w-4 h-4 text-primary/60" />
-                      <h2 className="text-sm font-bold text-foreground">Detalhamento de Assinantes</h2>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-orange-400 flex items-center justify-center shadow-lg shadow-primary/30">
+                        <Crown className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-bold text-foreground leading-tight">Detalhamento de Assinantes</h2>
+                        <p className="text-[11px] text-muted-foreground">{subscriberDetails.length} assinantes pagantes</p>
+                      </div>
                     </div>
                     {payments.length > 0 && (
                       <button
