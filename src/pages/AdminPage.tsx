@@ -1241,7 +1241,7 @@ function AdminContent() {
 
 /* ── KPI Card — glassmorphism with gradient and animation ── */
 function KpiCard({
-  icon, label, value, iconBg, iconColor, trend, gradient, delay,
+  icon, label, value, iconBg, iconColor, trend, gradient, delay, sparkline, sparkColor,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -1251,9 +1251,11 @@ function KpiCard({
   trend?: number;
   gradient?: string;
   delay?: number;
+  sparkline?: number[];
+  sparkColor?: string;
 }) {
   return (
-    <div className={`min-w-[140px] admin-glass rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in admin-delay-${delay ?? 1}`}>
+    <div className={`relative overflow-hidden min-w-[160px] admin-glass rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in admin-delay-${delay ?? 1}`}>
       <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient ?? ""} opacity-50 pointer-events-none`} />
       <div className="relative flex items-center justify-between">
         <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform duration-200`}>
@@ -1274,7 +1276,38 @@ function KpiCard({
         )}
       </div>
       <p className="relative text-[11px] text-muted-foreground leading-snug font-medium">{label}</p>
+      {sparkline && sparkline.length > 1 && <Sparkline data={sparkline} color={sparkColor ?? "currentColor"} />}
     </div>
+  );
+}
+
+/* ── Sparkline mini SVG ── */
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const w = 100;
+  const h = 24;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const step = w / (data.length - 1);
+  const points = data.map((v, i) => {
+    const x = i * step;
+    const y = h - ((v - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const path = `M ${points.join(" L ")}`;
+  const area = `${path} L ${w},${h} L 0,${h} Z`;
+  const gradId = `sparkfill-${Math.random().toString(36).slice(2, 8)}`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="relative w-full h-6 mt-1 opacity-90">
+      <defs>
+        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradId})`} />
+      <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
