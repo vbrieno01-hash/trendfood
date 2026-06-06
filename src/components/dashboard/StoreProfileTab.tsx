@@ -36,6 +36,7 @@ interface Organization {
   delivery_config?: { free_above?: number } | null;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
   banner_url?: string | null;
+  banner_urls?: string[] | null;
   subscription_plan?: string;
   theme_config?: ThemeConfig | null;
 }
@@ -106,7 +107,12 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [logoUrl, setLogoUrl] = useState(organization.logo_url);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [bannerRemoving, setBannerRemoving] = useState(false);
-  const [bannerUrl, setBannerUrl] = useState(organization.banner_url ?? null);
+  const [bannerUrls, setBannerUrls] = useState<string[]>(() => {
+    const arr = (organization.banner_urls ?? []).filter(Boolean);
+    if (arr.length > 0) return arr.slice(0, 3);
+    return organization.banner_url ? [organization.banner_url] : [];
+  });
+  const [bannerSlot, setBannerSlot] = useState<number>(0);
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [gatewayProvider, setGatewayProvider] = useState("");
@@ -139,7 +145,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     );
     setFreeAbove((organization.delivery_config as any)?.free_above ?? 80);
     setLogoUrl(organization.logo_url);
-    setBannerUrl(organization.banner_url ?? null);
+    {
+      const arr = (organization.banner_urls ?? []).filter(Boolean);
+      setBannerUrls(arr.length > 0 ? arr.slice(0, 3) : (organization.banner_url ? [organization.banner_url] : []));
+    }
     // Marca como hidratado depois do estado inicial; evita autosave salvar lixo durante a hidratação.
     isHydrated.current = true;
     isFirstRender.current = true; // Reseta pra próxima edição não disparar save imediato
