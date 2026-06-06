@@ -648,44 +648,60 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
         {/* Banner */}
         <div className="mb-5">
-          <Label className="text-sm font-medium mb-2 block">Banner</Label>
-          <div className="space-y-2">
-            {bannerUrl ? (
-              <img src={bannerUrl} alt="Banner" className="w-full rounded-xl object-cover" style={{ maxHeight: 160 }} />
-            ) : (
-              <div className="w-full h-24 rounded-xl border-2 border-dashed border-border bg-secondary/50 flex items-center justify-center text-muted-foreground text-sm">
-                Nenhum banner
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => bannerFileRef.current?.click()}
-                disabled={bannerUploading}
-                className="gap-2"
-              >
-                <Camera className="w-4 h-4" />
-                {bannerUploading ? "Enviando..." : bannerUrl ? "Trocar banner" : "Adicionar banner"}
-              </Button>
-              {bannerUrl && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRemoveBanner}
-                  disabled={bannerRemoving}
-                  className="gap-1.5 text-muted-foreground hover:text-destructive"
-                >
-                  {bannerRemoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                  Remover
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Imagem paisagem recomendada (1200×400). Máx 2MB.</p>
-            <input ref={bannerFileRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-sm font-medium">Banners (até 3 — rotativo)</Label>
+            <span className="text-[11px] text-muted-foreground">{bannerUrls.length}/3</span>
           </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2].map((idx) => {
+              const url = bannerUrls[idx];
+              return (
+                <div key={idx} className="relative">
+                  {url ? (
+                    <div className="relative rounded-xl overflow-hidden border border-border group">
+                      <img src={url} alt={`Banner ${idx + 1}`} className="w-full h-20 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBannerAt(idx)}
+                        disabled={bannerRemoving}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-destructive transition-colors"
+                        aria-label="Remover banner"
+                      >
+                        {bannerRemoving ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setBannerSlot(idx); bannerFileRef.current?.click(); }}
+                        disabled={bannerUploading}
+                        className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90"
+                        aria-label="Trocar banner"
+                      >
+                        <Camera className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setBannerSlot(bannerUrls.length); bannerFileRef.current?.click(); }}
+                      disabled={bannerUploading || idx > bannerUrls.length}
+                      className="w-full h-20 rounded-xl border-2 border-dashed border-border bg-secondary/40 hover:bg-secondary/70 transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bannerUploading && bannerSlot === bannerUrls.length && idx === bannerUrls.length ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                      <span className="text-[10px] font-medium">Foto {idx + 1}</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Imagem paisagem recomendada (1200×400). Quando houver mais de uma, o banner alterna automaticamente a cada 5s.
+          </p>
+          <input ref={bannerFileRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
         </div>
 
 
