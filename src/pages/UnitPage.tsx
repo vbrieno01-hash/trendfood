@@ -1461,6 +1461,46 @@ const UnitPage = () => {
               </>
             )}
         </div>
+
+        {/* Rodapé "Obrigado pela preferência" */}
+        {!menuLoading && menuItems.length > 0 && (
+          <div
+            className="mt-8 rounded-2xl bg-card border shadow-sm overflow-x-auto scrollbar-none"
+            style={{ borderColor: `${primaryColor}26` }}
+          >
+            <div className="grid grid-cols-3 min-w-[520px] divide-x" style={{ borderColor: `${primaryColor}22` }}>
+              <div className="flex items-center gap-2 px-3 py-3">
+                <Crown className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
+                <div className="leading-tight">
+                  <p className="text-[11px] font-bold" style={{ color: primaryColor }}>Obrigado pela preferência!</p>
+                  <p className="text-[11px] text-muted-foreground">Você é o nosso rei!</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-3">
+                <Clock className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
+                <div className="leading-tight">
+                  <p className="text-[11px] font-bold text-foreground">Horário de funcionamento</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {storeStatus?.open
+                      ? "Aberto agora"
+                      : formatOpensAt(storeStatus)
+                        ? `Abre ${formatOpensAt(storeStatus)}`
+                        : "Consulte horários"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-3">
+                <CreditCard className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
+                <div className="leading-tight">
+                  <p className="text-[11px] font-bold text-foreground">Formas de pagamento</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {[org.pix_key ? "PIX" : null, "Cartão", "Dinheiro"].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer — only shown for free plan */}
