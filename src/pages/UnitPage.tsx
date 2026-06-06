@@ -58,6 +58,93 @@ const formatPhone = (value: string): string => {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+/** Carrossel de banners (até 3 imagens). Sem dependências externas. */
+const BannerCarousel = ({
+  images,
+  orgId,
+  primaryColor,
+  fallback,
+}: {
+  images: string[];
+  orgId: string;
+  primaryColor: string;
+  fallback: React.ReactNode;
+}) => {
+  const [valid, setValid] = useState<string[]>(images);
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => { setValid(images); setIndex(0); }, [images.join("|")]);
+
+  useEffect(() => {
+    if (paused || valid.length <= 1) return;
+    const t = setInterval(() => setIndex((i) => (i + 1) % valid.length), 5000);
+    return () => clearInterval(t);
+  }, [paused, valid.length]);
+
+  if (valid.length === 0) {
+    return <>{fallback}</>;
+  }
+
+  const handleError = (url: string) => {
+    setValid((arr) => arr.filter((u) => u !== url));
+    try {
+      supabase.functions.invoke("cleanup-broken-banners", { body: { org_id: orgId } });
+    } catch {}
+  };
+
+  return (
+    <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+      <div
+        className="relative w-full rounded-2xl overflow-hidden shadow-lg"
+        style={{ aspectRatio: "16 / 7", maxHeight: 220, border: `1px solid ${primaryColor}33` }}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={(e) => { setPaused(true); touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          setPaused(false);
+          if (touchStartX.current == null) return;
+          const dx = e.changedTouches[0].clientX - touchStartX.current;
+          if (Math.abs(dx) > 40) {
+            setIndex((i) => (dx < 0 ? (i + 1) % valid.length : (i - 1 + valid.length) % valid.length));
+          }
+          touchStartX.current = null;
+        }}
+      >
+        {valid.map((url, i) => (
+          <img
+            key={url}
+            src={url}
+            alt={`Banner ${i + 1}`}
+            loading={i === 0 ? "eager" : "lazy"}
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+            style={{ opacity: i === index ? 1 : 0 }}
+            onError={() => handleError(url)}
+          />
+        ))}
+        {valid.length > 1 && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {valid.map((_, i) => (
+              <button
+                key={i}
+                aria-label={`Ir para banner ${i + 1}`}
+                onClick={() => setIndex(i)}
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: i === index ? 18 : 6,
+                  background: i === index ? primaryColor : "rgba(255,255,255,0.6)",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const UnitPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
