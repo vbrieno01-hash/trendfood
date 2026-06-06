@@ -1375,10 +1375,14 @@ const UnitPage = () => {
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
                       <div className="flex items-center gap-3 mb-3">
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
+                        {group.emoji && <span className="text-lg leading-none">{group.emoji}</span>}
+                        <h2 className="text-sm font-extrabold uppercase tracking-wider text-foreground">
                           {group.value}
                         </h2>
-                        <div className="flex-1 h-px bg-border/60" />
+                        <div
+                          className="flex-1 h-px"
+                          style={{ background: `linear-gradient(to right, ${categoryColor}66, transparent)` }}
+                        />
                       </div>
                       <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
                         {group.items.map((item) => {
