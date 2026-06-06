@@ -36,6 +36,7 @@ interface Organization {
   delivery_config?: { free_above?: number } | null;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
   banner_url?: string | null;
+  banner_urls?: string[] | null;
   subscription_plan?: string;
   theme_config?: ThemeConfig | null;
 }
@@ -106,7 +107,12 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [logoUrl, setLogoUrl] = useState(organization.logo_url);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [bannerRemoving, setBannerRemoving] = useState(false);
-  const [bannerUrl, setBannerUrl] = useState(organization.banner_url ?? null);
+  const [bannerUrls, setBannerUrls] = useState<string[]>(() => {
+    const arr = (organization.banner_urls ?? []).filter(Boolean);
+    if (arr.length > 0) return arr.slice(0, 3);
+    return organization.banner_url ? [organization.banner_url] : [];
+  });
+  const [bannerSlot, setBannerSlot] = useState<number>(0);
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [gatewayProvider, setGatewayProvider] = useState("");
@@ -139,7 +145,10 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     );
     setFreeAbove((organization.delivery_config as any)?.free_above ?? 80);
     setLogoUrl(organization.logo_url);
-    setBannerUrl(organization.banner_url ?? null);
+    {
+      const arr = (organization.banner_urls ?? []).filter(Boolean);
+      setBannerUrls(arr.length > 0 ? arr.slice(0, 3) : (organization.banner_url ? [organization.banner_url] : []));
+    }
     // Marca como hidratado depois do estado inicial; evita autosave salvar lixo durante a hidratação.
     isHydrated.current = true;
     isFirstRender.current = true; // Reseta pra próxima edição não disparar save imediato
@@ -363,6 +372,18 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }
   };
 
+  const persistBannerUrls = async (next: string[]) => {
+    const sanitized = next.filter(Boolean).slice(0, 3);
+    setBannerUrls(sanitized);
+    const payload: Record<string, any> = {
+      banner_urls: sanitized,
+      banner_url: sanitized[0] ?? null, // mantém legado
+    };
+    await supabase.from("organizations").update(payload as any).eq("id", organization.id);
+    await updateAllOrgs(payload);
+    await refreshOrganization();
+  };
+
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0];
@@ -370,7 +391,8 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       setBannerUploading(true);
       const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 800 });
       const ext = compressed.name.split(".").pop();
-      const path = `banners/${organization.id}.${ext}`;
+      const slot = bannerSlot;
+      const path = `banners/${organization.id}-${slot}.${ext}`;
       await uploadWithRetry(
         async () => {
           const { error: uploadError } = await supabase.storage
@@ -382,10 +404,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       );
       const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
       const url = data.publicUrl + `?t=${Date.now()}`;
-      setBannerUrl(url);
-      await supabase.from("organizations").update({ banner_url: url } as any).eq("id", organization.id);
-      await updateAllOrgs({ banner_url: url });
-      await refreshOrganization();
+      const next = [...bannerUrls];
+      next[slot] = url;
+      await persistBannerUrls(next);
       toast.success("Banner atualizado!");
     } catch (err) {
       console.error("[StoreProfile] Banner upload error:", err);
@@ -396,13 +417,11 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }
   };
 
-  const handleRemoveBanner = async () => {
+  const handleRemoveBannerAt = async (idx: number) => {
     setBannerRemoving(true);
     try {
-      await supabase.from("organizations").update({ banner_url: null } as any).eq("id", organization.id);
-      await updateAllOrgs({ banner_url: null });
-      setBannerUrl(null);
-      await refreshOrganization();
+      const next = bannerUrls.filter((_, i) => i !== idx);
+      await persistBannerUrls(next);
       toast.success("Banner removido.");
     } catch {
       toast.error("Erro ao remover banner.");
@@ -629,44 +648,60 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
         {/* Banner */}
         <div className="mb-5">
-          <Label className="text-sm font-medium mb-2 block">Banner</Label>
-          <div className="space-y-2">
-            {bannerUrl ? (
-              <img src={bannerUrl} alt="Banner" className="w-full rounded-xl object-cover" style={{ maxHeight: 160 }} />
-            ) : (
-              <div className="w-full h-24 rounded-xl border-2 border-dashed border-border bg-secondary/50 flex items-center justify-center text-muted-foreground text-sm">
-                Nenhum banner
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => bannerFileRef.current?.click()}
-                disabled={bannerUploading}
-                className="gap-2"
-              >
-                <Camera className="w-4 h-4" />
-                {bannerUploading ? "Enviando..." : bannerUrl ? "Trocar banner" : "Adicionar banner"}
-              </Button>
-              {bannerUrl && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRemoveBanner}
-                  disabled={bannerRemoving}
-                  className="gap-1.5 text-muted-foreground hover:text-destructive"
-                >
-                  {bannerRemoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                  Remover
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Imagem paisagem recomendada (1200×400). Máx 2MB.</p>
-            <input ref={bannerFileRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-sm font-medium">Banners (até 3 — rotativo)</Label>
+            <span className="text-[11px] text-muted-foreground">{bannerUrls.length}/3</span>
           </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2].map((idx) => {
+              const url = bannerUrls[idx];
+              return (
+                <div key={idx} className="relative">
+                  {url ? (
+                    <div className="relative rounded-xl overflow-hidden border border-border group">
+                      <img src={url} alt={`Banner ${idx + 1}`} className="w-full h-20 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBannerAt(idx)}
+                        disabled={bannerRemoving}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-destructive transition-colors"
+                        aria-label="Remover banner"
+                      >
+                        {bannerRemoving ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setBannerSlot(idx); bannerFileRef.current?.click(); }}
+                        disabled={bannerUploading}
+                        className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90"
+                        aria-label="Trocar banner"
+                      >
+                        <Camera className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setBannerSlot(bannerUrls.length); bannerFileRef.current?.click(); }}
+                      disabled={bannerUploading || idx > bannerUrls.length}
+                      className="w-full h-20 rounded-xl border-2 border-dashed border-border bg-secondary/40 hover:bg-secondary/70 transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bannerUploading && bannerSlot === bannerUrls.length && idx === bannerUrls.length ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
+                      <span className="text-[10px] font-medium">Foto {idx + 1}</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Imagem paisagem recomendada (1200×400). Quando houver mais de uma, o banner alterna automaticamente a cada 5s.
+          </p>
+          <input ref={bannerFileRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
         </div>
 
 

@@ -1983,6 +1983,7 @@ export type Database = {
           affiliate_id: string | null
           apk_url: string | null
           banner_url: string | null
+          banner_urls: string[]
           billing_alert_limit: number | null
           billing_cycle: string
           business_hours: Json | null
@@ -2031,6 +2032,7 @@ export type Database = {
           affiliate_id?: string | null
           apk_url?: string | null
           banner_url?: string | null
+          banner_urls?: string[]
           billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null
@@ -2079,6 +2081,7 @@ export type Database = {
           affiliate_id?: string | null
           apk_url?: string | null
           banner_url?: string | null
+          banner_urls?: string[]
           billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null

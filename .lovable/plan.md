@@ -1,55 +1,57 @@
 ## Objetivo
-Deixar a Dashboard do painel admin (`/admin` → aba Home) mais viva, premium e densa de informação útil — sem mexer nas outras abas nem adicionar novas métricas inventadas. Manter o tema Premium Live (glassmorphism dark, accent laranja).
 
-Os previews de prototype não estão renderizando no chat, então vou direto pra implementação descrita abaixo. Se preferir outra direção depois, é só dizer.
+Manter toda a lógica atual (pedido, WhatsApp, status da loja, addons, cupom, fidelidade, tema dinâmico, cores do usuário) e apenas reformular o **visual** do storefront em `src/pages/UnitPage.tsx` para ficar parecido com o mockup "Rei do Burguer" — mais premium, com banner rotativo até 3 imagens.
 
-## Mudanças (apenas em `src/pages/AdminPage.tsx` + 1 componente novo)
+## Escopo (somente UI)
 
-### 1. Hero header repaginado
-- Greeting maior (`text-2xl font-extrabold`) com gradiente sutil no nome "Admin".
-- Linha de meta com data + separador + status "Plataforma estável" em verde.
-- À direita: pill "Plataforma Online" (mantida), botão "Dashboard" virou um chip glass com ícone — sem mudar destino.
+### 1. Banner rotativo (até 3 fotos)
+- Adicionar coluna `banner_urls text[]` em `public.organizations` via migration (mantém `banner_url` legado para retrocompatibilidade — o array vira a fonte principal; se vazio, faz fallback para `banner_url`).
+- Em `StoreProfileTab.tsx`: substituir o upload único por uma grade de até 3 slots (upload/remover individual), salvando no array `banner_urls` (mesma lógica de upload do banner atual, mesmo bucket).
+- Em `UnitPage.tsx`: novo componente local `BannerCarousel` (sem nova dependência — autoplay com `setInterval`, swipe touch nativo, dots de paginação no rodapé). Troca a cada 5s, pausa no hover/touch. Se houver só 1 imagem, comporta-se como hoje.
+- Mantém o self-healing de banner quebrado (`cleanup-broken-banners`) por imagem.
 
-### 2. KPI cards — versão "pulse"
-Atualizar o componente `KpiCard` local pra incluir:
-- Sparkline SVG mini (últimos 6 meses, dados derivados de `orgs.created_at` ou `payments.paid_at`) embutida no rodapé do card.
-- Delta % vs período anterior em badge colorido (verde/vermelho/cinza neutro) — para MRR, Receita Estimada, Total Lojas e Assinantes.
-- Hover: leve `translate-y-[-2px]` + glow do gradient do próprio card.
-- Ícone maior, em container glass com borda do gradient.
+### 2. Header repaginado (igual mockup, mas com cores do tema do usuário)
+- Logo + nome em duas linhas: nome em destaque + slogan (usa `org.description` curta, ou tagline configurável já existente) com tipografia maior.
+- Sininho de notificações some (não temos), mantém só logo + nome centralizado/esquerda como hoje.
+- Sticky, com leve blur/glass por cima do banner.
 
-Os 6 KPIs continuam os mesmos (Receita Estimada, MRR, A Receber, Total Lojas, Assinantes, Trials). Só mudam visualmente.
+### 3. Faixa de "selos" (Ingredientes selecionados · Preparo na hora · Entrega rápida · Compra segura)
+- Linha horizontal scrollável de 4 pills com ícone circular contornado pela cor primária do tema + duas linhas de texto.
+- Conteúdo fixo (sem CMS por enquanto, igual mockup).
 
-### 3. Faixa "Saúde da Plataforma" (NOVA — bento de 4 mini-cards)
-Logo abaixo dos KPIs, antes dos quick actions. Mostra sinais já disponíveis:
-- **Lojas pagantes ativas** (`payingOrgs.length`) + barra de proporção sobre o total.
-- **Trials ativos** com micro-progress até conversão (% que viraram pagantes histórico).
-- **Crescimento MoM** (newThisMonth vs newLastMonth) com seta e cor.
-- **Taxa de conversão de trial** se houver dados, senão placeholder neutro "—".
+### 4. CTA WhatsApp grande
+- Card horizontal com ícone WhatsApp circular + "PEÇA AGORA PELO WHATSAPP!" + subtítulo "Mais rápido, prático e seguro!" + chevron.
+- Reaproveita o número/`whatsappRedirect` que já existe no projeto.
+- Só aparece se a loja tiver WhatsApp configurado.
 
-Cada mini-card é um `admin-glass` com label uppercase, número grande, e indicador secundário pequeno. Sem novas queries — só derivar do que já existe (`orgs`, `payments`, `payingOrgs`, `trialCount`, `newThisMonth/LastMonth`).
+### 5. Seções de categoria estilo "PROMOÇÃO DO DIA"
+- Cabeçalho de cada categoria: emoji/ícone + nome em CAPS + linha horizontal degradê na cor primária + link "Ver todos" à direita.
+- Cards de produto:
+  - Imagem grande à direita (efeito "sangra" pra fora do card), preço destacado em vermelho/cor primária, badge "MAIS PEDIDO" reaproveitando flags já existentes (campeão de vendas / destaque).
+  - Mantém quantidade, addons, fora de estoque, item pausado — toda lógica atual preservada.
+- Layout dos cards adapta automaticamente: carrossel horizontal nas categorias com 3+ itens (mobile), grade normal no desktop. Sem mudar dados.
 
-### 4. Quick actions repaginadas
-Trocar os 4 pills atuais por cards horizontais maiores (ícone + título + subtítulo de 1 linha tipo "ver 18 lojas cadastradas"). Grid `md:grid-cols-4`, hover com lift e accent. Mesmas ações/destinos.
+### 6. Rodapé "Obrigado pela preferência"
+- Faixa horizontal com 3 blocos: agradecimento + horário de funcionamento (já tem `useStoreStatus`) + formas de pagamento (deriva de `payment_methods` da org).
+- Bordas e ícones na cor primária do tema.
 
-### 5. GrowthCharts — sem mudança estrutural
-Manter o componente como está; ele já é o gráfico de Novas Lojas e Receita por Mês.
+### 7. Refino visual geral
+- Fundo `bg-background` mantido (segue dark/light do usuário).
+- Cards com borda sutil na cor primária + `shadow-lg` + cantos arredondados maiores (`rounded-2xl`).
+- Mantém footer global do storefront (`storefront-footer` com Ajuda/Cart) intacto.
 
-### 6. Tabela "Detalhamento de Assinantes" — premium
-- Cabeçalho da seção: ícone Crown em badge laranja sólido com glow, título, e à direita botão CSV + contador "X assinantes pagantes".
-- Linhas: avatar colorido (já existe) + slug em monospace muted abaixo do nome.
-- Coluna "Status": badge pulse verde "Ativo" com dot animado.
-- Linha de total (tfoot) com fundo gradient laranja/transparent e valor em destaque.
+## Fora do escopo
+- Não muda nenhuma cor padrão, nenhum endpoint, nenhuma regra de pedido/checkout/pagamento.
+- Não muda o painel admin, dashboard, KDS, etc.
+- Não adiciona dependências novas (carrossel é caseiro).
+- Mantém todas as feature flags, planos e gating como estão.
 
-### 7. Fundo da página
-Adicionar gradient radial laranja muito sutil no canto superior direito do `<main>` da home — só visual, fica sob o conteúdo (`pointer-events-none`).
+## Arquivos afetados
+- `supabase/migrations/<novo>.sql` — adiciona `banner_urls text[] default '{}'` em `organizations`.
+- `src/pages/UnitPage.tsx` — refatoração visual + `BannerCarousel` local.
+- `src/components/dashboard/StoreProfileTab.tsx` — UI de até 3 banners.
+- (opcional) ajuste mínimo em `src/integrations/supabase/types.ts` regenerado automaticamente após a migration.
 
-## Implementação técnica
-- Tudo dentro do `<main>` do `AdminPage.tsx` quando `activeTab === "home"`.
-- Atualizar componente `KpiCard` existente (no mesmo arquivo) com props opcionais `sparkline?: number[]` e `deltaPct?: number`.
-- Calcular sparklines via `useMemo` sobre `orgs` e `payments` agrupando por mês.
-- Sem dependências novas. Sem queries Supabase novas. Sem mudanças em outras abas.
-
-## Fora de escopo
-- Não tocar em sidebar, outras abas (Lojas, Indicações, Afiliados, etc.), edge functions, RLS, ou banco.
-- Não trocar paleta principal nem o sistema glassmorphism Premium Live.
-- Não adicionar métricas que dependam de dados novos.
+## Pontos para confirmar
+1. Posso adicionar a coluna `banner_urls` no banco (mantendo `banner_url` legado)?
+2. Os 4 selos da faixa ("Ingredientes selecionados · Preparo na hora · Entrega rápida · Compra segura") podem ficar fixos por enquanto, ou quer que sejam editáveis pelo lojista já nessa primeira versão?

@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS banner_urls text[] NOT NULL DEFAULT '{}'::text[];
