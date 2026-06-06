@@ -1135,51 +1135,95 @@ const UnitPage = () => {
         </div>
       </header>
 
-      {/* Banner */}
-      {org.banner_url ? (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-          <img
-            src={org.banner_url}
-            alt="Banner"
-            className="w-full rounded-2xl object-cover"
-            style={{ maxHeight: 180 }}
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement | null)?.remove();
-              // Self-healing: limpa banner_url morto no banco para não voltar a tentar
-              try {
-                supabase.functions.invoke("cleanup-broken-banners", {
-                  body: { org_id: org.id },
-                });
-              } catch {}
-            }}
-          />
-        </div>
-      ) : (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-          <div
-            className="w-full rounded-2xl flex items-center justify-center px-6 py-8 text-center"
-            style={{
-              maxHeight: 180,
-              minHeight: 120,
-              background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
-            }}
-          >
-            <div className="flex items-center gap-3">
-              {org.emoji && (
-                <span className="text-4xl drop-shadow-sm">{org.emoji}</span>
-              )}
-              <div className="text-left">
-                <p className="text-white font-extrabold text-xl leading-tight drop-shadow-md">
-                  {org.name}
-                </p>
-                {org.description && (
-                  <p className="text-white/90 text-xs mt-0.5 line-clamp-2 max-w-[260px]">
-                    {org.description}
-                  </p>
-                )}
+      {/* Banner rotativo (até 3 fotos) */}
+      {(() => {
+        const rawList = (org as any).banner_urls as string[] | null | undefined;
+        const list = Array.isArray(rawList) ? rawList.filter(Boolean) : [];
+        const merged = list.length > 0 ? list : (org.banner_url ? [org.banner_url] : []);
+        return (
+          <BannerCarousel
+            images={merged}
+            orgId={org.id}
+            primaryColor={primaryColor}
+            fallback={
+              <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+                <div
+                  className="w-full rounded-2xl flex items-center justify-center px-6 py-8 text-center shadow-lg"
+                  style={{
+                    minHeight: 140,
+                    background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    {org.emoji && <span className="text-4xl drop-shadow-sm">{org.emoji}</span>}
+                    <div className="text-left">
+                      <p className="text-white font-extrabold text-xl leading-tight drop-shadow-md">{org.name}</p>
+                      {org.description && (
+                        <p className="text-white/90 text-xs mt-0.5 line-clamp-2 max-w-[260px]">{org.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            }
+          />
+        );
+      })()}
+
+      {/* Faixa de selos */}
+      <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+        <div
+          className="rounded-2xl bg-card border shadow-sm px-2 py-2.5 overflow-x-auto scrollbar-none"
+          style={{ borderColor: `${primaryColor}26` }}
+        >
+          <div className="flex items-center gap-1 min-w-max justify-around">
+            {[
+              { icon: Leaf, t1: "Ingredientes", t2: "selecionados" },
+              { icon: ChefHat, t1: "Preparo", t2: "na hora" },
+              { icon: Bike, t1: "Entrega", t2: "rápida" },
+              { icon: ShieldCheck, t1: "Compra", t2: "segura" },
+            ].map(({ icon: Icon, t1, t2 }) => (
+              <div key={t1} className="flex items-center gap-2 px-2.5 py-1 shrink-0">
+                <span
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                  style={{ border: `1.5px solid ${primaryColor}`, color: primaryColor, background: `${primaryColor}10` }}
+                >
+                  <Icon className="w-4 h-4" />
+                </span>
+                <div className="leading-tight">
+                  <p className="text-[11px] font-semibold text-foreground">{t1}</p>
+                  <p className="text-[11px] text-muted-foreground">{t2}</p>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      </div>
+
+      {/* CTA WhatsApp */}
+      {whatsappValid && (
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+          <a
+            href={whatsappHelpUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-2xl bg-card border px-3 py-3 shadow-sm hover:shadow-md active:scale-[0.99] transition-all"
+            style={{ borderColor: `${primaryColor}33` }}
+          >
+            <span
+              className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+              style={{ border: `1.5px solid ${primaryColor}`, color: primaryColor, background: `${primaryColor}10` }}
+            >
+              <MessageCircle className="w-5 h-5" />
+            </span>
+            <div className="flex-1 leading-tight">
+              <p className="font-extrabold text-sm tracking-wide uppercase" style={{ color: primaryColor }}>
+                Peça agora pelo WhatsApp!
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Mais rápido, prático e seguro!</p>
+            </div>
+            <ChevronRight className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
+          </a>
         </div>
       )}
 
