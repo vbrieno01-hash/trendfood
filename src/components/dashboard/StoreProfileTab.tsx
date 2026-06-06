@@ -372,6 +372,18 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }
   };
 
+  const persistBannerUrls = async (next: string[]) => {
+    const sanitized = next.filter(Boolean).slice(0, 3);
+    setBannerUrls(sanitized);
+    const payload: Record<string, any> = {
+      banner_urls: sanitized,
+      banner_url: sanitized[0] ?? null, // mantém legado
+    };
+    await supabase.from("organizations").update(payload as any).eq("id", organization.id);
+    await updateAllOrgs(payload);
+    await refreshOrganization();
+  };
+
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0];
@@ -379,7 +391,8 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       setBannerUploading(true);
       const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 800 });
       const ext = compressed.name.split(".").pop();
-      const path = `banners/${organization.id}.${ext}`;
+      const slot = bannerSlot;
+      const path = `banners/${organization.id}-${slot}.${ext}`;
       await uploadWithRetry(
         async () => {
           const { error: uploadError } = await supabase.storage
@@ -391,10 +404,9 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       );
       const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
       const url = data.publicUrl + `?t=${Date.now()}`;
-      setBannerUrl(url);
-      await supabase.from("organizations").update({ banner_url: url } as any).eq("id", organization.id);
-      await updateAllOrgs({ banner_url: url });
-      await refreshOrganization();
+      const next = [...bannerUrls];
+      next[slot] = url;
+      await persistBannerUrls(next);
       toast.success("Banner atualizado!");
     } catch (err) {
       console.error("[StoreProfile] Banner upload error:", err);
@@ -405,13 +417,11 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }
   };
 
-  const handleRemoveBanner = async () => {
+  const handleRemoveBannerAt = async (idx: number) => {
     setBannerRemoving(true);
     try {
-      await supabase.from("organizations").update({ banner_url: null } as any).eq("id", organization.id);
-      await updateAllOrgs({ banner_url: null });
-      setBannerUrl(null);
-      await refreshOrganization();
+      const next = bannerUrls.filter((_, i) => i !== idx);
+      await persistBannerUrls(next);
       toast.success("Banner removido.");
     } catch {
       toast.error("Erro ao remover banner.");
