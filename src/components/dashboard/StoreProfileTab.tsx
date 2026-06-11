@@ -237,7 +237,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }, 1500);
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, businessHours, addressFields, freeAbove, themeConfig]);
+  }, [form, businessHours, addressFields, freeAbove, themeConfig, paymentMethods]);
 
   // Reseta tema visual para o padrão (limpa estilos personalizados)
   const handleResetTheme = () => {
@@ -264,6 +264,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         pix_confirmation_mode: form.pix_confirmation_mode,
         business_hours: businessHours as unknown as never,
         theme_config: themeConfig as unknown as never,
+        payment_methods: paymentMethods as unknown as never,
       };
 
       // Campos específicos de cada loja (NÃO compartilhar entre unidades)
