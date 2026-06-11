@@ -42,6 +42,7 @@ interface Organization {
   category_order?: string[] | null;
   paused_categories?: string[] | null;
   category_emojis?: Record<string, string> | null;
+  category_layout?: Record<string, "carousel" | "grid"> | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
@@ -646,6 +647,9 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [localCategoryEmojis, setLocalCategoryEmojis] = useState<Record<string, string>>(
     organization.category_emojis ?? {}
   );
+  const [localCategoryLayout, setLocalCategoryLayout] = useState<Record<string, "carousel" | "grid">>(
+    organization.category_layout ?? {}
+  );
   const [emojiPickerOpen, setEmojiPickerOpen] = useState<string | null>(null);
 
   const togglePauseCategory = async (cat: string) => {
@@ -665,6 +669,14 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setLocalCategoryEmojis(updated);
     setEmojiPickerOpen(null);
     await supabase.from("organizations").update({ category_emojis: updated } as any).eq("id", organization.id);
+  };
+
+  const toggleCategoryCarousel = async (cat: string) => {
+    const current = localCategoryLayout[cat] ?? "grid";
+    const next = current === "carousel" ? "grid" : "carousel";
+    const updated = { ...localCategoryLayout, [cat]: next };
+    setLocalCategoryLayout(updated);
+    await supabase.from("organizations").update({ category_layout: updated } as any).eq("id", organization.id);
   };
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
