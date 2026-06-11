@@ -673,7 +673,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
 
   const toggleCategoryCarousel = async (cat: string) => {
     const current = localCategoryLayout[cat] ?? "grid";
-    const next = current === "carousel" ? "grid" : "carousel";
+    const next: "carousel" | "grid" = current === "carousel" ? "grid" : "carousel";
     const updated = { ...localCategoryLayout, [cat]: next };
     setLocalCategoryLayout(updated);
     await supabase.from("organizations").update({ category_layout: updated } as any).eq("id", organization.id);
