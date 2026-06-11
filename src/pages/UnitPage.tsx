@@ -1931,13 +1931,20 @@ const UnitPage = () => {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>
-                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                    {planLimits.canAccess("online_payment") && (
-                      <SelectItem value="PIX">PIX</SelectItem>
-                    )}
+                    {(() => {
+                      const pm = (org as any)?.payment_methods ?? { dinheiro: true, maquininha: true, debito: true, credito: true, pix: true };
+                      return (
+                        <>
+                          {pm.dinheiro && <SelectItem value="Dinheiro">Dinheiro</SelectItem>}
+                          {pm.maquininha && <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>}
+                          {pm.debito && <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>}
+                          {pm.credito && <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>}
+                          {pm.pix && planLimits.canAccess("online_payment") && (
+                            <SelectItem value="PIX">PIX</SelectItem>
+                          )}
+                        </>
+                      );
+                    })()}
                   </SelectContent>
                 </Select>
                 {paymentError && <p className="text-destructive text-xs mt-1">Selecione uma forma de pagamento</p>}
