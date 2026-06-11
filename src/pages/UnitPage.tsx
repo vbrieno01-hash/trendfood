@@ -1357,14 +1357,24 @@ const UnitPage = () => {
                           style={{ background: `linear-gradient(to right, ${categoryColor}66, transparent)` }}
                         />
                       </div>
-                      <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
+                      {(() => {
+                        const isCarousel = ((org as any)?.category_layout ?? {})[group.value] === "carousel";
+                        return (
+                        <div
+                          className={
+                            isCarousel
+                              ? "flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scrollbar-none"
+                              : "grid grid-cols-3 lg:grid-cols-5 gap-2"
+                          }
+                          style={isCarousel ? { scrollbarWidth: "none", msOverflowStyle: "none" } : undefined}
+                        >
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
                             <div
                               key={item.id}
                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:-translate-y-0.5 ${isCarousel ? "snap-start shrink-0 w-[140px] lg:w-[180px]" : ""}`}
                               style={{ borderRadius: cardRadius }}
                             >
                               {/* Foto quadrada + badge de qty */}
@@ -1427,7 +1437,9 @@ const UnitPage = () => {
                             </div>
                           );
                         })}
-                      </div>
+                        </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
