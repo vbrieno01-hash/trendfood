@@ -1988,6 +1988,7 @@ export type Database = {
           billing_cycle: string
           business_hours: Json | null
           category_emojis: Json
+          category_layout: Json
           category_order: Json | null
           cleanup_warning_at: string | null
           cnpj: string | null
@@ -2007,6 +2008,7 @@ export type Database = {
           onboarding_done: boolean
           paused: boolean
           paused_categories: Json | null
+          payment_methods: Json
           pix_confirmation_mode: string
           pix_key: string | null
           primary_color: string
@@ -2037,6 +2039,7 @@ export type Database = {
           billing_cycle?: string
           business_hours?: Json | null
           category_emojis?: Json
+          category_layout?: Json
           category_order?: Json | null
           cleanup_warning_at?: string | null
           cnpj?: string | null
@@ -2056,6 +2059,7 @@ export type Database = {
           onboarding_done?: boolean
           paused?: boolean
           paused_categories?: Json | null
+          payment_methods?: Json
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
@@ -2086,6 +2090,7 @@ export type Database = {
           billing_cycle?: string
           business_hours?: Json | null
           category_emojis?: Json
+          category_layout?: Json
           category_order?: Json | null
           cleanup_warning_at?: string | null
           cnpj?: string | null
@@ -2105,6 +2110,7 @@ export type Database = {
           onboarding_done?: boolean
           paused?: boolean
           paused_categories?: Json | null
+          payment_methods?: Json
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
