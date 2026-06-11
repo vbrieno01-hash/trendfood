@@ -39,6 +39,13 @@ interface Organization {
   banner_urls?: string[] | null;
   subscription_plan?: string;
   theme_config?: ThemeConfig | null;
+  payment_methods?: {
+    dinheiro?: boolean;
+    maquininha?: boolean;
+    debito?: boolean;
+    credito?: boolean;
+    pix?: boolean;
+  } | null;
 }
 
 
