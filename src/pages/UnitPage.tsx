@@ -1479,7 +1479,16 @@ const UnitPage = () => {
                 <div className="leading-tight">
                   <p className="text-[11px] font-bold text-foreground">Formas de pagamento</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {[org.pix_key ? "PIX" : null, "Cartão", "Dinheiro"].filter(Boolean).join(" · ")}
+                    {(() => {
+                      const pm = (org as any)?.payment_methods ?? { dinheiro: true, maquininha: true, debito: true, credito: true, pix: true };
+                      const labels: string[] = [];
+                      if (pm.pix) labels.push("PIX");
+                      if (pm.dinheiro) labels.push("Dinheiro");
+                      if (pm.maquininha) labels.push("Maquininha");
+                      if (pm.debito) labels.push("Débito");
+                      if (pm.credito) labels.push("Crédito");
+                      return labels.length > 0 ? labels.join(" · ") : "Consulte a loja";
+                    })()}
                   </p>
                 </div>
               </div>
