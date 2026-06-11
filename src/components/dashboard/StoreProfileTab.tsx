@@ -1021,6 +1021,40 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </p>
         </div>
 
+        {/* Formas de pagamento aceitas */}
+        <div className="mt-5">
+          <Label className="text-sm font-medium">Formas de pagamento aceitas</Label>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+            Marque as opções que sua loja aceita. O cliente verá apenas essas no checkout e no rodapé do cardápio.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { key: "dinheiro", label: "💵 Dinheiro" },
+              { key: "maquininha", label: "💳 Maquininha na entrega" },
+              { key: "debito", label: "💳 Cartão de débito" },
+              { key: "credito", label: "💳 Cartão de crédito" },
+              { key: "pix", label: "⚡ PIX" },
+            ] as const).map(({ key, label }) => (
+              <label
+                key={key}
+                className={`flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
+                  paymentMethods[key]
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/30"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={paymentMethods[key]}
+                  onChange={(e) => setPaymentMethods((p) => ({ ...p, [key]: e.target.checked }))}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-foreground">{label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         {/* PIX Confirmation Mode */}
         <div className="mt-5">
           <Label className="text-sm font-medium">Confirmação do PIX</Label>
