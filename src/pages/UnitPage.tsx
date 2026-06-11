@@ -15,7 +15,7 @@ import {
 import {
   Plus, X, Minus, UtensilsCrossed,
   ShoppingCart, ShoppingBag, Search,
-  Leaf, ChefHat, Bike, ShieldCheck, MessageCircle, ChevronRight,
+  Leaf, ChefHat, Bike, ShieldCheck,
   Clock, CreditCard, Crown,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
