@@ -1120,6 +1120,18 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                 {isPaused ? <Play className="w-4 h-4 text-primary" /> : <Pause className="w-4 h-4 text-muted-foreground" />}
               </button>
               <button
+                onClick={() => toggleCategoryCarousel(group.value)}
+                className={cn(
+                  "px-1.5 py-1 rounded hover:bg-accent transition-colors text-[10px] font-bold uppercase tracking-wide",
+                  (localCategoryLayout[group.value] ?? "grid") === "carousel"
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground"
+                )}
+                title="Alternar entre carrossel deslizante e grade"
+              >
+                {(localCategoryLayout[group.value] ?? "grid") === "carousel" ? "▸▸ Carrossel" : "▦ Grade"}
+              </button>
+              <button
                 onClick={() => moveCategoryOrder(groupIndex, "up")}
                 disabled={groupIndex === 0}
                 className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
