@@ -15,7 +15,7 @@ import {
 import {
   Plus, X, Minus, UtensilsCrossed,
   ShoppingCart, ShoppingBag, Search,
-  Leaf, ChefHat, Bike, ShieldCheck, MessageCircle, ChevronRight,
+  Leaf, ChefHat, Bike, ShieldCheck,
   Clock, CreditCard, Crown,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
@@ -1200,33 +1200,6 @@ const UnitPage = () => {
         </div>
       </div>
 
-      {/* CTA WhatsApp */}
-      {whatsappValid && (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-          <a
-            href={whatsappHelpUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-2xl bg-card border px-3 py-3 shadow-sm hover:shadow-md active:scale-[0.99] transition-all"
-            style={{ borderColor: `${primaryColor}33` }}
-          >
-            <span
-              className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
-              style={{ border: `1.5px solid ${primaryColor}`, color: primaryColor, background: `${primaryColor}10` }}
-            >
-              <MessageCircle className="w-5 h-5" />
-            </span>
-            <div className="flex-1 leading-tight">
-              <p className="font-extrabold text-sm tracking-wide uppercase" style={{ color: primaryColor }}>
-                Peça agora pelo WhatsApp!
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Mais rápido, prático e seguro!</p>
-            </div>
-            <ChevronRight className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
-          </a>
-        </div>
-      )}
-
       {/* Sticky search bar */}
       {!menuLoading && menuItems.length > 0 && (
         <div className="sticky top-[57px] z-30 bg-background shadow-sm">
@@ -1384,14 +1357,24 @@ const UnitPage = () => {
                           style={{ background: `linear-gradient(to right, ${categoryColor}66, transparent)` }}
                         />
                       </div>
-                      <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
+                      {(() => {
+                        const isCarousel = ((org as any)?.category_layout ?? {})[group.value] === "carousel";
+                        return (
+                        <div
+                          className={
+                            isCarousel
+                              ? "flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scrollbar-none"
+                              : "grid grid-cols-3 lg:grid-cols-5 gap-2"
+                          }
+                          style={isCarousel ? { scrollbarWidth: "none", msOverflowStyle: "none" } : undefined}
+                        >
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
                             <div
                               key={item.id}
                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:-translate-y-0.5 ${isCarousel ? "snap-start shrink-0 w-[140px] lg:w-[180px]" : ""}`}
                               style={{ borderRadius: cardRadius }}
                             >
                               {/* Foto quadrada + badge de qty */}
@@ -1454,7 +1437,9 @@ const UnitPage = () => {
                             </div>
                           );
                         })}
-                      </div>
+                        </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -1494,7 +1479,16 @@ const UnitPage = () => {
                 <div className="leading-tight">
                   <p className="text-[11px] font-bold text-foreground">Formas de pagamento</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {[org.pix_key ? "PIX" : null, "Cartão", "Dinheiro"].filter(Boolean).join(" · ")}
+                    {(() => {
+                      const pm = (org as any)?.payment_methods ?? { dinheiro: true, maquininha: true, debito: true, credito: true, pix: true };
+                      const labels: string[] = [];
+                      if (pm.pix) labels.push("PIX");
+                      if (pm.dinheiro) labels.push("Dinheiro");
+                      if (pm.maquininha) labels.push("Maquininha");
+                      if (pm.debito) labels.push("Débito");
+                      if (pm.credito) labels.push("Crédito");
+                      return labels.length > 0 ? labels.join(" · ") : "Consulte a loja";
+                    })()}
                   </p>
                 </div>
               </div>
@@ -1937,13 +1931,20 @@ const UnitPage = () => {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>
-                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                    {planLimits.canAccess("online_payment") && (
-                      <SelectItem value="PIX">PIX</SelectItem>
-                    )}
+                    {(() => {
+                      const pm = (org as any)?.payment_methods ?? { dinheiro: true, maquininha: true, debito: true, credito: true, pix: true };
+                      return (
+                        <>
+                          {pm.dinheiro && <SelectItem value="Dinheiro">Dinheiro</SelectItem>}
+                          {pm.maquininha && <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>}
+                          {pm.debito && <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>}
+                          {pm.credito && <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>}
+                          {pm.pix && planLimits.canAccess("online_payment") && (
+                            <SelectItem value="PIX">PIX</SelectItem>
+                          )}
+                        </>
+                      );
+                    })()}
                   </SelectContent>
                 </Select>
                 {paymentError && <p className="text-destructive text-xs mt-1">Selecione uma forma de pagamento</p>}

@@ -39,6 +39,13 @@ interface Organization {
   banner_urls?: string[] | null;
   subscription_plan?: string;
   theme_config?: ThemeConfig | null;
+  payment_methods?: {
+    dinheiro?: boolean;
+    maquininha?: boolean;
+    debito?: boolean;
+    credito?: boolean;
+    pix?: boolean;
+  } | null;
 }
 
 
@@ -97,6 +104,13 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(
     organization.theme_config ?? {}
   );
+  const [paymentMethods, setPaymentMethods] = useState<{ dinheiro: boolean; maquininha: boolean; debito: boolean; credito: boolean; pix: boolean }>({
+    dinheiro: organization.payment_methods?.dinheiro ?? true,
+    maquininha: organization.payment_methods?.maquininha ?? true,
+    debito: organization.payment_methods?.debito ?? true,
+    credito: organization.payment_methods?.credito ?? true,
+    pix: organization.payment_methods?.pix ?? true,
+  });
   const [addressFields, setAddressFields] = useState<AddressFields>(
     organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
   );
@@ -140,6 +154,13 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     });
     setBusinessHours(organization.business_hours ?? DEFAULT_BUSINESS_HOURS);
     setThemeConfig(organization.theme_config ?? {});
+    setPaymentMethods({
+      dinheiro: organization.payment_methods?.dinheiro ?? true,
+      maquininha: organization.payment_methods?.maquininha ?? true,
+      debito: organization.payment_methods?.debito ?? true,
+      credito: organization.payment_methods?.credito ?? true,
+      pix: organization.payment_methods?.pix ?? true,
+    });
     setAddressFields(
       organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
     );
@@ -216,7 +237,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }, 1500);
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, businessHours, addressFields, freeAbove, themeConfig]);
+  }, [form, businessHours, addressFields, freeAbove, themeConfig, paymentMethods]);
 
   // Reseta tema visual para o padrão (limpa estilos personalizados)
   const handleResetTheme = () => {
@@ -243,6 +264,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         pix_confirmation_mode: form.pix_confirmation_mode,
         business_hours: businessHours as unknown as never,
         theme_config: themeConfig as unknown as never,
+        payment_methods: paymentMethods as unknown as never,
       };
 
       // Campos específicos de cada loja (NÃO compartilhar entre unidades)
@@ -997,6 +1019,40 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           <p className="text-xs text-muted-foreground mt-1">
             Quando cadastrada, o QR Code PIX com o valor total aparece automaticamente no comprovante de impressão.
           </p>
+        </div>
+
+        {/* Formas de pagamento aceitas */}
+        <div className="mt-5">
+          <Label className="text-sm font-medium">Formas de pagamento aceitas</Label>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+            Marque as opções que sua loja aceita. O cliente verá apenas essas no checkout e no rodapé do cardápio.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { key: "dinheiro", label: "💵 Dinheiro" },
+              { key: "maquininha", label: "💳 Maquininha na entrega" },
+              { key: "debito", label: "💳 Cartão de débito" },
+              { key: "credito", label: "💳 Cartão de crédito" },
+              { key: "pix", label: "⚡ PIX" },
+            ] as const).map(({ key, label }) => (
+              <label
+                key={key}
+                className={`flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
+                  paymentMethods[key]
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/30"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={paymentMethods[key]}
+                  onChange={(e) => setPaymentMethods((p) => ({ ...p, [key]: e.target.checked }))}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-foreground">{label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         {/* PIX Confirmation Mode */}

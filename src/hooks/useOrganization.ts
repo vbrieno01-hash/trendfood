@@ -91,6 +91,15 @@ export interface Organization {
   paused_categories?: string[] | null;
   service_modes?: { delivery: boolean; pickup: boolean } | null;
   category_emojis?: Record<string, string> | null;
+  banner_urls?: string[] | null;
+  payment_methods?: {
+    dinheiro?: boolean;
+    maquininha?: boolean;
+    debito?: boolean;
+    credito?: boolean;
+    pix?: boolean;
+  } | null;
+  category_layout?: Record<string, "carousel" | "grid"> | null;
 }
 
 export const useOrganization = (slug: string | undefined) => {
@@ -100,7 +109,7 @@ export const useOrganization = (slug: string | undefined) => {
       if (!slug) throw new Error("No slug");
       const { data, error } = await supabase
         .from("organizations")
-        .select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, store_address, delivery_config, pix_confirmation_mode, paused, printer_width, banner_url, courier_config, print_mode, subscription_status, subscription_plan, trial_ends_at, force_open, tax_regime, category_order, theme_config, paused_categories, service_modes, category_emojis")
+        .select("id, name, slug, description, emoji, primary_color, logo_url, whatsapp, business_hours, store_address, delivery_config, pix_confirmation_mode, paused, printer_width, banner_url, banner_urls, courier_config, print_mode, subscription_status, subscription_plan, trial_ends_at, force_open, tax_regime, category_order, theme_config, paused_categories, service_modes, category_emojis, payment_methods, category_layout")
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;
