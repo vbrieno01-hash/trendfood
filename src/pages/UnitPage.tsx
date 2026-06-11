@@ -1200,33 +1200,6 @@ const UnitPage = () => {
         </div>
       </div>
 
-      {/* CTA WhatsApp */}
-      {whatsappValid && (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-          <a
-            href={whatsappHelpUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-2xl bg-card border px-3 py-3 shadow-sm hover:shadow-md active:scale-[0.99] transition-all"
-            style={{ borderColor: `${primaryColor}33` }}
-          >
-            <span
-              className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
-              style={{ border: `1.5px solid ${primaryColor}`, color: primaryColor, background: `${primaryColor}10` }}
-            >
-              <MessageCircle className="w-5 h-5" />
-            </span>
-            <div className="flex-1 leading-tight">
-              <p className="font-extrabold text-sm tracking-wide uppercase" style={{ color: primaryColor }}>
-                Peça agora pelo WhatsApp!
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Mais rápido, prático e seguro!</p>
-            </div>
-            <ChevronRight className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
-          </a>
-        </div>
-      )}
-
       {/* Sticky search bar */}
       {!menuLoading && menuItems.length > 0 && (
         <div className="sticky top-[57px] z-30 bg-background shadow-sm">
