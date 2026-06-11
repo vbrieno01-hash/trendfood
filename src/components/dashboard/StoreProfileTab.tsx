@@ -104,6 +104,13 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(
     organization.theme_config ?? {}
   );
+  const [paymentMethods, setPaymentMethods] = useState<{ dinheiro: boolean; maquininha: boolean; debito: boolean; credito: boolean; pix: boolean }>({
+    dinheiro: organization.payment_methods?.dinheiro ?? true,
+    maquininha: organization.payment_methods?.maquininha ?? true,
+    debito: organization.payment_methods?.debito ?? true,
+    credito: organization.payment_methods?.credito ?? true,
+    pix: organization.payment_methods?.pix ?? true,
+  });
   const [addressFields, setAddressFields] = useState<AddressFields>(
     organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
   );
