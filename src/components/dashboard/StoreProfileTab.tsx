@@ -154,6 +154,13 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     });
     setBusinessHours(organization.business_hours ?? DEFAULT_BUSINESS_HOURS);
     setThemeConfig(organization.theme_config ?? {});
+    setPaymentMethods({
+      dinheiro: organization.payment_methods?.dinheiro ?? true,
+      maquininha: organization.payment_methods?.maquininha ?? true,
+      debito: organization.payment_methods?.debito ?? true,
+      credito: organization.payment_methods?.credito ?? true,
+      pix: organization.payment_methods?.pix ?? true,
+    });
     setAddressFields(
       organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
     );
