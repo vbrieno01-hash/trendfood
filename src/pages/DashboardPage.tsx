@@ -1031,13 +1031,13 @@ const DashboardPage = () => {
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
           {activeTab === "history" && <HistoryTab orgId={organization.id} restrictTo7Days={!planLimits.canAccess("history_full")} />}
           {activeTab === "coupons" && (lockedFeatures.coupons
-            ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Cupons de Desconto" description="Crie e gerencie cupons de desconto para seus clientes. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <CouponsTab orgId={organization.id} organization={organization} onNavigate={handleTabChange} />)}
           {activeTab === "bestsellers" && (lockedFeatures.bestsellers
-            ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Mais Vendidos" description="Veja os itens mais vendidos do seu cardápio. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <BestSellersTab orgId={organization.id} />)}
           {activeTab === "operations" && ((lockedFeatures.kitchen || lockedFeatures.waiter)
-            ? <UpgradePrompt title="Cozinha & Gestão de Pedidos" description="Gerencie pedidos em tempo real com o KDS e controle entregas. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Cozinha & Gestão de Pedidos" description="Gerencie pedidos em tempo real com o KDS e controle entregas. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <OperationsTab
                 orgId={organization.id}
                 orgName={organization.name}
@@ -1061,11 +1061,11 @@ const DashboardPage = () => {
                 ifoodCourierCopy={!!(organization as any).ifood_courier_copy}
               />)}
           {activeTab === "caixa" && (lockedFeatures.caixa
-            ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Controle de Caixa" description="Gerencie abertura e fechamento de caixa. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <CaixaTab orgId={organization.id} />)}
           {activeTab === "features" && <FeaturesTab effectivePlan={planLimits.effectivePlan} />}
           {activeTab === "reports" && (lockedFeatures.reports
-            ? <UpgradePrompt title="Relatórios Avançados" description="Gráficos de faturamento, ticket médio, horários de pico e comparativos. Disponível nos planos Enterprise e Vitalício." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Relatórios Avançados" description="Gráficos de faturamento, ticket médio, horários de pico e comparativos. Disponível nos planos Enterprise e Vitalício." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <ReportsTab orgId={organization.id} orgName={organization.name} orgLogo={organization.logo_url} orgWhatsapp={organization.whatsapp} orgAddress={organization.store_address} orgCnpj={(organization as any).cnpj} />)}
           {activeTab === "guide" && <GuideTab />}
           {activeTab === "profile" && <StoreProfileTab organization={organization} effectivePlan={planLimits.effectivePlan} />}
@@ -1074,10 +1074,10 @@ const DashboardPage = () => {
           {activeTab === "courier" && <CourierDashboardTab orgId={organization.id} orgSlug={organization.slug} orgName={organization.name} orgLogo={(organization as any).logo_url} orgWhatsapp={(organization as any).whatsapp} orgAddress={(organization as any).store_address} courierConfig={(organization as any).courier_config} />}
           {activeTab === "subscription" && <SubscriptionTab />}
           {activeTab === "stock" && (lockedFeatures.stock
-            ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Estoque & Insumos" description="Controle o estoque de ingredientes e composição dos produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <StockTab orgId={organization.id} />)}
           {activeTab === "pricing" && (lockedFeatures.pricing
-            ? <UpgradePrompt title="Precificação" description="Calcule custos, margens e preços sugeridos com base na ficha técnica dos seus produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Precificação" description="Calcule custos, margens e preços sugeridos com base na ficha técnica dos seus produtos. Disponível no plano Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <PricingTab orgId={organization.id} />)}
           {activeTab === "referral" && <ReferralSection orgId={organization.id} subscriptionPlan={organization.subscription_plan} />}
           {activeTab === "reviews" && <ReviewsTab orgId={organization.id} />}
@@ -1108,12 +1108,12 @@ const DashboardPage = () => {
                 </div>
               )
               : lockedFeatures.ifood
-                ? <UpgradePrompt title="Integração iFood" description="Receba e gerencie pedidos do iFood direto no painel. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+                ? <UpgradePrompt title="Integração iFood" description="Receba e gerencie pedidos do iFood direto no painel. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
                 : <IFoodTab orgId={organization.id} />
           )}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
           {activeTab === "aibot" && (lockedFeatures.aibot
-            ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} subscriptionExpired={planLimits.subscriptionExpired} />
             : <AIBotTab orgId={organization.id} />)}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
           </ErrorBoundary>
