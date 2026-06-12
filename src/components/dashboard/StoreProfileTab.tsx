@@ -412,21 +412,26 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
       if (!file) return;
       setBannerUploading(true);
       const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 800 });
-      const ext = compressed.name.split(".").pop();
+      const ext = (compressed.name.split(".").pop() || "webp").toLowerCase();
       const slot = bannerSlot;
-      const path = `banners/${organization.id}-${slot}.${ext}`;
+      // Nome único por upload evita colisão e cache stale do CDN quando o usuário
+      // troca/remove banners (o índice do array não é um slot estável no Storage).
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const path = `banners/${organization.id}-${unique}.${ext}`;
       await uploadWithRetry(
         async () => {
           const { error: uploadError } = await supabase.storage
             .from("menu-images")
-            .upload(path, compressed, { upsert: true });
+            .upload(path, compressed, { upsert: false });
           if (uploadError) throw uploadError;
         },
         { label: "bannerUpload" },
       );
       const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
-      const url = data.publicUrl + `?t=${Date.now()}`;
+      const url = data.publicUrl;
       const next = [...bannerUrls];
+      // Garante que slots vazios anteriores sejam preenchidos antes do índice atual
+      while (next.length < slot) next.push("");
       next[slot] = url;
       await persistBannerUrls(next);
       toast.success("Banner atualizado!");
