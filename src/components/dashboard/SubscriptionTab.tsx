@@ -453,10 +453,13 @@ const SubscriptionTab = () => {
           const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
           const orgBilling = organization?.billing_cycle || "monthly";
           const isSamePlan = currentPlan === plan.key;
-          const billingMismatch = isSamePlan && plan.priceCents > 0 && selectedBilling !== orgBilling;
+          const isCurrentActive = isSamePlan && !planLimits.subscriptionExpired;
+          const billingMismatch = isCurrentActive && plan.priceCents > 0 && selectedBilling !== orgBilling;
           const ctaText = billingMismatch
             ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
-            : showPromo ? "🔥 Aproveitar oferta" : plan.cta;
+            : planLimits.subscriptionExpired && isSamePlan
+              ? "Renovar agora"
+              : showPromo ? "🔥 Aproveitar oferta" : plan.cta;
           return (
             <PlanCard
               key={plan.key}
@@ -471,13 +474,13 @@ const SubscriptionTab = () => {
               ctaLink={plan.ctaLink}
               highlighted={plan.highlighted}
               badge={plan.badge}
-              currentPlan={isSamePlan}
+              currentPlan={isCurrentActive}
               billingMismatch={billingMismatch}
               loading={false}
               promoPrice={showPromo ? `R$ ${(Math.round(plan.priceCents / 2) / 100).toFixed(2).replace(".", ",")}` : undefined}
               originalPrice={showPromo ? plan.price : undefined}
               onSelect={
-                (!isSamePlan || billingMismatch) && !isLifetime
+                (!isCurrentActive || billingMismatch) && !isLifetime
                   ? () => handleSubscribe(plan.key)
                   : undefined
               }
