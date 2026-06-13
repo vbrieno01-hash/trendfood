@@ -36,16 +36,8 @@ interface Organization {
   delivery_config?: { free_above?: number } | null;
   pix_confirmation_mode?: "direct" | "manual" | "automatic";
   banner_url?: string | null;
-  banner_urls?: string[] | null;
   subscription_plan?: string;
   theme_config?: ThemeConfig | null;
-  payment_methods?: {
-    dinheiro?: boolean;
-    maquininha?: boolean;
-    debito?: boolean;
-    credito?: boolean;
-    pix?: boolean;
-  } | null;
 }
 
 
@@ -104,13 +96,6 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(
     organization.theme_config ?? {}
   );
-  const [paymentMethods, setPaymentMethods] = useState<{ dinheiro: boolean; maquininha: boolean; debito: boolean; credito: boolean; pix: boolean }>({
-    dinheiro: organization.payment_methods?.dinheiro ?? true,
-    maquininha: organization.payment_methods?.maquininha ?? true,
-    debito: organization.payment_methods?.debito ?? true,
-    credito: organization.payment_methods?.credito ?? true,
-    pix: organization.payment_methods?.pix ?? true,
-  });
   const [addressFields, setAddressFields] = useState<AddressFields>(
     organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
   );
@@ -121,12 +106,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [logoUrl, setLogoUrl] = useState(organization.logo_url);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [bannerRemoving, setBannerRemoving] = useState(false);
-  const [bannerUrls, setBannerUrls] = useState<string[]>(() => {
-    const arr = (organization.banner_urls ?? []).filter(Boolean);
-    if (arr.length > 0) return arr.slice(0, 3);
-    return organization.banner_url ? [organization.banner_url] : [];
-  });
-  const [bannerSlot, setBannerSlot] = useState<number>(0);
+  const [bannerUrl, setBannerUrl] = useState(organization.banner_url ?? null);
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [gatewayProvider, setGatewayProvider] = useState("");
@@ -154,22 +134,12 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     });
     setBusinessHours(organization.business_hours ?? DEFAULT_BUSINESS_HOURS);
     setThemeConfig(organization.theme_config ?? {});
-    setPaymentMethods({
-      dinheiro: organization.payment_methods?.dinheiro ?? true,
-      maquininha: organization.payment_methods?.maquininha ?? true,
-      debito: organization.payment_methods?.debito ?? true,
-      credito: organization.payment_methods?.credito ?? true,
-      pix: organization.payment_methods?.pix ?? true,
-    });
     setAddressFields(
       organization.store_address ? parseStoreAddress(organization.store_address) : { ...EMPTY_ADDRESS }
     );
     setFreeAbove((organization.delivery_config as any)?.free_above ?? 80);
     setLogoUrl(organization.logo_url);
-    {
-      const arr = (organization.banner_urls ?? []).filter(Boolean);
-      setBannerUrls(arr.length > 0 ? arr.slice(0, 3) : (organization.banner_url ? [organization.banner_url] : []));
-    }
+    setBannerUrl(organization.banner_url ?? null);
     // Marca como hidratado depois do estado inicial; evita autosave salvar lixo durante a hidratação.
     isHydrated.current = true;
     isFirstRender.current = true; // Reseta pra próxima edição não disparar save imediato
@@ -237,7 +207,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }, 1500);
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, businessHours, addressFields, freeAbove, themeConfig, paymentMethods]);
+  }, [form, businessHours, addressFields, freeAbove, themeConfig]);
 
   // Reseta tema visual para o padrão (limpa estilos personalizados)
   const handleResetTheme = () => {
@@ -264,7 +234,6 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         pix_confirmation_mode: form.pix_confirmation_mode,
         business_hours: businessHours as unknown as never,
         theme_config: themeConfig as unknown as never,
-        payment_methods: paymentMethods as unknown as never,
       };
 
       // Campos específicos de cada loja (NÃO compartilhar entre unidades)
@@ -394,46 +363,29 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }
   };
 
-  const persistBannerUrls = async (next: string[]) => {
-    const sanitized = next.filter(Boolean).slice(0, 3);
-    setBannerUrls(sanitized);
-    const payload: Record<string, any> = {
-      banner_urls: sanitized,
-      banner_url: sanitized[0] ?? null, // mantém legado
-    };
-    await supabase.from("organizations").update(payload as any).eq("id", organization.id);
-    await updateAllOrgs(payload);
-    await refreshOrganization();
-  };
-
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0];
       if (!file) return;
       setBannerUploading(true);
       const compressed = await compressImage(file, { maxWidth: 1200, maxHeight: 800 });
-      const ext = (compressed.name.split(".").pop() || "webp").toLowerCase();
-      const slot = bannerSlot;
-      // Nome único por upload evita colisão e cache stale do CDN quando o usuário
-      // troca/remove banners (o índice do array não é um slot estável no Storage).
-      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const path = `banners/${organization.id}-${unique}.${ext}`;
+      const ext = compressed.name.split(".").pop();
+      const path = `banners/${organization.id}.${ext}`;
       await uploadWithRetry(
         async () => {
           const { error: uploadError } = await supabase.storage
             .from("menu-images")
-            .upload(path, compressed, { upsert: false });
+            .upload(path, compressed, { upsert: true });
           if (uploadError) throw uploadError;
         },
         { label: "bannerUpload" },
       );
       const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
-      const url = data.publicUrl;
-      const next = [...bannerUrls];
-      // Garante que slots vazios anteriores sejam preenchidos antes do índice atual
-      while (next.length < slot) next.push("");
-      next[slot] = url;
-      await persistBannerUrls(next);
+      const url = data.publicUrl + `?t=${Date.now()}`;
+      setBannerUrl(url);
+      await supabase.from("organizations").update({ banner_url: url } as any).eq("id", organization.id);
+      await updateAllOrgs({ banner_url: url });
+      await refreshOrganization();
       toast.success("Banner atualizado!");
     } catch (err) {
       console.error("[StoreProfile] Banner upload error:", err);
@@ -444,11 +396,13 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }
   };
 
-  const handleRemoveBannerAt = async (idx: number) => {
+  const handleRemoveBanner = async () => {
     setBannerRemoving(true);
     try {
-      const next = bannerUrls.filter((_, i) => i !== idx);
-      await persistBannerUrls(next);
+      await supabase.from("organizations").update({ banner_url: null } as any).eq("id", organization.id);
+      await updateAllOrgs({ banner_url: null });
+      setBannerUrl(null);
+      await refreshOrganization();
       toast.success("Banner removido.");
     } catch {
       toast.error("Erro ao remover banner.");
@@ -675,60 +629,44 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
 
         {/* Banner */}
         <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <Label className="text-sm font-medium">Banners (até 3 — rotativo)</Label>
-            <span className="text-[11px] text-muted-foreground">{bannerUrls.length}/3</span>
+          <Label className="text-sm font-medium mb-2 block">Banner</Label>
+          <div className="space-y-2">
+            {bannerUrl ? (
+              <img src={bannerUrl} alt="Banner" className="w-full rounded-xl object-cover" style={{ maxHeight: 160 }} />
+            ) : (
+              <div className="w-full h-24 rounded-xl border-2 border-dashed border-border bg-secondary/50 flex items-center justify-center text-muted-foreground text-sm">
+                Nenhum banner
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => bannerFileRef.current?.click()}
+                disabled={bannerUploading}
+                className="gap-2"
+              >
+                <Camera className="w-4 h-4" />
+                {bannerUploading ? "Enviando..." : bannerUrl ? "Trocar banner" : "Adicionar banner"}
+              </Button>
+              {bannerUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveBanner}
+                  disabled={bannerRemoving}
+                  className="gap-1.5 text-muted-foreground hover:text-destructive"
+                >
+                  {bannerRemoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                  Remover
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Imagem paisagem recomendada (1200×400). Máx 2MB.</p>
+            <input ref={bannerFileRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[0, 1, 2].map((idx) => {
-              const url = bannerUrls[idx];
-              return (
-                <div key={idx} className="relative">
-                  {url ? (
-                    <div className="relative rounded-xl overflow-hidden border border-border group">
-                      <img src={url} alt={`Banner ${idx + 1}`} className="w-full h-20 object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveBannerAt(idx)}
-                        disabled={bannerRemoving}
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-destructive transition-colors"
-                        aria-label="Remover banner"
-                      >
-                        {bannerRemoving ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setBannerSlot(idx); bannerFileRef.current?.click(); }}
-                        disabled={bannerUploading}
-                        className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90"
-                        aria-label="Trocar banner"
-                      >
-                        <Camera className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => { setBannerSlot(bannerUrls.length); bannerFileRef.current?.click(); }}
-                      disabled={bannerUploading || idx > bannerUrls.length}
-                      className="w-full h-20 rounded-xl border-2 border-dashed border-border bg-secondary/40 hover:bg-secondary/70 transition-colors flex flex-col items-center justify-center gap-1 text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {bannerUploading && bannerSlot === bannerUrls.length && idx === bannerUrls.length ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Camera className="w-4 h-4" />
-                      )}
-                      <span className="text-[10px] font-medium">Foto {idx + 1}</span>
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Imagem paisagem recomendada (1200×400). Quando houver mais de uma, o banner alterna automaticamente a cada 5s.
-          </p>
-          <input ref={bannerFileRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
         </div>
 
 
@@ -1024,40 +962,6 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           <p className="text-xs text-muted-foreground mt-1">
             Quando cadastrada, o QR Code PIX com o valor total aparece automaticamente no comprovante de impressão.
           </p>
-        </div>
-
-        {/* Formas de pagamento aceitas */}
-        <div className="mt-5">
-          <Label className="text-sm font-medium">Formas de pagamento aceitas</Label>
-          <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-            Marque as opções que sua loja aceita. O cliente verá apenas essas no checkout e no rodapé do cardápio.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { key: "dinheiro", label: "💵 Dinheiro" },
-              { key: "maquininha", label: "💳 Maquininha na entrega" },
-              { key: "debito", label: "💳 Cartão de débito" },
-              { key: "credito", label: "💳 Cartão de crédito" },
-              { key: "pix", label: "⚡ PIX" },
-            ] as const).map(({ key, label }) => (
-              <label
-                key={key}
-                className={`flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
-                  paymentMethods[key]
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/30"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={paymentMethods[key]}
-                  onChange={(e) => setPaymentMethods((p) => ({ ...p, [key]: e.target.checked }))}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm text-foreground">{label}</span>
-              </label>
-            ))}
-          </div>
         </div>
 
         {/* PIX Confirmation Mode */}

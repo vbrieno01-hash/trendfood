@@ -493,63 +493,6 @@ function AdminContent() {
     return { newThisMonth: ntm, newLastMonth: nlm };
   }, [orgs]);
 
-  /* ── Séries mensais (últimos 6 meses) para sparklines ── */
-  const series = useMemo(() => {
-    const now = new Date();
-    const months: { start: Date; end: Date }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      months.push({ start, end });
-    }
-    const newOrgs = months.map(({ start, end }) =>
-      orgs.filter((o) => {
-        const d = new Date(o.created_at);
-        return d >= start && d < end;
-      }).length,
-    );
-    const revenue = months.map(({ start, end }) =>
-      payments
-        .filter((p) => {
-          const d = new Date(p.paid_at);
-          return d >= start && d < end;
-        })
-        .reduce((acc, p) => acc + p.amount_cents, 0) / 100,
-    );
-    // Assinantes acumulados ao fim de cada mês (lojas criadas até a data, plano pago hoje — aproximação)
-    const cumulativeOrgs = months.map(({ end }) => orgs.filter((o) => new Date(o.created_at) < end).length);
-    const delta = (arr: number[]) => {
-      const last = arr[arr.length - 1] ?? 0;
-      const prev = arr[arr.length - 2] ?? 0;
-      if (prev === 0) return last > 0 ? 100 : 0;
-      return Math.round(((last - prev) / prev) * 100);
-    };
-    return {
-      newOrgs,
-      revenue,
-      cumulativeOrgs,
-      revenueDelta: delta(revenue),
-      orgsDelta: delta(newOrgs),
-    };
-  }, [orgs, payments]);
-
-  /* ── Saúde da plataforma ── */
-  const platformHealth = useMemo(() => {
-    const total = orgs.length || 1;
-    const payingPct = Math.round((payingOrgs.length / total) * 100);
-    const trialPct = Math.round((trialCount / total) * 100);
-    const momPct = newLastMonth > 0
-      ? Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100)
-      : (newThisMonth > 0 ? 100 : 0);
-    // Conversão histórica de trial → pago: orgs pagas que já tiveram trial_ends_at no passado
-    const expiredTrialsThatPaid = orgs.filter(
-      (o) => o.trial_ends_at && new Date(o.trial_ends_at) < new Date() && o.subscription_plan !== "free",
-    ).length;
-    const totalEverTrialed = orgs.filter((o) => !!o.trial_ends_at).length;
-    const convPct = totalEverTrialed > 0 ? Math.round((expiredTrialsThatPaid / totalEverTrialed) * 100) : null;
-    return { payingPct, trialPct, momPct, convPct };
-  }, [orgs, payingOrgs, trialCount, newThisMonth, newLastMonth]);
-
   const filteredOrgs = useMemo(() => {
     const q = search.toLowerCase().trim();
     const now = Date.now();
@@ -802,28 +745,16 @@ function AdminContent() {
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
           {/* ── Home Tab ── */}
           {activeTab === "home" && (
-            <div className="relative space-y-8">
-              {/* Radial accent backdrop */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -top-20 right-0 w-[600px] h-[600px] rounded-full opacity-30 blur-3xl"
-                style={{ background: "radial-gradient(circle, hsl(24 95% 53% / 0.25), transparent 60%)" }}
-              />
+            <div className="space-y-8">
               {/* Greeting header with avatar and live indicator */}
-              <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-admin-fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-admin-fade-in">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold text-lg shadow-xl shadow-primary/30 ring-1 ring-primary/20">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
                     {adminInitial}
                   </div>
                   <div>
-                    <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-                      {greeting}, <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Admin</span> 👋
-                    </h1>
-                    <p className="text-xs text-muted-foreground capitalize mt-1 flex items-center gap-2">
-                      <span>{todayFormatted}</span>
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">Plataforma estável</span>
-                    </p>
+                    <h1 className="text-xl font-bold text-foreground">{greeting}, Admin 👋</h1>
+                    <p className="text-sm text-muted-foreground capitalize mt-0.5">{todayFormatted}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -836,7 +767,7 @@ function AdminContent() {
                   </div>
                   <Link
                     to="/dashboard"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full admin-glass text-primary hover:bg-primary/10 transition-all"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
                     Dashboard
@@ -846,7 +777,7 @@ function AdminContent() {
               </div>
 
               {/* KPI cards with glassmorphism and staggered animation */}
-              <div className="relative flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
                 <KpiCard
                   icon={<DollarSign className="w-4 h-4" />}
                   label="Receita Estimada"
@@ -854,9 +785,6 @@ function AdminContent() {
                   gradient="from-emerald-500/20 to-emerald-500/5"
                   iconBg="bg-emerald-500/15"
                   iconColor="text-emerald-600 dark:text-emerald-400"
-                  sparkline={series.revenue}
-                  sparkColor="hsl(160 84% 39%)"
-                  trend={loading ? undefined : series.revenueDelta}
                   delay={1}
                 />
                 <KpiCard
@@ -866,9 +794,6 @@ function AdminContent() {
                   gradient="from-blue-500/20 to-blue-500/5"
                   iconBg="bg-blue-500/15"
                   iconColor="text-blue-600 dark:text-blue-400"
-                  sparkline={series.revenue}
-                  sparkColor="hsl(217 91% 60%)"
-                  trend={loading ? undefined : series.revenueDelta}
                   delay={2}
                 />
                 <KpiCard
@@ -878,8 +803,6 @@ function AdminContent() {
                   gradient="from-violet-500/20 to-violet-500/5"
                   iconBg="bg-violet-500/15"
                   iconColor="text-violet-600 dark:text-violet-400"
-                  sparkline={series.cumulativeOrgs}
-                  sparkColor="hsl(262 83% 65%)"
                   delay={3}
                 />
                 <KpiCard
@@ -890,8 +813,6 @@ function AdminContent() {
                   iconBg="bg-cyan-500/15"
                   iconColor="text-cyan-600 dark:text-cyan-400"
                   trend={newLastMonth > 0 ? Math.round(((newThisMonth - newLastMonth) / newLastMonth) * 100) : undefined}
-                  sparkline={series.cumulativeOrgs}
-                  sparkColor="hsl(189 94% 43%)"
                   delay={4}
                 />
                 <KpiCard
@@ -901,9 +822,6 @@ function AdminContent() {
                   gradient="from-orange-500/20 to-orange-500/5"
                   iconBg="bg-orange-500/15"
                   iconColor="text-orange-600 dark:text-orange-400"
-                  sparkline={series.newOrgs}
-                  sparkColor="hsl(24 95% 53%)"
-                  trend={loading ? undefined : series.orgsDelta}
                   delay={5}
                 />
                 <KpiCard
@@ -913,81 +831,41 @@ function AdminContent() {
                   gradient="from-amber-500/20 to-amber-500/5"
                   iconBg="bg-amber-500/15"
                   iconColor="text-amber-600 dark:text-amber-400"
-                  sparkline={series.newOrgs}
-                  sparkColor="hsl(38 92% 50%)"
                   delay={6}
                 />
               </div>
 
-              {/* ── Saúde da Plataforma ── */}
-              {!loading && (
-                <section className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 animate-admin-fade-in admin-delay-2">
-                  <HealthCard
-                    label="Assinantes pagantes"
-                    value={`${payingOrgs.length}`}
-                    sub={`${platformHealth.payingPct}% do total`}
-                    pct={platformHealth.payingPct}
-                    color="emerald"
-                    icon={<Crown className="w-3.5 h-3.5" />}
-                  />
-                  <HealthCard
-                    label="Trials ativos"
-                    value={`${trialCount}`}
-                    sub={`${platformHealth.trialPct}% da base`}
-                    pct={platformHealth.trialPct}
-                    color="amber"
-                    icon={<Sparkles className="w-3.5 h-3.5" />}
-                  />
-                  <HealthCard
-                    label="Crescimento MoM"
-                    value={`${platformHealth.momPct > 0 ? "+" : ""}${platformHealth.momPct}%`}
-                    sub={`${newThisMonth} novas / ${newLastMonth} mês ant.`}
-                    pct={Math.min(Math.abs(platformHealth.momPct), 100)}
-                    color={platformHealth.momPct >= 0 ? "blue" : "rose"}
-                    icon={platformHealth.momPct >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                  />
-                  <HealthCard
-                    label="Conversão de trial"
-                    value={platformHealth.convPct === null ? "—" : `${platformHealth.convPct}%`}
-                    sub={platformHealth.convPct === null ? "sem histórico" : "trial → pago"}
-                    pct={platformHealth.convPct ?? 0}
-                    color="violet"
-                    icon={<TrendingUp className="w-3.5 h-3.5" />}
-                  />
-                </section>
-              )}
-
               {/* Quick actions with colored icons */}
               {!loading && (
-                <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 animate-admin-fade-in admin-delay-3">
-                  <QuickAction
+                <div className="flex items-center gap-2 flex-wrap animate-admin-fade-in admin-delay-3">
+                  <button
                     onClick={() => setActiveTab("lojas")}
-                    icon={<Store className="w-4 h-4" />}
-                    title="Ver Lojas"
-                    sub={`${orgs.length} cadastradas`}
-                    color="primary"
-                  />
-                  <QuickAction
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105 transition-all duration-200 shadow-sm"
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    Ver Lojas
+                  </button>
+                  <button
                     onClick={() => setActiveTab("ativacoes")}
-                    icon={<ScrollText className="w-4 h-4" />}
-                    title="Ativações"
-                    sub="histórico recente"
-                    color="emerald"
-                  />
-                  <QuickAction
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
+                  >
+                    <ScrollText className="w-3.5 h-3.5" />
+                    Ver Ativações
+                  </button>
+                  <button
                     onClick={() => setActiveTab("logs")}
-                    icon={<AlertCircle className="w-4 h-4" />}
-                    title="Logs de Erros"
-                    sub="monitorar incidentes"
-                    color="rose"
-                  />
-                  <QuickAction
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Logs de Erros
+                  </button>
+                  <button
                     onClick={() => setActiveTab("vendas")}
-                    icon={<MessageCircle className="w-4 h-4" />}
-                    title="Chat de Vendas"
-                    sub="conversas com leads"
-                    color="blue"
-                  />
+                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 hover:scale-105 transition-all duration-200 shadow-sm"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Chat de Vendas
+                  </button>
                 </div>
               )}
 
@@ -997,14 +875,9 @@ function AdminContent() {
               {!loading && (
                 <section className="animate-admin-slide-up admin-delay-4">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-orange-400 flex items-center justify-center shadow-lg shadow-primary/30">
-                        <Crown className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-sm font-bold text-foreground leading-tight">Detalhamento de Assinantes</h2>
-                        <p className="text-[11px] text-muted-foreground">{subscriberDetails.length} assinantes pagantes</p>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-primary/60" />
+                      <h2 className="text-sm font-bold text-foreground">Detalhamento de Assinantes</h2>
                     </div>
                     {payments.length > 0 && (
                       <button
@@ -1311,7 +1184,7 @@ function AdminContent() {
 
 /* ── KPI Card — glassmorphism with gradient and animation ── */
 function KpiCard({
-  icon, label, value, iconBg, iconColor, trend, gradient, delay, sparkline, sparkColor,
+  icon, label, value, iconBg, iconColor, trend, gradient, delay,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -1321,11 +1194,9 @@ function KpiCard({
   trend?: number;
   gradient?: string;
   delay?: number;
-  sparkline?: number[];
-  sparkColor?: string;
 }) {
   return (
-    <div className={`relative overflow-hidden min-w-[160px] admin-glass rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in admin-delay-${delay ?? 1}`}>
+    <div className={`min-w-[140px] admin-glass rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in admin-delay-${delay ?? 1}`}>
       <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient ?? ""} opacity-50 pointer-events-none`} />
       <div className="relative flex items-center justify-between">
         <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform duration-200`}>
@@ -1346,109 +1217,7 @@ function KpiCard({
         )}
       </div>
       <p className="relative text-[11px] text-muted-foreground leading-snug font-medium">{label}</p>
-      {sparkline && sparkline.length > 1 && <Sparkline data={sparkline} color={sparkColor ?? "currentColor"} />}
     </div>
-  );
-}
-
-/* ── Health mini-card ── */
-function HealthCard({
-  label, value, sub, pct, color, icon,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  pct: number;
-  color: "emerald" | "amber" | "blue" | "violet" | "rose";
-  icon: React.ReactNode;
-}) {
-  const colorMap: Record<string, { text: string; bar: string; ring: string }> = {
-    emerald: { text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", ring: "ring-emerald-500/20" },
-    amber:   { text: "text-amber-600 dark:text-amber-400",     bar: "bg-amber-500",   ring: "ring-amber-500/20" },
-    blue:    { text: "text-blue-600 dark:text-blue-400",       bar: "bg-blue-500",    ring: "ring-blue-500/20" },
-    violet:  { text: "text-violet-600 dark:text-violet-400",   bar: "bg-violet-500",  ring: "ring-violet-500/20" },
-    rose:    { text: "text-rose-600 dark:text-rose-400",       bar: "bg-rose-500",    ring: "ring-rose-500/20" },
-  };
-  const c = colorMap[color];
-  return (
-    <div className={`admin-glass rounded-2xl p-4 flex flex-col gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ring-1 ${c.ring}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-        <span className={`${c.text}`}>{icon}</span>
-      </div>
-      <div className={`text-2xl font-extrabold ${c.text} leading-none tabular-nums`}>{value}</div>
-      <div className="text-[11px] text-muted-foreground">{sub}</div>
-      <div className="h-1 bg-muted/60 rounded-full overflow-hidden mt-0.5">
-        <div
-          className={`h-full ${c.bar} rounded-full transition-all duration-500`}
-          style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ── Quick action card ── */
-function QuickAction({
-  onClick, icon, title, sub, color,
-}: {
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  sub: string;
-  color: "primary" | "emerald" | "rose" | "blue";
-}) {
-  const map: Record<string, { iconBg: string; iconColor: string; hover: string }> = {
-    primary: { iconBg: "bg-primary/15",       iconColor: "text-primary",                       hover: "hover:border-primary/40" },
-    emerald: { iconBg: "bg-emerald-500/15",   iconColor: "text-emerald-600 dark:text-emerald-400", hover: "hover:border-emerald-500/40" },
-    rose:    { iconBg: "bg-rose-500/15",      iconColor: "text-rose-600 dark:text-rose-400",   hover: "hover:border-rose-500/40" },
-    blue:    { iconBg: "bg-blue-500/15",      iconColor: "text-blue-600 dark:text-blue-400",   hover: "hover:border-blue-500/40" },
-  };
-  const c = map[color];
-  return (
-    <button
-      onClick={onClick}
-      className={`admin-glass rounded-2xl p-4 flex items-center gap-3 text-left border border-transparent ${c.hover} hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group`}
-    >
-      <div className={`w-10 h-10 rounded-xl ${c.iconBg} ${c.iconColor} flex items-center justify-center group-hover:scale-110 transition-transform shrink-0`}>
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-bold text-foreground leading-tight">{title}</div>
-        <div className="text-[11px] text-muted-foreground truncate">{sub}</div>
-      </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
-    </button>
-  );
-}
-
-/* ── Sparkline mini SVG ── */
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  const w = 100;
-  const h = 24;
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
-  const range = max - min || 1;
-  const step = w / (data.length - 1);
-  const points = data.map((v, i) => {
-    const x = i * step;
-    const y = h - ((v - min) / range) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const path = `M ${points.join(" L ")}`;
-  const area = `${path} L ${w},${h} L 0,${h} Z`;
-  const gradId = `sparkfill-${Math.random().toString(36).slice(2, 8)}`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="relative w-full h-6 mt-1 opacity-90">
-      <defs>
-        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gradId})`} />
-      <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
 

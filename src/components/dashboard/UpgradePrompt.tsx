@@ -9,10 +9,9 @@ interface UpgradePromptProps {
   orgId: string;
   currentPlan: string;
   promoEligible?: boolean;
-  subscriptionExpired?: boolean;
 }
 
-export default function UpgradePrompt({ title, description, orgId, currentPlan, promoEligible, subscriptionExpired }: UpgradePromptProps) {
+export default function UpgradePrompt({ title, description, orgId, currentPlan, promoEligible }: UpgradePromptProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -37,7 +36,6 @@ export default function UpgradePrompt({ title, description, orgId, currentPlan, 
         orgId={orgId}
         currentPlan={currentPlan}
         promoEligible={promoEligible}
-        subscriptionExpired={subscriptionExpired}
       />
     </div>
   );

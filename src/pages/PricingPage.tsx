@@ -264,16 +264,11 @@ const PricingPage = () => {
                 : undefined;
             const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
             const orgBilling = organization?.billing_cycle || "monthly";
-            const trialEndsAt = (organization as any)?.trial_ends_at ? new Date((organization as any).trial_ends_at) : null;
-            const isPaidPlan = currentPlan === "pro" || currentPlan === "enterprise";
-            const subscriptionExpired = isPaidPlan && !!trialEndsAt && trialEndsAt <= new Date();
-            const isSamePlan = !!user && currentPlan === plan.key && !subscriptionExpired;
+            const isSamePlan = !!user && currentPlan === plan.key;
             const billingMismatch = isSamePlan && plan.price_cents > 0 && selectedBilling !== orgBilling;
             const ctaText = billingMismatch
               ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
-              : (subscriptionExpired && currentPlan === plan.key)
-                ? "Renovar agora"
-                : plan.cta;
+              : plan.cta;
             return (
               <PlanCard
                 key={plan.name}

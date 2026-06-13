@@ -15,8 +15,6 @@ import {
 import {
   Plus, X, Minus, UtensilsCrossed,
   ShoppingCart, ShoppingBag, Search,
-  Leaf, ChefHat, Bike, ShieldCheck,
-  Clock, CreditCard, Crown,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -57,93 +55,6 @@ const formatPhone = (value: string): string => {
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-
-/** Carrossel de banners (até 3 imagens). Sem dependências externas. */
-const BannerCarousel = ({
-  images,
-  orgId,
-  primaryColor,
-  fallback,
-}: {
-  images: string[];
-  orgId: string;
-  primaryColor: string;
-  fallback: React.ReactNode;
-}) => {
-  const [valid, setValid] = useState<string[]>(images);
-  const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const touchStartX = useRef<number | null>(null);
-
-  useEffect(() => { setValid(images); setIndex(0); }, [images.join("|")]);
-
-  useEffect(() => {
-    if (paused || valid.length <= 1) return;
-    const t = setInterval(() => setIndex((i) => (i + 1) % valid.length), 5000);
-    return () => clearInterval(t);
-  }, [paused, valid.length]);
-
-  if (valid.length === 0) {
-    return <>{fallback}</>;
-  }
-
-  const handleError = (url: string) => {
-    setValid((arr) => arr.filter((u) => u !== url));
-    try {
-      supabase.functions.invoke("cleanup-broken-banners", { body: { org_id: orgId } });
-    } catch {}
-  };
-
-  return (
-    <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-      <div
-        className="relative w-full rounded-2xl overflow-hidden shadow-lg"
-        style={{ aspectRatio: "16 / 7", maxHeight: 220, border: `1px solid ${primaryColor}33` }}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onTouchStart={(e) => { setPaused(true); touchStartX.current = e.touches[0].clientX; }}
-        onTouchEnd={(e) => {
-          setPaused(false);
-          if (touchStartX.current == null) return;
-          const dx = e.changedTouches[0].clientX - touchStartX.current;
-          if (Math.abs(dx) > 40) {
-            setIndex((i) => (dx < 0 ? (i + 1) % valid.length : (i - 1 + valid.length) % valid.length));
-          }
-          touchStartX.current = null;
-        }}
-      >
-        {valid.map((url, i) => (
-          <img
-            key={url}
-            src={url}
-            alt={`Banner ${i + 1}`}
-            loading={i === 0 ? "eager" : "lazy"}
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-            style={{ opacity: i === index ? 1 : 0 }}
-            onError={() => handleError(url)}
-          />
-        ))}
-        {valid.length > 1 && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-            {valid.map((_, i) => (
-              <button
-                key={i}
-                aria-label={`Ir para banner ${i + 1}`}
-                onClick={() => setIndex(i)}
-                className="h-1.5 rounded-full transition-all"
-                style={{
-                  width: i === index ? 18 : 6,
-                  background: i === index ? primaryColor : "rgba(255,255,255,0.6)",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 const UnitPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -1135,70 +1046,53 @@ const UnitPage = () => {
         </div>
       </header>
 
-      {/* Banner rotativo (até 3 fotos) */}
-      {(() => {
-        const rawList = (org as any).banner_urls as string[] | null | undefined;
-        const list = Array.isArray(rawList) ? rawList.filter(Boolean) : [];
-        const merged = list.length > 0 ? list : (org.banner_url ? [org.banner_url] : []);
-        return (
-          <BannerCarousel
-            images={merged}
-            orgId={org.id}
-            primaryColor={primaryColor}
-            fallback={
-              <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-                <div
-                  className="w-full rounded-2xl flex items-center justify-center px-6 py-8 text-center shadow-lg"
-                  style={{
-                    minHeight: 140,
-                    background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    {org.emoji && <span className="text-4xl drop-shadow-sm">{org.emoji}</span>}
-                    <div className="text-left">
-                      <p className="text-white font-extrabold text-xl leading-tight drop-shadow-md">{org.name}</p>
-                      {org.description && (
-                        <p className="text-white/90 text-xs mt-0.5 line-clamp-2 max-w-[260px]">{org.description}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            }
+      {/* Banner */}
+      {org.banner_url ? (
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+          <img
+            src={org.banner_url}
+            alt="Banner"
+            className="w-full rounded-2xl object-cover"
+            style={{ maxHeight: 180 }}
+            onError={(e) => {
+              (e.currentTarget.parentElement as HTMLElement | null)?.remove();
+              // Self-healing: limpa banner_url morto no banco para não voltar a tentar
+              try {
+                supabase.functions.invoke("cleanup-broken-banners", {
+                  body: { org_id: org.id },
+                });
+              } catch {}
+            }}
           />
-        );
-      })()}
-
-      {/* Faixa de selos */}
-      <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-        <div
-          className="rounded-2xl bg-card border shadow-sm px-2 py-2.5 overflow-x-auto scrollbar-none"
-          style={{ borderColor: `${primaryColor}26` }}
-        >
-          <div className="flex items-center gap-1 min-w-max justify-around">
-            {[
-              { icon: Leaf, t1: "Ingredientes", t2: "selecionados" },
-              { icon: ChefHat, t1: "Preparo", t2: "na hora" },
-              { icon: Bike, t1: "Entrega", t2: "rápida" },
-              { icon: ShieldCheck, t1: "Compra", t2: "segura" },
-            ].map(({ icon: Icon, t1, t2 }) => (
-              <div key={t1} className="flex items-center gap-2 px-2.5 py-1 shrink-0">
-                <span
-                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                  style={{ border: `1.5px solid ${primaryColor}`, color: primaryColor, background: `${primaryColor}10` }}
-                >
-                  <Icon className="w-4 h-4" />
-                </span>
-                <div className="leading-tight">
-                  <p className="text-[11px] font-semibold text-foreground">{t1}</p>
-                  <p className="text-[11px] text-muted-foreground">{t2}</p>
-                </div>
+        </div>
+      ) : (
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+          <div
+            className="w-full rounded-2xl flex items-center justify-center px-6 py-8 text-center"
+            style={{
+              maxHeight: 180,
+              minHeight: 120,
+              background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              {org.emoji && (
+                <span className="text-4xl drop-shadow-sm">{org.emoji}</span>
+              )}
+              <div className="text-left">
+                <p className="text-white font-extrabold text-xl leading-tight drop-shadow-md">
+                  {org.name}
+                </p>
+                {org.description && (
+                  <p className="text-white/90 text-xs mt-0.5 line-clamp-2 max-w-[260px]">
+                    {org.description}
+                  </p>
+                )}
               </div>
-            ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Sticky search bar */}
       {!menuLoading && menuItems.length > 0 && (
@@ -1348,33 +1242,19 @@ const UnitPage = () => {
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
                       <div className="flex items-center gap-3 mb-3">
-                        {group.emoji && <span className="text-lg leading-none">{group.emoji}</span>}
-                        <h2 className="text-sm font-extrabold uppercase tracking-wider text-foreground">
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
                           {group.value}
                         </h2>
-                        <div
-                          className="flex-1 h-px"
-                          style={{ background: `linear-gradient(to right, ${categoryColor}66, transparent)` }}
-                        />
+                        <div className="flex-1 h-px bg-border/60" />
                       </div>
-                      {(() => {
-                        const isCarousel = ((org as any)?.category_layout ?? {})[group.value] === "carousel";
-                        return (
-                        <div
-                          className={
-                            isCarousel
-                              ? "flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scrollbar-none"
-                              : "grid grid-cols-3 lg:grid-cols-5 gap-2"
-                          }
-                          style={isCarousel ? { scrollbarWidth: "none", msOverflowStyle: "none" } : undefined}
-                        >
+                      <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
                             <div
                               key={item.id}
                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:-translate-y-0.5 ${isCarousel ? "snap-start shrink-0 w-[140px] lg:w-[180px]" : ""}`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
                               style={{ borderRadius: cardRadius }}
                             >
                               {/* Foto quadrada + badge de qty */}
@@ -1437,64 +1317,13 @@ const UnitPage = () => {
                             </div>
                           );
                         })}
-                        </div>
-                        );
-                      })()}
+                      </div>
                     </div>
                   ))}
                 </div>
               </>
             )}
         </div>
-
-        {/* Rodapé "Obrigado pela preferência" */}
-        {!menuLoading && menuItems.length > 0 && (
-          <div
-            className="mt-8 rounded-2xl bg-card border shadow-sm overflow-x-auto scrollbar-none"
-            style={{ borderColor: `${primaryColor}26` }}
-          >
-            <div className="grid grid-cols-3 min-w-[520px] divide-x" style={{ borderColor: `${primaryColor}22` }}>
-              <div className="flex items-center gap-2 px-3 py-3">
-                <Crown className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
-                <div className="leading-tight">
-                  <p className="text-[11px] font-bold" style={{ color: primaryColor }}>Obrigado pela preferência!</p>
-                  <p className="text-[11px] text-muted-foreground">Você é o nosso rei!</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-3">
-                <Clock className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
-                <div className="leading-tight">
-                  <p className="text-[11px] font-bold text-foreground">Horário de funcionamento</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {storeStatus?.open
-                      ? "Aberto agora"
-                      : formatOpensAt(storeStatus)
-                        ? `Abre ${formatOpensAt(storeStatus)}`
-                        : "Consulte horários"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-3">
-                <CreditCard className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />
-                <div className="leading-tight">
-                  <p className="text-[11px] font-bold text-foreground">Formas de pagamento</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {(() => {
-                      const pm = (org as any)?.payment_methods ?? { dinheiro: true, maquininha: true, debito: true, credito: true, pix: true };
-                      const labels: string[] = [];
-                      if (pm.pix) labels.push("PIX");
-                      if (pm.dinheiro) labels.push("Dinheiro");
-                      if (pm.maquininha) labels.push("Maquininha");
-                      if (pm.debito) labels.push("Débito");
-                      if (pm.credito) labels.push("Crédito");
-                      return labels.length > 0 ? labels.join(" · ") : "Consulte a loja";
-                    })()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
       {/* Footer — only shown for free plan */}
@@ -1931,20 +1760,13 @@ const UnitPage = () => {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {(() => {
-                      const pm = (org as any)?.payment_methods ?? { dinheiro: true, maquininha: true, debito: true, credito: true, pix: true };
-                      return (
-                        <>
-                          {pm.dinheiro && <SelectItem value="Dinheiro">Dinheiro</SelectItem>}
-                          {pm.maquininha && <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>}
-                          {pm.debito && <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>}
-                          {pm.credito && <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>}
-                          {pm.pix && planLimits.canAccess("online_payment") && (
-                            <SelectItem value="PIX">PIX</SelectItem>
-                          )}
-                        </>
-                      );
-                    })()}
+                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="Maquininha na Entrega">Maquininha na Entrega</SelectItem>
+                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                    {planLimits.canAccess("online_payment") && (
+                      <SelectItem value="PIX">PIX</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 {paymentError && <p className="text-destructive text-xs mt-1">Selecione uma forma de pagamento</p>}

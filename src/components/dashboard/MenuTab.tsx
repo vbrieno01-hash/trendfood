@@ -42,7 +42,6 @@ interface Organization {
   category_order?: string[] | null;
   paused_categories?: string[] | null;
   category_emojis?: Record<string, string> | null;
-  category_layout?: Record<string, "carousel" | "grid"> | null;
 }
 
 const EMPTY_FORM: MenuItemInput = {
@@ -647,9 +646,6 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
   const [localCategoryEmojis, setLocalCategoryEmojis] = useState<Record<string, string>>(
     organization.category_emojis ?? {}
   );
-  const [localCategoryLayout, setLocalCategoryLayout] = useState<Record<string, "carousel" | "grid">>(
-    organization.category_layout ?? {}
-  );
   const [emojiPickerOpen, setEmojiPickerOpen] = useState<string | null>(null);
 
   const togglePauseCategory = async (cat: string) => {
@@ -669,14 +665,6 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     setLocalCategoryEmojis(updated);
     setEmojiPickerOpen(null);
     await supabase.from("organizations").update({ category_emojis: updated } as any).eq("id", organization.id);
-  };
-
-  const toggleCategoryCarousel = async (cat: string) => {
-    const current = localCategoryLayout[cat] ?? "grid";
-    const next: "carousel" | "grid" = current === "carousel" ? "grid" : "carousel";
-    const updated = { ...localCategoryLayout, [cat]: next };
-    setLocalCategoryLayout(updated);
-    await supabase.from("organizations").update({ category_layout: updated } as any).eq("id", organization.id);
   };
   const { data: globalAddonsForCreate = [] } = useAllGlobalAddons(organization.id);
   const addAddonMutation = useAddMenuItemAddon();
@@ -1118,18 +1106,6 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                 title={isPaused ? "Retomar categoria" : "Pausar categoria"}
               >
                 {isPaused ? <Play className="w-4 h-4 text-primary" /> : <Pause className="w-4 h-4 text-muted-foreground" />}
-              </button>
-              <button
-                onClick={() => toggleCategoryCarousel(group.value)}
-                className={cn(
-                  "px-1.5 py-1 rounded hover:bg-accent transition-colors text-[10px] font-bold uppercase tracking-wide",
-                  (localCategoryLayout[group.value] ?? "grid") === "carousel"
-                    ? "text-primary bg-primary/10"
-                    : "text-muted-foreground"
-                )}
-                title="Alternar entre carrossel deslizante e grade"
-              >
-                {(localCategoryLayout[group.value] ?? "grid") === "carousel" ? "▸▸ Carrossel" : "▦ Grade"}
               </button>
               <button
                 onClick={() => moveCategoryOrder(groupIndex, "up")}
