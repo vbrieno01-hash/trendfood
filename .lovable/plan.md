@@ -1,52 +1,42 @@
-## Tarefa 1 — Teste de renovação na mcd (Pro vencido)
+## Diagnóstico
 
-**Estado atual no banco:** mcd está em `pro / active` com `trial_ends_at = 2026-06-13`.
+Verifiquei e **não é problema de rede nem do backend**:
 
-**Passos:**
-1. `UPDATE organizations SET trial_ends_at='2026-06-10' WHERE slug='mcd'` (joga validade pro passado → `subscriptionExpired = true`)
-2. Abrir o preview da mcd e validar nos 3 lugares:
-   - Aba **Assinatura** → card do Pro mostra "Renovar agora" clicável (não "Plano atual" travado)
-   - Abrir aba bloqueada (ex: Cupons) → modal `UpgradeDialog` → cards Pro/Enterprise clicáveis
-   - Página `/planos` → cards Pro/Enterprise com "Renovar agora"
-3. **Restaurar:** `UPDATE organizations SET trial_ends_at='2026-06-13 02:55:55.05+00' WHERE slug='mcd'`
+- Lovable Cloud: ativo e respondendo normal.
+- Edge Functions: zero erros 5xx nos últimos logs.
+- Postgres: sem erros relacionados a `organizations`. Schema com `banner_urls`, `category_layout`, etc. ok.
+- `useOrganization` já tem `retry: 3` com backoff, e `UnitPage` já tem tela "Tentar novamente" para falha real de rede.
 
-Sem alterar `subscription_plan` para não disparar triggers de gate.
+**O que está acontecendo de verdade:** ontem e hoje publicamos várias mudanças (banners, renovação de plano, página do cliente). Quando um cliente do lojista abre o link da loja com o navegador segurando o `index.html` antigo em cache, esse HTML aponta para arquivos JS (`/assets/xxx-abc123.js`) que **não existem mais** no novo deploy. O navegador falha ao baixar o chunk e cai no nosso handler `recoverFromStaleChunk` em `src/App.tsx`.
 
-## Tarefa 2 — Fix do upload de banners
+O problema é o que esse handler mostra: a tela `RouteFallback` exibe **"Sinal fraco detectado / Sua conexão está instável"**. O cliente lê isso e reporta para o lojista como **"erro de rede, a loja não abre"**. Não é rede — é versão velha em cache. Pior: se o auto-reload já tentou 2x na mesma sessão (`chunk_reload_count >= 2`), o handler desiste e a tela fica travada nesse aviso enganoso.
 
-**Bug identificado em `StoreProfileTab.tsx` (handleBannerUpload, linha 409):**
+## O que vou corrigir
 
-O caminho do arquivo no Storage usa **índice do array** como slot:
-```ts
-const path = `banners/${organization.id}-${slot}.${ext}`;
-```
+### 1. Mensagem honesta no `RouteFallback` (`src/App.tsx`)
+Trocar "Sinal fraco detectado / Sua conexão está instável" por **"Atualizando para a nova versão"** com botão **"Recarregar agora"**. Mantém o mesmo visual premium, só corrige o texto que está induzindo o lojista/cliente a achar que é problema de internet.
 
-Com `upsert: true`, isso causa dois problemas:
-1. **Sobrescrita silenciosa:** após remover o banner do meio, o próximo upload usa `slot = bannerUrls.length` → sobrescreve o arquivo de outro banner ainda referenciado no array.
-2. **Extensão variável:** se o usuário enviar `.png` no slot 0 e depois `.webp` no mesmo slot, fica `org-0.png` E `org-0.webp` no Storage (arquivos órfãos) e a URL pode apontar para a errada.
+### 2. Recuperação mais agressiva para a loja pública (`/unidade/:slug` e `/unidade/:slug/mesa/...`)
+No `recoverFromStaleChunk`:
+- Na **primeira** falha de chunk, já limpar `caches` + Service Workers (exceto `sw-push`) **antes** do reload, com cache-bust `?_v=timestamp` na URL — hoje a limpeza acontece mas o reload é "normal", e em alguns navegadores ainda serve o HTML velho do cache HTTP.
+- Aumentar o limite de tentativas de 2 para 3 e reduzir o gap mínimo de 5s para 2s, dando mais uma chance antes de mostrar o fallback.
 
-Hoje a mcd tem 3 banners no banco e os arquivos estão lá — então "não salva" provavelmente significa: ao enviar um novo, a foto antiga reaparece (cache do CDN do arquivo sobrescrito) ou some.
+### 3. Garantir que a loja do cliente nunca registre Service Worker
+Auditar rapidamente que nenhuma rota pública (`/unidade/*`, `/avaliar/*`) está registrando `serviceWorker` à toa — só `sw-push.js` para notificações, e mesmo esse não deve rodar para visitante anônimo da loja. Se encontrar registro indevido, removo. Isso evita que um cliente que abriu a loja semana passada fique "preso" com SW antigo.
 
-**Fix:**
-- Trocar o path por nome único por upload: `banners/${organization.id}-${Date.now()}-${random}.${ext}` (sem upsert).
-- Continuar gravando o array `banner_urls` no banco como fonte da verdade.
-- Opcional: ao remover, tentar deletar o arquivo correspondente do Storage (best-effort, ignora erro).
-- Resultado: cada upload é arquivo novo → sem colisão, sem cache stale, e o array do banco sempre reflete o que aparece na UI.
+### 4. Sem mudanças no backend
+Nada de migração nem edge function. Backend está saudável; o problema é 100% client-side de cache de bundle.
 
-**Arquivo alterado:** apenas `src/components/dashboard/StoreProfileTab.tsx` (funções `handleBannerUpload` e `handleRemoveBannerAt`).
+## Por que isso resolve
 
-## Status das mudanças de ontem (pronto pra publicar)
+Depois do deploy:
+- Quem abrir agora pega o bundle novo direto — ok.
+- Quem tinha aba aberta com bundle velho: o handler limpa cache+SW na primeira falha e recarrega com cache-bust → cai no bundle novo na hora, sem ver tela de erro.
+- Se ainda assim cair no fallback (raro), a mensagem agora diz claramente que é atualização, não "sinal fraco" — e o botão "Recarregar agora" resolve com 1 toque.
 
-- ✅ Migração SQL (`payment_methods` + `category_layout`) já aplicada
-- ✅ `UnitPage` (carrossel opcional, pagamentos dinâmicos, sem CTA WhatsApp duplicado)
-- ✅ `StoreProfileTab` (checkboxes de pagamento)
-- ✅ `MenuTab` (toggle carrossel por categoria)
-- ✅ `useOrganization` (campos novos no select)
-- ✅ Fix renovação após expiração (hoje)
-- ⏳ Fix banner upload (esta tarefa)
+## Arquivos afetados
+- `src/App.tsx` — texto/visual do `RouteFallback` e lógica do `recoverFromStaleChunk`.
+- (Possivelmente) algum hook de registro de SW, se encontrar registro indevido em rota pública.
 
-Depois das 2 tarefas acima, tudo coeso para publicar.
-
-## Pergunta antes de publicar
-
-Posso publicar **logo após** confirmar visualmente o teste de renovação e o fix do banner? Ou prefere validar você antes do "Atualizar"?
+## Riscos
+Mínimos: nenhuma mudança de schema, sem regressão de funcionalidade. Mudanças isoladas em UX de fallback e lógica de reload.
