@@ -140,7 +140,9 @@ const isChunkError = (msg: string) =>
   msg.includes("Loading chunk") ||
   msg.includes("Loading CSS chunk");
 
-// Recupera de chunk velho com até 2 tentativas, limpando SW+caches antes de recarregar.
+// Recupera de chunk velho: limpa SW (exceto sw-push) + caches e recarrega com
+// cache-bust (?_v=ts) para forçar HTML novo, em vez de servir do cache HTTP.
+// Até 3 tentativas por sessão, gap mínimo 2s.
 async function recoverFromStaleChunk(source: string): Promise<boolean> {
   try {
     const KEY = "chunk_reload_count";
@@ -148,15 +150,22 @@ async function recoverFromStaleChunk(source: string): Promise<boolean> {
     const now = Date.now();
     const last = Number(sessionStorage.getItem(LAST) || "0");
     const count = Number(sessionStorage.getItem(KEY) || "0");
-    if (count >= 2) return false;
-    if (now - last < 5000) return false; // gap mínimo de 5s
+    if (count >= 3) return false;
+    if (now - last < 2000) return false;
     sessionStorage.setItem(KEY, String(count + 1));
     sessionStorage.setItem(LAST, String(now));
-    console.info(`[Auto-Reload] chunk velho detectado (${source}), limpando caches e recarregando…`);
+    console.info(`[Auto-Reload] chunk velho detectado (${source}) — limpando caches/SW e recarregando com cache-bust…`);
     try {
       if ("serviceWorker" in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
+        await Promise.all(
+          regs.map((r) => {
+            const url = r.active?.scriptURL || "";
+            // preserva o sw-push (notificações) — só limpa o SW do app
+            if (url.includes("/sw-push.js")) return Promise.resolve(false);
+            return r.unregister();
+          })
+        );
       }
       if ("caches" in window) {
         const names = await caches.keys();
@@ -165,7 +174,13 @@ async function recoverFromStaleChunk(source: string): Promise<boolean> {
     } catch (e) {
       console.warn("[Auto-Reload] cache clear falhou:", e);
     }
-    window.location.reload();
+    const sep = window.location.search ? "&" : "?";
+    const url =
+      window.location.pathname +
+      window.location.search +
+      sep + "_v=" + Date.now() +
+      window.location.hash;
+    window.location.replace(url);
     return true;
   } catch {
     return false;
