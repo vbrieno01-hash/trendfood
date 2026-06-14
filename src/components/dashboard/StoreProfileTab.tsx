@@ -623,7 +623,59 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
             </div>
           )}
           {(themeConfig.color_mode ?? "auto") === "manual" && (
-            <p className="text-xs text-muted-foreground">Modo manual ativo — defina as cores na seção Aparência abaixo.</p>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Escolha a cor principal da sua loja. Ela é aplicada nos botões, cabeçalho, badges e destaques.
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <input
+                  type="color"
+                  value={form.primary_color}
+                  onChange={(e) => setForm((p) => ({ ...p, primary_color: e.target.value }))}
+                  className="h-10 w-14 rounded-lg border border-border cursor-pointer flex-shrink-0"
+                  aria-label="Selecionar cor principal"
+                />
+                <Input
+                  value={form.primary_color}
+                  onChange={(e) => setForm((p) => ({ ...p, primary_color: e.target.value }))}
+                  className="w-28 h-10 font-mono text-xs"
+                  placeholder="#f97316"
+                />
+                <div className="ml-auto flex items-center gap-2 rounded-md border border-border overflow-hidden" style={{ width: 110, height: 36 }}>
+                  <div className="h-full flex-1 flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: form.primary_color }}>
+                    Botão
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Cores sugeridas</p>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { c: "#f97316", n: "Laranja" },
+                    { c: "#dc2626", n: "Vermelho" },
+                    { c: "#ec4899", n: "Rosa" },
+                    { c: "#7c3aed", n: "Roxo" },
+                    { c: "#2563eb", n: "Azul" },
+                    { c: "#16a34a", n: "Verde" },
+                    { c: "#0f172a", n: "Preto" },
+                    { c: "#eab308", n: "Amarelo" },
+                  ].map(({ c, n }) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, primary_color: c }))}
+                      title={n}
+                      className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                        form.primary_color.toLowerCase() === c.toLowerCase()
+                          ? "border-foreground scale-110"
+                          : "border-border hover:scale-105"
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

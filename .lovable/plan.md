@@ -1,42 +1,27 @@
-## Objetivo
-Hoje a aba "Lojas da Plataforma" do painel admin (`src/pages/AdminPage.tsx`) só permite filtrar por Status (Todos / Ativo / Trial) e Endereço. Não dá pra separar lojas por plano, o que dificulta visualizar quem é Pro, Enterprise, Vitalício etc.
+## Problema
 
-Vamos adicionar uma linha de filtros por **Plano** com contagem em cada chip, e melhorar a navegação/ordenação.
+Em `StoreProfileTab` (aba **Perfil da Loja**), o card **🎨 Tema automático** tem um Switch para desligar o auto-tema. Quando o lojista desliga, aparece só o texto _"Modo manual ativo — defina as cores na seção Aparência abaixo"_ — mas **não existe nenhum seletor de cor manual** ali nem na seção Tema Visual. O cliente fica sem como escolher a cor.
 
-## Mudanças (apenas em `src/pages/AdminPage.tsx`)
+A storefront (`UnitPage.tsx`) já está pronta pra usar `primary_color` quando `color_mode === "manual"` (`useAuto = color_mode !== "manual" && !!autoPalette` → quando manual, cai pro `org.primary_color`). Falta só a UI.
 
-### 1. Novo filtro "Plano" na barra de filtros
-Adicionar uma linha de chips abaixo de Status/Endereço:
+## O que vou fazer
 
-```
-PLANO:  [Todos] [Free] [Trial Pro] [Pro] [Enterprise] [Vitalício] [Expirado]
-```
+Arquivo único: `src/components/dashboard/StoreProfileTab.tsx`, dentro do card "Tema automático" (linhas 518–628), no ramo `color_mode === "manual"` (linha 625–627).
 
-Cada chip mostra contagem ao lado, ex: `Pro (5)`, `Free (10)`.
+1. **Substituir** o texto atual por um **bloco de seleção manual de cor**, contendo:
+   - Color picker (`<input type="color">` + input hex) controlando `form.primary_color`, reusando o componente `ColorField` já existente em `src/components/dashboard/ColorField.tsx` (mesma UX dos outros campos de cor).
+   - **6 swatches de cores prontas** (laranja `#f97316`, vermelho `#dc2626`, rosa `#ec4899`, roxo `#7c3aed`, azul `#2563eb`, verde `#16a34a`) — clique aplica direto em `form.primary_color`.
+   - Texto curto: _"Esta cor é usada nos botões, cabeçalho, badges e destaques da sua loja."_
+   - Mini-preview 80×40 mostrando a cor aplicada num botão/badge.
 
-Lógica por chip:
-- **Free**: `subscription_plan === "free"` e sem trial ativo
-- **Trial Pro**: `subscription_plan === "free"` + `trial_ends_at` futuro (trial ativo)
-- **Pro**: `subscription_plan === "pro"` e `trial_ends_at` futuro (ou nulo)
-- **Enterprise**: `subscription_plan === "enterprise"` e ativo
-- **Vitalício**: `subscription_plan === "lifetime"`
-- **Expirado**: plano pago (`pro`/`enterprise`) com `trial_ends_at` no passado
+2. **Salvamento**: já funciona. `form.primary_color` entra no auto-save (useEffect linha 210 escuta `form`) que persiste em `organizations.primary_color` (linha 231). E `color_mode: "manual"` já é gravado dentro de `theme_config` quando o Switch é desligado (linha 528). Vou só garantir que ao desligar o Switch a cor inicial mostrada seja a `form.primary_color` atual (não precisa de migration).
 
-### 2. Estado e filtro
-- Novo `useState` `planFilter: "all" | "free" | "trial" | "pro" | "enterprise" | "lifetime" | "expired"`
-- Adicionar `.filter()` em `filteredOrgs` aplicando a regra acima.
-- Atualizar `clearFilters()` para resetar `planFilter`.
-- Atualizar `hasActiveFilters` para considerar `planFilter !== "all"`.
-
-### 3. Ajuste no filtro Status existente
-O chip "Trial" do Status hoje sobrepõe a ideia. Manter, mas o filtro por Plano funciona em paralelo (AND). Sem mudanças quebradas.
-
-### 4. Ordenação (bônus pequeno)
-Adicionar um dropdown discreto "Ordenar por": Mais recentes (padrão) / Mais antigas / Nome A-Z / Plano (Enterprise→Free). Implementado com um `select` simples nativo no canto direito da barra, sem dependências novas.
-
-### 5. Layout
-A barra de filtros já é `flex-wrap`. A nova linha "PLANO:" segue o mesmo padrão visual dos chips existentes (mesmas classes Tailwind). Sem mudanças de design system.
+3. **Verificação visual no preview**:
+   - Abrir dashboard → Perfil da Loja → desligar "Tema automático" → confirmar que o seletor aparece, muda `form.primary_color`, dispara o auto-save (chip "Salvando..." → "Salvo") e que recarregando a página a cor persiste.
+   - Abrir `/unidade/{slug}` numa aba ao lado e confirmar que botão "Adicionar" / cabeçalho usam a nova cor.
 
 ## Fora de escopo
-- Não mexer no card de loja, no CSV export (o CSV já inclui o plano), em queries Supabase, RLS, ou em qualquer lógica de negócio.
-- Não criar componente novo — tudo dentro do `AdminPage.tsx` para manter consistência com os outros filtros locais.
+
+- Não mexer no fluxo auto (extração da logo, paleta neutra, recalcular).
+- Não criar migration nem mudar `theme_config` schema — `primary_color` já existe na tabela `organizations`.
+- Não tocar em `UnitPage.tsx` nem em `useOrganization.ts` (já consomem corretamente).
