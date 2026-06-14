@@ -1983,10 +1983,12 @@ export type Database = {
           affiliate_id: string | null
           apk_url: string | null
           banner_url: string | null
+          banner_urls: string[]
           billing_alert_limit: number | null
           billing_cycle: string
           business_hours: Json | null
           category_emojis: Json
+          category_layout: Json
           category_order: Json | null
           cleanup_warning_at: string | null
           cnpj: string | null
@@ -2006,6 +2008,7 @@ export type Database = {
           onboarding_done: boolean
           paused: boolean
           paused_categories: Json | null
+          payment_methods: Json
           pix_confirmation_mode: string
           pix_key: string | null
           primary_color: string
@@ -2031,10 +2034,12 @@ export type Database = {
           affiliate_id?: string | null
           apk_url?: string | null
           banner_url?: string | null
+          banner_urls?: string[]
           billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null
           category_emojis?: Json
+          category_layout?: Json
           category_order?: Json | null
           cleanup_warning_at?: string | null
           cnpj?: string | null
@@ -2054,6 +2059,7 @@ export type Database = {
           onboarding_done?: boolean
           paused?: boolean
           paused_categories?: Json | null
+          payment_methods?: Json
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
@@ -2079,10 +2085,12 @@ export type Database = {
           affiliate_id?: string | null
           apk_url?: string | null
           banner_url?: string | null
+          banner_urls?: string[]
           billing_alert_limit?: number | null
           billing_cycle?: string
           business_hours?: Json | null
           category_emojis?: Json
+          category_layout?: Json
           category_order?: Json | null
           cleanup_warning_at?: string | null
           cnpj?: string | null
@@ -2102,6 +2110,7 @@ export type Database = {
           onboarding_done?: boolean
           paused?: boolean
           paused_categories?: Json | null
+          payment_methods?: Json
           pix_confirmation_mode?: string
           pix_key?: string | null
           primary_color?: string
