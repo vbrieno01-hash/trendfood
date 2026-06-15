@@ -40,13 +40,12 @@ export const useLoyaltyConfig = (orgId: string | undefined) =>
     queryKey: ["loyalty_config", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data, error } = await supabase
-        .from("loyalty_config")
-        .select("*")
-        .eq("organization_id", orgId)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_loyalty_public_config", {
+        _org_id: orgId,
+      });
       if (error) throw error;
-      return data as LoyaltyConfig | null;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as LoyaltyConfig | null;
     },
     enabled: !!orgId,
   });
@@ -77,14 +76,13 @@ export const useLoyaltyPoints = (orgId: string | undefined, phone: string | unde
     queryKey: ["loyalty_points", orgId, clean],
     queryFn: async () => {
       if (!orgId || clean.length < 10) return null;
-      const { data, error } = await supabase
-        .from("loyalty_points")
-        .select("*")
-        .eq("organization_id", orgId)
-        .eq("phone", clean)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("get_loyalty_points_by_phone", {
+        _org_id: orgId,
+        _phone: clean,
+      });
       if (error) throw error;
-      return data as LoyaltyPoints | null;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as LoyaltyPoints | null;
     },
     enabled: !!orgId && clean.length >= 10,
   });
@@ -114,7 +112,7 @@ export const useAccumulateLoyalty = () => {
       orgId,
       phone,
       orderTotal,
-      spendPerPoint,
+      spendPerPoint: _ignored,
     }: {
       orgId: string;
       phone: string;
@@ -122,40 +120,15 @@ export const useAccumulateLoyalty = () => {
       spendPerPoint: number;
     }) => {
       const cleanPhone = normalizePhone(phone);
-      if (cleanPhone.length < 10 || spendPerPoint <= 0) return null;
+      if (cleanPhone.length < 10) return null;
 
-      const earnedPoints = Math.floor(orderTotal / spendPerPoint);
-      if (earnedPoints <= 0) return null;
-
-      // Upsert: create or increment
-      const { data: existing } = await supabase
-        .from("loyalty_points")
-        .select("id, points, total_spent")
-        .eq("organization_id", orgId)
-        .eq("phone", cleanPhone)
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase
-          .from("loyalty_points")
-          .update({
-            points: existing.points + earnedPoints,
-            total_spent: Number(existing.total_spent) + orderTotal,
-          })
-          .eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("loyalty_points")
-          .insert({
-            organization_id: orgId,
-            phone: cleanPhone,
-            points: earnedPoints,
-            total_spent: orderTotal,
-          });
-        if (error) throw error;
-      }
-      return { earnedPoints };
+      const { data, error } = await supabase.rpc("accumulate_loyalty_points", {
+        _org_id: orgId,
+        _phone: cleanPhone,
+        _order_total: orderTotal,
+      });
+      if (error) throw error;
+      return typeof data === "number" && data > 0 ? { earnedPoints: data } : null;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["loyalty_points"] });
@@ -182,34 +155,14 @@ export const useRedeemLoyalty = () => {
       orderId?: string;
     }) => {
       const cleanPhone = normalizePhone(phone);
-
-      // Subtract points
-      const { data: current } = await supabase
-        .from("loyalty_points")
-        .select("id, points")
-        .eq("organization_id", orgId)
-        .eq("phone", cleanPhone)
-        .single();
-
-      if (!current || current.points < pointsUsed) throw new Error("Pontos insuficientes");
-
-      const { error: upErr } = await supabase
-        .from("loyalty_points")
-        .update({ points: current.points - pointsUsed })
-        .eq("id", current.id);
-      if (upErr) throw upErr;
-
-      // Log redemption
-      const { error: insErr } = await supabase
-        .from("loyalty_redemptions")
-        .insert({
-          organization_id: orgId,
-          phone: cleanPhone,
-          points_used: pointsUsed,
-          discount_value: discountValue,
-          order_id: orderId ?? null,
-        });
-      if (insErr) throw insErr;
+      const { error } = await supabase.rpc("redeem_loyalty_points", {
+        _org_id: orgId,
+        _phone: cleanPhone,
+        _points_used: pointsUsed,
+        _discount_value: discountValue,
+        _order_id: orderId ?? null,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["loyalty_points"] });
