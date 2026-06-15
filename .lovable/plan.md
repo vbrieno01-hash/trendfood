@@ -1,27 +1,35 @@
-## Problema
+## Etapa 2 — Refatorar `src/hooks/useLoyalty.ts`
 
-Em `StoreProfileTab` (aba **Perfil da Loja**), o card **🎨 Tema automático** tem um Switch para desligar o auto-tema. Quando o lojista desliga, aparece só o texto _"Modo manual ativo — defina as cores na seção Aparência abaixo"_ — mas **não existe nenhum seletor de cor manual** ali nem na seção Tema Visual. O cliente fica sem como escolher a cor.
+Migrar os hooks públicos de loyalty para usar as RPCs `SECURITY DEFINER` criadas na Etapa 1, removendo o acesso direto às tabelas pelo cliente anônimo.
 
-A storefront (`UnitPage.tsx`) já está pronta pra usar `primary_color` quando `color_mode === "manual"` (`useAuto = color_mode !== "manual" && !!autoPalette` → quando manual, cai pro `org.primary_color`). Falta só a UI.
+### Mudanças no arquivo `src/hooks/useLoyalty.ts`
 
-## O que vou fazer
+1. **`useLoyaltyConfig`** → `supabase.rpc("get_loyalty_public_config", { _org_id })`
+   - Mapeia o retorno para o tipo `LoyaltyConfig`
 
-Arquivo único: `src/components/dashboard/StoreProfileTab.tsx`, dentro do card "Tema automático" (linhas 518–628), no ramo `color_mode === "manual"` (linha 625–627).
+2. **`useLoyaltyPoints`** → `supabase.rpc("get_loyalty_points_by_phone", { _org_id, _phone })`
+   - Mapeia o retorno para o tipo `LoyaltyPoints`
 
-1. **Substituir** o texto atual por um **bloco de seleção manual de cor**, contendo:
-   - Color picker (`<input type="color">` + input hex) controlando `form.primary_color`, reusando o componente `ColorField` já existente em `src/components/dashboard/ColorField.tsx` (mesma UX dos outros campos de cor).
-   - **6 swatches de cores prontas** (laranja `#f97316`, vermelho `#dc2626`, rosa `#ec4899`, roxo `#7c3aed`, azul `#2563eb`, verde `#16a34a`) — clique aplica direto em `form.primary_color`.
-   - Texto curto: _"Esta cor é usada nos botões, cabeçalho, badges e destaques da sua loja."_
-   - Mini-preview 80×40 mostrando a cor aplicada num botão/badge.
+3. **`useAccumulateLoyalty`** → `supabase.rpc("accumulate_loyalty_points", { _org_id, _phone, _order_total })`
+   - **Correção do bug**: a RPC retorna `integer` direto, não objeto.
+   - Tratamento: `return typeof data === "number" && data > 0 ? { earnedPoints: data } : null;`
+   - Parâmetro `spendPerPoint` mantido na assinatura como `_ignored` (compatibilidade com chamadores; o banco é fonte da verdade)
 
-2. **Salvamento**: já funciona. `form.primary_color` entra no auto-save (useEffect linha 210 escuta `form`) que persiste em `organizations.primary_color` (linha 231). E `color_mode: "manual"` já é gravado dentro de `theme_config` quando o Switch é desligado (linha 528). Vou só garantir que ao desligar o Switch a cor inicial mostrada seja a `form.primary_color` atual (não precisa de migration).
+4. **`useRedeemLoyalty`** → `supabase.rpc("redeem_loyalty_points", { _org_id, _phone, _points_used, _discount_value, _order_id })`
+   - Lock `FOR UPDATE` já está dentro da função SQL
 
-3. **Verificação visual no preview**:
-   - Abrir dashboard → Perfil da Loja → desligar "Tema automático" → confirmar que o seletor aparece, muda `form.primary_color`, dispara o auto-save (chip "Salvando..." → "Salvo") e que recarregando a página a cor persiste.
-   - Abrir `/unidade/{slug}` numa aba ao lado e confirmar que botão "Adicionar" / cabeçalho usam a nova cor.
+### Mantidos intactos (dashboard autenticado, cobertos por `select_owner`)
+- `useUpsertLoyaltyConfig`
+- `useLoyaltyPointsList`
+- `useLoyaltyRedemptions`
 
-## Fora de escopo
+### Invalidação de cache
+- `useQueryClient` em todas as mutations
+- `onSuccess` invalida as query keys afetadas (`loyalty-points`, `loyalty-points-list`, `loyalty-redemptions`)
 
-- Não mexer no fluxo auto (extração da logo, paleta neutra, recalcular).
-- Não criar migration nem mudar `theme_config` schema — `primary_color` já existe na tabela `organizations`.
-- Não tocar em `UnitPage.tsx` nem em `useOrganization.ts` (já consomem corretamente).
+### Riscos
+- Nenhum chamador externo precisa mudar — assinaturas dos hooks preservadas
+- `spendPerPoint` passado pelos componentes passa a ser ignorado (intencional)
+
+### Arquivo afetado
+- `src/hooks/useLoyalty.ts` (reescrita completa do arquivo)
