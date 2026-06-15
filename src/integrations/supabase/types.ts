@@ -3178,6 +3178,10 @@ export type Database = {
       }
     }
     Functions: {
+      accumulate_loyalty_points: {
+        Args: { _order_total: number; _org_id: string; _phone: string }
+        Returns: number
+      }
       admin_delete_user: { Args: { _user_id: string }; Returns: Json }
       admin_list_users: { Args: never; Returns: Json }
       admin_toggle_admin_role: {
@@ -3258,6 +3262,23 @@ export type Database = {
       get_cleanup_stats: { Args: never; Returns: Json }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
       get_internal_logs_sizes: { Args: never; Returns: Json }
+      get_loyalty_points_by_phone: {
+        Args: { _org_id: string; _phone: string }
+        Returns: {
+          points: number
+          total_spent: number
+        }[]
+      }
+      get_loyalty_public_config: {
+        Args: { _org_id: string }
+        Returns: {
+          enabled: boolean
+          points_to_redeem: number
+          reward_type: string
+          reward_value: number
+          spend_per_point: number
+        }[]
+      }
       get_my_deliveries: {
         Args: { _courier_id: string }
         Returns: {
@@ -3319,6 +3340,16 @@ export type Database = {
       increment_vote: { Args: { suggestion_id: string }; Returns: undefined }
       notify_admin_telegram: {
         Args: { _event_type: string; _payload: Json }
+        Returns: undefined
+      }
+      redeem_loyalty_points: {
+        Args: {
+          _discount_value: number
+          _order_id: string
+          _org_id: string
+          _phone: string
+          _points_used: number
+        }
         Returns: undefined
       }
       refresh_top_stores_showcase: { Args: never; Returns: undefined }
