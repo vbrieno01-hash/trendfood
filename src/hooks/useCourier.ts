@@ -221,21 +221,13 @@ export function useAcceptDelivery() {
 export function useCompleteDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ deliveryId, courierId, orderId }: { deliveryId: string; courierId: string; orderId?: string }) => {
+    mutationFn: async ({ deliveryId, courierId }: { deliveryId: string; courierId: string; orderId?: string }) => {
       const { error } = await supabase.rpc("courier_complete_delivery" as any, {
         _delivery_id: deliveryId,
         _courier_id: courierId,
       });
       if (error) throw error;
-
-      // Automatically mark the order as delivered in the store panel
-      if (orderId) {
-        await supabase
-          .from("orders")
-          .update({ status: "delivered" } as any)
-          .eq("id", orderId)
-          .eq("status", "ready");
-      }
+      // Order status is now updated inside the SQL function (SECURITY DEFINER)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
