@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -353,7 +353,8 @@ const UnitPage = () => {
   };
 
   // IntersectionObserver: detect which category section is visible
-  const groupedMenuForObserver = buildGroups(menuItems);
+  // useMemo prevents rebuilding on every render, avoiding observer loop on scroll
+  const groupedMenuForObserver = useMemo(() => buildGroups(menuItems), [menuItems, org]);
 
   useEffect(() => {
     if (groupedMenuForObserver.length === 0) return;
@@ -989,7 +990,7 @@ const UnitPage = () => {
   });
 
   // Group menu items by category (fixed + custom)
-  const groupedMenu = buildGroups(filteredMenuItems);
+  const groupedMenu = useMemo(() => buildGroups(filteredMenuItems), [filteredMenuItems, org]);
 
   
 
