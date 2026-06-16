@@ -1259,19 +1259,23 @@ const UnitPage = () => {
                               style={{ borderRadius: cardRadius }}
                             >
                               {/* Foto quadrada + badge de qty */}
-                              <div className="relative aspect-square w-full bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center overflow-hidden">
+                              {/* padding-bottom trick: mais confiável que aspect-square em mobile/grid */}
+                              <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100 overflow-hidden" style={{ paddingBottom: "100%" }}>
+                                <div className="absolute inset-0 flex items-center justify-center">
                                 {item.image_url ? (
                                   <img
                                     src={item.image_url}
                                     alt={item.name}
                                     className="w-full h-full object-cover"
+                                    loading="lazy"
                                   />
                                 ) : (
                                   <UtensilsCrossed className="w-8 h-8 text-orange-300" />
                                 )}
+                                </div>
                                 {qty > 0 && (
                                   <span
-                                    className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow"
+                                    className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow z-10"
                                     style={{ backgroundColor: categoryColor }}
                                   >
                                     {qty}
