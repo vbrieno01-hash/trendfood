@@ -655,10 +655,10 @@ const CourierPage = () => {
     }
   };
 
-  const handleComplete = async (deliveryId: string) => {
+  const handleComplete = async (deliveryId: string, orderId?: string) => {
     if (!courierId) return;
     try {
-      await completeMutation.mutateAsync({ deliveryId, courierId });
+      await completeMutation.mutateAsync({ deliveryId, courierId, orderId });
       toast.success("Entrega finalizada! ✅");
     } catch {
       toast.error("Erro ao finalizar entrega.");
@@ -819,7 +819,7 @@ const CourierPage = () => {
                 <DeliveryCard key={d.id} d={d} actions={
                   <div className="space-y-2 w-full">
                     <IFoodDeliveryCodeBlock orderId={d.order_id} />
-                    <Button onClick={() => handleComplete(d.id)} variant="outline"
+                    <Button onClick={() => handleComplete(d.id, d.order_id)} variant="outline"
                       className="w-full border-green-500/30 text-green-600 hover:bg-green-500/10" disabled={completeMutation.isPending}>
                       <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Entregue
                     </Button>

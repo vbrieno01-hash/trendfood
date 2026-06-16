@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useOrders, useUpdateOrderStatus, useDeliveredUnpaidOrders, useMarkAsPaid, useAwaitingPaymentOrders, useConfirmPixPayment, useCancelOrder } from "@/hooks/useOrders";
 import type { Order } from "@/hooks/useOrders";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { BellRing, Loader2, CreditCard, MessageCircle, Clock, Printer, QrCode, Flame, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
 import KitchenTab from "@/components/dashboard/KitchenTab";
@@ -94,6 +96,29 @@ export default function WaiterTab({
   const cancelOrder = useCancelOrder(orgId);
 
   const [loadingDeliver, setLoadingDeliver] = useState<Set<string>>(new Set());
+
+  // Notify lojista when courier marks a delivery as completed
+  const notifiedOrders = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel(`courier-delivered-notify-${orgId}`)
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "orders",
+        filter: `organization_id=eq.${orgId}`,
+      }, (payload) => {
+        const updated = payload.new as any;
+        if (updated.status === "delivered" && !notifiedOrders.current.has(updated.id)) {
+          notifiedOrders.current.add(updated.id);
+          toast.success("🏍️ Motoboy confirmou a entrega!", {
+            description: `Pedido #${String(updated.id).slice(0, 8)} marcado como entregue.`,
+            duration: 6000,
+          });
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [orgId]);
   const [loadingPay, setLoadingPay] = useState<Set<string>>(new Set());
   const [loadingConfirmPix, setLoadingConfirmPix] = useState<Set<string>>(new Set());
 
