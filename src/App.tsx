@@ -128,7 +128,7 @@ export const RouteFallback = ({ forceShow }: { forceShow?: boolean } = {}) => {
 
 const ConditionalSupportChat = () => {
   const { pathname } = useLocation();
-  const internalRoutes = ["/dashboard", "/cozinha", "/garcom", "/admin", "/motoboy"];
+  const internalRoutes = ["/dashboard", "/cozinha", "/garcom", "/admin"];
   if (!internalRoutes.some(r => pathname.startsWith(r))) return null;
   return <SupportChatWidget />;
 };
