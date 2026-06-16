@@ -395,9 +395,12 @@ export function useOrgCouriers(organizationId: string | undefined) {
 
 export interface CourierStats {
   totalDeliveries: number;
-  totalEarned: number;
+  totalDeliveryEarned: number;  // sum of delivery fees
+  totalDailyEarned: number;     // sum of daily_rate * completed shifts
+  totalEarned: number;          // deliveries + daily rates
   totalPending: number;
   totalPaid: number;
+  totalShifts: number;
 }
 
 export function useCourierStats(courierId: string | null) {
@@ -410,9 +413,12 @@ export function useCourierStats(courierId: string | null) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "deliveries", filter: `courier_id=eq.${courierId}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["courier-stats", courierId] });
-        }
+        () => { queryClient.invalidateQueries({ queryKey: ["courier-stats", courierId] }); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "courier_shifts", filter: `courier_id=eq.${courierId}` },
+        () => { queryClient.invalidateQueries({ queryKey: ["courier-stats", courierId] }); }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -421,23 +427,59 @@ export function useCourierStats(courierId: string | null) {
   return useQuery({
     queryKey: ["courier-stats", courierId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1) Delivery fees
+      const { data: deliveries, error: dErr } = await supabase
         .from("deliveries" as any)
         .select("fee, courier_paid")
         .eq("courier_id", courierId!)
         .eq("status", "entregue");
-      if (error) throw error;
-      const rows = (data ?? []) as unknown as { fee: number | null; courier_paid: boolean }[];
-      const stats: CourierStats = { totalDeliveries: rows.length, totalEarned: 0, totalPending: 0, totalPaid: 0 };
+      if (dErr) throw dErr;
+      const rows = (deliveries ?? []) as unknown as { fee: number | null; courier_paid: boolean }[];
+
+      // 2) Completed shifts + org daily_rate
+      const { data: shifts } = await supabase
+        .from("courier_shifts" as any)
+        .select("organization_id, ended_at")
+        .eq("courier_id", courierId!)
+        .not("ended_at", "is", null);
+      const completedShifts = (shifts ?? []) as unknown as { organization_id: string; ended_at: string }[];
+
+      // Fetch daily_rate for each unique org
+      const orgIds = [...new Set(completedShifts.map((s) => s.organization_id))];
+      let dailyRateMap: Record<string, number> = {};
+      if (orgIds.length > 0) {
+        const { data: orgs } = await supabase
+          .from("organizations" as any)
+          .select("id, courier_config")
+          .in("id", orgIds);
+        for (const org of (orgs ?? []) as unknown as { id: string; courier_config: any }[]) {
+          dailyRateMap[org.id] = org.courier_config?.daily_rate ?? 0;
+        }
+      }
+
+      const totalDailyEarned = completedShifts.reduce((sum, s) => sum + (dailyRateMap[s.organization_id] ?? 0), 0);
+
+      const stats: CourierStats = {
+        totalDeliveries: rows.length,
+        totalDeliveryEarned: 0,
+        totalDailyEarned,
+        totalEarned: 0,
+        totalPending: 0,
+        totalPaid: 0,
+        totalShifts: completedShifts.length,
+      };
+
       for (const r of rows) {
         const fee = r.fee ?? 0;
-        stats.totalEarned += fee;
+        stats.totalDeliveryEarned += fee;
         if (r.courier_paid) {
           stats.totalPaid += fee;
         } else {
           stats.totalPending += fee;
         }
       }
+
+      stats.totalEarned = stats.totalDeliveryEarned + stats.totalDailyEarned;
       return stats;
     },
     enabled: !!courierId,

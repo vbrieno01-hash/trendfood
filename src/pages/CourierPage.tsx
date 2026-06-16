@@ -830,6 +830,15 @@ const CourierPage = () => {
           </TabsContent>
 
           <TabsContent value="stats" className="mt-4 space-y-3">
+            {/* Total geral em destaque */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 text-center">
+                <DollarSign className="w-6 h-6 text-primary mx-auto mb-1" />
+                <p className="text-3xl font-bold">R$ {(stats?.totalEarned ?? 0).toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">Total faturado (corridas + diárias)</p>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-2 gap-3">
               <Card>
                 <CardContent className="p-4 text-center">
@@ -840,9 +849,23 @@ const CourierPage = () => {
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
-                  <DollarSign className="w-5 h-5 text-primary mx-auto mb-1" />
-                  <p className="text-2xl font-bold">R$ {(stats?.totalEarned ?? 0).toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground">Total faturado</p>
+                  <Bike className="w-5 h-5 text-primary mx-auto mb-1" />
+                  <p className="text-2xl font-bold">{stats?.totalShifts ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Turnos trabalhados</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <DollarSign className="w-5 h-5 text-orange-500 mx-auto mb-1" />
+                  <p className="text-2xl font-bold">R$ {(stats?.totalDeliveryEarned ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Por corridas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <DollarSign className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+                  <p className="text-2xl font-bold">R$ {(stats?.totalDailyEarned ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Por diárias</p>
                 </CardContent>
               </Card>
               <Card className="border-yellow-500/30">

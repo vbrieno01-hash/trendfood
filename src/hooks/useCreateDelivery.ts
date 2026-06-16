@@ -53,9 +53,9 @@ export async function createDeliveryForOrder(
 
   const customerAddress = parseAddressFromNotes(order.notes);
 
-  // Use the fee set by the store owner (from neighborhood pricing), fallback to courier base_fee
-  const ownerFee = parseFreteFromNotes(order.notes);
-  const fee = ownerFee !== null ? ownerFee : (courierConfig?.base_fee ?? 3.0);
+  // Courier fee is always based on courierConfig (base_fee), NOT the customer frete.
+  // Frete grátis means the customer pays nothing, but the lojista still owes the motoboy.
+  const fee = courierConfig?.base_fee ?? 3.0;
 
   const { data: delivery, error } = await supabase
     .from("deliveries")
@@ -99,13 +99,17 @@ async function calculateAndUpdateDelivery(
       return;
     }
 
-    // Only update distance_km — fee comes from the store owner's neighborhood pricing
+    // Update both distance_km and the courier fee based on actual distance
+    const updatedFee = result.fee ?? (courierConfig ? calculateCourierFee(result.distance_km, courierConfig) : null);
     await supabase
       .from("deliveries")
-      .update({ distance_km: result.distance_km })
+      .update({
+        distance_km: result.distance_km,
+        ...(updatedFee !== null ? { fee: updatedFee } : {}),
+      })
       .eq("id", deliveryId);
 
-    console.log(`[delivery ${deliveryId}] Distance: ${result.distance_km.toFixed(2)} km`);
+    console.log(`[delivery ${deliveryId}] Distance: ${result.distance_km.toFixed(2)} km | Fee: R$ ${updatedFee?.toFixed(2)}`);
   } catch (e) {
     console.error(`[delivery ${deliveryId}] Error calculating distance:`, e);
   }
