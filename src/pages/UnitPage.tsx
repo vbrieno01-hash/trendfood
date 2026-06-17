@@ -1109,7 +1109,7 @@ const UnitPage = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar no cardápio..."
-                className="pl-9 pr-9 h-10 rounded-full bg-card border-border text-sm"
+                className="pl-9 pr-9 h-10 rounded-full bg-muted/60 border-0 text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-primary/30"
               />
               {searchQuery && (
                 <button
