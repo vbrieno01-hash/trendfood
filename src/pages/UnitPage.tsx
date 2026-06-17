@@ -1023,13 +1023,13 @@ const UnitPage = () => {
           borderBottom: (themeConfig.header_style || "solid") === "transparent" ? `2px solid ${primaryColor}` : undefined,
         }}
       >
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
             {org.logo_url ? (
-              <img src={org.logo_url} alt={org.name} className="w-9 h-9 rounded-xl object-cover ring-2 ring-white/30 shadow-sm" loading="lazy" decoding="async" />
+              <img src={org.logo_url} alt={org.name} className="w-11 h-11 rounded-2xl object-cover ring-2 ring-white/40 shadow-md" loading="lazy" decoding="async" />
             ) : (
               <span
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-base font-bold ring-2 ring-white/30 shadow-sm"
+                className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg font-black ring-2 ring-white/40 shadow-md"
                 style={{
                   backgroundColor: (themeConfig.header_style || "solid") === "transparent" ? `${primaryColor}20` : "rgba(255,255,255,0.2)",
                   color: (themeConfig.header_style || "solid") === "transparent" ? primaryColor : headerTextColor,
@@ -1038,12 +1038,23 @@ const UnitPage = () => {
                 {org.name?.charAt(0)?.toUpperCase()}
               </span>
             )}
-            <p
-              className="font-bold text-lg leading-tight tracking-tight"
-              style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : headerTextColor }}
-            >
-              {org.name}
-            </p>
+            <div className="flex flex-col leading-tight">
+              <p
+                className="font-black text-lg tracking-tight"
+                style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : headerTextColor }}
+              >
+                {org.name}
+              </p>
+              {storeStatus && (
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 opacity-90"
+                  style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--muted-foreground)" : headerTextColor }}
+                >
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${storeStatus.open ? "bg-green-400 animate-pulse" : "bg-red-400"}`} />
+                  {storeStatus.open ? "Aberto agora" : "Fechado"}
+                </span>
+              )}
+            </div>
           </div>
           <div className="w-16" />
         </div>
@@ -1254,14 +1265,14 @@ const UnitPage = () => {
                         </div>
                         <div className="flex-1 h-px bg-border/60" />
                       </div>
-                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
                             <div
                               key={item.id}
                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:shadow-lg`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:shadow-xl hover:-translate-y-0.5 shadow-sm`}
                               style={{ borderRadius: cardRadius, isolation: "isolate" }}
                             >
                               {/* Foto quadrada — img direto com position:absolute, sem div intermediário */}
@@ -1276,12 +1287,12 @@ const UnitPage = () => {
                                   />
                                 ) : (
                                   <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                    <UtensilsCrossed className="w-10 h-10 text-orange-200/80" />
+                                    <UtensilsCrossed className="w-14 h-14 text-orange-200/80" />
                                   </div>
                                 )}
                                 {qty > 0 && (
                                   <span
-                                    className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-md ring-2 ring-white/40"
+                                    className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full text-xs font-black text-white flex items-center justify-center shadow-lg ring-2 ring-white/60"
                                     style={{ backgroundColor: categoryColor, zIndex: 10 }}
                                   >
                                     {qty}
@@ -1291,9 +1302,9 @@ const UnitPage = () => {
 
                               {/* Info */}
                               <div className="p-3 flex flex-col gap-1.5 flex-1">
-                                <h3 className="font-semibold text-foreground text-[13px] leading-snug line-clamp-2">{item.name}</h3>
+                                <h3 className="font-bold text-foreground text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{item.name}</h3>
                                 <span
-                                  className="font-extrabold text-base tracking-tight"
+                                  className="font-black text-lg tracking-tight"
                                   style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
                                 >
                                   {fmt(item.price)}
@@ -1301,25 +1312,25 @@ const UnitPage = () => {
 
                                 {(
                                   isClosed ? (
-                                    <span className="mt-auto w-full flex items-center justify-center gap-0.5 py-1 rounded-lg text-[10px] font-semibold bg-muted text-muted-foreground cursor-not-allowed">
+                                    <span className="mt-auto w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold bg-muted text-muted-foreground cursor-not-allowed">
                                       🔒 Fechado
                                     </span>
                                   ) : qty === 0 ? (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
-                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
+                                      className="mt-auto w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-lg"
                                       style={{ backgroundColor: buttonColor, borderRadius: buttonRadius }}
                                     >
-                                      <Plus className="w-3.5 h-3.5" />
-                                      Add
+                                      <Plus className="w-4 h-4" />
+                                      Adicionar
                                     </button>
                                   ) : (
                                     <div className="mt-auto flex items-center justify-center w-full">
                                       <span
-                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-primary-foreground shadow-sm"
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold text-primary-foreground shadow-md w-full justify-center"
                                         style={{ backgroundColor: categoryColor }}
                                       >
-                                        {qty} no carrinho
+                                        ✓ {qty} no carrinho
                                       </span>
                                     </div>
                                   )
