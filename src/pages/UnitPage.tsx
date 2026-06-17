@@ -31,6 +31,7 @@ import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
+import TicketScreen from "@/components/TicketScreen";
 import { useLoyaltyConfig, useLoyaltyPoints, useAccumulateLoyalty, useRedeemLoyalty } from "@/hooks/useLoyalty";
 import { useCustomerPush } from "@/hooks/useCustomerPush";
 import { extractBrandPalette } from "@/lib/extractBrandPalette";
@@ -415,51 +416,36 @@ const UnitPage = () => {
   // Mantém o cliente na URL da loja (refresh, voltar do WhatsApp, etc).
   if (isError) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 sm:p-8 text-center shadow-lg">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive text-2xl">
-            ⚠️
-          </div>
-          <h1 className="text-xl font-bold mb-2">Não conseguimos carregar a loja</h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            Sua conexão pode estar instável. Verifique sua internet e tente novamente — sua loja continua aqui.
-          </p>
-          <button
-            onClick={() => refetchOrg()}
-            disabled={orgFetching}
-            className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-3 font-semibold shadow hover:opacity-90 disabled:opacity-60"
-          >
-            {orgFetching ? "Tentando..." : "Tentar novamente"}
-          </button>
-        </div>
-      </div>
+      <TicketScreen
+        code="ERR·NET"
+        tag="Conexão instável"
+        cliente="você"
+        pedido="abrir a loja"
+        status="rede caiu"
+        obs="A loja continua no ar — sua internet deu uma travada agora. Tenta de novo que a gente reimprime o pedido."
+        cta={orgFetching ? "Tentando..." : "Tentar de novo"}
+        onClick={() => refetchOrg()}
+        disabled={orgFetching}
+      />
     );
   }
 
   // Loja realmente não existe (sem erro de rede e retornou null).
   if (!org) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="max-w-md w-full rounded-2xl border border-border bg-card p-6 sm:p-8 text-center shadow-lg">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-2xl">
-            🔎
-          </div>
-          <h1 className="text-xl font-bold mb-2">Loja não encontrada</h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            O link "{slug}" não corresponde a nenhuma loja ativa. Confira o endereço com quem te enviou.
-          </p>
-          <button
-            onClick={() => refetchOrg()}
-            disabled={orgFetching}
-            className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-3 font-semibold shadow hover:opacity-90 disabled:opacity-60 mb-2"
-          >
-            {orgFetching ? "Verificando..." : "Verificar de novo"}
-          </button>
-          <Link to="/" className="text-xs text-muted-foreground underline">
-            Ir para a página inicial
-          </Link>
-        </div>
-      </div>
+      <TicketScreen
+        code="404"
+        tag="Loja não localizada"
+        cliente="você"
+        pedido={`/${slug ?? ""}`}
+        status="sem registro"
+        obs={`O endereço "${slug}" não bate com nenhuma loja ativa no nosso caixa. Confere o link com quem te mandou — pode ter faltado uma letra.`}
+        cta={orgFetching ? "Verificando..." : "Verificar de novo"}
+        onClick={() => refetchOrg()}
+        disabled={orgFetching}
+        secondaryHref="/"
+        secondaryLabel="Ir pra página inicial"
+      />
     );
   }
 

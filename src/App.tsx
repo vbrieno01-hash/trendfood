@@ -30,6 +30,7 @@ const InstallPage = lazy(routeLoaders.install);
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
+import TicketScreen from "./components/TicketScreen";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,71 +48,15 @@ const queryClient = new QueryClient({
 
 export const RouteFallback = (_props: { forceShow?: boolean } = {}) => {
   return (
-    <div
-      aria-live="polite"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden px-6 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.20),transparent_55%),radial-gradient(ellipse_at_bottom,hsl(var(--accent)/0.15),transparent_60%),hsl(var(--background))]"
-    >
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(hsl(var(--foreground))_1px,transparent_1px),linear-gradient(90deg,hsl(var(--foreground))_1px,transparent_1px)] [background-size:42px_42px]"
-      />
-      <div aria-hidden className="absolute -top-40 right-1/4 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
-      <div aria-hidden className="absolute -bottom-40 left-1/4 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
-
-      <div className="relative w-full max-w-md">
-        {/* borda gradiente */}
-        <div className="absolute -inset-px rounded-2xl bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)),transparent)] opacity-60" />
-        <div className="relative rounded-2xl border border-foreground/10 bg-background/60 backdrop-blur-xl shadow-[0_24px_80px_-20px_hsl(var(--primary)/0.35)] p-7 sm:p-9">
-          {/* ícone de sinal animado */}
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 shadow-[inset_0_0_30px_hsl(var(--primary)/0.15)]">
-            <svg viewBox="0 0 48 48" className="h-12 w-12 text-primary" fill="none" strokeLinecap="round">
-              <path d="M6 22c10-10 26-10 36 0" stroke="currentColor" strokeWidth="2.5" opacity="0.25" />
-              <path d="M12 28c7-7 17-7 24 0" stroke="currentColor" strokeWidth="2.5" opacity="0.55" className="animate-pulse" />
-              <path d="M18 34c3.5-3.5 8.5-3.5 12 0" stroke="currentColor" strokeWidth="2.5" />
-              <circle cx="24" cy="39" r="2.4" fill="currentColor" />
-              {/* faísca quebrada */}
-              <path d="M34 12l4 4M38 12l-4 4" stroke="hsl(var(--destructive))" strokeWidth="2" />
-            </svg>
-          </div>
-
-          <h1 className="text-center text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-[linear-gradient(135deg,hsl(var(--foreground)),hsl(var(--primary)))]">
-            Sinal fraco detectado
-          </h1>
-          <p className="mt-3 text-center text-sm text-muted-foreground leading-relaxed">
-            Sua conexão está instável no momento. Nossos servidores estão prontos —
-            assim que sua internet melhorar, sua loja carrega na hora.
-          </p>
-
-          <button
-            onClick={() => window.location.reload()}
-            className="group relative mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold text-primary-foreground bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))] shadow-[0_10px_30px_-10px_hsl(var(--primary)/0.6)] transition hover:shadow-[0_14px_40px_-10px_hsl(var(--primary)/0.8)] hover:scale-[1.01] active:scale-[0.99]"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 transition-transform group-hover:rotate-180 duration-500">
-              <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
-              <path d="M3 21v-5h5" />
-            </svg>
-            Reconectar agora
-          </button>
-
-          <div className="mt-6 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-mono">
-            <span className="flex items-center gap-1.5">
-              <span className="relative inline-flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              status: reconectando
-            </span>
-            <span className="opacity-60">trendfood · v2</span>
-          </div>
-        </div>
-
-        <p className="mt-5 text-center text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70">
-          Powered by Trendfood
-        </p>
-      </div>
-    </div>
+    <TicketScreen
+      code="ERR·503"
+      tag="Comanda em espera"
+      pedido="abrir a loja"
+      status="sinal fraco"
+      obs="Sua internet deu uma travada agora. A cozinha tá pronta — assim que voltar, a gente reimprime na hora."
+      cta="Reimprimir"
+      onClick={() => window.location.reload()}
+    />
   );
 };
 
