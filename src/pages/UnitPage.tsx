@@ -990,7 +990,9 @@ const UnitPage = () => {
   });
 
   // Group menu items by category (fixed + custom)
-  const groupedMenu = useMemo(() => buildGroups(filteredMenuItems), [filteredMenuItems, org]);
+  // NOTE: não usar useMemo aqui — fica depois dos early returns (orgLoading/isError/!org)
+  // e quebra a ordem dos hooks do React, derrubando o componente no ErrorBoundary.
+  const groupedMenu = buildGroups(filteredMenuItems);
 
   
 
