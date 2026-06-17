@@ -1351,7 +1351,7 @@ const UnitPage = () => {
 
       {/* ── FLOATING BOTTOM BAR (Ajuda + Sacola) ── */}
       {!checkoutOpen && !selectedItem && (whatsappValid || totalItems > 0) && (
-        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto animate-in slide-in-from-bottom-4 duration-300 backdrop-blur-md bg-background/80 border border-border/50 rounded-2xl p-1.5 shadow-2xl">
           {whatsappValid && (
             <a
               href={whatsappHelpUrl}
