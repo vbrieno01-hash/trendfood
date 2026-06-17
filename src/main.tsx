@@ -63,8 +63,8 @@ if (isPreviewHost || isInIframe) {
   });
 } else {
   // Produção: roda cleanup uma vez por cliente (flag bumpa quando precisar re-disparar)
-  // v3 — força limpeza geral após relatos de chunks antigos / lentidão pós-deploy (mai/2026)
-  const CLEANUP_FLAG = "sw_cleanup_v3";
+  // v4 — força limpeza geral pra eliminar tela antiga "Algo deu errado" cacheada (jun/2026)
+  const CLEANUP_FLAG = "sw_cleanup_v4";
   if (!localStorage.getItem(CLEANUP_FLAG)) {
     cleanupLegacyServiceWorkers().finally(() => {
       localStorage.setItem(CLEANUP_FLAG, String(Date.now()));
