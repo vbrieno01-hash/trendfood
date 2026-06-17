@@ -31,6 +31,7 @@ import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
+import TicketScreen from "@/components/TicketScreen";
 import { useLoyaltyConfig, useLoyaltyPoints, useAccumulateLoyalty, useRedeemLoyalty } from "@/hooks/useLoyalty";
 import { useCustomerPush } from "@/hooks/useCustomerPush";
 import { extractBrandPalette } from "@/lib/extractBrandPalette";
