@@ -1026,10 +1026,10 @@ const UnitPage = () => {
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {org.logo_url ? (
-              <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" loading="lazy" decoding="async" />
+              <img src={org.logo_url} alt={org.name} className="w-9 h-9 rounded-xl object-cover ring-2 ring-white/30 shadow-sm" loading="lazy" decoding="async" />
             ) : (
               <span
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-base font-bold ring-2 ring-white/30 shadow-sm"
                 style={{
                   backgroundColor: (themeConfig.header_style || "solid") === "transparent" ? `${primaryColor}20` : "rgba(255,255,255,0.2)",
                   color: (themeConfig.header_style || "solid") === "transparent" ? primaryColor : headerTextColor,
@@ -1039,7 +1039,7 @@ const UnitPage = () => {
               </span>
             )}
             <p
-              className="font-bold text-base leading-tight"
+              className="font-bold text-lg leading-tight tracking-tight"
               style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : headerTextColor }}
             >
               {org.name}
@@ -1073,7 +1073,7 @@ const UnitPage = () => {
       ) : (
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
           <div
-            className="w-full rounded-2xl flex items-center justify-center px-6 py-8 text-center"
+            className="w-full rounded-3xl flex items-center justify-center px-6 py-10 text-center shadow-lg"
             style={{
               maxHeight: 180,
               minHeight: 120,
@@ -1082,14 +1082,14 @@ const UnitPage = () => {
           >
             <div className="flex items-center gap-3">
               {org.emoji && (
-                <span className="text-4xl drop-shadow-sm">{org.emoji}</span>
+                <span className="text-5xl drop-shadow-md">{org.emoji}</span>
               )}
               <div className="text-left">
-                <p className="text-white font-extrabold text-xl leading-tight drop-shadow-md">
+                <p className="text-white font-black text-2xl leading-tight drop-shadow-lg">
                   {org.name}
                 </p>
                 {org.description && (
-                  <p className="text-white/90 text-xs mt-0.5 line-clamp-2 max-w-[260px]">
+                  <p className="text-white/90 text-sm mt-1 line-clamp-2 max-w-[280px]">
                     {org.description}
                   </p>
                 )}
