@@ -1248,20 +1248,20 @@ const UnitPage = () => {
                       const isActive = activeCategory === group.value || (!activeCategory && groupedMenu[0].value === group.value);
                       return (
                          <button
-                          key={group.value}
-                          id={`pill-${group.value}`}
-                          onClick={() => scrollToCategory(group.value)}
-                          className="flex items-center gap-1.5 h-9 px-4 text-[13px] font-medium whitespace-nowrap transition-all duration-200 shrink-0 border max-w-[220px]"
-                          style={{
-                            borderRadius: buttonRadius,
-                            ...(isActive
-                              ? { backgroundColor: categoryColor, color: "#fff", borderColor: categoryColor, boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
-                              : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
-                          }}
-                        >
-                          {group.emoji && <span className="text-sm leading-none">{group.emoji}</span>}
-                          <span className="truncate">{group.value}</span>
-                        </button>
+                           key={group.value}
+                           id={`pill-${group.value}`}
+                           onClick={() => scrollToCategory(group.value)}
+                           className="flex items-center gap-1.5 h-10 px-5 text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 border max-w-[220px]"
+                           style={{
+                             borderRadius: "0.75rem",
+                             ...(isActive
+                               ? { backgroundColor: categoryColor, color: "#fff", borderColor: categoryColor, boxShadow: `0 8px 20px -8px ${categoryColor}66` }
+                               : { backgroundColor: "var(--card)", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
+                           }}
+                         >
+                           {group.emoji && <span className="text-sm leading-none">{group.emoji}</span>}
+                           <span className="truncate">{group.value}</span>
+                         </button>
                       );
                     })}
                   </div>
@@ -1271,87 +1271,87 @@ const UnitPage = () => {
                 <div className="space-y-8">
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-5 rounded-full" style={{ backgroundColor: effectivePrimaryColor || "hsl(var(--primary))" }} />
-                          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
-                            {group.value}
-                          </h2>
-                        </div>
-                        <div className="flex-1 h-px bg-border/60" />
-                      </div>
+                       <div className="flex items-center justify-between mb-4">
+                         <div className="flex items-center gap-2">
+                           <div className="w-1 h-5 rounded-full" style={{ backgroundColor: effectivePrimaryColor || "hsl(var(--primary))" }} />
+                           <h2 className="text-base font-extrabold uppercase tracking-tight text-foreground">
+                             {group.value}
+                           </h2>
+                         </div>
+                         <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
+                           {group.items.length} {group.items.length === 1 ? "Produto" : "Produtos"}
+                         </span>
+                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
-                            <div
-                              key={item.id}
-                              onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:shadow-xl hover:-translate-y-0.5 shadow-sm`}
-                              style={{ borderRadius: cardRadius, isolation: "isolate" }}
-                            >
-                              {/* Foto quadrada — img direto com position:absolute, sem div intermediário */}
-                              <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100" style={{ paddingBottom: "100%", overflow: "hidden" }}>
-                                {item.image_url ? (
-                                  <img
-                                    src={item.image_url}
-                                    alt={item.name}
-                                    loading="lazy"
-                                    decoding="async"
-                                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                                  />
-                                ) : (
-                                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                    <UtensilsCrossed className="w-14 h-14 text-orange-200/80" />
-                                  </div>
-                                )}
-                                {qty > 0 && (
-                                  <span
-                                    className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full text-xs font-black text-white flex items-center justify-center shadow-lg ring-2 ring-white/60"
-                                    style={{ backgroundColor: categoryColor, zIndex: 10 }}
-                                  >
-                                    {qty}
-                                  </span>
-                                )}
-                              </div>
+                             <div
+                               key={item.id}
+                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
+                               className={`bg-card border border-border/60 overflow-hidden flex flex-col transition-all duration-200 cursor-pointer active:scale-[0.97] hover:shadow-xl hover:-translate-y-0.5 shadow-sm`}
+                               style={{ borderRadius: "1rem", isolation: "isolate" }}
+                             >
+                               {/* Foto quadrada */}
+                               <div className="relative w-full bg-gradient-to-br from-muted to-muted/60" style={{ paddingBottom: "100%", overflow: "hidden" }}>
+                                 {item.image_url ? (
+                                   <img
+                                     src={item.image_url}
+                                     alt={item.name}
+                                     loading="lazy"
+                                     decoding="async"
+                                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                   />
+                                 ) : (
+                                   <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                     <UtensilsCrossed className="w-14 h-14 text-muted-foreground/30" />
+                                   </div>
+                                 )}
+                                 {qty > 0 && (
+                                   <span
+                                     className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full text-xs font-black text-white flex items-center justify-center shadow-lg ring-2 ring-white/60"
+                                     style={{ backgroundColor: categoryColor, zIndex: 10 }}
+                                   >
+                                     {qty}
+                                   </span>
+                                 )}
+                               </div>
 
-                              {/* Info */}
-                              <div className="p-3 flex flex-col gap-1.5 flex-1">
-                                <h3 className="font-bold text-foreground text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{item.name}</h3>
-                                <span
-                                  className="font-black text-lg tracking-tight"
-                                  style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
-                                >
-                                  {fmt(item.price)}
-                                </span>
-
-                                {(
-                                  isClosed ? (
-                                    <span className="mt-auto w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold bg-muted text-muted-foreground cursor-not-allowed">
-                                      🔒 Fechado
-                                    </span>
-                                  ) : qty === 0 ? (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
-                                      className="mt-auto w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-lg"
-                                      style={{ backgroundColor: buttonColor, borderRadius: buttonRadius }}
-                                    >
-                                      <Plus className="w-4 h-4" />
-                                      Adicionar
-                                    </button>
-                                  ) : (
-                                    <div className="mt-auto flex items-center justify-center w-full">
-                                      <span
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold text-primary-foreground shadow-md w-full justify-center"
-                                        style={{ backgroundColor: categoryColor }}
-                                      >
-                                        ✓ {qty} no carrinho
-                                      </span>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
+                               {/* Info */}
+                               <div className="p-3 flex flex-col flex-1">
+                                 <h3 className="font-bold text-foreground text-xs leading-tight line-clamp-2 mb-2 min-h-[2rem]">{item.name}</h3>
+                                 <div className="mt-auto">
+                                   <div
+                                     className="font-black text-base tracking-tight mb-2"
+                                     style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
+                                   >
+                                     {fmt(item.price)}
+                                   </div>
+                                   {(
+                                     isClosed ? (
+                                       <span className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-muted text-muted-foreground cursor-not-allowed">
+                                         🔒 Fechado
+                                       </span>
+                                     ) : qty === 0 ? (
+                                       <button
+                                         onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
+                                         className="w-full flex items-center justify-center py-2 text-[10px] font-black uppercase tracking-wider text-primary-foreground transition-all active:scale-95 rounded-xl"
+                                         style={{ backgroundColor: buttonColor }}
+                                       >
+                                         Adicionar
+                                       </button>
+                                     ) : (
+                                       <span
+                                         className="w-full flex items-center justify-center py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-primary-foreground"
+                                         style={{ backgroundColor: categoryColor }}
+                                       >
+                                         ✓ {qty} no carrinho
+                                       </span>
+                                     )
+                                   )}
+                                 </div>
+                               </div>
+                             </div>
                           );
                         })}
                       </div>
