@@ -1152,10 +1152,10 @@ const UnitPage = () => {
                 : "Fechado hoje"}
             </span>
           )}
-          <p className="text-lg font-bold text-foreground mb-0.5">{org.description || `Bem-vindo ao ${org.name}!`}</p>
+          <p className="text-xl font-black text-foreground mb-1 tracking-tight">{org.description || `Bem-vindo ao ${org.name}!`}</p>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5">
             <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-            Monte seu pedido e envie direto pelo WhatsApp!
+            Monte seu pedido e envie direto pelo WhatsApp
           </p>
           {isClosed && (
             storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
