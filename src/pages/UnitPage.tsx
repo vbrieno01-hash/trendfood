@@ -1248,7 +1248,7 @@ const UnitPage = () => {
                         </h2>
                         <div className="flex-1 h-px bg-border/60" />
                       </div>
-                      <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
+                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
@@ -1260,7 +1260,7 @@ const UnitPage = () => {
                             >
                               {/* Foto quadrada + badge de qty */}
                               {/* padding-bottom trick: mais confiável que aspect-square em mobile/grid */}
-                              <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100 overflow-hidden" style={{ paddingBottom: "100%" }}>
+                              <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100" style={{ paddingBottom: "100%", overflow: "hidden", contain: "strict" }}>
                                 <div className="absolute inset-0 flex items-center justify-center">
                                 {item.image_url ? (
                                   <img
