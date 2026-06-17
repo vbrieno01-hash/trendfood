@@ -1062,45 +1062,54 @@ const UnitPage = () => {
 
       {/* Banner */}
       {org.banner_url ? (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-          <img
-            src={org.banner_url}
-            alt="Banner"
-            className="w-full rounded-2xl object-cover"
-            style={{ maxHeight: 180 }}
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement | null)?.remove();
-              // Self-healing: limpa banner_url morto no banco para não voltar a tentar
-              try {
-                supabase.functions.invoke("cleanup-broken-banners", {
-                  body: { org_id: org.id },
-                });
-              } catch {}
-            }}
-          />
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-4">
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-lg group">
+            <img
+              src={org.banner_url}
+              alt="Banner"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => {
+                (e.currentTarget.closest('.relative')?.parentElement as HTMLElement | null)?.remove();
+                try {
+                  supabase.functions.invoke("cleanup-broken-banners", {
+                    body: { org_id: org.id },
+                  });
+                } catch {}
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5">
+              <h2 className="text-white text-2xl font-black leading-none uppercase tracking-tighter drop-shadow-lg">
+                {org.name}
+              </h2>
+              {org.description && (
+                <p className="text-white/85 text-xs mt-2 line-clamp-2 font-medium drop-shadow">
+                  {org.description}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-4">
           <div
-            className="w-full rounded-3xl flex items-center justify-center px-6 py-10 text-center shadow-lg"
+            className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden shadow-lg flex items-end p-5"
             style={{
-              maxHeight: 180,
-              minHeight: 120,
               background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            <div className="relative flex items-end gap-3 w-full">
               {org.emoji && (
                 <span className="text-5xl drop-shadow-md">{org.emoji}</span>
               )}
-              <div className="text-left">
-                <p className="text-white font-black text-2xl leading-tight drop-shadow-lg">
+              <div>
+                <h2 className="text-white text-2xl font-black leading-none uppercase tracking-tighter drop-shadow-lg">
                   {org.name}
-                </p>
+                </h2>
                 {org.description && (
-                  <p className="text-white/90 text-sm mt-1 line-clamp-2 max-w-[280px]">
+                  <p className="text-white/90 text-xs mt-2 line-clamp-2 font-medium drop-shadow max-w-[280px]">
                     {org.description}
                   </p>
                 )}
