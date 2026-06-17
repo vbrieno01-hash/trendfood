@@ -1258,25 +1258,24 @@ const UnitPage = () => {
                               className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
                               style={{ borderRadius: cardRadius }}
                             >
-                              {/* Foto quadrada + badge de qty */}
-                              {/* padding-bottom trick: mais confiável que aspect-square em mobile/grid */}
-                              <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100" style={{ paddingBottom: "100%", overflow: "hidden", contain: "strict" }}>
-                                <div className="absolute inset-0 flex items-center justify-center">
+                              {/* Foto quadrada — img direto com position:absolute, sem div intermediário */}
+                              <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100" style={{ paddingBottom: "100%", overflow: "hidden" }}>
                                 {item.image_url ? (
                                   <img
                                     src={item.image_url}
                                     alt={item.name}
-                                    className="w-full h-full object-cover"
                                     loading="lazy"
+                                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                   />
                                 ) : (
-                                  <UtensilsCrossed className="w-8 h-8 text-orange-300" />
+                                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <UtensilsCrossed className="w-8 h-8 text-orange-300" />
+                                  </div>
                                 )}
-                                </div>
                                 {qty > 0 && (
                                   <span
-                                    className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow z-10"
-                                    style={{ backgroundColor: categoryColor }}
+                                    className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow"
+                                    style={{ backgroundColor: categoryColor, zIndex: 10 }}
                                   >
                                     {qty}
                                   </span>
