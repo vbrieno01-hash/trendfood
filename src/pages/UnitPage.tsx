@@ -1314,7 +1314,7 @@ const UnitPage = () => {
                                   ) : (
                                     <div className="mt-auto flex items-center justify-center w-full">
                                       <span
-                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-primary-foreground"
+                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-primary-foreground shadow-sm"
                                         style={{ backgroundColor: categoryColor }}
                                       >
                                         {qty} no carrinho
