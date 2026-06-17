@@ -1128,9 +1128,8 @@ const UnitPage = () => {
 
       <main className="max-w-2xl lg:max-w-5xl mx-auto px-4 pb-32 pt-4">
         {/* Banner */}
-        {/* Banner */}
         <div
-          className="rounded-2xl p-4 mb-5 bg-card border-l-4 shadow-sm relative"
+          className="rounded-3xl p-5 mb-6 bg-card border-l-4 shadow-md relative"
           style={{ borderLeftColor: primaryColor, borderTopColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'transparent' }}
         >
           {/* Badge de status aberto/fechado */}
