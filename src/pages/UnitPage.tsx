@@ -1246,10 +1246,13 @@ const UnitPage = () => {
                 <div className="space-y-8">
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
-                          {group.value}
-                        </h2>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-5 rounded-full" style={{ backgroundColor: effectivePrimaryColor || "hsl(var(--primary))" }} />
+                          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
+                            {group.value}
+                          </h2>
+                        </div>
                         <div className="flex-1 h-px bg-border/60" />
                       </div>
                       <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
