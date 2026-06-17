@@ -1259,7 +1259,7 @@ const UnitPage = () => {
                             <div
                               key={item.id}
                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-transform duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:shadow-lg`}
                               style={{ borderRadius: cardRadius, isolation: "isolate" }}
                             >
                               {/* Foto quadrada — img direto com position:absolute, sem div intermediário */}
@@ -1274,12 +1274,12 @@ const UnitPage = () => {
                                   />
                                 ) : (
                                   <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                    <UtensilsCrossed className="w-8 h-8 text-orange-300" />
+                                    <UtensilsCrossed className="w-10 h-10 text-orange-200/80" />
                                   </div>
                                 )}
                                 {qty > 0 && (
                                   <span
-                                    className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow"
+                                    className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-md ring-2 ring-white/40"
                                     style={{ backgroundColor: categoryColor, zIndex: 10 }}
                                   >
                                     {qty}
@@ -1288,10 +1288,10 @@ const UnitPage = () => {
                               </div>
 
                               {/* Info */}
-                              <div className="p-2.5 flex flex-col gap-1 flex-1">
-                                <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
+                              <div className="p-3 flex flex-col gap-1.5 flex-1">
+                                <h3 className="font-semibold text-foreground text-[13px] leading-snug line-clamp-2">{item.name}</h3>
                                 <span
-                                  className="font-extrabold text-base"
+                                  className="font-extrabold text-base tracking-tight"
                                   style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
                                 >
                                   {fmt(item.price)}
