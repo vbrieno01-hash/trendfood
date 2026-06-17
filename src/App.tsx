@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, useState } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
 import { logClientError, isIgnorableError } from "@/lib/errorLogger";
 import { Toaster } from "@/components/ui/toaster";
@@ -45,18 +45,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export const RouteFallback = ({ forceShow }: { forceShow?: boolean } = {}) => {
-  // 0–250ms: tela em branco (evita piscar em chunks já em cache).
-  // >250ms: já mostra o card com botão grande de "Reconectar agora".
-  const [show, setShow] = useState<boolean>(!!forceShow);
-  useEffect(() => {
-    if (forceShow) return;
-    const t = setTimeout(() => setShow(true), 250);
-    return () => clearTimeout(t);
-  }, [forceShow]);
-  if (!show) {
-    return <div className="min-h-screen bg-background" aria-hidden />;
-  }
+export const RouteFallback = (_props: { forceShow?: boolean } = {}) => {
   return (
     <div
       aria-live="polite"
