@@ -1062,45 +1062,54 @@ const UnitPage = () => {
 
       {/* Banner */}
       {org.banner_url ? (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
-          <img
-            src={org.banner_url}
-            alt="Banner"
-            className="w-full rounded-2xl object-cover"
-            style={{ maxHeight: 180 }}
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              (e.currentTarget.parentElement as HTMLElement | null)?.remove();
-              // Self-healing: limpa banner_url morto no banco para não voltar a tentar
-              try {
-                supabase.functions.invoke("cleanup-broken-banners", {
-                  body: { org_id: org.id },
-                });
-              } catch {}
-            }}
-          />
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-4">
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-lg group">
+            <img
+              src={org.banner_url}
+              alt="Banner"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => {
+                (e.currentTarget.closest('.relative')?.parentElement as HTMLElement | null)?.remove();
+                try {
+                  supabase.functions.invoke("cleanup-broken-banners", {
+                    body: { org_id: org.id },
+                  });
+                } catch {}
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5">
+              <h2 className="text-white text-2xl font-black leading-none uppercase tracking-tighter drop-shadow-lg">
+                {org.name}
+              </h2>
+              {org.description && (
+                <p className="text-white/85 text-xs mt-2 line-clamp-2 font-medium drop-shadow">
+                  {org.description}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-4">
           <div
-            className="w-full rounded-3xl flex items-center justify-center px-6 py-10 text-center shadow-lg"
+            className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden shadow-lg flex items-end p-5"
             style={{
-              maxHeight: 180,
-              minHeight: 120,
               background: `linear-gradient(135deg, ${effectivePrimaryColor || "#f97316"} 0%, ${effectivePrimaryColor || "#f97316"}cc 60%, ${effectivePrimaryColor || "#f97316"}99 100%)`,
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            <div className="relative flex items-end gap-3 w-full">
               {org.emoji && (
                 <span className="text-5xl drop-shadow-md">{org.emoji}</span>
               )}
-              <div className="text-left">
-                <p className="text-white font-black text-2xl leading-tight drop-shadow-lg">
+              <div>
+                <h2 className="text-white text-2xl font-black leading-none uppercase tracking-tighter drop-shadow-lg">
                   {org.name}
-                </p>
+                </h2>
                 {org.description && (
-                  <p className="text-white/90 text-sm mt-1 line-clamp-2 max-w-[280px]">
+                  <p className="text-white/90 text-xs mt-2 line-clamp-2 font-medium drop-shadow max-w-[280px]">
                     {org.description}
                   </p>
                 )}
@@ -1140,37 +1149,43 @@ const UnitPage = () => {
       <main className="max-w-2xl lg:max-w-5xl mx-auto px-4 pb-32 pt-4">
         {/* Banner */}
         <div
-          className="rounded-3xl p-5 mb-6 bg-card border-l-4 shadow-md relative"
-          style={{ borderLeftColor: primaryColor, borderTopColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'transparent' }}
+          className="rounded-2xl p-4 mb-6 bg-card border border-border shadow-sm flex gap-4 relative overflow-hidden"
         >
-          {/* Badge de status aberto/fechado */}
-          {storeStatus && (
-            <span
-              className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                storeStatus.open
-                  ? "bg-green-500/90 text-white"
-                  : (storeStatus as any).reason === "break"
-                  ? "bg-amber-500/90 text-white"
-                  : "bg-red-500/90 text-white"
-              }`}
-            >
-              {storeStatus.open
-                ? "Aberto agora"
-                : (storeStatus as any).reason === "break" && opensAt
-                ? `⏸ Em pausa · voltamos às ${opensAt}`
-                : formatOpensAt(storeStatus)
-                ? `${isClosedAllDay(storeStatus) ? "Fechada hoje" : "Fechado"} · abre ${formatOpensAt(storeStatus)}`
-                : "Fechado hoje"}
-            </span>
-          )}
-          <p className="text-xl font-black text-foreground mb-1 tracking-tight">{org.description || `Bem-vindo ao ${org.name}!`}</p>
-          <p className="text-muted-foreground text-sm flex items-center gap-1.5">
-            <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-            Monte seu pedido e envie direto pelo WhatsApp
-          </p>
+          <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: primaryColor }} />
+          <div
+            className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+            style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+          >
+            <ShoppingBag className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start gap-2">
+              <h3 className="font-bold text-foreground text-base truncate tracking-tight">{org.name}</h3>
+              {storeStatus && (
+                <span
+                  className={`flex-shrink-0 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                    storeStatus.open
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                      : (storeStatus as any).reason === "break"
+                      ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                      : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                  }`}
+                >
+                  {storeStatus.open
+                    ? "Online"
+                    : (storeStatus as any).reason === "break"
+                    ? "Em pausa"
+                    : "Fechado"}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2">
+              {org.description || "Monte seu pedido e envie direto pelo WhatsApp"}
+            </p>
+          </div>
           {isClosed && (
             storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
-              <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
+              <div className="absolute inset-x-4 bottom-3 mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
                 <span className="text-lg shrink-0 mt-0.5">⏸</span>
                 <div>
                   <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
@@ -1182,7 +1197,7 @@ const UnitPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
+              <div className="absolute inset-x-4 bottom-3 mt-2 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
                 <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-red-600 dark:text-red-400">
@@ -1233,20 +1248,20 @@ const UnitPage = () => {
                       const isActive = activeCategory === group.value || (!activeCategory && groupedMenu[0].value === group.value);
                       return (
                          <button
-                          key={group.value}
-                          id={`pill-${group.value}`}
-                          onClick={() => scrollToCategory(group.value)}
-                          className="flex items-center gap-1.5 h-9 px-4 text-[13px] font-medium whitespace-nowrap transition-all duration-200 shrink-0 border max-w-[220px]"
-                          style={{
-                            borderRadius: buttonRadius,
-                            ...(isActive
-                              ? { backgroundColor: categoryColor, color: "#fff", borderColor: categoryColor, boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
-                              : { backgroundColor: "transparent", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
-                          }}
-                        >
-                          {group.emoji && <span className="text-sm leading-none">{group.emoji}</span>}
-                          <span className="truncate">{group.value}</span>
-                        </button>
+                           key={group.value}
+                           id={`pill-${group.value}`}
+                           onClick={() => scrollToCategory(group.value)}
+                           className="flex items-center gap-1.5 h-10 px-5 text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-200 shrink-0 border max-w-[220px]"
+                           style={{
+                             borderRadius: "0.75rem",
+                             ...(isActive
+                               ? { backgroundColor: categoryColor, color: "#fff", borderColor: categoryColor, boxShadow: `0 8px 20px -8px ${categoryColor}66` }
+                               : { backgroundColor: "var(--card)", color: "var(--muted-foreground)", borderColor: "var(--border)" }),
+                           }}
+                         >
+                           {group.emoji && <span className="text-sm leading-none">{group.emoji}</span>}
+                           <span className="truncate">{group.value}</span>
+                         </button>
                       );
                     })}
                   </div>
@@ -1256,87 +1271,87 @@ const UnitPage = () => {
                 <div className="space-y-8">
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-5 rounded-full" style={{ backgroundColor: effectivePrimaryColor || "hsl(var(--primary))" }} />
-                          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
-                            {group.value}
-                          </h2>
-                        </div>
-                        <div className="flex-1 h-px bg-border/60" />
-                      </div>
+                       <div className="flex items-center justify-between mb-4">
+                         <div className="flex items-center gap-2">
+                           <div className="w-1 h-5 rounded-full" style={{ backgroundColor: effectivePrimaryColor || "hsl(var(--primary))" }} />
+                           <h2 className="text-base font-extrabold uppercase tracking-tight text-foreground">
+                             {group.value}
+                           </h2>
+                         </div>
+                         <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
+                           {group.items.length} {group.items.length === 1 ? "Produto" : "Produtos"}
+                         </span>
+                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
-                            <div
-                              key={item.id}
-                              onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:shadow-xl hover:-translate-y-0.5 shadow-sm`}
-                              style={{ borderRadius: cardRadius, isolation: "isolate" }}
-                            >
-                              {/* Foto quadrada — img direto com position:absolute, sem div intermediário */}
-                              <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100" style={{ paddingBottom: "100%", overflow: "hidden" }}>
-                                {item.image_url ? (
-                                  <img
-                                    src={item.image_url}
-                                    alt={item.name}
-                                    loading="lazy"
-                                    decoding="async"
-                                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                                  />
-                                ) : (
-                                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                    <UtensilsCrossed className="w-14 h-14 text-orange-200/80" />
-                                  </div>
-                                )}
-                                {qty > 0 && (
-                                  <span
-                                    className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full text-xs font-black text-white flex items-center justify-center shadow-lg ring-2 ring-white/60"
-                                    style={{ backgroundColor: categoryColor, zIndex: 10 }}
-                                  >
-                                    {qty}
-                                  </span>
-                                )}
-                              </div>
+                             <div
+                               key={item.id}
+                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
+                               className={`bg-card border border-border/60 overflow-hidden flex flex-col transition-all duration-200 cursor-pointer active:scale-[0.97] hover:shadow-xl hover:-translate-y-0.5 shadow-sm`}
+                               style={{ borderRadius: "1rem", isolation: "isolate" }}
+                             >
+                               {/* Foto quadrada */}
+                               <div className="relative w-full bg-gradient-to-br from-muted to-muted/60" style={{ paddingBottom: "100%", overflow: "hidden" }}>
+                                 {item.image_url ? (
+                                   <img
+                                     src={item.image_url}
+                                     alt={item.name}
+                                     loading="lazy"
+                                     decoding="async"
+                                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                   />
+                                 ) : (
+                                   <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                     <UtensilsCrossed className="w-14 h-14 text-muted-foreground/30" />
+                                   </div>
+                                 )}
+                                 {qty > 0 && (
+                                   <span
+                                     className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full text-xs font-black text-white flex items-center justify-center shadow-lg ring-2 ring-white/60"
+                                     style={{ backgroundColor: categoryColor, zIndex: 10 }}
+                                   >
+                                     {qty}
+                                   </span>
+                                 )}
+                               </div>
 
-                              {/* Info */}
-                              <div className="p-3 flex flex-col gap-1.5 flex-1">
-                                <h3 className="font-bold text-foreground text-sm leading-snug line-clamp-2 min-h-[2.5rem]">{item.name}</h3>
-                                <span
-                                  className="font-black text-lg tracking-tight"
-                                  style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
-                                >
-                                  {fmt(item.price)}
-                                </span>
-
-                                {(
-                                  isClosed ? (
-                                    <span className="mt-auto w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold bg-muted text-muted-foreground cursor-not-allowed">
-                                      🔒 Fechado
-                                    </span>
-                                  ) : qty === 0 ? (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
-                                      className="mt-auto w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-lg"
-                                      style={{ backgroundColor: buttonColor, borderRadius: buttonRadius }}
-                                    >
-                                      <Plus className="w-4 h-4" />
-                                      Adicionar
-                                    </button>
-                                  ) : (
-                                    <div className="mt-auto flex items-center justify-center w-full">
-                                      <span
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold text-primary-foreground shadow-md w-full justify-center"
-                                        style={{ backgroundColor: categoryColor }}
-                                      >
-                                        ✓ {qty} no carrinho
-                                      </span>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
+                               {/* Info */}
+                               <div className="p-3 flex flex-col flex-1">
+                                 <h3 className="font-bold text-foreground text-xs leading-tight line-clamp-2 mb-2 min-h-[2rem]">{item.name}</h3>
+                                 <div className="mt-auto">
+                                   <div
+                                     className="font-black text-base tracking-tight mb-2"
+                                     style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
+                                   >
+                                     {fmt(item.price)}
+                                   </div>
+                                   {(
+                                     isClosed ? (
+                                       <span className="w-full flex items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-muted text-muted-foreground cursor-not-allowed">
+                                         🔒 Fechado
+                                       </span>
+                                     ) : qty === 0 ? (
+                                       <button
+                                         onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
+                                         className="w-full flex items-center justify-center py-2 text-[10px] font-black uppercase tracking-wider text-primary-foreground transition-all active:scale-95 rounded-xl"
+                                         style={{ backgroundColor: buttonColor }}
+                                       >
+                                         Adicionar
+                                       </button>
+                                     ) : (
+                                       <span
+                                         className="w-full flex items-center justify-center py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-primary-foreground"
+                                         style={{ backgroundColor: categoryColor }}
+                                       >
+                                         ✓ {qty} no carrinho
+                                       </span>
+                                     )
+                                   )}
+                                 </div>
+                               </div>
+                             </div>
                           );
                         })}
                       </div>
