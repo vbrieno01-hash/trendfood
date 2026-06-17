@@ -412,14 +412,12 @@ export function useCourierStats(courierId: string | null) {
       .channel(`courier-stats-${courierId}`)
       .on(
         "postgres_changes",
+        // deliveries: anon ainda pode receber events (policy pública existe)
         { event: "*", schema: "public", table: "deliveries", filter: `courier_id=eq.${courierId}` },
         () => { queryClient.invalidateQueries({ queryKey: ["courier-stats", courierId] }); }
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "courier_shifts", filter: `courier_id=eq.${courierId}` },
-        () => { queryClient.invalidateQueries({ queryKey: ["courier-stats", courierId] }); }
-      )
+      // courier_shifts removido do canal — anon não tem SELECT direto
+      // Invalidação de shifts vem de useStartShift/useEndShift.onSuccess
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [courierId, queryClient]);
@@ -427,7 +425,7 @@ export function useCourierStats(courierId: string | null) {
   return useQuery({
     queryKey: ["courier-stats", courierId],
     queryFn: async () => {
-      // 1) Delivery fees
+      // 1) Fees de entrega — sem mudança
       const { data: deliveries, error: dErr } = await supabase
         .from("deliveries" as any)
         .select("fee, courier_paid")
@@ -436,47 +434,28 @@ export function useCourierStats(courierId: string | null) {
       if (dErr) throw dErr;
       const rows = (deliveries ?? []) as unknown as { fee: number | null; courier_paid: boolean }[];
 
-      // 2) Completed shifts + org daily_rate
-      const { data: shifts } = await supabase
-        .from("courier_shifts" as any)
-        .select("organization_id, ended_at")
-        .eq("courier_id", courierId!)
-        .not("ended_at", "is", null);
-      const completedShifts = (shifts ?? []) as unknown as { organization_id: string; ended_at: string }[];
-
-      // Fetch daily_rate for each unique org
-      const orgIds = [...new Set(completedShifts.map((s) => s.organization_id))];
-      let dailyRateMap: Record<string, number> = {};
-      if (orgIds.length > 0) {
-        const { data: orgs } = await supabase
-          .from("organizations" as any)
-          .select("id, courier_config")
-          .in("id", orgIds);
-        for (const org of (orgs ?? []) as unknown as { id: string; courier_config: any }[]) {
-          dailyRateMap[org.id] = org.courier_config?.daily_rate ?? 0;
-        }
-      }
-
-      const totalDailyEarned = completedShifts.reduce((sum, s) => sum + (dailyRateMap[s.organization_id] ?? 0), 0);
+      // 2) Turnos + diárias via RPC SECURITY DEFINER (fecha SELECT público)
+      const { data: shiftStats, error: sErr } = await supabase
+        .rpc("courier_get_shift_stats" as any, { _courier_id: courierId! });
+      if (sErr) throw sErr;
+      const shiftRow = ((shiftStats ?? [])[0] ?? { total_shifts: 0, total_daily_earned: 0 })
+        as { total_shifts: number; total_daily_earned: number };
 
       const stats: CourierStats = {
         totalDeliveries: rows.length,
         totalDeliveryEarned: 0,
-        totalDailyEarned,
+        totalDailyEarned: Number(shiftRow.total_daily_earned),
         totalEarned: 0,
         totalPending: 0,
         totalPaid: 0,
-        totalShifts: completedShifts.length,
+        totalShifts: Number(shiftRow.total_shifts),
       };
 
       for (const r of rows) {
         const fee = r.fee ?? 0;
         stats.totalDeliveryEarned += fee;
-        if (r.courier_paid) {
-          stats.totalPaid += fee;
-        } else {
-          stats.totalPending += fee;
-        }
+        if (r.courier_paid) stats.totalPaid += fee;
+        else stats.totalPending += fee;
       }
 
       stats.totalEarned = stats.totalDeliveryEarned + stats.totalDailyEarned;
@@ -556,16 +535,12 @@ export function useActiveShift(courierId: string | null) {
   return useQuery({
     queryKey: ["courier-shift", courierId],
     queryFn: async () => {
+      // RPC SECURITY DEFINER — anon não lê courier_shifts diretamente
       const { data, error } = await supabase
-        .from("courier_shifts" as any)
-        .select("*")
-        .eq("courier_id", courierId!)
-        .is("ended_at", null)
-        .order("started_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .rpc("courier_get_active_shift" as any, { _courier_id: courierId! });
       if (error) throw error;
-      return data as unknown as CourierShift | null;
+      const rows = (data ?? []) as unknown as CourierShift[];
+      return rows[0] ?? null;
     },
     enabled: !!courierId,
   });
