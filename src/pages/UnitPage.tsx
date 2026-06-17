@@ -1357,7 +1357,7 @@ const UnitPage = () => {
               href={whatsappHelpUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-center gap-2 text-white font-semibold text-sm transition-transform active:scale-95"
+              className="flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-white font-semibold text-sm transition-transform active:scale-95 shadow-sm"
               style={{ backgroundColor: "#25D366" }}
             >
               <svg viewBox="0 0 32 32" className="h-5 w-5 fill-current">
