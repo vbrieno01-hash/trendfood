@@ -1010,6 +1010,8 @@ const UnitPage = () => {
       <header
         className="sticky top-0 z-40 shadow-sm"
         style={{
+          transform: "translateZ(0)",
+          willChange: "transform",
           backgroundColor: (themeConfig.header_style || "solid") === "transparent"
             ? "var(--background)"
             : (themeConfig.header_style || "solid") === "gradient"
@@ -1024,7 +1026,7 @@ const UnitPage = () => {
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {org.logo_url ? (
-              <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" />
+              <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" loading="lazy" decoding="async" />
             ) : (
               <span
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
@@ -1055,6 +1057,8 @@ const UnitPage = () => {
             alt="Banner"
             className="w-full rounded-2xl object-cover"
             style={{ maxHeight: 180 }}
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement | null)?.remove();
               // Self-healing: limpa banner_url morto no banco para não voltar a tentar
@@ -1097,7 +1101,7 @@ const UnitPage = () => {
 
       {/* Sticky search bar */}
       {!menuLoading && menuItems.length > 0 && (
-        <div className="sticky top-[57px] z-30 bg-background shadow-sm">
+        <div className="sticky top-[57px] z-30 bg-background shadow-sm" style={{ transform: "translateZ(0)", willChange: "transform" }}>
           <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -1255,8 +1259,8 @@ const UnitPage = () => {
                             <div
                               key={item.id}
                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
-                              style={{ borderRadius: cardRadius }}
+                              className={`bg-card overflow-hidden flex flex-col transition-transform duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
+                              style={{ borderRadius: cardRadius, isolation: "isolate" }}
                             >
                               {/* Foto quadrada — img direto com position:absolute, sem div intermediário */}
                               <div className="relative w-full bg-gradient-to-br from-amber-50 to-orange-100" style={{ paddingBottom: "100%", overflow: "hidden" }}>
@@ -1265,6 +1269,7 @@ const UnitPage = () => {
                                     src={item.image_url}
                                     alt={item.name}
                                     loading="lazy"
+                                    decoding="async"
                                     style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                   />
                                 ) : (
