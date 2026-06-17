@@ -1026,10 +1026,10 @@ const UnitPage = () => {
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {org.logo_url ? (
-              <img src={org.logo_url} alt={org.name} className="w-8 h-8 rounded-lg object-cover" loading="lazy" decoding="async" />
+              <img src={org.logo_url} alt={org.name} className="w-9 h-9 rounded-xl object-cover ring-2 ring-white/30 shadow-sm" loading="lazy" decoding="async" />
             ) : (
               <span
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-base font-bold ring-2 ring-white/30 shadow-sm"
                 style={{
                   backgroundColor: (themeConfig.header_style || "solid") === "transparent" ? `${primaryColor}20` : "rgba(255,255,255,0.2)",
                   color: (themeConfig.header_style || "solid") === "transparent" ? primaryColor : headerTextColor,
@@ -1039,7 +1039,7 @@ const UnitPage = () => {
               </span>
             )}
             <p
-              className="font-bold text-base leading-tight"
+              className="font-bold text-lg leading-tight tracking-tight"
               style={{ color: (themeConfig.header_style || "solid") === "transparent" ? "var(--foreground)" : headerTextColor }}
             >
               {org.name}
@@ -1073,7 +1073,7 @@ const UnitPage = () => {
       ) : (
         <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 pt-3">
           <div
-            className="w-full rounded-2xl flex items-center justify-center px-6 py-8 text-center"
+            className="w-full rounded-3xl flex items-center justify-center px-6 py-10 text-center shadow-lg"
             style={{
               maxHeight: 180,
               minHeight: 120,
@@ -1082,14 +1082,14 @@ const UnitPage = () => {
           >
             <div className="flex items-center gap-3">
               {org.emoji && (
-                <span className="text-4xl drop-shadow-sm">{org.emoji}</span>
+                <span className="text-5xl drop-shadow-md">{org.emoji}</span>
               )}
               <div className="text-left">
-                <p className="text-white font-extrabold text-xl leading-tight drop-shadow-md">
+                <p className="text-white font-black text-2xl leading-tight drop-shadow-lg">
                   {org.name}
                 </p>
                 {org.description && (
-                  <p className="text-white/90 text-xs mt-0.5 line-clamp-2 max-w-[260px]">
+                  <p className="text-white/90 text-sm mt-1 line-clamp-2 max-w-[280px]">
                     {org.description}
                   </p>
                 )}
@@ -1109,7 +1109,7 @@ const UnitPage = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar no cardápio..."
-                className="pl-9 pr-9 h-10 rounded-full bg-card border-border text-sm"
+                className="pl-9 pr-9 h-10 rounded-full bg-muted/60 border-0 text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-primary/30"
               />
               {searchQuery && (
                 <button
@@ -1128,9 +1128,8 @@ const UnitPage = () => {
 
       <main className="max-w-2xl lg:max-w-5xl mx-auto px-4 pb-32 pt-4">
         {/* Banner */}
-        {/* Banner */}
         <div
-          className="rounded-2xl p-4 mb-5 bg-card border-l-4 shadow-sm relative"
+          className="rounded-3xl p-5 mb-6 bg-card border-l-4 shadow-md relative"
           style={{ borderLeftColor: primaryColor, borderTopColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'transparent' }}
         >
           {/* Badge de status aberto/fechado */}
@@ -1153,10 +1152,10 @@ const UnitPage = () => {
                 : "Fechado hoje"}
             </span>
           )}
-          <p className="text-lg font-bold text-foreground mb-0.5">{org.description || `Bem-vindo ao ${org.name}!`}</p>
+          <p className="text-xl font-black text-foreground mb-1 tracking-tight">{org.description || `Bem-vindo ao ${org.name}!`}</p>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5">
             <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-            Monte seu pedido e envie direto pelo WhatsApp!
+            Monte seu pedido e envie direto pelo WhatsApp
           </p>
           {isClosed && (
             storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
@@ -1246,10 +1245,13 @@ const UnitPage = () => {
                 <div className="space-y-8">
                   {groupedMenu.map((group) => (
                     <div key={group.value} id={`cat-${group.value}`}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
-                          {group.value}
-                        </h2>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-5 rounded-full" style={{ backgroundColor: effectivePrimaryColor || "hsl(var(--primary))" }} />
+                          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/70">
+                            {group.value}
+                          </h2>
+                        </div>
                         <div className="flex-1 h-px bg-border/60" />
                       </div>
                       <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
@@ -1259,7 +1261,7 @@ const UnitPage = () => {
                             <div
                               key={item.id}
                               onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                              className={`bg-card overflow-hidden flex flex-col transition-transform duration-200 ${cardClass} cursor-pointer active:scale-[0.97]`}
+                              className={`bg-card overflow-hidden flex flex-col transition-all duration-200 ${cardClass} cursor-pointer active:scale-[0.97] hover:shadow-lg`}
                               style={{ borderRadius: cardRadius, isolation: "isolate" }}
                             >
                               {/* Foto quadrada — img direto com position:absolute, sem div intermediário */}
@@ -1274,12 +1276,12 @@ const UnitPage = () => {
                                   />
                                 ) : (
                                   <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                    <UtensilsCrossed className="w-8 h-8 text-orange-300" />
+                                    <UtensilsCrossed className="w-10 h-10 text-orange-200/80" />
                                   </div>
                                 )}
                                 {qty > 0 && (
                                   <span
-                                    className="absolute top-1 right-1 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow"
+                                    className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-md ring-2 ring-white/40"
                                     style={{ backgroundColor: categoryColor, zIndex: 10 }}
                                   >
                                     {qty}
@@ -1288,10 +1290,10 @@ const UnitPage = () => {
                               </div>
 
                               {/* Info */}
-                              <div className="p-2.5 flex flex-col gap-1 flex-1">
-                                <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{item.name}</h3>
+                              <div className="p-3 flex flex-col gap-1.5 flex-1">
+                                <h3 className="font-semibold text-foreground text-[13px] leading-snug line-clamp-2">{item.name}</h3>
                                 <span
-                                  className="font-extrabold text-base"
+                                  className="font-extrabold text-base tracking-tight"
                                   style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
                                 >
                                   {fmt(item.price)}
@@ -1305,7 +1307,7 @@ const UnitPage = () => {
                                   ) : qty === 0 ? (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); pushDrawerState("item"); setSelectedItem(item); }}
-                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                                      className="mt-auto w-full flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
                                       style={{ backgroundColor: buttonColor, borderRadius: buttonRadius }}
                                     >
                                       <Plus className="w-3.5 h-3.5" />
@@ -1314,7 +1316,7 @@ const UnitPage = () => {
                                   ) : (
                                     <div className="mt-auto flex items-center justify-center w-full">
                                       <span
-                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-primary-foreground"
+                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold text-primary-foreground shadow-sm"
                                         style={{ backgroundColor: categoryColor }}
                                       >
                                         {qty} no carrinho
@@ -1349,13 +1351,13 @@ const UnitPage = () => {
 
       {/* ── FLOATING BOTTOM BAR (Ajuda + Sacola) ── */}
       {!checkoutOpen && !selectedItem && (whatsappValid || totalItems > 0) && (
-        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto animate-in slide-in-from-bottom-4 duration-300 backdrop-blur-md bg-background/80 border border-border/50 rounded-2xl p-1.5 shadow-2xl">
           {whatsappValid && (
             <a
               href={whatsappHelpUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-center gap-2 text-white font-semibold text-sm transition-transform active:scale-95"
+              className="flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-white font-semibold text-sm transition-transform active:scale-95 shadow-sm"
               style={{ backgroundColor: "#25D366" }}
             >
               <svg viewBox="0 0 32 32" className="h-5 w-5 fill-current">
@@ -1366,7 +1368,7 @@ const UnitPage = () => {
           )}
           {totalItems > 0 && (
             isClosed ? (
-              <div className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-between px-4 bg-muted text-muted-foreground font-semibold text-sm cursor-not-allowed">
+              <div className="flex-1 h-12 rounded-xl flex items-center justify-between px-4 bg-muted text-muted-foreground font-semibold text-sm cursor-not-allowed shadow-sm">
                 <div className="flex items-center gap-2">
                   <ShoppingBag className="w-5 h-5 opacity-50" />
                   <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{totalItems}</span>
@@ -1399,7 +1401,7 @@ const UnitPage = () => {
                   pushDrawerState("checkout");
                   setCheckoutOpen(true);
                 }}
-                className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-between px-4 text-primary-foreground font-semibold text-sm transition-transform active:scale-95"
+                className="flex-1 h-12 rounded-xl flex items-center justify-between px-4 text-primary-foreground font-semibold text-sm transition-transform active:scale-95 shadow-sm"
                 style={{ backgroundColor: buttonColor }}
               >
                 <div className="flex items-center gap-2">
