@@ -1368,7 +1368,7 @@ const UnitPage = () => {
           )}
           {totalItems > 0 && (
             isClosed ? (
-              <div className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-between px-4 bg-muted text-muted-foreground font-semibold text-sm cursor-not-allowed">
+              <div className="flex-1 h-12 rounded-xl flex items-center justify-between px-4 bg-muted text-muted-foreground font-semibold text-sm cursor-not-allowed shadow-sm">
                 <div className="flex items-center gap-2">
                   <ShoppingBag className="w-5 h-5 opacity-50" />
                   <span className="bg-muted-foreground/20 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{totalItems}</span>
@@ -1401,7 +1401,7 @@ const UnitPage = () => {
                   pushDrawerState("checkout");
                   setCheckoutOpen(true);
                 }}
-                className="flex-1 h-14 rounded-xl shadow-2xl flex items-center justify-between px-4 text-primary-foreground font-semibold text-sm transition-transform active:scale-95"
+                className="flex-1 h-12 rounded-xl flex items-center justify-between px-4 text-primary-foreground font-semibold text-sm transition-transform active:scale-95 shadow-sm"
                 style={{ backgroundColor: buttonColor }}
               >
                 <div className="flex items-center gap-2">
