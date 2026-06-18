@@ -1000,7 +1000,7 @@ const UnitPage = () => {
         className="sticky top-0 z-40 shadow-sm"
         style={{
           transform: "translateZ(0)",
-          willChange: "transform",
+
           backgroundColor: (themeConfig.header_style || "solid") === "transparent"
             ? "var(--background)"
             : (themeConfig.header_style || "solid") === "gradient"
@@ -1110,7 +1110,7 @@ const UnitPage = () => {
 
       {/* Sticky search bar */}
       {!menuLoading && menuItems.length > 0 && (
-        <div className="sticky top-[57px] z-30 bg-background shadow-sm" style={{ transform: "translateZ(0)", willChange: "transform" }}>
+        <div className="sticky top-[57px] z-30 bg-background shadow-sm" style={{ transform: "translateZ(0)" }}>
           <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 py-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -1366,7 +1366,7 @@ const UnitPage = () => {
 
       {/* ── FLOATING BOTTOM BAR (Ajuda + Sacola) ── */}
       {!checkoutOpen && !selectedItem && (whatsappValid || totalItems > 0) && (
-        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto animate-in slide-in-from-bottom-4 duration-300 backdrop-blur-md bg-background/80 border border-border/50 rounded-2xl p-1.5 shadow-2xl">
+        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto bg-background border border-border/50 rounded-2xl p-1.5 shadow-2xl">
           {whatsappValid && (
             <a
               href={whatsappHelpUrl}
