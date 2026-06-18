@@ -17,6 +17,7 @@ import { BusinessHours, ThemeConfig } from "@/hooks/useOrganization";
 import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 
 
 
@@ -163,8 +164,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     loadSecrets();
   }, [organization.id]);
 
-  const PUBLIC_BASE_URL = "https://trendfood.lovable.app";
-  const publicUrl = `${PUBLIC_BASE_URL}/unidade/${form.slug}`;
+  const publicUrl = `${getPublicBaseUrl()}/unidade/${form.slug}`;
   
 
   // Helper: update shared fields across ALL user orgs (except current which is updated separately)
