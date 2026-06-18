@@ -14,6 +14,7 @@ import authCinematicBg from "@/assets/auth-cinematic-bg.png";
 import authLogoCinematic from "@/assets/auth-logo-cinematic.png";
 import { toast } from "sonner";
 import PasswordRequirements from "@/components/PasswordRequirements";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 
 const translateAuthError = (msg?: string): string => {
   const raw = (msg ?? "").trim();
@@ -226,7 +227,7 @@ const AuthPage = () => {
     setForgotLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-        redirectTo: 'https://trendfood.lovable.app/redefinir-senha',
+        redirectTo: `${getPublicBaseUrl()}/redefinir-senha`,
       });
       if (error) throw error;
       toast.success("Link de redefinição enviado para seu e-mail! Verifique sua caixa de entrada.");

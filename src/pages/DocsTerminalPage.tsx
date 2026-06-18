@@ -529,7 +529,7 @@ export default function DocsTerminalPage() {
             <TroubleCard
               icon={<XCircle className="w-4 h-4" />}
               problem="Popup bloqueado — janela de impressão não abre"
-              solution='Acesse as configurações do navegador e permita popups para este site. No Chrome: clique no ícone 🚫 na barra de endereços → "Sempre permitir popups de trendfood.lovable.app".'
+              solution={`Acesse as configurações do navegador e permita popups para este site. No Chrome: clique no ícone 🚫 na barra de endereços → "Sempre permitir popups de ${typeof window !== 'undefined' ? window.location.host : 'este site'}".`}
             />
             <TroubleCard
               icon={<FileWarning className="w-4 h-4" />}

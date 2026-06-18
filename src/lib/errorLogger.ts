@@ -38,7 +38,11 @@ export function logClientError(params: ErrorLogParams) {
   let userId: string | undefined;
   let orgId: string | undefined;
   try {
-    const raw = localStorage.getItem("sb-xrzudhylpphnzousilye-auth-token");
+    // Storage key Supabase: sb-<project-ref>-auth-token. Derivamos do env para
+    // sobreviver à migração para outro projeto Supabase.
+    const supaUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "";
+    const ref = supaUrl.match(/https?:\/\/([^.]+)\./)?.[1] ?? "xrzudhylpphnzousilye";
+    const raw = localStorage.getItem(`sb-${ref}-auth-token`);
     if (raw) {
       const parsed = JSON.parse(raw);
       userId = parsed?.user?.id;

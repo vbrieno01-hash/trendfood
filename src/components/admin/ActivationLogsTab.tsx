@@ -27,7 +27,8 @@ interface OrgOption {
   name: string;
 }
 
-const WEBHOOK_BASE = "https://xrzudhylpphnzousilye.supabase.co/functions/v1/universal-activation-webhook";
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "";
+const WEBHOOK_BASE = `${SUPABASE_URL}/functions/v1/universal-activation-webhook`;
 
 export default function ActivationLogsTab() {
   const [logs, setLogs] = useState<ActivationLog[]>([]);

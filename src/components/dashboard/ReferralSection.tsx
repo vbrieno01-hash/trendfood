@@ -5,6 +5,7 @@ import { Copy, Check, Gift, Users, CalendarPlus, BadgeDollarSign, Share2, Messag
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 
 interface ReferralBonus {
   id: string;
@@ -29,8 +30,7 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
   const [totalDays, setTotalDays] = useState(0);
   const [priceCents, setPriceCents] = useState(0);
 
-  const BASE_URL = "https://trendfood.lovable.app";
-  const referralLink = `${BASE_URL}/cadastro?ref=${orgId}`;
+  const referralLink = `${getPublicBaseUrl()}/cadastro?ref=${orgId}`;
 
   useEffect(() => {
     (supabase

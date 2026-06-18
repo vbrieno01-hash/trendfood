@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Organization } from "@/hooks/useOrganization";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 import {
   Copy, Trash2, QrCode, Grid3X3, Plus,
 } from "lucide-react";
@@ -35,8 +36,7 @@ export default function TablesTab({ organization, tableLimit }: Props) {
   const [qrModal, setQrModal] = useState<{ number: number } | null>(null);
   const qrRef = useRef<SVGSVGElement | null>(null);
 
-  const PRODUCTION_URL = "https://trendfood.lovable.app";
-  const getUrl = (num: number) => `${PRODUCTION_URL}/unidade/${organization.slug}/mesa/${num}`;
+  const getUrl = (num: number) => `${getPublicBaseUrl()}/unidade/${organization.slug}/mesa/${num}`;
 
   const copyLink = async (num: number) => {
     await navigator.clipboard.writeText(getUrl(num));

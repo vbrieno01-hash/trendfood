@@ -6,6 +6,7 @@
 import type { PrintableOrder } from "./receiptData";
 import { buildReceiptData, type ReceiptData } from "./receiptData";
 import type { StoreInfo } from "./receiptData";
+import { getPublicBaseUrl } from "./publicUrl";
 
 // Re-export for backward compatibility
 export type { StoreInfo };
@@ -230,7 +231,7 @@ function formatFromData(data: ReceiptData): string {
   lines.push(center("Bom apetite!!!"));
   lines.push("");
   lines.push(center("Powered By: TrendFood"));
-  lines.push(center("Acesse: https://trendfood.lovable.app/"));
+  lines.push(center(`Acesse: ${getPublicBaseUrl()}/`));
   return sanitizeThermalText(lines.join("\n"));
 }
 

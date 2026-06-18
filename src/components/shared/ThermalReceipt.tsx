@@ -9,6 +9,7 @@
 
 import type { ReceiptData } from "@/lib/receiptData";
 import { QRCodeSVG } from "qrcode.react";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 
 interface ThermalReceiptProps {
   data: ReceiptData;
@@ -116,7 +117,7 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       <div className="text-center font-bold">BOM APETITE</div>
       <div className="text-center mt-1">POWERED BY: TRENDFOOD</div>
       <div className="flex justify-center mt-2">
-        <QRCodeSVG value="https://trendfood.lovable.app/" size={64} level="L" />
+        <QRCodeSVG value={`${getPublicBaseUrl()}/`} size={64} level="L" />
       </div>
     </div>
   );

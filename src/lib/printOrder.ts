@@ -5,6 +5,7 @@ import { enqueuePrint } from "./printQueue";
 import { sendToBluetoothPrinter } from "./bluetoothPrinter";
 import { toast } from "sonner";
 import { printCourierCopyByMode, isIFoodOrder } from "./courierReceipt";
+import { getPublicBaseUrl } from "./publicUrl";
 
 // Re-export for backward compatibility
 export type { PrintableOrder };
@@ -172,7 +173,7 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string, foote
   <div class="divider"></div>
   <div class="footer">Bom apetite!!!</div>
   <div class="footer-brand">Powered By: TrendFood</div>
-  ${footerQrDataUrl ? `<div style="text-align:center;margin-top:6px;"><img src="${footerQrDataUrl}" alt="QR" style="width:80px;height:80px;display:inline-block;" /></div>` : '<div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: https://trendfood.lovable.app/</div>'}
+  ${footerQrDataUrl ? `<div style="text-align:center;margin-top:6px;"><img src="${footerQrDataUrl}" alt="QR" style="width:80px;height:80px;display:inline-block;" /></div>` : `<div style="text-align:center;font-size:10px;margin-top:4px;">Acesse: ${getPublicBaseUrl()}/</div>`}
 </body>
 </html>`;
 }
@@ -210,7 +211,7 @@ export async function printOrder(
   // Footer QR code — generate BEFORE writing to window to ensure it's ready
   let footerQrDataUrl: string | undefined;
   try {
-    footerQrDataUrl = await QRCode.toDataURL("https://trendfood.lovable.app/", {
+    footerQrDataUrl = await QRCode.toDataURL(`${getPublicBaseUrl()}/`, {
       width: 120, margin: 1, errorCorrectionLevel: "M",
     });
   } catch (err) {

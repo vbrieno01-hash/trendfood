@@ -17,6 +17,7 @@ import {
 } from "@/hooks/useCourier";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -201,7 +202,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, or
 
   const totalSummary = useMemo(() => summary.reduce((acc, s) => ({ count: acc.count + s.count, km: acc.km + s.km, fee: acc.fee + s.fee }), { count: 0, km: 0, fee: 0 }), [summary]);
 
-  const courierLink = `https://trendfood.lovable.app/motoboy?org=${orgSlug}`;
+  const courierLink = `${getPublicBaseUrl()}/motoboy?org=${orgSlug}`;
 
   const quickDates = [
     { label: "Hoje", fn: () => new Date() },
