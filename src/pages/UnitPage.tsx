@@ -978,8 +978,8 @@ const UnitPage = () => {
   // Group menu items by category (fixed + custom)
   // NOTE: não usar useMemo aqui — fica depois dos early returns (orgLoading/isError/!org)
   // e quebra a ordem dos hooks do React, derrubando o componente no ErrorBoundary.
-  // useMemo evita rebuild a cada render causando jank no scroll mobile
-  const groupedMenu = useMemo(() => buildGroups(filteredMenuItems), [filteredMenuItems]);
+  // groupedMenu: não pode usar useMemo aqui pois está depois dos early returns (regra de hooks)
+  const groupedMenu = buildGroups(filteredMenuItems);
 
   
 
