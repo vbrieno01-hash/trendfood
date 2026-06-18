@@ -438,8 +438,7 @@ export function useCourierStats(courierId: string | null) {
       const { data: shiftStats, error: sErr } = await supabase
         .rpc("courier_get_shift_stats" as any, { _courier_id: courierId! });
       if (sErr) throw sErr;
-      const shiftRow = ((shiftStats ?? [])[0] ?? { total_shifts: 0, total_daily_earned: 0 })
-        as { total_shifts: number; total_daily_earned: number };
+      const shiftRow = ((shiftStats ?? [])[0] ?? { total_shifts: 0, total_daily_earned: 0 }) as { total_shifts: number; total_daily_earned: number };
 
       const stats: CourierStats = {
         totalDeliveries: rows.length,
