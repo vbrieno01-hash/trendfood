@@ -133,7 +133,8 @@ export default function CleanupTab() {
           setRunning(null);
           return;
         }
-        const url = `https://xrzudhylpphnzousilye.supabase.co/functions/v1/cleanup-orphan-storage?secret=${encodeURIComponent(secret)}`;
+        const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "";
+        const url = `${supabaseUrl}/functions/v1/cleanup-orphan-storage?secret=${encodeURIComponent(secret)}`;
         const r = await fetch(url, { method: "POST" });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "Falha");
