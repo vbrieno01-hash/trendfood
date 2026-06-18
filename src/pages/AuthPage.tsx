@@ -14,6 +14,7 @@ import authCinematicBg from "@/assets/auth-cinematic-bg.png";
 import authLogoCinematic from "@/assets/auth-logo-cinematic.png";
 import { toast } from "sonner";
 import PasswordRequirements from "@/components/PasswordRequirements";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 
 const translateAuthError = (msg?: string): string => {
   const raw = (msg ?? "").trim();
