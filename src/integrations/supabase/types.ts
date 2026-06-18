@@ -3219,6 +3219,21 @@ export type Database = {
         Args: { _courier_id: string; _delivery_id: string }
         Returns: undefined
       }
+      courier_end_shift: {
+        Args: { _courier_id: string; _shift_id: string }
+        Returns: undefined
+      }
+      courier_get_active_shift: {
+        Args: { _courier_id: string }
+        Returns: {
+          courier_id: string
+          created_at: string
+          ended_at: string
+          id: string
+          organization_id: string
+          started_at: string
+        }[]
+      }
       courier_get_self: {
         Args: { courier_id: string }
         Returns: {
@@ -3239,6 +3254,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      courier_get_shift_stats: {
+        Args: { _courier_id: string }
+        Returns: {
+          total_daily_earned: number
+          total_shifts: number
+        }[]
+      }
       courier_login_by_phone: {
         Args: { org_id?: string; phone_input: string }
         Returns: {
@@ -3258,6 +3280,17 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      courier_start_shift: {
+        Args: { _courier_id: string; _organization_id: string }
+        Returns: {
+          courier_id: string
+          created_at: string
+          ended_at: string
+          id: string
+          organization_id: string
+          started_at: string
+        }[]
       }
       get_cleanup_stats: { Args: never; Returns: Json }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
