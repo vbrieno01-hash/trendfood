@@ -6,6 +6,7 @@
 import type { PrintableOrder } from "./receiptData";
 import { buildReceiptData, type ReceiptData } from "./receiptData";
 import type { StoreInfo } from "./receiptData";
+import { getPublicBaseUrl } from "./publicUrl";
 
 // Re-export for backward compatibility
 export type { StoreInfo };
