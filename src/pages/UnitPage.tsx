@@ -978,7 +978,8 @@ const UnitPage = () => {
   // Group menu items by category (fixed + custom)
   // NOTE: não usar useMemo aqui — fica depois dos early returns (orgLoading/isError/!org)
   // e quebra a ordem dos hooks do React, derrubando o componente no ErrorBoundary.
-  const groupedMenu = buildGroups(filteredMenuItems);
+  // useMemo evita rebuild a cada render causando jank no scroll mobile
+  const groupedMenu = useMemo(() => buildGroups(filteredMenuItems), [filteredMenuItems]);
 
   
 
@@ -1277,7 +1278,7 @@ const UnitPage = () => {
                              <div
                                key={item.id}
                                onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                               className={`bg-card border border-border/60 overflow-hidden flex flex-col transition-all duration-200 cursor-pointer active:scale-[0.97] hover:shadow-xl hover:-translate-y-0.5 shadow-sm`}
+                               className={`bg-card border border-border/60 overflow-hidden flex flex-col transition-shadow duration-200 cursor-pointer active:scale-[0.97] shadow-sm`}
                                style={{ borderRadius: "1rem", isolation: "isolate" }}
                              >
                                {/* Foto quadrada */}
