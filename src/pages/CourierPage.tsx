@@ -344,7 +344,7 @@ const CourierPage = () => {
       const status = getStoreStatus(businessHours, forceOpen);
       if (status && !status.open) {
         endingRef.current = true;
-        endShiftMutation.mutate(activeShift.id, {
+        endShiftMutation.mutate({ shiftId: activeShift.id, courierId: courierId! }, {
           onError: () => { endingRef.current = false; },
         });
         toast.info("Turno encerrado — loja fechou.");
@@ -748,7 +748,7 @@ const CourierPage = () => {
                   variant="outline"
                   size="sm"
                   className="border-red-500/30 text-red-600 hover:bg-red-500/10"
-                  onClick={() => endShiftMutation.mutate(activeShift.id, {
+                  onClick={() => endShiftMutation.mutate({ shiftId: activeShift.id, courierId: courierId! }, {
                     onSuccess: () => toast.success("Turno encerrado!"),
                     onError: () => toast.error("Erro ao encerrar turno."),
                   })}

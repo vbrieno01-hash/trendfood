@@ -550,16 +550,19 @@ export function useStartShift() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ courierId, organizationId }: { courierId: string; organizationId: string }) => {
+      // RPC SECURITY DEFINER — evita INSERT direto + SELECT de retorno bloqueado para anon
       const { data, error } = await supabase
-        .from("courier_shifts" as any)
-        .insert({ courier_id: courierId, organization_id: organizationId } as any)
-        .select()
-        .single();
+        .rpc("courier_start_shift" as any, {
+          _courier_id: courierId,
+          _organization_id: organizationId,
+        });
       if (error) throw error;
-      return data as unknown as CourierShift;
+      const rows = (data ?? []) as unknown as CourierShift[];
+      return rows[0] ?? null;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courier-shift"] });
+      queryClient.invalidateQueries({ queryKey: ["courier-stats"] });
       queryClient.invalidateQueries({ queryKey: ["org-active-shifts"] });
     },
   });
@@ -568,15 +571,18 @@ export function useStartShift() {
 export function useEndShift() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (shiftId: string) => {
+    mutationFn: async ({ shiftId, courierId }: { shiftId: string; courierId: string }) => {
+      // RPC SECURITY DEFINER — evita UPDATE direto cujo USING exige SELECT bloqueado para anon
       const { error } = await supabase
-        .from("courier_shifts" as any)
-        .update({ ended_at: new Date().toISOString() } as any)
-        .eq("id", shiftId);
+        .rpc("courier_end_shift" as any, {
+          _shift_id: shiftId,
+          _courier_id: courierId,
+        });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["courier-shift"] });
+      queryClient.invalidateQueries({ queryKey: ["courier-stats"] });
       queryClient.invalidateQueries({ queryKey: ["org-active-shifts"] });
     },
   });
