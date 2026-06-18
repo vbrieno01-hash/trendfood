@@ -1278,7 +1278,7 @@ const UnitPage = () => {
                              <div
                                key={item.id}
                                onClick={() => { pushDrawerState("item"); setSelectedItem(item); }}
-                               className={`bg-card border border-border/60 overflow-hidden flex flex-col transition-shadow duration-200 cursor-pointer active:scale-[0.97] shadow-sm`}
+                               className={`bg-card border border-border/60 flex flex-col transition-shadow duration-200 cursor-pointer active:opacity-75 shadow-sm`}
                                style={{ borderRadius: "1rem", isolation: "isolate" }}
                              >
                                {/* Foto quadrada */}
