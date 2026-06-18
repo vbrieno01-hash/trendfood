@@ -20,6 +20,7 @@ import { formatReceiptText, stripFormatMarkers } from "./formatReceiptText";
 import { enqueuePrint } from "./printQueue";
 import { sendToBluetoothPrinter } from "./bluetoothPrinter";
 import { toast } from "sonner";
+import { getPublicBaseUrl } from "./publicUrl";
 
 const COURIER_HEADER = "*** VIA DO ENTREGADOR ***";
 
@@ -148,7 +149,7 @@ async function printCourierBrowser(
 
   let footerQrDataUrl = "";
   try {
-    footerQrDataUrl = await QRCode.toDataURL("https://trendfood.lovable.app/", {
+    footerQrDataUrl = await QRCode.toDataURL(`${getPublicBaseUrl()}/`, {
       width: 120, margin: 1, errorCorrectionLevel: "M",
     });
   } catch { /* noop */ }

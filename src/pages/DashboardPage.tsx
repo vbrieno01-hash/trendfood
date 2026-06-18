@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useOrders, Order } from "@/hooks/useOrders";
 import { printOrderByMode } from "@/lib/printOrder";
 import { buildPixPayload } from "@/lib/pixPayload";
+import { getPublicBaseUrl, getPublicHost } from "@/lib/publicUrl";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -417,7 +418,7 @@ const DashboardPage = () => {
       console.error("[BT] Pair error:", err);
       const msg = err?.message || "";
       if (msg.includes("globally disabled") || msg.includes("Web Bluetooth")) {
-        toast.error("Web Bluetooth está bloqueado neste contexto. Abra trendfood.lovable.app diretamente no Google Chrome.");
+        toast.error(`Web Bluetooth está bloqueado neste contexto. Abra ${getPublicHost()} diretamente no Google Chrome.`);
       } else if (msg.includes("denied") || msg.includes("permission")) {
         toast.error("Permissão negada", {
           description: "Vá em Configurações > Apps > TrendFood > Permissões e ative Bluetooth e Localização.",
@@ -889,7 +890,7 @@ const DashboardPage = () => {
             Comunidade WhatsApp
           </a>
           <a
-            href={`https://trendfood.lovable.app/unidade/${organization.slug}`}
+            href={`${getPublicBaseUrl()}/unidade/${organization.slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-all duration-150"

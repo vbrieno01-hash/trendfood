@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -645,7 +646,7 @@ const CourierPage = () => {
       const phone = parsePhoneFromNotes(result.notes);
       if (phone) {
         const msg = encodeURIComponent(
-          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | https://trendfood.lovable.app/unidade/${orgSlug}`
+          `Olá! Seu pedido da *${orgName}* saiu para entrega! 🏍️\nAguarde em seu endereço que já estamos a caminho.\nObrigado!\n\nEquipe *${orgName}* | ${getPublicBaseUrl()}/unidade/${orgSlug}`
         );
         const url = `https://wa.me/55${phone}?text=${msg}`;
         openWhatsAppWithFallback(url, { mode: "operational" });

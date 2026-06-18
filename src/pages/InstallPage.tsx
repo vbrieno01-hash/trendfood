@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Download, Smartphone, Share, Plus, CheckCircle2, Zap, Bell, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getPublicHost } from "@/lib/publicUrl";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -148,7 +149,7 @@ const InstallPage = () => {
                 Abra este link no <strong>Chrome</strong> do seu celular para instalar o app.
               </p>
               <p className="text-xs text-muted-foreground/70 font-mono break-all">
-                trendfood.lovable.app/instalar
+                {getPublicHost()}/instalar
               </p>
             </CardContent>
           </Card>
