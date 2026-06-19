@@ -3210,6 +3210,7 @@ export type Database = {
       }
       cleanup_admin_telegram_dedupe: { Args: never; Returns: undefined }
       cleanup_inactive_organizations: { Args: never; Returns: Json }
+      cleanup_infra_logs: { Args: never; Returns: Json }
       cleanup_internal_postgres_logs: { Args: never; Returns: Json }
       courier_accept_delivery: {
         Args: { _courier_id: string; _delivery_id: string }
