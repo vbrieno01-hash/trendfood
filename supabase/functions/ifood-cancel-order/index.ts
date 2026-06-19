@@ -22,6 +22,30 @@ const ALLOWED_CODES: Record<string, string> = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // ── AUTH CHECK ──────────────────────────────────────────
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  // ── FIM AUTH CHECK ──────────────────────────────────────
+
   try {
     const body = await req.json().catch(() => ({}));
     const order_id: string | undefined = body?.order_id;
@@ -35,11 +59,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     const { data: order } = await supabase.from("orders")
       .select("id, organization_id, gateway_payment_id, status")
       .eq("id", order_id).maybeSingle();
@@ -48,6 +67,21 @@ Deno.serve(async (req) => {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // ── OWNERSHIP CHECK ─────────────────────────────────────
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("id", order.organization_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!org) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // ── FIM OWNERSHIP CHECK ─────────────────────────────────
 
     // Idempotência
     if (order.status === "cancelled") {
