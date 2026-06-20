@@ -156,6 +156,28 @@ Deno.serve(async (req) => {
     if (!initRes || !initRes.ok) {
       const lastStatus = attempts[attempts.length - 1]?.status ?? 0;
       console.error("uazapi init failed. attempts:", JSON.stringify(attempts));
+      // Detecta limite/cota
+      const quotaHit = lastStatus === 402 || lastStatus === 429 ||
+        attempts.some((a) => /quota|limit|max.*instance/i.test(a.body));
+      if (quotaHit) {
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/admin-telegram-notify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event_type: "critical_error",
+              payload: { kind: "uazapi_quota_exceeded", org_id: organization_id, org_slug: org.slug },
+            }),
+          });
+        } catch { /* noop */ }
+        return new Response(
+          JSON.stringify({
+            error: "uazapi_quota_exceeded",
+            message: "Limite de instâncias Uazapi atingido. O administrador foi notificado — tente novamente em alguns minutos.",
+          }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       return new Response(
         JSON.stringify({
           error: "uazapi_init_failed",
