@@ -2029,6 +2029,7 @@ export type Database = {
           user_id: string
           wa_auto_status: Json
           whatsapp: string | null
+          whatsapp_bot_allowed: boolean
         }
         Insert: {
           affiliate_id?: string | null
@@ -2080,6 +2081,7 @@ export type Database = {
           user_id: string
           wa_auto_status?: Json
           whatsapp?: string | null
+          whatsapp_bot_allowed?: boolean
         }
         Update: {
           affiliate_id?: string | null
@@ -2131,6 +2133,7 @@ export type Database = {
           user_id?: string
           wa_auto_status?: Json
           whatsapp?: string | null
+          whatsapp_bot_allowed?: boolean
         }
         Relationships: [
           {
@@ -2210,6 +2213,8 @@ export type Database = {
           hot_lead_min_orders: number
           id: string
           ifood_enabled: boolean
+          uazapi_admin_token: string | null
+          uazapi_server_url: string | null
           updated_at: string
           whatsapp_enabled: boolean
         }
@@ -2224,6 +2229,8 @@ export type Database = {
           hot_lead_min_orders?: number
           id?: string
           ifood_enabled?: boolean
+          uazapi_admin_token?: string | null
+          uazapi_server_url?: string | null
           updated_at?: string
           whatsapp_enabled?: boolean
         }
@@ -2238,6 +2245,8 @@ export type Database = {
           hot_lead_min_orders?: number
           id?: string
           ifood_enabled?: boolean
+          uazapi_admin_token?: string | null
+          uazapi_server_url?: string | null
           updated_at?: string
           whatsapp_enabled?: boolean
         }
@@ -3164,6 +3173,48 @@ export type Database = {
       }
     }
     Views: {
+      platform_config_public: {
+        Row: {
+          apk_url: string | null
+          created_at: string | null
+          default_trial_days: number | null
+          delivery_config: Json | null
+          exe_url: string | null
+          id: string | null
+          ifood_enabled: boolean | null
+          uazapi_configured: boolean | null
+          uazapi_server_url: string | null
+          updated_at: string | null
+          whatsapp_enabled: boolean | null
+        }
+        Insert: {
+          apk_url?: string | null
+          created_at?: string | null
+          default_trial_days?: number | null
+          delivery_config?: Json | null
+          exe_url?: string | null
+          id?: string | null
+          ifood_enabled?: boolean | null
+          uazapi_configured?: never
+          uazapi_server_url?: string | null
+          updated_at?: string | null
+          whatsapp_enabled?: boolean | null
+        }
+        Update: {
+          apk_url?: string | null
+          created_at?: string | null
+          default_trial_days?: number | null
+          delivery_config?: Json | null
+          exe_url?: string | null
+          id?: string | null
+          ifood_enabled?: boolean | null
+          uazapi_configured?: never
+          uazapi_server_url?: string | null
+          updated_at?: string | null
+          whatsapp_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       top_stores_showcase: {
         Row: {
           id: string | null
@@ -3184,6 +3235,10 @@ export type Database = {
       }
       admin_delete_user: { Args: { _user_id: string }; Returns: Json }
       admin_list_users: { Args: never; Returns: Json }
+      admin_set_whatsapp_bot_allowed: {
+        Args: { _allowed: boolean; _org_id: string }
+        Returns: undefined
+      }
       admin_toggle_admin_role: {
         Args: { _grant: boolean; _user_id: string }
         Returns: Json
@@ -3360,6 +3415,7 @@ export type Database = {
         }[]
       }
       get_total_order_count: { Args: never; Returns: number }
+      get_whatsapp_bot_allowed: { Args: { _org_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
