@@ -166,7 +166,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
         const json = await res.json();
         if (json.instance) {
           setInstance(json.instance);
-          if (json.instance.status === "connected") {
+          if (json.instance.status === "connected" || json.instance.status === "open") {
             // Conectou — para o polling e limpa o QR
             stopPolling();
             setQrcode(null);
@@ -312,7 +312,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     );
   }
 
-  const isConnected = instance?.status === "connected";
+  const isConnected = instance?.status === "connected" || instance?.status === "open";
 
   return (
     <div className="space-y-6">

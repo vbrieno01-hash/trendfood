@@ -87,7 +87,16 @@ Deno.serve(async (req) => {
       });
       if (sres.ok) {
         const sdata = await sres.json();
-        liveStatus = sdata?.instance?.status || sdata?.status || null;
+        const rawStatus = sdata?.instance?.status || sdata?.status || null;
+        // Normaliza status do UazAPI para nosso padrão interno
+        // UazAPI retorna: "open" = conectado, "close"/"disconnected" = desconectado, "connecting"/"qr" = aguardando
+        if (rawStatus === "open" || rawStatus === "connected") {
+          liveStatus = "connected";
+        } else if (rawStatus === "close" || rawStatus === "disconnected" || rawStatus === "logout") {
+          liveStatus = "disconnected";
+        } else if (rawStatus) {
+          liveStatus = rawStatus; // connecting, qr, etc
+        }
         livePhone = sdata?.instance?.owner || sdata?.instance?.phone || sdata?.phone || null;
         qrcode = sdata?.instance?.qrcode || sdata?.qrcode || null;
       }

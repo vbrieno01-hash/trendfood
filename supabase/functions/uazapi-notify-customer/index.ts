@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       .from("whatsapp_instances")
       .select("instance_token, server_url, status")
       .eq("organization_id", org.id)
-      .eq("status", "connected")
+      .in("status", ["connected", "open"])
       .maybeSingle();
 
     if (!instance) return ok("no connected whatsapp instance, skipping");
