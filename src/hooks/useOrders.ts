@@ -270,6 +270,12 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
     mutationFn: async ({ id, status }: { id: string; status: Order["status"] }) => {
       const { error } = await supabase.from("orders").update({ status }).eq("id", id);
       if (error) throw error;
+      // Fire-and-forget WhatsApp notification — não bloqueia o painel em caso de falha
+      if (status === "preparing" || status === "ready") {
+        supabase.functions.invoke("uazapi-notify-customer", {
+          body: { order_id: id, event: status },
+        }).catch(() => {}); // falha silenciosa
+      }
     },
     onSuccess: async () => {
       await qc.refetchQueries({ queryKey: ["orders", organizationId] });
