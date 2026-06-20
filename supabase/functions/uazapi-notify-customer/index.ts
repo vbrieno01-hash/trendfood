@@ -166,15 +166,21 @@ Deno.serve(async (req) => {
     if (!message) return ok("unknown event, skipping");
 
     // ── Busca URL do servidor UazAPI ──────────────────────────────────────
-    let serverUrl = (instance.server_url || "").replace(/\/$/, "");
+    // server_url pode ser null se coluna nao existia ainda — sempre faz fallback para platform_config
+    let serverUrl = ((instance as any).server_url || "").replace(/\/$/, "");
     if (!serverUrl) {
-      const { data: pc } = await supabase
-        .from("platform_config")
-        .select("uazapi_server_url")
-        .eq("id", "singleton")
-        .maybeSingle();
-      serverUrl = ((pc as any)?.uazapi_server_url || "").replace(/\/$/, "")
-        || "https://free.uazapi.com";
+      const envUrl = Deno.env.get("UAZAPI_SERVER_URL") || "";
+      if (envUrl) {
+        serverUrl = envUrl.replace(/\/$/, "");
+      } else {
+        const { data: pc } = await supabase
+          .from("platform_config")
+          .select("uazapi_server_url")
+          .eq("id", "singleton")
+          .maybeSingle();
+        serverUrl = ((pc as any)?.uazapi_server_url || "").replace(/\/$/, "")
+          || "https://free.uazapi.com";
+      }
     }
 
     // ── Envio via UazAPI /message/text ────────────────────────────────────

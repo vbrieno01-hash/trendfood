@@ -104,6 +104,9 @@ Deno.serve(async (req) => {
 
   try {
     const { order_id } = await req.json();
+    // Nota: chamado da página pública do cliente (sem sessão de usuário)
+    // A segurança é garantida pelo fato de que só enviamos ao DONO da org
+    // e nunca retornamos dados sensíveis ao chamador.
     if (!order_id) {
       return new Response(JSON.stringify({ error: "order_id obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -130,6 +133,7 @@ Deno.serve(async (req) => {
       .select("id, name, whatsapp, subscription_plan, trial_ends_at, whatsapp_bot_allowed")
       .eq("id", order.organization_id)
       .maybeSingle();
+    // (sem ownership check — service_role acessa diretamente, chamador público não recebe dados)
 
     if (!org) return ok("org not found, skipping");
 
@@ -174,15 +178,21 @@ Deno.serve(async (req) => {
       (org as any).name ?? "Loja"
     );
 
-    let serverUrl = (instance.server_url || "").replace(/\/$/, "");
+    // server_url pode ser null se coluna nao existia ainda — sempre faz fallback para platform_config
+    let serverUrl = ((instance as any).server_url || "").replace(/\/$/, "");
     if (!serverUrl) {
-      const { data: pc } = await supabase
-        .from("platform_config")
-        .select("uazapi_server_url")
-        .eq("id", "singleton")
-        .maybeSingle();
-      serverUrl = ((pc as any)?.uazapi_server_url || "").replace(/\/$/, "")
-        || "https://free.uazapi.com";
+      const envUrl = Deno.env.get("UAZAPI_SERVER_URL") || "";
+      if (envUrl) {
+        serverUrl = envUrl.replace(/\/$/, "");
+      } else {
+        const { data: pc } = await supabase
+          .from("platform_config")
+          .select("uazapi_server_url")
+          .eq("id", "singleton")
+          .maybeSingle();
+        serverUrl = ((pc as any)?.uazapi_server_url || "").replace(/\/$/, "")
+          || "https://free.uazapi.com";
+      }
     }
 
     let sendError: string | null = null;
