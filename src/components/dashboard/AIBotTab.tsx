@@ -188,30 +188,19 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
   const refreshStatus = async () => {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("uazapi-instance-status", {
-        method: "GET" as never,
-        // @ts-expect-error custom path with query
-        query: { organization_id: orgId },
-      });
-      if (error) throw error;
-      if (data?.instance) setInstance(data.instance);
-      if (data?.qrcode) setQrcode(data.qrcode);
+      // fetch direto com query string — supabase.functions.invoke nao suporta query params em GET
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${orgId}`,
+        { headers: { Authorization: `Bearer ${session?.access_token}` } },
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Erro ao buscar status");
+      if (json.instance) setInstance(json.instance);
+      if (json.qrcode) setQrcode(json.qrcode);
       toast.success("Status atualizado");
-    } catch (e) {
-      // fallback: direct fetch with query string
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${orgId}`,
-          { headers: { Authorization: `Bearer ${session?.access_token}` } },
-        );
-        const json = await res.json();
-        if (json.instance) setInstance(json.instance);
-        if (json.qrcode) setQrcode(json.qrcode);
-        toast.success("Status atualizado");
-      } catch (e2) {
-        toast.error("Falha ao atualizar status");
-      }
+    } catch (e: any) {
+      toast.error("Falha ao atualizar status: " + (e?.message ?? ""));
     } finally {
       setRefreshing(false);
     }
