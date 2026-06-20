@@ -455,14 +455,12 @@ const UnitPage = () => {
   const categoryColor = themeConfig.category_color || primaryColor;
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
-  // Robô ativo = plano pago/trial + admin liberou. Determina se wa.me abre ou não.
+  // Robô ativo = plano pago ou trial ativo. (whatsapp_bot_allowed verificado na edge function)
   const hasActiveBot = org ? (() => {
     const plan = (org as any).subscription_plan ?? "free";
-    const allowed = !!(org as any).whatsapp_bot_allowed;
-    if (!allowed) return false;
     if (["pro", "enterprise", "lifetime"].includes(plan)) return true;
     const trialEnd = (org as any).trial_ends_at ? new Date((org as any).trial_ends_at) : null;
-    return plan === "free" && trialEnd !== null && trialEnd > new Date();
+    return trialEnd !== null && trialEnd > new Date();
   })() : false;
 
   // Sanitize WhatsApp number for reliable wa.me links
