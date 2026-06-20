@@ -11,7 +11,8 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const serverUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+    const serverUrl = await getUazapiServerUrl(supabaseAdmin);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -123,3 +124,18 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+async function getUazapiServerUrl(supabase: ReturnType<typeof createClient>): Promise<string> {
+  const envServer = (Deno.env.get("UAZAPI_SERVER_URL") || "").replace(/\/$/, "");
+  try {
+    const { data } = await supabase
+      .from("platform_config")
+      .select("uazapi_server_url")
+      .eq("id", "singleton")
+      .maybeSingle();
+    const dbServer = ((data as any)?.uazapi_server_url || "").replace(/\/$/, "");
+    return dbServer || envServer || "https://free.uazapi.com";
+  } catch {
+    return envServer || "https://free.uazapi.com";
+  }
+}

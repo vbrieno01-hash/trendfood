@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import GrowthCharts from "@/components/admin/GrowthCharts";
 import PlatformConfigSection from "@/components/admin/PlatformConfigSection";
@@ -172,6 +173,7 @@ interface OrgRow {
   whatsapp: string | null;
   business_hours: object | null;
   billing_cycle: string | null;
+  whatsapp_bot_allowed: boolean;
 }
 
 interface PaymentRow {
@@ -339,7 +341,7 @@ function AdminContent() {
       const [{ data: orgsData }, { data: menuData }, { data: paymentsData }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours, billing_cycle")
+          .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours, billing_cycle, whatsapp_bot_allowed")
           .order("created_at", { ascending: false }),
         supabase.from("menu_items").select("organization_id"),
         supabase
@@ -376,6 +378,7 @@ function AdminContent() {
         whatsapp: org.whatsapp ?? null,
         business_hours: org.business_hours as object | null,
         billing_cycle: (org as any).billing_cycle ?? null,
+        whatsapp_bot_allowed: !!(org as any).whatsapp_bot_allowed,
       }));
 
       setOrgs(enriched);
@@ -1399,6 +1402,12 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
         )}
       </div>
 
+      <WhatsappBotToggleRow
+        orgId={org.id}
+        initial={localOrg.whatsapp_bot_allowed}
+        onChange={(v) => setLocalOrg((p) => ({ ...p, whatsapp_bot_allowed: v }))}
+      />
+
       <div className="border-t border-border/50 px-5 py-2.5 flex items-center justify-between bg-muted/10">
         <span className="text-[10px] text-muted-foreground">
           Desde {new Date(org.created_at).toLocaleDateString("pt-BR")}
@@ -1449,6 +1458,43 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
 
 /* ── Feature Card ── */
 function FeatureCard({ feature }: { feature: Feature }) {
+  return _FeatureCardImpl(feature);
+}
+
+function WhatsappBotToggleRow({ orgId, initial, onChange }: { orgId: string; initial: boolean; onChange: (v: boolean) => void }) {
+  const [allowed, setAllowed] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  async function toggle(next: boolean) {
+    setSaving(true);
+    const prev = allowed;
+    setAllowed(next);
+    try {
+      const { error } = await supabase.rpc("admin_set_whatsapp_bot_allowed" as any, {
+        _org_id: orgId,
+        _allowed: next,
+      });
+      if (error) throw error;
+      onChange(next);
+      toast.success(next ? "Robô de WhatsApp liberado para esta loja" : "Robô de WhatsApp bloqueado para esta loja");
+    } catch (e: any) {
+      setAllowed(prev);
+      toast.error("Falha: " + (e?.message ?? "erro"));
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div className="border-t border-border/40 px-5 py-2.5 flex items-center justify-between gap-2 bg-emerald-500/[0.03]">
+      <div className="flex items-center gap-2 min-w-0">
+        <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <span className="text-[11px] font-semibold text-foreground truncate">Permitir Robô de WhatsApp</span>
+      </div>
+      <Switch checked={allowed} disabled={saving} onCheckedChange={toggle} />
+    </div>
+  );
+}
+
+function _FeatureCardImpl(feature: Feature) {
   const { label, className } = STATUS_CONFIG[feature.status];
   const planBadge = MIN_PLAN_CONFIG[feature.minPlan];
   const isActionable = feature.status === "available" || feature.status === "beta";

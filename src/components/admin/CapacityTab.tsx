@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Database, Users, Store, ShoppingBag, AlertTriangle, CheckCircle2, ArrowUpRight, HardDrive, Search, Trash2, Shield, ShieldOff } from "lucide-react";
+import { Loader2, Database, Users, Store, ShoppingBag, AlertTriangle, CheckCircle2, ArrowUpRight, HardDrive, Search, Trash2, Shield, ShieldOff, MessageSquare, Save, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,7 @@ export default function CapacityTab() {
 
       {/* Alerta de uso */}
       <FeatureFlagsSection />
+      <UazapiMasterSection />
 
       {alertLevel !== "ok" && (
         <div
@@ -377,6 +378,122 @@ function FeatureFlagsSection() {
           onCheckedChange={toggleWhatsapp}
         />
       </div>
+      </div>
+    </div>
+  );
+}
+
+function UazapiMasterSection() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["uazapi-master-config"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("platform_config") as any)
+        .select("uazapi_server_url, uazapi_admin_token")
+        .eq("id", "singleton")
+        .maybeSingle();
+      if (error) throw error;
+      return data as { uazapi_server_url: string | null; uazapi_admin_token: string | null } | null;
+    },
+    staleTime: 30_000,
+  });
+  const [serverUrl, setServerUrl] = useState("");
+  const [adminToken, setAdminToken] = useState("");
+  const [touched, setTouched] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useMemo(() => {
+    if (data && !touched) {
+      setServerUrl(data.uazapi_server_url ?? "");
+      setAdminToken(data.uazapi_admin_token ?? "");
+    }
+  }, [data, touched]);
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        uazapi_server_url: serverUrl.trim() || null,
+      };
+      // Só sobrescreve o token se o usuário digitou algo (preserva o existente)
+      if (adminToken && !adminToken.includes("•")) {
+        payload.uazapi_admin_token = adminToken.trim() || null;
+      }
+      const { error } = await supabase
+        .from("platform_config")
+        .update(payload)
+        .eq("id", "singleton");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Credenciais Uazapi salvas");
+      setTouched(false);
+      qc.invalidateQueries({ queryKey: ["uazapi-master-config"] });
+      qc.invalidateQueries({ queryKey: ["platform_feature_flags"] });
+    },
+    onError: (e: any) => toast.error("Falha ao salvar: " + (e?.message ?? "erro")),
+  });
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-server-info`,
+        { headers: { Authorization: `Bearer ${sess.session?.access_token}` } },
+      );
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error || "Falha na conexão");
+      toast.success("Servidor Uazapi respondeu OK ✓");
+    } catch (e: any) {
+      toast.error("Teste falhou: " + (e?.message ?? "erro"));
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  const hasToken = !!(data?.uazapi_admin_token);
+  const tokenPlaceholder = hasToken ? "••••••••••••• (configurado — deixe em branco para manter)" : "Cole o admin token da Uazapi";
+
+  return (
+    <div className="rounded-2xl p-4 border bg-card">
+      <div className="flex items-center gap-2 mb-1">
+        <MessageSquare className="w-4 h-4 text-emerald-500" />
+        <h3 className="text-sm font-bold">Credenciais mestre Uazapi (WhatsApp)</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+        Usadas pelo backend para criar instâncias de WhatsApp para os lojistas. O token nunca é exposto para o lojista.
+      </p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Server URL</label>
+          <Input
+            placeholder="https://trendfood.uazapi.com"
+            value={serverUrl}
+            disabled={isLoading}
+            onChange={(e) => { setServerUrl(e.target.value); setTouched(true); }}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Admin Token</label>
+          <Input
+            type="password"
+            placeholder={tokenPlaceholder}
+            value={adminToken.includes("•") ? "" : adminToken}
+            disabled={isLoading}
+            onChange={(e) => { setAdminToken(e.target.value); setTouched(true); }}
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-4">
+        <Button size="sm" onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !touched}>
+          {saveMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+          Salvar
+        </Button>
+        <Button size="sm" variant="outline" onClick={testConnection} disabled={testing || !data?.uazapi_server_url}>
+          {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Wifi className="w-3.5 h-3.5 mr-1.5" />}
+          Testar conexão
+        </Button>
+        {hasToken && <span className="text-[11px] text-emerald-600 dark:text-emerald-400 ml-auto">● configurado</span>}
       </div>
     </div>
   );

@@ -11,11 +11,13 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminToken = Deno.env.get("UAZAPI_ADMIN_TOKEN");
-    const serverUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
-
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+    const { serverUrl, adminToken } = await getUazapiConfig(supabaseAdmin);
     if (!adminToken) {
-      return new Response(JSON.stringify({ error: "UAZAPI_ADMIN_TOKEN not configured" }), {
+      return new Response(JSON.stringify({
+        error: "uazapi_not_configured",
+        message: "Credenciais Uazapi não configuradas. Avise o administrador para preencher Server URL e Admin Token no painel.",
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -49,12 +51,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(supabaseUrl, serviceKey);
+    const supabase = supabaseAdmin;
 
     // Verifica se o user é dono da org OU admin
     const { data: org } = await supabase
       .from("organizations")
-      .select("id, user_id, slug, name")
+      .select("id, user_id, slug, name, whatsapp_bot_allowed")
       .eq("id", organization_id)
       .maybeSingle();
     if (!org) {
@@ -72,6 +74,17 @@ Deno.serve(async (req) => {
     const isAdmin = !!roleRow;
     if (org.user_id !== user.id && !isAdmin) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Per-store gate (admin pode contornar)
+    if (!isAdmin && org.whatsapp_bot_allowed !== true) {
+      return new Response(JSON.stringify({
+        error: "bot_not_allowed",
+        message: "O recurso de Robô de WhatsApp não está ativo no seu plano. Entre em contato com o suporte para liberar.",
+      }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -143,6 +156,28 @@ Deno.serve(async (req) => {
     if (!initRes || !initRes.ok) {
       const lastStatus = attempts[attempts.length - 1]?.status ?? 0;
       console.error("uazapi init failed. attempts:", JSON.stringify(attempts));
+      // Detecta limite/cota
+      const quotaHit = lastStatus === 402 || lastStatus === 429 ||
+        attempts.some((a) => /quota|limit|max.*instance/i.test(a.body));
+      if (quotaHit) {
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/admin-telegram-notify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event_type: "critical_error",
+              payload: { kind: "uazapi_quota_exceeded", org_id: organization_id, org_slug: org.slug },
+            }),
+          });
+        } catch { /* noop */ }
+        return new Response(
+          JSON.stringify({
+            error: "uazapi_quota_exceeded",
+            message: "Limite de instâncias Uazapi atingido. O administrador foi notificado — tente novamente em alguns minutos.",
+          }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       return new Response(
         JSON.stringify({
           error: "uazapi_init_failed",
@@ -294,5 +329,31 @@ async function fetchQr(serverUrl: string, instanceToken: string): Promise<{ qrco
   } catch (e) {
     console.error("fetchQr error:", (e as Error).message);
     return { qrcode: null, status: null };
+  }
+}
+
+// Lê credenciais Uazapi do platform_config (admin) com fallback para env vars.
+async function getUazapiConfig(
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ serverUrl: string; adminToken: string | null }> {
+  const envServer = (Deno.env.get("UAZAPI_SERVER_URL") || "").replace(/\/$/, "");
+  const envToken = Deno.env.get("UAZAPI_ADMIN_TOKEN") || null;
+  try {
+    const { data } = await supabase
+      .from("platform_config")
+      .select("uazapi_server_url, uazapi_admin_token")
+      .eq("id", "singleton")
+      .maybeSingle();
+    const dbServer = ((data as any)?.uazapi_server_url || "").replace(/\/$/, "");
+    const dbToken = (data as any)?.uazapi_admin_token || null;
+    return {
+      serverUrl: dbServer || envServer || "https://free.uazapi.com",
+      adminToken: dbToken || envToken,
+    };
+  } catch {
+    return {
+      serverUrl: envServer || "https://free.uazapi.com",
+      adminToken: envToken,
+    };
   }
 }
