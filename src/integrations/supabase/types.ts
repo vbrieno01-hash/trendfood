@@ -3173,48 +3173,6 @@ export type Database = {
       }
     }
     Views: {
-      platform_config_public: {
-        Row: {
-          apk_url: string | null
-          created_at: string | null
-          default_trial_days: number | null
-          delivery_config: Json | null
-          exe_url: string | null
-          id: string | null
-          ifood_enabled: boolean | null
-          uazapi_configured: boolean | null
-          uazapi_server_url: string | null
-          updated_at: string | null
-          whatsapp_enabled: boolean | null
-        }
-        Insert: {
-          apk_url?: string | null
-          created_at?: string | null
-          default_trial_days?: number | null
-          delivery_config?: Json | null
-          exe_url?: string | null
-          id?: string | null
-          ifood_enabled?: boolean | null
-          uazapi_configured?: never
-          uazapi_server_url?: string | null
-          updated_at?: string | null
-          whatsapp_enabled?: boolean | null
-        }
-        Update: {
-          apk_url?: string | null
-          created_at?: string | null
-          default_trial_days?: number | null
-          delivery_config?: Json | null
-          exe_url?: string | null
-          id?: string | null
-          ifood_enabled?: boolean | null
-          uazapi_configured?: never
-          uazapi_server_url?: string | null
-          updated_at?: string | null
-          whatsapp_enabled?: boolean | null
-        }
-        Relationships: []
-      }
       top_stores_showcase: {
         Row: {
           id: string | null
