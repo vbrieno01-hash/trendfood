@@ -331,3 +331,29 @@ async function fetchQr(serverUrl: string, instanceToken: string): Promise<{ qrco
     return { qrcode: null, status: null };
   }
 }
+
+// Lê credenciais Uazapi do platform_config (admin) com fallback para env vars.
+async function getUazapiConfig(
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ serverUrl: string; adminToken: string | null }> {
+  const envServer = (Deno.env.get("UAZAPI_SERVER_URL") || "").replace(/\/$/, "");
+  const envToken = Deno.env.get("UAZAPI_ADMIN_TOKEN") || null;
+  try {
+    const { data } = await supabase
+      .from("platform_config")
+      .select("uazapi_server_url, uazapi_admin_token")
+      .eq("id", "singleton")
+      .maybeSingle();
+    const dbServer = ((data as any)?.uazapi_server_url || "").replace(/\/$/, "");
+    const dbToken = (data as any)?.uazapi_admin_token || null;
+    return {
+      serverUrl: dbServer || envServer || "https://free.uazapi.com",
+      adminToken: dbToken || envToken,
+    };
+  } catch {
+    return {
+      serverUrl: envServer || "https://free.uazapi.com",
+      adminToken: envToken,
+    };
+  }
+}
