@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,6 +151,38 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
   const [disconnecting, setDisconnecting] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [qrcode, setQrcode] = useState<string | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Polling automático enquanto QR code está visível — para ao conectar
+  const startPolling = () => {
+    if (pollingRef.current) return; // ja rodando
+    pollingRef.current = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${orgId}`,
+          { headers: { Authorization: `Bearer ${session?.access_token}` } },
+        );
+        const json = await res.json();
+        if (json.instance) {
+          setInstance(json.instance);
+          if (json.instance.status === "connected") {
+            // Conectou — para o polling e limpa o QR
+            stopPolling();
+            setQrcode(null);
+          }
+        }
+        if (json.qrcode) setQrcode(json.qrcode);
+      } catch { /* silencioso */ }
+    }, 5000);
+  };
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
 
   // Load all
   const loadAll = async () => {
@@ -182,8 +214,19 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
+      stopPolling();
     };
   }, [orgId]);
+
+  // Inicia/para polling baseado na presença do QR code
+  useEffect(() => {
+    if (qrcode) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+    return () => stopPolling();
+  }, [!!qrcode]);
 
   const refreshStatus = async () => {
     setRefreshing(true);
