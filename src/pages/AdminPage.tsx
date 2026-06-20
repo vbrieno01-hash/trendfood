@@ -1457,6 +1457,43 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
 
 /* ── Feature Card ── */
 function FeatureCard({ feature }: { feature: Feature }) {
+  return _FeatureCardImpl(feature);
+}
+
+function WhatsappBotToggleRow({ orgId, initial, onChange }: { orgId: string; initial: boolean; onChange: (v: boolean) => void }) {
+  const [allowed, setAllowed] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  async function toggle(next: boolean) {
+    setSaving(true);
+    const prev = allowed;
+    setAllowed(next);
+    try {
+      const { error } = await supabase.rpc("admin_set_whatsapp_bot_allowed" as any, {
+        _org_id: orgId,
+        _allowed: next,
+      });
+      if (error) throw error;
+      onChange(next);
+      toast.success(next ? "Robô de WhatsApp liberado para esta loja" : "Robô de WhatsApp bloqueado para esta loja");
+    } catch (e: any) {
+      setAllowed(prev);
+      toast.error("Falha: " + (e?.message ?? "erro"));
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div className="border-t border-border/40 px-5 py-2.5 flex items-center justify-between gap-2 bg-emerald-500/[0.03]">
+      <div className="flex items-center gap-2 min-w-0">
+        <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <span className="text-[11px] font-semibold text-foreground truncate">Permitir Robô de WhatsApp</span>
+      </div>
+      <Switch checked={allowed} disabled={saving} onCheckedChange={toggle} />
+    </div>
+  );
+}
+
+function _FeatureCardImpl(feature: Feature) {
   const { label, className } = STATUS_CONFIG[feature.status];
   const planBadge = MIN_PLAN_CONFIG[feature.minPlan];
   const isActionable = feature.status === "available" || feature.status === "beta";
