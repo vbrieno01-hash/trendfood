@@ -761,6 +761,16 @@ const UnitPage = () => {
     // Build WhatsApp URL (used after DB save succeeds)
     const whatsappUrl = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
 
+  // Verifica se loja tem robô ativo (plano pago/trial + bot liberado)
+  const hasActiveBot = (() => {
+    const plan = (org as any).subscription_plan ?? "free";
+    const allowed = !!(org as any).whatsapp_bot_allowed;
+    if (!allowed) return false;
+    if (["pro", "enterprise", "lifetime"].includes(plan)) return true;
+    const trialEnd = (org as any).trial_ends_at ? new Date((org as any).trial_ends_at) : null;
+    return plan === "free" && trialEnd !== null && trialEnd > new Date();
+  })();
+
     // Save order to database FIRST, then open WhatsApp only on success
     // This prevents state loss if the browser blocks popups and the old code
     // would have navigated away via location.href before saving.
@@ -804,7 +814,8 @@ const UnitPage = () => {
         {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
-            openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Bot ativo: notifica automaticamente. Sem bot: abre wa.me manual
+            if (!hasActiveBot) openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
             // Notifica o dono via bot automaticamente — fire-and-forget
             supabase.functions.invoke("uazapi-notify-owner", {
               body: { order_id: order.id },
@@ -855,7 +866,7 @@ const UnitPage = () => {
       );
     } else {
       // No DB save needed (overrideOrderId provided), open WhatsApp and reset
-      openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+      if (!hasActiveBot) openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
       resetCheckout();
     }
    } catch (err) {
@@ -920,7 +931,7 @@ const UnitPage = () => {
         .join("\n");
 
       const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
-      openWhatsAppWithFallback(url, { mode: "operational" });
+      if (!hasActiveBot) openWhatsAppWithFallback(url, { mode: "operational" });
     }
 
     resetCheckout();
