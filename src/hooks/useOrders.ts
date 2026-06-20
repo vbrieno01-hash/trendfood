@@ -257,6 +257,11 @@ export const usePlaceOrder = () => {
         console.error("Falha ao enfileirar impressão:", err);
       }
 
+      // Processa fila WhatsApp de notificações geradas pelo trigger do banco
+      supabase.functions.invoke("process-wa-outbox", {
+        body: {},
+      }).catch(() => {});
+
       return order;
     },
     onError: (e: Error) => toast({ title: "Erro ao enviar pedido", description: e.message, variant: "destructive" }),
@@ -270,11 +275,15 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
     mutationFn: async ({ id, status }: { id: string; status: Order["status"] }) => {
       const { error } = await supabase.from("orders").update({ status }).eq("id", id);
       if (error) throw error;
-      // Fire-and-forget WhatsApp notification — não bloqueia o painel em caso de falha
+      // Processa fila WhatsApp (trigger do banco gera mensagem na outbox)
+      supabase.functions.invoke("process-wa-outbox", {
+        body: {},
+      }).catch(() => {});
+      // Notificação direta via uazapi-notify-customer (caminho alternativo)
       if (status === "preparing" || status === "ready") {
         supabase.functions.invoke("uazapi-notify-customer", {
           body: { order_id: id, event: status },
-        }).catch(() => {}); // falha silenciosa
+        }).catch(() => {});
       }
     },
     onSuccess: async () => {
