@@ -172,6 +172,7 @@ interface OrgRow {
   whatsapp: string | null;
   business_hours: object | null;
   billing_cycle: string | null;
+  whatsapp_bot_allowed: boolean;
 }
 
 interface PaymentRow {
