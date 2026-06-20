@@ -47,8 +47,7 @@ BEGIN
     RAISE EXCEPTION 'Forbidden' USING ERRCODE = 'P0001';
   END IF;
   UPDATE public.organizations
-     SET whatsapp_bot_allowed = _allowed,
-         updated_at = now()
+     SET whatsapp_bot_allowed = _allowed
    WHERE id = _org_id;
 END;
 $$;
