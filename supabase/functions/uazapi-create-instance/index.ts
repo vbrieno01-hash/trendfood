@@ -11,11 +11,13 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminToken = Deno.env.get("UAZAPI_ADMIN_TOKEN");
-    const serverUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
-
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+    const { serverUrl, adminToken } = await getUazapiConfig(supabaseAdmin);
     if (!adminToken) {
-      return new Response(JSON.stringify({ error: "UAZAPI_ADMIN_TOKEN not configured" }), {
+      return new Response(JSON.stringify({
+        error: "uazapi_not_configured",
+        message: "Credenciais Uazapi não configuradas. Avise o administrador para preencher Server URL e Admin Token no painel.",
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -49,12 +51,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(supabaseUrl, serviceKey);
+    const supabase = supabaseAdmin;
 
     // Verifica se o user é dono da org OU admin
     const { data: org } = await supabase
       .from("organizations")
-      .select("id, user_id, slug, name")
+      .select("id, user_id, slug, name, whatsapp_bot_allowed")
       .eq("id", organization_id)
       .maybeSingle();
     if (!org) {
@@ -72,6 +74,17 @@ Deno.serve(async (req) => {
     const isAdmin = !!roleRow;
     if (org.user_id !== user.id && !isAdmin) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Per-store gate (admin pode contornar)
+    if (!isAdmin && org.whatsapp_bot_allowed !== true) {
+      return new Response(JSON.stringify({
+        error: "bot_not_allowed",
+        message: "O recurso de Robô de WhatsApp não está ativo no seu plano. Entre em contato com o suporte para liberar.",
+      }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
