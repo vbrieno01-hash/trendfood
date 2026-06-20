@@ -11,7 +11,8 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const serverUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+    const serverUrl = await getUazapiServerUrl(supabaseAdmin);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
