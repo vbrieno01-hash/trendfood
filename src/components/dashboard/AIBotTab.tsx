@@ -49,6 +49,22 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
   const { isAdmin } = useAuth();
   const { data: flags } = usePlatformFeatureFlags();
   const waEnabled = !!flags?.whatsapp_enabled || isAdmin;
+
+  // Per-store gate: admin must allow this org explicitly
+  const { data: botAllowed, isLoading: loadingAllowed } = useQuery({
+    queryKey: ["wa-bot-allowed", orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("whatsapp_bot_allowed")
+        .eq("id", orgId)
+        .maybeSingle();
+      if (error) throw error;
+      return !!(data as any)?.whatsapp_bot_allowed;
+    },
+    staleTime: 30_000,
+  });
+
   if (!waEnabled) {
     return (
       <div className="space-y-8">
@@ -64,6 +80,42 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
       </div>
     );
   }
+
+  if (!isAdmin && !loadingAllowed && botAllowed === false) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" /> Robô do WhatsApp
+          </h2>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 mx-auto flex items-center justify-center">
+              <Lock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base">Recurso bloqueado</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
+                O recurso de Robô de WhatsApp não está ativo no seu plano.
+                Entre em contato com o suporte para liberar.
+              </p>
+            </div>
+            <Button asChild>
+              <a
+                href="https://wa.me/5583998244382?text=Olá%2C%20quero%20liberar%20o%20Robô%20de%20WhatsApp%20na%20minha%20loja"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Falar com o suporte
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <BotPanel orgId={orgId} />
