@@ -805,6 +805,10 @@ const UnitPage = () => {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
             openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Notifica o dono via bot automaticamente — fire-and-forget
+            supabase.functions.invoke("uazapi-notify-owner", {
+              body: { order_id: order.id },
+            }).catch(() => {}); // falha silenciosa, nao bloqueia checkout
             registerForOrder(order.id); // after WhatsApp to preserve user gesture
             // Loyalty: accumulate points + process redemption
             if (loyaltyEnabled && org?.id && buyerPhone && loyaltyConfig) {
