@@ -1401,6 +1401,12 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
         )}
       </div>
 
+      <WhatsappBotToggleRow
+        orgId={org.id}
+        initial={localOrg.whatsapp_bot_allowed}
+        onChange={(v) => setLocalOrg((p) => ({ ...p, whatsapp_bot_allowed: v }))}
+      />
+
       <div className="border-t border-border/50 px-5 py-2.5 flex items-center justify-between bg-muted/10">
         <span className="text-[10px] text-muted-foreground">
           Desde {new Date(org.created_at).toLocaleDateString("pt-BR")}
