@@ -109,6 +109,7 @@ export default function CapacityTab() {
 
       {/* Alerta de uso */}
       <FeatureFlagsSection />
+      <UazapiMasterSection />
 
       {alertLevel !== "ok" && (
         <div
