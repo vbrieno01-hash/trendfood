@@ -340,7 +340,7 @@ function AdminContent() {
       const [{ data: orgsData }, { data: menuData }, { data: paymentsData }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours, billing_cycle")
+          .select("id, name, slug, store_address, created_at, subscription_status, subscription_plan, trial_ends_at, emoji, whatsapp, business_hours, billing_cycle, whatsapp_bot_allowed")
           .order("created_at", { ascending: false }),
         supabase.from("menu_items").select("organization_id"),
         supabase
@@ -377,6 +377,7 @@ function AdminContent() {
         whatsapp: org.whatsapp ?? null,
         business_hours: org.business_hours as object | null,
         billing_cycle: (org as any).billing_cycle ?? null,
+        whatsapp_bot_allowed: !!(org as any).whatsapp_bot_allowed,
       }));
 
       setOrgs(enriched);
