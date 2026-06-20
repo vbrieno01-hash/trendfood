@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Database, Users, Store, ShoppingBag, AlertTriangle, CheckCircle2, ArrowUpRight, HardDrive, Search, Trash2, Shield, ShieldOff } from "lucide-react";
+import { Loader2, Database, Users, Store, ShoppingBag, AlertTriangle, CheckCircle2, ArrowUpRight, HardDrive, Search, Trash2, Shield, ShieldOff, MessageSquare, Save, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
