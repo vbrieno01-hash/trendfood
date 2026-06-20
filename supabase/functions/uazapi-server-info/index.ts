@@ -12,8 +12,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminToken = Deno.env.get("UAZAPI_ADMIN_TOKEN");
-    const serverUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+    let adminToken: string | null = Deno.env.get("UAZAPI_ADMIN_TOKEN") || null;
+    let serverUrl = (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -35,6 +35,17 @@ Deno.serve(async (req) => {
       .eq("role", "admin")
       .maybeSingle();
     if (!roleRow) return json({ error: "forbidden" }, 403);
+
+    // Sobrescreve com config dinâmica do platform_config se existir
+    const { data: pc } = await supabase
+      .from("platform_config")
+      .select("uazapi_server_url, uazapi_admin_token")
+      .eq("id", "singleton")
+      .maybeSingle();
+    const dbServer = ((pc as any)?.uazapi_server_url || "").replace(/\/$/, "");
+    const dbToken = (pc as any)?.uazapi_admin_token || null;
+    if (dbServer) serverUrl = dbServer;
+    if (dbToken) adminToken = dbToken;
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action") || "info";
