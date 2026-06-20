@@ -203,7 +203,25 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
   };
 
   useEffect(() => {
-    loadAll();
+    // 1) Carrega dados do banco
+    loadAll().then(() => {
+      // 2) Sincroniza status ao vivo com UazAPI logo após carregar
+      // Isso garante que o status correto apareça sem o usuario precisar clicar
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.access_token) return;
+        fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${orgId}`,
+          { headers: { Authorization: `Bearer ${session.access_token}` } }
+        )
+          .then((r) => r.json())
+          .then((json) => {
+            if (json.instance) setInstance(json.instance);
+            if (json.qrcode) setQrcode(json.qrcode);
+          })
+          .catch(() => {}); // silencioso se edge function nao deployada ainda
+      });
+    });
+
     const channel = supabase
       .channel(`aibot-queue-${orgId}`)
       .on(
