@@ -111,10 +111,12 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { "Content-Type": "application/json", token: existing.instance_token },
           body: JSON.stringify({
+            enabled: true,
             url: webhookUrl,
             events: ["messages"],
-            excludeMessages: ["fromMe"],
+            excludeMessages: ["wasSentByApi", "isGroupYes"],
             addUrlEvents: false,
+            addUrlTypesMessages: false,
           }),
         });
         webhookOk = whRes.ok;
@@ -248,10 +250,12 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "Content-Type": "application/json", token: instanceToken },
         body: JSON.stringify({
+          enabled: true,
           url: webhookUrl,
           events: ["messages"],
-          excludeMessages: ["fromMe"],
+          excludeMessages: ["wasSentByApi", "isGroupYes"],
           addUrlEvents: false,
+          addUrlTypesMessages: false,
         }),
       });
       webhookConfigured = whRes.ok;
