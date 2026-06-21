@@ -87,6 +87,7 @@ const UnitPage = () => {
     } catch { return {}; }
   });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState<{ id: string; shortId: string } | null>(null);
 
   // Item detail drawer
   const [selectedItem, setSelectedItem] = useState<typeof menuItems[0] | null>(null);
@@ -886,6 +887,8 @@ const UnitPage = () => {
               }).catch(() => {});
               removeCoupon();
             }
+            // Mostra tela de confirmação pro cliente
+            setOrderSuccess({ id: order.id, shortId: order.id.slice(0, 8).toUpperCase() });
             // Show review link toast
             toast({
               title: "Pedido enviado! 🎉",
@@ -1009,6 +1012,7 @@ const UnitPage = () => {
     setScheduledTime("");
     setLoyaltyRedeemed(false);
     setLoyaltyDiscount(0);
+    removeCoupon();
   };
 
 
@@ -1495,6 +1499,32 @@ const UnitPage = () => {
       {/* ── CHECKOUT DRAWER ── */}
       <Drawer open={checkoutOpen} onOpenChange={(open) => { if (!open) { popDrawerState(); setCheckoutOpen(false); setShowPixScreen(false); setPixOrderId(null); } }}>
         <DrawerContent className="max-h-[90dvh]" style={{ fontFamily }}>
+          {orderSuccess ? (
+            /* ── Tela de confirmação ─────────────────────────────── */
+            <div className="flex flex-col items-center justify-center gap-6 px-6 py-12 text-center">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
+                style={{ backgroundColor: `${buttonColor}20` }}>
+                🎉
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-foreground">Pedido Enviado!</h2>
+                <p className="text-muted-foreground text-sm">
+                  Seu pedido <span className="font-mono font-bold text-foreground">#{orderSuccess.shortId}</span> foi recebido com sucesso.
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  Aguarde a confirmação do estabelecimento. 🍳
+                </p>
+              </div>
+              <button
+                onClick={() => { setOrderSuccess(null); setCheckoutOpen(false); }}
+                className="w-full py-3 rounded-xl font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: buttonColor }}
+              >
+                Voltar ao Cardápio
+              </button>
+            </div>
+          ) : (
+          <>
           <DrawerHeader className="border-b border-border pb-3">
             <DrawerTitle className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" style={{ color: buttonColor }} />
@@ -2007,6 +2037,8 @@ const UnitPage = () => {
               )
             ) : null}
           </DrawerFooter>
+          </>
+          )}
         </DrawerContent>
       </Drawer>
 
