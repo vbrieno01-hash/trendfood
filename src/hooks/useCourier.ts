@@ -210,9 +210,10 @@ export function useAcceptDelivery() {
         .eq("id", orderId)
         .single();
 
-      // Trigger SQL tg_deliveries_wa_dispatched enfileira "out_for_delivery"
-      // automaticamente quando courier aceita. Aqui só pingamos o processador.
-      supabase.functions.invoke("process-wa-outbox", { body: {} }).catch(() => {});
+      // Notificação automática: saiu para entrega (se bot ativo)
+      supabase.functions.invoke("whatsapp-auto-notify", {
+        body: { order_id: orderId, event: "out_for_delivery" },
+      }).catch(() => {});
 
       return { notes: order?.notes ?? null };
     },

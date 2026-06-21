@@ -257,9 +257,9 @@ export const usePlaceOrder = () => {
         console.error("Falha ao enfileirar impressão:", err);
       }
 
-      // Processa fila WhatsApp de notificações geradas pelo trigger do banco
-      supabase.functions.invoke("process-wa-outbox", {
-        body: {},
+      // Notificação automática: cliente + dono da loja (se bot ativo)
+      supabase.functions.invoke("whatsapp-auto-notify", {
+        body: { order_id: order.id, event: "created" },
       }).catch(() => {});
 
       return order;
@@ -275,10 +275,12 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
     mutationFn: async ({ id, status }: { id: string; status: Order["status"] }) => {
       const { error } = await supabase.from("orders").update({ status }).eq("id", id);
       if (error) throw error;
-      // Processa fila WhatsApp (trigger do banco gera mensagem na outbox)
-      supabase.functions.invoke("process-wa-outbox", {
-        body: {},
-      }).catch(() => {});
+      // Notificação automática para o cliente (se bot ativo)
+      if (status === "preparing" || status === "ready") {
+        supabase.functions.invoke("whatsapp-auto-notify", {
+          body: { order_id: id, event: status },
+        }).catch(() => {});
+      }
     },
     onSuccess: async () => {
       await qc.refetchQueries({ queryKey: ["orders", organizationId] });
