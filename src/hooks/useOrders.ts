@@ -279,12 +279,6 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
       supabase.functions.invoke("process-wa-outbox", {
         body: {},
       }).catch(() => {});
-      // Notificação direta via uazapi-notify-customer (caminho alternativo)
-      if (status === "preparing" || status === "ready") {
-        supabase.functions.invoke("uazapi-notify-customer", {
-          body: { order_id: id, event: status },
-        }).catch(() => {});
-      }
     },
     onSuccess: async () => {
       await qc.refetchQueries({ queryKey: ["orders", organizationId] });
