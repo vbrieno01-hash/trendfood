@@ -210,10 +210,9 @@ export function useAcceptDelivery() {
         .eq("id", orderId)
         .single();
 
-      // Fire-and-forget: notifica cliente que o pedido saiu para entrega
-      supabase.functions.invoke("uazapi-notify-customer", {
-        body: { order_id: orderId, event: "out_for_delivery" },
-      }).catch(() => {}); // falha silenciosa, nao bloqueia o motoboy
+      // Trigger SQL tg_deliveries_wa_dispatched enfileira "out_for_delivery"
+      // automaticamente quando courier aceita. Aqui só pingamos o processador.
+      supabase.functions.invoke("process-wa-outbox", { body: {} }).catch(() => {});
 
       return { notes: order?.notes ?? null };
     },

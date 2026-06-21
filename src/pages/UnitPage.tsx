@@ -814,10 +814,10 @@ const UnitPage = () => {
             console.info("[UnitPage] Order saved to DB successfully");
             // Bot ativo: notifica automaticamente. Sem bot: abre wa.me manual
             if (!hasActiveBot) openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
-            // Notifica o dono via bot automaticamente — fire-and-forget
-            supabase.functions.invoke("uazapi-notify-owner", {
-              body: { order_id: order.id },
-            }).catch(() => {}); // falha silenciosa, nao bloqueia checkout
+            // Triggers SQL (tg_orders_wa_auto_status) já enfileiram automaticamente
+            // mensagem para cliente E para dono quando whatsapp_bot_allowed=true.
+            // Aqui só damos um ping no processador da fila para envio imediato.
+            supabase.functions.invoke("process-wa-outbox", { body: {} }).catch(() => {});
             registerForOrder(order.id); // after WhatsApp to preserve user gesture
             // Loyalty: accumulate points + process redemption
             if (loyaltyEnabled && org?.id && buyerPhone && loyaltyConfig) {
