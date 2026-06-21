@@ -75,17 +75,20 @@ Deno.serve(async (req) => {
       console.error("disconnect call error:", (e as Error).message);
     }
 
-    // Se delete=true, deleta a instância completamente do servidor (admin only)
-    if (delete_instance && adminToken) {
-      try {
-        await fetch(`${serverUrl}/instance/delete`, {
-          method: "DELETE",
-          headers: { admintoken: adminToken, token: inst.instance_token },
-        });
-      } catch (e) {
-        console.error("delete call error:", (e as Error).message);
+    // Sempre deleta do banco ao desconectar — garante reconexão limpa
+    if (delete_instance) {
+      // Tenta deletar do servidor UazAPI (melhor esforço)
+      if (adminToken) {
+        try {
+          await fetch(`${serverUrl}/instance/delete`, {
+            method: "DELETE",
+            headers: { admintoken: adminToken, token: inst.instance_token },
+          });
+        } catch (e) {
+          console.error("delete call error:", (e as Error).message);
+        }
       }
-      // Remove do banco
+      // Sempre remove do banco independente do resultado acima
       await supabase.from("whatsapp_instances").delete().eq("id", inst.id);
     } else {
       // Apenas marca como desconectado

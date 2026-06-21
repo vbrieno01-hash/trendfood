@@ -272,7 +272,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     setDisconnecting(true);
     try {
       const { error } = await supabase.functions.invoke("uazapi-disconnect", {
-        body: { organization_id: orgId, delete_instance: false },
+        body: { organization_id: orgId, delete_instance: true },
       });
       if (error) throw error;
       toast.success("WhatsApp desconectado");
