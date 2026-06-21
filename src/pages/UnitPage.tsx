@@ -73,6 +73,10 @@ const UnitPage = () => {
   const redeemLoyalty = useRedeemLoyalty();
   const [loyaltyRedeemed, setLoyaltyRedeemed] = useState(false);
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponData, setCouponData] = useState<{ coupon_id: string; code: string; type: string; value: number; discount: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   // Cart state — persisted in localStorage so swipe-back gestures don't lose items
   const cartStorageKey = `cart_${slug}`;
@@ -605,9 +609,43 @@ const UnitPage = () => {
   // (deliveryFee and related vars declared above, before early returns)
 
   const grandTotalBeforeLoyalty = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
-  const grandTotal = Math.max(0, grandTotalBeforeLoyalty - loyaltyDiscount);
+  const couponDiscount = couponData?.discount ?? 0;
+  const grandTotal = Math.max(0, grandTotalBeforeLoyalty - loyaltyDiscount - couponDiscount);
 
    // (no more CEP lookup needed — neighborhood-based delivery)
+  // Aplicar cupom de desconto
+  const applyCoupon = async () => {
+    if (!couponCode.trim() || !org?.id) return;
+    setCouponLoading(true);
+    setCouponError(null);
+    setCouponData(null);
+    try {
+      const { data, error } = await supabase.rpc("validate_coupon" as any, {
+        _code: couponCode.trim(),
+        _organization_id: org.id,
+        _order_total: totalPrice,
+      });
+      if (error) throw error;
+      const result = data as any;
+      if (!result.valid) {
+        setCouponError(result.error ?? "Cupom inválido");
+      } else {
+        setCouponData(result);
+        setCouponError(null);
+      }
+    } catch (e: any) {
+      setCouponError(e?.message ?? "Erro ao validar cupom");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponData(null);
+    setCouponError(null);
+  };
+
   // WhatsApp checkout
    const handleSendWhatsApp = async (overridePayment?: string, overrideOrderId?: string) => {
    if (isSubmitting || placeOrder.isPending) return;
@@ -798,6 +836,8 @@ const UnitPage = () => {
           notes: noteParts.join("|"),
           paymentMethod: effectivePayment.toLowerCase(),
           paid: false,
+          couponId: couponData?.coupon_id ?? null,
+          discountValue: couponDiscount > 0 ? couponDiscount : undefined,
           items: cartItems.map((i) => {
             let finalName = i.name;
             if (i.addons.length > 0) {
@@ -838,6 +878,13 @@ const UnitPage = () => {
                   orderId: order.id,
                 });
               }
+            }
+            // Incrementa usos do cupom (se aplicado)
+            if (couponData?.coupon_id) {
+              supabase.rpc("increment_coupon_uses" as any, {
+                _coupon_id: couponData.coupon_id,
+              }).catch(() => {});
+              removeCoupon();
             }
             // Show review link toast
             toast({
@@ -1525,9 +1572,44 @@ const UnitPage = () => {
                     <span className="font-medium">-{fmt(loyaltyDiscount)}</span>
                   </div>
                 )}
+                {couponData && couponDiscount > 0 && (
+                  <div className="flex items-center justify-between text-sm text-green-600">
+                    <span>🏷️ Cupom <span className="font-mono text-xs">({couponData.code})</span></span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">-{fmt(couponDiscount)}</span>
+                      <button onClick={removeCoupon} className="text-muted-foreground hover:text-destructive text-xs ml-1">✕</button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-1 font-bold text-foreground border-t border-border/50">
                   <span>Total</span>
                   <span className="text-lg">{fmt(grandTotal)}</span>
+                </div>
+
+                {/* Campo de cupom */}
+                <div className="pt-2 space-y-1">
+                  <p className="text-xs text-muted-foreground">Possui um cupom de desconto?</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(null); }}
+                      onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                      placeholder="Digite o código"
+                      disabled={!!couponData}
+                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                    />
+                    <button
+                      onClick={couponData ? removeCoupon : applyCoupon}
+                      disabled={couponLoading || (!couponCode.trim() && !couponData)}
+                      className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors disabled:opacity-40"
+                      style={{ backgroundColor: couponData ? "#ef4444" : buttonColor, color: "white" }}
+                    >
+                      {couponLoading ? "..." : couponData ? "Remover" : "Aplicar"}
+                    </button>
+                  </div>
+                  {couponError && <p className="text-xs text-destructive">{couponError}</p>}
+                  {couponData && <p className="text-xs text-green-600 font-medium">✅ Cupom aplicado! Desconto de {fmt(couponDiscount)}</p>}
                 </div>
               </div>
             </div>

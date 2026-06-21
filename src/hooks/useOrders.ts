@@ -161,6 +161,8 @@ export const usePlaceOrder = () => {
       initialStatus,
       paymentMethod,
       paid,
+      couponId,
+      discountValue,
     }: {
       organizationId: string;
       tableNumber: number;
@@ -169,6 +171,8 @@ export const usePlaceOrder = () => {
       initialStatus?: string;
       paymentMethod?: string;
       paid?: boolean;
+      couponId?: string | null;
+      discountValue?: number;
     }) => {
       // Guard: empty cart
       if (!items || items.length === 0) {
@@ -210,6 +214,8 @@ export const usePlaceOrder = () => {
           status: initialStatus || "pending",
           ...(paymentMethod ? { payment_method: paymentMethod } : {}),
           ...(paid !== undefined ? { paid } : {}),
+          ...(couponId ? { coupon_id: couponId } : {}),
+          ...(discountValue ? { discount_value: discountValue } : {}),
         })
         .select()
         .single();
