@@ -366,6 +366,27 @@ Deno.serve(async (req) => {
           .eq("organization_id", matchedInst.organization_id)
           .neq("status", "connected");
 
+        // ── Gate de plano + bot_allowed ─────────────────────────────────────
+        const { data: orgCheck } = await supabase
+          .from("organizations")
+          .select("whatsapp_bot_allowed, subscription_plan, trial_ends_at")
+          .eq("id", matchedInst.organization_id)
+          .maybeSingle();
+
+        const planOk = (() => {
+          const plan = orgCheck?.subscription_plan ?? "free";
+          if (["pro", "enterprise", "lifetime"].includes(plan)) return true;
+          const trial = orgCheck?.trial_ends_at ? new Date(orgCheck.trial_ends_at) : null;
+          return trial !== null && trial > new Date();
+        })();
+
+        if (!orgCheck?.whatsapp_bot_allowed || !planOk) {
+          return new Response(JSON.stringify({ ok: true, skipped: "bot_not_allowed_or_free_plan" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         const botRes = await fetch(
           `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
           {

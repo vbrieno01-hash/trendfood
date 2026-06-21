@@ -103,12 +103,35 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
+      // Reaplica webhook (corrige instâncias criadas antes do webhook ser configurado)
+      const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
+      let webhookOk = false;
+      try {
+        const whRes = await fetch(`${serverUrl}/webhook`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", token: existing.instance_token },
+          body: JSON.stringify({
+            url: webhookUrl,
+            events: ["messages"],
+            excludeMessages: ["fromMe"],
+            addUrlEvents: false,
+          }),
+        });
+        webhookOk = whRes.ok;
+        if (webhookOk) {
+          await supabase.from("whatsapp_instances")
+            .update({ webhook_configured: true })
+            .eq("id", existing.id);
+        }
+      } catch { /* silencioso */ }
+
       // Tenta pegar QR atual
       const qr = await fetchQr(serverUrl, existing.instance_token);
       return new Response(
         JSON.stringify({
           ok: true,
           existed: true,
+          webhook_reapplied: webhookOk,
           instance: existing,
           qrcode: qr.qrcode,
           status: qr.status,

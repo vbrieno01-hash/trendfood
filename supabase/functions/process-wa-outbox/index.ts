@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
             token: instance.instance_token,
           },
-          body: JSON.stringify({ phone: formattedPhone, message: row.message }),
+          body: JSON.stringify({ number: formattedPhone, text: row.message }),
         });
         if (!res.ok) {
           const body = await res.text();
