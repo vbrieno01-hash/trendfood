@@ -904,7 +904,11 @@ const UnitPage = () => {
               ),
               duration: 15000,
             });
-            resetCheckout();
+             // Drawer continua aberto para mostrar tela de confirmação
+             setCart({});
+             try { localStorage.removeItem(cartStorageKey); } catch {}
+             setOrderType(""); setBuyerName(""); setBuyerPhone(""); setPayment(""); setNotes("");
+             setIsSubmitting(false);
           },
           onError: (err) => {
             console.error("[UnitPage] placeOrder DB error:", err);
@@ -1013,6 +1017,7 @@ const UnitPage = () => {
     setLoyaltyRedeemed(false);
     setLoyaltyDiscount(0);
     removeCoupon();
+    setOrderSuccess(null);
   };
 
 
