@@ -626,9 +626,10 @@ const UnitPage = () => {
         _organization_id: org.id,
         _order_total: totalPrice,
       });
+      console.log("[coupon] rpc result:", { data, error, org_id: org.id, code: couponCode.trim(), total: totalPrice });
       if (error) throw error;
       const result = data as any;
-      if (!result.valid) {
+      if (!result || !result.valid) {
         setCouponError(result.error ?? "Cupom inválido");
       } else {
         setCouponData(result);
