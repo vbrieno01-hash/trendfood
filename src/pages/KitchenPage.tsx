@@ -17,8 +17,8 @@ import { buildPixPayload } from "@/lib/pixPayload";
 import { isBluetoothSupported, requestBluetoothPrinter, reconnectStoredPrinter, getBluetoothStatus, getBtUnsupportedMessage } from "@/lib/bluetoothPrinter";
 import { toast } from "sonner";
 
-const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }> }) =>
-  (order.order_items ?? []).reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0);
+const calcOrderTotal = (order: { order_items?: Array<{ price?: number; quantity: number }>; discount_value?: number }) =>
+  Math.max(0, (order.order_items ?? []).reduce((sum, i) => sum + (i.price ?? 0) * i.quantity, 0) - (order.discount_value ?? 0));
 
 const getPixPayload = (order: { order_items?: Array<{ price?: number; quantity: number }> }, pixKey?: string | null, storeName?: string) => {
   if (!pixKey) return undefined;

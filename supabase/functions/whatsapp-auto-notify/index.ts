@@ -227,7 +227,14 @@ Deno.serve(async (req) => {
     const customerName = parseName(order.notes);
     const customerPhone = parsePhone(order.notes);
     const tipo = parseField(order.notes, "TIPO");
-    const total = (order as any).total_price ?? 0;
+    // Busca itens para calcular total correto com desconto
+    const { data: orderItems } = await supabase
+      .from("order_items")
+      .select("price, quantity")
+      .eq("order_id", order.id);
+    const itemsTotal = (orderItems ?? []).reduce((s: number, i: any) => s + (i.price ?? 0) * i.quantity, 0);
+    const discount = (order as any).discount_value ?? 0;
+    const total = Math.max(0, ((order as any).total_price ?? itemsTotal) - discount);
     const results: string[] = [];
     let anyFailed = false;
 
