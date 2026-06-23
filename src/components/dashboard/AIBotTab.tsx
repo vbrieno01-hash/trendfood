@@ -153,9 +153,12 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
   const [qrcode, setQrcode] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Polling automático enquanto QR code está visível — para ao conectar
+  // Polling automático — continua até status connected, independente do QR
+  const awaitingConnectionRef = useRef(false);
+
   const startPolling = () => {
-    if (pollingRef.current) return; // ja rodando
+    if (pollingRef.current) return;
+    awaitingConnectionRef.current = true;
     pollingRef.current = setInterval(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -167,14 +170,14 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
         if (json.instance) {
           setInstance(json.instance);
           if (json.instance.status === "connected" || json.instance.status === "open") {
-            // Conectou — para o polling e limpa o QR
             stopPolling();
             setQrcode(null);
           }
         }
+        // QR pode mudar durante polling
         if (json.qrcode) setQrcode(json.qrcode);
       } catch { /* silencioso */ }
-    }, 5000);
+    }, 3000); // verifica a cada 3s para detectar conexão rapidamente
   };
 
   const stopPolling = () => {
@@ -182,6 +185,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
+    awaitingConnectionRef.current = false;
   };
 
   // Load all
@@ -236,13 +240,10 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     };
   }, [orgId]);
 
-  // Inicia/para polling baseado na presença do QR code
+  // Inicia polling quando QR aparece — para APENAS ao confirmar connected
   useEffect(() => {
-    if (qrcode) {
-      startPolling();
-    } else {
-      stopPolling();
-    }
+    if (qrcode) startPolling();
+    // Não chama stopPolling quando qrcode some — polling continua até connected
     return () => stopPolling();
   }, [!!qrcode]);
 
