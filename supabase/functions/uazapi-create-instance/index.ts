@@ -333,30 +333,38 @@ Deno.serve(async (req) => {
 });
 
 async function fetchQr(serverUrl: string, instanceToken: string): Promise<{ qrcode: string | null; status: string | null }> {
-  try {
-    const res = await fetch(`${serverUrl}/instance/connect`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", token: instanceToken },
-      body: JSON.stringify({}),
-    });
-    if (!res.ok) {
-      return { qrcode: null, status: null };
+  // Tenta /instance/connect (gera QR) e depois /instance/qrcode (busca QR gerado)
+  const endpoints = [
+    { path: "/instance/connect", method: "POST", body: JSON.stringify({}) },
+    { path: "/instance/qrcode", method: "GET", body: undefined },
+    { path: "/instance/status", method: "GET", body: undefined },
+  ];
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(`${serverUrl}${ep.path}`, {
+        method: ep.method,
+        headers: { "Content-Type": "application/json", token: instanceToken },
+        ...(ep.body ? { body: ep.body } : {}),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      console.log(`[fetchQr] ${ep.path} response:`, JSON.stringify(data).slice(0, 300));
+      const qrcode =
+        data?.instance?.qrcode ||
+        data?.qrcode ||
+        data?.qrCode ||
+        data?.base64 ||
+        null;
+      const status =
+        data?.instance?.status ||
+        data?.status ||
+        null;
+      if (qrcode) return { qrcode, status };
+    } catch (e) {
+      console.error(`[fetchQr] ${ep.path} error:`, (e as Error).message);
     }
-    const data = await res.json();
-    const qrcode =
-      data?.instance?.qrcode ||
-      data?.qrcode ||
-      data?.qrCode ||
-      null;
-    const status =
-      data?.instance?.status ||
-      data?.status ||
-      null;
-    return { qrcode, status };
-  } catch (e) {
-    console.error("fetchQr error:", (e as Error).message);
-    return { qrcode: null, status: null };
   }
+  return { qrcode: null, status: null };
 }
 
 // Lê credenciais Uazapi do platform_config (admin) com fallback para env vars.
