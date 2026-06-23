@@ -27,6 +27,8 @@ export interface Order {
   payment_method?: string | null;
   order_number?: number;
   order_items?: OrderItem[];
+  coupon_id?: string | null;
+  discount_value?: number;
 }
 
 export interface TableRow {

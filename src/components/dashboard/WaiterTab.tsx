@@ -23,7 +23,7 @@ const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const calcTotal = (order: Order) =>
-  Math.max(0, (order.order_items ?? []).reduce((acc, i) => acc + i.price * i.quantity, 0) - ((order as any).discount_value ?? 0));
+  Math.max(0, (order.order_items ?? []).reduce((acc, i) => acc + i.price * i.quantity, 0) - (order.discount_value ?? 0));
 
 const buildWhatsAppMessage = (order: Order, whatsapp?: string | null): string => {
   const items = (order.order_items ?? [])
