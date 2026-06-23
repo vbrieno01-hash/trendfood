@@ -854,8 +854,10 @@ const UnitPage = () => {
         {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
-            // Bot ativo: notifica automaticamente. Sem bot: abre wa.me manual
-            if (!hasActiveBot) openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Mostra tela de confirmação PRIMEIRO (antes de qualquer redirect)
+            setOrderSuccess({ id: order.id, shortId: order.id.slice(0, 8).toUpperCase() });
+            // Bot ativo: notifica automaticamente. Sem bot: abre wa.me manual (com delay pra tela aparecer)
+            if (!hasActiveBot) setTimeout(() => openWhatsAppWithFallback(whatsappUrl, { mode: "operational" }), 300);
             // Triggers SQL (tg_orders_wa_auto_status) já enfileiram automaticamente
             // mensagem para cliente E para dono quando whatsapp_bot_allowed=true.
             // Notificação automática unificada — cliente + dono (se bot ativo)
@@ -888,8 +890,6 @@ const UnitPage = () => {
               }).catch(() => {});
               removeCoupon();
             }
-            // Mostra tela de confirmação pro cliente
-            setOrderSuccess({ id: order.id, shortId: order.id.slice(0, 8).toUpperCase() });
             // Show review link toast
             toast({
               title: "Pedido enviado! 🎉",
