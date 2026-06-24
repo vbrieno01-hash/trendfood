@@ -266,7 +266,7 @@ export const usePlaceOrder = () => {
       }
 
       // Notificação automática: cliente + dono da loja (se bot ativo)
-      supabase.functions.invoke("whatsapp-auto-notify", {
+      supabase.functions.invoke("process-wa-outbox", {
         body: { order_id: order.id, event: "created" },
       }).catch(() => {});
 
@@ -285,7 +285,7 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
       if (error) throw error;
       // Notificação automática para o cliente (se bot ativo)
       if (status === "preparing" || status === "ready") {
-        supabase.functions.invoke("whatsapp-auto-notify", {
+        supabase.functions.invoke("process-wa-outbox", {
           body: { order_id: id, event: status },
         }).catch(() => {});
       }

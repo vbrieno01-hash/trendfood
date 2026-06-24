@@ -211,7 +211,7 @@ export function useAcceptDelivery() {
         .single();
 
       // Notificação automática: saiu para entrega (se bot ativo)
-      supabase.functions.invoke("whatsapp-auto-notify", {
+      supabase.functions.invoke("process-wa-outbox", {
         body: { order_id: orderId, event: "out_for_delivery" },
       }).catch(() => {});
 

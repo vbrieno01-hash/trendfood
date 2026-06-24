@@ -861,7 +861,7 @@ const UnitPage = () => {
             // Triggers SQL (tg_orders_wa_auto_status) já enfileiram automaticamente
             // mensagem para cliente E para dono quando whatsapp_bot_allowed=true.
             // Notificação automática unificada — cliente + dono (se bot ativo)
-            supabase.functions.invoke("whatsapp-auto-notify", {
+            supabase.functions.invoke("process-wa-outbox", {
               body: { order_id: order.id, event: "created" },
             }).catch(() => {});
             registerForOrder(order.id); // after WhatsApp to preserve user gesture
