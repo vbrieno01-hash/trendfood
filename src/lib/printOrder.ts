@@ -78,11 +78,16 @@ function buildPrintHtml(data: ReceiptData, is58: boolean, pixHtml: string, foote
 
   // Totals (from shared calculation)
   let totalHtml = "";
-  const { subtotal, deliveryFee, deliveryFeeLabel, grandTotal } = data.totals;
+  const { subtotal, deliveryFee, deliveryFeeLabel, discountValue, grandTotal } = data.totals;
   if (subtotal > 0) {
-    if (deliveryFee > 0 || deliveryFeeLabel) {
+    if (deliveryFee > 0 || deliveryFeeLabel || (discountValue ?? 0) > 0) {
       totalHtml += `<div class="subtotal-line">Subtotal: R$ ${fmt(subtotal)}</div>`;
-      totalHtml += `<div class="subtotal-line">Tx Entrega: ${deliveryFeeLabel}</div>`;
+      if (deliveryFee > 0 || deliveryFeeLabel) {
+        totalHtml += `<div class="subtotal-line">Tx Entrega: ${deliveryFeeLabel}</div>`;
+      }
+      if ((discountValue ?? 0) > 0) {
+        totalHtml += `<div class="subtotal-line">Desconto Cupom: - R$ ${fmt(discountValue ?? 0)}</div>`;
+      }
     }
     totalHtml += `<div class="total-line">TOTAL: R$ ${fmt(grandTotal)}</div>`;
   }
