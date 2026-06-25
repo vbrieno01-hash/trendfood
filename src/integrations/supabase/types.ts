@@ -3129,41 +3129,6 @@ export type Database = {
           },
         ]
       }
-      whatsapp_notification_log: {
-        Row: {
-          created_at: string
-          error: string | null
-          event: string
-          id: string
-          order_id: string
-          status: string
-        }
-        Insert: {
-          created_at?: string
-          error?: string | null
-          event: string
-          id?: string
-          order_id: string
-          status?: string
-        }
-        Update: {
-          created_at?: string
-          error?: string | null
-          event?: string
-          id?: string
-          order_id?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_notification_log_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       whatsapp_outbox: {
         Row: {
           attempts: number

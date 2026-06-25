@@ -153,12 +153,9 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
   const [qrcode, setQrcode] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Polling automático — continua até status connected, independente do QR
-  const awaitingConnectionRef = useRef(false);
-
+  // Polling automático enquanto QR code está visível — para ao conectar
   const startPolling = () => {
-    if (pollingRef.current) return;
-    awaitingConnectionRef.current = true;
+    if (pollingRef.current) return; // ja rodando
     pollingRef.current = setInterval(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -170,14 +167,14 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
         if (json.instance) {
           setInstance(json.instance);
           if (json.instance.status === "connected" || json.instance.status === "open") {
+            // Conectou — para o polling e limpa o QR
             stopPolling();
             setQrcode(null);
           }
         }
-        // QR pode mudar durante polling
         if (json.qrcode) setQrcode(json.qrcode);
       } catch { /* silencioso */ }
-    }, 3000); // verifica a cada 3s para detectar conexão rapidamente
+    }, 5000);
   };
 
   const stopPolling = () => {
@@ -185,7 +182,6 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
-    awaitingConnectionRef.current = false;
   };
 
   // Load all
@@ -240,10 +236,13 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     };
   }, [orgId]);
 
-  // Inicia polling quando QR aparece — para APENAS ao confirmar connected
+  // Inicia/para polling baseado na presença do QR code
   useEffect(() => {
-    if (qrcode) startPolling();
-    // Não chama stopPolling quando qrcode some — polling continua até connected
+    if (qrcode) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
     return () => stopPolling();
   }, [!!qrcode]);
 
@@ -273,7 +272,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     setDisconnecting(true);
     try {
       const { error } = await supabase.functions.invoke("uazapi-disconnect", {
-        body: { organization_id: orgId, delete_instance: true },
+        body: { organization_id: orgId, delete_instance: false },
       });
       if (error) throw error;
       toast.success("WhatsApp desconectado");

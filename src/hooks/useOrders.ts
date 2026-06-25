@@ -27,8 +27,6 @@ export interface Order {
   payment_method?: string | null;
   order_number?: number;
   order_items?: OrderItem[];
-  coupon_id?: string | null;
-  discount_value?: number;
 }
 
 export interface TableRow {
@@ -163,8 +161,6 @@ export const usePlaceOrder = () => {
       initialStatus,
       paymentMethod,
       paid,
-      couponId,
-      discountValue,
     }: {
       organizationId: string;
       tableNumber: number;
@@ -173,8 +169,6 @@ export const usePlaceOrder = () => {
       initialStatus?: string;
       paymentMethod?: string;
       paid?: boolean;
-      couponId?: string | null;
-      discountValue?: number;
     }) => {
       // Guard: empty cart
       if (!items || items.length === 0) {
@@ -216,8 +210,6 @@ export const usePlaceOrder = () => {
           status: initialStatus || "pending",
           ...(paymentMethod ? { payment_method: paymentMethod } : {}),
           ...(paid !== undefined ? { paid } : {}),
-          ...(couponId ? { coupon_id: couponId } : {}),
-          ...(discountValue ? { discount_value: discountValue } : {}),
         })
         .select()
         .single();
@@ -265,9 +257,9 @@ export const usePlaceOrder = () => {
         console.error("Falha ao enfileirar impressão:", err);
       }
 
-      // Notificação automática: cliente + dono da loja (se bot ativo)
+      // Processa fila WhatsApp de notificações geradas pelo trigger do banco
       supabase.functions.invoke("process-wa-outbox", {
-        body: { order_id: order.id, event: "created" },
+        body: {},
       }).catch(() => {});
 
       return order;
@@ -283,9 +275,13 @@ export const useUpdateOrderStatus = (organizationId: string, statuses: Order["st
     mutationFn: async ({ id, status }: { id: string; status: Order["status"] }) => {
       const { error } = await supabase.from("orders").update({ status }).eq("id", id);
       if (error) throw error;
-      // Notificação automática para o cliente (se bot ativo)
+      // Processa fila WhatsApp (trigger do banco gera mensagem na outbox)
+      supabase.functions.invoke("process-wa-outbox", {
+        body: {},
+      }).catch(() => {});
+      // Notificação direta via uazapi-notify-customer (caminho alternativo)
       if (status === "preparing" || status === "ready") {
-        supabase.functions.invoke("process-wa-outbox", {
+        supabase.functions.invoke("uazapi-notify-customer", {
           body: { order_id: id, event: status },
         }).catch(() => {});
       }

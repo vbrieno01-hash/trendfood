@@ -73,10 +73,6 @@ const UnitPage = () => {
   const redeemLoyalty = useRedeemLoyalty();
   const [loyaltyRedeemed, setLoyaltyRedeemed] = useState(false);
   const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
-  const [couponCode, setCouponCode] = useState("");
-  const [couponData, setCouponData] = useState<{ coupon_id: string; code: string; type: string; value: number; discount: number } | null>(null);
-  const [couponError, setCouponError] = useState<string | null>(null);
-  const [couponLoading, setCouponLoading] = useState(false);
 
   // Cart state — persisted in localStorage so swipe-back gestures don't lose items
   const cartStorageKey = `cart_${slug}`;
@@ -87,7 +83,6 @@ const UnitPage = () => {
     } catch { return {}; }
   });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState<{ id: string; shortId: string } | null>(null);
 
   // Item detail drawer
   const [selectedItem, setSelectedItem] = useState<typeof menuItems[0] | null>(null);
@@ -610,44 +605,9 @@ const UnitPage = () => {
   // (deliveryFee and related vars declared above, before early returns)
 
   const grandTotalBeforeLoyalty = totalPrice + (orderType === "Entrega" ? deliveryFee : 0);
-  const couponDiscount = couponData?.discount ?? 0;
-  const grandTotal = Math.max(0, grandTotalBeforeLoyalty - loyaltyDiscount - couponDiscount);
+  const grandTotal = Math.max(0, grandTotalBeforeLoyalty - loyaltyDiscount);
 
    // (no more CEP lookup needed — neighborhood-based delivery)
-  // Aplicar cupom de desconto
-  const applyCoupon = async () => {
-    if (!couponCode.trim() || !org?.id) return;
-    setCouponLoading(true);
-    setCouponError(null);
-    setCouponData(null);
-    try {
-      const { data, error } = await supabase.rpc("validate_coupon" as any, {
-        _code: couponCode.trim(),
-        _organization_id: org.id,
-        _order_total: totalPrice,
-      });
-      console.log("[coupon] rpc result:", { data, error, org_id: org.id, code: couponCode.trim(), total: totalPrice });
-      if (error) throw error;
-      const result = data as any;
-      if (!result || !result.valid) {
-        setCouponError(result.error ?? "Cupom inválido");
-      } else {
-        setCouponData(result);
-        setCouponError(null);
-      }
-    } catch (e: any) {
-      setCouponError(e?.message ?? "Erro ao validar cupom");
-    } finally {
-      setCouponLoading(false);
-    }
-  };
-
-  const removeCoupon = () => {
-    setCouponCode("");
-    setCouponData(null);
-    setCouponError(null);
-  };
-
   // WhatsApp checkout
    const handleSendWhatsApp = async (overridePayment?: string, overrideOrderId?: string) => {
    if (isSubmitting || placeOrder.isPending) return;
@@ -838,8 +798,6 @@ const UnitPage = () => {
           notes: noteParts.join("|"),
           paymentMethod: effectivePayment.toLowerCase(),
           paid: false,
-          couponId: couponData?.coupon_id ?? null,
-          discountValue: couponDiscount > 0 ? couponDiscount : undefined,
           items: cartItems.map((i) => {
             let finalName = i.name;
             if (i.addons.length > 0) {
@@ -854,16 +812,12 @@ const UnitPage = () => {
         {
           onSuccess: (order) => {
             console.info("[UnitPage] Order saved to DB successfully");
-            // Mostra tela de confirmação PRIMEIRO (antes de qualquer redirect)
-            setOrderSuccess({ id: order.id, shortId: order.id.slice(0, 8).toUpperCase() });
-            // Bot ativo: notifica automaticamente. Sem bot: abre wa.me manual (com delay pra tela aparecer)
-            if (!hasActiveBot) setTimeout(() => openWhatsAppWithFallback(whatsappUrl, { mode: "operational" }), 300);
-            // Triggers SQL (tg_orders_wa_auto_status) já enfileiram automaticamente
-            // mensagem para cliente E para dono quando whatsapp_bot_allowed=true.
-            // Notificação automática unificada — cliente + dono (se bot ativo)
-            supabase.functions.invoke("process-wa-outbox", {
-              body: { order_id: order.id, event: "created" },
-            }).catch(() => {});
+            // Bot ativo: notifica automaticamente. Sem bot: abre wa.me manual
+            if (!hasActiveBot) openWhatsAppWithFallback(whatsappUrl, { mode: "operational" });
+            // Notifica o dono via bot automaticamente — fire-and-forget
+            supabase.functions.invoke("uazapi-notify-owner", {
+              body: { order_id: order.id },
+            }).catch(() => {}); // falha silenciosa, nao bloqueia checkout
             registerForOrder(order.id); // after WhatsApp to preserve user gesture
             // Loyalty: accumulate points + process redemption
             if (loyaltyEnabled && org?.id && buyerPhone && loyaltyConfig) {
@@ -883,13 +837,6 @@ const UnitPage = () => {
                 });
               }
             }
-            // Incrementa usos do cupom (se aplicado)
-            if (couponData?.coupon_id) {
-              supabase.rpc("increment_coupon_uses" as any, {
-                _coupon_id: couponData.coupon_id,
-              }).catch(() => {});
-              removeCoupon();
-            }
             // Show review link toast
             toast({
               title: "Pedido enviado! 🎉",
@@ -905,11 +852,7 @@ const UnitPage = () => {
               ),
               duration: 15000,
             });
-             // Drawer continua aberto para mostrar tela de confirmação
-             setCart({});
-             try { localStorage.removeItem(cartStorageKey); } catch {}
-             setOrderType(""); setBuyerName(""); setBuyerPhone(""); setPayment(""); setNotes("");
-             setIsSubmitting(false);
+            resetCheckout();
           },
           onError: (err) => {
             console.error("[UnitPage] placeOrder DB error:", err);
@@ -1017,8 +960,6 @@ const UnitPage = () => {
     setScheduledTime("");
     setLoyaltyRedeemed(false);
     setLoyaltyDiscount(0);
-    removeCoupon();
-    setOrderSuccess(null);
   };
 
 
@@ -1505,32 +1446,6 @@ const UnitPage = () => {
       {/* ── CHECKOUT DRAWER ── */}
       <Drawer open={checkoutOpen} onOpenChange={(open) => { if (!open) { popDrawerState(); setCheckoutOpen(false); setShowPixScreen(false); setPixOrderId(null); } }}>
         <DrawerContent className="max-h-[90dvh]" style={{ fontFamily }}>
-          {orderSuccess ? (
-            /* ── Tela de confirmação ─────────────────────────────── */
-            <div className="flex flex-col items-center justify-center gap-6 px-6 py-12 text-center">
-              <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
-                style={{ backgroundColor: `${buttonColor}20` }}>
-                🎉
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-foreground">Pedido Enviado!</h2>
-                <p className="text-muted-foreground text-sm">
-                  Seu pedido <span className="font-mono font-bold text-foreground">#{orderSuccess.shortId}</span> foi recebido com sucesso.
-                </p>
-                <p className="text-muted-foreground text-sm">
-                  Aguarde a confirmação do estabelecimento. 🍳
-                </p>
-              </div>
-              <button
-                onClick={() => { setOrderSuccess(null); setCheckoutOpen(false); }}
-                className="w-full py-3 rounded-xl font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: buttonColor }}
-              >
-                Voltar ao Cardápio
-              </button>
-            </div>
-          ) : (
-          <>
           <DrawerHeader className="border-b border-border pb-3">
             <DrawerTitle className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" style={{ color: buttonColor }} />
@@ -1608,44 +1523,9 @@ const UnitPage = () => {
                     <span className="font-medium">-{fmt(loyaltyDiscount)}</span>
                   </div>
                 )}
-                {couponData && couponDiscount > 0 && (
-                  <div className="flex items-center justify-between text-sm text-green-600">
-                    <span>🏷️ Cupom <span className="font-mono text-xs">({couponData.code})</span></span>
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">-{fmt(couponDiscount)}</span>
-                      <button onClick={removeCoupon} className="text-muted-foreground hover:text-destructive text-xs ml-1">✕</button>
-                    </div>
-                  </div>
-                )}
                 <div className="flex items-center justify-between pt-1 font-bold text-foreground border-t border-border/50">
                   <span>Total</span>
                   <span className="text-lg">{fmt(grandTotal)}</span>
-                </div>
-
-                {/* Campo de cupom */}
-                <div className="pt-2 space-y-1">
-                  <p className="text-xs text-muted-foreground">Possui um cupom de desconto?</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(null); }}
-                      onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
-                      placeholder="Digite o código"
-                      disabled={!!couponData}
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                    />
-                    <button
-                      onClick={couponData ? removeCoupon : applyCoupon}
-                      disabled={couponLoading || (!couponCode.trim() && !couponData)}
-                      className="px-4 py-2 text-sm font-semibold rounded-lg transition-colors disabled:opacity-40"
-                      style={{ backgroundColor: couponData ? "#ef4444" : buttonColor, color: "white" }}
-                    >
-                      {couponLoading ? "..." : couponData ? "Remover" : "Aplicar"}
-                    </button>
-                  </div>
-                  {couponError && <p className="text-xs text-destructive">{couponError}</p>}
-                  {couponData && <p className="text-xs text-green-600 font-medium">✅ Cupom aplicado! Desconto de {fmt(couponDiscount)}</p>}
                 </div>
               </div>
             </div>
@@ -2043,8 +1923,6 @@ const UnitPage = () => {
               )
             ) : null}
           </DrawerFooter>
-          </>
-          )}
         </DrawerContent>
       </Drawer>
 

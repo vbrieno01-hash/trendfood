@@ -15,8 +15,6 @@ export interface PrintableOrder {
   order_number?: number;
   payment_method?: string | null;
   order_items?: Array<{ id: string; name: string; quantity: number; price?: number; customer_name?: string | null }>;
-  discount_value?: number;
-  coupon_id?: string | null;
 }
 
 /** Map DB payment_method key → uppercase PT-BR label for thermal receipts */
@@ -103,7 +101,6 @@ export interface ReceiptTotals {
   subtotal: number;
   deliveryFee: number;
   deliveryFeeLabel: string; // "R$ 6,00" | "Grátis" | "Sob consulta"
-  discountValue: number;
   grandTotal: number;
 }
 
@@ -195,13 +192,11 @@ export function calcOrderTotals(
     }
   }
 
-  const discountValue = (order as any).discount_value ?? 0;
   return {
     subtotal,
     deliveryFee,
     deliveryFeeLabel,
-    discountValue,
-    grandTotal: Math.max(0, subtotal + deliveryFee - discountValue),
+    grandTotal: subtotal + deliveryFee,
   };
 }
 

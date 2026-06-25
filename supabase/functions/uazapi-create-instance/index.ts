@@ -103,37 +103,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
-      // Reaplica webhook (corrige instâncias criadas antes do webhook ser configurado)
-      const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
-      let webhookOk = false;
-      try {
-        const whRes = await fetch(`${serverUrl}/webhook`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", token: existing.instance_token },
-          body: JSON.stringify({
-            enabled: true,
-            url: webhookUrl,
-            events: ["messages"],
-            excludeMessages: ["wasSentByApi", "isGroupYes"],
-            addUrlEvents: false,
-            addUrlTypesMessages: false,
-          }),
-        });
-        webhookOk = whRes.ok;
-        if (webhookOk) {
-          await supabase.from("whatsapp_instances")
-            .update({ webhook_configured: true })
-            .eq("id", existing.id);
-        }
-      } catch { /* silencioso */ }
-
       // Tenta pegar QR atual
       const qr = await fetchQr(serverUrl, existing.instance_token);
       return new Response(
         JSON.stringify({
           ok: true,
           existed: true,
-          webhook_reapplied: webhookOk,
           instance: existing,
           qrcode: qr.qrcode,
           status: qr.status,
@@ -250,12 +225,10 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "Content-Type": "application/json", token: instanceToken },
         body: JSON.stringify({
-          enabled: true,
           url: webhookUrl,
           events: ["messages"],
-          excludeMessages: ["wasSentByApi", "isGroupYes"],
+          excludeMessages: ["fromMe"],
           addUrlEvents: false,
-          addUrlTypesMessages: false,
         }),
       });
       webhookConfigured = whRes.ok;
@@ -333,38 +306,30 @@ Deno.serve(async (req) => {
 });
 
 async function fetchQr(serverUrl: string, instanceToken: string): Promise<{ qrcode: string | null; status: string | null }> {
-  // Tenta /instance/connect (gera QR) e depois /instance/qrcode (busca QR gerado)
-  const endpoints = [
-    { path: "/instance/connect", method: "POST", body: JSON.stringify({}) },
-    { path: "/instance/qrcode", method: "GET", body: undefined },
-    { path: "/instance/status", method: "GET", body: undefined },
-  ];
-  for (const ep of endpoints) {
-    try {
-      const res = await fetch(`${serverUrl}${ep.path}`, {
-        method: ep.method,
-        headers: { "Content-Type": "application/json", token: instanceToken },
-        ...(ep.body ? { body: ep.body } : {}),
-      });
-      if (!res.ok) continue;
-      const data = await res.json();
-      console.log(`[fetchQr] ${ep.path} response:`, JSON.stringify(data).slice(0, 300));
-      const qrcode =
-        data?.instance?.qrcode ||
-        data?.qrcode ||
-        data?.qrCode ||
-        data?.base64 ||
-        null;
-      const status =
-        data?.instance?.status ||
-        data?.status ||
-        null;
-      if (qrcode) return { qrcode, status };
-    } catch (e) {
-      console.error(`[fetchQr] ${ep.path} error:`, (e as Error).message);
+  try {
+    const res = await fetch(`${serverUrl}/instance/connect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token: instanceToken },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) {
+      return { qrcode: null, status: null };
     }
+    const data = await res.json();
+    const qrcode =
+      data?.instance?.qrcode ||
+      data?.qrcode ||
+      data?.qrCode ||
+      null;
+    const status =
+      data?.instance?.status ||
+      data?.status ||
+      null;
+    return { qrcode, status };
+  } catch (e) {
+    console.error("fetchQr error:", (e as Error).message);
+    return { qrcode: null, status: null };
   }
-  return { qrcode: null, status: null };
 }
 
 // Lê credenciais Uazapi do platform_config (admin) com fallback para env vars.

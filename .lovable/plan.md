@@ -1,80 +1,76 @@
+## Objetivo
+Tornar a integração com Uazapi 100% dinâmica, com credenciais mestre configuráveis pelo Admin e um toggle por loja ("Permitir Robô de WhatsApp") controlando o acesso ao recurso.
 
-## Estado atual
+## O que já existe (vamos reaproveitar)
+- Edge functions `uazapi-create-instance`, `uazapi-disconnect`, `uazapi-instance-status`, `whatsapp-webhook` — já criam instância, configuram webhook (`events: ["messages"]`) e retornam QR.
+- Tabela `whatsapp_instances` (token, status, webhook_configured, phone_connected).
+- Tela do lojista (`AIBotTab`) que renderiza QR e faz polling.
+- Flag global `platform_config.whatsapp_enabled` (libera/desabilita o recurso globalmente).
 
-Já existe a infra do modo automático, mas **desconectada**:
+## O que falta (foco desta entrega)
 
-- Função `wa_enqueue_status(org, order, event)` que insere mensagens no `whatsapp_outbox` usando templates de `organizations.wa_auto_status` (gate atual: só `wa_auto_status.enabled=true`).
-- Função `tg_orders_wa_auto_status()` existe mas **não está anexada como trigger** na tabela `orders`.
-- Edge function `process-wa-outbox` consome a fila e envia via Uazapi (com `whatsapp_instances` da loja).
-- Existem ainda as funções manuais `uazapi-notify-customer` (status) e `uazapi-notify-owner` (novo pedido), chamadas em `useOrders.ts`, `useCourier.ts` e `UnitPage.tsx` — hoje gated por `whatsapp_bot_allowed=true`, ou seja, **só rodam quando o robô está liberado**.
-- Flag `organizations.whatsapp_bot_allowed` já existe (admin controla).
+### 1. Credenciais mestre Uazapi configuráveis pelo Admin
+Hoje `UAZAPI_SERVER_URL` e `UAZAPI_ADMIN_TOKEN` são secrets de ambiente fixos. Vamos:
+- Adicionar 2 colunas em `platform_config`: `uazapi_server_url text` e `uazapi_admin_token text` (token guardado server-side; nunca exposto ao cliente).
+- Ajustar policy de SELECT para esconder o token do público (apenas admin lê o token; demais campos continuam públicos).
+- Criar seção "Uazapi (WhatsApp Master)" dentro do painel Admin → aba Capacidade/Plataforma com 2 inputs (URL + Token mascarado) e botão "Testar conexão" (chama `uazapi-server-info`).
+- Edge functions passam a ler primeiro do `platform_config`; se vazio, caem no env var (compatibilidade).
 
-Problema: mesmo com o robô liberado nada dispara automaticamente (trigger ausente) e, se eu plugar o trigger, vou duplicar com as chamadas manuais do frontend.
+### 2. Toggle por loja "Permitir Robô de WhatsApp"
+- Nova coluna `organizations.whatsapp_bot_allowed boolean NOT NULL DEFAULT false`.
+- Apenas admin pode alterar (via policy já existente de admin) — criamos RPC `admin_set_whatsapp_bot_allowed(org_id, allowed)` para garantir.
+- No `AdminStoreManager` (lista de lojas): adicionar uma coluna/switch "Robô WhatsApp" em cada linha, com toast de confirmação.
 
-## Decisão de modos
+### 3. Gating no dashboard do lojista
+- `AIBotTab` já checa `whatsapp_enabled` global. Adicionar checagem da flag por loja:
+  - Se `whatsapp_bot_allowed = false` → tela bloqueada com mensagem amigável:
+    > "O recurso de Robô de WhatsApp não está ativo no seu plano. Entre em contato com o suporte para liberar."
+  - Botão "Falar com suporte" abre o `SupportChatWidget`.
+- Edge function `uazapi-create-instance` valida server-side `whatsapp_bot_allowed` antes de criar instância (defesa em profundidade) e retorna 403 amigável.
 
-| Modo     | Critério                                            | Comportamento                                                                                                              |
-| -------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Manual   | `whatsapp_bot_allowed = false` **ou** sem instância | Lojista usa botões de "avisar cliente" e o fluxo público continua igual. Nenhum envio automático.                          |
-| Automático | `whatsapp_bot_allowed = true` **e** instância conectada | Triggers do banco enfileiram em `whatsapp_outbox` em todas as transições. Frontend não envia mais nada por conta própria. |
+### 4. Tratamento de limite de instâncias
+- Em `uazapi-create-instance`, se Uazapi devolver 402/429/erro de quota, propagar mensagem clara ("Limite de instâncias Uazapi atingido — contate o admin"); admin recebe notificação via Telegram (`notify_admin_telegram` com novo evento `uazapi_quota_exceeded`).
 
-## Mudanças
+## Detalhes técnicos
 
-### 1. Banco (migration única)
+**Migration:**
+```sql
+ALTER TABLE public.platform_config
+  ADD COLUMN IF NOT EXISTS uazapi_server_url text,
+  ADD COLUMN IF NOT EXISTS uazapi_admin_token text;
 
-- **Reescrever `wa_enqueue_status`** para:
-  - Gate principal: `organizations.whatsapp_bot_allowed = true` (não mais o `wa_auto_status.enabled`, que vira opcional/legado).
-  - Verificar plano via `get_effective_plan(org) IN ('pro','enterprise','lifetime')`.
-  - Exigir instância em `whatsapp_instances` com status `connected|open` — senão registra `skipped` em `whatsapp_notification_log` e sai (falha silenciosa).
-  - Anti-duplicata: ignorar se já existe linha em `whatsapp_outbox` ou `whatsapp_notification_log` para o mesmo `(order_id, event_type)` nos últimos 60s.
-  - Templates: se a loja tiver `wa_auto_status.templates[event]` usa, senão usa **template padrão embutido** (cobre os textos exigidos pelo usuário, com `{nome}`, `{numero}`, `{total}`).
-  - Normalizar telefone (já feito em `wa_extract_phone`, mantém).
+ALTER TABLE public.organizations
+  ADD COLUMN IF NOT EXISTS whatsapp_bot_allowed boolean NOT NULL DEFAULT false;
 
-- **Reescrever `tg_orders_wa_auto_status`** para cobrir:
-  - `INSERT`: enfileira `new_order_customer` (msg pro cliente "recebemos seu pedido") **e** `new_order_owner` (msg pro dono, usando `organizations.whatsapp`).
-  - `UPDATE` quando muda `status`: `preparing`, `ready_pickup`/`ready_delivery` (decidido por `TIPO` nas notes), `out_for_delivery` (quando entra em `deliveries`/status `dispatched`), `delivered`, `cancelled`.
-  - Para evento `new_order_owner`, enfileira com `phone = organizations.whatsapp` (em vez de extrair das notes).
+-- Esconder admin_token do público: trocar policy de SELECT por view/coluna mascarada
+CREATE OR REPLACE VIEW public.platform_config_public AS
+  SELECT id, delivery_config, apk_url, exe_url, default_trial_days,
+         ifood_enabled, whatsapp_enabled, uazapi_server_url,
+         (uazapi_admin_token IS NOT NULL) AS uazapi_configured
+  FROM public.platform_config;
+GRANT SELECT ON public.platform_config_public TO anon, authenticated;
 
-- **Criar o trigger** de fato:
-  ```sql
-  CREATE TRIGGER trg_orders_wa_auto_status
-    AFTER INSERT OR UPDATE OF status ON public.orders
-    FOR EACH ROW EXECUTE FUNCTION public.tg_orders_wa_auto_status();
-  ```
+-- RPC admin
+CREATE OR REPLACE FUNCTION public.admin_set_whatsapp_bot_allowed(_org_id uuid, _allowed boolean)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+  IF NOT public.has_role(auth.uid(),'admin') THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+  UPDATE public.organizations SET whatsapp_bot_allowed=_allowed WHERE id=_org_id;
+END $$;
+```
 
-- **Trigger "saiu para entrega"**: adicionar `tg_deliveries_wa_dispatched` em `public.deliveries` (AFTER UPDATE quando muda para `dispatched`/equivalente) chamando `wa_enqueue_status(..., 'out_for_delivery')`.
+**Frontend:**
+- `usePlatformFeatureFlags` → adiciona `uazapi_configured`, `uazapi_server_url`.
+- Novo componente `UazapiMasterConfigSection` (Admin).
+- `AdminStoreManager` → coluna Switch ligada ao RPC.
+- `AIBotTab` → busca `whatsapp_bot_allowed` da própria org e exibe `LockedFeatureBanner` se false.
 
-- **pg_cron**: garantir job a cada 1 min chamando `process-wa-outbox` (se já não existir). Será criado via `supabase--insert` numa segunda etapa pois usa anon key.
-
-### 2. Edge function `process-wa-outbox`
-
-- Continua como está, mas grava sempre em `whatsapp_notification_log` (status `sent`/`failed`/`skipped`) para auditoria por pedido.
-- Em caso de instância desconectada/erro Uazapi: marca outbox como `failed`, registra no log e **não propaga** (cozinha nunca trava).
-
-### 3. Frontend (evitar duplicação)
-
-Nos pontos onde hoje chamamos `uazapi-notify-customer` / `uazapi-notify-owner`, passar a checar `whatsapp_bot_allowed` da org carregada e:
-
-- Se `true` (modo automático) → **não chamar** nada (trigger cuida).
-- Se `false` (modo manual) → manter o comportamento atual (botão manual do lojista, se houver) — sem novos disparos automáticos.
-
-Arquivos: `src/hooks/useOrders.ts`, `src/hooks/useCourier.ts`, `src/pages/UnitPage.tsx`.
-
-`WhatsAppAutoStatusCard.tsx` continua editando os templates (agora opcionais/customização), mas a flag de liga/desliga real é a `whatsapp_bot_allowed` controlada pelo admin — adicionar nota na UI.
-
-### 4. Robustez
-
-- Telefone: `wa_extract_phone` já normaliza; `process-wa-outbox` reaplica prefixo 55.
-- Dedup: índice parcial novo em `whatsapp_outbox(order_id, event_type)` para `created_at > now()-60s` + check explícito no `wa_enqueue_status`.
-- Falha silenciosa: triggers usam `EXCEPTION WHEN OTHERS THEN RETURN NEW/NULL` ao redor do enqueue.
+**Edge functions:**
+- Helper `getUazapiConfig(supabase)` que lê `platform_config` (token via service_role) com fallback para env.
+- `uazapi-create-instance`: 1) checa `whatsapp_bot_allowed`; 2) usa config dinâmica; 3) tratamento de quota.
 
 ## Fora do escopo
-
-- Não muda o painel admin nem o fluxo de conexão/QR.
-- Não mexe no bot conversacional (`ai-bot-respond`) nem em `fila_whatsapp`.
-- Não altera o design.
-
-## Resultado
-
-- Loja com robô ligado: ao criar pedido, dono recebe alerta no WhatsApp e cliente recebe confirmação automaticamente; a cada mudança de status no painel Cozinha, cliente recebe mensagem sem clique nenhum.
-- Loja sem robô: nada muda em relação ao fluxo de hoje.
+- Não alterar fluxo do webhook nem do bot AI (já funcionam).
+- Não mexer em design/tema; reuso de `admin-glass`, `Switch`, `LockedFeatureBanner`.

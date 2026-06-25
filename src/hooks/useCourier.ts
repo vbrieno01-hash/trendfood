@@ -210,10 +210,10 @@ export function useAcceptDelivery() {
         .eq("id", orderId)
         .single();
 
-      // Notificação automática: saiu para entrega (se bot ativo)
-      supabase.functions.invoke("process-wa-outbox", {
+      // Fire-and-forget: notifica cliente que o pedido saiu para entrega
+      supabase.functions.invoke("uazapi-notify-customer", {
         body: { order_id: orderId, event: "out_for_delivery" },
-      }).catch(() => {});
+      }).catch(() => {}); // falha silenciosa, nao bloqueia o motoboy
 
       return { notes: order?.notes ?? null };
     },
