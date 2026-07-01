@@ -183,10 +183,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Envio via UazAPI /message/text ────────────────────────────────────
+    // ── Envio via UazAPI /send/text ────────────────────────────────────
     let sendError: string | null = null;
     try {
-      const res = await fetch(`${serverUrl}/message/text`, {
+      const res = await fetch(`${serverUrl}/send/text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
