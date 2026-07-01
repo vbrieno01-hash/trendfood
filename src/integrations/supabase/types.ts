@@ -1852,7 +1852,9 @@ export type Database = {
       orders: {
         Row: {
           cancellation_reason: string | null
+          coupon_id: string | null
           created_at: string
+          discount_value: number
           gateway_payment_id: string | null
           id: string
           ifood_cancellation_requested_at: string | null
@@ -1875,7 +1877,9 @@ export type Database = {
         }
         Insert: {
           cancellation_reason?: string | null
+          coupon_id?: string | null
           created_at?: string
+          discount_value?: number
           gateway_payment_id?: string | null
           id?: string
           ifood_cancellation_requested_at?: string | null
@@ -1898,7 +1902,9 @@ export type Database = {
         }
         Update: {
           cancellation_reason?: string | null
+          coupon_id?: string | null
           created_at?: string
+          discount_value?: number
           gateway_payment_id?: string | null
           id?: string
           ifood_cancellation_requested_at?: string | null
@@ -1920,6 +1926,13 @@ export type Database = {
           table_number?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_organization_id_fkey"
             columns: ["organization_id"]
@@ -3129,6 +3142,41 @@ export type Database = {
           },
         ]
       }
+      whatsapp_notification_log: {
+        Row: {
+          created_at: string
+          error: string | null
+          event: string
+          id: string
+          order_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event: string
+          id?: string
+          order_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event?: string
+          id?: string
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_notification_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_outbox: {
         Row: {
           attempts: number
@@ -3433,6 +3481,10 @@ export type Database = {
         Returns: undefined
       }
       toggle_cleanup_dry_run: { Args: { _dry_run: boolean }; Returns: Json }
+      validate_coupon: {
+        Args: { _code: string; _order_total?: number; _organization_id: string }
+        Returns: Json
+      }
       validate_coupon_by_code: {
         Args: { _cart_total: number; _code: string; _org_id: string }
         Returns: Json
