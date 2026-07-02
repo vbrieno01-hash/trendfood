@@ -23,7 +23,9 @@ Deno.serve(async (req) => {
     const supabaseAuth = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claims } = await supabaseAuth.auth.getClaims(token);
+    const user = claims?.claims ? { id: claims.claims.sub as string } : null;
     if (!user) return json({ error: "unauthorized" }, 401);
 
     // Apenas admins podem ver diagnóstico do servidor
