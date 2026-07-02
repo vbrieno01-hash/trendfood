@@ -129,6 +129,28 @@ export default function SettingsTab() {
     }
   };
 
+  const handleToggleSingleChoiceAddons = async (checked: boolean) => {
+    if (!currentOrg?.id) return;
+    setSingleChoiceLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ single_choice_addons: checked } as any)
+        .eq("id", currentOrg.id);
+      if (error) throw error;
+      setSingleChoiceAddons(checked);
+      toast.success(
+        checked
+          ? "Adicionais agora s\u00e3o de escolha \u00fanica por padr\u00e3o."
+          : "Adicionais voltaram ao modo m\u00faltiplo por padr\u00e3o.",
+      );
+    } catch {
+      toast.error("Erro ao alterar configura\u00e7\u00e3o.");
+    } finally {
+      setSingleChoiceLoading(false);
+    }
+  };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
