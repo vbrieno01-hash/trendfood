@@ -106,6 +106,30 @@ Deno.serve(async (req) => {
       console.error("status check error:", (e as Error).message);
     }
 
+    // Se não veio QR do /instance/status e a instância não está conectada,
+    // busca o QR direto do /instance/connect (endpoint que gera o pareamento).
+    if (!qrcode && liveStatus !== "connected") {
+      try {
+        const cres = await fetch(`${serverUrl}/instance/connect`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", token: inst.instance_token },
+          body: JSON.stringify({}),
+        });
+        if (cres.ok) {
+          const cdata = await cres.json();
+          qrcode = cdata?.instance?.qrcode || cdata?.qrcode || cdata?.qrCode || null;
+          const cStatus = cdata?.instance?.status || cdata?.status || null;
+          if (!liveStatus && cStatus) {
+            if (cStatus === "open" || cStatus === "connected") liveStatus = "connected";
+            else if (cStatus === "close" || cStatus === "disconnected" || cStatus === "logout") liveStatus = "disconnected";
+            else liveStatus = cStatus;
+          }
+        }
+      } catch (e) {
+        console.error("connect fallback error:", (e as Error).message);
+      }
+    }
+
     // Sincronizar mudanças no banco
     const updates: Record<string, unknown> = {};
     if (liveStatus && liveStatus !== inst.status) updates.status = liveStatus;
