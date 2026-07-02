@@ -307,7 +307,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchQr(serverUrl: string, instanceToken: string): Promise<{ qrcode: string | null; status: string | null }> {
+async function tryConnect(serverUrl: string, instanceToken: string): Promise<{ qrcode: string | null; status: string | null }> {
   try {
     const res = await fetch(`${serverUrl}/instance/connect`, {
       method: "POST",
@@ -332,6 +332,17 @@ async function fetchQr(serverUrl: string, instanceToken: string): Promise<{ qrco
     console.error("fetchQr error:", (e as Error).message);
     return { qrcode: null, status: null };
   }
+}
+
+async function fetchQr(serverUrl: string, instanceToken: string): Promise<{ qrcode: string | null; status: string | null }> {
+  let last: { qrcode: string | null; status: string | null } = { qrcode: null, status: null };
+  for (let i = 0; i < 4; i++) {
+    last = await tryConnect(serverUrl, instanceToken);
+    if (last.qrcode) return last;
+    if (last.status === "connected" || last.status === "open") return last;
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  return last;
 }
 
 // Lê credenciais Uazapi do platform_config (admin) com fallback para env vars.
