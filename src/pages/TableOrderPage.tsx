@@ -261,9 +261,13 @@ export default function TableOrderPage() {
     try {
       let finalNotes = notes;
       if (appliedCoupon) {
+        const descontoStr = discount > 0 ? discount.toFixed(2).replace(".", ",") : null;
         finalNotes = finalNotes
           ? `${finalNotes} | CUPOM:${appliedCoupon.code}`
           : `CUPOM:${appliedCoupon.code}`;
+        if (descontoStr) {
+          finalNotes = `${finalNotes}|DESCONTO:${descontoStr}`;
+        }
       }
 
       const pixMode = org.pix_confirmation_mode ?? "direct";
