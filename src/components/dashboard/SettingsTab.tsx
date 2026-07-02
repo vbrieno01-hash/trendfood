@@ -283,6 +283,31 @@ export default function SettingsTab() {
         </div>
       </div>
 
+      {/* Adicionais: escolha \u00fanica padr\u00e3o */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Scale className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Adicionais</p>
+        </div>
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Escolha \u00fanica em todos os adicionais</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[280px]">
+                {singleChoiceAddons
+                  ? "Cliente s\u00f3 pode escolher 1 adicional por produto (sem quantidade). Voc\u00ea pode liberar exce\u00e7\u00f5es marcando adicionais como 'm\u00faltiplo' no card\u00e1pio."
+                  : "Ideal para pizzarias: evita que o cliente marque v\u00e1rias bordas/sabores. Ligue e sobrescreva por adicional quando precisar liberar m\u00faltiplas escolhas."}
+              </p>
+            </div>
+            <Switch
+              checked={singleChoiceAddons}
+              onCheckedChange={handleToggleSingleChoiceAddons}
+              disabled={singleChoiceLoading}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Scheduling config */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
         <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
