@@ -98,10 +98,17 @@ export default function ThermalReceipt({ data }: ThermalReceiptProps) {
       )}
       {data.totals.subtotal > 0 && (
         <>
-          {(data.totals.deliveryFee > 0 || data.totals.deliveryFeeLabel) && (
+          {(data.totals.deliveryFee > 0 || data.totals.deliveryFeeLabel || (data.couponDiscount && data.couponDiscount > 0)) && (
             <>
               <div className="text-right mt-1">SUBTOTAL: R$ {fmt(data.totals.subtotal)}</div>
-              <div className="text-right">TX ENTREGA: {san(data.totals.deliveryFeeLabel)}</div>
+              {data.couponDiscount && data.couponDiscount > 0 ? (
+                <div className="text-right">
+                  {san(data.couponCode ? `CUPOM ${data.couponCode}` : "DESCONTO")}: -R$ {fmt(data.couponDiscount)}
+                </div>
+              ) : null}
+              {(data.totals.deliveryFee > 0 || data.totals.deliveryFeeLabel) && (
+                <div className="text-right">TX ENTREGA: {san(data.totals.deliveryFeeLabel)}</div>
+              )}
             </>
           )}
           <div className="text-right font-bold text-[13px]">TOTAL: R$ {fmt(data.totals.grandTotal)}</div>

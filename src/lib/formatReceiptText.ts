@@ -26,6 +26,7 @@ export interface ParsedNotes {
   obs?: string;
   agendado?: string;
   cupom?: string;
+  desconto?: string;
   coleta?: string;
   ifoodDisplay?: string;
   raw?: string;
@@ -58,6 +59,7 @@ export function parseNotes(notes: string): ParsedNotes {
     obs: parts["OBS"] || undefined,
     agendado: parts["AGENDADO"] || undefined,
     cupom: parts["CUPOM"] || undefined,
+    desconto: parts["DESCONTO"] || undefined,
     coleta: parts["COLETA"] || undefined,
     ifoodDisplay: parts["IFOOD_DISPLAY"] || undefined,
   };
@@ -209,10 +211,17 @@ function formatFromData(data: ReceiptData): string {
   }
 
   const { subtotal, deliveryFee, deliveryFeeLabel, grandTotal } = data.totals;
+  const hasCoupon = !!(data.couponDiscount && data.couponDiscount > 0);
   if (subtotal > 0) {
-    if (deliveryFee > 0 || deliveryFeeLabel) {
+    if (deliveryFee > 0 || deliveryFeeLabel || hasCoupon) {
       lines.push(rightAlign(`Subtotal: R$ ${fmt(subtotal)}`, cols));
-      lines.push(rightAlign(`Tx Entrega: ${deliveryFeeLabel}`, cols));
+      if (hasCoupon) {
+        const label = data.couponCode ? `Cupom ${data.couponCode}` : "Desconto";
+        lines.push(rightAlign(`${label}: -R$ ${fmt(data.couponDiscount!)}`, cols));
+      }
+      if (deliveryFee > 0 || deliveryFeeLabel) {
+        lines.push(rightAlign(`Tx Entrega: ${deliveryFeeLabel}`, cols));
+      }
     }
     lines.push(bold(rightAlign(`TOTAL: R$ ${fmt(grandTotal)}`, cols)));
   }
