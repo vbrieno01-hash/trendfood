@@ -26,6 +26,28 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Ignorar mensagens automáticas de pedido/notificação (o bot não deve responder a si mesmo
+    // nem a mensagens enviadas pelo sistema da loja). Se o texto casar com padrões de notificação
+    // automática, retornar silenciosamente.
+    const autoPatterns = [
+      /novo pedido/i,
+      /pedido\s*(#|n[º°o]|num)/i,
+      /pedido\s+(aceito|confirmado|em prepara|pronto|despachado|saiu para entrega|entregue|cancelado|recusado)/i,
+      /(aceito|confirmado|despachado|entregue|cancelado|recusado)\s*[!.:]/i,
+      /^\s*(itens?|total|subtotal|forma de pagamento|troco|endere[çc]o de entrega)\s*[:\-]/im,
+      /saiu para entrega/i,
+      /seu pedido/i,
+      /obrigado pela prefer[êe]ncia/i,
+      /acompanhe seu pedido/i,
+    ];
+    if (autoPatterns.some((re) => re.test(message))) {
+      console.log("[ai-bot] skipped auto-notification message");
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: "auto_notification" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Rate limit: 1 req/seg por phone
     const now = Date.now();
     const last = lastReqByPhone.get(phone) ?? 0;
