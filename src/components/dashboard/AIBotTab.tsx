@@ -501,17 +501,13 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="model">Modelo de IA</Label>
-              <select
-                id="model"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={config.model}
-                onChange={(e) => setConfig({ ...config, model: e.target.value })}
-              >
-                <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (rápido, recomendado)</option>
-                <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (mais econômico)</option>
-                <option value="google/gemini-2.5-pro">Gemini 2.5 Pro (mais inteligente)</option>
-              </select>
+              <Label>Modelo de IA</Label>
+              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                Llama 3.3 70B (Groq) — grátis e rápido
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Modelo fixo, sem custo adicional.
+              </p>
             </div>
 
             <Button onClick={saveConfig} disabled={saving}>
