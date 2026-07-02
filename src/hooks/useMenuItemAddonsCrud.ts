@@ -10,6 +10,7 @@ export interface MenuItemAddon {
   available: boolean;
   sort_order: number;
   created_at: string;
+  single_choice: boolean | null;
 }
 
 /** List ALL addons for a menu item (including unavailable — for admin panel) */
@@ -57,7 +58,7 @@ export function useAddMenuItemAddon() {
 export function useUpdateMenuItemAddon() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, menuItemId, ...fields }: { id: string; menuItemId: string; name?: string; price_cents?: number; available?: boolean; sort_order?: number }) => {
+    mutationFn: async ({ id, menuItemId, ...fields }: { id: string; menuItemId: string; name?: string; price_cents?: number; available?: boolean; sort_order?: number; single_choice?: boolean | null }) => {
       const { error } = await supabase
         .from("menu_item_addons")
         .update(fields)
