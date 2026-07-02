@@ -9,6 +9,7 @@ export interface GlobalAddon {
   available: boolean;
   sort_order: number;
   created_at: string;
+  single_choice: boolean | null;
 }
 
 /** Available global addons for client-facing menu */
