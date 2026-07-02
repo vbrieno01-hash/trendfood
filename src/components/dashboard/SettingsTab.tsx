@@ -37,13 +37,15 @@ export default function SettingsTab() {
   const [acceptsDelivery, setAcceptsDelivery] = useState(true);
   const [acceptsPickup, setAcceptsPickup] = useState(true);
   const [serviceModesLoading, setServiceModesLoading] = useState(false);
+  const [singleChoiceAddons, setSingleChoiceAddons] = useState(false);
+  const [singleChoiceLoading, setSingleChoiceLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open, scheduling_config, tax_regime, service_modes")
+        .select("force_open, scheduling_config, tax_regime, service_modes, single_choice_addons")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
@@ -59,6 +61,7 @@ export default function SettingsTab() {
             const sm = (data as any).service_modes as { delivery?: boolean; pickup?: boolean } | null;
             setAcceptsDelivery(sm?.delivery !== false);
             setAcceptsPickup(sm?.pickup !== false);
+            setSingleChoiceAddons(!!(data as any).single_choice_addons);
           }
         });
     }
