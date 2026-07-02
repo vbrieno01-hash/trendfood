@@ -434,7 +434,7 @@ function AddonsSection({ menuItemId, organizationId, hideGlobalAddons, onToggleH
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground font-medium">Adicionais deste produto</p>
           {addons.map((a) => (
-            <div key={a.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded px-2.5 py-1.5">
+            <div key={a.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded px-2.5 py-1.5 flex-wrap">
               <Switch
                 checked={a.available}
                 onCheckedChange={(v) => updateAddon.mutate({ id: a.id, menuItemId, available: v })}
@@ -444,6 +444,16 @@ function AddonsSection({ menuItemId, organizationId, hideGlobalAddons, onToggleH
               <span className="text-muted-foreground text-xs tabular-nums whitespace-nowrap">
                 +R$ {(a.price_cents / 100).toFixed(2).replace(".", ",")}
               </span>
+              <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground font-semibold cursor-pointer select-none whitespace-nowrap">
+                <Switch
+                  checked={a.single_choice === true}
+                  onCheckedChange={(v) =>
+                    updateAddon.mutate({ id: a.id, menuItemId, single_choice: v ? true : null })
+                  }
+                  className="scale-75"
+                />
+                \u00danica
+              </label>
               <Button
                 type="button"
                 variant="ghost"
