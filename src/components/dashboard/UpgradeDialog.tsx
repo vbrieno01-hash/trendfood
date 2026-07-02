@@ -34,9 +34,10 @@ interface UpgradeDialogProps {
   orgId: string;
   currentPlan: string;
   promoEligible?: boolean;
+  subscriptionExpired?: boolean;
 }
 
-export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, promoEligible }: UpgradeDialogProps) {
+export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, promoEligible, subscriptionExpired }: UpgradeDialogProps) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -170,7 +171,7 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
                     ? `Equivalente a R$ ${((plan.quarterly_price_cents / 3) / 100).toFixed(2).replace(".", ",")}/mês`
                     : undefined;
                 const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
-                const isSamePlan = currentPlan === plan.key;
+                const isSamePlan = !subscriptionExpired && currentPlan === plan.key;
 
                 // Promo pricing: half price for first month (monthly only)
                 const showPromo = promoEligible && selectedBilling === "monthly" && !isSamePlan;
