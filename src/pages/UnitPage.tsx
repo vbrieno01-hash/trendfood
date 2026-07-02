@@ -931,7 +931,7 @@ const UnitPage = () => {
         .filter((l) => l !== null)
         .join("\n");
 
-      const url = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
+      const url = `https://wa.me/${cleanWa}?text=${encodeURIComponent(lines)}`;
       if (!hasActiveBot) openWhatsAppWithFallback(url, { mode: "operational" });
     }
 
