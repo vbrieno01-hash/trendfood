@@ -10,6 +10,7 @@ export interface GlobalAddon {
   available: boolean;
   sort_order: number;
   created_at: string;
+  single_choice: boolean | null;
 }
 
 /** All global addons for admin panel (including unavailable) */
@@ -58,7 +59,7 @@ export function useAddGlobalAddon() {
 export function useUpdateGlobalAddon() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, organizationId, ...fields }: { id: string; organizationId: string; name?: string; price_cents?: number; available?: boolean; sort_order?: number }) => {
+    mutationFn: async ({ id, organizationId, ...fields }: { id: string; organizationId: string; name?: string; price_cents?: number; available?: boolean; sort_order?: number; single_choice?: boolean | null }) => {
       const { error } = await supabase
         .from("global_addons" as any)
         .update(fields)
