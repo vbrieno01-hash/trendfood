@@ -188,6 +188,37 @@ Deno.serve(async (req) => {
     if (effectiveOrgId) historyQuery = historyQuery.eq("organization_id", effectiveOrgId);
     const { data: history } = await historyQuery;
 
+    // Saudação: primeira mensagem da conversa e greeting_message configurada
+    const greetingMessage: string | null = (config?.greeting_message || "").toString().trim() || null;
+    if ((!history || history.length === 0) && greetingMessage) {
+      let sentGreet = false;
+      let greetErr: string | null = null;
+      try {
+        const sendRes = await fetch(`${effectiveServerUrl}/send/text`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", token: effectiveToken },
+          body: JSON.stringify({ number: phone, text: greetingMessage }),
+        });
+        sentGreet = sendRes.ok;
+        if (!sendRes.ok) greetErr = await sendRes.text();
+      } catch (e) {
+        greetErr = (e as Error).message;
+      }
+      await supabase.from("fila_whatsapp").insert({
+        phone,
+        incoming_message: message,
+        ai_response: greetingMessage,
+        status: "respondido",
+        responded_at: new Date().toISOString(),
+        organization_id: effectiveOrgId,
+      });
+      console.log(`[ai-bot] greeting-sent org=${effectiveOrgId ?? "null"} ok=${sentGreet}`);
+      return new Response(
+        JSON.stringify({ ok: true, greeting: true, sent: sentGreet, sendError: greetErr }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const defaultPrompt = `Voce e um atendente de restaurante/lanchonete via WhatsApp. Educado, simpatico, profissional e direto.
 
 REGRAS DE FORMATO (WhatsApp puro):
@@ -208,12 +239,15 @@ REGRAS DE CONTEUDO:
 - Categorias sao titulos de secao, NUNCA cite "Bebidas" ou "Lanches" como se fosse um produto.
 
 REGRAS DE TOM:
-- Pedidos fora do escopo (ex: "quero uma casa", "voce vende carro?"): responda curto e com leve bom humor, redirecione para o cardapio.
-- Para fazer pedido, sempre oriente o cliente a usar o LINK do cardapio digital (a URL esta no contexto).
+- CONVERSE de verdade. Responda a pergunta do cliente PRIMEIRO com informacao real (horario, endereco, bairros, itens, precos) usando o contexto da loja.
+- NUNCA responda somente com um link/URL. Sempre escreva uma frase amigavel antes.
+- So envie o link do cardapio quando o cliente PEDIR explicitamente (ex: "manda o cardapio", "quero fazer pedido", "tem link?", "como peco?"). Fora disso, nao mande link.
+- Pedidos fora do escopo (ex: "quero uma casa", "voce vende carro?"): responda curto e com leve bom humor, e sugira algo do cardapio.
 - Nao prometa prazo de entrega especifico se nao tiver essa info.
 - Se perguntarem se esta aberto, use os horarios do contexto.
+- Termine com uma pergunta curta quando fizer sentido pra manter o papo (ex: "quer que eu te mande o cardapio?").
 
-Seja util, rapido e nao enrole.`;
+Seja util, humano, rapido e nao enrole.`;
 
     const systemPrompt = config?.system_prompt || defaultPrompt;
 
@@ -228,18 +262,18 @@ Seja util, rapido e nao enrole.`;
     }
     messages.push({ role: "user", content: message });
 
-    // 4) Chamar Groq (free tier — groq.com)
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+    // 4) Chamar Lovable AI Gateway (google/gemini-3-flash-preview)
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "google/gemini-3-flash-preview",
         messages,
         temperature: 0.7,
         max_tokens: 512,
@@ -268,6 +302,7 @@ Seja util, rapido e nao enrole.`;
     const reply =
       aiData.choices?.[0]?.message?.content ||
       "Desculpa, tive um problema aqui. Pode repetir?";
+    console.log(`[ai-bot] llm-reply len=${reply.length} hasLink=${/https?:\/\//.test(reply)}`);
 
     // 5) Enviar resposta de volta via uazapiGO
     let sent = false;
