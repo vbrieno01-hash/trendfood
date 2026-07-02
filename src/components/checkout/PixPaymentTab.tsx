@@ -86,7 +86,19 @@ const PixPaymentTab = ({ orgId, plan, planPrice, billing = "monthly", promo, onS
         body: { org_id: orgId, plan, cpf_cnpj: cleanDoc, payment_method: "pix", billing, promo: !!promo },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        let realMsg = error.message;
+        try {
+          const ctx = (error as any).context;
+          if (ctx?.json) {
+            const body = await ctx.json();
+            realMsg = body?.details || body?.error || realMsg;
+          } else if (ctx?.text) {
+            realMsg = (await ctx.text()) || realMsg;
+          }
+        } catch {}
+        throw new Error(realMsg);
+      }
       if (data?.error) throw new Error(data.details || data.error);
 
       if (!data.pix_qr_code) {
