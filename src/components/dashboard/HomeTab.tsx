@@ -37,6 +37,7 @@ import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
 import BannerRecoveryBanner from "@/components/dashboard/BannerRecoveryBanner";
+import PushActivationBanner from "@/components/dashboard/PushActivationBanner";
 
 interface Organization {
   id: string;
@@ -226,6 +227,9 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
 
   return (
     <div className="space-y-6">
+      {/* ── Push activation prompt (first-time users) ─────── */}
+      <PushActivationBanner orgId={organization.id} />
+
       {/* ── Header ────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 animate-dashboard-fade-in">
         <div>
