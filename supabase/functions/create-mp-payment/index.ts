@@ -38,15 +38,16 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: userError } = await supabase.auth.getClaims(token);
+    if (userError || !claimsData?.claims?.sub) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = userData.user.id;
-    const userEmail = userData.user.email!;
+    const userId = claimsData.claims.sub as string;
+    const userEmail = (claimsData.claims.email as string) || "";
 
     const { org_id, plan, cpf_cnpj, payment_method, card_token, billing = "monthly", promo = false } = await req.json();
 
