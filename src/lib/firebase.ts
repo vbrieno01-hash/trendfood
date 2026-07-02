@@ -4,7 +4,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyDx-fVj-1eYzoBAB0FJfONHTPmm2VVBnzk",
+  apiKey: "AIzaSyBtdi414REXN9kAkRypejagIQ-c7Kv09f0",
   authDomain: "mcd-notificacoes.firebaseapp.com",
   projectId: "mcd-notificacoes",
   storageBucket: "mcd-notificacoes.firebasestorage.app",
