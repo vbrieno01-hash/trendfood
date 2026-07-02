@@ -1201,6 +1201,7 @@ const DashboardPage = () => {
           orgId={organization.id}
           currentPlan={planLimits.plan}
           promoEligible={planLimits.promoEligible}
+          subscriptionExpired={planLimits.subscriptionExpired}
         />
       )}
 
