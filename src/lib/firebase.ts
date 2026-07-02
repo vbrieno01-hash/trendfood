@@ -17,7 +17,7 @@ export const firebaseConfig = {
 // Usada para inscrever navegadores no FCM Web Push.
 // (é pública por design — vai no bundle)
 export const FIREBASE_VAPID_PUBLIC_KEY =
-  "REPLACE_WITH_FIREBASE_VAPID_PUBLIC_KEY";
+  "BEcGI2Herp4qAQldiRlNlYCtJmRiCh-Aicx8X6E2Gc7CmAKrUCFlvRU9IydYr4W1E3mU0KSGp3Jyfcpw9M8qQn4";
 
 let cachedApp: FirebaseApp | null = null;
 
