@@ -28,6 +28,7 @@ import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 interface PlanData {
   key: string;
@@ -99,6 +100,8 @@ const PricingPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, organization } = useAuth();
   const currentPlan = organization?.subscription_plan || "free";
+  const planLimits = usePlanLimits(organization);
+  const subscriptionExpired = planLimits.subscriptionExpired;
   const [selectedPlan, setSelectedPlan] = useState<PlanData | null>(null);
   const [cardFormPlan, setCardFormPlan] = useState<PlanData | null>(null);
   const [plans, setPlans] = useState<PlanData[]>([]);
@@ -264,11 +267,14 @@ const PricingPage = () => {
                 : undefined;
             const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
             const orgBilling = organization?.billing_cycle || "monthly";
-            const isSamePlan = !!user && currentPlan === plan.key;
+            const isSamePlan = !!user && !subscriptionExpired && currentPlan === plan.key;
+            const isExpiredSamePlan = !!user && subscriptionExpired && currentPlan === plan.key;
             const billingMismatch = isSamePlan && plan.price_cents > 0 && selectedBilling !== orgBilling;
-            const ctaText = billingMismatch
-              ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
-              : plan.cta;
+            const ctaText = isExpiredSamePlan
+              ? "Renovar assinatura"
+              : billingMismatch
+                ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
+                : plan.cta;
             return (
               <PlanCard
                 key={plan.name}
