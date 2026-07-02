@@ -1,4 +1,30 @@
 import { openWhatsAppWithFallback } from "./whatsappRedirect";
+import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * Tenta enviar mensagem via bot (uazapi) automaticamente. Se não der (bot desligado,
+ * sem instância, ou erro), abre wa.me como fallback.
+ */
+async function sendOrFallback(
+  phone: string,
+  message: string,
+  organizationId?: string | null,
+) {
+  const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
+  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+
+  if (organizationId) {
+    try {
+      const { data } = await supabase.functions.invoke("whatsapp-send-auto", {
+        body: { organization_id: organizationId, phone, message },
+      });
+      if (data?.sent) return;
+    } catch (e) {
+      console.warn("[whatsappNotify] auto send failed, falling back to wa.me", e);
+    }
+  }
+  openWhatsAppWithFallback(url);
+}
 
 /**
  * Parse structured notes field to extract customer phone.
@@ -39,7 +65,8 @@ export function notifyCustomerWhatsApp(
   _orderNumber: number | string,
   storeName?: string,
   notes?: string | null,
-  loyaltyInfo?: { earned: number; total: number } | null
+  loyaltyInfo?: { earned: number; total: number } | null,
+  organizationId?: string | null,
 ) {
   const tipo = parseOrderTypeFromNotes(notes ?? null);
   const isDelivery = tipo === "Entrega";
@@ -63,10 +90,7 @@ export function notifyCustomerWhatsApp(
     loyaltyLine +
     (storeName ? `\n\n— ${storeName}` : "");
 
-  const encoded = encodeURIComponent(msg);
-  const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
-  const url = `https://wa.me/${fullPhone}?text=${encoded}`;
-  openWhatsAppWithFallback(url);
+  void sendOrFallback(phone, msg, organizationId);
 }
 
 /**
@@ -77,7 +101,8 @@ export function notifyCustomerReady(
   _orderNumber: number | string,
   storeName?: string,
   notes?: string | null,
-  reviewUrl?: string
+  reviewUrl?: string,
+  organizationId?: string | null,
 ) {
   const tipo = parseOrderTypeFromNotes(notes ?? null);
   const isDelivery = tipo === "Entrega";
@@ -92,8 +117,5 @@ export function notifyCustomerReady(
       reviewLine +
       (storeName ? `\n\n— ${storeName}` : "");
 
-  const encoded = encodeURIComponent(msg);
-  const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
-  const url = `https://wa.me/${fullPhone}?text=${encoded}`;
-  openWhatsAppWithFallback(url);
+  void sendOrFallback(phone, msg, organizationId);
 }
