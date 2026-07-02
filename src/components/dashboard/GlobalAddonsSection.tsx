@@ -62,7 +62,7 @@ export default function GlobalAddonsSection({ organizationId }: Props) {
             {addons.length > 0 && (
               <div className="space-y-1">
                 {addons.map((a) => (
-                  <div key={a.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded px-2.5 py-1.5">
+                  <div key={a.id} className="flex items-center gap-2 text-sm bg-secondary/50 rounded px-2.5 py-1.5 flex-wrap">
                     <Switch
                       checked={a.available}
                       onCheckedChange={(v) => updateAddon.mutate({ id: a.id, organizationId, available: v })}
@@ -72,6 +72,16 @@ export default function GlobalAddonsSection({ organizationId }: Props) {
                     <span className="text-muted-foreground text-xs tabular-nums whitespace-nowrap">
                       +R$ {(a.price_cents / 100).toFixed(2).replace(".", ",")}
                     </span>
+                    <label className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground font-semibold cursor-pointer select-none whitespace-nowrap">
+                      <Switch
+                        checked={a.single_choice === true}
+                        onCheckedChange={(v) =>
+                          updateAddon.mutate({ id: a.id, organizationId, single_choice: v ? true : null })
+                        }
+                        className="scale-75"
+                      />
+                      \u00danica
+                    </label>
                     <Button
                       type="button"
                       variant="ghost"
