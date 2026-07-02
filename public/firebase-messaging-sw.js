@@ -4,7 +4,7 @@ importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "AIzaSyDx-fVj-1eYzoBAB0FJfONHTPmm2VVBnzk",
+  apiKey: "AIzaSyBtdi414REXN9kAkRypejagIQ-c7Kv09f0",
   authDomain: "mcd-notificacoes.firebaseapp.com",
   projectId: "mcd-notificacoes",
   storageBucket: "mcd-notificacoes.firebasestorage.app",
