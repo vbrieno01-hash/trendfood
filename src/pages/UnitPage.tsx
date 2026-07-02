@@ -1947,6 +1947,7 @@ const UnitPage = () => {
         closedReason={storeStatus && !storeStatus.open ? (storeStatus as any).reason : undefined}
         storeStatus={storeStatus}
         organizationId={org.id}
+        singleChoiceAddonsDefault={!!(org as any).single_choice_addons}
       />
 
     </div>

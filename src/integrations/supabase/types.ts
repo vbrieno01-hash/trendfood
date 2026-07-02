@@ -1256,6 +1256,7 @@ export type Database = {
           name: string
           organization_id: string
           price_cents: number
+          single_choice: boolean | null
           sort_order: number
         }
         Insert: {
@@ -1267,6 +1268,7 @@ export type Database = {
           name: string
           organization_id: string
           price_cents?: number
+          single_choice?: boolean | null
           sort_order?: number
         }
         Update: {
@@ -1278,6 +1280,7 @@ export type Database = {
           name?: string
           organization_id?: string
           price_cents?: number
+          single_choice?: boolean | null
           sort_order?: number
         }
         Relationships: [
@@ -1723,6 +1726,7 @@ export type Database = {
           menu_item_id: string
           name: string
           price_cents: number
+          single_choice: boolean | null
           sort_order: number
         }
         Insert: {
@@ -1732,6 +1736,7 @@ export type Database = {
           menu_item_id: string
           name: string
           price_cents?: number
+          single_choice?: boolean | null
           sort_order?: number
         }
         Update: {
@@ -1741,6 +1746,7 @@ export type Database = {
           menu_item_id?: string
           name?: string
           price_cents?: number
+          single_choice?: boolean | null
           sort_order?: number
         }
         Relationships: [
@@ -2075,6 +2081,7 @@ export type Database = {
           referred_by_id: string | null
           scheduling_config: Json | null
           service_modes: Json
+          single_choice_addons: boolean
           slug: string
           store_address: string | null
           subscription_plan: string
@@ -2127,6 +2134,7 @@ export type Database = {
           referred_by_id?: string | null
           scheduling_config?: Json | null
           service_modes?: Json
+          single_choice_addons?: boolean
           slug: string
           store_address?: string | null
           subscription_plan?: string
@@ -2179,6 +2187,7 @@ export type Database = {
           referred_by_id?: string | null
           scheduling_config?: Json | null
           service_modes?: Json
+          single_choice_addons?: boolean
           slug?: string
           store_address?: string | null
           subscription_plan?: string

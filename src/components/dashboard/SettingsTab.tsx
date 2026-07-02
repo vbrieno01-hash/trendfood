@@ -37,13 +37,15 @@ export default function SettingsTab() {
   const [acceptsDelivery, setAcceptsDelivery] = useState(true);
   const [acceptsPickup, setAcceptsPickup] = useState(true);
   const [serviceModesLoading, setServiceModesLoading] = useState(false);
+  const [singleChoiceAddons, setSingleChoiceAddons] = useState(false);
+  const [singleChoiceLoading, setSingleChoiceLoading] = useState(false);
 
   // Load current force_open state
   useEffect(() => {
     if (currentOrg?.id) {
       supabase
         .from("organizations")
-        .select("force_open, scheduling_config, tax_regime, service_modes")
+        .select("force_open, scheduling_config, tax_regime, service_modes, single_choice_addons")
         .eq("id", currentOrg.id)
         .maybeSingle()
         .then(({ data }) => {
@@ -59,6 +61,7 @@ export default function SettingsTab() {
             const sm = (data as any).service_modes as { delivery?: boolean; pickup?: boolean } | null;
             setAcceptsDelivery(sm?.delivery !== false);
             setAcceptsPickup(sm?.pickup !== false);
+            setSingleChoiceAddons(!!(data as any).single_choice_addons);
           }
         });
     }
@@ -123,6 +126,28 @@ export default function SettingsTab() {
       toast.error("Erro ao salvar modos de atendimento.");
     } finally {
       setServiceModesLoading(false);
+    }
+  };
+
+  const handleToggleSingleChoiceAddons = async (checked: boolean) => {
+    if (!currentOrg?.id) return;
+    setSingleChoiceLoading(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ single_choice_addons: checked } as any)
+        .eq("id", currentOrg.id);
+      if (error) throw error;
+      setSingleChoiceAddons(checked);
+      toast.success(
+        checked
+          ? "Adicionais agora s\u00e3o de escolha \u00fanica por padr\u00e3o."
+          : "Adicionais voltaram ao modo m\u00faltiplo por padr\u00e3o.",
+      );
+    } catch {
+      toast.error("Erro ao alterar configura\u00e7\u00e3o.");
+    } finally {
+      setSingleChoiceLoading(false);
     }
   };
 
@@ -253,6 +278,31 @@ export default function SettingsTab() {
               checked={acceptsPickup}
               disabled={serviceModesLoading}
               onCheckedChange={(v) => handleSaveServiceModes(acceptsDelivery, v)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Adicionais: escolha única padrão */}
+      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+        <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
+          <Scale className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Adicionais</p>
+        </div>
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Escolha única em todos os adicionais</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[280px]">
+                {singleChoiceAddons
+                  ? "Cliente s\u00f3 pode escolher 1 adicional por produto (sem quantidade). Voc\u00ea pode liberar exce\u00e7\u00f5es marcando adicionais como 'm\u00faltiplo' no card\u00e1pio."
+                  : "Ideal para pizzarias: evita que o cliente marque v\u00e1rias bordas/sabores. Ligue e sobrescreva por adicional quando precisar liberar m\u00faltiplas escolhas."}
+              </p>
+            </div>
+            <Switch
+              checked={singleChoiceAddons}
+              onCheckedChange={handleToggleSingleChoiceAddons}
+              disabled={singleChoiceLoading}
             />
           </div>
         </div>

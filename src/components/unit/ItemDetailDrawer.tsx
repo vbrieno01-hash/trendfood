@@ -30,12 +30,14 @@ interface ItemDetailDrawerProps {
   /** Status completo da loja para gerar mensagem detalhada (hoje/amanhã/dia). */
   storeStatus?: StoreStatus;
   organizationId?: string;
+  /** Loja: padr\u00e3o "escolha única" ligado para TODOS os adicionais sem override. */
+  singleChoiceAddonsDefault?: boolean;
 }
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, categoryColor, isClosed, opensAt, closedReason, storeStatus, organizationId }: ItemDetailDrawerProps) => {
+const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, buttonColor, categoryColor, isClosed, opensAt, closedReason, storeStatus, organizationId, singleChoiceAddonsDefault = false }: ItemDetailDrawerProps) => {
   // Respeita o tema da loja (paleta automática extraída da logo ou cores manuais).
   const priceColor = accentColor || primaryColor || "#f97316";
   const btnColor = buttonColor || primaryColor || "#f97316";
@@ -60,6 +62,13 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
     ...itemAddons.filter((a) => !seenNames.has(a.name.toLowerCase())),
   ];
 
+  // Escolha \u00fanica: por adicional (override) ou padr\u00e3o da loja
+  const isSingleChoice = (a: any): boolean => {
+    if (a && typeof a.single_choice === "boolean") return a.single_choice;
+    return !!singleChoiceAddonsDefault;
+  };
+  const singleChoiceIds = new Set(addons.filter(isSingleChoice).map((a) => a.id));
+
   // Reset state when item changes
   useEffect(() => {
     if (item) {
@@ -72,6 +81,16 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
   if (!item) return null;
 
   const incrementAddon = (addon: { id: string; name: string; price_cents: number }) => {
+    // Se for de escolha única: substitui qualquer outro single-choice j\u00e1 selecionado
+    if (singleChoiceIds.has(addon.id)) {
+      setSelectedAddons((prev) => {
+        const withoutOtherSingles = prev.filter((a) => !singleChoiceIds.has(a.id) || a.id === addon.id);
+        const already = withoutOtherSingles.find((a) => a.id === addon.id);
+        if (already) return withoutOtherSingles; // j\u00e1 selecionado, mant\u00e9m qty=1
+        return [...withoutOtherSingles, { id: addon.id, name: addon.name, price: addon.price_cents / 100, qty: 1 }];
+      });
+      return;
+    }
     setSelectedAddons((prev) => {
       const exists = prev.find((a) => a.id === addon.id);
       if (exists) return prev.map((a) => a.id === addon.id ? { ...a, qty: a.qty + 1 } : a);
@@ -132,6 +151,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
                 {addons.map((addon) => {
                   const selected = selectedAddons.find((a) => a.id === addon.id);
                   const addonQty = selected?.qty ?? 0;
+                  const single = singleChoiceIds.has(addon.id);
                   return (
                     <div
                       key={addon.id}
@@ -142,9 +162,16 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
                           : { borderColor: "var(--border)" }
                       }
                     >
-                      <span className="text-sm text-foreground flex-1">{addon.name}</span>
+                      <span className="text-sm text-foreground flex-1">
+                        {addon.name}
+                        {single && (
+                          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                            escolha única
+                          </span>
+                        )}
+                      </span>
                       <div className="flex items-center gap-2">
-                        {addonQty > 0 ? (
+                        {addonQty > 0 && !single ? (
                           <>
                             <button
                               type="button"
@@ -156,14 +183,33 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
                             <span className="w-5 text-center text-sm font-bold">{addonQty}</span>
                           </>
                         ) : null}
-                        <button
-                          type="button"
-                          onClick={() => incrementAddon(addon)}
-                          className="w-6 h-6 rounded-full text-white shadow flex items-center justify-center transition-colors"
-                          style={{ backgroundColor: btnColor }}
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
+                        {single ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              addonQty > 0
+                                ? decrementAddon(addon.id)
+                                : incrementAddon(addon)
+                            }
+                            className="min-w-[70px] h-7 px-3 rounded-full text-xs font-semibold shadow flex items-center justify-center transition-colors border"
+                            style={
+                              addonQty > 0
+                                ? { backgroundColor: btnColor, color: "#fff", borderColor: btnColor }
+                                : { backgroundColor: "transparent", color: btnColor, borderColor: btnColor }
+                            }
+                          >
+                            {addonQty > 0 ? "Selecionado" : "Escolher"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => incrementAddon(addon)}
+                            className="w-6 h-6 rounded-full text-white shadow flex items-center justify-center transition-colors"
+                            style={{ backgroundColor: btnColor }}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        )}
                         <span className="text-sm font-medium min-w-[60px] text-right" style={{ color: priceColor }}>
                           + {fmt(addonQty > 0 ? (addon.price_cents / 100) * addonQty : addon.price_cents / 100)}
                         </span>
