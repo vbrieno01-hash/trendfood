@@ -83,6 +83,7 @@ const SubscriptionTab = () => {
 
   const currentPlan = organization?.subscription_plan || "free";
   const mpReturn = searchParams.get("mp_return");
+  const subscriptionExpired = planLimits.subscriptionExpired;
 
   // Subscription details state
   const [subDetails, setSubDetails] = useState<{
@@ -452,9 +453,13 @@ const SubscriptionTab = () => {
                 : undefined;
           const savingsBadge = showAnnual ? "ECONOMIA DE 17%" : showQuarterly ? "ECONOMIA DE 10%" : undefined;
           const orgBilling = organization?.billing_cycle || "monthly";
-          const isSamePlan = currentPlan === plan.key;
+          // Se a assinatura expirou, ninguém é o "plano atual" — libera todos os botões pra renovar
+          const isSamePlan = !subscriptionExpired && currentPlan === plan.key;
+          const isExpiredSamePlan = subscriptionExpired && currentPlan === plan.key;
           const billingMismatch = isSamePlan && plan.priceCents > 0 && selectedBilling !== orgBilling;
-          const ctaText = billingMismatch
+          const ctaText = isExpiredSamePlan
+            ? "Renovar assinatura"
+            : billingMismatch
             ? `Mudar para ${selectedBilling === "annual" ? "anual" : selectedBilling === "quarterly" ? "trimestral" : "mensal"}`
             : showPromo ? "🔥 Aproveitar oferta" : plan.cta;
           return (
