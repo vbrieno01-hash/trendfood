@@ -26,6 +26,7 @@ export interface ParsedNotes {
   obs?: string;
   agendado?: string;
   cupom?: string;
+  desconto?: string;
   coleta?: string;
   ifoodDisplay?: string;
   raw?: string;
@@ -58,6 +59,7 @@ export function parseNotes(notes: string): ParsedNotes {
     obs: parts["OBS"] || undefined,
     agendado: parts["AGENDADO"] || undefined,
     cupom: parts["CUPOM"] || undefined,
+    desconto: parts["DESCONTO"] || undefined,
     coleta: parts["COLETA"] || undefined,
     ifoodDisplay: parts["IFOOD_DISPLAY"] || undefined,
   };
