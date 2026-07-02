@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-    const serverUrl = await getUazapiServerUrl(supabaseAdmin);
+    const { serverUrl } = await getUazapiConfig(supabaseAdmin);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -82,32 +82,31 @@ Deno.serve(async (req) => {
     let liveStatus: string | null = null;
     let livePhone: string | null = null;
     let qrcode: string | null = null;
+    let tokenInvalid = false;
+    const probes: Array<{ endpoint: string; status: number; hasQr: boolean; rawStatus: string | null }> = [];
+
     try {
       const sres = await fetch(`${serverUrl}/instance/status`, {
         method: "GET",
         headers: { token: inst.instance_token },
       });
-      if (sres.ok) {
-        const sdata = await sres.json();
-        const rawStatus = sdata?.instance?.status || sdata?.status || null;
-        // Normaliza status do UazAPI para nosso padrão interno
-        // UazAPI retorna: "open" = conectado, "close"/"disconnected" = desconectado, "connecting"/"qr" = aguardando
-        if (rawStatus === "open" || rawStatus === "connected") {
-          liveStatus = "connected";
-        } else if (rawStatus === "close" || rawStatus === "disconnected" || rawStatus === "logout") {
-          liveStatus = "disconnected";
-        } else if (rawStatus) {
-          liveStatus = rawStatus; // connecting, qr, etc
-        }
+      const stext = await sres.text();
+      let sdata: any = null;
+      try { sdata = JSON.parse(stext); } catch { /* noop */ }
+      const rawStatus = sdata?.instance?.status || sdata?.status || null;
+      probes.push({ endpoint: "/instance/status", status: sres.status, hasQr: false, rawStatus });
+      if (sres.status === 401 || sres.status === 403 || sres.status === 404) tokenInvalid = true;
+      if (sres.ok && sdata) {
+        if (rawStatus === "open" || rawStatus === "connected") liveStatus = "connected";
+        else if (rawStatus === "close" || rawStatus === "disconnected" || rawStatus === "logout") liveStatus = "disconnected";
+        else if (rawStatus) liveStatus = rawStatus;
         livePhone = sdata?.instance?.owner || sdata?.instance?.phone || sdata?.phone || null;
-        qrcode = sdata?.instance?.qrcode || sdata?.qrcode || null;
+        qrcode = extractQr(sdata);
       }
     } catch (e) {
       console.error("status check error:", (e as Error).message);
     }
 
-    // Se não veio QR do /instance/status e a instância não está conectada,
-    // busca o QR direto do /instance/connect (endpoint que gera o pareamento).
     if (!qrcode && liveStatus !== "connected") {
       try {
         const cres = await fetch(`${serverUrl}/instance/connect`, {
@@ -115,20 +114,24 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", token: inst.instance_token },
           body: JSON.stringify({}),
         });
-        if (cres.ok) {
-          const cdata = await cres.json();
-          qrcode = cdata?.instance?.qrcode || cdata?.qrcode || cdata?.qrCode || null;
-          const cStatus = cdata?.instance?.status || cdata?.status || null;
-          if (!liveStatus && cStatus) {
-            if (cStatus === "open" || cStatus === "connected") liveStatus = "connected";
-            else if (cStatus === "close" || cStatus === "disconnected" || cStatus === "logout") liveStatus = "disconnected";
-            else liveStatus = cStatus;
-          }
+        const ctext = await cres.text();
+        let cdata: any = null;
+        try { cdata = JSON.parse(ctext); } catch { /* noop */ }
+        const cStatus = cdata?.instance?.status || cdata?.status || null;
+        qrcode = extractQr(cdata);
+        probes.push({ endpoint: "/instance/connect", status: cres.status, hasQr: !!qrcode, rawStatus: cStatus });
+        if (cres.status === 401 || cres.status === 403 || cres.status === 404) tokenInvalid = true;
+        if (!liveStatus && cStatus) {
+          if (cStatus === "open" || cStatus === "connected") liveStatus = "connected";
+          else if (cStatus === "close" || cStatus === "disconnected" || cStatus === "logout") liveStatus = "disconnected";
+          else liveStatus = cStatus;
         }
       } catch (e) {
         console.error("connect fallback error:", (e as Error).message);
       }
     }
+
+    console.log(`[uazapi-status] org=${organization_id} probes=${JSON.stringify(probes)} qr=${!!qrcode} status=${liveStatus} tokenInvalid=${tokenInvalid}`);
 
     // Sincronizar mudanças no banco
     const updates: Record<string, unknown> = {};
@@ -148,7 +151,15 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: true, instance: inst, qrcode, liveStatus }),
+      JSON.stringify({
+        ok: true,
+        instance: inst,
+        qrcode,
+        liveStatus,
+        tokenInvalid: tokenInvalid && !qrcode,
+        needsRecreate: tokenInvalid && !qrcode,
+        probes,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
@@ -160,17 +171,37 @@ Deno.serve(async (req) => {
   }
 });
 
-async function getUazapiServerUrl(supabase: ReturnType<typeof createClient>): Promise<string> {
+function extractQr(data: any): string | null {
+  if (!data || typeof data !== "object") return null;
+  const candidates = [
+    data.qrcode, data.qrCode, data.qr, data.code, data.base64,
+    data.instance?.qrcode, data.instance?.qrCode, data.instance?.qr, data.instance?.base64,
+    data.data?.qrcode, data.data?.qrCode, data.data?.qr, data.data?.base64,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 20) return c;
+  }
+  return null;
+}
+
+async function getUazapiConfig(
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ serverUrl: string; adminToken: string | null }> {
   const envServer = (Deno.env.get("UAZAPI_SERVER_URL") || "").replace(/\/$/, "");
+  const envToken = Deno.env.get("UAZAPI_ADMIN_TOKEN") || null;
   try {
     const { data } = await supabase
       .from("platform_config")
-      .select("uazapi_server_url")
+      .select("uazapi_server_url, uazapi_admin_token")
       .eq("id", "singleton")
       .maybeSingle();
     const dbServer = ((data as any)?.uazapi_server_url || "").replace(/\/$/, "");
-    return dbServer || envServer || "https://free.uazapi.com";
+    const dbToken = (data as any)?.uazapi_admin_token || null;
+    return {
+      serverUrl: dbServer || envServer || "https://free.uazapi.com",
+      adminToken: dbToken || envToken,
+    };
   } catch {
-    return envServer || "https://free.uazapi.com";
+    return { serverUrl: envServer || "https://free.uazapi.com", adminToken: envToken };
   }
 }
