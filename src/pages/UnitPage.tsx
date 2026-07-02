@@ -769,8 +769,8 @@ const UnitPage = () => {
       .filter((l) => l !== null)
       .join("\n");
 
-    // Build WhatsApp URL (used after DB save succeeds)
-    const whatsappUrl = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(lines)}`;
+    // Build WhatsApp URL (used after DB save succeeds) — usa cleanWa já sanitizado (só dígitos, com 55).
+    const whatsappUrl = `https://wa.me/${cleanWa}?text=${encodeURIComponent(lines)}`;
 
     // Save order to database FIRST, then open WhatsApp only on success
     // This prevents state loss if the browser blocks popups and the old code
