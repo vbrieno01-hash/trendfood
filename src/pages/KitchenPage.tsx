@@ -227,7 +227,7 @@ export default function KitchenPage() {
               const phone = parsePhoneFromNotes(order.notes);
               if (phone) {
                 const reviewUrl = orgSlug ? `${window.location.origin}/avaliar/${orgSlug}/${order.id}` : undefined;
-                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes, reviewUrl);
+                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes, reviewUrl, org?.id);
               }
             }
           }
@@ -268,7 +268,7 @@ export default function KitchenPage() {
                 if (earned > 0) loyaltyInfo = { earned, total: lPoints.points };
               }
             } catch { /* loyalty fetch failed, send without */ }
-            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes, loyaltyInfo);
+            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes, loyaltyInfo, org?.id);
           }
           toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
         },
