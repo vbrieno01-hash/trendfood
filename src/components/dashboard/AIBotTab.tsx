@@ -293,8 +293,31 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
       });
       if (error) throw error;
       if (data?.instance) setInstance(data.instance);
-      if (data?.qrcode) setQrcode(data.qrcode);
-      toast.success("Escaneie o QR Code no WhatsApp");
+      if (data?.qrcode) {
+        setQrcode(data.qrcode);
+        toast.success("Escaneie o QR Code no WhatsApp");
+      } else {
+        // QR ainda não pronto no uazapi — busca em background
+        toast.info("Gerando QR Code...");
+        let got = false;
+        for (let i = 0; i < 3 && !got; i++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${orgId}`,
+              { headers: { Authorization: `Bearer ${session?.access_token}` } },
+            );
+            const json = await res.json();
+            if (json.instance) setInstance(json.instance);
+            if (json.qrcode) {
+              setQrcode(json.qrcode);
+              got = true;
+            }
+          } catch { /* silencioso */ }
+        }
+        if (!got) toast.error("QR Code ainda não gerado. Clique em Atualizar Status em alguns segundos.");
+      }
     } catch (e) {
       toast.error("Falha ao iniciar conexão");
     } finally {
