@@ -9,6 +9,7 @@ export interface MenuItemAddon {
   available: boolean;
   sort_order: number;
   created_at: string;
+  single_choice: boolean | null;
 }
 
 export function useMenuItemAddons(menuItemId: string | undefined) {
