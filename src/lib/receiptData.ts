@@ -51,6 +51,8 @@ interface ParsedNotes {
   doc?: string;
   obs?: string;
   agendado?: string;
+  cupom?: string;
+  desconto?: string;
   raw?: string;
 }
 
@@ -73,6 +75,8 @@ function parseNotesInternal(notes: string): ParsedNotes {
     doc: parts["DOC"] || undefined,
     obs: parts["OBS"] || undefined,
     agendado: parts["AGENDADO"] || undefined,
+    cupom: parts["CUPOM"] || undefined,
+    desconto: parts["DESCONTO"] || undefined,
   };
 }
 
