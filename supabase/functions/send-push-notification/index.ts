@@ -5,6 +5,70 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ── FCM HTTP v1 helpers ───────────────────────────────────────
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s+/g, "");
+  const raw = atob(b64);
+  const buf = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+  return buf.buffer;
+}
+
+function b64urlEncode(input: string | Uint8Array): string {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  let bin = "";
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+let cachedFcmToken: { token: string; expiresAt: number } | null = null;
+
+async function getFcmAccessToken(serviceAccount: any): Promise<string> {
+  if (cachedFcmToken && cachedFcmToken.expiresAt > Date.now() + 60_000) {
+    return cachedFcmToken.token;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: serviceAccount.client_email,
+    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const unsigned = `${b64urlEncode(JSON.stringify(header))}.${b64urlEncode(JSON.stringify(payload))}`;
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToArrayBuffer(serviceAccount.private_key),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const sig = new Uint8Array(
+    await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned))
+  );
+  const jwt = `${unsigned}.${b64urlEncode(sig)}`;
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  });
+
+  if (!res.ok) throw new Error(`FCM token fetch failed: ${res.status} ${await res.text()}`);
+  const json = await res.json();
+  cachedFcmToken = { token: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 };
+  return json.access_token;
+}
+
 // ── Web Push helpers ──────────────────────────────────────────
 
 function base64urlToUint8Array(b64url: string): Uint8Array {
@@ -207,28 +271,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!subs || subs.length === 0) {
+    // Fetch FCM tokens (Android APK / native web)
+    const { data: fcmRows } = await supabase
+      .from("fcm_tokens")
+      .select("token, platform")
+      .eq("organization_id", organization_id);
+
+    if ((!subs || subs.length === 0) && (!fcmRows || fcmRows.length === 0)) {
       return new Response(JSON.stringify({ sent: 0, message: "No subscriptions found" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const isShortage = event_type === "stock_shortage";
-    const payloadJson = isShortage
-      ? JSON.stringify({
-          title: "⚠️ Estoque insuficiente",
-          body:
-            `Faltaram ${shortage} de "${stock_item_name}"` +
-            (menu_item_name ? ` em ${menu_item_name}` : "") +
-            (order_number ? ` (pedido #${order_number})` : ""),
-          url: "/dashboard?tab=stock",
-        })
-      : JSON.stringify({
-          title: "🔔 Novo Pedido!",
-          body: order_number ? `Pedido #${order_number} recebido` : "Novo pedido recebido!",
-          url: "/dashboard?tab=home",
-        });
+    let title: string;
+    let body: string;
+    let url: string;
+
+    if (event_type === "stock_shortage") {
+      title = "⚠️ Estoque insuficiente";
+      body =
+        `Faltaram ${shortage} de "${stock_item_name}"` +
+        (menu_item_name ? ` em ${menu_item_name}` : "") +
+        (order_number ? ` (pedido #${order_number})` : "");
+      url = "/dashboard?tab=stock";
+    } else if (event_type === "order_canceled") {
+      title = "❌ Pedido cancelado";
+      body = order_number ? `Pedido #${order_number} foi cancelado` : "Um pedido foi cancelado";
+      url = "/dashboard?tab=home";
+    } else {
+      title = "🔔 Novo Pedido!";
+      body = order_number ? `Pedido #${order_number} recebido` : "Novo pedido recebido!";
+      url = "/dashboard?tab=home";
+    }
+
+    const payloadJson = JSON.stringify({ title, body, url });
 
     let sent = 0;
     let failed = 0;
@@ -238,7 +315,7 @@ Deno.serve(async (req) => {
     // the `notify_new_order` DB trigger. Keeping this function focused on
     // Web Push only avoids coupling the two flows.
 
-    for (const sub of subs) {
+    for (const sub of (subs || [])) {
       try {
         const endpointUrl = new URL(sub.endpoint);
         const audience = `${endpointUrl.protocol}//${endpointUrl.host}`;
@@ -284,7 +361,65 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ sent, failed }), {
+    // ── FCM HTTP v1 (Android APK / native) ───────────────────
+    let fcmSent = 0;
+    let fcmFailed = 0;
+    const serviceAccountRaw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON");
+
+    if (fcmRows && fcmRows.length > 0 && serviceAccountRaw) {
+      try {
+        const serviceAccount = JSON.parse(serviceAccountRaw);
+        const accessToken = await getFcmAccessToken(serviceAccount);
+        const projectId = serviceAccount.project_id;
+
+        for (const row of fcmRows) {
+          try {
+            const fcmRes = await fetch(
+              `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  message: {
+                    token: row.token,
+                    notification: { title, body },
+                    data: { url, event_type: event_type || "new_order" },
+                    android: {
+                      priority: "HIGH",
+                      notification: {
+                        sound: "default",
+                        channel_id: "orders",
+                      },
+                    },
+                  },
+                }),
+              }
+            );
+
+            if (fcmRes.ok) {
+              fcmSent++;
+            } else {
+              const txt = await fcmRes.text();
+              console.error(`FCM send failed ${fcmRes.status}: ${txt}`);
+              if (fcmRes.status === 404 || fcmRes.status === 400 || txt.includes("UNREGISTERED")) {
+                await supabase.from("fcm_tokens").delete().eq("token", row.token);
+              }
+              fcmFailed++;
+            }
+          } catch (e) {
+            console.error("FCM error per token:", e);
+            fcmFailed++;
+          }
+        }
+      } catch (e) {
+        console.error("FCM setup error:", e);
+      }
+    }
+
+    return new Response(JSON.stringify({ sent, failed, fcmSent, fcmFailed }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

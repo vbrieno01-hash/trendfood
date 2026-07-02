@@ -27,6 +27,7 @@ import {
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import UpgradeDialog from "@/components/dashboard/UpgradeDialog";
+import { useFcmToken } from "@/hooks/useFcmToken";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getBtUnsupportedMessage, getStoredDeviceId } from "@/lib/bluetoothPrinter";
@@ -161,6 +162,10 @@ const DashboardPage = () => {
 
   const orgId = organization?.id;
   const orgName = organization?.name;
+
+  // Registra o dispositivo (APK Android ou navegador) no FCM para receber
+  // notificações de novo pedido / cancelamento / estoque mesmo com o app fechado.
+  useFcmToken(orgId, user?.id);
   const printMode = (organization as any)?.print_mode ?? "browser";
   const printerWidth = (organization as any)?.printer_width ?? "58mm";
   const pixKey = (organization as any)?.pix_key;
