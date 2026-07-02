@@ -30,7 +30,7 @@ interface ItemDetailDrawerProps {
   /** Status completo da loja para gerar mensagem detalhada (hoje/amanhã/dia). */
   storeStatus?: StoreStatus;
   organizationId?: string;
-  /** Loja: padr\u00e3o "escolha \u00fanica" ligado para TODOS os adicionais sem override. */
+  /** Loja: padr\u00e3o "escolha única" ligado para TODOS os adicionais sem override. */
   singleChoiceAddonsDefault?: boolean;
 }
 
@@ -81,7 +81,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
   if (!item) return null;
 
   const incrementAddon = (addon: { id: string; name: string; price_cents: number }) => {
-    // Se for de escolha \u00fanica: substitui qualquer outro single-choice j\u00e1 selecionado
+    // Se for de escolha única: substitui qualquer outro single-choice j\u00e1 selecionado
     if (singleChoiceIds.has(addon.id)) {
       setSelectedAddons((prev) => {
         const withoutOtherSingles = prev.filter((a) => !singleChoiceIds.has(a.id) || a.id === addon.id);
@@ -166,7 +166,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
                         {addon.name}
                         {single && (
                           <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                            escolha \u00fanica
+                            escolha única
                           </span>
                         )}
                       </span>

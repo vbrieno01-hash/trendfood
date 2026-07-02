@@ -452,7 +452,7 @@ function AddonsSection({ menuItemId, organizationId, hideGlobalAddons, onToggleH
                   }
                   className="scale-75"
                 />
-                \u00danica
+                Única
               </label>
               <Button
                 type="button"

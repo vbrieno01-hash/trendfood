@@ -80,7 +80,7 @@ export default function GlobalAddonsSection({ organizationId }: Props) {
                         }
                         className="scale-75"
                       />
-                      \u00danica
+                      Única
                     </label>
                     <Button
                       type="button"
