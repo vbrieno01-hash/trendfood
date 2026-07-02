@@ -15,7 +15,7 @@ self.addEventListener("push", (event) => {
       icon: "/pwa-192.png",
       badge: "/pwa-192.png",
       vibrate: [200, 100, 200],
-      tag: "new-order",
+      tag: data.tag || `push-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       renotify: true,
       data: { url: data.url },
     })
