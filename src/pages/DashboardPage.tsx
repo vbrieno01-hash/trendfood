@@ -162,6 +162,10 @@ const DashboardPage = () => {
 
   const orgId = organization?.id;
   const orgName = organization?.name;
+
+  // Registra o dispositivo (APK Android ou navegador) no FCM para receber
+  // notificações de novo pedido / cancelamento / estoque mesmo com o app fechado.
+  useFcmToken(orgId, user?.id);
   const printMode = (organization as any)?.print_mode ?? "browser";
   const printerWidth = (organization as any)?.printer_width ?? "58mm";
   const pixKey = (organization as any)?.pix_key;
