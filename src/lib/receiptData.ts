@@ -126,6 +126,8 @@ export interface ReceiptData {
   troco?: string;
   trocoChange?: number; // calculated: (troco) - grandTotal
   scheduledTime?: string; // "HH:mm" if order is scheduled
+  couponCode?: string;
+  couponDiscount?: number;
 }
 
 export interface StoreInfo {
@@ -289,9 +291,20 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
   else if (parsed?.raw) generalObs = parsed.raw;
 
   // For pickup, zero out delivery fee
-  const totals = isPickup
+  const totalsBase = isPickup
     ? { ...calcOrderTotals(rawItems, undefined), deliveryFeeLabel: "" }
     : calcOrderTotals(rawItems, parsed?.frete);
+
+  // Coupon (optional — only present when TableOrderPage saved DESCONTO)
+  let couponDiscount: number | undefined;
+  if (parsed?.desconto) {
+    const cleaned = parsed.desconto.replace(/[^\d,\.]/g, "").replace(",", ".");
+    const val = parseFloat(cleaned);
+    if (!isNaN(val) && val > 0) couponDiscount = val;
+  }
+  const totals: ReceiptTotals = couponDiscount
+    ? { ...totalsBase, grandTotal: Math.max(0, totalsBase.grandTotal - couponDiscount) }
+    : totalsBase;
 
   return {
     locationLabel,
@@ -316,6 +329,8 @@ export function buildReceiptData(order: PrintableOrder, storeInfo: StoreInfo | s
     totals,
     troco: parsed?.troco,
     scheduledTime: parsed?.agendado,
+    couponCode: parsed?.cupom,
+    couponDiscount,
     trocoChange: (() => {
       if (!parsed?.troco) return undefined;
       const cleaned = parsed.troco.replace(/[^\d,\.]/g, "").replace(",", ".");
