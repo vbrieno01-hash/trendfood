@@ -23,9 +23,10 @@ export function useFcmToken(organizationId: string | undefined, userId: string |
         console.warn("[FCM native] register failed:", e)
       );
     } else {
-      registerWeb(organizationId, userId).catch((e) =>
-        console.warn("[FCM web] register failed:", e)
-      );
+      // Web push já é 100% coberto por usePushSubscription (VAPID próprio + sw-push.js).
+      // Não registrar Firebase Messaging no navegador evita conflito entre dois service
+      // workers e é o único caminho suportado para o web push do lojista.
+      console.info("[FCM] web ignorado — usePushSubscription cuida do web push");
     }
   }, [organizationId, userId]);
 }
