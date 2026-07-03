@@ -26,6 +26,7 @@ import AdminReportsTab from "@/components/admin/AdminReportsTab";
 import TransferOwnerDialog from "@/components/admin/TransferOwnerDialog";
 import ImprovementsTab from "@/components/admin/ImprovementsTab";
 import AIBotAdminTab from "@/components/admin/AIBotAdminTab";
+import BotMonitorTab from "@/components/admin/BotMonitorTab";
 import WhatsAppInstancesTab from "@/components/admin/WhatsAppInstancesTab";
 import StoreVersionsTab from "@/components/admin/StoreVersionsTab";
 import AdminTelegramTab from "@/components/admin/AdminTelegramTab";
@@ -253,7 +254,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "ifood_merchant" | "capacidade" | "limpeza" | "suporte";
+type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "bot_monitor" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "ifood_merchant" | "capacidade" | "limpeza" | "suporte";
 
 interface NavGroup {
   label: string;
@@ -282,6 +283,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "whatsapp", icon: <Smartphone className="w-4 h-4" />, label: "WhatsApp" },
       { key: "wa_instances", icon: <Smartphone className="w-4 h-4" />, label: "Instâncias WhatsApp" },
       { key: "aibot", icon: <Bot className="w-4 h-4" />, label: "Robô IA" },
+      { key: "bot_monitor", icon: <Activity className="w-4 h-4" />, label: "Monitor do Robô" },
       { key: "telegram_admin", icon: <Send className="w-4 h-4" />, label: "Telegram Admin" },
       { key: "ifood_homolog", icon: <Utensils className="w-4 h-4" />, label: "iFood Homologação" },
       { key: "ifood_merchant", icon: <Utensils className="w-4 h-4" />, label: "iFood Merchant API" },
@@ -1151,6 +1153,7 @@ function AdminContent() {
           {activeTab === "relatorios" && <AdminReportsTab />}
           {activeTab === "melhorias" && <ImprovementsTab />}
           {activeTab === "aibot" && <AIBotAdminTab />}
+          {activeTab === "bot_monitor" && <BotMonitorTab />}
           {activeTab === "wa_instances" && <WhatsAppInstancesTab />}
           {activeTab === "versoes" && <StoreVersionsTab />}
           {activeTab === "telegram_admin" && <AdminTelegramTab />}
