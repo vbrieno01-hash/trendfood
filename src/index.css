@@ -35,6 +35,13 @@
 
     --radius: 0.75rem;
 
+    /* Elevation scale — refined shadows for premium feel */
+    --shadow-xs: 0 1px 2px 0 hsl(20 14% 8% / 0.04);
+    --shadow-sm: 0 1px 3px 0 hsl(20 14% 8% / 0.06), 0 1px 2px -1px hsl(20 14% 8% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(20 14% 8% / 0.08), 0 2px 6px -2px hsl(20 14% 8% / 0.05);
+    --shadow-lg: 0 12px 32px -8px hsl(20 14% 8% / 0.12), 0 4px 12px -4px hsl(20 14% 8% / 0.06);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.12), 0 8px 24px -8px hsl(var(--primary) / 0.35);
+
     /* Status colors */
     --status-pending: 45 96% 53%;
     --status-pending-bg: 48 100% 96%;
@@ -65,7 +72,7 @@
     --secondary: 220 13% 14%;
     --secondary-foreground: 220 10% 90%;
     --muted: 220 13% 14%;
-    --muted-foreground: 220 10% 50%;
+    --muted-foreground: 220 10% 62%;
     --accent: 24 95% 53%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 48%;
@@ -73,6 +80,13 @@
     --border: 220 13% 15%;
     --input: 220 13% 15%;
     --ring: 24 95% 53%;
+
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 1px 2px -1px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.5), 0 2px 6px -2px hsl(0 0% 0% / 0.35);
+    --shadow-lg: 0 12px 32px -8px hsl(0 0% 0% / 0.6), 0 4px 12px -4px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 8px 32px -8px hsl(var(--primary) / 0.5);
+
     --sidebar-background: 220 15% 7%;
     --sidebar-foreground: 220 10% 95%;
     --sidebar-primary: 24 95% 53%;
@@ -91,6 +105,67 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Consistent, subtle focus ring across the whole app */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.7);
+    outline-offset: 2px;
+    border-radius: calc(var(--radius) - 4px);
+  }
+
+  /* Better default heading rhythm */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Smooth, premium scrollbar (webkit) */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.45);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+
+  /* Selection */
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+    color: hsl(var(--foreground));
+  }
+}
+
+/* Elevation utilities */
+@layer utilities {
+  .shadow-elev-xs { box-shadow: var(--shadow-xs); }
+  .shadow-elev-sm { box-shadow: var(--shadow-sm); }
+  .shadow-elev-md { box-shadow: var(--shadow-md); }
+  .shadow-elev-lg { box-shadow: var(--shadow-lg); }
+  .shadow-glow    { box-shadow: var(--shadow-glow); }
+
+  /* Smoother, consistent interactive transitions */
+  .transition-premium {
+    transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
