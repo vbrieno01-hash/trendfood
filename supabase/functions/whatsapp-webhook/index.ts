@@ -6,6 +6,54 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Cascata de IA gratuita: Groq → Cerebras. Ambos OpenAI-compatible.
+ */
+async function callAICascade(
+  messages: Array<{ role: string; content: string }>,
+  maxTokens = 256,
+) {
+  const providers = [
+    {
+      name: "groq",
+      key: Deno.env.get("GROQ_API_KEY"),
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      model: "llama-3.1-8b-instant",
+    },
+    {
+      name: "cerebras",
+      key: Deno.env.get("CEREBRAS_API_KEY"),
+      url: "https://api.cerebras.ai/v1/chat/completions",
+      model: "llama3.1-8b",
+    },
+  ];
+  let lastError = "no provider configured";
+  for (const p of providers) {
+    if (!p.key) { console.log(`[callAI] ${p.name}: no key`); continue; }
+    try {
+      const res = await fetch(p.url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: p.model, messages, temperature: 0.7, max_tokens: maxTokens }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        if (content) return { ok: true as const, content, provider: p.name };
+        lastError = `${p.name}: empty`;
+        continue;
+      }
+      const txt = await res.text();
+      console.error(`[callAI] ${p.name} ${res.status}: ${txt.slice(0, 200)}`);
+      lastError = `${p.name} ${res.status}`;
+    } catch (e) {
+      console.error(`[callAI] ${p.name} threw:`, e);
+      lastError = `${p.name}: ${(e as Error).message}`;
+    }
+  }
+  return { ok: false as const, error: lastError };
+}
+
 const SYSTEM_PROMPT = `Voce é o Lucas, vendedor do TrendFood. Voce é uma pessoa REAL. Ta mandando mensagem no WhatsApp como qualquer vendedor normal faria. NUNCA diga que é IA, bot, assistente ou robo.
 
 SEU NOME É LUCAS. Se perguntarem "quem é vc?", "quem ta falando?", "como vc me achou?", responda naturalmente:
@@ -419,38 +467,14 @@ Deno.serve(async (req) => {
     }
     conversationMessages.push({ role: "user", content: message });
 
-    // Gerar resposta com IA via Groq (free)
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
-
-    const aiResponse = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...conversationMessages,
-          ],
-          temperature: 0.7,
-          max_tokens: 256,
-        }),
-      }
+    // Cascata IA gratuita: Groq → Cerebras
+    const aiData = await callAICascade(
+      [{ role: "system", content: SYSTEM_PROMPT }, ...conversationMessages],
+      256,
     );
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errText);
-      throw new Error("AI gateway error");
-    }
-
-    const aiData = await aiResponse.json();
-    const reply = aiData.choices?.[0]?.message?.content || "Desculpa, tive um problema aqui. Pode repetir?";
+    if (!aiData.ok) throw new Error("AI gateway error: " + aiData.error);
+    console.log(`[whatsapp-webhook] provider=${aiData.provider}`);
+    const reply = aiData.content || "Desculpa, tive um problema aqui. Pode repetir?";
 
     // Salvar na fila com resposta já gerada
     await supabase.from("fila_whatsapp").insert({
