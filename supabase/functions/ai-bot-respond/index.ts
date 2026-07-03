@@ -24,6 +24,12 @@ async function callAICascade(
     model: string;
   }> = [
     {
+      name: "lovable",
+      key: Deno.env.get("LOVABLE_API_KEY"),
+      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+      model: "google/gemini-2.5-flash",
+    },
+    {
       name: "groq",
       key: Deno.env.get("GROQ_API_KEY"),
       url: "https://api.groq.com/openai/v1/chat/completions",
@@ -33,7 +39,7 @@ async function callAICascade(
       name: "cerebras",
       key: Deno.env.get("CEREBRAS_API_KEY"),
       url: "https://api.cerebras.ai/v1/chat/completions",
-      model: "llama-3.3-70b",
+      model: "llama-3.3-70b-instruct",
     },
   ];
 
