@@ -441,15 +441,24 @@ function AdminContent() {
       const paymentCount = orgPayments.length;
       const lastPayment = orgPayments[0] ?? null;
       const lastPaidValue = lastPayment ? lastPayment.amount_cents / 100 : 0;
+      const p = planPrices[o.subscription_plan];
+      const cycle = (o.billing_cycle ?? "monthly").toLowerCase();
+      let currentMonthlyValue = 0;
+      if (p) {
+        if (cycle === "annual" || cycle === "yearly") currentMonthlyValue = p.annual / 12 / 100;
+        else if (cycle === "quarterly" && p.quarterly) currentMonthlyValue = p.quarterly / 3 / 100;
+        else currentMonthlyValue = p.monthly / 100;
+      }
       return {
         ...o,
         paymentCount,
         lastPaidValue,
+        currentMonthlyValue,
         totalPaid,
         lastPaidAt: lastPayment?.paid_at ?? null,
       };
     });
-  }, [payingOrgs, paymentsByOrg]);
+  }, [payingOrgs, paymentsByOrg, planPrices]);
 
   const totalRevenue = useMemo(
     () => payments.reduce((acc, p) => acc + p.amount_cents, 0) / 100,
