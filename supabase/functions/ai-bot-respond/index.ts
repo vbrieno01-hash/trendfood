@@ -439,24 +439,36 @@ Deno.serve(async (req) => {
     const { data: history } = await historyQuery;
 
     // === HANDOFF HUMANO ===
-    // 3.1) Se já tem handoff ativo nas últimas 24h, robô fica em silêncio total.
+    // 3.1) Handoff ativo: robô cala a boca, mas por uma janela curta e retomável.
+    //  - Janela dura no máximo 2h desde o último "humano".
+    //  - Se passaram 30 min sem nenhuma mensagem "humano", consideramos o
+    //    atendimento encerrado e o bot volta, mesmo dentro das 2h.
     {
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const HANDOFF_MAX_MS = 2 * 60 * 60 * 1000;   // 2h teto absoluto
+      const HANDOFF_IDLE_MS = 30 * 60 * 1000;      // 30 min sem humano => libera
+      const since = new Date(Date.now() - HANDOFF_MAX_MS).toISOString();
       let handoffQuery = supabase
         .from("fila_whatsapp")
-        .select("id")
+        .select("id, created_at")
         .eq("phone", phone)
         .eq("status", "humano")
         .gte("created_at", since)
+        .order("created_at", { ascending: false })
         .limit(1);
       if (effectiveOrgId) handoffQuery = handoffQuery.eq("organization_id", effectiveOrgId);
       const { data: handoffRow } = await handoffQuery.maybeSingle();
       if (handoffRow) {
-        console.log(`[ai-bot] handoff_active org=${effectiveOrgId ?? "null"} skipping`);
-        return new Response(
-          JSON.stringify({ ok: true, skipped: true, reason: "handoff_active" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        const lastHumanAt = new Date(handoffRow.created_at as string).getTime();
+        const ageMs = Date.now() - lastHumanAt;
+        const stillActive = ageMs <= HANDOFF_IDLE_MS;
+        if (stillActive) {
+          console.log(`[ai-bot] handoff_active org=${effectiveOrgId ?? "null"} phone=${phone} ageMin=${Math.round(ageMs / 60000)} reason=within_idle_window skipping`);
+          return new Response(
+            JSON.stringify({ ok: true, skipped: true, reason: "handoff_active" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        console.log(`[ai-bot] handoff_resumed org=${effectiveOrgId ?? "null"} phone=${phone} idleMin=${Math.round(ageMs / 60000)} — bot voltando`);
       }
     }
 
