@@ -12,18 +12,6 @@ function formatPhone(raw: string): string {
   return digits.startsWith("55") ? digits : `55${digits}`;
 }
 
-function hasAiBotAccess(org: {
-  subscription_plan?: string | null;
-  trial_ends_at?: string | null;
-}): boolean {
-  const plan = org.subscription_plan ?? "free";
-  if (["pro", "enterprise", "lifetime"].includes(plan)) return true;
-  if (plan === "free" && org.trial_ends_at) {
-    return new Date(org.trial_ends_at) > new Date();
-  }
-  return false;
-}
-
 function fmt(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }
@@ -137,10 +125,7 @@ Deno.serve(async (req) => {
 
     if (!org) return ok("org not found, skipping");
 
-    // ── Gate 1: Plano pago ou trial ativo ───────────────────────────────────
-    if (!hasAiBotAccess(org)) return ok("plan does not include bot, skipping");
-
-    // ── Gate 2: Admin liberou esta loja ─────────────────────────────────────
+    // ── Gate: Admin liberou esta loja (independe de plano) ─────────────────
     if (!(org as any).whatsapp_bot_allowed) return ok("whatsapp_bot not allowed, skipping");
 
     // ── Gate 3: Instância conectada ──────────────────────────────────────────

@@ -455,16 +455,9 @@ const UnitPage = () => {
   const categoryColor = themeConfig.category_color || primaryColor;
   const whatsapp = (org as { whatsapp?: string | null }).whatsapp;
 
-  // Robô ativo = liberado manualmente pelo admin (whatsapp_bot_allowed) **E** plano pago/trial ativo.
-  // Se o robô NÃO estiver realmente ativo, o cliente é redirecionado pro wa.me — senão o dono não recebe nada.
-  const hasActiveBot = org ? (() => {
-    const botAllowed = (org as any).whatsapp_bot_allowed === true;
-    if (!botAllowed) return false;
-    const plan = (org as any).subscription_plan ?? "free";
-    if (["pro", "enterprise", "lifetime"].includes(plan)) return true;
-    const trialEnd = (org as any).trial_ends_at ? new Date((org as any).trial_ends_at) : null;
-    return trialEnd !== null && trialEnd > new Date();
-  })() : false;
+  // Robô ativo = admin liberou (whatsapp_bot_allowed). Envio automático é independente de plano.
+  // Sem robô liberado, cliente cai no wa.me como fallback manual.
+  const hasActiveBot = !!(org && (org as any).whatsapp_bot_allowed === true);
 
   // Sanitize WhatsApp number for reliable wa.me links
   const rawWa = whatsapp?.replace(/\D/g, "") ?? "";

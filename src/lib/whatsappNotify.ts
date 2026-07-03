@@ -1,5 +1,6 @@
 import { openWhatsAppWithFallback } from "./whatsappRedirect";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Tenta enviar mensagem via bot (uazapi) automaticamente. Se não der (bot desligado,
@@ -13,14 +14,45 @@ async function sendOrFallback(
   const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
 
+  // Descobre se o robô está liberado pra loja — se estiver, NUNCA cai no wa.me manual.
+  let botAllowed = false;
   if (organizationId) {
+    try {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("whatsapp_bot_allowed")
+        .eq("id", organizationId)
+        .maybeSingle();
+      botAllowed = !!(org as any)?.whatsapp_bot_allowed;
+    } catch { /* ignora */ }
+
     try {
       const { data } = await supabase.functions.invoke("whatsapp-send-auto", {
         body: { organization_id: organizationId, phone, message },
       });
       if (data?.sent) return;
+      if (botAllowed) {
+        console.warn("[whatsappNotify] envio automático falhou", data?.reason);
+        toast.error("Falha no envio automático do WhatsApp", {
+          description:
+            data?.reason === "token_invalid"
+              ? "Sessão do WhatsApp expirou. Vá em Robô → Reconectar."
+              : data?.reason === "no_instance"
+                ? "Nenhuma instância conectada. Vá em Robô → Conectar."
+                : "Verifique a conexão do robô na aba Robô.",
+          duration: 8000,
+        });
+        return; // não abre wa.me pra não regredir pro manual
+      }
     } catch (e) {
-      console.warn("[whatsappNotify] auto send failed, falling back to wa.me", e);
+      console.warn("[whatsappNotify] auto send error", e);
+      if (botAllowed) {
+        toast.error("Falha no envio automático do WhatsApp", {
+          description: "Verifique a conexão do robô na aba Robô.",
+          duration: 8000,
+        });
+        return;
+      }
     }
   }
   openWhatsAppWithFallback(url);
