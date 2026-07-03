@@ -300,13 +300,111 @@ Deno.serve(async (req) => {
     // 3) Histórico (últimas 10 trocas)
     let historyQuery = supabase
       .from("fila_whatsapp")
-      .select("incoming_message, ai_response")
+      .select("incoming_message, ai_response, status, created_at")
       .eq("phone", phone)
       .not("ai_response", "is", null)
       .order("created_at", { ascending: false })
       .limit(10);
     if (effectiveOrgId) historyQuery = historyQuery.eq("organization_id", effectiveOrgId);
     const { data: history } = await historyQuery;
+
+    // === HANDOFF HUMANO ===
+    // 3.1) Se já tem handoff ativo nas últimas 24h, robô fica em silêncio total.
+    {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      let handoffQuery = supabase
+        .from("fila_whatsapp")
+        .select("id")
+        .eq("phone", phone)
+        .eq("status", "humano")
+        .gte("created_at", since)
+        .limit(1);
+      if (effectiveOrgId) handoffQuery = handoffQuery.eq("organization_id", effectiveOrgId);
+      const { data: handoffRow } = await handoffQuery.maybeSingle();
+      if (handoffRow) {
+        console.log(`[ai-bot] handoff_active org=${effectiveOrgId ?? "null"} skipping`);
+        return new Response(
+          JSON.stringify({ ok: true, skipped: true, reason: "handoff_active" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // 3.2) Detectar gatilhos de handoff na mensagem atual
+    const normMsg = (s: string) =>
+      (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+    const msgLow = normMsg(message);
+    const asksHuman =
+      /\b(humano|atendente|pessoa|gerente|dono|responsavel|nao\s+sou\s+robo|chama\s+(o|a)\s+dono)\b/.test(msgLow) ||
+      /\bfalar\s+com\s+(alguem|voce|um|uma|humano|atendente|pessoa|gerente|dono)\b/.test(msgLow);
+    const isComplaint =
+      /\b(reclama|reclamacao|reembolso|estornar|cancelar\s+pedido|nao\s+chegou|veio\s+errado|frio|atrasou|demorou\s+demais|pessimo|horrivel|pra\s?ga|golpe|fraude)\b/.test(msgLow);
+    let repeated = false;
+    if (history && history.length >= 2) {
+      const prev = history.slice(0, 2).map((h) => normMsg(h.incoming_message || ""));
+      if (msgLow.length >= 3 && prev.some((p) => p && p === msgLow)) repeated = true;
+    }
+    const handoffReason = asksHuman
+      ? "humano_pedido"
+      : isComplaint
+        ? "reclamacao"
+        : repeated
+          ? "repeticao"
+          : null;
+
+    if (handoffReason) {
+      const handoffText = "Vou chamar o pessoal da loja aqui pra te atender, um minutinho 🙏";
+      // Enviar msg fixa pro cliente via uazapi
+      let sentHandoff = false;
+      let handoffErr: string | null = null;
+      if (effectiveServerUrl && effectiveToken) {
+        try {
+          const r = await fetch(`${effectiveServerUrl}/send/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", token: effectiveToken },
+            body: JSON.stringify({ number: phone, text: handoffText }),
+          });
+          sentHandoff = r.ok;
+          if (!r.ok) handoffErr = await r.text();
+        } catch (e) { handoffErr = (e as Error).message; }
+      }
+      // Marcar handoff no histórico
+      await supabase.from("fila_whatsapp").insert({
+        phone,
+        incoming_message: message,
+        ai_response: handoffText,
+        status: "humano",
+        responded_at: new Date().toISOString(),
+        organization_id: effectiveOrgId,
+      });
+      // Notificar dono via mesma instância (best-effort). Manda pro WhatsApp da loja.
+      if (effectiveOrgId) {
+        try {
+          const { data: org } = await supabase
+            .from("organizations")
+            .select("whatsapp")
+            .eq("id", effectiveOrgId)
+            .maybeSingle();
+          const ownerPhone = (org?.whatsapp || "").replace(/\D/g, "");
+          if (ownerPhone && ownerPhone !== phone && effectiveServerUrl && effectiveToken) {
+            const notice =
+              `⚠️ Cliente ${phone} pediu atendimento humano (motivo: ${handoffReason}).\n` +
+              `Última mensagem: "${String(message).slice(0, 200)}"`;
+            await fetch(`${effectiveServerUrl}/send/text`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", token: effectiveToken },
+              body: JSON.stringify({ number: ownerPhone, text: notice }),
+            }).catch(() => {});
+          }
+        } catch (_) { /* no-op */ }
+      }
+      console.log(`[ai-bot] handoff org=${effectiveOrgId ?? "null"} reason=${handoffReason} phone=${phone} sent=${sentHandoff}`);
+      return new Response(
+        JSON.stringify({ ok: true, handoff: true, reason: handoffReason, sent: sentHandoff, sendError: handoffErr }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Saudação: primeira mensagem da conversa e greeting_message configurada
     const greetingMessage: string | null = (config?.greeting_message || "").toString().trim() || null;
