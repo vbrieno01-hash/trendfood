@@ -151,18 +151,14 @@ Deno.serve(async (req) => {
     // server_url pode ser null se coluna nao existia ainda — sempre faz fallback para platform_config
     let serverUrl = ((instance as any).server_url || "").replace(/\/$/, "");
     if (!serverUrl) {
-      const envUrl = Deno.env.get("UAZAPI_SERVER_URL") || "";
-      if (envUrl) {
-        serverUrl = envUrl.replace(/\/$/, "");
-      } else {
-        const { data: pc } = await supabase
-          .from("platform_config")
-          .select("uazapi_server_url")
-          .eq("id", "singleton")
-          .maybeSingle();
-        serverUrl = ((pc as any)?.uazapi_server_url || "").replace(/\/$/, "")
-          || "https://free.uazapi.com";
-      }
+      const { data: pc } = await supabase
+        .from("platform_config")
+        .select("uazapi_server_url")
+        .eq("id", "singleton")
+        .maybeSingle();
+      serverUrl = ((pc as any)?.uazapi_server_url || "").replace(/\/$/, "")
+        || Deno.env.get("UAZAPI_SERVER_URL")?.replace(/\/$/, "")
+        || "https://free.uazapi.com";
     }
 
     // ── Envio via UazAPI /send/text ────────────────────────────────────
@@ -174,11 +170,17 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           token: instance.instance_token,
         },
-        body: JSON.stringify({ phone, message }),
+        body: JSON.stringify({ number: phone, text: message }),
       });
       if (!res.ok) {
         const body = await res.text();
         sendError = `UazAPI ${res.status}: ${body.slice(0, 200)}`;
+        if (res.status === 401 || res.status === 403) {
+          await supabase
+            .from("whatsapp_instances")
+            .update({ status: "disconnected", connected_at: null, phone_connected: null })
+            .eq("organization_id", org.id);
+        }
       }
     } catch (e) {
       sendError = `fetch error: ${(e as Error).message}`;

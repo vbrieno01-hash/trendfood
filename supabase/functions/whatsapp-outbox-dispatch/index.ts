@@ -18,8 +18,6 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const fallbackServer = Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com";
-
   const { data: pending, error: pendErr } = await supabase
     .from("whatsapp_outbox")
     .select("id, organization_id, phone, message, attempts, event_type")
@@ -43,11 +41,11 @@ Deno.serve(async (req) => {
     // Buscar instância conectada da loja
     const { data: inst } = await supabase
       .from("whatsapp_instances")
-      .select("instance_token, status")
+      .select("instance_token, server_url, status")
       .eq("organization_id", row.organization_id)
       .maybeSingle();
 
-    if (!inst || !inst.instance_token || inst.status !== "connected") {
+    if (!inst || !inst.instance_token || !["connected", "open"].includes(inst.status)) {
       await supabase
         .from("whatsapp_outbox")
         .update({
@@ -59,8 +57,10 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    const serverUrl = await resolveUazapiServerUrl(supabase, inst.server_url);
+
     try {
-      const res = await fetch(`${fallbackServer}/send/text`, {
+      const res = await fetch(`${serverUrl}/send/text`, {
         method: "POST",
         headers: { "Content-Type": "application/json", token: inst.instance_token },
         body: JSON.stringify({ number: row.phone, text: row.message }),
@@ -74,6 +74,12 @@ Deno.serve(async (req) => {
         sent++;
       } else {
         const errText = await res.text();
+        if (res.status === 401 || res.status === 403) {
+          await supabase
+            .from("whatsapp_instances")
+            .update({ status: "disconnected", connected_at: null, phone_connected: null })
+            .eq("organization_id", row.organization_id);
+        }
         const newAttempts = row.attempts + 1;
         await supabase
           .from("whatsapp_outbox")
@@ -103,3 +109,21 @@ Deno.serve(async (req) => {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
+
+async function resolveUazapiServerUrl(
+  supabase: ReturnType<typeof createClient>,
+  instanceServerUrl?: string | null,
+): Promise<string> {
+  const instanceUrl = (instanceServerUrl || "").replace(/\/$/, "");
+  if (instanceUrl) return instanceUrl;
+
+  const { data } = await supabase
+    .from("platform_config")
+    .select("uazapi_server_url")
+    .eq("id", "singleton")
+    .maybeSingle();
+  const configuredUrl = ((data as any)?.uazapi_server_url || "").replace(/\/$/, "");
+  if (configuredUrl) return configuredUrl;
+
+  return (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+}

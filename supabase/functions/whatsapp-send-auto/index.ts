@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const serverUrl = (inst.server_url || Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+    const serverUrl = await resolveUazapiServerUrl(supabase, inst.server_url);
     const digits = String(phone).replace(/\D/g, "");
     const number = digits.startsWith("55") ? digits : `55${digits}`;
 
@@ -85,3 +85,21 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+async function resolveUazapiServerUrl(
+  supabase: ReturnType<typeof createClient>,
+  instanceServerUrl?: string | null,
+): Promise<string> {
+  const instanceUrl = (instanceServerUrl || "").replace(/\/$/, "");
+  if (instanceUrl) return instanceUrl;
+
+  const { data } = await supabase
+    .from("platform_config")
+    .select("uazapi_server_url")
+    .eq("id", "singleton")
+    .maybeSingle();
+  const configuredUrl = ((data as any)?.uazapi_server_url || "").replace(/\/$/, "");
+  if (configuredUrl) return configuredUrl;
+
+  return (Deno.env.get("UAZAPI_SERVER_URL") || "https://free.uazapi.com").replace(/\/$/, "");
+}
