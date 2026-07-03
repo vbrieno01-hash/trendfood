@@ -55,7 +55,7 @@ export default function OperationsTab(props: OperationsTabProps) {
       {/* Shared controls bar */}
       <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
         <div className="flex items-center gap-3">
-          <h2 className="font-bold text-foreground text-xl">Operações</h2>
+          <h2 className="font-semibold text-foreground text-xl tracking-tight">Operações</h2>
           <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             ao vivo
@@ -89,10 +89,11 @@ export default function OperationsTab(props: OperationsTabProps) {
       {/* 3-column grid on desktop, stacked on mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Column 1: Cozinha (pendentes + preparando) */}
-        <div className="rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto">
+        <div className="relative rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto shadow-elev-sm overflow-hidden">
+          <span aria-hidden className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-orange-500 via-orange-500/80 to-transparent" />
           <div className="flex items-center gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-sm py-2 -mt-2 -mx-4 px-4 z-10 rounded-t-2xl border-b border-border">
             <Flame className="w-5 h-5 text-orange-500" />
-            <h3 className="font-bold text-foreground">Cozinha</h3>
+            <h3 className="font-semibold text-foreground tracking-tight">Cozinha</h3>
           </div>
           <KitchenTab
             embedded
@@ -120,10 +121,11 @@ export default function OperationsTab(props: OperationsTabProps) {
         </div>
 
         {/* Column 2: Prontos para Entrega */}
-        <div className="rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto">
+        <div className="relative rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto shadow-elev-sm overflow-hidden">
+          <span aria-hidden className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-emerald-500/80 to-transparent" />
           <div className="flex items-center gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-sm py-2 -mt-2 -mx-4 px-4 z-10 rounded-t-2xl border-b border-border">
-            <BellRing className="w-5 h-5 text-green-500" />
-            <h3 className="font-bold text-foreground">Prontos</h3>
+            <BellRing className="w-5 h-5 text-emerald-500" />
+            <h3 className="font-semibold text-foreground tracking-tight">Prontos</h3>
           </div>
           <WaiterTab
             {...waiterSharedProps}
@@ -132,10 +134,11 @@ export default function OperationsTab(props: OperationsTabProps) {
         </div>
 
         {/* Column 3: Aguardando Pagamento */}
-        <div className="rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto">
+        <div className="relative rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto shadow-elev-sm overflow-hidden">
+          <span aria-hidden className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-500 via-amber-500/80 to-transparent" />
           <div className="flex items-center gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-sm py-2 -mt-2 -mx-4 px-4 z-10 rounded-t-2xl border-b border-border">
-            <Clock className="w-5 h-5 text-yellow-500" />
-            <h3 className="font-bold text-foreground">Pagamento</h3>
+            <Clock className="w-5 h-5 text-amber-500" />
+            <h3 className="font-semibold text-foreground tracking-tight">Pagamento</h3>
           </div>
           <WaiterTab
             {...waiterSharedProps}
