@@ -163,6 +163,7 @@ Deno.serve(async (req) => {
 
     // ── Envio via UazAPI /send/text ────────────────────────────────────
     let sendError: string | null = null;
+    let sendCode: string | null = null;
     try {
       const res = await fetch(`${serverUrl}/send/text`, {
         method: "POST",
@@ -175,6 +176,9 @@ Deno.serve(async (req) => {
       if (!res.ok) {
         const body = await res.text();
         sendError = `UazAPI ${res.status}: ${body.slice(0, 200)}`;
+        sendCode = res.status === 401 || res.status === 403
+          ? `WA-NOTIFY-CUSTOMER-${res.status}`
+          : "WA-NOTIFY-CUSTOMER-UAZAPI";
         if (res.status === 401 || res.status === 403) {
           await supabase
             .from("whatsapp_instances")
@@ -184,6 +188,7 @@ Deno.serve(async (req) => {
       }
     } catch (e) {
       sendError = `fetch error: ${(e as Error).message}`;
+      sendCode = "WA-NOTIFY-CUSTOMER-NETWORK";
     }
 
     // ── Grava log (sucesso ou falha) ──────────────────────────────────────
@@ -196,6 +201,13 @@ Deno.serve(async (req) => {
 
     if (sendError) {
       console.error(`[uazapi-notify] failed order=${order_id} event=${event}:`, sendError);
+      await supabase.from("client_error_logs").insert({
+        organization_id: org.id,
+        source: "uazapi-notify-customer",
+        code: sendCode ?? "WA-NOTIFY-CUSTOMER-UNKNOWN",
+        error_message: sendError,
+        metadata: { order_id, event, serverUrl, endpoint: "/send/text" },
+      });
       return ok(`notification failed but logged: ${sendError}`);
     }
 
