@@ -8,6 +8,42 @@ const corsHeaders = {
 // Rate limit em memória (process-level)
 const lastReqByPhone = new Map<string, number>();
 
+// Fire-and-forget: registra métrica de cada resposta do robô p/ o painel admin.
+// Nunca deve derrubar a request principal — todos os erros são engolidos.
+function maskPhone(phone: string): string {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.length < 6) return "****";
+  return digits.slice(0, 4) + "****" + digits.slice(-2);
+}
+function recordBotMetric(
+  sb: any,
+  args: {
+    organization_id?: string | null;
+    provider?: string | null;
+    status: string;
+    latency_ms?: number | null;
+    phone?: string | null;
+    reply?: string | null;
+  },
+) {
+  try {
+    if (!sb) return;
+    // Sem await — fire-and-forget, latência zero para o cliente.
+    sb.from("ai_bot_metrics").insert({
+      organization_id: args.organization_id ?? null,
+      provider: args.provider ?? null,
+      status: args.status,
+      latency_ms: args.latency_ms ?? null,
+      phone_hash: args.phone ? maskPhone(args.phone) : null,
+      reply_preview: args.reply ? args.reply.slice(0, 240) : null,
+    }).then(() => {}, (e: any) => {
+      console.error("[ai-bot] metric insert failed:", e?.message ?? e);
+    });
+  } catch (e) {
+    console.error("[ai-bot] metric exception:", (e as Error).message);
+  }
+}
+
 // Cache in-memory: se Groq bater no limite diário (TPD), pula a chamada
 // até a próxima meia-noite UTC (quando o quota do Groq reseta).
 let groqBlockedUntil = 0;
@@ -149,6 +185,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const reqT0 = Date.now();
     const {
       phone,
       message,
@@ -604,6 +641,7 @@ Seja util, humano, rapido e nao enrole.`;
     console.log(`[ai-bot] ai-call total ${Date.now() - aiT0}ms`);
     if (aiData.status === "rate_limit") {
       console.log(`[ai-bot] finalized reason=ai_rate_limit`);
+      recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_rate_limit", latency_ms: Date.now() - reqT0, phone });
       return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -612,6 +650,7 @@ Seja util, humano, rapido e nao enrole.`;
     if (!aiData.ok) {
       console.error("[ai-bot-respond] all providers failed:", aiData.error);
       console.log(`[ai-bot] finalized reason=ai_unavailable detail=${aiData.error}`);
+      recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_unavailable", latency_ms: Date.now() - reqT0, phone });
       return new Response(
         JSON.stringify({ error: "ai_unavailable", fallback: true, detail: aiData.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -672,6 +711,7 @@ Seja util, humano, rapido e nao enrole.`;
     console.log(`[ai-bot] anti-repeat org=${effectiveOrgId ?? "null"} duplicate=${duplicate} retried=${retried} suppressed=${suppressed}`);
     if (suppressed) {
       console.log(`[ai-bot] finalized reason=duplicate_reply_suppressed`);
+      recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "duplicate_reply_suppressed", latency_ms: Date.now() - reqT0, phone, reply });
       return new Response(
         JSON.stringify({ ok: true, skipped: true, reason: "duplicate_reply_suppressed" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -738,6 +778,14 @@ Seja util, humano, rapido e nao enrole.`;
     });
 
     console.log(`[ai-bot] finalized reason=${sent ? "sent" : "wa_send_failed"} err=${sendError ?? ""}`);
+    recordBotMetric(supabase, {
+      organization_id: effectiveOrgId,
+      provider: aiData.provider,
+      status: sent ? "sent" : "wa_send_failed",
+      latency_ms: Date.now() - reqT0,
+      phone,
+      reply,
+    });
     return new Response(JSON.stringify({ ok: true, response: reply, sent, sendError }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

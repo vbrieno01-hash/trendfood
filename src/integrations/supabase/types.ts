@@ -514,6 +514,39 @@ export type Database = {
           },
         ]
       }
+      ai_bot_metrics: {
+        Row: {
+          created_at: string
+          id: string
+          latency_ms: number | null
+          organization_id: string | null
+          phone_hash: string | null
+          provider: string | null
+          reply_preview: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          organization_id?: string | null
+          phone_hash?: string | null
+          provider?: string | null
+          reply_preview?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          organization_id?: string | null
+          phone_hash?: string | null
+          provider?: string | null
+          reply_preview?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       cash_sessions: {
         Row: {
           closed_at: string | null
@@ -3320,6 +3353,21 @@ export type Database = {
         Args: { _order_total: number; _org_id: string; _phone: string }
         Returns: number
       }
+      admin_bot_dashboard: { Args: { _period?: string }; Returns: Json }
+      admin_bot_recent_messages: {
+        Args: { _limit?: number }
+        Returns: {
+          created_at: string
+          id: string
+          latency_ms: number
+          org_name: string
+          organization_id: string
+          phone_hash: string
+          provider: string
+          reply_preview: string
+          status: string
+        }[]
+      }
       admin_delete_user: { Args: { _user_id: string }; Returns: Json }
       admin_list_users: { Args: never; Returns: Json }
       admin_set_whatsapp_bot_allowed: {
@@ -3330,6 +3378,7 @@ export type Database = {
         Args: { _grant: boolean; _user_id: string }
         Returns: Json
       }
+      admin_unblock_groq: { Args: never; Returns: Json }
       calc_trial_ends_at: { Args: never; Returns: string }
       claim_print_jobs: {
         Args: { _org_id: string }
