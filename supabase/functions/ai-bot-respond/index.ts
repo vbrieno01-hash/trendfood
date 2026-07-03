@@ -538,7 +538,13 @@ Seja util, humano, rapido e nao enrole.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!aiData.ok) throw new Error("AI gateway error: " + aiData.error);
+    if (!aiData.ok) {
+      console.error("[ai-bot-respond] all providers failed:", aiData.error);
+      return new Response(
+        JSON.stringify({ error: "ai_unavailable", fallback: true, detail: aiData.error }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     console.log(`[ai-bot-respond] provider=${aiData.provider}`);
     let reply =
       aiData.content || "Desculpa, tive um problema aqui. Pode repetir?";
