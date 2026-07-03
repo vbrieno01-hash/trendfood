@@ -321,10 +321,29 @@ Seja util, humano, rapido e nao enrole.`;
     }
 
     const aiData = await aiRes.json();
-    const reply =
+    let reply =
       aiData.choices?.[0]?.message?.content ||
       "Desculpa, tive um problema aqui. Pode repetir?";
-    console.log(`[ai-bot] llm-reply len=${reply.length} hasLink=${/https?:\/\//.test(reply)}`);
+
+    // === Anti-spam de link do cardápio ===
+    // 1) Só permite link se o cliente pediu explicitamente NESTA mensagem.
+    // 2) Se já mandamos o link nas últimas 3 respostas, não repete.
+    const askedForMenu = /\b(cardap|menu|link|pedir|pedido|fazer\s+pedido|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(message);
+    const recentReplies = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
+    const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentReplies);
+    if (!askedForMenu || linkAlreadySentRecently) {
+      // Remove qualquer URL do cardápio da resposta e limpa linhas/pontuação órfãs.
+      reply = reply
+        .replace(/https?:\/\/(?:www\.)?trendfood\.lovable\.app\/\S*/gi, "")
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\s*\n\s*\n\s*/g, "\n\n")
+        .replace(/^[\s•\-–—:]+$/gm, "")
+        .trim();
+      if (!reply) {
+        reply = "Tô por aqui! Me diz o que você quer que eu te ajudo.";
+      }
+    }
+    console.log(`[ai-bot] llm-reply len=${reply.length} askedMenu=${askedForMenu} linkRecent=${linkAlreadySentRecently}`);
 
     // 5) Enviar resposta de volta via uazapiGO
     let sent = false;
