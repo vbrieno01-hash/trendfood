@@ -673,6 +673,7 @@ export type Database = {
       }
       client_error_logs: {
         Row: {
+          code: string | null
           created_at: string
           error_message: string
           error_stack: string | null
@@ -685,6 +686,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          code?: string | null
           created_at?: string
           error_message: string
           error_stack?: string | null
@@ -697,6 +699,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          code?: string | null
           created_at?: string
           error_message?: string
           error_stack?: string | null
