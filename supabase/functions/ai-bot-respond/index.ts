@@ -9,8 +9,9 @@ const corsHeaders = {
 const lastReqByPhone = new Map<string, number>();
 
 /**
- * Cascata de IA gratuita: tenta Groq primeiro; se falhar (429/5xx/sem key),
- * cai automaticamente para Cerebras. Ambos são OpenAI-compatible.
+ * Cascata de IA gratuita: Groq → Cerebras. Fallback automático se um
+ * provedor zerar limite (429/402), falhar (404/410/5xx) ou vier vazio.
+ * Ambos são OpenAI-compatible. NÃO usar Lovable AI aqui.
  * Retorna { ok, content, provider, status?, error? }.
  */
 async function callAICascade(
@@ -24,12 +25,6 @@ async function callAICascade(
     model: string;
   }> = [
     {
-      name: "lovable",
-      key: Deno.env.get("LOVABLE_API_KEY"),
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      model: "google/gemini-2.5-flash",
-    },
-    {
       name: "groq",
       key: Deno.env.get("GROQ_API_KEY"),
       url: "https://api.groq.com/openai/v1/chat/completions",
@@ -39,7 +34,7 @@ async function callAICascade(
       name: "cerebras",
       key: Deno.env.get("CEREBRAS_API_KEY"),
       url: "https://api.cerebras.ai/v1/chat/completions",
-      model: "llama-3.3-70b-instruct",
+      model: "llama-3.3-70b",
     },
   ];
 
