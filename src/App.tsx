@@ -213,6 +213,8 @@ const AppInner = () => {
               <Route path="/avaliar/:slug" element={<ReviewPage />} />
               <Route path="/instalar" element={<InstallPage />} />
               <Route path="/_preview/fallback" element={<PreviewFallback />} />
+              {/* Short link: /:slug — mantém /unidade/:slug funcional para compat */}
+              <Route path="/:slug" element={<UnitPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
