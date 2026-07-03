@@ -1,0 +1,2 @@
+ALTER TABLE public.client_error_logs ADD COLUMN IF NOT EXISTS code text;
+CREATE INDEX IF NOT EXISTS client_error_logs_org_source_idx ON public.client_error_logs (organization_id, source, created_at DESC);
