@@ -802,8 +802,18 @@ Seja util, humano, rapido e nao enrole.`;
     const askedForMenu = /\b(cardap|menu|link|pedir|pedido|fazer\s+pedido|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(message);
     const recentReplies = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
     const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentReplies);
-    if (!askedForMenu || linkAlreadySentRecently) {
-      // Remove qualquer URL do cardápio da resposta e limpa linhas/pontuação órfãs.
+    const replyHasLink = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(reply);
+    if (askedForMenu) {
+      // Cliente pediu link/cardápio: NUNCA cortar URL. Se a IA esqueceu de
+      // mandar, a gente completa com o link determinístico.
+      if (!replyHasLink && orgSlug) {
+        const url = `https://trendfood.lovable.app/unidade/${orgSlug}`;
+        reply = reply.trim()
+          ? `${reply.trim()}\n${url}`
+          : `Aqui está o link do nosso cardápio: ${url}`;
+      }
+    } else {
+      // Cliente NÃO pediu link: remove URL para não spammar.
       reply = reply
         .replace(/https?:\/\/(?:www\.)?trendfood\.lovable\.app\/\S*/gi, "")
         .replace(/[ \t]{2,}/g, " ")
@@ -814,7 +824,7 @@ Seja util, humano, rapido e nao enrole.`;
         reply = "Tô por aqui! Me diz o que você quer que eu te ajudo.";
       }
     }
-    console.log(`[ai-bot] llm-reply len=${reply.length} askedMenu=${askedForMenu} linkRecent=${linkAlreadySentRecently}`);
+    console.log(`[ai-bot] llm-reply len=${reply.length} askedMenu=${askedForMenu} linkRecent=${linkAlreadySentRecently} hasLink=${replyHasLink}`);
 
     // 5) Enviar resposta de volta via uazapiGO
     let sent = false;
