@@ -441,15 +441,24 @@ function AdminContent() {
       const paymentCount = orgPayments.length;
       const lastPayment = orgPayments[0] ?? null;
       const lastPaidValue = lastPayment ? lastPayment.amount_cents / 100 : 0;
+      const p = planPrices[o.subscription_plan];
+      const cycle = (o.billing_cycle ?? "monthly").toLowerCase();
+      let currentMonthlyValue = 0;
+      if (p) {
+        if (cycle === "annual" || cycle === "yearly") currentMonthlyValue = p.annual / 12 / 100;
+        else if (cycle === "quarterly" && p.quarterly) currentMonthlyValue = p.quarterly / 3 / 100;
+        else currentMonthlyValue = p.monthly / 100;
+      }
       return {
         ...o,
         paymentCount,
         lastPaidValue,
+        currentMonthlyValue,
         totalPaid,
         lastPaidAt: lastPayment?.paid_at ?? null,
       };
     });
-  }, [payingOrgs, paymentsByOrg]);
+  }, [payingOrgs, paymentsByOrg, planPrices]);
 
   const totalRevenue = useMemo(
     () => payments.reduce((acc, p) => acc + p.amount_cents, 0) / 100,
@@ -458,12 +467,21 @@ function AdminContent() {
 
   const exportRevenueCSV = () => {
     const orgsById = new Map(orgs.map((o) => [o.id, o] as const));
-    const lines = ["Data,Loja,Slug,Plano,Ciclo,Valor (R$),Promo,Origem,Payment ID,Observacao"];
+    const lines = ["Data,Loja,Slug,Plano,Ciclo,Valor (R$),Valor Atual Mês (R$),Promo,Origem,Payment ID,Observacao"];
     payments.forEach((p) => {
       const o = orgsById.get(p.organization_id);
       const date = new Date(p.paid_at).toLocaleDateString("pt-BR");
       const amount = (p.amount_cents / 100).toFixed(2).replace(".", ",");
       const safe = (s: string | null | undefined) => `"${(s ?? "").replace(/"/g, '""')}"`;
+      const pp = o ? planPrices[o.subscription_plan] : undefined;
+      const cycle = (o?.billing_cycle ?? "monthly").toLowerCase();
+      let currentCents = 0;
+      if (pp) {
+        if (cycle === "annual" || cycle === "yearly") currentCents = pp.annual / 12;
+        else if (cycle === "quarterly" && pp.quarterly) currentCents = pp.quarterly / 3;
+        else currentCents = pp.monthly;
+      }
+      const currentAmount = (currentCents / 100).toFixed(2).replace(".", ",");
       lines.push([
         date,
         safe(o?.name ?? "—"),
@@ -471,6 +489,7 @@ function AdminContent() {
         safe(p.plan),
         safe(p.billing_cycle ?? ""),
         amount,
+        currentAmount,
         p.promo_applied ? "sim" : "nao",
         safe(p.source),
         safe(p.payment_id ?? ""),
@@ -785,7 +804,7 @@ function AdminContent() {
               <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
                 <KpiCard
                   icon={<DollarSign className="w-4 h-4" />}
-                  label="Receita Estimada"
+                  label="Receita Total (Histórico)"
                   value={loading ? null : fmt(totalRevenue)}
                   gradient="from-emerald-500/20 to-emerald-500/5"
                   iconBg="bg-emerald-500/15"
@@ -907,7 +926,8 @@ function AdminContent() {
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Loja</th>
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Plano</th>
                               <th className="text-left px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Status</th>
-                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Último valor pago</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Plano atual (Mês)</th>
+                              <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Último pago (hist.)</th>
                               <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Pagamentos</th>
                               <th className="text-right px-5 py-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total recebido</th>
                             </tr>
@@ -939,7 +959,8 @@ function AdminContent() {
                                     <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Ativo</span>
                                   </div>
                                 </td>
-                                <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{s.lastPaidValue > 0 ? fmt(s.lastPaidValue) : "—"}</td>
+                                <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">{s.currentMonthlyValue > 0 ? fmt(s.currentMonthlyValue) : "—"}</td>
+                                <td className="px-5 py-3.5 text-right tabular-nums text-xs text-muted-foreground">{s.lastPaidValue > 0 ? fmt(s.lastPaidValue) : "—"}</td>
                                 <td className="px-5 py-3.5 text-right tabular-nums text-muted-foreground">{s.paymentCount}</td>
                                 <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">{fmt(s.totalPaid)}</td>
                               </tr>
@@ -947,7 +968,12 @@ function AdminContent() {
                           </tbody>
                           <tfoot>
                             <tr style={{ background: "linear-gradient(90deg, hsl(24 95% 53% / 0.06) 0%, transparent 100%)" }}>
-                              <td colSpan={5} className="px-5 py-3 text-xs font-bold text-muted-foreground text-right uppercase tracking-wider">Total</td>
+                              <td colSpan={3} className="px-5 py-3 text-xs font-bold text-muted-foreground text-right uppercase tracking-wider">Total mensal ativo</td>
+                              <td className="px-5 py-3 text-right font-bold tabular-nums text-foreground">{fmt(monthlyRecurringForecast)}</td>
+                              <td colSpan={3} className="px-5 py-3" />
+                            </tr>
+                            <tr>
+                              <td colSpan={6} className="px-5 py-3 text-xs font-bold text-muted-foreground text-right uppercase tracking-wider">Total recebido (histórico)</td>
                               <td className="px-5 py-3 text-right font-bold tabular-nums text-foreground">{fmt(totalRevenue)}</td>
                             </tr>
                           </tfoot>
