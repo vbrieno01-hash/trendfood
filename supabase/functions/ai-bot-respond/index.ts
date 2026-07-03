@@ -34,7 +34,7 @@ async function callAICascade(
       name: "cerebras",
       key: Deno.env.get("CEREBRAS_API_KEY"),
       url: "https://api.cerebras.ai/v1/chat/completions",
-      model: "llama3.1-8b",
+      model: "gpt-oss-120b",
     },
   ];
 
