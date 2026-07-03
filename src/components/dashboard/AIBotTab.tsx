@@ -361,13 +361,16 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     setSaving(true);
     const { error } = await supabase
       .from("ai_bot_config")
-      .update({
-        enabled: config.enabled,
-        greeting_message: config.greeting_message,
-        system_prompt: config.system_prompt,
-        model: config.model,
-      })
-      .eq("id", config.id);
+      .upsert(
+        {
+          organization_id: orgId,
+          enabled: config.enabled,
+          greeting_message: config.greeting_message,
+          system_prompt: config.system_prompt,
+          model: config.model,
+        },
+        { onConflict: "organization_id" },
+      );
     setSaving(false);
     if (error) {
       // Trigger de gate de plano retorna a mensagem pronta
