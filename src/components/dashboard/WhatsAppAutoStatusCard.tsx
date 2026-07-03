@@ -151,59 +151,6 @@ export default function WhatsAppAutoStatusCard({ orgId }: Props) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-6 space-y-3">
-          <div className="flex items-center gap-2">
-            <Send className="h-4 w-4 text-primary" />
-            <p className="font-semibold">Mensagens enviadas recentemente</p>
-          </div>
-          {outbox.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma mensagem ainda. Quando entrar pedido com o robô ligado, vai aparecer aqui.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {outbox.map((m) => {
-                const statusColor =
-                  m.status === "sent"
-                    ? "default"
-                    : m.status === "failed"
-                    ? "destructive"
-                    : m.status === "skipped"
-                    ? "secondary"
-                    : "outline";
-                const Icon =
-                  m.status === "sent"
-                    ? CheckCircle2
-                    : m.status === "failed" || m.status === "skipped"
-                    ? AlertTriangle
-                    : Loader2;
-                return (
-                  <div key={m.id} className="rounded-lg border p-3 text-sm space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs text-muted-foreground">+{m.phone}</span>
-                      <Badge variant={statusColor as any} className="text-xs gap-1">
-                        <Icon className="h-3 w-3" />
-                        {m.status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {EVENT_LABELS[m.event_type] || m.event_type}
-                    </p>
-                    <p className="text-foreground line-clamp-2">{m.message}</p>
-                    {m.last_error && (
-                      <p className="text-xs text-destructive">⚠ {m.last_error}</p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground">
-                      {new Date(m.created_at).toLocaleString("pt-BR")}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

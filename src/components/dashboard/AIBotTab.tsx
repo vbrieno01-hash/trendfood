@@ -540,46 +540,6 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
         </Card>
       )}
 
-      {/* Recent activity */}
-      <Card>
-        <CardContent className="pt-6 space-y-3">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-primary" />
-            <p className="font-semibold">Conversas recentes</p>
-          </div>
-          {queue.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma mensagem ainda. Mande "oi" para o número conectado para testar.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {queue.map((q) => (
-                <div key={q.id} className="rounded-lg border p-3 text-sm space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-muted-foreground">
-                      +{q.phone}
-                    </span>
-                    <Badge variant={q.status === "respondido" ? "default" : "secondary"} className="text-xs">
-                      {q.status}
-                    </Badge>
-                  </div>
-                  <p className="text-foreground">
-                    <span className="text-muted-foreground">Cliente:</span> {q.incoming_message}
-                  </p>
-                  {q.ai_response && (
-                    <p className="text-foreground">
-                      <span className="text-muted-foreground">Bot:</span> {q.ai_response}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(q.created_at).toLocaleString("pt-BR")}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
