@@ -23,13 +23,13 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const [{ data: cfg }, { data: inst }] = await Promise.all([
-      supabase.from("ai_bot_config").select("enabled").eq("organization_id", organization_id).maybeSingle(),
+    const [{ data: org }, { data: inst }] = await Promise.all([
+      supabase.from("organizations").select("whatsapp_bot_allowed").eq("id", organization_id).maybeSingle(),
       supabase.from("whatsapp_instances").select("instance_token, server_url, status").eq("organization_id", organization_id).maybeSingle(),
     ]);
 
-    if (!cfg?.enabled) {
-      return new Response(JSON.stringify({ sent: false, reason: "bot_disabled" }), {
+    if (!(org as any)?.whatsapp_bot_allowed) {
+      return new Response(JSON.stringify({ sent: false, reason: "bot_not_allowed" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

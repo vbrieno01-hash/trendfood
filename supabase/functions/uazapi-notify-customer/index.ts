@@ -52,21 +52,6 @@ function buildMessage(event: string, customerName: string, orderId: string, note
   }
 }
 
-// ── Plan check (replica usePlanLimits no servidor) ───────────────────────────
-
-function hasAiBotAccess(org: {
-  subscription_plan?: string | null;
-  trial_ends_at?: string | null;
-}): boolean {
-  const plan = org.subscription_plan ?? "free";
-  if (plan === "pro" || plan === "enterprise" || plan === "lifetime") return true;
-  // Trial ativo conta como pro
-  if (plan === "free" && org.trial_ends_at) {
-    return new Date(org.trial_ends_at) > new Date();
-  }
-  return false;
-}
-
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -123,10 +108,7 @@ Deno.serve(async (req) => {
 
     if (!org) return ok("org not found or forbidden, skipping");
 
-    // ── Gate 1: Plano pago ou trial ativo ────────────────────────────────
-    if (!hasAiBotAccess(org)) return ok("plan does not include ai_bot, skipping");
-
-    // ── Gate 2: Admin liberou esta loja ──────────────────────────────────
+    // ── Gate: Admin liberou esta loja (independe de plano) ────────────────
     if (!(org as any).whatsapp_bot_allowed) return ok("whatsapp_bot not allowed for this org, skipping");
 
     // ── Gate 3: Instância UazAPI conectada ───────────────────────────────
