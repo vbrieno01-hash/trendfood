@@ -547,7 +547,14 @@ Deno.serve(async (req) => {
     // recebe imediatamente o link do cardápio. Sem IA, sem token.
     if (orgSlug) {
       const menuUrl = `https://trendfood.site/${orgSlug}`;
-      const linkReply = `Olá! 😊 Aqui está o link do nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`;
+      const variations = [
+        `Olá! 😊 Aqui está o nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`,
+        `Oi, tudo bem? 👋 Dá uma olhada no cardápio:\n${menuUrl}\n\nQualquer dúvida é só chamar!`,
+        `Fala! 🙌 Segue o link do cardápio digital:\n${menuUrl}\n\nMonta seu pedido por aí e a gente já prepara.`,
+        `Opa! 😄 Bora pedir? Nosso cardápio tá aqui:\n${menuUrl}\n\nÉ rapidinho pra finalizar.`,
+        `Bem-vindo(a)! 🍔 Escolhe o que quiser no cardápio:\n${menuUrl}\n\nA gente cuida do resto. 💜`,
+      ];
+      const linkReply = variations[Math.floor(Math.random() * variations.length)];
 
       let sentLink = false;
       let linkErr: string | null = null;
