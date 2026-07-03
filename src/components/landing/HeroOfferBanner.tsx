@@ -32,7 +32,7 @@ export default function HeroOfferBanner() {
 
         <Link
           to="/auth"
-          className="group inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-primary font-bold text-sm shadow-lg hover:shadow-xl hover:scale-[1.03] transition-all whitespace-nowrap"
+          className="group inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white text-primary font-semibold text-sm shadow-elev-md hover:shadow-elev-lg hover:-translate-y-0.5 transition-premium whitespace-nowrap"
         >
           Começar agora
           <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />

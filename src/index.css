@@ -158,6 +158,28 @@
   .shadow-elev-lg { box-shadow: var(--shadow-lg); }
   .shadow-glow    { box-shadow: var(--shadow-glow); }
 
+  /* Animated underline for nav links */
+  .link-underline {
+    position: relative;
+  }
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -4px;
+    height: 2px;
+    background: hsl(var(--primary));
+    border-radius: 2px;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .link-underline:hover::after,
+  .link-underline:focus-visible::after {
+    transform: scaleX(1);
+  }
+
   /* Smoother, consistent interactive transitions */
   .transition-premium {
     transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),

@@ -193,15 +193,18 @@ const Index = () => {
       </Suspense>
 
       {/* Benefit Cards */}
-      <section className="py-10 md:py-16 px-4 bg-background md:border-b md:border-border/60">
+      <section className="py-12 md:py-20 px-4 bg-background md:border-b md:border-border/60">
         <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4 md:gap-6">
             {benefitsData.map((card: any, idx: number) => (
-              <div key={card.title} className="bg-card rounded-2xl p-6 border border-border hover:border-primary/40 hover:shadow-lg transition-all text-center">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+              <div
+                key={card.title}
+                className="group bg-card rounded-2xl p-6 border border-border shadow-elev-sm hover:shadow-elev-md hover:border-primary/40 hover:-translate-y-0.5 transition-premium text-center"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 transition-premium group-hover:bg-primary/15 group-hover:shadow-glow">
                   {benefitIcons[idx] || <Zap className="w-7 h-7" />}
                 </div>
-                <h3 className="font-bold text-foreground text-lg mb-2">{card.title}</h3>
+                <h3 className="font-semibold text-foreground text-lg mb-2 tracking-tight">{card.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">{card.description}</p>
               </div>
             ))}
