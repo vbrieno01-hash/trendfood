@@ -8,6 +8,42 @@ const corsHeaders = {
 // Rate limit em memória (process-level)
 const lastReqByPhone = new Map<string, number>();
 
+// Fire-and-forget: registra métrica de cada resposta do robô p/ o painel admin.
+// Nunca deve derrubar a request principal — todos os erros são engolidos.
+function maskPhone(phone: string): string {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.length < 6) return "****";
+  return digits.slice(0, 4) + "****" + digits.slice(-2);
+}
+function recordBotMetric(
+  sb: any,
+  args: {
+    organization_id?: string | null;
+    provider?: string | null;
+    status: string;
+    latency_ms?: number | null;
+    phone?: string | null;
+    reply?: string | null;
+  },
+) {
+  try {
+    if (!sb) return;
+    // Sem await — fire-and-forget, latência zero para o cliente.
+    sb.from("ai_bot_metrics").insert({
+      organization_id: args.organization_id ?? null,
+      provider: args.provider ?? null,
+      status: args.status,
+      latency_ms: args.latency_ms ?? null,
+      phone_hash: args.phone ? maskPhone(args.phone) : null,
+      reply_preview: args.reply ? args.reply.slice(0, 240) : null,
+    }).then(() => {}, (e: any) => {
+      console.error("[ai-bot] metric insert failed:", e?.message ?? e);
+    });
+  } catch (e) {
+    console.error("[ai-bot] metric exception:", (e as Error).message);
+  }
+}
+
 // Cache in-memory: se Groq bater no limite diário (TPD), pula a chamada
 // até a próxima meia-noite UTC (quando o quota do Groq reseta).
 let groqBlockedUntil = 0;
