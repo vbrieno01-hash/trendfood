@@ -794,7 +794,7 @@ function AdminContent() {
               <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-6">
                 <KpiCard
                   icon={<DollarSign className="w-4 h-4" />}
-                  label="Receita Estimada"
+                  label="Receita Total (Histórico)"
                   value={loading ? null : fmt(totalRevenue)}
                   gradient="from-emerald-500/20 to-emerald-500/5"
                   iconBg="bg-emerald-500/15"
