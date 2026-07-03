@@ -201,6 +201,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Hidrata bloqueio persistido do Groq (não tenta Groq se o dia bateu no teto)
+    await hydrateGroqBlock(supabase);
+
     // 1) Carregar config: preferir config da própria loja; fallback no singleton
     let config: any = null;
     if (orgIdOverride) {
@@ -597,9 +600,10 @@ Seja util, humano, rapido e nao enrole.`;
 
     // 4) Cascata IA free: Groq → Cerebras (fallback automático se um zerar/falhar)
     const aiT0 = Date.now();
-    let aiData = await callAICascade(messages, 200);
+    let aiData = await callAICascade(messages, 200, supabase);
     console.log(`[ai-bot] ai-call total ${Date.now() - aiT0}ms`);
     if (aiData.status === "rate_limit") {
+      console.log(`[ai-bot] finalized reason=ai_rate_limit`);
       return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -607,6 +611,7 @@ Seja util, humano, rapido e nao enrole.`;
     }
     if (!aiData.ok) {
       console.error("[ai-bot-respond] all providers failed:", aiData.error);
+      console.log(`[ai-bot] finalized reason=ai_unavailable detail=${aiData.error}`);
       return new Response(
         JSON.stringify({ error: "ai_unavailable", fallback: true, detail: aiData.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -656,7 +661,7 @@ Seja util, humano, rapido e nao enrole.`;
             "A resposta anterior ficou muito parecida com algo que voce ja mandou. Reformule com OUTRO angulo, outra pergunta, e NAO repita saudacao. Seja curto.",
         },
       ];
-      const retryData = await callAICascade(retryMessages, 200);
+      const retryData = await callAICascade(retryMessages, 200, supabase);
       if (retryData.ok && retryData.content) {
         reply = retryData.content;
         if (isDuplicateOf(reply)) suppressed = true;
@@ -666,6 +671,7 @@ Seja util, humano, rapido e nao enrole.`;
     }
     console.log(`[ai-bot] anti-repeat org=${effectiveOrgId ?? "null"} duplicate=${duplicate} retried=${retried} suppressed=${suppressed}`);
     if (suppressed) {
+      console.log(`[ai-bot] finalized reason=duplicate_reply_suppressed`);
       return new Response(
         JSON.stringify({ ok: true, skipped: true, reason: "duplicate_reply_suppressed" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -731,11 +737,13 @@ Seja util, humano, rapido e nao enrole.`;
       organization_id: effectiveOrgId,
     });
 
+    console.log(`[ai-bot] finalized reason=${sent ? "sent" : "wa_send_failed"} err=${sendError ?? ""}`);
     return new Response(JSON.stringify({ ok: true, response: reply, sent, sendError }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("ai-bot-respond error:", err);
+    console.log(`[ai-bot] finalized reason=exception msg=${(err as Error).message}`);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
