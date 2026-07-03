@@ -141,6 +141,24 @@ Deno.serve(async (req) => {
       }
     }
 
+    // GATE POR LOJA: admin controla via organizations.whatsapp_bot_allowed.
+    // Se a chave estiver desligada para esta loja específica, o bot fica em silêncio
+    // só nela — outras lojas continuam respondendo normalmente.
+    if (effectiveOrgId) {
+      const { data: orgGate } = await supabase
+        .from("organizations")
+        .select("whatsapp_bot_allowed")
+        .eq("id", effectiveOrgId)
+        .maybeSingle();
+      if (!orgGate?.whatsapp_bot_allowed) {
+        console.log(`[ai-bot] skipped org=${effectiveOrgId} reason=bot_not_allowed_for_org`);
+        return new Response(
+          JSON.stringify({ ok: true, skipped: true, reason: "bot_not_allowed_for_org" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // 2) Carregar contexto da loja (multi-tenant ou test)
     let storeContext = "";
     if (effectiveOrgId) {
