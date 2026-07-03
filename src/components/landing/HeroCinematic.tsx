@@ -109,20 +109,20 @@ export default function HeroCinematic({
       />
 
       <header className="relative z-10 border-b border-white/[0.06]">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/[0.03] rounded-b-2xl">
-          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity" aria-label="Ir para o início">
+        <div className="max-w-6xl mx-auto px-6 py-3.5 md:py-4 flex items-center justify-between backdrop-blur-xl bg-white/[0.04] rounded-b-2xl">
+          <Link to="/" className="flex items-center gap-2.5 transition-premium hover:opacity-90" aria-label="Ir para o início">
             <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
-            <span className="font-bold text-white text-lg tracking-tight">TrendFood</span>
+            <span className="font-semibold text-white text-lg tracking-tight">TrendFood</span>
           </Link>
-          <div className="hidden md:flex items-center gap-6 mr-auto ml-10">
-            <a href="#funcionalidades" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Recursos</a>
-            <Link to="/planos" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Preços</Link>
+          <div className="hidden md:flex items-center gap-8 mr-auto ml-10">
+            <a href="#funcionalidades" className="link-underline text-white/70 hover:text-white text-sm font-medium transition-premium">Recursos</a>
+            <Link to="/planos" className="link-underline text-white/70 hover:text-white text-sm font-medium transition-premium">Preços</Link>
           </div>
-          <div className="flex items-center gap-3">
-            <Button size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/[0.06] transition-all" asChild>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" className="h-10 px-4 text-white/80 hover:text-white hover:bg-white/[0.08] rounded-full transition-premium" asChild>
               <Link to="/auth">Entrar</Link>
             </Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-5 transition-all" asChild>
+            <Button size="sm" className="h-10 px-5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-semibold shadow-glow transition-premium hover:-translate-y-0.5" asChild>
               <Link to="/auth">Começar Agora</Link>
             </Button>
           </div>
@@ -138,7 +138,7 @@ export default function HeroCinematic({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Badge className="mb-8 bg-white/[0.08] text-white/80 border-white/[0.1] hover:bg-white/[0.12] backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
+              <Badge className="mb-8 bg-white/[0.08] text-white/85 border-white/[0.12] hover:bg-white/[0.14] backdrop-blur-md rounded-full px-4 py-1.5 text-sm font-medium shadow-elev-sm">
                 <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
                 {badgeText}
               </Badge>
@@ -148,7 +148,7 @@ export default function HeroCinematic({
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 leading-[1.05] tracking-tight"
+              className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-[1.05] tracking-tight"
             >
               {title}
               <br />
@@ -180,10 +180,10 @@ export default function HeroCinematic({
             >
               <Link
                 to="/auth"
-                className="relative overflow-hidden inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-bold px-10 py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.65)] hover:scale-[1.03] transition-all duration-300"
+                className="group relative overflow-hidden inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-base md:text-lg font-semibold px-8 md:px-10 py-3.5 md:py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_16px_48px_rgba(249,115,22,0.7)] hover:-translate-y-0.5 transition-premium w-full sm:w-auto justify-center"
               >
                 <span className="relative z-10">{ctaText}</span>
-                <ArrowRight className="w-5 h-5 relative z-10" />
+                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-0.5 transition-premium" />
                 <div className="landing-shimmer-overlay" />
               </Link>
             </motion.div>
@@ -195,7 +195,7 @@ export default function HeroCinematic({
               className="mt-10 flex flex-wrap gap-2.5 justify-center lg:justify-start"
             >
               {proofBadges.map((b) => (
-                <span key={b} className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 text-white/80 text-sm font-medium">{b}</span>
+                <span key={b} className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-white/85 text-sm font-medium transition-premium hover:border-white/30 hover:bg-black/50">{b}</span>
               ))}
             </motion.div>
 
@@ -235,7 +235,7 @@ export default function HeroCinematic({
                 style={{ background: "radial-gradient(ellipse at center, rgba(249,115,22,0.45), transparent 70%)" }}
               />
               <div
-                className="relative rounded-2xl overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.7)] border border-white/10"
+                className="relative rounded-2xl overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.7)] border border-white/10 ring-1 ring-white/5"
                 style={{ background: "#1a1a2e", transform: "translateZ(40px)" }}
               >
                 <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
@@ -248,21 +248,21 @@ export default function HeroCinematic({
                 </div>
                 <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
               </div>
-              {/* Floating badge */}
+              {/* Floating badges */}
               <div
-                className="absolute -left-6 top-1/3 bg-white rounded-xl shadow-2xl px-4 py-3 border border-orange-200"
+                className="absolute -left-4 md:-left-6 top-1/3 bg-white rounded-2xl shadow-2xl px-4 py-3 border border-orange-100 ring-1 ring-orange-500/10"
                 style={{ transform: "translateZ(80px)" }}
               >
-                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Faturamento</div>
-                <div className="text-lg font-bold text-foreground">R$ 4.872</div>
-                <div className="text-[10px] text-emerald-600 font-semibold">↑ 23% hoje</div>
+                <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-[0.14em]">Faturamento</div>
+                <div className="text-lg font-bold text-foreground tabular-nums">R$ 4.872</div>
+                <div className="text-[10px] text-emerald-600 font-semibold tabular-nums">↑ 23% hoje</div>
               </div>
               <div
-                className="absolute -right-4 bottom-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-2xl px-4 py-3 text-white"
+                className="absolute -right-3 md:-right-4 bottom-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl shadow-2xl px-4 py-3 text-white ring-1 ring-white/10"
                 style={{ transform: "translateZ(80px)" }}
               >
-                <div className="text-[10px] font-medium uppercase tracking-wider opacity-80">Novo pedido</div>
-                <div className="text-base font-bold">Mesa 4 · R$ 87</div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-80">Novo pedido</div>
+                <div className="text-base font-bold tabular-nums">Mesa 4 · R$ 87</div>
               </div>
             </motion.div>
           </motion.div>
