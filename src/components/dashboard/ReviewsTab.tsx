@@ -56,9 +56,9 @@ const ReviewsTab = ({ orgId }: ReviewsTabProps) => {
     },
   });
 
-  const shareUrl = orgMeta?.slug ? `${window.location.origin}/unidade/${orgMeta.slug}` : "";
+  const shareUrl = orgMeta?.slug ? `https://trendfood.site/avaliar/${orgMeta.slug}` : "";
   const shareText = orgMeta?.slug
-    ? `Olá! 🌟 Faça seu pedido e depois deixe sua avaliação sobre nossa loja: ${shareUrl}`
+    ? `Olá! 🌟 Adoraríamos saber sua opinião. Deixe sua avaliação aqui: ${shareUrl}`
     : "";
 
   const copyLink = async () => {

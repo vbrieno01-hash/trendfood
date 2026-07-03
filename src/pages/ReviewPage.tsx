@@ -22,17 +22,17 @@ const ReviewPage = () => {
   const [customerName, setCustomerName] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  const isLoading = orgLoading || reviewLoading;
+  const isLoading = orgLoading || (!!orderId && reviewLoading);
 
   const handleSubmit = async () => {
-    if (!org || !orderId || rating === 0) {
+    if (!org || rating === 0) {
       toast.error("Selecione uma nota de 1 a 5 estrelas");
       return;
     }
     try {
       await submitReview.mutateAsync({
         organization_id: org.id,
-        order_id: orderId,
+        ...(orderId ? { order_id: orderId } : {}),
         rating,
         comment: comment.trim() || undefined,
         customer_name: customerName.trim() || undefined,
@@ -73,8 +73,8 @@ const ReviewPage = () => {
 
   const primaryColor = org.primary_color || "#f97316";
 
-  // Already reviewed
-  if (existingReview || submitted) {
+  // Already reviewed (só bloqueia quando há orderId vinculado)
+  if ((orderId && existingReview) || submitted) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
