@@ -128,11 +128,24 @@ Deno.serve(async (req) => {
 
     // If paid, update order status
     if (paid && order_id) {
-      await supabase
+      const { data: updated } = await supabase
         .from("orders")
         .update({ status: "pending", paid: true })
         .eq("id", order_id)
-        .eq("status", "awaiting_payment");
+        .eq("status", "awaiting_payment")
+        .select("id");
+
+      // Only notify owner when this poll actually confirmed the payment (transitioned status),
+      // preventing duplicate notifications on subsequent polls.
+      if (updated && updated.length > 0) {
+        try {
+          await supabase.functions.invoke("uazapi-notify-owner", {
+            body: { order_id },
+          });
+        } catch (err) {
+          console.error("[check-pix-status] notify-owner invoke failed:", err);
+        }
+      }
     }
 
     return new Response(
