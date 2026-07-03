@@ -48,7 +48,7 @@ export const useSubmitReview = () => {
   return useMutation({
     mutationFn: async (review: {
       organization_id: string;
-      order_id: string;
+      order_id?: string;
       rating: number;
       comment?: string;
       customer_name?: string;
@@ -56,9 +56,16 @@ export const useSubmitReview = () => {
       if (review.rating < 1 || review.rating > 5) {
         throw new Error("A nota deve ser entre 1 e 5 estrelas.");
       }
+      const payload: Record<string, unknown> = {
+        organization_id: review.organization_id,
+        rating: review.rating,
+      };
+      if (review.order_id) payload.order_id = review.order_id;
+      if (review.comment) payload.comment = review.comment;
+      if (review.customer_name) payload.customer_name = review.customer_name;
       const { data, error } = await supabase
         .from("reviews")
-        .insert(review)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;
@@ -66,7 +73,7 @@ export const useSubmitReview = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["reviews", data.organization_id] });
-      qc.invalidateQueries({ queryKey: ["review", data.order_id] });
+      if (data.order_id) qc.invalidateQueries({ queryKey: ["review", data.order_id] });
     },
   });
 };
