@@ -322,6 +322,34 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // === Deduplicação por messageid ===
+    // A uazapi entrega o mesmo evento múltiplas vezes (chatSource="updated" repete).
+    // Um INSERT em wa_message_dedupe com PK única garante que só o primeiro passa;
+    // reentregas retornam 23505 (unique_violation) e são descartadas.
+    const messageIdDedup =
+      body?.message?.messageid ||
+      body?.message?.id ||
+      body?.data?.key?.id ||
+      null;
+    if (messageIdDedup) {
+      const { error: dupErr } = await supabase
+        .from("wa_message_dedupe")
+        .insert({
+          message_id: String(messageIdDedup),
+          instance_name: body?.instanceName || body?.instance?.name || null,
+        });
+      if (dupErr) {
+        if ((dupErr as any).code === "23505") {
+          console.log("[whatsapp-webhook] duplicate skipped", { messageId: messageIdDedup });
+          return new Response(
+            JSON.stringify({ ok: true, skipped: true, reason: "duplicate" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        console.error("[whatsapp-webhook] dedupe insert error (continuing):", dupErr);
+      }
+    }
+
     // Identificadores de instância vindos do uazapi
     const instanceToken =
       body?.token ||
