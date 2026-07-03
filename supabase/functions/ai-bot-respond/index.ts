@@ -8,6 +8,77 @@ const corsHeaders = {
 // Rate limit em memória (process-level)
 const lastReqByPhone = new Map<string, number>();
 
+/**
+ * Cascata de IA gratuita: tenta Groq primeiro; se falhar (429/5xx/sem key),
+ * cai automaticamente para Cerebras. Ambos são OpenAI-compatible.
+ * Retorna { ok, content, provider, status?, error? }.
+ */
+async function callAICascade(
+  messages: Array<{ role: string; content: string }>,
+  maxTokens = 512,
+) {
+  const providers: Array<{
+    name: string;
+    key: string | undefined;
+    url: string;
+    model: string;
+  }> = [
+    {
+      name: "groq",
+      key: Deno.env.get("GROQ_API_KEY"),
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      model: "llama-3.3-70b-versatile",
+    },
+    {
+      name: "cerebras",
+      key: Deno.env.get("CEREBRAS_API_KEY"),
+      url: "https://api.cerebras.ai/v1/chat/completions",
+      model: "llama-3.3-70b",
+    },
+  ];
+
+  let lastStatus: "rate_limit" | "error" = "error";
+  let lastError = "no provider configured";
+
+  for (const p of providers) {
+    if (!p.key) {
+      console.log(`[callAI] ${p.name}: no key, skipping`);
+      continue;
+    }
+    try {
+      const res = await fetch(p.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${p.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: p.model,
+          messages,
+          temperature: 0.7,
+          max_tokens: maxTokens,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        if (content) return { ok: true as const, content, provider: p.name };
+        lastError = `${p.name}: empty content`;
+        continue;
+      }
+      const txt = await res.text();
+      console.error(`[callAI] ${p.name} ${res.status}: ${txt.slice(0, 200)}`);
+      lastError = `${p.name} ${res.status}`;
+      // 429/402/5xx → tenta próximo
+      lastStatus = res.status === 429 || res.status === 402 ? "rate_limit" : "error";
+    } catch (e) {
+      console.error(`[callAI] ${p.name} threw:`, e);
+      lastError = `${p.name}: ${(e as Error).message}`;
+    }
+  }
+  return { ok: false as const, status: lastStatus, error: lastError };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
