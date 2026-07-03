@@ -108,6 +108,8 @@ Deno.serve(async (req) => {
       // Tenta pegar QR atual da instância existente
       const qr = await fetchQr(serverUrl, existing.instance_token);
       if (qr.qrcode || qr.status === "open" || qr.status === "connected") {
+        // Garante que o webhook está habilitado (auto-corrige instâncias antigas)
+        await configureWebhook(serverUrl, existing.instance_token, supabaseUrl);
         return new Response(
           JSON.stringify({
             ok: true,
@@ -321,10 +323,12 @@ async function configureWebhook(serverUrl: string, instanceToken: string, supaba
       method: "POST",
       headers: { "Content-Type": "application/json", token: instanceToken },
       body: JSON.stringify({
+        enabled: true,
         url: webhookUrl,
         events: ["messages"],
-        excludeMessages: ["fromMe"],
+        excludeMessages: ["fromMe", "wasSentByApi", "isGroups"],
         addUrlEvents: false,
+        addUrlTypesMessages: false,
       }),
     });
     if (!whRes.ok) console.error("uazapi webhook error:", whRes.status);
