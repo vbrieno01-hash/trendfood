@@ -556,7 +556,9 @@ Seja util, humano, rapido e nao enrole.`;
     messages.push({ role: "user", content: message });
 
     // 4) Cascata IA free: Groq → Cerebras (fallback automático se um zerar/falhar)
-    let aiData = await callAICascade(messages, 512);
+    const aiT0 = Date.now();
+    let aiData = await callAICascade(messages, 200);
+    console.log(`[ai-bot] ai-call total ${Date.now() - aiT0}ms`);
     if (aiData.status === "rate_limit") {
       return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
         status: 429,
@@ -599,7 +601,10 @@ Seja util, humano, rapido e nao enrole.`;
     let duplicate = false;
     let retried = false;
     let suppressed = false;
-    if (isDuplicateOf(reply)) {
+    // Só re-chama o LLM se a resposta for longa o bastante pra valer a pena;
+    // saudações curtas ("opa tudo bem?") baterem em duplicate é esperado e o
+    // retry só adiciona ~1-2s de latência sem ganho real.
+    if (reply.length >= 40 && isDuplicateOf(reply)) {
       duplicate = true;
       retried = true;
       const retryMessages = [
@@ -611,7 +616,7 @@ Seja util, humano, rapido e nao enrole.`;
             "A resposta anterior ficou muito parecida com algo que voce ja mandou. Reformule com OUTRO angulo, outra pergunta, e NAO repita saudacao. Seja curto.",
         },
       ];
-      const retryData = await callAICascade(retryMessages, 512);
+      const retryData = await callAICascade(retryMessages, 200);
       if (retryData.ok && retryData.content) {
         reply = retryData.content;
         if (isDuplicateOf(reply)) suppressed = true;
@@ -652,6 +657,7 @@ Seja util, humano, rapido e nao enrole.`;
     let sendError: string | null = null;
     if (effectiveServerUrl && effectiveToken) {
       try {
+        const sendT0 = Date.now();
         const sendRes = await fetch(
           `${effectiveServerUrl}/send/text`,
           {
@@ -664,6 +670,7 @@ Seja util, humano, rapido e nao enrole.`;
           },
         );
         sent = sendRes.ok;
+        console.log(`[ai-bot] wa-send ${sendRes.status} in ${Date.now() - sendT0}ms`);
         if (!sendRes.ok) {
           sendError = await sendRes.text();
           console.error("uazapi send error:", sendRes.status, sendError);
