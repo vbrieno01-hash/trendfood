@@ -421,7 +421,7 @@ Deno.serve(async (req) => {
         if (org.description) storeContext += `${org.description}\n`;
         if (org.store_address) storeContext += `Endereço: ${org.store_address}\n`;
         if (org.whatsapp) storeContext += `WhatsApp: ${org.whatsapp}\n`;
-        storeContext += `Link do cardápio: https://trendfood.site/unidade/${org.slug}\n`;
+        storeContext += `Link do cardápio: https://trendfood.site/${org.slug}\n`;
 
         if (org.business_hours) {
           storeContext += `\n## HORÁRIOS\n${JSON.stringify(org.business_hours)}\n`;
@@ -546,7 +546,7 @@ Deno.serve(async (req) => {
     // Fluxo padrão: qualquer mensagem que não seja handoff/auto-notificação
     // recebe imediatamente o link do cardápio. Sem IA, sem token.
     if (orgSlug) {
-      const menuUrl = `https://trendfood.site/unidade/${orgSlug}`;
+      const menuUrl = `https://trendfood.site/${orgSlug}`;
       const recentReplies = (history || []).slice(0, 2).map((h) => h.ai_response || "").join("\n");
       const linkSentRecently = /https?:\/\/[^\s]*trendfood\.(site|lovable\.app)/i.test(recentReplies);
       const linkReply = linkSentRecently
