@@ -138,8 +138,8 @@ export default function HeroCinematic({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Badge className="mb-8 bg-white/[0.08] text-white/85 border-white/[0.12] hover:bg-white/[0.14] backdrop-blur-md rounded-full px-4 py-1.5 text-sm font-medium shadow-elev-sm">
-                <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+              <Badge className="mb-8 bg-white/[0.08] text-white/90 border-white/20 hover:bg-white/[0.14] backdrop-blur-md rounded-full px-4 py-1.5 text-sm font-medium shadow-[0_0_24px_rgba(249,115,22,0.25)]">
+                <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
                 {badgeText}
               </Badge>
             </motion.div>
@@ -148,7 +148,7 @@ export default function HeroCinematic({
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-[1.05] tracking-tight"
+              className="text-4xl md:text-5xl lg:text-[4.25rem] font-bold text-white mb-6 leading-[1.02] tracking-[-0.02em]"
             >
               {title}
               <br />
