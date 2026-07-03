@@ -109,6 +109,7 @@ async function callAICascade(
     key: string | undefined;
     url: string;
     model: string;
+    authStyle?: "bearer" | "lovable";
   }> = [
     {
       name: "groq",
@@ -134,6 +135,29 @@ async function callAICascade(
       url: "https://api.groq.com/openai/v1/chat/completions",
       model: "llama-3.1-8b-instant",
     },
+    // Lovable AI Gateway — cobertura extra quando Groq/Cerebras falham.
+    // A chave LOVABLE_API_KEY é provisionada automaticamente pela plataforma.
+    {
+      name: "lovable-gemini-flash",
+      key: Deno.env.get("LOVABLE_API_KEY"),
+      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+      model: "google/gemini-3-flash-preview",
+      authStyle: "lovable",
+    },
+    {
+      name: "lovable-gemini-lite",
+      key: Deno.env.get("LOVABLE_API_KEY"),
+      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+      model: "google/gemini-3.1-flash-lite",
+      authStyle: "lovable",
+    },
+    {
+      name: "lovable-gpt5-nano",
+      key: Deno.env.get("LOVABLE_API_KEY"),
+      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+      model: "openai/gpt-5-nano",
+      authStyle: "lovable",
+    },
   ];
 
   let lastStatus: "rate_limit" | "error" = "error";
@@ -150,16 +174,16 @@ async function callAICascade(
     }
     // Cerebras às vezes devolve content="" no primeiro shot; permite 1 retry.
     const attempts = p.name.startsWith("cerebras") ? 2 : 1;
+    const authHeaders: Record<string, string> = p.authStyle === "lovable"
+      ? { "Lovable-API-Key": p.key!, "Content-Type": "application/json" }
+      : { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json" };
     let gotEmpty = false;
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
         const t0 = Date.now();
         const res = await fetch(p.url, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${p.key}`,
-            "Content-Type": "application/json",
-          },
+          headers: authHeaders,
           body: JSON.stringify({
             model: p.model,
             messages,
