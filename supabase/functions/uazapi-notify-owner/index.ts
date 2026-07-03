@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     // ── Busca pedido + itens ─────────────────────────────────────────────────
     const { data: order } = await supabase
       .from("orders")
-      .select("id, organization_id, notes, total_price, created_at")
+      .select("id, organization_id, notes, created_at")
       .eq("id", order_id)
       .maybeSingle();
 
