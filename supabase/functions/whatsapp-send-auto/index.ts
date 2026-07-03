@@ -52,6 +52,15 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const err = await res.text();
       console.error("[whatsapp-send-auto] uazapi error", res.status, err);
+      if (res.status === 401 || res.status === 403) {
+        await supabase
+          .from("whatsapp_instances")
+          .update({ status: "disconnected", connected_at: null, phone_connected: null })
+          .eq("organization_id", organization_id);
+        return new Response(JSON.stringify({ sent: false, reason: "token_invalid" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ sent: false, reason: "uazapi_error" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
