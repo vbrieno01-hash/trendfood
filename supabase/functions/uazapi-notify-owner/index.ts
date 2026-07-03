@@ -126,7 +126,15 @@ Deno.serve(async (req) => {
     if (!org) return ok("org not found, skipping");
 
     // ── Gate: Admin liberou esta loja (independe de plano) ─────────────────
-    if (!(org as any).whatsapp_bot_allowed) return ok("whatsapp_bot not allowed, skipping");
+    if (!(org as any).whatsapp_bot_allowed) {
+      await supabase.from("client_error_logs").insert({
+        organization_id: org.id, source: "uazapi-notify-owner",
+        code: "WA-NOTIFY-OWNER-BOT-NOT-ALLOWED",
+        error_message: "Robô não liberado para esta loja (checkout)",
+        metadata: { order_id },
+      });
+      return ok("whatsapp_bot not allowed, skipping");
+    }
 
     // ── Gate 3: Instância conectada ──────────────────────────────────────────
     const { data: instance } = await supabase
@@ -136,11 +144,34 @@ Deno.serve(async (req) => {
       .in("status", ["connected", "open"])
       .maybeSingle();
 
-    if (!instance) return ok("no connected whatsapp instance, skipping");
+    if (!instance) {
+      const { data: any_inst } = await supabase
+        .from("whatsapp_instances")
+        .select("status")
+        .eq("organization_id", org.id)
+        .maybeSingle();
+      await supabase.from("client_error_logs").insert({
+        organization_id: org.id, source: "uazapi-notify-owner",
+        code: any_inst ? "WA-NOTIFY-OWNER-DISCONNECTED" : "WA-NOTIFY-OWNER-NO-INSTANCE",
+        error_message: any_inst
+          ? `Instância existe mas status="${(any_inst as any).status}" (não conectada) — reconecte na aba Robô`
+          : "Nenhuma instância uazapi configurada",
+        metadata: { order_id, instance_status: (any_inst as any)?.status ?? null },
+      });
+      return ok("no connected whatsapp instance, skipping");
+    }
 
     // ── Gate 4: Dono tem número cadastrado ───────────────────────────────────
     const ownerPhone = (org as any).whatsapp?.replace(/\D/g, "");
-    if (!ownerPhone || ownerPhone.length < 10) return ok("no valid owner phone, skipping");
+    if (!ownerPhone || ownerPhone.length < 10) {
+      await supabase.from("client_error_logs").insert({
+        organization_id: org.id, source: "uazapi-notify-owner",
+        code: "WA-NOTIFY-OWNER-NO-PHONE",
+        error_message: "Dono da loja sem WhatsApp cadastrado",
+        metadata: { order_id },
+      });
+      return ok("no valid owner phone, skipping");
+    }
 
     // ── Anti-duplicata: mesmo pedido nos últimos 60s ─────────────────────────
     const { data: recent } = await supabase
