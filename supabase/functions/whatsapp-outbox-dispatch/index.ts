@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 30;
+const PROCESSING_STUCK_MINUTES = 5;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,6 +18,15 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Recupera mensagens presas em "processing" por mais de N minutos
+  // (crash/timeout de outra invocação). Retorna elas para "pending".
+  const stuckCutoff = new Date(Date.now() - PROCESSING_STUCK_MINUTES * 60_000).toISOString();
+  await supabase
+    .from("whatsapp_outbox")
+    .update({ status: "pending", last_error: "recovered from stuck processing" })
+    .eq("status", "processing")
+    .lt("created_at", stuckCutoff);
 
   const { data: pending, error: pendErr } = await supabase
     .from("whatsapp_outbox")

@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       if (!instance) {
         await supabase
           .from("whatsapp_outbox" as any)
-          .update({ status: "skipped", error: "WhatsApp da loja não está conectado" })
+          .update({ status: "skipped", last_error: "WhatsApp da loja não está conectado" })
           .eq("id", row.id);
         failed++;
         continue;
@@ -117,7 +117,8 @@ Deno.serve(async (req) => {
         .from("whatsapp_outbox" as any)
         .update({
           status: sendError ? "failed" : "sent",
-          error: sendError ?? null,
+          last_error: sendError ?? null,
+          attempts: (row.attempts ?? 0) + 1,
           sent_at: sendError ? null : new Date().toISOString(),
         })
         .eq("id", row.id);
