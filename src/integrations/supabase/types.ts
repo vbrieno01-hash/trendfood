@@ -2612,7 +2612,7 @@ export type Database = {
           created_at: string
           customer_name: string | null
           id: string
-          order_id: string
+          order_id: string | null
           organization_id: string
           rating: number
         }
@@ -2621,7 +2621,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           id?: string
-          order_id: string
+          order_id?: string | null
           organization_id: string
           rating: number
         }
@@ -2630,7 +2630,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           id?: string
-          order_id?: string
+          order_id?: string | null
           organization_id?: string
           rating?: number
         }
