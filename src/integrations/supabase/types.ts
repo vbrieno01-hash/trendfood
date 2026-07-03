@@ -3142,6 +3142,24 @@ export type Database = {
         }
         Relationships: []
       }
+      wa_message_dedupe: {
+        Row: {
+          created_at: string
+          instance_name: string | null
+          message_id: string
+        }
+        Insert: {
+          created_at?: string
+          instance_name?: string | null
+          message_id: string
+        }
+        Update: {
+          created_at?: string
+          instance_name?: string | null
+          message_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_instances: {
         Row: {
           connected_at: string | null
