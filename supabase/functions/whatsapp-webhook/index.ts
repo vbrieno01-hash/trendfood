@@ -230,7 +230,18 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     // Log payload bruto completo (truncado a 2KB) pra debug
-    console.log("[whatsapp-webhook] RAW payload:", JSON.stringify(body).slice(0, 2000));
+    console.log("[whatsapp-webhook] RAW payload:", JSON.stringify(body).slice(0, 6000));
+
+    // uazapi: só processar msg nova, ignorar updates de metadata do chat.
+    // Evolution API não manda chatSource, então continua passando reto.
+    const chatSource = body?.chatSource;
+    if (chatSource && chatSource !== "created" && chatSource !== "new") {
+      console.log("[whatsapp-webhook] skipped (chatSource=" + chatSource + ")");
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: "chat_update" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Suporte dual: uazapiGO + Evolution API
     // uazapiGO real: { message: { content: { text }, chatid, fromMe }, chat: { phone, wa_isGroup } }
@@ -273,17 +284,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Defesa em profundidade: ignorar mensagens enviadas por nós mesmos
+    // Defesa em profundidade: ignorar mensagens enviadas por nós mesmos.
+    // wasSentByApi saiu daqui — o filtro real é o chatSource acima.
     const fromMe =
-      body?.message?.fromMe ??
-      body?.message?.wasSentByApi ??
-      body?.fromMe ??
-      body?.wasSentByApi ??
-      body?.data?.key?.fromMe ??
-      body?.data?.fromMe ??
-      false;
+      body?.message?.fromMe === true ||
+      body?.data?.key?.fromMe === true ||
+      body?.data?.fromMe === true ||
+      body?.fromMe === true;
     if (fromMe) {
-      console.log("[whatsapp-webhook] skipped (fromMe/wasSentByApi)");
+      console.log("[whatsapp-webhook] skipped", {
+        fromMe_msg: body?.message?.fromMe,
+        wasSentByApi_msg: body?.message?.wasSentByApi,
+        fromMe_root: body?.fromMe,
+        wasSentByApi_root: body?.wasSentByApi,
+        fromMe_data: body?.data?.key?.fromMe ?? body?.data?.fromMe,
+        EventType: body?.EventType,
+        chatSource: body?.chatSource,
+        phone,
+        preview: String(message).slice(0, 40),
+      });
       return new Response(JSON.stringify({ ok: true, skipped: true, reason: "fromMe" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
