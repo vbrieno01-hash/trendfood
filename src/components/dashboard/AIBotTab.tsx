@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, PowerOff, CheckCircle2, MessageSquare, Bot, QrCode, Lock } from "lucide-react";
 import WhatsAppAutoStatusCard from "./WhatsAppAutoStatusCard";
+import WhatsAppErrorLogPanel from "./WhatsAppErrorLogPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -118,6 +119,7 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
 
   return (
     <div className="space-y-8">
+      <GbflixErrorPanel orgId={orgId} />
       <BotPanel orgId={orgId} />
       <WhatsAppAutoStatusCard orgId={orgId} />
     </div>
@@ -125,6 +127,26 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
 };
 
 export default AIBotTab;
+
+/* ================= Painel de diagnóstico só para GBflix ================= */
+const GbflixErrorPanel = ({ orgId }: { orgId: string }) => {
+  const { data: org } = useQuery({
+    queryKey: ["org-slug-name", orgId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("organizations")
+        .select("slug, name")
+        .eq("id", orgId)
+        .maybeSingle();
+      return data as { slug: string | null; name: string | null } | null;
+    },
+  });
+  const isGbflix =
+    (org?.slug || "").toLowerCase() === "mcd" ||
+    (org?.name || "").toLowerCase().includes("gbflix");
+  if (!isGbflix) return null;
+  return <WhatsAppErrorLogPanel orgId={orgId} />;
+};
 
 /* ======================== BOT PANEL (todas as lojas) ======================== */
 
