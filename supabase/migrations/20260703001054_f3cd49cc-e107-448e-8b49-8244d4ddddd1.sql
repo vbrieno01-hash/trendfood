@@ -1,0 +1,1 @@
+DELETE FROM public.whatsapp_instances WHERE organization_id = '28083a33-7e72-4971-bb17-f7fd713110bb' AND created_at < '2026-07-01';
