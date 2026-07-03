@@ -1,60 +1,71 @@
-## Objetivo
+## Diagnóstico
 
-Você quer manter o controle **loja-a-loja** pelo admin (nada de ligar em massa) e resolver o erro `405 Method Not Allowed` que aparece quando o robô tenta enviar.
+Nos logs de agora, o **mesmo `messageid`** chega **duas vezes** em menos de 1 segundo (uazapi entrega o mesmo evento repetido — comportamento conhecido em `chatSource="updated"`):
 
-## Parte 1 — Nada muda no banco (respeitar sua escolha)
-
-Não vou tocar em `whatsapp_bot_allowed` de nenhuma loja. O comportamento atual já é exatamente o que você descreveu:
-
-- Loja com toggle **desligado** → trigger sai no portão 1, nenhuma fila é criada, ninguém recebe nada automaticamente (fica "manual como antes").
-- Loja com toggle **ligado** → mensagens de status enfileiram e são disparadas.
-
-O que fica só para você saber:
-
-- Onde ligar: **Admin → Gerenciamento de Lojas → botão do WhatsApp em cada loja** (toggle `whatsapp_bot_allowed`).
-- Hoje só a **GBflix** está ligada. Rei do Burguer, WrBurg e demais ficam em manual até você ligar cada uma.
-
-## Parte 2 — Corrigir o erro 405 (endpoint UazAPI errado)
-
-Temos 3 edge functions que falam com o UazAPI e elas estão divergindo:
-
-| Função | Endpoint atual |
-|---|---|
-| `uazapi-notify-owner` | `POST /message/text` |
-| `uazapi-notify-customer` | `POST /message/text` |
-| `whatsapp-outbox-dispatch` | `POST /send/text` |
-
-O log mostra que uma delas retornou 405 no seu servidor `trendfood.uazapi.com`, ou seja, o servidor não aceita um dos dois caminhos. Preciso descobrir qual é o correto **antes** de mexer no código.
-
-### Etapa 2.1 — Descoberta (só leitura, sem alterar código)
-
-Após você aprovar este plano, na fase de execução vou disparar um `curl` de teste para os dois endpoints usando o token real da instância GBflix, e observar a resposta:
-
-```text
-POST https://trendfood.uazapi.com/send/text     → status ?
-POST https://trendfood.uazapi.com/message/text  → status ?
+```
+[whatsapp-webhook] RAW payload ... "messageid":"3EB0E588612FAD4B63ADD1" ...   (t=170265)
+[whatsapp-webhook] RAW payload ... "messageid":"3EB0E588612FAD4B63ADD1" ...   (t=170273)
+→ routed instance org=28083a33... (2x)
+→ ai-bot-respond invocado 2x
+   → 1ª chamada: provider=cerebras 200 OK
+   → 2ª chamada: cerebras 429 "Requests per minute limit exceeded"
 ```
 
-Sem enviar mensagem real — payload com número inválido só para ler a resposta do servidor (200/400 = endpoint válido; 404/405 = endpoint errado).
+Resultado: o cliente **recebe a resposta duplicada** (ou uma resposta + um erro), e ainda estoura o rate limit do Cerebras à toa. Não é bug de IA — é falta de **deduplicação por `messageid`** no `whatsapp-webhook`.
 
-### Etapa 2.2 — Padronização
+Escala para todas as lojas: como o webhook é único e global, toda loja sofre a mesma duplicação.
 
-Com base no resultado, edito **as 3 edge functions** para usar o mesmo caminho válido e faço redeploy. Nada mais além disso.
+## Correção — deduplicação idempotente por messageid
 
-## Parte 3 — Pequeno ajuste de observabilidade (opcional)
+### 1. Nova tabela `wa_message_dedupe` (migration)
 
-Hoje `whatsapp_notification_log` só recebe linhas quando o trigger passa do portão 1 (loja liberada). Isso te esconde que Rei do Burguer e WrBurg *nunca* tentaram enviar. Se quiser, adiciono um log leve `status='disabled'` também quando a loja está sem toggle — assim você vê no painel quantas mensagens *deixaram* de ir por escolha sua.
+```sql
+CREATE TABLE public.wa_message_dedupe (
+  message_id TEXT PRIMARY KEY,
+  instance_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+GRANT ALL ON public.wa_message_dedupe TO service_role;
+ALTER TABLE public.wa_message_dedupe ENABLE ROW LEVEL SECURITY;
+-- Sem policies públicas: só service_role escreve/lê (é interno do webhook).
 
-Marque isto se quiser incluir; se não, ignoro.
+CREATE INDEX wa_message_dedupe_created_idx
+  ON public.wa_message_dedupe (created_at);
+```
 
-## Fora de escopo
+Adicionar limpeza no `cleanup-old-data` (ou pg_cron dedicado): `DELETE FROM wa_message_dedupe WHERE created_at < now() - interval '24 hours'`.
 
-- Alterar `whatsapp_bot_allowed` em massa (você já disse não).
-- Mudar planos, gates de trial, ou lógica de dedupe.
-- UI nova.
+### 2. Guard no `whatsapp-webhook/index.ts`
 
-## O que fica pronto ao final
+Assim que extrair `messageid` (antes de qualquer chamada a `ai-bot-respond`):
 
-- 3 edge functions apontando para o endpoint UazAPI correto e comprovadamente respondendo 200.
-- Zero mudança de dados; controle continua 100% manual pelo admin.
-- (Opcional) log de `disabled` para você auditar o silêncio das lojas sem robô.
+```ts
+const messageId = message?.messageid || message?.id;
+if (messageId) {
+  const { error: dupErr } = await supabase
+    .from("wa_message_dedupe")
+    .insert({ message_id: messageId, instance_name: instanceName });
+  if (dupErr?.code === "23505") {  // unique_violation → já processado
+    console.log("[whatsapp-webhook] duplicate skipped", { messageId });
+    return new Response(JSON.stringify({ ok: true, deduped: true }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+}
+```
+
+O `INSERT` com PK única garante atomicidade: se dois eventos chegam ao mesmo tempo, só um passa; o outro leva 23505 e é descartado limpo. Isso resolve tanto duplicação da uazapi quanto retries de rede.
+
+### 3. Não mexer
+
+- Cascata Groq → Cerebras (já está correta e global).
+- Regras de skip de `fromMe`/grupo (já funcionam).
+- `ai-bot-respond` (o problema é a montante).
+
+## Critério de aceite
+
+- Enviar 2 mensagens seguidas na wrburg → logs mostram `duplicate skipped` para as reentregas e apenas **1** `[ai-bot-respond] provider=cerebras` por mensagem real.
+- Testar em uma segunda loja (mcd/gb) → mesmo comportamento.
+- Zero `cerebras 429` causados por chamada duplicada da mesma mensagem.
+
+Aprovar pra eu implementar?
