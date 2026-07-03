@@ -232,16 +232,8 @@ Deno.serve(async (req) => {
     // Log payload bruto completo (truncado a 2KB) pra debug
     console.log("[whatsapp-webhook] RAW payload:", JSON.stringify(body).slice(0, 6000));
 
-    // uazapi: só processar msg nova, ignorar updates de metadata do chat.
-    // Evolution API não manda chatSource, então continua passando reto.
-    const chatSource = body?.chatSource;
-    if (chatSource && chatSource !== "created" && chatSource !== "new") {
-      console.log("[whatsapp-webhook] skipped (chatSource=" + chatSource + ")");
-      return new Response(
-        JSON.stringify({ ok: true, skipped: true, reason: "chat_update" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    // Obs.: NÃO filtrar por chatSource. A uazapi deste projeto envia msgs reais
+    // de cliente com chatSource="updated"; filtrar aqui descarta mensagens válidas.
 
     // Suporte dual: uazapiGO + Evolution API
     // uazapiGO real: { message: { content: { text }, chatid, fromMe }, chat: { phone, wa_isGroup } }
@@ -285,9 +277,10 @@ Deno.serve(async (req) => {
     }
 
     // Defesa em profundidade: ignorar mensagens enviadas por nós mesmos.
-    // wasSentByApi saiu daqui — o filtro real é o chatSource acima.
+    // Anti-loop baseado apenas em campos do próprio evento de mensagem.
     const fromMe =
       body?.message?.fromMe === true ||
+      body?.message?.wasSentByApi === true ||
       body?.data?.key?.fromMe === true ||
       body?.data?.fromMe === true ||
       body?.fromMe === true;
@@ -346,76 +339,11 @@ Deno.serve(async (req) => {
       body?.instance?.serverUrl ||
       null;
 
-    // === Branch 0: SANDBOX do admin ===
-    // Se a instância casa com test_instance_name/token salvos no ai_bot_config global,
-    // roteia direto pro ai-bot-respond usando test_org_id como contexto.
-    // Não toca em whatsapp_instances de loja nenhuma.
-    {
-      const { data: sandboxCfg } = await supabase
-        .from("ai_bot_config")
-        .select("id, test_instance_name, test_instance_token, test_org_id")
-        .is("organization_id", null)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      let sbName = sandboxCfg?.test_instance_name?.trim() || null;
-      let sbToken = sandboxCfg?.test_instance_token?.trim() || null;
-      let matchesSandbox =
-        (sbToken && instanceToken && sbToken === instanceToken) ||
-        (sbName && instanceName && sbName === instanceName);
-
-      // AUTO-LEARN: se o admin já escolheu uma loja de teste mas ainda não salvou
-      // credenciais, a primeira mensagem que chegar nesse webhook vira o "pareamento".
-      // Capturamos instance_name/token do payload e gravamos no ai_bot_config global.
-      if (
-        !matchesSandbox &&
-        sandboxCfg?.id &&
-        sandboxCfg?.test_org_id &&
-        !sbToken &&
-        !sbName &&
-        (instanceToken || instanceName)
-      ) {
-        await supabase
-          .from("ai_bot_config")
-          .update({
-            test_instance_name: instanceName || null,
-            test_instance_token: instanceToken || null,
-          })
-          .eq("id", sandboxCfg.id);
-        sbName = instanceName || null;
-        sbToken = instanceToken || null;
-        matchesSandbox = true;
-        console.log("[whatsapp-webhook] sandbox auto-pareado:", { instanceName, hasToken: !!instanceToken });
-      }
-
-      if (matchesSandbox && sandboxCfg?.test_org_id) {
-        const botRes = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({
-              phone,
-              message,
-              organization_id: sandboxCfg.test_org_id,
-              instance_token: sbToken,
-              server_url: payloadBaseUrl || undefined,
-            }),
-          },
-        );
-        const botData = await botRes.json().catch(() => ({}));
-        return new Response(JSON.stringify({ ok: true, routed_by: "sandbox", ...botData }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
-    // === Branch 1: Roteamento por instância (self-service por loja) ===
+    // === Branch 1 (PRIORIDADE): Roteamento por instância (self-service por loja) ===
     // uazapi envia 'token' (token da instância) ou 'instance' (nome) no payload.
+    // Cada loja tem sua própria linha em whatsapp_instances; se o payload casar,
+    // a mensagem SEMPRE vai pro ai-bot-respond da loja correspondente. Sandbox global
+    // NÃO tem permissão de sequestrar mensagens de loja real.
     if (instanceToken || instanceName) {
       let instQuery = supabase.from("whatsapp_instances").select("organization_id, instance_token");
       if (instanceToken) {
@@ -426,6 +354,7 @@ Deno.serve(async (req) => {
       const { data: matchedInst } = await instQuery.maybeSingle();
 
       if (matchedInst?.organization_id) {
+        console.log(`[whatsapp-webhook] routed instance org=${matchedInst.organization_id} instanceName=${instanceName || "?"}`);
         // Marca como connected se ainda não estava
         await supabase
           .from("whatsapp_instances")
@@ -457,6 +386,48 @@ Deno.serve(async (req) => {
         );
         const botData = await botRes.json().catch(() => ({}));
         return new Response(JSON.stringify({ ok: true, routed_by: "instance", ...botData }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // === Branch 1.5: SANDBOX do admin (só se NÃO houver loja real casada) ===
+    // Roda pra prospecção/teste explícito. Nunca captura tráfego de loja registrada.
+    {
+      const { data: sandboxCfg } = await supabase
+        .from("ai_bot_config")
+        .select("id, test_instance_name, test_instance_token, test_org_id")
+        .is("organization_id", null)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const sbName = sandboxCfg?.test_instance_name?.trim() || null;
+      const sbToken = sandboxCfg?.test_instance_token?.trim() || null;
+      const matchesSandbox =
+        (sbToken && instanceToken && sbToken === instanceToken) ||
+        (sbName && instanceName && sbName === instanceName);
+
+      if (matchesSandbox && sandboxCfg?.test_org_id) {
+        const botRes = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              phone,
+              message,
+              organization_id: sandboxCfg.test_org_id,
+              instance_token: sbToken,
+              server_url: payloadBaseUrl || undefined,
+            }),
+          },
+        );
+        const botData = await botRes.json().catch(() => ({}));
+        return new Response(JSON.stringify({ ok: true, routed_by: "sandbox", ...botData }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

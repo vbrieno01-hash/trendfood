@@ -144,6 +144,15 @@ Deno.serve(async (req) => {
         .eq("organization_id", orgIdOverride)
         .maybeSingle();
       config = data;
+      // ISOLAMENTO: se veio organization_id (loja real), NÃO cair no singleton global.
+      // Cada loja responde com sua própria config; se não tem config, fica em silêncio.
+      if (!config) {
+        console.log(`[ai-bot] skipped org=${orgIdOverride} reason=store_bot_config_missing`);
+        return new Response(
+          JSON.stringify({ ok: true, skipped: true, reason: "store_bot_config_missing" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
     if (!config) {
       const { data } = await supabase
