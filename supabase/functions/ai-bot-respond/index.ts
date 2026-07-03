@@ -721,7 +721,7 @@ Seja util, humano, rapido e nao enrole.`;
       /\b(manda|envia|passa|quero)\s+(?:o\s+)?(?:link|cardap[io]o?|menu)\b/i.test(msgLowFast) ||
       /\b(tem\s+link|qual\s+(?:o\s+)?link|onde\s+pe[cç]o|como\s+pe[cç]o)\b/i.test(msgLowFast);
     const recentRepliesFast = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
-    const linkRecentFast = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentRepliesFast);
+    const linkRecentFast = /https?:\/\/[^\s]*trendfood\.site/i.test(recentRepliesFast);
     if (orgSlug && explicitMenuAsk && !linkRecentFast && msgLowFast.length <= 60) {
       const fastReply = `Aqui está o link do nosso cardápio: https://trendfood.site/unidade/${orgSlug}`;
       let sentFast = false;
@@ -848,8 +848,8 @@ Seja util, humano, rapido e nao enrole.`;
     // 2) Se já mandamos o link nas últimas 3 respostas, não repete.
     const askedForMenu = /\b(cardap|menu|link|pedir|pedido|fazer\s+pedido|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(message);
     const recentReplies = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
-    const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentReplies);
-    const replyHasLink = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(reply);
+    const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.site/i.test(recentReplies);
+    const replyHasLink = /https?:\/\/[^\s]*trendfood\.site/i.test(reply);
     if (askedForMenu) {
       // Cliente pediu link/cardápio: NUNCA cortar URL. Se a IA esqueceu de
       // mandar, a gente completa com o link determinístico.
@@ -862,7 +862,7 @@ Seja util, humano, rapido e nao enrole.`;
     } else {
       // Cliente NÃO pediu link: remove URL para não spammar.
       reply = reply
-        .replace(/https?:\/\/(?:www\.)?trendfood\.lovable\.app\/\S*/gi, "")
+        .replace(/https?:\/\/(?:www\.)?trendfood\.site\/\S*/gi, "")
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\s*\n\s*\n\s*/g, "\n\n")
         .replace(/^[\s•\-–—:]+$/gm, "")
