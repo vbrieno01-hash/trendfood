@@ -321,46 +321,18 @@ Seja util, humano, rapido e nao enrole.`;
     }
     messages.push({ role: "user", content: message });
 
-    // 4) Chamar Groq (free tier - llama-3.3-70b-versatile)
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
-
-    const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages,
-        temperature: 0.7,
-        max_tokens: 512,
-      }),
-    });
-
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      console.error("AI error:", aiRes.status, errText);
-      if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "ai_credits_exhausted" }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("AI gateway error");
+    // 4) Cascata IA free: Groq → Cerebras (fallback automático se um zerar/falhar)
+    const aiData = await callAICascade(messages, 512);
+    if (aiData.status === "rate_limit") {
+      return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
-    const aiData = await aiRes.json();
+    if (!aiData.ok) throw new Error("AI gateway error: " + aiData.error);
+    console.log(`[ai-bot-respond] provider=${aiData.provider}`);
     let reply =
-      aiData.choices?.[0]?.message?.content ||
-      "Desculpa, tive um problema aqui. Pode repetir?";
+      aiData.content || "Desculpa, tive um problema aqui. Pode repetir?";
 
     // === Anti-spam de link do cardápio ===
     // 1) Só permite link se o cliente pediu explicitamente NESTA mensagem.
