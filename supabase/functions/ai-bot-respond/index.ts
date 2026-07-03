@@ -11,12 +11,50 @@ const lastReqByPhone = new Map<string, number>();
 // Cache in-memory: se Groq bater no limite diário (TPD), pula a chamada
 // até a próxima meia-noite UTC (quando o quota do Groq reseta).
 let groqBlockedUntil = 0;
+let groqBlockHydrated = false;
 function nextUtcMidnight(): number {
   const now = new Date();
   const next = new Date(Date.UTC(
     now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0
   ));
   return next.getTime();
+}
+
+// Persistência entre isolates: platform_config.groq_blocked_until.
+// Sem isso, cada request cold-start tenta o Groq de novo e leva 429 (~500ms perdidos).
+async function hydrateGroqBlock(sb: any) {
+  if (groqBlockHydrated) return;
+  groqBlockHydrated = true;
+  try {
+    const { data } = await sb
+      .from("platform_config")
+      .select("groq_blocked_until")
+      .limit(1)
+      .maybeSingle();
+    const iso = data?.groq_blocked_until;
+    if (iso) {
+      const ts = new Date(iso).getTime();
+      if (!Number.isNaN(ts) && ts > Date.now()) {
+        groqBlockedUntil = ts;
+        console.log(`[callAI] groq block hydrated from DB until ${new Date(ts).toISOString()}`);
+      }
+    }
+  } catch (e) {
+    console.error("[callAI] hydrate groq block failed:", (e as Error).message);
+  }
+}
+async function persistGroqBlock(sb: any, until: number) {
+  try {
+    const { data } = await sb.from("platform_config").select("id").limit(1).maybeSingle();
+    if (data?.id) {
+      await sb
+        .from("platform_config")
+        .update({ groq_blocked_until: new Date(until).toISOString() })
+        .eq("id", data.id);
+    }
+  } catch (e) {
+    console.error("[callAI] persist groq block failed:", (e as Error).message);
+  }
 }
 
 /**
@@ -28,6 +66,7 @@ function nextUtcMidnight(): number {
 async function callAICascade(
   messages: Array<{ role: string; content: string }>,
   maxTokens = 200,
+  sb?: any,
 ) {
   const providers: Array<{
     name: string;
@@ -96,6 +135,7 @@ async function callAICascade(
       if (p.name === "groq" && res.status === 429 && /tokens per day|TPD/i.test(txt)) {
         groqBlockedUntil = nextUtcMidnight();
         console.log(`[callAI] groq TPD hit, blocking until ${new Date(groqBlockedUntil).toISOString()}`);
+        if (sb) persistGroqBlock(sb, groqBlockedUntil).catch(() => {});
       }
     } catch (e) {
       console.error(`[callAI] ${p.name} threw:`, e);
