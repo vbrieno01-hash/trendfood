@@ -90,7 +90,9 @@ export function parseScheduledTimeFromNotes(notes: string | null): string | null
 }
 
 /**
- * Build a WhatsApp message for order accepted and open wa.me link.
+ * @deprecated Envio duplicado com o outbox. Não chamar mais — as mensagens
+ * de "aceito"/"pronto" saem via trigger do banco → whatsapp_outbox.
+ * Mantido só pra compat de import; será removido em uma limpeza futura.
  */
 export function notifyCustomerWhatsApp(
   phone: string,
@@ -126,7 +128,8 @@ export function notifyCustomerWhatsApp(
 }
 
 /**
- * Build a WhatsApp message for order ready and open wa.me link.
+ * @deprecated Envio duplicado com o outbox. Não chamar mais — as mensagens
+ * de "aceito"/"pronto" saem via trigger do banco → whatsapp_outbox.
  */
 export function notifyCustomerReady(
   phone: string,

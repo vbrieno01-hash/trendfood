@@ -4,7 +4,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
-import { parsePhoneFromNotes, notifyCustomerWhatsApp, notifyCustomerReady, parseScheduledTimeFromNotes } from "@/lib/whatsappNotify";
+import { parsePhoneFromNotes, parseScheduledTimeFromNotes } from "@/lib/whatsappNotify";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -222,14 +222,7 @@ export default function KitchenPage() {
               createDeliveryForOrder(order, org?.id ?? "", org?.store_address, org?.courier_config);
             }
             // Note: table_number === -1 (balcão) does NOT create delivery
-            // WhatsApp notification for order ready
-            if (order) {
-              const phone = parsePhoneFromNotes(order.notes);
-              if (phone) {
-                const reviewUrl = orgSlug ? `${window.location.origin}/avaliar/${orgSlug}/${order.id}` : undefined;
-                notifyCustomerReady(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes, reviewUrl, org?.id);
-              }
-            }
+            // WhatsApp: enviado via outbox (trigger do banco → process-wa-outbox)
           }
         },
         onSettled: () => {
@@ -253,23 +246,7 @@ export default function KitchenPage() {
       { id: order.id, status: "preparing" },
       {
         onSuccess: async () => {
-          // Notify customer via WhatsApp (with loyalty info if available)
-          const phone = parsePhoneFromNotes(order.notes);
-          if (phone) {
-            let loyaltyInfo: { earned: number; total: number } | null = null;
-            try {
-              const [{ data: lConfig }, { data: lPoints }] = await Promise.all([
-                supabase.from("loyalty_config").select("enabled, spend_per_point").eq("organization_id", org!.id).maybeSingle(),
-                supabase.from("loyalty_points").select("points").eq("organization_id", org!.id).eq("phone", phone.replace(/\D/g, "")).maybeSingle(),
-              ]);
-              if (lConfig?.enabled && lConfig.spend_per_point > 0 && lPoints) {
-                const orderTotal = calcOrderTotal(order);
-                const earned = Math.floor(orderTotal / lConfig.spend_per_point);
-                if (earned > 0) loyaltyInfo = { earned, total: lPoints.points };
-              }
-            } catch { /* loyalty fetch failed, send without */ }
-            notifyCustomerWhatsApp(phone, (order as any).order_number || order.id.slice(0, 6), org?.name, order.notes, loyaltyInfo, org?.id);
-          }
+          // WhatsApp: enviado via outbox (trigger do banco → process-wa-outbox)
           toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
         },
         onSettled: () => {
