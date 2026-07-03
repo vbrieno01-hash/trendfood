@@ -369,6 +369,7 @@ Deno.serve(async (req) => {
 
     // 2) Carregar contexto da loja (multi-tenant ou test)
     let storeContext = "";
+    let orgSlug: string | null = null;
     if (effectiveOrgId) {
       const [{ data: org }, { data: menu }, { data: hoods }] = await Promise.all([
         supabase
@@ -391,6 +392,7 @@ Deno.serve(async (req) => {
       ]);
 
       if (org) {
+        orgSlug = org.slug ?? null;
         storeContext += `\n\n## LOJA: ${org.name}\n`;
         if (org.description) storeContext += `${org.description}\n`;
         if (org.store_address) storeContext += `Endereço: ${org.store_address}\n`;
@@ -656,6 +658,54 @@ Seja util, humano, rapido e nao enrole.`;
       }
     }
     messages.push({ role: "user", content: message });
+
+    // === Fast-path: cliente pediu explicitamente o link/cardápio ===
+    // Evita ~3-4s de latência do LLM só pra devolver um link que já sabemos.
+    // Só dispara quando: (a) temos slug da loja, (b) msg é curta e claramente
+    // pedindo cardápio/link, (c) não mandamos link nas últimas 3 respostas.
+    const msgLowFast = String(message).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const explicitMenuAsk = /^(?:me\s+)?(?:manda|envia|passa|quero|tem|qual|onde|como)?\s*(?:o\s+)?(?:link|cardap[io]o?|menu|pedir|fazer\s+pedido|pedido)\??$/i.test(msgLowFast.trim()) ||
+      /\b(manda|envia|passa|quero)\s+(?:o\s+)?(?:link|cardap[io]o?|menu)\b/i.test(msgLowFast) ||
+      /\b(tem\s+link|qual\s+(?:o\s+)?link|onde\s+pe[cç]o|como\s+pe[cç]o)\b/i.test(msgLowFast);
+    const recentRepliesFast = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
+    const linkRecentFast = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentRepliesFast);
+    if (orgSlug && explicitMenuAsk && !linkRecentFast && msgLowFast.length <= 60) {
+      const fastReply = `Aqui está o link do nosso cardápio: https://trendfood.lovable.app/unidade/${orgSlug}`;
+      let sentFast = false;
+      let fastErr: string | null = null;
+      if (effectiveServerUrl && effectiveToken) {
+        try {
+          const r = await fetch(`${effectiveServerUrl}/send/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", token: effectiveToken },
+            body: JSON.stringify({ number: phone, text: fastReply }),
+          });
+          sentFast = r.ok;
+          if (!r.ok) fastErr = await r.text();
+        } catch (e) { fastErr = (e as Error).message; }
+      }
+      await supabase.from("fila_whatsapp").insert({
+        phone,
+        incoming_message: message,
+        ai_response: fastReply,
+        status: "respondido",
+        responded_at: new Date().toISOString(),
+        organization_id: effectiveOrgId,
+      });
+      console.log(`[ai-bot] fast-link-path org=${effectiveOrgId ?? "null"} sent=${sentFast} in ${Date.now() - reqT0}ms`);
+      recordBotMetric(supabase, {
+        organization_id: effectiveOrgId,
+        provider: "fast-link",
+        status: sentFast ? "sent" : "wa_send_failed",
+        latency_ms: Date.now() - reqT0,
+        phone,
+        reply: fastReply,
+      });
+      return new Response(
+        JSON.stringify({ ok: true, fastPath: "link", sent: sentFast, sendError: fastErr, response: fastReply }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // 4) Cascata IA free: Groq → Cerebras (fallback automático se um zerar/falhar)
     const aiT0 = Date.now();
