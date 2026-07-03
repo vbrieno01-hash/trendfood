@@ -542,7 +542,54 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Saudação: primeira mensagem da conversa e greeting_message configurada
+    // === MODO LINK-ONLY ===
+    // Fluxo padrão: qualquer mensagem que não seja handoff/auto-notificação
+    // recebe imediatamente o link do cardápio. Sem IA, sem token.
+    if (orgSlug) {
+      const menuUrl = `https://trendfood.site/unidade/${orgSlug}`;
+      const recentReplies = (history || []).slice(0, 2).map((h) => h.ai_response || "").join("\n");
+      const linkSentRecently = /https?:\/\/[^\s]*trendfood\.(site|lovable\.app)/i.test(recentReplies);
+      const linkReply = linkSentRecently
+        ? `Link: ${menuUrl}`
+        : `Olá! 😊 Aqui está o link do nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`;
+
+      let sentLink = false;
+      let linkErr: string | null = null;
+      if (effectiveServerUrl && effectiveToken) {
+        try {
+          const r = await fetch(`${effectiveServerUrl}/send/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", token: effectiveToken },
+            body: JSON.stringify({ number: phone, text: linkReply }),
+          });
+          sentLink = r.ok;
+          if (!r.ok) linkErr = await r.text();
+        } catch (e) { linkErr = (e as Error).message; }
+      }
+      await supabase.from("fila_whatsapp").insert({
+        phone,
+        incoming_message: message,
+        ai_response: linkReply,
+        status: "respondido",
+        responded_at: new Date().toISOString(),
+        organization_id: effectiveOrgId,
+      });
+      recordBotMetric(supabase, {
+        organization_id: effectiveOrgId,
+        provider: "link-only",
+        status: sentLink ? "sent" : "wa_send_failed",
+        latency_ms: Date.now() - reqT0,
+        phone,
+        reply: linkReply,
+      });
+      console.log(`[ai-bot] link-only org=${effectiveOrgId ?? "null"} sent=${sentLink} in ${Date.now() - reqT0}ms`);
+      return new Response(
+        JSON.stringify({ ok: true, mode: "link-only", sent: sentLink, sendError: linkErr, response: linkReply }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Sem orgSlug (config singleton sem loja): fallback pra saudação simples se configurada.
     const greetingMessage: string | null = (config?.greeting_message || "").toString().trim() || null;
     if ((!history || history.length === 0) && greetingMessage) {
       let sentGreet = false;
