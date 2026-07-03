@@ -362,9 +362,14 @@ Deno.serve(async (req) => {
         // Marca como connected se ainda não estava
         await supabase
           .from("whatsapp_instances")
-          .update({ status: "connected", phone_connected: phone, connected_at: new Date().toISOString() })
+          .update({
+            status: "connected",
+            phone_connected: phone,
+            connected_at: new Date().toISOString(),
+            ...(payloadBaseUrl ? { server_url: payloadBaseUrl } : {}),
+          })
           .eq("organization_id", matchedInst.organization_id)
-          .neq("status", "connected");
+          ;
 
         const botRes = await fetch(
           `${Deno.env.get("SUPABASE_URL")}/functions/v1/ai-bot-respond`,
@@ -379,6 +384,7 @@ Deno.serve(async (req) => {
               message,
               organization_id: matchedInst.organization_id,
               instance_token: matchedInst.instance_token,
+              server_url: payloadBaseUrl || undefined,
             }),
           },
         );
