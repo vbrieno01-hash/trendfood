@@ -547,11 +547,7 @@ Deno.serve(async (req) => {
     // recebe imediatamente o link do cardápio. Sem IA, sem token.
     if (orgSlug) {
       const menuUrl = `https://trendfood.site/${orgSlug}`;
-      const recentReplies = (history || []).slice(0, 2).map((h) => h.ai_response || "").join("\n");
-      const linkSentRecently = /https?:\/\/[^\s]*trendfood\.(site|lovable\.app)/i.test(recentReplies);
-      const linkReply = linkSentRecently
-        ? `Link: ${menuUrl}`
-        : `Olá! 😊 Aqui está o link do nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`;
+      const linkReply = `Olá! 😊 Aqui está o link do nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`;
 
       let sentLink = false;
       let linkErr: string | null = null;
