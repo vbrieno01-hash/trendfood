@@ -2082,6 +2082,7 @@ export type Database = {
           print_mode: string
           printer_width: string
           referred_by_id: string | null
+          reviews_enabled: boolean
           scheduling_config: Json | null
           service_modes: Json
           single_choice_addons: boolean
@@ -2135,6 +2136,7 @@ export type Database = {
           print_mode?: string
           printer_width?: string
           referred_by_id?: string | null
+          reviews_enabled?: boolean
           scheduling_config?: Json | null
           service_modes?: Json
           single_choice_addons?: boolean
@@ -2188,6 +2190,7 @@ export type Database = {
           print_mode?: string
           printer_width?: string
           referred_by_id?: string | null
+          reviews_enabled?: boolean
           scheduling_config?: Json | null
           service_modes?: Json
           single_choice_addons?: boolean
