@@ -11,12 +11,50 @@ const lastReqByPhone = new Map<string, number>();
 // Cache in-memory: se Groq bater no limite diário (TPD), pula a chamada
 // até a próxima meia-noite UTC (quando o quota do Groq reseta).
 let groqBlockedUntil = 0;
+let groqBlockHydrated = false;
 function nextUtcMidnight(): number {
   const now = new Date();
   const next = new Date(Date.UTC(
     now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0
   ));
   return next.getTime();
+}
+
+// Persistência entre isolates: platform_config.groq_blocked_until.
+// Sem isso, cada request cold-start tenta o Groq de novo e leva 429 (~500ms perdidos).
+async function hydrateGroqBlock(sb: any) {
+  if (groqBlockHydrated) return;
+  groqBlockHydrated = true;
+  try {
+    const { data } = await sb
+      .from("platform_config")
+      .select("groq_blocked_until")
+      .limit(1)
+      .maybeSingle();
+    const iso = data?.groq_blocked_until;
+    if (iso) {
+      const ts = new Date(iso).getTime();
+      if (!Number.isNaN(ts) && ts > Date.now()) {
+        groqBlockedUntil = ts;
+        console.log(`[callAI] groq block hydrated from DB until ${new Date(ts).toISOString()}`);
+      }
+    }
+  } catch (e) {
+    console.error("[callAI] hydrate groq block failed:", (e as Error).message);
+  }
+}
+async function persistGroqBlock(sb: any, until: number) {
+  try {
+    const { data } = await sb.from("platform_config").select("id").limit(1).maybeSingle();
+    if (data?.id) {
+      await sb
+        .from("platform_config")
+        .update({ groq_blocked_until: new Date(until).toISOString() })
+        .eq("id", data.id);
+    }
+  } catch (e) {
+    console.error("[callAI] persist groq block failed:", (e as Error).message);
+  }
 }
 
 /**
@@ -28,6 +66,7 @@ function nextUtcMidnight(): number {
 async function callAICascade(
   messages: Array<{ role: string; content: string }>,
   maxTokens = 200,
+  sb?: any,
 ) {
   const providers: Array<{
     name: string;
@@ -96,6 +135,7 @@ async function callAICascade(
       if (p.name === "groq" && res.status === 429 && /tokens per day|TPD/i.test(txt)) {
         groqBlockedUntil = nextUtcMidnight();
         console.log(`[callAI] groq TPD hit, blocking until ${new Date(groqBlockedUntil).toISOString()}`);
+        if (sb) persistGroqBlock(sb, groqBlockedUntil).catch(() => {});
       }
     } catch (e) {
       console.error(`[callAI] ${p.name} threw:`, e);
@@ -160,6 +200,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Hidrata bloqueio persistido do Groq (não tenta Groq se o dia bateu no teto)
+    await hydrateGroqBlock(supabase);
 
     // 1) Carregar config: preferir config da própria loja; fallback no singleton
     let config: any = null;
@@ -557,9 +600,10 @@ Seja util, humano, rapido e nao enrole.`;
 
     // 4) Cascata IA free: Groq → Cerebras (fallback automático se um zerar/falhar)
     const aiT0 = Date.now();
-    let aiData = await callAICascade(messages, 200);
+    let aiData = await callAICascade(messages, 200, supabase);
     console.log(`[ai-bot] ai-call total ${Date.now() - aiT0}ms`);
     if (aiData.status === "rate_limit") {
+      console.log(`[ai-bot] finalized reason=ai_rate_limit`);
       return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -567,6 +611,7 @@ Seja util, humano, rapido e nao enrole.`;
     }
     if (!aiData.ok) {
       console.error("[ai-bot-respond] all providers failed:", aiData.error);
+      console.log(`[ai-bot] finalized reason=ai_unavailable detail=${aiData.error}`);
       return new Response(
         JSON.stringify({ error: "ai_unavailable", fallback: true, detail: aiData.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -616,7 +661,7 @@ Seja util, humano, rapido e nao enrole.`;
             "A resposta anterior ficou muito parecida com algo que voce ja mandou. Reformule com OUTRO angulo, outra pergunta, e NAO repita saudacao. Seja curto.",
         },
       ];
-      const retryData = await callAICascade(retryMessages, 200);
+      const retryData = await callAICascade(retryMessages, 200, supabase);
       if (retryData.ok && retryData.content) {
         reply = retryData.content;
         if (isDuplicateOf(reply)) suppressed = true;
@@ -626,6 +671,7 @@ Seja util, humano, rapido e nao enrole.`;
     }
     console.log(`[ai-bot] anti-repeat org=${effectiveOrgId ?? "null"} duplicate=${duplicate} retried=${retried} suppressed=${suppressed}`);
     if (suppressed) {
+      console.log(`[ai-bot] finalized reason=duplicate_reply_suppressed`);
       return new Response(
         JSON.stringify({ ok: true, skipped: true, reason: "duplicate_reply_suppressed" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -691,11 +737,13 @@ Seja util, humano, rapido e nao enrole.`;
       organization_id: effectiveOrgId,
     });
 
+    console.log(`[ai-bot] finalized reason=${sent ? "sent" : "wa_send_failed"} err=${sendError ?? ""}`);
     return new Response(JSON.stringify({ ok: true, response: reply, sent, sendError }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("ai-bot-respond error:", err);
+    console.log(`[ai-bot] finalized reason=exception msg=${(err as Error).message}`);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

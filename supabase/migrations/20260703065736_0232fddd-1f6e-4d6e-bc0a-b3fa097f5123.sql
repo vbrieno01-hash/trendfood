@@ -1,0 +1,1 @@
+ALTER TABLE public.platform_config ADD COLUMN IF NOT EXISTS groq_blocked_until timestamptz;
