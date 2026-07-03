@@ -8,6 +8,17 @@ const corsHeaders = {
 // Rate limit em memória (process-level)
 const lastReqByPhone = new Map<string, number>();
 
+// Cache in-memory: se Groq bater no limite diário (TPD), pula a chamada
+// até a próxima meia-noite UTC (quando o quota do Groq reseta).
+let groqBlockedUntil = 0;
+function nextUtcMidnight(): number {
+  const now = new Date();
+  const next = new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0
+  ));
+  return next.getTime();
+}
+
 /**
  * Cascata de IA gratuita: Groq → Cerebras. Fallback automático se um
  * provedor zerar limite (429/402), falhar (404/410/5xx) ou vier vazio.
@@ -16,7 +27,7 @@ const lastReqByPhone = new Map<string, number>();
  */
 async function callAICascade(
   messages: Array<{ role: string; content: string }>,
-  maxTokens = 512,
+  maxTokens = 200,
 ) {
   const providers: Array<{
     name: string;
@@ -46,7 +57,12 @@ async function callAICascade(
       console.log(`[callAI] ${p.name}: no key, skipping`);
       continue;
     }
+    if (p.name === "groq" && Date.now() < groqBlockedUntil) {
+      console.log(`[callAI] groq: TPD cache active, skipping until ${new Date(groqBlockedUntil).toISOString()}`);
+      continue;
+    }
     try {
+      const t0 = Date.now();
       const res = await fetch(p.url, {
         method: "POST",
         headers: {
@@ -63,7 +79,10 @@ async function callAICascade(
       if (res.ok) {
         const data = await res.json();
         const content = data.choices?.[0]?.message?.content || "";
-        if (content) return { ok: true as const, content, provider: p.name };
+        if (content) {
+          console.log(`[callAI] ${p.name} ok in ${Date.now() - t0}ms`);
+          return { ok: true as const, content, provider: p.name };
+        }
         lastError = `${p.name}: empty content`;
         continue;
       }
@@ -72,6 +91,12 @@ async function callAICascade(
       lastError = `${p.name} ${res.status}`;
       // 429/402/5xx → tenta próximo
       lastStatus = res.status === 429 || res.status === 402 ? "rate_limit" : "error";
+      // Se o Groq estourou o limite DIÁRIO (TPD), bloqueia até meia-noite UTC
+      // pra não perder ~1s por mensagem tentando de novo.
+      if (p.name === "groq" && res.status === 429 && /tokens per day|TPD/i.test(txt)) {
+        groqBlockedUntil = nextUtcMidnight();
+        console.log(`[callAI] groq TPD hit, blocking until ${new Date(groqBlockedUntil).toISOString()}`);
+      }
     } catch (e) {
       console.error(`[callAI] ${p.name} threw:`, e);
       lastError = `${p.name}: ${(e as Error).message}`;
