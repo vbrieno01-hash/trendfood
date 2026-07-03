@@ -321,10 +321,12 @@ async function configureWebhook(serverUrl: string, instanceToken: string, supaba
       method: "POST",
       headers: { "Content-Type": "application/json", token: instanceToken },
       body: JSON.stringify({
+        enabled: true,
         url: webhookUrl,
         events: ["messages"],
-        excludeMessages: ["fromMe"],
+        excludeMessages: ["fromMe", "wasSentByApi", "isGroups"],
         addUrlEvents: false,
+        addUrlTypesMessages: false,
       }),
     });
     if (!whRes.ok) console.error("uazapi webhook error:", whRes.status);
