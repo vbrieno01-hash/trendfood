@@ -421,7 +421,7 @@ Deno.serve(async (req) => {
         if (org.description) storeContext += `${org.description}\n`;
         if (org.store_address) storeContext += `Endereço: ${org.store_address}\n`;
         if (org.whatsapp) storeContext += `WhatsApp: ${org.whatsapp}\n`;
-        storeContext += `Link do cardápio: https://trendfood.lovable.app/unidade/${org.slug}\n`;
+        storeContext += `Link do cardápio: https://trendfood.site/unidade/${org.slug}\n`;
 
         if (org.business_hours) {
           storeContext += `\n## HORÁRIOS\n${JSON.stringify(org.business_hours)}\n`;
