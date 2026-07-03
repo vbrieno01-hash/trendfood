@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!inst?.instance_token || inst.status !== "connected") {
+    if (!inst?.instance_token) {
       return new Response(JSON.stringify({ sent: false, reason: "no_instance" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -55,6 +55,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ sent: false, reason: "uazapi_error" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Autocurar status no banco quando o envio deu certo mas a UI ainda não polou
+    if (inst.status !== "connected") {
+      await supabase
+        .from("whatsapp_instances")
+        .update({ status: "connected", connected_at: new Date().toISOString() })
+        .eq("organization_id", organization_id);
     }
 
     return new Response(JSON.stringify({ sent: true }), {
