@@ -120,13 +120,13 @@ async function callAICascade(
       name: "cerebras",
       key: Deno.env.get("CEREBRAS_API_KEY"),
       url: "https://api.cerebras.ai/v1/chat/completions",
-      model: "gpt-oss-120b",
+      model: "llama-3.3-70b",
     },
     {
       name: "cerebras-fallback",
       key: Deno.env.get("CEREBRAS_API_KEY"),
       url: "https://api.cerebras.ai/v1/chat/completions",
-      model: "llama-3.3-70b",
+      model: "llama3.1-8b",
     },
     {
       name: "groq-8b",
