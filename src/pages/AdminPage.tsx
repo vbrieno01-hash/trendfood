@@ -467,12 +467,21 @@ function AdminContent() {
 
   const exportRevenueCSV = () => {
     const orgsById = new Map(orgs.map((o) => [o.id, o] as const));
-    const lines = ["Data,Loja,Slug,Plano,Ciclo,Valor (R$),Promo,Origem,Payment ID,Observacao"];
+    const lines = ["Data,Loja,Slug,Plano,Ciclo,Valor (R$),Valor Atual Mês (R$),Promo,Origem,Payment ID,Observacao"];
     payments.forEach((p) => {
       const o = orgsById.get(p.organization_id);
       const date = new Date(p.paid_at).toLocaleDateString("pt-BR");
       const amount = (p.amount_cents / 100).toFixed(2).replace(".", ",");
       const safe = (s: string | null | undefined) => `"${(s ?? "").replace(/"/g, '""')}"`;
+      const pp = o ? planPrices[o.subscription_plan] : undefined;
+      const cycle = (o?.billing_cycle ?? "monthly").toLowerCase();
+      let currentCents = 0;
+      if (pp) {
+        if (cycle === "annual" || cycle === "yearly") currentCents = pp.annual / 12;
+        else if (cycle === "quarterly" && pp.quarterly) currentCents = pp.quarterly / 3;
+        else currentCents = pp.monthly;
+      }
+      const currentAmount = (currentCents / 100).toFixed(2).replace(".", ",");
       lines.push([
         date,
         safe(o?.name ?? "—"),
@@ -480,6 +489,7 @@ function AdminContent() {
         safe(p.plan),
         safe(p.billing_cycle ?? ""),
         amount,
+        currentAmount,
         p.promo_applied ? "sim" : "nao",
         safe(p.source),
         safe(p.payment_id ?? ""),
