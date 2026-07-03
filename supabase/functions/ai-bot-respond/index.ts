@@ -122,6 +122,18 @@ async function callAICascade(
       url: "https://api.cerebras.ai/v1/chat/completions",
       model: "gpt-oss-120b",
     },
+    {
+      name: "cerebras-fallback",
+      key: Deno.env.get("CEREBRAS_API_KEY"),
+      url: "https://api.cerebras.ai/v1/chat/completions",
+      model: "llama-3.3-70b",
+    },
+    {
+      name: "groq-8b",
+      key: Deno.env.get("GROQ_API_KEY"),
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      model: "llama-3.1-8b-instant",
+    },
   ];
 
   let lastStatus: "rate_limit" | "error" = "error";
@@ -136,47 +148,57 @@ async function callAICascade(
       console.log(`[callAI] groq: TPD cache active, skipping until ${new Date(groqBlockedUntil).toISOString()}`);
       continue;
     }
-    try {
-      const t0 = Date.now();
-      const res = await fetch(p.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${p.key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: p.model,
-          messages,
-          temperature: 0.7,
-          max_tokens: maxTokens,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const content = data.choices?.[0]?.message?.content || "";
-        if (content) {
-          console.log(`[callAI] ${p.name} ok in ${Date.now() - t0}ms`);
-          return { ok: true as const, content, provider: p.name };
+    // Cerebras às vezes devolve content="" no primeiro shot; permite 1 retry.
+    const attempts = p.name.startsWith("cerebras") ? 2 : 1;
+    let gotEmpty = false;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        const t0 = Date.now();
+        const res = await fetch(p.url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${p.key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: p.model,
+            messages,
+            temperature: 0.7,
+            max_tokens: maxTokens,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.choices?.[0]?.message?.content || "";
+          if (content) {
+            console.log(`[callAI] ${p.name} ok in ${Date.now() - t0}ms${attempt > 0 ? ` (retry ${attempt})` : ""}`);
+            return { ok: true as const, content, provider: p.name };
+          }
+          lastError = `${p.name}: empty content`;
+          gotEmpty = true;
+          console.log(`[callAI] ${p.name} empty content (attempt ${attempt + 1}/${attempts})`);
+          continue; // tenta de novo se ainda tem attempts
         }
-        lastError = `${p.name}: empty content`;
-        continue;
+        const txt = await res.text();
+        console.error(`[callAI] ${p.name} ${res.status}: ${txt.slice(0, 200)}`);
+        lastError = `${p.name} ${res.status}`;
+        lastStatus = res.status === 429 || res.status === 402 ? "rate_limit" : "error";
+        if ((p.name === "groq" || p.name === "groq-8b") && res.status === 429 && /tokens per day|TPD/i.test(txt)) {
+          // só bloqueia o groq principal — o 8b tem cota separada
+          if (p.name === "groq") {
+            groqBlockedUntil = nextUtcMidnight();
+            console.log(`[callAI] groq TPD hit, blocking until ${new Date(groqBlockedUntil).toISOString()}`);
+            if (sb) persistGroqBlock(sb, groqBlockedUntil).catch(() => {});
+          }
+        }
+        break; // erro HTTP: pula pro próximo provider
+      } catch (e) {
+        console.error(`[callAI] ${p.name} threw:`, e);
+        lastError = `${p.name}: ${(e as Error).message}`;
+        break;
       }
-      const txt = await res.text();
-      console.error(`[callAI] ${p.name} ${res.status}: ${txt.slice(0, 200)}`);
-      lastError = `${p.name} ${res.status}`;
-      // 429/402/5xx → tenta próximo
-      lastStatus = res.status === 429 || res.status === 402 ? "rate_limit" : "error";
-      // Se o Groq estourou o limite DIÁRIO (TPD), bloqueia até meia-noite UTC
-      // pra não perder ~1s por mensagem tentando de novo.
-      if (p.name === "groq" && res.status === 429 && /tokens per day|TPD/i.test(txt)) {
-        groqBlockedUntil = nextUtcMidnight();
-        console.log(`[callAI] groq TPD hit, blocking until ${new Date(groqBlockedUntil).toISOString()}`);
-        if (sb) persistGroqBlock(sb, groqBlockedUntil).catch(() => {});
-      }
-    } catch (e) {
-      console.error(`[callAI] ${p.name} threw:`, e);
-      lastError = `${p.name}: ${(e as Error).message}`;
     }
+    void gotEmpty;
   }
   return { ok: false as const, status: lastStatus, error: lastError };
 }
