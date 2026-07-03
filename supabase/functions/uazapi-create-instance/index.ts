@@ -108,6 +108,8 @@ Deno.serve(async (req) => {
       // Tenta pegar QR atual da instância existente
       const qr = await fetchQr(serverUrl, existing.instance_token);
       if (qr.qrcode || qr.status === "open" || qr.status === "connected") {
+        // Garante que o webhook está habilitado (auto-corrige instâncias antigas)
+        await configureWebhook(serverUrl, existing.instance_token, supabaseUrl);
         return new Response(
           JSON.stringify({
             ok: true,
