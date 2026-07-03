@@ -233,10 +233,10 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
       {/* ── Header ────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 animate-dashboard-fade-in">
         <div>
-          <h1 className="text-3xl font-black text-foreground leading-tight tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight tracking-tight">
             {organization.name}
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{todayCapitalized}</p>
+          <p className="text-muted-foreground text-sm mt-1">{todayCapitalized}</p>
         </div>
         <div className="flex items-center gap-2">
           {pushSupported && (
@@ -430,14 +430,14 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
       )}
 
       {/* ── Quick Summary ─────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3 md:gap-4">
         <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-1">
           <div className="dashboard-section-icon">
             <ClipboardList className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xl font-black text-foreground leading-tight">{activeOrders.length}</p>
-            <p className="text-xs text-muted-foreground font-medium">Pedidos Ativos</p>
+            <p className="text-2xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{activeOrders.length}</p>
+            <p className="text-xs text-muted-foreground font-medium">Pedidos ativos</p>
           </div>
         </div>
         <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-2">
@@ -445,8 +445,8 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
             <LayoutGrid className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xl font-black text-foreground leading-tight">{occupiedTables}</p>
-            <p className="text-xs text-muted-foreground font-medium">Mesas Ocupadas</p>
+            <p className="text-2xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{occupiedTables}</p>
+            <p className="text-xs text-muted-foreground font-medium">Mesas ocupadas</p>
           </div>
         </div>
         <div className={`dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-3 ${lowStockCount > 0 ? "!border-destructive/40 animate-neon-pulse shadow-lg shadow-destructive/20" : ""}`}>
@@ -454,8 +454,8 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xl font-black text-foreground leading-tight">{lowStockCount}</p>
-            <p className="text-xs text-muted-foreground font-medium">Estoque Baixo</p>
+            <p className="text-2xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{lowStockCount}</p>
+            <p className="text-xs text-muted-foreground font-medium">Estoque baixo</p>
           </div>
         </div>
       </div>
@@ -590,7 +590,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
 
       {/* ── Today revenue hero ────────────────────────────── */}
       <div
-        className="rounded-2xl text-white p-5 flex items-center justify-between shadow-lg overflow-hidden relative animate-dashboard-slide-up dash-delay-5"
+        className="rounded-2xl text-white p-5 md:p-6 flex items-center justify-between shadow-elev-lg overflow-hidden relative animate-dashboard-slide-up dash-delay-5"
         style={{
           background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.75))",
         }}
@@ -603,8 +603,8 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           }}
         />
         <div className="relative z-10">
-          <p className="text-sm text-white/70 font-medium uppercase tracking-wider">Faturamento Hoje</p>
-          <p className="text-4xl font-black mt-1 tracking-tight">{fmtBRL(todayRevenue)}</p>
+          <p className="text-xs text-white/70 font-semibold uppercase tracking-[0.14em]">Faturamento hoje</p>
+          <p className="text-4xl md:text-5xl font-bold mt-1.5 tracking-tight tabular-nums">{fmtBRL(todayRevenue)}</p>
           <div className="flex items-center gap-3 mt-2">
             <p className="text-xs text-white/60">{todayDelivered.filter((o) => o.paid).length} pedido(s) pago(s)</p>
             {revenueDelta !== null && (
