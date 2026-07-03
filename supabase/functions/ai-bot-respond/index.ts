@@ -390,8 +390,38 @@ Seja util, humano, rapido e nao enrole.`;
 
     const systemPrompt = config?.system_prompt || defaultPrompt;
 
+    // === Anti-repetição: últimas 3 respostas do robô + detecção de "cliente não avançou" ===
+    const normalize = (s: string) =>
+      (s || "")
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/https?:\/\/\S+/g, "")
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const lastBotReplies = (history || [])
+      .slice(0, 3)
+      .map((h) => (h.ai_response || "").trim())
+      .filter(Boolean);
+    const lastIncoming = normalize((history || [])[0]?.incoming_message || "");
+    const curIncoming = normalize(message);
+    const clientDidNotAdvance =
+      lastBotReplies.length > 0 &&
+      (curIncoming.length < 3 || curIncoming === lastIncoming);
+
+    let antiRepeatBlock = "";
+    if (lastBotReplies.length > 0) {
+      const bullets = lastBotReplies.map((r) => `- "${r.replace(/\n/g, " ").slice(0, 180)}"`).join("\n");
+      antiRepeatBlock =
+        `\n\n## ULTIMAS RESPOSTAS QUE VOCE JA MANDOU (NAO REPITA)\n${bullets}\n` +
+        `REGRA: nao repita frase, pergunta ou saudacao ja enviada acima. ` +
+        (clientDidNotAdvance
+          ? `O cliente NAO avançou desde sua ultima mensagem — MUDE de angulo: proponha outra coisa, faca outra pergunta OU seja breve. Nao reenvie a mesma saudacao/pergunta.`
+          : `Se o cliente nao avancou, mude de angulo (proponha outra coisa, faca outra pergunta).`);
+    }
+
     const messages: { role: string; content: string }[] = [
-      { role: "system", content: `${systemPrompt}\n${storeContext}` },
+      { role: "system", content: `${systemPrompt}\n${storeContext}${antiRepeatBlock}` },
     ];
     if (history) {
       for (const h of history.reverse()) {
@@ -402,7 +432,7 @@ Seja util, humano, rapido e nao enrole.`;
     messages.push({ role: "user", content: message });
 
     // 4) Cascata IA free: Groq → Cerebras (fallback automático se um zerar/falhar)
-    const aiData = await callAICascade(messages, 512);
+    let aiData = await callAICascade(messages, 512);
     if (aiData.status === "rate_limit") {
       return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
         status: 429,
@@ -413,6 +443,59 @@ Seja util, humano, rapido e nao enrole.`;
     console.log(`[ai-bot-respond] provider=${aiData.provider}`);
     let reply =
       aiData.content || "Desculpa, tive um problema aqui. Pode repetir?";
+
+    // === Guard pós-geração: similaridade com últimas 3 respostas ===
+    const isDuplicateOf = (candidate: string): boolean => {
+      const cand = normalize(candidate);
+      if (!cand) return false;
+      const candTokens = new Set(cand.split(" ").filter((t) => t.length > 2));
+      const candFirst = cand.split(/[.!?\n]/)[0]?.trim() || cand;
+      for (const prev of lastBotReplies) {
+        const p = normalize(prev);
+        if (!p) continue;
+        const pFirst = p.split(/[.!?\n]/)[0]?.trim() || p;
+        if (candFirst && candFirst === pFirst) return true;
+        const pTokens = new Set(p.split(" ").filter((t) => t.length > 2));
+        if (candTokens.size === 0 || pTokens.size === 0) continue;
+        let inter = 0;
+        for (const t of candTokens) if (pTokens.has(t)) inter++;
+        const union = new Set([...candTokens, ...pTokens]).size;
+        const jaccard = union ? inter / union : 0;
+        if (jaccard >= 0.75) return true;
+      }
+      return false;
+    };
+
+    let duplicate = false;
+    let retried = false;
+    let suppressed = false;
+    if (isDuplicateOf(reply)) {
+      duplicate = true;
+      retried = true;
+      const retryMessages = [
+        ...messages,
+        { role: "assistant", content: reply },
+        {
+          role: "system",
+          content:
+            "A resposta anterior ficou muito parecida com algo que voce ja mandou. Reformule com OUTRO angulo, outra pergunta, e NAO repita saudacao. Seja curto.",
+        },
+      ];
+      const retryData = await callAICascade(retryMessages, 512);
+      if (retryData.ok && retryData.content) {
+        reply = retryData.content;
+        if (isDuplicateOf(reply)) suppressed = true;
+      } else {
+        suppressed = true;
+      }
+    }
+    console.log(`[ai-bot] anti-repeat org=${effectiveOrgId ?? "null"} duplicate=${duplicate} retried=${retried} suppressed=${suppressed}`);
+    if (suppressed) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: true, reason: "duplicate_reply_suppressed" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // === Anti-spam de link do cardápio ===
     // 1) Só permite link se o cliente pediu explicitamente NESTA mensagem.
