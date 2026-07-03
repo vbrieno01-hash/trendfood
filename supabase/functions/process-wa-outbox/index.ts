@@ -96,11 +96,17 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
             token: instance.instance_token,
           },
-          body: JSON.stringify({ phone: formattedPhone, message: row.message }),
+          body: JSON.stringify({ number: formattedPhone, text: row.message }),
         });
         if (!res.ok) {
           const body = await res.text();
           sendError = `UazAPI ${res.status}: ${body.slice(0, 200)}`;
+          if (res.status === 401 || res.status === 403) {
+            await supabase
+              .from("whatsapp_instances")
+              .update({ status: "disconnected", connected_at: null, phone_connected: null })
+              .eq("organization_id", row.organization_id);
+          }
         }
       } catch (e) {
         sendError = `fetch error: ${(e as Error).message}`;
