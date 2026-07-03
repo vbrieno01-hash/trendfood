@@ -626,7 +626,7 @@ MISSAO: atender rapido, tirar duvida com informacao real, ajudar o cliente a fec
 
 REGRAS DE FORMATO (WhatsApp puro):
 - Use *negrito* com UM asterisco apenas (nunca **duplo**).
-- URLs cruas, sem colchetes nem parenteses. Ex: https://trendfood.lovable.app/unidade/slug
+- URLs cruas, sem colchetes nem parenteses. Ex: https://trendfood.site/unidade/slug
 - Nada de markdown de titulo (##, ###) nem link [texto](url).
 - 1 a 2 emojis por mensagem, no maximo.
 - Respostas CURTAS: no maximo 4 linhas. Excecao: quando listar o cardapio.
@@ -723,7 +723,7 @@ Seja util, humano, rapido e nao enrole.`;
     const recentRepliesFast = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
     const linkRecentFast = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentRepliesFast);
     if (orgSlug && explicitMenuAsk && !linkRecentFast && msgLowFast.length <= 60) {
-      const fastReply = `Aqui está o link do nosso cardápio: https://trendfood.lovable.app/unidade/${orgSlug}`;
+      const fastReply = `Aqui está o link do nosso cardápio: https://trendfood.site/unidade/${orgSlug}`;
       let sentFast = false;
       let fastErr: string | null = null;
       if (effectiveServerUrl && effectiveToken) {
@@ -854,7 +854,7 @@ Seja util, humano, rapido e nao enrole.`;
       // Cliente pediu link/cardápio: NUNCA cortar URL. Se a IA esqueceu de
       // mandar, a gente completa com o link determinístico.
       if (!replyHasLink && orgSlug) {
-        const url = `https://trendfood.lovable.app/unidade/${orgSlug}`;
+        const url = `https://trendfood.site/unidade/${orgSlug}`;
         reply = reply.trim()
           ? `${reply.trim()}\n${url}`
           : `Aqui está o link do nosso cardápio: ${url}`;
