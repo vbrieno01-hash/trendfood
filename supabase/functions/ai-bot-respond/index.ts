@@ -421,7 +421,7 @@ Deno.serve(async (req) => {
         if (org.description) storeContext += `${org.description}\n`;
         if (org.store_address) storeContext += `Endereço: ${org.store_address}\n`;
         if (org.whatsapp) storeContext += `WhatsApp: ${org.whatsapp}\n`;
-        storeContext += `Link do cardápio: https://trendfood.lovable.app/unidade/${org.slug}\n`;
+        storeContext += `Link do cardápio: https://trendfood.site/unidade/${org.slug}\n`;
 
         if (org.business_hours) {
           storeContext += `\n## HORÁRIOS\n${JSON.stringify(org.business_hours)}\n`;
@@ -542,7 +542,54 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Saudação: primeira mensagem da conversa e greeting_message configurada
+    // === MODO LINK-ONLY ===
+    // Fluxo padrão: qualquer mensagem que não seja handoff/auto-notificação
+    // recebe imediatamente o link do cardápio. Sem IA, sem token.
+    if (orgSlug) {
+      const menuUrl = `https://trendfood.site/unidade/${orgSlug}`;
+      const recentReplies = (history || []).slice(0, 2).map((h) => h.ai_response || "").join("\n");
+      const linkSentRecently = /https?:\/\/[^\s]*trendfood\.(site|lovable\.app)/i.test(recentReplies);
+      const linkReply = linkSentRecently
+        ? `Link: ${menuUrl}`
+        : `Olá! 😊 Aqui está o link do nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`;
+
+      let sentLink = false;
+      let linkErr: string | null = null;
+      if (effectiveServerUrl && effectiveToken) {
+        try {
+          const r = await fetch(`${effectiveServerUrl}/send/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", token: effectiveToken },
+            body: JSON.stringify({ number: phone, text: linkReply }),
+          });
+          sentLink = r.ok;
+          if (!r.ok) linkErr = await r.text();
+        } catch (e) { linkErr = (e as Error).message; }
+      }
+      await supabase.from("fila_whatsapp").insert({
+        phone,
+        incoming_message: message,
+        ai_response: linkReply,
+        status: "respondido",
+        responded_at: new Date().toISOString(),
+        organization_id: effectiveOrgId,
+      });
+      recordBotMetric(supabase, {
+        organization_id: effectiveOrgId,
+        provider: "link-only",
+        status: sentLink ? "sent" : "wa_send_failed",
+        latency_ms: Date.now() - reqT0,
+        phone,
+        reply: linkReply,
+      });
+      console.log(`[ai-bot] link-only org=${effectiveOrgId ?? "null"} sent=${sentLink} in ${Date.now() - reqT0}ms`);
+      return new Response(
+        JSON.stringify({ ok: true, mode: "link-only", sent: sentLink, sendError: linkErr, response: linkReply }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Sem orgSlug (config singleton sem loja): fallback pra saudação simples se configurada.
     const greetingMessage: string | null = (config?.greeting_message || "").toString().trim() || null;
     if ((!history || history.length === 0) && greetingMessage) {
       let sentGreet = false;
@@ -579,7 +626,7 @@ MISSAO: atender rapido, tirar duvida com informacao real, ajudar o cliente a fec
 
 REGRAS DE FORMATO (WhatsApp puro):
 - Use *negrito* com UM asterisco apenas (nunca **duplo**).
-- URLs cruas, sem colchetes nem parenteses. Ex: https://trendfood.lovable.app/unidade/slug
+- URLs cruas, sem colchetes nem parenteses. Ex: https://trendfood.site/unidade/slug
 - Nada de markdown de titulo (##, ###) nem link [texto](url).
 - 1 a 2 emojis por mensagem, no maximo.
 - Respostas CURTAS: no maximo 4 linhas. Excecao: quando listar o cardapio.
@@ -674,9 +721,9 @@ Seja util, humano, rapido e nao enrole.`;
       /\b(manda|envia|passa|quero)\s+(?:o\s+)?(?:link|cardap[io]o?|menu)\b/i.test(msgLowFast) ||
       /\b(tem\s+link|qual\s+(?:o\s+)?link|onde\s+pe[cç]o|como\s+pe[cç]o)\b/i.test(msgLowFast);
     const recentRepliesFast = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
-    const linkRecentFast = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentRepliesFast);
+    const linkRecentFast = /https?:\/\/[^\s]*trendfood\.site/i.test(recentRepliesFast);
     if (orgSlug && explicitMenuAsk && !linkRecentFast && msgLowFast.length <= 60) {
-      const fastReply = `Aqui está o link do nosso cardápio: https://trendfood.lovable.app/unidade/${orgSlug}`;
+      const fastReply = `Aqui está o link do nosso cardápio: https://trendfood.site/unidade/${orgSlug}`;
       let sentFast = false;
       let fastErr: string | null = null;
       if (effectiveServerUrl && effectiveToken) {
@@ -801,13 +848,13 @@ Seja util, humano, rapido e nao enrole.`;
     // 2) Se já mandamos o link nas últimas 3 respostas, não repete.
     const askedForMenu = /\b(cardap|menu|link|pedir|pedido|fazer\s+pedido|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(message);
     const recentReplies = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
-    const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentReplies);
-    const replyHasLink = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(reply);
+    const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.site/i.test(recentReplies);
+    const replyHasLink = /https?:\/\/[^\s]*trendfood\.site/i.test(reply);
     if (askedForMenu) {
       // Cliente pediu link/cardápio: NUNCA cortar URL. Se a IA esqueceu de
       // mandar, a gente completa com o link determinístico.
       if (!replyHasLink && orgSlug) {
-        const url = `https://trendfood.lovable.app/unidade/${orgSlug}`;
+        const url = `https://trendfood.site/unidade/${orgSlug}`;
         reply = reply.trim()
           ? `${reply.trim()}\n${url}`
           : `Aqui está o link do nosso cardápio: ${url}`;
@@ -815,7 +862,7 @@ Seja util, humano, rapido e nao enrole.`;
     } else {
       // Cliente NÃO pediu link: remove URL para não spammar.
       reply = reply
-        .replace(/https?:\/\/(?:www\.)?trendfood\.lovable\.app\/\S*/gi, "")
+        .replace(/https?:\/\/(?:www\.)?trendfood\.site\/\S*/gi, "")
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\s*\n\s*\n\s*/g, "\n\n")
         .replace(/^[\s•\-–—:]+$/gm, "")
