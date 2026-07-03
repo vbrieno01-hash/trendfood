@@ -463,39 +463,9 @@ Deno.serve(async (req) => {
     const { data: history } = await historyQuery;
 
     // === HANDOFF HUMANO ===
-    // 3.1) Handoff ativo: robô cala a boca, mas por uma janela curta e retomável.
-    //  - Janela dura no máximo 2h desde o último "humano".
-    //  - Se passaram 30 min sem nenhuma mensagem "humano", consideramos o
-    //    atendimento encerrado e o bot volta, mesmo dentro das 2h.
-    {
-      const HANDOFF_MAX_MS = 2 * 60 * 60 * 1000;   // 2h teto absoluto
-      const HANDOFF_IDLE_MS = 30 * 60 * 1000;      // 30 min sem humano => libera
-      const since = new Date(Date.now() - HANDOFF_MAX_MS).toISOString();
-      let handoffQuery = supabase
-        .from("fila_whatsapp")
-        .select("id, created_at")
-        .eq("phone", phone)
-        .eq("status", "humano")
-        .gte("created_at", since)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (effectiveOrgId) handoffQuery = handoffQuery.eq("organization_id", effectiveOrgId);
-      const { data: handoffRow } = await handoffQuery.maybeSingle();
-      if (handoffRow) {
-        const lastHumanAt = new Date(handoffRow.created_at as string).getTime();
-        const ageMs = Date.now() - lastHumanAt;
-        const stillActive = ageMs <= HANDOFF_IDLE_MS;
-        if (stillActive) {
-          console.log(`[ai-bot] handoff_active org=${effectiveOrgId ?? "null"} phone=${phone} ageMin=${Math.round(ageMs / 60000)} reason=within_idle_window skipping`);
-          return new Response(
-            JSON.stringify({ ok: true, skipped: true, reason: "handoff_active" }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-        console.log(`[ai-bot] handoff_resumed org=${effectiveOrgId ?? "null"} phone=${phone} idleMin=${Math.round(ageMs / 60000)} — bot voltando`);
-      }
-    }
-
+    // 3.1) Sem silêncio persistente. O robô só cala a boca se a MENSAGEM ATUAL
+    //      tem gatilho (pediu humano, reclamou, repetiu). Handoffs antigos não
+    //      bloqueiam mais mensagens novas como "oi", "link", "cardápio".
     // 3.2) Detectar gatilhos de handoff na mensagem atual
     const normMsg = (s: string) =>
       (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -832,8 +802,18 @@ Seja util, humano, rapido e nao enrole.`;
     const askedForMenu = /\b(cardap|menu|link|pedir|pedido|fazer\s+pedido|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(message);
     const recentReplies = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
     const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(recentReplies);
-    if (!askedForMenu || linkAlreadySentRecently) {
-      // Remove qualquer URL do cardápio da resposta e limpa linhas/pontuação órfãs.
+    const replyHasLink = /https?:\/\/[^\s]*trendfood\.lovable\.app/i.test(reply);
+    if (askedForMenu) {
+      // Cliente pediu link/cardápio: NUNCA cortar URL. Se a IA esqueceu de
+      // mandar, a gente completa com o link determinístico.
+      if (!replyHasLink && orgSlug) {
+        const url = `https://trendfood.lovable.app/unidade/${orgSlug}`;
+        reply = reply.trim()
+          ? `${reply.trim()}\n${url}`
+          : `Aqui está o link do nosso cardápio: ${url}`;
+      }
+    } else {
+      // Cliente NÃO pediu link: remove URL para não spammar.
       reply = reply
         .replace(/https?:\/\/(?:www\.)?trendfood\.lovable\.app\/\S*/gi, "")
         .replace(/[ \t]{2,}/g, " ")
@@ -844,7 +824,7 @@ Seja util, humano, rapido e nao enrole.`;
         reply = "Tô por aqui! Me diz o que você quer que eu te ajudo.";
       }
     }
-    console.log(`[ai-bot] llm-reply len=${reply.length} askedMenu=${askedForMenu} linkRecent=${linkAlreadySentRecently}`);
+    console.log(`[ai-bot] llm-reply len=${reply.length} askedMenu=${askedForMenu} linkRecent=${linkAlreadySentRecently} hasLink=${replyHasLink}`);
 
     // 5) Enviar resposta de volta via uazapiGO
     let sent = false;
