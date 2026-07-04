@@ -4,8 +4,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-const PLUGNOTAS_BASE = "https://api.plugnotas.com.br";
-
 function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
@@ -34,32 +32,32 @@ Deno.serve(async (req) => {
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", orgId).maybeSingle();
     if (!cfg) return json({ error: "fiscal_config not found" }, 404);
 
-    const apiKey = Deno.env.get("PLUGNOTAS_API_KEY");
-    if (!apiKey) return json({ error: "PLUGNOTAS_API_KEY not configured" }, 500);
+    const token = Deno.env.get("FOCUS_NFE_TOKEN");
+    if (!token) return json({ error: "FOCUS_NFE_TOKEN not configured" }, 500);
 
-    // Forward multipart to PlugNotas
-    const fd = new FormData();
-    fd.append("arquivo", file, file.name || "certificado.pfx");
-    fd.append("senha", password);
     const cnpjClean = (cfg.cnpj || "").replace(/\D/g, "");
-    const res = await fetch(`${PLUGNOTAS_BASE}/certificado`, {
-      method: "POST",
-      headers: { "X-API-KEY": apiKey },
-      body: fd,
+    if (!cnpjClean) return json({ error: "CNPJ ausente em fiscal_config" }, 400);
+
+    // Focus NFe accepts base64 upload: PUT /v2/empresas/{cnpj} with arquivo_certificado_base64 + senha_certificado
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    const b64 = btoa(bin);
+
+    const host = cfg.environment === "producao" ? "https://api.focusnfe.com.br" : "https://homologacao.focusnfe.com.br";
+    const auth = "Basic " + btoa(`${token}:`);
+    const res = await fetch(`${host}/v2/empresas/${cnpjClean}`, {
+      method: "PUT",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        arquivo_certificado_base64: b64,
+        senha_certificado: password,
+      }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return json({ error: "plugnotas_error", status: res.status, detail: data }, 400);
+    if (!res.ok) return json({ error: "focus_error", status: res.status, detail: data }, 400);
 
-    // Link certificate to company
-    if (cfg.plugnotas_empresa_id) {
-      await fetch(`${PLUGNOTAS_BASE}/empresa/${cnpjClean}/certificado`, {
-        method: "POST",
-        headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ certificado: data?.id || data?.data?.id }),
-      });
-    }
-
-    const vencimento = data?.vencimento || data?.data?.vencimento || null;
+    const vencimento = data?.certificado_valido_ate || data?.certificado_valido_de || null;
     await supabase.from("fiscal_config").update({
       certificado_uploaded_at: new Date().toISOString(),
       certificado_expira_em: vencimento ? String(vencimento).slice(0, 10) : null,
