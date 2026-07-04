@@ -135,29 +135,6 @@ async function callAICascade(
       url: "https://api.groq.com/openai/v1/chat/completions",
       model: "llama-3.1-8b-instant",
     },
-    // Lovable AI Gateway — cobertura extra quando Groq/Cerebras falham.
-    // A chave LOVABLE_API_KEY é provisionada automaticamente pela plataforma.
-    {
-      name: "lovable-gemini-flash",
-      key: Deno.env.get("LOVABLE_API_KEY"),
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      model: "google/gemini-3-flash-preview",
-      authStyle: "lovable",
-    },
-    {
-      name: "lovable-gemini-lite",
-      key: Deno.env.get("LOVABLE_API_KEY"),
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      model: "google/gemini-3.1-flash-lite",
-      authStyle: "lovable",
-    },
-    {
-      name: "lovable-gpt5-nano",
-      key: Deno.env.get("LOVABLE_API_KEY"),
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      model: "openai/gpt-5-nano",
-      authStyle: "lovable",
-    },
   ];
 
   let lastStatus: "rate_limit" | "error" = "error";
@@ -542,10 +519,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === MODO LINK-ONLY ===
-    // Fluxo padrão: qualquer mensagem que não seja handoff/auto-notificação
-    // recebe imediatamente o link do cardápio. Sem IA, sem token.
-    if (orgSlug) {
+    // === FALLBACK LINK-ONLY (rede de segurança) ===
+    // Só é chamado se Groq E Cerebras falharem. Nunca substitui a IA
+    // quando ela está disponível — apenas cobre o pior cenário para o
+    // cliente nunca ficar sem resposta.
+    const sendLinkFallback = async (reason: string): Promise<Response | null> => {
+      if (!orgSlug) return null;
       const menuUrl = `https://trendfood.site/${orgSlug}`;
       const variations = [
         `Olá! 😊 Aqui está o nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`,
@@ -555,7 +534,6 @@ Deno.serve(async (req) => {
         `Bem-vindo(a)! 🍔 Escolhe o que quiser no cardápio:\n${menuUrl}\n\nA gente cuida do resto. 💜`,
       ];
       const linkReply = variations[Math.floor(Math.random() * variations.length)];
-
       let sentLink = false;
       let linkErr: string | null = null;
       if (effectiveServerUrl && effectiveToken) {
@@ -579,18 +557,18 @@ Deno.serve(async (req) => {
       });
       recordBotMetric(supabase, {
         organization_id: effectiveOrgId,
-        provider: "link-only",
+        provider: `link-fallback:${reason}`,
         status: sentLink ? "sent" : "wa_send_failed",
         latency_ms: Date.now() - reqT0,
         phone,
         reply: linkReply,
       });
-      console.log(`[ai-bot] link-only org=${effectiveOrgId ?? "null"} sent=${sentLink} in ${Date.now() - reqT0}ms`);
+      console.log(`[ai-bot] link-fallback reason=${reason} org=${effectiveOrgId ?? "null"} sent=${sentLink}`);
       return new Response(
-        JSON.stringify({ ok: true, mode: "link-only", sent: sentLink, sendError: linkErr, response: linkReply }),
+        JSON.stringify({ ok: true, mode: "link-fallback", reason, sent: sentLink, sendError: linkErr, response: linkReply }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
-    }
+    };
 
     // Sem orgSlug (config singleton sem loja): fallback pra saudação simples se configurada.
     const greetingMessage: string | null = (config?.greeting_message || "").toString().trim() || null;
@@ -770,6 +748,8 @@ Seja util, humano, rapido e nao enrole.`;
     if (aiData.status === "rate_limit") {
       console.log(`[ai-bot] finalized reason=ai_rate_limit`);
       recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_rate_limit", latency_ms: Date.now() - reqT0, phone });
+      const fb = await sendLinkFallback("ai_rate_limit");
+      if (fb) return fb;
       return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -779,6 +759,8 @@ Seja util, humano, rapido e nao enrole.`;
       console.error("[ai-bot-respond] all providers failed:", aiData.error);
       console.log(`[ai-bot] finalized reason=ai_unavailable detail=${aiData.error}`);
       recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_unavailable", latency_ms: Date.now() - reqT0, phone });
+      const fb = await sendLinkFallback("ai_unavailable");
+      if (fb) return fb;
       return new Response(
         JSON.stringify({ error: "ai_unavailable", fallback: true, detail: aiData.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
