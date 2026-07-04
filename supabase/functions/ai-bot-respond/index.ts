@@ -11,6 +11,94 @@ const lastReqByPhone = new Map<string, number>();
 // Anti-repeat do pool de mensagens prontas (por telefone, best-effort no isolate)
 const lastFallbackIdxByPhone = new Map<string, number>();
 
+// ============ Store status (loja aberta agora?) — port de src/lib/storeStatus.ts ============
+const DAY_MAP: Record<number, string> = { 0: "dom", 1: "seg", 2: "ter", 3: "qua", 4: "qui", 5: "sex", 6: "sab" };
+const DAY_LABELS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+
+function nowInBrasilia(): { dow: number; minutes: number } {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const wk: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const h = parseInt(get("hour"), 10);
+  const mi = parseInt(get("minute"), 10);
+  return {
+    dow: wk[get("weekday")] ?? 0,
+    minutes: (Number.isFinite(h) ? h % 24 : 0) * 60 + (Number.isFinite(mi) ? mi : 0),
+  };
+}
+function toMin(t: string): number {
+  const [h, m] = (t || "00:00").split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+function toMinClose(t: string): number {
+  const v = toMin(t);
+  return v === 0 ? 1440 : v;
+}
+
+type StoreStatusLite = { open: true } | { open: false; opensAt: string | null; opensDayLabel: string | null };
+
+function isStoreOpenNow(bh: any, paused?: boolean, forceOpen?: boolean): StoreStatusLite {
+  if (paused === true) return { open: false, opensAt: null, opensDayLabel: null };
+  if (!bh || !bh.enabled || !bh.schedule) return { open: true };
+  const { dow, minutes } = nowInBrasilia();
+
+  // Turno do dia anterior que cruza meia-noite
+  const prevKey = DAY_MAP[(dow + 6) % 7];
+  const prev = bh.schedule[prevKey];
+  if (prev && prev.open) {
+    const pf = toMin(prev.from);
+    const pt = toMinClose(prev.to);
+    if (pt < pf && minutes < pt) {
+      if (prev.break_from && prev.break_to) {
+        const bf = toMin(prev.break_from), bt = toMin(prev.break_to);
+        if (minutes >= bf && minutes < bt) return { open: false, opensAt: prev.break_to, opensDayLabel: null };
+      }
+      return { open: true };
+    }
+  }
+
+  const today = bh.schedule[DAY_MAP[dow]];
+  const findNext = (): { time: string; offset: number } | null => {
+    for (let i = 1; i <= 7; i++) {
+      const d = bh.schedule[DAY_MAP[(dow + i) % 7]];
+      if (d && d.open) return { time: d.from, offset: i };
+    }
+    return null;
+  };
+  const labelFromOffset = (off: number) =>
+    off <= 0 ? null : off === 1 ? "amanhã" : (DAY_LABELS[(dow + off) % 7] ?? null);
+
+  if (forceOpen) {
+    if (today?.break_from && today?.break_to) {
+      const bf = toMin(today.break_from), bt = toMin(today.break_to);
+      if (minutes >= bf && minutes < bt) return { open: false, opensAt: today.break_to, opensDayLabel: null };
+    }
+    return { open: true };
+  }
+
+  if (!today || !today.open) {
+    const nx = findNext();
+    return { open: false, opensAt: nx?.time ?? null, opensDayLabel: nx ? labelFromOffset(nx.offset) : null };
+  }
+  const fm = toMin(today.from);
+  const tm = toMinClose(today.to);
+  const isOpen = tm > fm ? (minutes >= fm && minutes < tm) : (minutes >= fm);
+  if (isOpen) {
+    if (today.break_from && today.break_to) {
+      const bf = toMin(today.break_from), bt = toMin(today.break_to);
+      if (minutes >= bf && minutes < bt) return { open: false, opensAt: today.break_to, opensDayLabel: null };
+    }
+    return { open: true };
+  }
+  if (minutes < fm) return { open: false, opensAt: today.from, opensDayLabel: null };
+  const nx = findNext();
+  return { open: false, opensAt: nx?.time ?? null, opensDayLabel: nx ? labelFromOffset(nx.offset) : null };
+}
+// ==========================================================================================
+
 // Fire-and-forget: registra métrica de cada resposta do robô p/ o painel admin.
 // Nunca deve derrubar a request principal — todos os erros são engolidos.
 function maskPhone(phone: string): string {
@@ -380,7 +468,7 @@ Deno.serve(async (req) => {
       const [{ data: org }, { data: menu }, { data: hoods }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("name, slug, whatsapp, store_address, business_hours, description")
+          .select("name, slug, whatsapp, store_address, business_hours, description, paused, force_open")
           .eq("id", effectiveOrgId)
           .maybeSingle(),
         supabase
@@ -699,6 +787,58 @@ Seja util, humano, rapido e nao enrole.`;
       }
     }
     messages.push({ role: "user", content: message });
+
+    // === LOJA FECHADA: curto-circuita antes de qualquer resposta ===
+    // Se a loja está pausada, fora do horário ou em pausa (almoço/janta),
+    // NÃO manda link, cardápio, horários — só o aviso de fechado.
+    const storeStatus = isStoreOpenNow(orgData?.business_hours, orgData?.paused, orgData?.force_open);
+    if (storeStatus && !storeStatus.open) {
+      // Anti-spam: se as últimas 2 respostas já avisaram "fechado", manda curta.
+      const recentClosed = (history || [])
+        .slice(0, 2)
+        .some((h: any) => /estamos\s+fechados|no\s+momento\s+estamos\s+fechad/i.test(h?.ai_response || ""));
+      const reopenStr = storeStatus.opensAt
+        ? ` Abrimos ${storeStatus.opensDayLabel ? storeStatus.opensDayLabel + " " : ""}às ${storeStatus.opensAt}.`
+        : "";
+      const closedReply = recentClosed
+        ? `Ainda estamos fechados 🙏`
+        : `😴 No momento estamos fechados.${reopenStr} Pode mandar sua mensagem que respondemos assim que abrirmos!`;
+
+      let sentClosed = false;
+      let closedErr: string | null = null;
+      if (effectiveServerUrl && effectiveToken) {
+        try {
+          const r = await fetch(`${effectiveServerUrl}/send/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", token: effectiveToken },
+            body: JSON.stringify({ number: phone, text: closedReply }),
+          });
+          sentClosed = r.ok;
+          if (!r.ok) closedErr = await r.text();
+        } catch (e) { closedErr = (e as Error).message; }
+      }
+      await supabase.from("fila_whatsapp").insert({
+        phone,
+        incoming_message: message,
+        ai_response: closedReply,
+        status: "respondido",
+        responded_at: new Date().toISOString(),
+        organization_id: effectiveOrgId,
+      });
+      recordBotMetric(supabase, {
+        organization_id: effectiveOrgId,
+        provider: recentClosed ? "closed:repeat" : "closed",
+        status: sentClosed ? "sent" : "wa_send_failed",
+        latency_ms: Date.now() - reqT0,
+        phone,
+        reply: closedReply,
+      });
+      console.log(`[ai-bot] store-closed org=${effectiveOrgId ?? "null"} sent=${sentClosed} repeat=${recentClosed}`);
+      return new Response(
+        JSON.stringify({ ok: true, mode: "closed", sent: sentClosed, sendError: closedErr, response: closedReply }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // === Fast-path: cliente pediu explicitamente o link/cardápio ===
     // Evita ~3-4s de latência do LLM só pra devolver um link que já sabemos.
