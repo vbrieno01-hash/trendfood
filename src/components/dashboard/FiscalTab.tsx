@@ -21,6 +21,17 @@ import { Progress } from "@/components/ui/progress";
 import { useFiscalQuota } from "@/hooks/useFiscalQuota";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+async function handleUnauthorized(): Promise<boolean> {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data?.session) {
+    toast.error("Sua sessão expirou, faça login novamente");
+    try { await supabase.auth.signOut(); } catch {}
+    window.location.href = "/auth";
+    return false;
+  }
+  return true;
+}
+
 type Props = {
   orgId: string;
   organization: { subscription_plan?: string | null } & Record<string, any>;
@@ -198,11 +209,18 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
     if (!cfg?.cnpj) { toast.error("Salve o CNPJ antes de enviar o certificado"); return; }
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("organization_id", orgId);
-      fd.append("password", certPassword);
-      fd.append("file", file);
-      const { data, error } = await supabase.functions.invoke("fiscal-upload-certificate", { body: fd });
+      const buildFd = () => {
+        const fd = new FormData();
+        fd.append("organization_id", orgId);
+        fd.append("password", certPassword);
+        fd.append("file", file);
+        return fd;
+      };
+      let { data, error } = await supabase.functions.invoke("fiscal-upload-certificate", { body: buildFd() });
+      if ((data as any)?.code === "unauthorized") {
+        if (!(await handleUnauthorized())) return;
+        ({ data, error } = await supabase.functions.invoke("fiscal-upload-certificate", { body: buildFd() }));
+      }
       if (error) {
         const status = (error as any)?.status ?? (error as any)?.context?.status;
         console.error("[fiscal-upload] gateway/invoke error", {
@@ -235,9 +253,15 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
   async function handleSyncFocus() {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("fiscal-focus-setup", {
+      let { data, error } = await supabase.functions.invoke("fiscal-focus-setup", {
         body: { organization_id: orgId },
       });
+      if ((data as any)?.code === "unauthorized") {
+        if (!(await handleUnauthorized())) return;
+        ({ data, error } = await supabase.functions.invoke("fiscal-focus-setup", {
+          body: { organization_id: orgId },
+        }));
+      }
       if (error) {
         const status = (error as any)?.status ?? (error as any)?.context?.status;
         console.error("[fiscal-focus-setup] gateway/invoke error", {
