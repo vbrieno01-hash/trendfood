@@ -730,7 +730,7 @@ const CourierPage = () => {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto p-4 space-y-4">
+      <div className="max-w-lg mx-auto p-4 max-[380px]:p-3 space-y-4">
         {/* Shift control */}
         <Card className={activeShift ? "border-green-500/40 bg-green-500/5" : ""}>
           <CardContent className="p-4">
