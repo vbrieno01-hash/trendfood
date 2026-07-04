@@ -1,24 +1,13 @@
 import { openWhatsAppWithFallback } from "./whatsappRedirect";
 import { supabase } from "@/integrations/supabase/client";
 
-const PAID_PLANS = ["pro", "enterprise", "lifetime"];
-
 /**
- * Retorna true se a loja tem o robô automático ativo:
- * plano pago (pro/enterprise/lifetime) E uma instância whatsapp conectada.
- * Quando true, o servidor (outbox) cuida do envio — não abrimos wa.me.
- * Fail-open: em qualquer erro, retorna false para não deixar cliente sem aviso.
+ * Retorna true se a loja tem uma instância WhatsApp conectada. Quando true,
+ * o outbox no servidor cuida do envio — não abrimos wa.me manual pra não duplicar.
+ * Fail-open: em qualquer erro, retorna false pra garantir que o cliente é avisado.
  */
 export async function hasActiveWhatsAppBot(organizationId: string): Promise<boolean> {
   try {
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("subscription_plan")
-      .eq("id", organizationId)
-      .maybeSingle();
-    const plan = ((org as any)?.subscription_plan ?? "free") as string;
-    if (!PAID_PLANS.includes(plan)) return false;
-
     const { data: inst } = await supabase
       .from("whatsapp_instances")
       .select("status")
