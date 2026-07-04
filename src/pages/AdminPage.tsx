@@ -353,6 +353,15 @@ function AdminContent() {
           .order("paid_at", { ascending: false }),
       ]);
 
+      const { data: botConfigs } = await (supabase.from("ai_bot_config") as any)
+        .select("organization_id, enabled");
+      const botEnabledMap = new Map<string, boolean>(
+        ((botConfigs ?? []) as { organization_id: string; enabled: boolean }[]).map((b) => [
+          b.organization_id,
+          !!b.enabled,
+        ]),
+      );
+
       // Preços vigentes (source of truth: platform_plans).
       const { data: plansData } = await (supabase.from("platform_plans") as any)
         .select("key, price_cents, annual_price_cents, quarterly_price_cents");
@@ -382,6 +391,7 @@ function AdminContent() {
         business_hours: org.business_hours as object | null,
         billing_cycle: (org as any).billing_cycle ?? null,
         whatsapp_bot_allowed: !!(org as any).whatsapp_bot_allowed,
+        ai_bot_enabled: botEnabledMap.get(org.id) ?? false,
       }));
 
       setOrgs(enriched);
