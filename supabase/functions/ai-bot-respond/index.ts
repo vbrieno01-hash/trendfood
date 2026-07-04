@@ -380,7 +380,7 @@ Deno.serve(async (req) => {
       const [{ data: org }, { data: menu }, { data: hoods }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("name, slug, whatsapp, store_address, business_hours, description")
+          .select("name, slug, whatsapp, store_address, business_hours, description, paused, force_open")
           .eq("id", effectiveOrgId)
           .maybeSingle(),
         supabase
