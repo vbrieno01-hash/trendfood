@@ -31,6 +31,19 @@ type DeleteAttempt = {
   enabled: boolean;
 };
 
+type OrganizationRow = {
+  id: string;
+  slug: string | null;
+  subscription_plan: string | null;
+  trial_ends_at: string | null;
+  whatsapp_bot_allowed: boolean | null;
+};
+
+type UazapiRemoteInstance = {
+  name: string | null;
+  token: string | null;
+};
+
 async function getUazapiConfig(supabase: ReturnType<typeof createClient>): Promise<UazapiConfig> {
   const envServer = (Deno.env.get("UAZAPI_SERVER_URL") || "").replace(/\/$/, "");
   const envToken = Deno.env.get("UAZAPI_ADMIN_TOKEN") || null;
@@ -72,6 +85,41 @@ function isExpiredInstance(instance: WhatsAppInstance, now: Date): boolean {
   );
 }
 
+function isExpiredOrganization(organization: OrganizationRow, now: Date): boolean {
+  return (
+    ["free", "pro", "enterprise"].includes(String(organization.subscription_plan)) &&
+    typeof organization.trial_ends_at === "string" &&
+    new Date(organization.trial_ends_at) <= now
+  );
+}
+
+function normalizeName(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function extractRemoteInstances(payload: unknown): UazapiRemoteInstance[] {
+  const root = payload as Record<string, unknown> | null;
+  const listCandidates = [
+    payload,
+    root?.instances,
+    root?.data,
+    (root?.data as Record<string, unknown> | undefined)?.instances,
+  ];
+  const list = listCandidates.find(Array.isArray) as unknown[] | undefined;
+
+  if (!list) return [];
+
+  return list
+    .map((entry) => {
+      const item = entry as Record<string, unknown>;
+      return {
+        name: normalizeName(item.name ?? item.instanceName ?? item.instance_name),
+        token: normalizeName(item.token ?? item.instanceToken ?? item.instance_token),
+      };
+    })
+    .filter((entry) => !!entry.name || !!entry.token);
+}
+
 async function consume(response: Response): Promise<string> {
   return await response.text().catch(() => "");
 }
@@ -104,9 +152,15 @@ async function deleteUazapiInstance(
 
   await disconnectInstance(serverUrl, token || null);
 
-  // A UazAPI documenta exclusão por nome da instância. Os fallbacks por token
-  // ficam para compatibilidade com versões antigas/variações do servidor.
+  // A UazAPI oficial usa DELETE /instance com header token. Mantemos fallbacks
+  // para instalações antigas que ainda aceitam /instance/delete.
   const attempts: DeleteAttempt[] = [
+    {
+      label: "delete-instance-token",
+      method: "DELETE",
+      headers: { token },
+      enabled: !!token,
+    },
     {
       label: "post-name-body",
       method: "POST",
@@ -146,7 +200,8 @@ async function deleteUazapiInstance(
   for (const attempt of attempts) {
     if (!attempt.enabled) continue;
 
-    const response = await fetch(`${serverUrl}/instance/delete`, {
+    const legacyPath = attempt.label === "delete-instance-token" ? "/instance" : "/instance/delete";
+    const response = await fetch(`${serverUrl}${legacyPath}`, {
       method: attempt.method,
       headers: attempt.headers,
       body: attempt.body,
@@ -160,6 +215,32 @@ async function deleteUazapiInstance(
   }
 
   return { ok: false, detail: results.join(" | ") };
+}
+
+async function listRemoteInstances(serverUrl: string, adminToken: string | null): Promise<UazapiRemoteInstance[]> {
+  if (!adminToken) return [];
+
+  try {
+    const response = await fetch(`${serverUrl}/instance/all`, {
+      method: "GET",
+      headers: { admintoken: adminToken },
+    });
+    const text = await consume(response);
+    if (!response.ok) {
+      console.error(`[whatsapp-cleanup-expired] /instance/all failed: ${response.status} ${text.slice(0, 160)}`);
+      return [];
+    }
+
+    try {
+      return extractRemoteInstances(JSON.parse(text));
+    } catch {
+      console.error("[whatsapp-cleanup-expired] /instance/all returned non-json");
+      return [];
+    }
+  } catch (error) {
+    console.error("[whatsapp-cleanup-expired] /instance/all threw:", (error as Error).message);
+    return [];
+  }
 }
 
 Deno.serve(async (req) => {
@@ -186,19 +267,26 @@ Deno.serve(async (req) => {
 
     if (instErr) throw instErr;
 
+    const { data: expiredOrganizations, error: orgErr } = await supabase
+      .from("organizations")
+      .select("id, slug, subscription_plan, trial_ends_at, whatsapp_bot_allowed")
+      .in("subscription_plan", ["free", "pro", "enterprise"])
+      .not("trial_ends_at", "is", null)
+      .lte("trial_ends_at", now.toISOString());
+
+    if (orgErr) throw orgErr;
+
+    const expiredOrgRows = ((expiredOrganizations || []) as OrganizationRow[]).filter((organization) =>
+      isExpiredOrganization(organization, now)
+    );
+
     const toDelete = ((instances || []) as WhatsAppInstance[]).filter((instance) => {
       const expired = isExpiredInstance(instance, now);
       const manuallyDisabled = instance.organizations.whatsapp_bot_allowed === false;
       return expired || manuallyDisabled;
     });
 
-    const expiredOrgIds = Array.from(
-      new Set(
-        ((instances || []) as WhatsAppInstance[])
-          .filter((instance) => isExpiredInstance(instance, now))
-          .map((instance) => instance.organization_id),
-      ),
-    );
+    const expiredOrgIds = Array.from(new Set(expiredOrgRows.map((organization) => organization.id)));
 
     if (expiredOrgIds.length > 0) {
       const { error: disableErr } = await supabase
@@ -211,11 +299,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (toDelete.length === 0) {
-      return json({ ok: true, processed: 0, deleted: 0, message: "all instances are valid" });
-    }
-
     let deleted = 0;
+    let remoteOrphansDeleted = 0;
     const errors: string[] = [];
 
     for (const instance of toDelete) {
@@ -237,8 +322,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[whatsapp-cleanup-expired] processed=${toDelete.length} deleted=${deleted} errors=${errors.length}`);
-    return json({ ok: true, processed: toDelete.length, deleted, errors });
+    const localIdentifiers = new Set(
+      ((instances || []) as WhatsAppInstance[])
+        .flatMap((instance) => [instance.instance_name, instance.instance_token])
+        .filter((value): value is string => typeof value === "string" && value.length > 0),
+    );
+    const expiredSlugPrefixes = expiredOrgRows
+      .map((organization) => organization.slug)
+      .filter((slug): slug is string => typeof slug === "string" && slug.length > 0)
+      .map((slug) => `org-${slug}-`);
+
+    if (adminToken && expiredSlugPrefixes.length > 0) {
+      const remoteInstances = await listRemoteInstances(serverUrl, adminToken);
+      for (const remote of remoteInstances) {
+        const remoteName = remote.name || "";
+        const belongsToExpiredOrg = expiredSlugPrefixes.some((prefix) => remoteName.startsWith(prefix));
+        const isLocalKnown = localIdentifiers.has(remoteName) || (!!remote.token && localIdentifiers.has(remote.token));
+        if (!belongsToExpiredOrg || isLocalKnown) continue;
+
+        const remoteDelete = await deleteUazapiInstance(serverUrl, adminToken, {
+          instance_name: remote.name,
+          instance_token: remote.token,
+          organization_id: `orphan:${remote.name || remote.token}`,
+        });
+        if (remoteDelete.ok) {
+          remoteOrphansDeleted++;
+        } else {
+          errors.push(`uazapi orphan delete failed for ${remote.name || remote.token}: ${remoteDelete.detail}`);
+        }
+      }
+    }
+
+    console.log(`[whatsapp-cleanup-expired] processed=${toDelete.length} deleted=${deleted} remoteOrphansDeleted=${remoteOrphansDeleted} errors=${errors.length}`);
+    return json({ ok: true, processed: toDelete.length, deleted, remoteOrphansDeleted, errors });
   } catch (err) {
     console.error("[whatsapp-cleanup-expired] error:", err);
     return json({ error: (err as Error).message }, 500);
