@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
         `🏪 Loja: <b>${org?.name || "—"}</b>\n` +
         `📅 Cadastrou: ${fmtDate(org?.created_at || new Date().toISOString())}\n` +
         `📊 Suas lojas indicadas: <b>${activeStores || 0}</b>\n\n` +
-        `💡 Quando ela assinar o Pro, você recebe <b>50% do 1º mês</b> como comissão.`;
+        `💡 Quando ela assinar (Pro ou Enterprise), sua comissão segue a <b>Tabela V8</b> e você escolhe receber <b>À Vista</b> ou em <b>3x</b> pelo Telegram.`;
     } else if (event_type === "new_payment") {
       msg = `💰 <b>Novo pagamento do seu indicado!</b>\n\n` +
         `🏪 Loja: <b>${org?.name || "—"}</b>\n` +
