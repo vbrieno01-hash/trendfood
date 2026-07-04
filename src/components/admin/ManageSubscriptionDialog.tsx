@@ -139,6 +139,46 @@ export default function ManageSubscriptionDialog({ org, onSaved }: ManageSubscri
       const isNowActivePaid = status === "active" && paidPlans.includes(plan);
 
       if (wasNotActive && isNowActivePaid) {
+        // ── Afiliado: cria goal awaiting_choice e notifica Telegram (À Vista / 3x) ──
+        try {
+          const { data: orgAff } = await supabase
+            .from("organizations")
+            .select("affiliate_id, billing_cycle")
+            .eq("id", org.id)
+            .maybeSingle();
+          if ((orgAff as any)?.affiliate_id && (plan === "pro" || plan === "enterprise")) {
+            const cycle = ((orgAff as any)?.billing_cycle as string) || "monthly";
+            const { data: pp } = await (supabase.from("platform_plans") as any)
+              .select("price_cents, quarterly_price_cents, annual_price_cents")
+              .eq("key", plan)
+              .eq("active", true)
+              .maybeSingle();
+            const amount_cents =
+              cycle === "annual" ? (pp as any)?.annual_price_cents :
+              cycle === "quarterly" ? (pp as any)?.quarterly_price_cents :
+              (pp as any)?.price_cents;
+            if (amount_cents && amount_cents > 0) {
+              const { data: aRes, error: aErr } = await supabase.functions.invoke(
+                "affiliate-create-goal-manual",
+                { body: { organization_id: org.id, amount_cents, billing_cycle: cycle } }
+              );
+              if (aErr) {
+                console.warn("[ManageSubscription] afiliado invoke err:", aErr);
+              } else if ((aRes as any)?.ok === false) {
+                console.warn("[ManageSubscription] afiliado skip:", aRes);
+              } else if ((aRes as any)?.skipped === "no_affiliate") {
+                // silencioso
+              } else if ((aRes as any)?.skipped === "already_exists") {
+                toast.info("Comissão do afiliado já existia neste mês");
+              } else if ((aRes as any)?.ok) {
+                toast.success((aRes as any).notified ? "Afiliado notificado no Telegram" : "Comissão do afiliado criada");
+              }
+            }
+          }
+        } catch (affErr) {
+          console.warn("[ManageSubscription] afiliado error (não bloqueante):", affErr);
+        }
+
         try {
           const { data: activatedOrg } = await supabase
             .from("organizations")
