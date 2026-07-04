@@ -33,6 +33,7 @@ import {
 import { useAllGlobalAddons } from "@/hooks/useGlobalAddonsCrud";
 import { useGlobalAddonExclusions, useAddExclusion, useRemoveExclusion } from "@/hooks/useGlobalAddonExclusions";
 import GlobalAddonsSection from "@/components/dashboard/GlobalAddonsSection";
+import MenuItemFiscalSection from "@/components/dashboard/MenuItemFiscalSection";
 import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
 
 interface Organization {
@@ -1496,6 +1497,11 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                     <p className="text-xs text-muted-foreground">Disponível no plano Enterprise</p>
                   </div>
                 </div>
+              )}
+
+              {/* Fiscal (NFC-e) section — only for saved items */}
+              {(editItem?.id || editItemId) && (
+                <MenuItemFiscalSection orgId={organization.id} itemId={(editItem?.id || editItemId)!} />
               )}
 
               {/* Addons section */}
