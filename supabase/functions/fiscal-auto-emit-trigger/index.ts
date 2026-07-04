@@ -1,3 +1,5 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -17,6 +19,36 @@ Deno.serve(async (req) => {
     const { order_id } = await req.json();
     if (!order_id) return json({ error: "order_id required" }, 400);
     if (typeof order_id !== "string" || order_id.length > 64) return json({ error: "invalid order_id" }, 400);
+
+    // Gate de quota antes de despachar — se bloqueado, registra e não chama Focus.
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: order } = await supabase.from("orders")
+      .select("id, organization_id").eq("id", order_id).maybeSingle();
+    if (!order) return json({ error: "order not found" }, 404);
+
+    const { data: quota } = await supabase.rpc("fiscal_check_quota", { _org_id: order.organization_id });
+    if (quota?.blocked && !quota?.overage_allowed) {
+      const { data: existing } = await supabase.from("fiscal_invoices")
+        .select("id").eq("order_id", order_id).maybeSingle();
+      const { data: cfg } = await supabase.from("fiscal_config")
+        .select("environment").eq("organization_id", order.organization_id).maybeSingle();
+      const patch = {
+        organization_id: order.organization_id,
+        order_id,
+        status: "blocked_quota",
+        environment: cfg?.environment || "homologacao",
+        rejection_reason: String(quota?.reason || "Cota mensal esgotada").slice(0, 500),
+      };
+      if (existing?.id) {
+        await supabase.from("fiscal_invoices").update(patch).eq("id", existing.id);
+      } else {
+        await supabase.from("fiscal_invoices").insert(patch);
+      }
+      return json({ blocked: true, quota });
+    }
 
     const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/fiscal-emit-nfce`;
     const res = await fetch(url, {
