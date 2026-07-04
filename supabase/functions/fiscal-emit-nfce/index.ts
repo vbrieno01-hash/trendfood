@@ -8,6 +8,17 @@ const corsHeaders = {
 function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
+// Envelope: sempre 200 para erros esperados, evita "Edge Function returned a non-2xx status code" no supabase-js.
+function ok(data: Record<string, unknown> = {}) {
+  return json({ ok: true, ...data }, 200);
+}
+function fail(code: string, message: string, detail?: unknown) {
+  console.warn("[fiscal-emit] fail", { code, message, detail });
+  return json({ ok: false, code, message, detail }, 200);
+}
+function log(step: string, extra: Record<string, unknown> = {}) {
+  console.log(`[fiscal-emit] ${step}`, extra);
+}
 
 // Focus NFe forma_pagamento SEFAZ codes
 function mapPay(m: string | null | undefined): "01" | "03" | "04" | "17" | "99" {
@@ -44,8 +55,11 @@ async function getFocusToken(supabase: any, orgId: string, mode: string | null |
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  let step = "init";
+  let order_id_ctx: string | undefined;
   try {
     // Auth: aceita (a) token interno do auto-trigger  OU  (b) JWT do dono da loja
+    step = "auth";
     const internal = Deno.env.get("FISCAL_INTERNAL_TOKEN");
     const gotToken = req.headers.get("x-fiscal-token");
     const authHeader = req.headers.get("Authorization");
@@ -53,51 +67,66 @@ Deno.serve(async (req) => {
 
     let userId: string | null = null;
     if (!viaInternal) {
-      if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+      if (!authHeader?.startsWith("Bearer ")) return fail("unauthorized", "Não autenticado");
       const anonClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { global: { headers: { Authorization: authHeader } } },
       );
       const { data: u } = await anonClient.auth.getUser();
-      if (!u?.user) return json({ error: "Unauthorized" }, 401);
+      if (!u?.user) return fail("unauthorized", "Sessão inválida");
       userId = u.user.id;
     }
+    log("auth_ok", { viaInternal, userId });
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const body = await req.json();
+    step = "parse_body";
+    const body = await req.json().catch(() => ({}));
     const { order_id } = body || {};
-    if (!order_id) return json({ error: "order_id required" }, 400);
-    if (typeof order_id !== "string" || order_id.length > 64) return json({ error: "invalid order_id" }, 400);
+    if (!order_id) return fail("invalid_payload", "order_id obrigatório");
+    if (typeof order_id !== "string" || order_id.length > 64) return fail("invalid_payload", "order_id inválido");
+    order_id_ctx = order_id;
 
     // Idempotency
+    step = "idempotency";
     const { data: existing } = await supabase.from("fiscal_invoices").select("*").eq("order_id", order_id).maybeSingle();
     if (existing && ["processing", "authorized"].includes(existing.status)) {
-      return json({ ok: true, already: true, invoice: existing });
+      log("already", { invoice_id: existing.id, status: existing.status });
+      return ok({ already: true, invoice: existing });
     }
 
+    step = "load_order";
     const { data: order, error: oErr } = await supabase.from("orders").select("*").eq("id", order_id).maybeSingle();
-    if (oErr || !order) return json({ error: "order not found" }, 404);
+    if (oErr) return fail("order_load_error", "Falha ao carregar pedido", oErr.message);
+    if (!order) return fail("order_not_found", "Pedido não encontrado");
+    log("order_loaded", { org: order.organization_id });
 
     // Se veio de usuário, exige que ele seja dono da org do pedido
     if (userId) {
+      step = "authz";
       const { data: org } = await supabase.from("organizations").select("user_id").eq("id", order.organization_id).maybeSingle();
-      if (!org || org.user_id !== userId) return json({ error: "Forbidden" }, 403);
+      if (!org || org.user_id !== userId) return fail("forbidden", "Você não tem permissão para emitir NFC-e deste pedido");
     }
 
+    step = "load_items";
     const { data: items } = await supabase.from("order_items").select("*").eq("order_id", order_id);
-    if (!items?.length) return json({ error: "order has no items" }, 400);
+    if (!items?.length) return fail("no_items", "Pedido sem itens");
 
+    step = "load_cfg";
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", order.organization_id).maybeSingle();
-    if (!cfg || !cfg.enabled) return json({ error: "fiscal not enabled" }, 400);
-    if (!cfg.cnpj) return json({ error: "CNPJ da empresa não configurado" }, 400);
+    if (!cfg || !cfg.enabled) return fail("fiscal_disabled", "Módulo fiscal desativado nas configurações");
+    if (!cfg.cnpj) return fail("missing_cnpj", "CNPJ da empresa não configurado");
+    log("cfg_loaded", { environment: cfg.environment, token_mode: cfg.focus_token_mode });
 
     // Quota gate — antes de qualquer chamada externa.
-    const { data: quota } = await supabase.rpc("fiscal_check_quota", { _org_id: order.organization_id });
+    step = "quota_check";
+    const { data: quota, error: qErr } = await supabase.rpc("fiscal_check_quota", { _org_id: order.organization_id });
+    if (qErr) log("quota_rpc_error", { message: qErr.message });
+    log("quota", quota || {});
     if (quota?.blocked && !quota?.overage_allowed) {
       // Registra tentativa bloqueada (upsert por order_id — que é UNIQUE em fiscal_invoices).
       const blockedPatch = {
@@ -112,35 +141,40 @@ Deno.serve(async (req) => {
       } else {
         await supabase.from("fiscal_invoices").insert(blockedPatch);
       }
-      return json({ error: "quota_exceeded", quota }, 429);
+      return fail("quota_exceeded", "Cota mensal de NFC-e esgotada", quota);
     }
 
     // Resolve token conforme modo (platform | own).
+    step = "resolve_token";
     const token = await getFocusToken(supabase, order.organization_id, cfg.focus_token_mode);
     if (!token) {
       const msg = cfg.focus_token_mode === "own"
         ? "Token Focus NFe do lojista não configurado"
         : "FOCUS_NFE_TOKEN not configured";
-      return json({ error: msg }, 500);
+      return fail("missing_token", msg);
     }
+    log("token_ok", { mode: cfg.focus_token_mode || "platform" });
 
     // Rate limit: máx 100 emissões/hora/org
+    step = "rate_limit";
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { count: recentCount } = await supabase.from("fiscal_invoices")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", order.organization_id)
       .gte("created_at", oneHourAgo);
     if ((recentCount || 0) >= 100) {
-      return json({ error: "rate_limit: máximo 100 emissões/hora por loja" }, 429);
+      return fail("rate_limited", "Máximo 100 emissões por hora atingido");
     }
 
     // Fetch menu_items for fiscal fields
+    step = "load_menu";
     const menuIds = items.map((i: any) => i.menu_item_id).filter(Boolean);
     const { data: menus } = menuIds.length
       ? await supabase.from("menu_items").select("id, ncm, cest, cfop, origem, cst_csosn, unidade, codigo_ean").in("id", menuIds)
       : { data: [] as any[] };
     const menuMap = new Map((menus || []).map((m: any) => [m.id, m]));
 
+    step = "build_payload";
     let totalProdutos = 0;
     const nfItems = items.map((it: any, idx: number) => {
       const m = menuMap.get(it.menu_item_id) || {};
@@ -174,6 +208,12 @@ Deno.serve(async (req) => {
 
     const discount = Number(order.discount_value || 0);
     const totalNota = +(totalProdutos - discount).toFixed(2);
+    const cnpjClean = (cfg.cnpj || "").replace(/\D/g, "");
+
+    // Validações defensivas pré-Focus
+    if (nfItems.length === 0) return fail("invalid_payload", "Nenhum item válido para emissão");
+    if (!(totalNota > 0)) return fail("invalid_payload", "Valor total da nota deve ser positivo", { totalNota });
+    if (cnpjClean.length !== 14) return fail("invalid_payload", "CNPJ do emitente inválido", { cnpj_len: cnpjClean.length });
 
     const payload = {
       natureza_operacao: "VENDA AO CONSUMIDOR",
@@ -182,7 +222,7 @@ Deno.serve(async (req) => {
       presenca_comprador: 1,
       finalidade_emissao: 1,
       consumidor_final: 1,
-      cnpj_emitente: (cfg.cnpj || "").replace(/\D/g, ""),
+      cnpj_emitente: cnpjClean,
       items: nfItems,
       formas_pagamento: [{
         forma_pagamento: mapPay(order.payment_method),
@@ -191,8 +231,10 @@ Deno.serve(async (req) => {
       valor_desconto: discount || undefined,
       informacoes_adicionais_contribuinte: `Pedido #${order.order_number || order.id.slice(0, 8)}`,
     };
+    log("payload_built", { n_items: nfItems.length, total: totalNota });
 
     // Upsert as processing
+    step = "upsert_processing";
     let invoiceId = existing?.id;
     if (!invoiceId) {
       const { data: ins } = await supabase.from("fiscal_invoices").insert({
@@ -212,9 +254,11 @@ Deno.serve(async (req) => {
 
     // Focus NFe: POST /v2/nfce?ref=<idempotency-key>
     // homologacao -> homologacao.focusnfe.com.br, producao -> api.focusnfe.com.br
+    step = "focus_request";
     const host = cfg.environment === "producao" ? "https://api.focusnfe.com.br" : "https://homologacao.focusnfe.com.br";
     const ref = `order_${order_id}`;
     const auth = "Basic " + btoa(`${token}:`);
+    log("focus_request", { host, ref });
     let res: Response;
     try {
       res = await fetchWithTimeout(`${host}/v2/nfce?ref=${encodeURIComponent(ref)}`, {
@@ -224,29 +268,44 @@ Deno.serve(async (req) => {
       });
     } catch (netErr) {
       const msg = (netErr as Error)?.name === "AbortError" ? "timeout_sefaz" : "network_error";
+      console.error("[fiscal-emit] network_error", { msg, err: String((netErr as Error).message || netErr) });
       await supabase.from("fiscal_invoices").update({
         status: "rejected", rejection_reason: msg,
       }).eq("id", invoiceId!);
       await supabase.from("orders").update({ fiscal_status: "rejected" }).eq("id", order_id);
-      return json({ error: msg }, 504);
+      return fail(msg, msg === "timeout_sefaz" ? "Tempo esgotado ao contatar a SEFAZ" : "Falha de rede ao contatar Focus NFe");
     }
     const data = await res.json().catch(() => ({}));
+    log("focus_response", { status: res.status, ok: res.ok, body_keys: Object.keys(data || {}) });
 
     if (!res.ok) {
+      const detailMsg =
+        (data as any)?.mensagem ||
+        (data as any)?.mensagem_sefaz ||
+        (data as any)?.erros?.[0]?.mensagem ||
+        `Focus retornou ${res.status}`;
       await supabase.from("fiscal_invoices").update({
         status: "rejected",
-        rejection_reason: JSON.stringify(data).slice(0, 500),
+        rejection_reason: String(detailMsg).slice(0, 500),
       }).eq("id", invoiceId!);
       await supabase.from("orders").update({ fiscal_status: "rejected" }).eq("id", order_id);
-      return json({ error: "plugnotas_error", status: res.status, detail: data }, 400);
+      return fail("focus_error", String(detailMsg), { status: res.status, body: data });
     }
 
     // Focus returns { status: "processando_autorizacao", ref, ... }
+    step = "persist_ref";
     await supabase.from("fiscal_invoices").update({ plugnotas_id: ref }).eq("id", invoiceId!);
     await supabase.from("orders").update({ fiscal_status: "processing", fiscal_invoice_id: invoiceId }).eq("id", order_id);
+    log("db_updated", { invoice_id: invoiceId, status: "processing" });
 
-    return json({ ok: true, invoice_id: invoiceId, ref, upstream: data });
+    return ok({ invoice_id: invoiceId, ref, upstream: data });
   } catch (e) {
-    return json({ error: String((e as Error).message || e) }, 500);
+    console.error("[fiscal-emit] fatal", {
+      step,
+      order_id: order_id_ctx,
+      message: String((e as Error)?.message || e),
+      stack: (e as Error)?.stack,
+    });
+    return fail("internal_error", String((e as Error)?.message || e), { step });
   }
 });
