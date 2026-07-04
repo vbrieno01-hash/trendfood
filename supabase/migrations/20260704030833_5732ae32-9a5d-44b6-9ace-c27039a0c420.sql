@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_bot_config ADD CONSTRAINT ai_bot_config_organization_id_key UNIQUE (organization_id);

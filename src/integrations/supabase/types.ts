@@ -487,14 +487,14 @@ export type Database = {
           {
             foreignKeyName: "ai_bot_config_organization_id_fkey"
             columns: ["organization_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_bot_config_organization_id_fkey"
             columns: ["organization_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "top_stores_showcase"
             referencedColumns: ["id"]
           },
