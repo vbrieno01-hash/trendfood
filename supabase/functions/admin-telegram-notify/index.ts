@@ -340,6 +340,20 @@ function eventToggleKey(eventType: string): string {
   return eventType;
 }
 
+// ── Segurança: whitelist de event_types válidos ──
+// Bloqueia payloads com event_type arbitrário (ex.: `<script>`) usados para tentar
+// injetar mensagens fora do padrão. Se um novo evento for criado, adicionar aqui.
+const VALID_EVENT_TYPES = new Set([
+  "test", "new_signup", "subscription_change", "referral_converted",
+  "payment_confirmed", "payment_failed", "trial_expiring", "subscription_expiring",
+  "hot_lead", "cold_store", "critical_error", "phantom_orders",
+  "referral_flagged", "referral_blocked", "cron_lagging",
+]);
+
+// Limite defensivo do tamanho total do payload — evita DoS por payload gigante
+// e mantém as mensagens do Telegram sempre abaixo do limite de 4096 chars.
+const MAX_PAYLOAD_JSON_BYTES = 16 * 1024;
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -380,7 +394,20 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const reqBody = await req.json();
+    // Guarda de tamanho antes do parse — request grande é rejeitado sem custo
+    const rawText = await req.text();
+    if (rawText.length > MAX_PAYLOAD_JSON_BYTES) {
+      return new Response(JSON.stringify({ ok: false, error: "payload_too_large" }), {
+        status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    let reqBody: any;
+    try { reqBody = JSON.parse(rawText); }
+    catch {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_json" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const { event_type, payload, action } = reqBody;
 
     // Action: bot_info via POST body (used by AdminTelegramTab)
@@ -529,6 +556,14 @@ Deno.serve(async (req: Request) => {
 
     if (!event_type) {
       return new Response(JSON.stringify({ error: "event_type required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rejeita event_type fora do whitelist (defesa contra payloads maliciosos)
+    if (typeof event_type !== "string" || !VALID_EVENT_TYPES.has(event_type)) {
+      console.warn("[admin-telegram-notify] rejected: invalid event_type=", event_type);
+      return new Response(JSON.stringify({ ok: false, error: "invalid_event_type" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

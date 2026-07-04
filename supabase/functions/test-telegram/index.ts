@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -5,14 +7,59 @@ const corsHeaders = {
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
 
+// Validação de chat_id do Telegram: aceita número (positivo ou negativo p/ grupos)
+// como string ou number. Comprimento razoável (máx 20 dígitos + sinal).
+function isValidChatId(v: unknown): v is string | number {
+  if (typeof v === "number") return Number.isFinite(v);
+  if (typeof v !== "string") return false;
+  return /^-?\d{1,20}$/.test(v.trim());
+}
+
+async function requireAuth(req: Request): Promise<{ userId: string } | Response> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "Não autenticado" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getClaims(token);
+  if (error || !data?.claims?.sub) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "Sessão inválida" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+  return { userId: data.claims.sub as string };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // ── Segurança: exige usuário autenticado para toda operação ──
+    // Sem isso, qualquer um que descubra a URL pode spammar chat_ids alheios.
+    const auth = await requireAuth(req);
+    if (auth instanceof Response) return auth;
+
     const body = await req.json().catch(() => ({}));
     const { chat_id, organization_id, action } = body ?? {};
+
+    // Validação de input: chat_id deve ser numérico quando presente
+    if (chat_id !== undefined && chat_id !== null && !isValidChatId(chat_id)) {
+      return new Response(JSON.stringify({ ok: false, error: "chat_id inválido" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
