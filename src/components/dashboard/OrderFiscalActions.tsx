@@ -40,7 +40,10 @@ export default function OrderFiscalActions({
     try {
       const { data, error } = await supabase.functions.invoke("fiscal-emit-nfce", { body: { order_id: orderId } });
       if (error) throw new Error(error.message);
-      if ((data as any)?.error) throw new Error((data as any).error);
+      if (!(data as any)?.ok) {
+        if ((data as any)?.detail) console.warn("[fiscal-emit] detail", (data as any).detail);
+        throw new Error((data as any)?.message || (data as any)?.error || "Falha ao emitir");
+      }
       toast.success("Emissão solicitada");
       qc.invalidateQueries({ queryKey: ["fiscal_invoices", orgId] });
     } catch (e: any) {
@@ -56,6 +59,7 @@ export default function OrderFiscalActions({
       });
       if (error) throw new Error(error.message);
       if ((data as any)?.error) throw new Error((data as any).error);
+      if ((data as any)?.ok === false) throw new Error((data as any)?.message || "Falha ao cancelar");
       toast.success("Cancelamento solicitado");
       qc.invalidateQueries({ queryKey: ["fiscal_invoices", orgId] });
     } catch (e: any) {
