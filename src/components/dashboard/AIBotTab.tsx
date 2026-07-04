@@ -518,7 +518,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
               </div>
               <Switch
                 checked={config.enabled}
-                onCheckedChange={(v) => setConfig({ ...config, enabled: v })}
+                onCheckedChange={toggleEnabled}
               />
             </div>
 
