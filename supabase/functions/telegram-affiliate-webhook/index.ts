@@ -17,6 +17,37 @@ function fmtDate(iso: string | null | undefined): string {
   } catch { return String(iso); }
 }
 
+// ── Rate limit: máx 20 comandos por minuto por chat_id ──
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  chatId: string,
+): Promise<boolean> {
+  const since = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await (supabase.from("telegram_audit_log") as any)
+    .select("id", { count: "exact", head: true })
+    .eq("chat_id", chatId)
+    .gte("created_at", since);
+  return (count ?? 0) < 20;
+}
+
+async function audit(
+  supabase: ReturnType<typeof createClient>,
+  entry: {
+    chat_id: string;
+    command?: string | null;
+    update_type: string;
+    organization_id?: string | null;
+    affiliate_id?: string | null;
+    rate_limited?: boolean;
+  },
+) {
+  try {
+    await (supabase.from("telegram_audit_log") as any).insert(entry);
+  } catch (e) {
+    console.warn("[telegram-audit] insert failed", e);
+  }
+}
+
 async function tg(method: string, payload: Record<string, unknown>) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
@@ -224,6 +255,113 @@ Deno.serve(async (req) => {
       const chatId = msg.chat?.id;
       if (!chatId) return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+      // ── Rate limit (20/min por chat) ──
+      const allowed = await checkRateLimit(supabase, String(chatId));
+      if (!allowed) {
+        await audit(supabase, { chat_id: String(chatId), command: text.slice(0, 32), update_type: "message", rate_limited: true });
+        await tg("sendMessage", { chat_id: chatId, text: "⏳ Muitos comandos em pouco tempo. Aguarde 1 minuto." });
+        return new Response(JSON.stringify({ ok: true, rate_limited: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // ── Owner commands (organizations.telegram_chat_id) ──
+      const { data: ownerOrg } = await (supabase
+        .from("organizations") as any)
+        .select("id, name, subscription_plan")
+        .eq("telegram_chat_id", String(chatId))
+        .maybeSingle();
+
+      if (ownerOrg && (text === "/start" || text === "/help" || text === "/ajuda" || text === "/status" || text === "/vendas" || text === "/pedidos")) {
+        await audit(supabase, { chat_id: String(chatId), command: text, update_type: "message", organization_id: (ownerOrg as any).id });
+        const orgId = (ownerOrg as any).id as string;
+        const orgName = (ownerOrg as any).name as string;
+
+        if (text === "/start" || text === "/help" || text === "/ajuda") {
+          const body = `👋 Olá, <b>${orgName}</b>!\n\n` +
+            `Comandos disponíveis:\n` +
+            `• /status — resumo de hoje\n` +
+            `• /vendas — últimos 7 dias\n` +
+            `• /pedidos — pedidos em aberto\n` +
+            `• /ajuda — esta mensagem`;
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        const now = new Date();
+        const nowBRT = new Date(now.getTime() - 3 * 3600_000);
+        const y = nowBRT.getUTCFullYear();
+        const m = String(nowBRT.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(nowBRT.getUTCDate()).padStart(2, "0");
+        const todayStart = `${y}-${m}-${d}T00:00:00-03:00`;
+        const todayEnd = `${y}-${m}-${d}T23:59:59-03:00`;
+
+        if (text === "/status") {
+          const { data: orders } = await (supabase.from("orders") as any)
+            .select("id")
+            .eq("organization_id", orgId).eq("paid", true)
+            .gte("created_at", todayStart).lte("created_at", todayEnd);
+          const ids = (orders || []).map((o: any) => o.id);
+          let revenue = 0;
+          if (ids.length) {
+            const { data: items } = await (supabase.from("order_items") as any)
+              .select("price, quantity").in("order_id", ids);
+            for (const it of items || []) revenue += Number(it.price) * Number(it.quantity);
+          }
+          const avg = ids.length ? revenue / ids.length : 0;
+          const body = `📊 <b>Hoje</b>\n\n` +
+            `🛒 Pedidos: ${ids.length}\n` +
+            `💰 Faturamento: ${fmtBRL(Math.round(revenue * 100))}\n` +
+            `🎫 Ticket médio: ${fmtBRL(Math.round(avg * 100))}`;
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        if (text === "/vendas") {
+          const start = new Date(nowBRT);
+          start.setUTCDate(start.getUTCDate() - 6);
+          const sy = start.getUTCFullYear();
+          const sm = String(start.getUTCMonth() + 1).padStart(2, "0");
+          const sd = String(start.getUTCDate()).padStart(2, "0");
+          const weekStart = `${sy}-${sm}-${sd}T00:00:00-03:00`;
+          const { data: orders } = await (supabase.from("orders") as any)
+            .select("id").eq("organization_id", orgId).eq("paid", true)
+            .gte("created_at", weekStart).lte("created_at", todayEnd);
+          const ids = (orders || []).map((o: any) => o.id);
+          let revenue = 0;
+          if (ids.length) {
+            const { data: items } = await (supabase.from("order_items") as any)
+              .select("price, quantity").in("order_id", ids);
+            for (const it of items || []) revenue += Number(it.price) * Number(it.quantity);
+          }
+          const avg = ids.length ? revenue / ids.length : 0;
+          const body = `📈 <b>Últimos 7 dias</b>\n\n` +
+            `🛒 Pedidos: ${ids.length}\n` +
+            `💰 Faturamento: ${fmtBRL(Math.round(revenue * 100))}\n` +
+            `🎫 Ticket médio: ${fmtBRL(Math.round(avg * 100))}`;
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        if (text === "/pedidos") {
+          const { data: orders } = await (supabase.from("orders") as any)
+            .select("order_number, status, total, created_at")
+            .eq("organization_id", orgId)
+            .in("status", ["pending", "preparing", "ready"])
+            .order("created_at", { ascending: false })
+            .limit(10);
+          if (!orders?.length) {
+            await tg("sendMessage", { chat_id: chatId, text: "📭 Nenhum pedido em aberto." });
+            return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          const statusLabel: Record<string, string> = { pending: "⏳ Pendente", preparing: "👨‍🍳 Preparando", ready: "✅ Pronto" };
+          let body = `📋 <b>Pedidos em aberto (${orders.length})</b>\n\n`;
+          for (const o of orders as any[]) {
+            body += `#${o.order_number} · ${statusLabel[o.status] || o.status} · ${fmtBRL(Math.round(Number(o.total || 0) * 100))}\n`;
+          }
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+
       if (text === "/metas" || text === "/start") {
         const { data: aff } = await supabase
           .from("affiliates")
@@ -232,9 +370,12 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (!aff) {
+          await audit(supabase, { chat_id: String(chatId), command: text, update_type: "message" });
           await tg("sendMessage", { chat_id: chatId, text: `🤖 Olá!\n\nSeu chat_id <code>${chatId}</code> ainda não está vinculado a um afiliado. Peça pro admin cadastrar.`, parse_mode: "HTML" });
           return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+
+        await audit(supabase, { chat_id: String(chatId), command: text, update_type: "message", affiliate_id: (aff as any).id });
 
         if (text === "/start") {
           await tg("sendMessage", { chat_id: chatId, text: `👋 Olá, <b>${(aff as any).name}</b>!\n\nVocê receberá aqui notificações de novos clientes e pagamentos.\n\nUse /metas para ver suas metas ativas.`, parse_mode: "HTML" });

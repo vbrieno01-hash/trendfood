@@ -3112,6 +3112,39 @@ export type Database = {
           },
         ]
       }
+      telegram_audit_log: {
+        Row: {
+          affiliate_id: string | null
+          chat_id: string
+          command: string | null
+          created_at: string
+          id: string
+          organization_id: string | null
+          rate_limited: boolean
+          update_type: string
+        }
+        Insert: {
+          affiliate_id?: string | null
+          chat_id: string
+          command?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          rate_limited?: boolean
+          update_type: string
+        }
+        Update: {
+          affiliate_id?: string | null
+          chat_id?: string
+          command?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          rate_limited?: boolean
+          update_type?: string
+        }
+        Relationships: []
+      }
       telegram_automations_log: {
         Row: {
           event_type: string
