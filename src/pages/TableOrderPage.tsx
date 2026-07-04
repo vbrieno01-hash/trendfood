@@ -982,7 +982,10 @@ export default function TableOrderPage() {
 
       {/* Sticky cart bar */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border z-40">
+        <div
+          className="fixed bottom-0 left-0 right-0 p-4 max-[380px]:p-3 bg-card border-t border-border z-40"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        >
           <div className="max-w-lg mx-auto space-y-2">
             {appliedCoupon && discount > 0 && (
               <div className="flex items-center justify-between text-sm px-1">
