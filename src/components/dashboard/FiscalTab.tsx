@@ -42,7 +42,6 @@ type FiscalConfig = {
   certificado_uploaded_at: string | null;
   certificado_expira_em: string | null;
   default_ncm: string | null;
-  default_cfop: string | null;
   cfop_padrao: string | null;
   default_cst_csosn: string | null;
   default_origem: number | null;
