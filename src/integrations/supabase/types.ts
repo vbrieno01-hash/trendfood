@@ -2607,6 +2607,7 @@ export type Database = {
           default_trial_days: number
           delivery_config: Json
           exe_url: string | null
+          fiscal_enabled: boolean
           groq_blocked_until: string | null
           hot_lead_min_orders: number
           id: string
@@ -2624,6 +2625,7 @@ export type Database = {
           default_trial_days?: number
           delivery_config?: Json
           exe_url?: string | null
+          fiscal_enabled?: boolean
           groq_blocked_until?: string | null
           hot_lead_min_orders?: number
           id?: string
@@ -2641,6 +2643,7 @@ export type Database = {
           default_trial_days?: number
           delivery_config?: Json
           exe_url?: string | null
+          fiscal_enabled?: boolean
           groq_blocked_until?: string | null
           hot_lead_min_orders?: number
           id?: string

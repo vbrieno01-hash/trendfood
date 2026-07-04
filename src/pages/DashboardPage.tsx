@@ -582,7 +582,9 @@ const DashboardPage = () => {
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
         { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
         { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
-        { key: "fiscal" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Fiscal (NFC-e)" },
+        ...(featureFlags?.fiscal_enabled || isAdmin
+          ? [{ key: "fiscal" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Fiscal (NFC-e)" }]
+          : []),
       ],
     },
     {
@@ -1134,7 +1136,33 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <AIBotTab orgId={organization.id} />)}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
-          {activeTab === "fiscal" && <FiscalTab orgId={organization.id} organization={organization} effectivePlan={planLimits.effectivePlan} promoEligible={planLimits.promoEligible} />}
+          {activeTab === "fiscal" && (
+            !featureFlags?.fiscal_enabled && !isAdmin
+              ? (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <span>🧾</span> Fiscal (NFC-e)
+                      <Badge className="bg-orange-500 text-white">EM BREVE</Badge>
+                    </h2>
+                    <p className="text-sm text-muted-foreground">Emissão de NFC-e integrada ao TrendFood.</p>
+                  </div>
+                  <Card className="border-orange-500/30">
+                    <CardContent className="py-12 text-center space-y-4">
+                      <div className="text-6xl">🧾</div>
+                      <h3 className="text-lg font-bold">Em manutenção</h3>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                        Estamos finalizando a homologação da emissão fiscal (NFC-e). Assim que estiver liberado, você poderá emitir direto do painel — sem configurar nada extra.
+                      </p>
+                      <Badge variant="outline" className="border-orange-500/40 text-orange-600 dark:text-orange-400">
+                        Liberação em rollout controlado
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+              : <FiscalTab orgId={organization.id} organization={organization} effectivePlan={planLimits.effectivePlan} promoEligible={planLimits.promoEligible} />
+          )}
           </div>
           </Suspense>
           </ErrorBoundary>

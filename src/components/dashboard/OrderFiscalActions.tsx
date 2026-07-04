@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FileText, Loader2, ExternalLink, X, RefreshCw } from "lucide-react";
 import type { FiscalInvoice } from "@/hooks/useFiscalInvoices";
+import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
+import { useAuth } from "@/hooks/useAuth";
 
 function statusMeta(s?: string) {
   switch (s) {
@@ -31,6 +33,8 @@ export default function OrderFiscalActions({
   invoice?: FiscalInvoice | null;
   compact?: boolean;
 }) {
+  const { data: flags } = usePlatformFeatureFlags();
+  const { isAdmin } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = useState<"emit" | "cancel" | null>(null);
   const meta = statusMeta(invoice?.status);
@@ -86,6 +90,8 @@ export default function OrderFiscalActions({
     && Date.now() - new Date(invoice.emitted_at).getTime() < 30 * 60 * 1000;
   const canEmit = !invoice || invoice.status === "rejected" || invoice.status === "blocked_quota";
   const isBusyStatus = invoice?.status === "pending" || invoice?.status === "processing";
+
+  if (!flags?.fiscal_enabled && !isAdmin) return null;
 
   return (
     <div className={`flex items-center gap-2 flex-wrap ${compact ? "text-xs" : "text-sm"}`}>

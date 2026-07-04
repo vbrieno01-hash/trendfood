@@ -11,6 +11,8 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, FileText, Loader2, AlertTriangle } from "lucide-react";
+import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
+import { useAuth } from "@/hooks/useAuth";
 
 type FiscalFields = {
   ncm: string | null;
@@ -37,6 +39,8 @@ const EMPTY: FiscalFields = {
 };
 
 export default function MenuItemFiscalSection({ orgId, itemId }: { orgId: string; itemId: string }) {
+  const { data: flags } = usePlatformFeatureFlags();
+  const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -95,6 +99,7 @@ export default function MenuItemFiscalSection({ orgId, itemId }: { orgId: string
   }
 
   return (
+    (!flags?.fiscal_enabled && !isAdmin) ? null :
     <Collapsible open={open} onOpenChange={setOpen} className="border border-border rounded-lg">
       <CollapsibleTrigger asChild>
         <button type="button" className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/40 transition-colors">

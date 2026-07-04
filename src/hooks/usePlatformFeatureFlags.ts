@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface PlatformFeatureFlags {
   ifood_enabled: boolean;
   whatsapp_enabled: boolean;
+  fiscal_enabled: boolean;
   uazapi_server_url: string | null;
   uazapi_configured: boolean;
 }
@@ -14,13 +15,14 @@ export function usePlatformFeatureFlags() {
     queryFn: async (): Promise<PlatformFeatureFlags> => {
       const { data, error } = await supabase
         .from("platform_config")
-        .select("ifood_enabled, whatsapp_enabled, uazapi_server_url")
+        .select("ifood_enabled, whatsapp_enabled, fiscal_enabled, uazapi_server_url")
         .eq("id", "singleton")
         .maybeSingle();
       if (error) throw error;
       return {
         ifood_enabled: !!(data as any)?.ifood_enabled,
         whatsapp_enabled: !!(data as any)?.whatsapp_enabled,
+        fiscal_enabled: !!(data as any)?.fiscal_enabled,
         uazapi_server_url: (data as any)?.uazapi_server_url ?? null,
         uazapi_configured: !!((data as any)?.uazapi_server_url),
       };
