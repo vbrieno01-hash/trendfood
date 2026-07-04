@@ -61,6 +61,7 @@ const IFoodTab = lazy(() => import("@/components/dashboard/IFoodTab"));
 const TelegramTab = lazy(() => import("@/components/dashboard/TelegramTab"));
 const AIBotTab = lazy(() => import("@/components/dashboard/AIBotTab"));
 const CounterTab = lazy(() => import("@/components/dashboard/CounterTab"));
+const FiscalTab = lazy(() => import("@/components/dashboard/FiscalTab"));
 import DashboardTour from "@/components/dashboard/DashboardTour";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
@@ -68,7 +69,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter" | "fiscal";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -581,6 +582,7 @@ const DashboardPage = () => {
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
         { key: "coupons" as TabKey, icon: <Tag className="w-4 h-4" />, label: "Cupons", locked: lockedFeatures.coupons },
         { key: "bestsellers" as TabKey, icon: <BarChart2 className="w-4 h-4" />, label: "Mais Vendidos", locked: lockedFeatures.bestsellers },
+        { key: "fiscal" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Fiscal (NFC-e)" },
       ],
     },
     {
@@ -1132,6 +1134,7 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <AIBotTab orgId={organization.id} />)}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
+          {activeTab === "fiscal" && <FiscalTab orgId={organization.id} organization={organization} effectivePlan={planLimits.effectivePlan} promoEligible={planLimits.promoEligible} />}
           </div>
           </Suspense>
           </ErrorBoundary>
