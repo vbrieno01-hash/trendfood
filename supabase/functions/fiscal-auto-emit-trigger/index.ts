@@ -9,14 +9,15 @@ function json(b: unknown, s = 200) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    // Auth: exige FISCAL_INTERNAL_TOKEN (trigger SQL passa esse header)
+    // Público: apenas encaminha para fiscal-emit-nfce assinando com token interno.
+    // Não faz nada custoso — só um POST. fiscal-emit-nfce faz rate-limit e idempotência.
     const internal = Deno.env.get("FISCAL_INTERNAL_TOKEN");
-    const got = req.headers.get("x-fiscal-token");
     if (!internal) return json({ error: "server misconfigured" }, 503);
-    if (got !== internal) return json({ error: "Unauthorized" }, 401);
 
     const { order_id } = await req.json();
     if (!order_id) return json({ error: "order_id required" }, 400);
+    if (typeof order_id !== "string" || order_id.length > 64) return json({ error: "invalid order_id" }, 400);
+
     const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/fiscal-emit-nfce`;
     const res = await fetch(url, {
       method: "POST",
