@@ -203,7 +203,25 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       fd.append("password", certPassword);
       fd.append("file", file);
       const { data, error } = await supabase.functions.invoke("fiscal-upload-certificate", { body: fd });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const status = (error as any)?.status ?? (error as any)?.context?.status;
+        console.error("[fiscal-upload] gateway/invoke error", {
+          name: (error as any)?.name,
+          message: (error as any)?.message,
+          status,
+          context: (error as any)?.context,
+          data,
+        });
+        let hint = (error as any)?.message || "Falha no upload do certificado";
+        if (status === 404) hint = "Função não encontrada (deploy desatualizado?)";
+        else if (status === 401) hint = "Não autorizado — faça login novamente";
+        else if (status === 504) hint = "Gateway timeout ao contatar Focus NFe";
+        throw new Error(hint);
+      }
+      if ((data as any)?.ok === false) {
+        console.error("[fiscal-upload] erro de negócio", data);
+        throw new Error((data as any)?.message || (data as any)?.code || "Erro no upload");
+      }
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success("Certificado enviado com sucesso");
       setCertPassword("");
