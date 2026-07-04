@@ -74,6 +74,19 @@ Deno.serve(async (req) => {
     await supabase.from("fiscal_invoices").update(patch).eq("id", inv.id);
     await supabase.from("orders").update({ fiscal_status: newStatus, fiscal_invoice_id: inv.id }).eq("id", inv.order_id);
 
+    // Contabiliza uso mensal (idempotente por invoice_id UNIQUE) só quando autorizada.
+    if (newStatus === "authorized") {
+      const monthStart = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const monthStartDate = monthStart.toISOString().slice(0, 10);
+      await supabase.from("fiscal_usage_log").upsert({
+        organization_id: inv.organization_id,
+        invoice_id: inv.id,
+        month_start: monthStartDate,
+      }, { onConflict: "invoice_id", ignoreDuplicates: true });
+    }
+
     if (newStatus === "authorized" && inv.environment === "homologacao") {
       await supabase.from("fiscal_config").update({ producao_liberada: true })
         .eq("organization_id", inv.organization_id).eq("producao_liberada", false);
