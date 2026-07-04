@@ -560,6 +560,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Rejeita event_type fora do whitelist (defesa contra payloads maliciosos)
+    if (typeof event_type !== "string" || !VALID_EVENT_TYPES.has(event_type)) {
+      console.warn("[admin-telegram-notify] rejected: invalid event_type=", event_type);
+      return new Response(JSON.stringify({ ok: false, error: "invalid_event_type" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
