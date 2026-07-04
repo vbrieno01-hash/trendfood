@@ -6,7 +6,7 @@ export interface FiscalInvoice {
   id: string;
   order_id: string;
   organization_id: string;
-  status: string; // pending | processing | authorized | rejected | cancelled
+  status: string; // pending | processing | authorized | rejected | cancelled | blocked_quota
   numero: number | null;
   serie: number | null;
   chave_acesso: string | null;
