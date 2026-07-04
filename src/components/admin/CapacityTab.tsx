@@ -329,6 +329,19 @@ function FeatureFlagsSection() {
     }
   };
 
+  const toggleFiscal = async (next: boolean) => {
+    try {
+      await updateMut.mutateAsync({ fiscal_enabled: next });
+      toast.success(
+        next
+          ? "Nota Fiscal (NFC-e) liberada para os lojistas (até 30s para refletir)"
+          : "Nota Fiscal (NFC-e) em manutenção — lojistas verão 'Em breve'"
+      );
+    } catch (e: any) {
+      toast.error("Falha ao atualizar: " + (e.message || "erro desconhecido"));
+    }
+  };
+
   return (
     <div className="rounded-2xl p-4 border bg-card">
       <div className="flex items-center gap-2 mb-3">
@@ -376,6 +389,27 @@ function FeatureFlagsSection() {
           checked={!!flags?.whatsapp_enabled}
           disabled={isLoading || updateMut.isPending}
           onCheckedChange={toggleWhatsapp}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-muted/40">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🧾</span>
+            <span className="text-sm font-semibold">Nota Fiscal (NFC-e)</span>
+            {!flags?.fiscal_enabled && (
+              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400">
+                Em breve
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Quando ligado, lojas Pro/Enterprise acessam o módulo fiscal (emissão de NFC-e no cardápio e no histórico). Quando desligado, todos veem só "Em breve". Você (admin) sempre vê tudo.
+          </p>
+        </div>
+        <Switch
+          checked={!!flags?.fiscal_enabled}
+          disabled={isLoading || updateMut.isPending}
+          onCheckedChange={toggleFiscal}
         />
       </div>
       </div>
