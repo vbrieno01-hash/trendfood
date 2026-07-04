@@ -1134,6 +1134,7 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <AIBotTab orgId={organization.id} />)}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
+          {activeTab === "fiscal" && <FiscalTab orgId={organization.id} organization={organization} effectivePlan={planLimits.effectivePlan} promoEligible={planLimits.promoEligible} />}
           </div>
           </Suspense>
           </ErrorBoundary>
