@@ -1246,6 +1246,208 @@ export type Database = {
           },
         ]
       }
+      fiscal_config: {
+        Row: {
+          certificado_expira_em: string | null
+          certificado_uploaded_at: string | null
+          cfop_padrao: string | null
+          cnpj: string | null
+          created_at: string
+          csc_id: string | null
+          csc_token: string | null
+          default_cest: string | null
+          default_cst_csosn: string | null
+          default_ncm: string | null
+          default_origem: number | null
+          default_unidade: string | null
+          enabled: boolean
+          endereco_json: Json | null
+          environment: string
+          id: string
+          ie: string | null
+          im: string | null
+          mode: string
+          nome_fantasia: string | null
+          organization_id: string
+          plugnotas_empresa_id: string | null
+          producao_liberada: boolean
+          proximo_numero: number | null
+          razao_social: string | null
+          regime_tributario: number | null
+          serie_nfce: number | null
+          updated_at: string
+        }
+        Insert: {
+          certificado_expira_em?: string | null
+          certificado_uploaded_at?: string | null
+          cfop_padrao?: string | null
+          cnpj?: string | null
+          created_at?: string
+          csc_id?: string | null
+          csc_token?: string | null
+          default_cest?: string | null
+          default_cst_csosn?: string | null
+          default_ncm?: string | null
+          default_origem?: number | null
+          default_unidade?: string | null
+          enabled?: boolean
+          endereco_json?: Json | null
+          environment?: string
+          id?: string
+          ie?: string | null
+          im?: string | null
+          mode?: string
+          nome_fantasia?: string | null
+          organization_id: string
+          plugnotas_empresa_id?: string | null
+          producao_liberada?: boolean
+          proximo_numero?: number | null
+          razao_social?: string | null
+          regime_tributario?: number | null
+          serie_nfce?: number | null
+          updated_at?: string
+        }
+        Update: {
+          certificado_expira_em?: string | null
+          certificado_uploaded_at?: string | null
+          cfop_padrao?: string | null
+          cnpj?: string | null
+          created_at?: string
+          csc_id?: string | null
+          csc_token?: string | null
+          default_cest?: string | null
+          default_cst_csosn?: string | null
+          default_ncm?: string | null
+          default_origem?: number | null
+          default_unidade?: string | null
+          enabled?: boolean
+          endereco_json?: Json | null
+          environment?: string
+          id?: string
+          ie?: string | null
+          im?: string | null
+          mode?: string
+          nome_fantasia?: string | null
+          organization_id?: string
+          plugnotas_empresa_id?: string | null
+          producao_liberada?: boolean
+          proximo_numero?: number | null
+          razao_social?: string | null
+          regime_tributario?: number | null
+          serie_nfce?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_invoices: {
+        Row: {
+          attempts: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          chave_acesso: string | null
+          created_at: string
+          danfe_url: string | null
+          emitted_at: string | null
+          environment: string
+          id: string
+          numero: number | null
+          order_id: string
+          organization_id: string
+          payload_json: Json | null
+          plugnotas_id: string | null
+          protocolo: string | null
+          qrcode_url: string | null
+          rejection_reason: string | null
+          serie: number | null
+          status: string
+          updated_at: string
+          xml_url: string | null
+        }
+        Insert: {
+          attempts?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          chave_acesso?: string | null
+          created_at?: string
+          danfe_url?: string | null
+          emitted_at?: string | null
+          environment?: string
+          id?: string
+          numero?: number | null
+          order_id: string
+          organization_id: string
+          payload_json?: Json | null
+          plugnotas_id?: string | null
+          protocolo?: string | null
+          qrcode_url?: string | null
+          rejection_reason?: string | null
+          serie?: number | null
+          status?: string
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Update: {
+          attempts?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          chave_acesso?: string | null
+          created_at?: string
+          danfe_url?: string | null
+          emitted_at?: string | null
+          environment?: string
+          id?: string
+          numero?: number | null
+          order_id?: string
+          organization_id?: string
+          payload_json?: Json | null
+          plugnotas_id?: string | null
+          protocolo?: string | null
+          qrcode_url?: string | null
+          rejection_reason?: string | null
+          serie?: number | null
+          status?: string
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       global_addon_exclusions: {
         Row: {
           created_at: string | null
@@ -1836,43 +2038,64 @@ export type Database = {
           available: boolean
           available_days: Json | null
           category: string
+          cest: string | null
+          cfop: string | null
+          codigo_ean: string | null
           created_at: string
+          cst_csosn: string | null
           description: string | null
           hide_global_addons: boolean
           id: string
           ifood_id: string | null
           image_url: string | null
           name: string
+          ncm: string | null
           organization_id: string
+          origem: number | null
           price: number
+          unidade: string | null
         }
         Insert: {
           available?: boolean
           available_days?: Json | null
           category?: string
+          cest?: string | null
+          cfop?: string | null
+          codigo_ean?: string | null
           created_at?: string
+          cst_csosn?: string | null
           description?: string | null
           hide_global_addons?: boolean
           id?: string
           ifood_id?: string | null
           image_url?: string | null
           name: string
+          ncm?: string | null
           organization_id: string
+          origem?: number | null
           price: number
+          unidade?: string | null
         }
         Update: {
           available?: boolean
           available_days?: Json | null
           category?: string
+          cest?: string | null
+          cfop?: string | null
+          codigo_ean?: string | null
           created_at?: string
+          cst_csosn?: string | null
           description?: string | null
           hide_global_addons?: boolean
           id?: string
           ifood_id?: string | null
           image_url?: string | null
           name?: string
+          ncm?: string | null
           organization_id?: string
+          origem?: number | null
           price?: number
+          unidade?: string | null
         }
         Relationships: [
           {
@@ -1942,6 +2165,8 @@ export type Database = {
           coupon_id: string | null
           created_at: string
           discount_value: number
+          fiscal_invoice_id: string | null
+          fiscal_status: string | null
           gateway_payment_id: string | null
           id: string
           ifood_cancellation_requested_at: string | null
@@ -1967,6 +2192,8 @@ export type Database = {
           coupon_id?: string | null
           created_at?: string
           discount_value?: number
+          fiscal_invoice_id?: string | null
+          fiscal_status?: string | null
           gateway_payment_id?: string | null
           id?: string
           ifood_cancellation_requested_at?: string | null
@@ -1992,6 +2219,8 @@ export type Database = {
           coupon_id?: string | null
           created_at?: string
           discount_value?: number
+          fiscal_invoice_id?: string | null
+          fiscal_status?: string | null
           gateway_payment_id?: string | null
           id?: string
           ifood_cancellation_requested_at?: string | null
@@ -2018,6 +2247,13 @@ export type Database = {
             columns: ["coupon_id"]
             isOneToOne: false
             referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_fiscal_invoice_id_fkey"
+            columns: ["fiscal_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_invoices"
             referencedColumns: ["id"]
           },
           {
