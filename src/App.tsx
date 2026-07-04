@@ -67,6 +67,19 @@ const ConditionalSupportChat = () => {
   return <SupportChatWidget />;
 };
 
+// Envolve as rotas num container keyado por pathname para disparar um fade curto
+// (150ms, opacity-only) a cada troca de rota. Não afeta layout — animação puramente
+// visual, respeita prefers-reduced-motion via CSS.
+const AnimatedRoutes = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  // Chave por pathname (ignora search/hash) — evita re-animar em mudanças de query.
+  return (
+    <div key={location.pathname} className="animate-page-fade">
+      {children}
+    </div>
+  );
+};
+
 const isChunkError = (msg: string) =>
   msg.includes("Failed to fetch dynamically imported module") ||
   msg.includes("Importing a module script failed") ||
@@ -193,6 +206,7 @@ const AppInner = () => {
           <BrowserRouter>
             <ScrollToTop />
             <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+            <AnimatedRoutes>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
@@ -218,6 +232,7 @@ const AppInner = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </AnimatedRoutes>
             </Suspense>
             <ConditionalSupportChat />
             <PWAUpdatePrompt />
