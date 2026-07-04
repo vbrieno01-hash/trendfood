@@ -519,10 +519,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === MODO LINK-ONLY ===
-    // Fluxo padrão: qualquer mensagem que não seja handoff/auto-notificação
-    // recebe imediatamente o link do cardápio. Sem IA, sem token.
-    if (orgSlug) {
+    // === FALLBACK LINK-ONLY (rede de segurança) ===
+    // Só é chamado se Groq E Cerebras falharem. Nunca substitui a IA
+    // quando ela está disponível — apenas cobre o pior cenário para o
+    // cliente nunca ficar sem resposta.
+    const sendLinkFallback = async (reason: string): Promise<Response | null> => {
+      if (!orgSlug) return null;
       const menuUrl = `https://trendfood.site/${orgSlug}`;
       const variations = [
         `Olá! 😊 Aqui está o nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`,
@@ -532,7 +534,6 @@ Deno.serve(async (req) => {
         `Bem-vindo(a)! 🍔 Escolhe o que quiser no cardápio:\n${menuUrl}\n\nA gente cuida do resto. 💜`,
       ];
       const linkReply = variations[Math.floor(Math.random() * variations.length)];
-
       let sentLink = false;
       let linkErr: string | null = null;
       if (effectiveServerUrl && effectiveToken) {
@@ -556,18 +557,18 @@ Deno.serve(async (req) => {
       });
       recordBotMetric(supabase, {
         organization_id: effectiveOrgId,
-        provider: "link-only",
+        provider: `link-fallback:${reason}`,
         status: sentLink ? "sent" : "wa_send_failed",
         latency_ms: Date.now() - reqT0,
         phone,
         reply: linkReply,
       });
-      console.log(`[ai-bot] link-only org=${effectiveOrgId ?? "null"} sent=${sentLink} in ${Date.now() - reqT0}ms`);
+      console.log(`[ai-bot] link-fallback reason=${reason} org=${effectiveOrgId ?? "null"} sent=${sentLink}`);
       return new Response(
-        JSON.stringify({ ok: true, mode: "link-only", sent: sentLink, sendError: linkErr, response: linkReply }),
+        JSON.stringify({ ok: true, mode: "link-fallback", reason, sent: sentLink, sendError: linkErr, response: linkReply }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
-    }
+    };
 
     // Sem orgSlug (config singleton sem loja): fallback pra saudação simples se configurada.
     const greetingMessage: string | null = (config?.greeting_message || "").toString().trim() || null;
