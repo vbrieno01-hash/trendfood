@@ -17,6 +17,37 @@ function fmtDate(iso: string | null | undefined): string {
   } catch { return String(iso); }
 }
 
+// ── Rate limit: máx 20 comandos por minuto por chat_id ──
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  chatId: string,
+): Promise<boolean> {
+  const since = new Date(Date.now() - 60_000).toISOString();
+  const { count } = await (supabase.from("telegram_audit_log") as any)
+    .select("id", { count: "exact", head: true })
+    .eq("chat_id", chatId)
+    .gte("created_at", since);
+  return (count ?? 0) < 20;
+}
+
+async function audit(
+  supabase: ReturnType<typeof createClient>,
+  entry: {
+    chat_id: string;
+    command?: string | null;
+    update_type: string;
+    organization_id?: string | null;
+    affiliate_id?: string | null;
+    rate_limited?: boolean;
+  },
+) {
+  try {
+    await (supabase.from("telegram_audit_log") as any).insert(entry);
+  } catch (e) {
+    console.warn("[telegram-audit] insert failed", e);
+  }
+}
+
 async function tg(method: string, payload: Record<string, unknown>) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
