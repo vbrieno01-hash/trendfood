@@ -443,7 +443,7 @@ export default function KitchenPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+      <main className="max-w-4xl mx-auto p-4 max-[380px]:p-3 md:p-6 space-y-6">
         {isLoading ? (
           <p className="text-muted-foreground animate-pulse text-center py-12">Carregando pedidos…</p>
         ) : orders.length === 0 ? (

@@ -245,7 +245,7 @@ function DatePicker({ label, date, onSelect }: { label: string; date: Date; onSe
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" className={cn("w-[180px] justify-start text-left font-normal")}>
+          <Button variant="outline" className={cn("w-[180px] max-[380px]:w-full justify-start text-left font-normal")}>
             <CalendarIcon className="mr-2 h-4 w-4" />
             {format(date, "dd/MM/yyyy")}
           </Button>

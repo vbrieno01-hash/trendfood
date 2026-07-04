@@ -619,7 +619,7 @@ function UsersSection() {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <div className="relative flex-1 min-w-[180px]">
+        <div className="relative flex-1 min-w-[180px] max-[380px]:min-w-0">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar email..."

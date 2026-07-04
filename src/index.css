@@ -517,4 +517,11 @@ iframe {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
+
+  /* Nuclear defense: qualquer min-w-[NNpx] arbitrário em telas ≤380px
+     é neutralizado pra evitar scroll horizontal residual em abas não visitadas.
+     Filtros/inputs específicos que precisam de largura mínima usam max-[380px]:w-full/min-w-0 explicitamente. */
+  [class*="min-w-["] {
+    min-width: 0 !important;
+  }
 }

@@ -133,7 +133,7 @@ export default function ImprovementsTab() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Select value={task.status} onValueChange={(v) => updateStatus(task.id, v as TaskStatus)}>
-                      <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectTrigger className="w-[140px] max-[380px]:w-full h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
