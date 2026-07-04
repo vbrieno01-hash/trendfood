@@ -1034,6 +1034,13 @@ const DashboardPage = () => {
           )}
 
           <ErrorBoundary>
+          <Suspense fallback={
+            <div className="space-y-3 py-4" aria-busy="true" aria-live="polite">
+              <Skeleton className="h-8 w-1/3" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          }>
           {activeTab === "home" && <HomeTab organization={organization} onNavigate={handleTabChange} />}
           {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} canAccessAddons={planLimits.canAccess("addons")} canAccessStockIngredients={planLimits.canAccess("stock_ingredients")} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
@@ -1124,6 +1131,7 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <AIBotTab orgId={organization.id} />)}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
+          </Suspense>
           </ErrorBoundary>
 
           {/* ── Rodapé institucional ─────────────────────────── */}
