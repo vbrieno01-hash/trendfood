@@ -753,6 +753,17 @@ Seja util, humano, rapido e nao enrole.`;
     const url = orgSlug ? `https://trendfood.site/${orgSlug}` : null;
     const m = msgLow;
 
+    // Guard anti-spam de link: se já mandamos o link do cardápio nesta conversa
+    // (qualquer resposta anterior do bot contém trendfood.site), não reenviamos
+    // automaticamente. Só o fast-path e o bucket `menu` (cliente PEDIU) ignoram
+    // esse guard.
+    const linkAlreadySent = (history || []).some((h: any) =>
+      /trendfood\.site/i.test(h?.ai_response || ""),
+    );
+    const urlFooter = linkAlreadySent ? "" : (url ? `\n\nCardápio: ${url}` : "");
+    const urlFooterOrder = linkAlreadySent ? "" : (url ? `\n\nMonta seu pedido: ${url}` : "");
+    const urlFooterContact = linkAlreadySent ? "" : (url ? `\n\nOu peça direto: ${url}` : "");
+
     let routedReply: string | null = null;
     let routedBucket: string | null = null;
 
@@ -779,37 +790,40 @@ Seja util, humano, rapido e nao enrole.`;
           else if (h.open && h.close) lines.push(`${label}: ${h.open} - ${h.close}`);
         }
         routedReply = lines.length
-          ? `🕐 Nossos horários:\n${lines.join("\n")}${url ? `\n\nCardápio: ${url}` : ""}`
-          : (url ? `Confira nosso horário no cardápio: ${url}` : null);
+          ? `🕐 Nossos horários:\n${lines.join("\n")}${urlFooter}`
+          : (linkAlreadySent ? `Confira nossos horários acima 👆` : (url ? `Confira nosso horário no cardápio: ${url}` : null));
       } else {
-        routedReply = url ? `Confira nosso horário no cardápio: ${url}` : null;
+        routedReply = linkAlreadySent ? `Confira nossos horários no cardápio que já mandei 👆` : (url ? `Confira nosso horário no cardápio: ${url}` : null);
       }
     } else if (/\b(entrega|entregam|taxa|frete|bairro|bairros|delivery)\b/.test(m)) {
       routedBucket = "delivery";
       if (hoodsData.length) {
         const lines = hoodsData.slice(0, 25).map((h) => `• ${h.name}: R$ ${Number(h.fee).toFixed(2)}`);
-        routedReply = `🛵 Bairros que entregamos:\n${lines.join("\n")}${url ? `\n\nMonta seu pedido: ${url}` : ""}`;
+        routedReply = `🛵 Bairros que entregamos:\n${lines.join("\n")}${urlFooterOrder}`;
       } else {
-        routedReply = url ? `A taxa aparece na hora de finalizar: ${url}` : null;
+        routedReply = linkAlreadySent ? `A taxa aparece na hora de finalizar no cardápio 👆` : (url ? `A taxa aparece na hora de finalizar: ${url}` : null);
       }
     } else if (/\b(pix|pagamento|pagar|forma\s+de\s+pagamento|cartao|credito|debito|dinheiro|troco)\b/.test(m)) {
       routedBucket = "payment";
-      routedReply = `💳 Aceitamos Pix, cartão (crédito/débito) e dinheiro na entrega.${url ? `\n\nMonta seu pedido: ${url}` : ""}`;
+      routedReply = `💳 Aceitamos Pix, cartão (crédito/débito) e dinheiro na entrega.${urlFooterOrder}`;
     } else if (/\b(endereco|onde\s+fica|onde\s+voces?\s+ficam|localizacao|local\s+da\s+loja)\b/.test(m)) {
       routedBucket = "address";
       if (orgData?.store_address) {
-        routedReply = `📍 Nosso endereço: ${orgData.store_address}${url ? `\n\nCardápio: ${url}` : ""}`;
+        routedReply = `📍 Nosso endereço: ${orgData.store_address}${urlFooter}`;
       } else {
-        routedReply = url ? `Nosso atendimento é pelo cardápio digital: ${url}` : null;
+        routedReply = linkAlreadySent ? `Nosso atendimento é pelo cardápio digital que já mandei 👆` : (url ? `Nosso atendimento é pelo cardápio digital: ${url}` : null);
       }
     } else if (/\b(whatsapp|whats|telefone|numero|contato|zap|falar\s+com\s+a\s+loja)\b/.test(m)) {
       routedBucket = "contact";
       if (orgData?.whatsapp) {
-        routedReply = `📱 Nosso contato: ${orgData.whatsapp}${url ? `\n\nOu peça direto: ${url}` : ""}`;
+        routedReply = `📱 Nosso contato: ${orgData.whatsapp}${urlFooterContact}`;
       } else {
-        routedReply = url ? `Você já está no nosso canal. Cardápio: ${url}` : null;
+        routedReply = linkAlreadySent ? `Você já está no nosso canal 🙂` : (url ? `Você já está no nosso canal. Cardápio: ${url}` : null);
       }
     }
+
+    // Sufixo :no_link nas métricas quando o guard removeu o link do rodapé
+    const bucketUsedNoLink = linkAlreadySent && routedBucket && routedBucket !== "menu";
 
     // Pool de 50 mensagens prontas (usado quando nenhum bucket casa)
     const menuUrl = url ?? "";
@@ -867,7 +881,9 @@ Seja util, humano, rapido e nao enrole.`;
     ];
 
     let finalReply = routedReply;
-    let provider = routedBucket ? `keyword:${routedBucket}` : "";
+    let provider = routedBucket
+      ? `keyword:${routedBucket}${bucketUsedNoLink ? ":no_link" : ""}`
+      : "";
 
     if (!finalReply) {
       if (!menuUrl) {
@@ -876,12 +892,25 @@ Seja util, humano, rapido e nao enrole.`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Pool curto SEM link, usado quando o link já foi enviado nesta conversa
+      // e o cliente não pediu de novo (não caiu em nenhum bucket).
+      const poolNoLink: string[] = [
+        `Tô por aqui, qualquer coisa é só chamar 🙂`,
+        `Se precisar de algo é só falar!`,
+        `Beleza! Qualquer dúvida manda ver 👍`,
+        `Tranquilo, tô ligado por aqui.`,
+        `De boa! Tô à disposição 😉`,
+        `Show! Qualquer coisa me chama.`,
+        `Fechou! Tô por aqui.`,
+        `Certo! Se pintar dúvida é só mandar.`,
+      ];
+      const activePool = linkAlreadySent ? poolNoLink : pool;
       const lastIdx = lastFallbackIdxByPhone.get(phone) ?? -1;
-      let idx = Math.floor(Math.random() * pool.length);
-      if (pool.length > 1 && idx === lastIdx) idx = (idx + 1) % pool.length;
+      let idx = Math.floor(Math.random() * activePool.length);
+      if (activePool.length > 1 && idx === lastIdx) idx = (idx + 1) % activePool.length;
       lastFallbackIdxByPhone.set(phone, idx);
-      finalReply = pool[idx];
-      provider = "link-fallback:no_match";
+      finalReply = activePool[idx];
+      provider = linkAlreadySent ? "link-fallback:already_sent" : "link-fallback:no_match";
     }
 
     // Enviar via uazapi
