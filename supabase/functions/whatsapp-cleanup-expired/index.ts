@@ -86,6 +86,14 @@ Deno.serve(async (req) => {
       // mas ainda remove do banco pra não deixar registro órfão.
       if (adminToken && inst.instance_token) {
         try {
+          // 1) Disconnect antes (mesma sequência do fluxo manual)
+          await fetch(`${serverUrl}/instance/disconnect`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", token: inst.instance_token },
+            body: "{}",
+          }).then((r) => r.text()).catch(() => "");
+
+          // 2) Delete definitivo (libera slot na UazAPI)
           const res = await fetch(`${serverUrl}/instance/delete`, {
             method: "DELETE",
             headers: { admintoken: adminToken, token: inst.instance_token },
@@ -93,7 +101,20 @@ Deno.serve(async (req) => {
           // Consome body pra evitar leak; qualquer erro só loga
           await res.text().catch(() => "");
           if (!res.ok && res.status !== 404) {
-            errors.push(`uazapi delete ${res.status} for ${inst.organization_id}`);
+            // Fallback: alguns servidores UazAPI aceitam POST em vez de DELETE
+            const res2 = await fetch(`${serverUrl}/instance/delete`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                admintoken: adminToken,
+                token: inst.instance_token,
+              },
+              body: "{}",
+            });
+            await res2.text().catch(() => "");
+            if (!res2.ok && res2.status !== 404) {
+              errors.push(`uazapi delete ${res.status}/${res2.status} for ${inst.organization_id}`);
+            }
           }
         } catch (e) {
           errors.push(`uazapi delete threw for ${inst.organization_id}: ${(e as Error).message}`);
