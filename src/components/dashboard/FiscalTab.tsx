@@ -17,6 +17,9 @@ import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { FileText, ShieldCheck, ShieldAlert, Upload, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FiscalHistoryTab from "@/components/dashboard/FiscalHistoryTab";
+import { Progress } from "@/components/ui/progress";
+import { useFiscalQuota } from "@/hooks/useFiscalQuota";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type Props = {
   orgId: string;
@@ -48,6 +51,7 @@ type FiscalConfig = {
   default_cst_csosn: string | null;
   default_origem: number | null;
   default_unidade: string | null;
+  focus_token_mode?: string | null;
 };
 
 function onlyDigits(v: string) { return (v || "").replace(/\D/g, ""); }
@@ -98,6 +102,8 @@ export default function FiscalTab({ orgId, organization, effectivePlan, promoEli
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
         <TabsContent value="config" className="mt-4">
+          <FiscalQuotaCard orgId={orgId} />
+          <div className="h-4" />
           <FiscalTabContent orgId={orgId} cfg={cfg} onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["fiscal_config", orgId] }); }} />
         </TabsContent>
         <TabsContent value="historico" className="mt-4">
