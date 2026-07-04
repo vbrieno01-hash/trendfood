@@ -297,7 +297,7 @@ export default function AddressFields({ value, onChange }: Props) {
       </div>
 
       {/* Número + Complemento */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 max-[380px]:grid-cols-1 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="ck-number">Número</Label>
           <Input
@@ -330,7 +330,7 @@ export default function AddressFields({ value, onChange }: Props) {
       </div>
 
       {/* Cidade + Estado */}
-      <div className="grid grid-cols-[1fr_80px] gap-3">
+      <div className="grid grid-cols-[1fr_80px] max-[380px]:grid-cols-1 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="ck-city">Cidade</Label>
           <Input
