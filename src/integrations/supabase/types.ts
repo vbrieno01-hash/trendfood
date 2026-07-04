@@ -3370,6 +3370,10 @@ export type Database = {
       }
       admin_delete_user: { Args: { _user_id: string }; Returns: Json }
       admin_list_users: { Args: never; Returns: Json }
+      admin_set_ai_bot_enabled: {
+        Args: { _enabled: boolean; _org_id: string }
+        Returns: undefined
+      }
       admin_set_whatsapp_bot_allowed: {
         Args: { _allowed: boolean; _org_id: string }
         Returns: undefined

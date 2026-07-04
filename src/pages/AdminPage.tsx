@@ -175,6 +175,7 @@ interface OrgRow {
   business_hours: object | null;
   billing_cycle: string | null;
   whatsapp_bot_allowed: boolean;
+  ai_bot_enabled: boolean;
 }
 
 interface PaymentRow {
@@ -352,6 +353,15 @@ function AdminContent() {
           .order("paid_at", { ascending: false }),
       ]);
 
+      const { data: botConfigs } = await (supabase.from("ai_bot_config") as any)
+        .select("organization_id, enabled");
+      const botEnabledMap = new Map<string, boolean>(
+        ((botConfigs ?? []) as { organization_id: string; enabled: boolean }[]).map((b) => [
+          b.organization_id,
+          !!b.enabled,
+        ]),
+      );
+
       // Preços vigentes (source of truth: platform_plans).
       const { data: plansData } = await (supabase.from("platform_plans") as any)
         .select("key, price_cents, annual_price_cents, quarterly_price_cents");
@@ -381,6 +391,7 @@ function AdminContent() {
         business_hours: org.business_hours as object | null,
         billing_cycle: (org as any).billing_cycle ?? null,
         whatsapp_bot_allowed: !!(org as any).whatsapp_bot_allowed,
+        ai_bot_enabled: botEnabledMap.get(org.id) ?? false,
       }));
 
       setOrgs(enriched);
@@ -1437,6 +1448,12 @@ function StoreCard({ org, onPlanChange, onDelete, onManage, index }: { org: OrgR
         onChange={(v) => setLocalOrg((p) => ({ ...p, whatsapp_bot_allowed: v }))}
       />
 
+      <AiBotEnabledToggleRow
+        orgId={org.id}
+        initial={localOrg.ai_bot_enabled}
+        onChange={(v) => setLocalOrg((p) => ({ ...p, ai_bot_enabled: v }))}
+      />
+
       <div className="border-t border-border/50 px-5 py-2.5 flex items-center justify-between bg-muted/10">
         <span className="text-[10px] text-muted-foreground">
           Desde {new Date(org.created_at).toLocaleDateString("pt-BR")}
@@ -1493,6 +1510,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
 function WhatsappBotToggleRow({ orgId, initial, onChange }: { orgId: string; initial: boolean; onChange: (v: boolean) => void }) {
   const [allowed, setAllowed] = useState(initial);
   const [saving, setSaving] = useState(false);
+  useEffect(() => { setAllowed(initial); }, [initial]);
   async function toggle(next: boolean) {
     setSaving(true);
     const prev = allowed;
@@ -1519,6 +1537,40 @@ function WhatsappBotToggleRow({ orgId, initial, onChange }: { orgId: string; ini
         <span className="text-[11px] font-semibold text-foreground truncate">Permitir Robô de WhatsApp</span>
       </div>
       <Switch checked={allowed} disabled={saving} onCheckedChange={toggle} />
+    </div>
+  );
+}
+
+function AiBotEnabledToggleRow({ orgId, initial, onChange }: { orgId: string; initial: boolean; onChange: (v: boolean) => void }) {
+  const [enabled, setEnabled] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setEnabled(initial); }, [initial]);
+  async function toggle(next: boolean) {
+    setSaving(true);
+    const prev = enabled;
+    setEnabled(next);
+    try {
+      const { error } = await supabase.rpc("admin_set_ai_bot_enabled" as any, {
+        _org_id: orgId,
+        _enabled: next,
+      });
+      if (error) throw error;
+      onChange(next);
+      toast.success(next ? "Robô IA ativado nesta loja" : "Robô IA desativado nesta loja");
+    } catch (e: any) {
+      setEnabled(prev);
+      toast.error("Falha: " + (e?.message ?? "erro"));
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div className="border-t border-border/40 px-5 py-2.5 flex items-center justify-between gap-2 bg-blue-500/[0.03]">
+      <div className="flex items-center gap-2 min-w-0">
+        <MessageCircle className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+        <span className="text-[11px] font-semibold text-foreground truncate">Robô IA ativo (por loja)</span>
+      </div>
+      <Switch checked={enabled} disabled={saving} onCheckedChange={toggle} />
     </div>
   );
 }
