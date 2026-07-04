@@ -457,7 +457,13 @@ const UnitPage = () => {
 
   // Robô ativo = admin liberou (whatsapp_bot_allowed). Envio automático é independente de plano.
   // Sem robô liberado, cliente cai no wa.me como fallback manual.
-  const hasActiveBot = !!(org && (org as any).whatsapp_bot_allowed === true);
+  // Robô automático só existe para planos pagos. Free NUNCA tem robô, então
+  // sempre abre o wa.me manual no checkout. (A checagem de instância conectada
+  // não é possível aqui — a checkout é anônima e não pode ler whatsapp_instances.)
+  const hasActiveBot = !!(
+    org &&
+    ["pro", "enterprise", "lifetime"].includes(((org as any).subscription_plan ?? "free"))
+  );
 
   // Sanitize WhatsApp number for reliable wa.me links
   const rawWa = whatsapp?.replace(/\D/g, "") ?? "";
