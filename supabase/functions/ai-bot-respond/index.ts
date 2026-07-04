@@ -8,6 +8,9 @@ const corsHeaders = {
 // Rate limit em memória (process-level)
 const lastReqByPhone = new Map<string, number>();
 
+// Anti-repeat do pool de mensagens prontas (por telefone, best-effort no isolate)
+const lastFallbackIdxByPhone = new Map<string, number>();
+
 // Fire-and-forget: registra métrica de cada resposta do robô p/ o painel admin.
 // Nunca deve derrubar a request principal — todos os erros são engolidos.
 function maskPhone(phone: string): string {
