@@ -91,6 +91,8 @@ export default function OrderFiscalActions({
   const canEmit = !invoice || invoice.status === "rejected" || invoice.status === "blocked_quota";
   const isBusyStatus = invoice?.status === "pending" || invoice?.status === "processing";
 
+  if (!flags?.fiscal_enabled && !isAdmin) return null;
+
   return (
     <div className={`flex items-center gap-2 flex-wrap ${compact ? "text-xs" : "text-sm"}`}>
       <Badge variant="outline" className={`${meta.cls} gap-1 px-2 py-0.5`}>
