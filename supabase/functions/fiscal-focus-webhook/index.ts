@@ -15,7 +15,9 @@ Deno.serve(async (req) => {
   try {
     const expected = Deno.env.get("FOCUS_NFE_WEBHOOK_TOKEN");
     const got = req.headers.get("x-webhook-token") || new URL(req.url).searchParams.get("token");
-    if (expected && got !== expected) return json({ error: "invalid token" }, 401);
+    // Fail-closed: sempre exige o token; se secret não configurado, recusa
+    if (!expected) return json({ error: "webhook not configured" }, 503);
+    if (got !== expected) return json({ error: "invalid token" }, 401);
 
     // Focus can send form-urlencoded or json
     let payload: any = {};
