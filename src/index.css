@@ -431,3 +431,90 @@ a[href*="lovable.dev"][style*="position: fixed"] {
     animation: none !important;
   }
 }
+
+/* ============================================================
+   RESPONSIVE SAFEGUARDS (Fase 1 — mobile ≤380px foco)
+   Regras globais e defensivas: sem quebrar layouts existentes,
+   apenas evitando overflow horizontal, imagens estouradas,
+   toques pequenos demais e textos que vazam do container.
+   ============================================================ */
+
+html,
+body,
+#root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Evita que qualquer imagem/vídeo/svg force scroll horizontal */
+img,
+video,
+svg,
+canvas,
+iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Quebra de palavras longas (URLs, tokens, e-mails) em telas estreitas */
+@media (max-width: 640px) {
+  p,
+  span,
+  li,
+  a,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  label,
+  dd,
+  dt {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Tabelas grandes ganham scroll interno em vez de estourar */
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Área mínima de toque (WCAG 2.2 — 24px, alvo confortável 44px) */
+  button,
+  [role="button"],
+  a.btn,
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 40px;
+  }
+
+  /* Inputs em mobile pequeno: full width e fonte ≥16px evita zoom do iOS */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+    max-width: 100%;
+  }
+
+  /* Dialog/Sheet/Modal — respeitar viewport em telas ≤380px */
+  [role="dialog"] {
+    max-width: 100vw;
+  }
+}
+
+/* Foco extra em telas muito pequenas (iPhone SE / Androids baratos) */
+@media (max-width: 380px) {
+  :root {
+    /* radius ligeiramente menor evita "corte" visual em cards colados nas bordas */
+    --radius: 0.625rem;
+  }
+
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
