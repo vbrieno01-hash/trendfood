@@ -11,6 +11,8 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, FileText, Loader2, AlertTriangle } from "lucide-react";
+import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
+import { useAuth } from "@/hooks/useAuth";
 
 type FiscalFields = {
   ncm: string | null;
@@ -37,6 +39,8 @@ const EMPTY: FiscalFields = {
 };
 
 export default function MenuItemFiscalSection({ orgId, itemId }: { orgId: string; itemId: string }) {
+  const { data: flags } = usePlatformFeatureFlags();
+  const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
