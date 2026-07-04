@@ -206,6 +206,7 @@ const AppInner = () => {
           <BrowserRouter>
             <ScrollToTop />
             <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+            <AnimatedRoutes>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
@@ -231,6 +232,7 @@ const AppInner = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </AnimatedRoutes>
             </Suspense>
             <ConditionalSupportChat />
             <PWAUpdatePrompt />
