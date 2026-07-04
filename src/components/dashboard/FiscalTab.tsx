@@ -21,6 +21,17 @@ import { Progress } from "@/components/ui/progress";
 import { useFiscalQuota } from "@/hooks/useFiscalQuota";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+async function handleUnauthorized(): Promise<boolean> {
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data?.session) {
+    toast.error("Sua sessão expirou, faça login novamente");
+    try { await supabase.auth.signOut(); } catch {}
+    window.location.href = "/auth";
+    return false;
+  }
+  return true;
+}
+
 type Props = {
   orgId: string;
   organization: { subscription_plan?: string | null } & Record<string, any>;
