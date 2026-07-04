@@ -379,6 +379,25 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     else toast.success("Configurações salvas");
   };
 
+  // Persistência imediata do toggle "Bot ativo" (sem precisar clicar em Salvar)
+  const toggleEnabled = async (next: boolean) => {
+    if (!config) return;
+    const prev = config.enabled;
+    setConfig({ ...config, enabled: next });
+    const { error } = await supabase
+      .from("ai_bot_config")
+      .upsert(
+        { organization_id: orgId, enabled: next },
+        { onConflict: "organization_id" },
+      );
+    if (error) {
+      setConfig((c) => (c ? { ...c, enabled: prev } : c));
+      toast.error(error.message || "Falha ao alterar status do robô");
+      return;
+    }
+    toast.success(next ? "Robô ativado" : "Robô desativado");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
