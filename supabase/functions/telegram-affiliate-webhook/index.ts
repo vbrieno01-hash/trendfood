@@ -127,6 +127,32 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // ── Segurança: valida secret_token do Telegram (SHA-256 do TELEGRAM_API_KEY) ──
+    // Bloqueia qualquer POST forjado — só o Telegram, que registramos com esse
+    // secret via setWebhook, envia o header correto. Comparação em tempo constante.
+    const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
+    if (!TELEGRAM_API_KEY) {
+      console.error("[telegram-affiliate-webhook] TELEGRAM_API_KEY missing");
+      return new Response("Service Unavailable", { status: 503, headers: corsHeaders });
+    }
+    const expectedSecretBytes = new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(`telegram-webhook:${TELEGRAM_API_KEY}`),
+      ),
+    );
+    const expectedSecret = btoa(String.fromCharCode(...expectedSecretBytes))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    const actualSecret = req.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
+    let diff = actualSecret.length ^ expectedSecret.length;
+    for (let i = 0; i < Math.min(actualSecret.length, expectedSecret.length); i++) {
+      diff |= actualSecret.charCodeAt(i) ^ expectedSecret.charCodeAt(i);
+    }
+    if (diff !== 0) {
+      console.warn("[telegram-affiliate-webhook] rejected: invalid secret_token");
+      return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+    }
+
     const update = await req.json();
     console.log("[telegram-affiliate-webhook] update:", JSON.stringify(update).slice(0, 500));
 
