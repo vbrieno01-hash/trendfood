@@ -113,9 +113,9 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
 
   return (
     <Drawer open={item !== null} onClose={onClose}>
-      <DrawerContent className="max-h-[90vh]">
+      <DrawerContent className="max-h-[92vh] flex flex-col">
         {/* Foto */}
-        <div className="w-full aspect-video bg-gradient-to-br from-amber-50 to-orange-100 overflow-hidden">
+        <div className="w-full aspect-video max-h-[38vh] bg-gradient-to-br from-amber-50 to-orange-100 overflow-hidden shrink-0">
           {item.image_url ? (
             <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
           ) : (
@@ -126,7 +126,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
         </div>
 
         {/* Conteúdo */}
-        <div className="p-5 space-y-4 overflow-y-auto max-h-[50vh]">
+        <div className="p-5 max-[380px]:p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
             <h2 className="text-lg font-bold text-foreground leading-snug">{item.name}</h2>
             {item.description && (
@@ -236,7 +236,10 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
         </div>
 
         {/* Ação */}
-        <div className="px-5 pb-6 pt-3 border-t border-border">
+        <div
+          className="px-5 max-[380px]:px-4 pt-3 border-t border-border shrink-0 bg-background"
+          style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        >
           {isClosed ? (
             <div className="bg-muted rounded-xl p-4 text-center">
               <p className="font-semibold text-foreground text-sm">

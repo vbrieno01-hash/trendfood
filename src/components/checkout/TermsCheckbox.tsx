@@ -39,7 +39,7 @@ const TermsCheckbox = ({ checked, onCheckedChange, disabled }: TermsCheckboxProp
       </div>
 
       <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh]">
+        <DialogContent className="max-w-lg w-[calc(100vw-1rem)] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Termos de Uso</DialogTitle>
           </DialogHeader>

@@ -231,7 +231,7 @@ const CardPaymentForm = ({
         }
       }}
     >
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[calc(100vw-1rem)] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <img src={logoIcon} alt="TrendFood" className="w-7 h-7 rounded-lg object-contain" />

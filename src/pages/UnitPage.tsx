@@ -1286,7 +1286,7 @@ const UnitPage = () => {
                            {group.items.length} {group.items.length === 1 ? "Produto" : "Produtos"}
                          </span>
                        </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-[380px]:gap-2">
                         {group.items.map((item) => {
                           const qty = getItemTotalQty(item.id);
                           return (
@@ -1322,11 +1322,11 @@ const UnitPage = () => {
                                </div>
 
                                {/* Info */}
-                               <div className="p-3 flex flex-col flex-1">
-                                 <h3 className="font-bold text-foreground text-xs leading-tight line-clamp-2 mb-2 min-h-[2rem]">{item.name}</h3>
+                                <div className="p-3 max-[380px]:p-2 flex flex-col flex-1">
+                                  <h3 className="font-bold text-foreground text-xs leading-tight line-clamp-2 mb-2 min-h-[2rem]">{item.name}</h3>
                                  <div className="mt-auto">
                                    <div
-                                     className="font-black text-base tracking-tight mb-2"
+                                      className="font-black text-base max-[380px]:text-sm tracking-tight mb-2"
                                      style={{ color: effectivePrimaryColor || "hsl(var(--primary))" }}
                                    >
                                      {fmt(item.price)}
@@ -1381,7 +1381,10 @@ const UnitPage = () => {
 
       {/* ── FLOATING BOTTOM BAR (Ajuda + Sacola) ── */}
       {!checkoutOpen && !selectedItem && (whatsappValid || totalItems > 0) && (
-        <div className="fixed bottom-4 left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto bg-background border border-border/50 rounded-2xl p-1.5 shadow-2xl">
+        <div
+          className="fixed left-0 right-0 z-50 flex gap-2 px-4 max-w-sm mx-auto bg-background border border-border/50 rounded-2xl p-1.5 shadow-2xl"
+          style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        >
           {whatsappValid && (
             <a
               href={whatsappHelpUrl}

@@ -407,7 +407,7 @@ export default function TableOrderPage() {
               Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-sm font-medium text-foreground">Como deseja pagar?</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 max-[380px]:gap-2">
               <button
                 onClick={() => handleSelectPayment("pix")}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all"
@@ -647,7 +647,7 @@ export default function TableOrderPage() {
     return (
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
+        <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4 max-[380px]:py-2">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate(-1)}
@@ -723,7 +723,7 @@ export default function TableOrderPage() {
   return (
     <div className="min-h-screen bg-background pb-40">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
+      <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4 max-[380px]:py-2">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
@@ -744,7 +744,7 @@ export default function TableOrderPage() {
       </div>
 
       {/* Person selector chips */}
-      <div className="sticky top-[73px] z-20 bg-background border-b border-border">
+      <div className="sticky top-[73px] max-[380px]:top-[57px] z-20 bg-background border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
           {peopleNames.map((name, index) => {
             const personItemCount = cartItems
@@ -982,7 +982,10 @@ export default function TableOrderPage() {
 
       {/* Sticky cart bar */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border z-40">
+        <div
+          className="fixed bottom-0 left-0 right-0 p-4 max-[380px]:p-3 bg-card border-t border-border z-40"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        >
           <div className="max-w-lg mx-auto space-y-2">
             {appliedCoupon && discount > 0 && (
               <div className="flex items-center justify-between text-sm px-1">
