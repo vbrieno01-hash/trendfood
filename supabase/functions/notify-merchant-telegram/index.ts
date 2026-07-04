@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { organization_id, order_number, event_type, stock_item_name, menu_item_name, shortage } =
+    const { organization_id, order_number, event_type, stock_item_name, menu_item_name, shortage, rating, comment } =
       await req.json().catch(() => ({}));
 
     if (!organization_id) {
@@ -55,16 +55,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    const isShortage = event_type === "stock_shortage";
-    const text = isShortage
-      ? `⚠️ <b>Estoque insuficiente</b>\n` +
+    let text: string;
+    if (event_type === "stock_shortage") {
+      text = `⚠️ <b>Estoque insuficiente</b>\n` +
         `Faltaram <b>${shortage}</b> de <b>${stock_item_name ?? "insumo"}</b>` +
         (menu_item_name ? ` em <i>${menu_item_name}</i>` : "") +
         (order_number ? `\nPedido <b>#${order_number}</b>` : "") +
-        `\n\nReponha o estoque o quanto antes para não perder vendas.`
-      : order_number
+        `\n\nReponha o estoque o quanto antes para não perder vendas.`;
+    } else if (event_type === "low_rating") {
+      const stars = "⭐".repeat(Math.max(1, Math.min(5, Number(rating) || 1)));
+      const safeComment = String(comment || "").replace(/[<>&]/g, "").slice(0, 300);
+      text = `⚠️ <b>Avaliação baixa recebida</b>\n\n` +
+        `${stars} (${rating}/5)\n` +
+        (safeComment ? `\n💬 <i>"${safeComment}"</i>\n` : "") +
+        `\nVale a pena entrar em contato com o cliente e entender o que aconteceu.`;
+    } else {
+      text = order_number
         ? `🔔 <b>Novo Pedido #${order_number}</b> recebido!`
         : "🔔 <b>Novo pedido recebido!</b>";
+    }
 
     const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
       method: "POST",
