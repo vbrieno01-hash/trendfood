@@ -269,7 +269,7 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
               {/* Payment method */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground">Pagamento</p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 max-[380px]:grid-cols-3 gap-2">
                   {([
                     { key: "cash" as const, label: "Dinheiro", icon: Banknote },
                     { key: "card_debit" as const, label: "Débito", icon: CreditCard },

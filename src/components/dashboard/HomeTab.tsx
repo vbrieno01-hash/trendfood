@@ -430,7 +430,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
       )}
 
       {/* ── Quick Summary ─────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-3 md:gap-4">
         <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-1">
           <div className="dashboard-section-icon">
             <ClipboardList className="w-5 h-5" />

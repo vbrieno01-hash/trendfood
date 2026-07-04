@@ -1076,7 +1076,7 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                 <p className="px-1 pb-2 text-xs font-medium text-muted-foreground">
                   Ícone para "{group.value}"
                 </p>
-                <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-8 max-[380px]:grid-cols-6 gap-1 max-h-48 overflow-y-auto">
                   {CATEGORY_EMOJI_PALETTE.map((e) => (
                     <button
                       key={e}

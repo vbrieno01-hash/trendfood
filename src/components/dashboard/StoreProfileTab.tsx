@@ -868,7 +868,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         {/* Font */}
         <div className="mb-5">
           <Label className="text-sm font-medium">Fonte</Label>
-          <div className="grid grid-cols-3 gap-2 mt-2">
+          <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-2 mt-2">
             {([
               { key: "default", label: "Padrão", family: "inherit" },
               { key: "modern", label: "Moderna", family: "'Inter', sans-serif" },
@@ -1261,7 +1261,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           </div>
 
           {/* Street + Number */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-2 mb-3">
             <div className="col-span-2">
               <Label htmlFor="addr-street" className="text-xs font-medium mb-1 block">Logradouro *</Label>
               <Input

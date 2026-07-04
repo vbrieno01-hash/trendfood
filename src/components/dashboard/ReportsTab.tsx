@@ -575,7 +575,7 @@ ${watermarkHtml}
       <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-5">
         <div className="p-5">
           <h3 className="font-semibold text-foreground text-sm mb-4">Comparativo Semanal</h3>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-muted-foreground mb-1">Semana atual</p>
               <p className="font-bold text-foreground text-lg">{fmtBRL(weeklyComparison.thisWeek)}</p>
