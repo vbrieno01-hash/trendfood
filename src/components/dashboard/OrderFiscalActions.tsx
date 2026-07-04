@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FileText, Loader2, ExternalLink, X, RefreshCw } from "lucide-react";
 import type { FiscalInvoice } from "@/hooks/useFiscalInvoices";
+import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
+import { useAuth } from "@/hooks/useAuth";
 
 function statusMeta(s?: string) {
   switch (s) {
@@ -31,6 +33,8 @@ export default function OrderFiscalActions({
   invoice?: FiscalInvoice | null;
   compact?: boolean;
 }) {
+  const { data: flags } = usePlatformFeatureFlags();
+  const { isAdmin } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = useState<"emit" | "cancel" | null>(null);
   const meta = statusMeta(invoice?.status);
