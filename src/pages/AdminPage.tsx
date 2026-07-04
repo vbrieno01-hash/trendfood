@@ -648,7 +648,7 @@ function AdminContent() {
       <aside
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
-          w-[272px] transform transition-transform duration-300
+          w-[272px] max-[380px]:w-[88vw] transform transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
           shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)]
@@ -1239,7 +1239,7 @@ function KpiCard({
   delay?: number;
 }) {
   return (
-    <div className={`min-w-[140px] admin-glass rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in admin-delay-${delay ?? 1}`}>
+    <div className={`min-w-[120px] admin-glass rounded-2xl p-4 flex flex-col gap-2.5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group animate-admin-fade-in admin-delay-${delay ?? 1}`}>
       <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient ?? ""} opacity-50 pointer-events-none`} />
       <div className="relative flex items-center justify-between">
         <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center ${iconColor} group-hover:scale-110 transition-transform duration-200`}>

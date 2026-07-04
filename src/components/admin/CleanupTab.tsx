@@ -260,7 +260,7 @@ export default function CleanupTab() {
               Limpa <code className="text-[11px]">net._http_response</code> (&gt;2 dias) e <code className="text-[11px]">cron.job_run_details</code> (&gt;3 dias).
               Não afeta nenhum dado de negócio.
             </p>
-            <div className="grid grid-cols-3 gap-3 mt-3">
+            <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-3 mt-3">
               <div className="rounded-lg bg-muted/30 p-2.5">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">http_response</p>
                 <p className="text-sm font-bold text-foreground mt-0.5">{internalSizes ? fmtBytes(internalSizes.http_size) : "—"}</p>
