@@ -19,6 +19,29 @@ function mapPay(m: string | null | undefined): "01" | "03" | "04" | "17" | "99" 
   return "99";
 }
 
+// Timeout wrapper — SEFAZ costuma responder <3s; 15s cobre picos sem travar edge.
+async function fetchWithTimeout(url: string, opts: RequestInit, ms = 15000): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// Resolve o token Focus NFe conforme configuração da loja.
+// mode='own'  -> lê organization_secrets.focus_nfe_token
+// mode='platform' (default) -> usa FOCUS_NFE_TOKEN (Software House)
+async function getFocusToken(supabase: any, orgId: string, mode: string | null | undefined): Promise<string | null> {
+  if (mode === "own") {
+    const { data } = await supabase.from("organization_secrets")
+      .select("focus_nfe_token").eq("organization_id", orgId).maybeSingle();
+    return data?.focus_nfe_token || null;
+  }
+  return Deno.env.get("FOCUS_NFE_TOKEN") || null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -40,9 +63,6 @@ Deno.serve(async (req) => {
       if (!u?.user) return json({ error: "Unauthorized" }, 401);
       userId = u.user.id;
     }
-
-    const token = Deno.env.get("FOCUS_NFE_TOKEN");
-    if (!token) return json({ error: "FOCUS_NFE_TOKEN not configured" }, 500);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -75,6 +95,34 @@ Deno.serve(async (req) => {
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", order.organization_id).maybeSingle();
     if (!cfg || !cfg.enabled) return json({ error: "fiscal not enabled" }, 400);
     if (!cfg.cnpj) return json({ error: "CNPJ da empresa não configurado" }, 400);
+
+    // Quota gate — antes de qualquer chamada externa.
+    const { data: quota } = await supabase.rpc("fiscal_check_quota", { _org_id: order.organization_id });
+    if (quota?.blocked && !quota?.overage_allowed) {
+      // Registra tentativa bloqueada (upsert por order_id — que é UNIQUE em fiscal_invoices).
+      const blockedPatch = {
+        organization_id: order.organization_id,
+        order_id,
+        status: "blocked_quota",
+        environment: cfg.environment,
+        rejection_reason: String(quota?.reason || "Cota mensal esgotada").slice(0, 500),
+      };
+      if (existing?.id) {
+        await supabase.from("fiscal_invoices").update(blockedPatch).eq("id", existing.id);
+      } else {
+        await supabase.from("fiscal_invoices").insert(blockedPatch);
+      }
+      return json({ error: "quota_exceeded", quota }, 429);
+    }
+
+    // Resolve token conforme modo (platform | own).
+    const token = await getFocusToken(supabase, order.organization_id, cfg.focus_token_mode);
+    if (!token) {
+      const msg = cfg.focus_token_mode === "own"
+        ? "Token Focus NFe do lojista não configurado"
+        : "FOCUS_NFE_TOKEN not configured";
+      return json({ error: msg }, 500);
+    }
 
     // Rate limit: máx 100 emissões/hora/org
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -167,11 +215,21 @@ Deno.serve(async (req) => {
     const host = cfg.environment === "producao" ? "https://api.focusnfe.com.br" : "https://homologacao.focusnfe.com.br";
     const ref = `order_${order_id}`;
     const auth = "Basic " + btoa(`${token}:`);
-    const res = await fetch(`${host}/v2/nfce?ref=${encodeURIComponent(ref)}`, {
-      method: "POST",
-      headers: { "Authorization": auth, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(`${host}/v2/nfce?ref=${encodeURIComponent(ref)}`, {
+        method: "POST",
+        headers: { "Authorization": auth, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (netErr) {
+      const msg = (netErr as Error)?.name === "AbortError" ? "timeout_sefaz" : "network_error";
+      await supabase.from("fiscal_invoices").update({
+        status: "rejected", rejection_reason: msg,
+      }).eq("id", invoiceId!);
+      await supabase.from("orders").update({ fiscal_status: "rejected" }).eq("id", order_id);
+      return json({ error: msg }, 504);
+    }
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {

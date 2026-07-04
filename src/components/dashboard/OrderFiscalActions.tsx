@@ -18,6 +18,7 @@ function statusMeta(s?: string) {
     case "pending":    return { label: "Emitindo…",        cls: "bg-amber-500/15 text-amber-600 border-amber-500/30" };
     case "rejected":   return { label: "Rejeitada",        cls: "bg-destructive/15 text-destructive border-destructive/30" };
     case "cancelled":  return { label: "Cancelada",        cls: "bg-muted text-muted-foreground border-border" };
+    case "blocked_quota": return { label: "Cota esgotada", cls: "bg-amber-500/15 text-amber-600 border-amber-500/30" };
     default:           return { label: "Sem NFC-e",        cls: "bg-muted text-muted-foreground border-border" };
   }
 }
@@ -64,7 +65,7 @@ export default function OrderFiscalActions({
 
   const canCancel = invoice?.status === "authorized" && invoice.emitted_at
     && Date.now() - new Date(invoice.emitted_at).getTime() < 30 * 60 * 1000;
-  const canEmit = !invoice || invoice.status === "rejected";
+  const canEmit = !invoice || invoice.status === "rejected" || invoice.status === "blocked_quota";
   const isBusyStatus = invoice?.status === "pending" || invoice?.status === "processing";
 
   return (
@@ -75,7 +76,7 @@ export default function OrderFiscalActions({
         {meta.label}
         {invoice?.numero ? <span className="opacity-70">#{invoice.numero}</span> : null}
       </Badge>
-      {invoice?.status === "rejected" && invoice.rejection_reason && (
+      {(invoice?.status === "rejected" || invoice?.status === "blocked_quota") && invoice.rejection_reason && (
         <span className="text-xs text-destructive line-clamp-1" title={invoice.rejection_reason}>
           {invoice.rejection_reason}
         </span>
@@ -83,7 +84,7 @@ export default function OrderFiscalActions({
       {canEmit && (
         <Button size="sm" variant="outline" onClick={emit} disabled={busy === "emit"}>
           {busy === "emit" ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-          {invoice?.status === "rejected" ? "Reemitir" : "Emitir NFC-e"}
+          {invoice?.status === "rejected" || invoice?.status === "blocked_quota" ? "Reemitir" : "Emitir NFC-e"}
         </Button>
       )}
       {invoice?.danfe_url && (

@@ -1263,6 +1263,7 @@ export type Database = {
           enabled: boolean
           endereco_json: Json | null
           environment: string
+          focus_token_mode: string
           id: string
           ie: string | null
           im: string | null
@@ -1293,6 +1294,7 @@ export type Database = {
           enabled?: boolean
           endereco_json?: Json | null
           environment?: string
+          focus_token_mode?: string
           id?: string
           ie?: string | null
           im?: string | null
@@ -1323,6 +1325,7 @@ export type Database = {
           enabled?: boolean
           endereco_json?: Json | null
           environment?: string
+          focus_token_mode?: string
           id?: string
           ie?: string | null
           im?: string | null
@@ -1441,6 +1444,52 @@ export type Database = {
           },
           {
             foreignKeyName: "fiscal_invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_usage_log: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          month_start: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          month_start: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          month_start?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_usage_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "fiscal_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_usage_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_usage_log_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "top_stores_showcase"
@@ -2275,6 +2324,7 @@ export type Database = {
       organization_secrets: {
         Row: {
           created_at: string | null
+          focus_nfe_token: string | null
           id: string
           organization_id: string
           pix_gateway_provider: string | null
@@ -2283,6 +2333,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          focus_nfe_token?: string | null
           id?: string
           organization_id: string
           pix_gateway_provider?: string | null
@@ -2291,6 +2342,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          focus_nfe_token?: string | null
           id?: string
           organization_id?: string
           pix_gateway_provider?: string | null
@@ -2341,6 +2393,7 @@ export type Database = {
           logo_url: string | null
           mp_subscription_id: string | null
           name: string
+          nfce_overage_allowed: boolean
           onboarding_done: boolean
           paused: boolean
           paused_categories: Json | null
@@ -2395,6 +2448,7 @@ export type Database = {
           logo_url?: string | null
           mp_subscription_id?: string | null
           name: string
+          nfce_overage_allowed?: boolean
           onboarding_done?: boolean
           paused?: boolean
           paused_categories?: Json | null
@@ -2449,6 +2503,7 @@ export type Database = {
           logo_url?: string | null
           mp_subscription_id?: string | null
           name?: string
+          nfce_overage_allowed?: boolean
           onboarding_done?: boolean
           paused?: boolean
           paused_categories?: Json | null
@@ -2646,6 +2701,8 @@ export type Database = {
           id: string
           key: string
           name: string
+          nfce_monthly_quota: number | null
+          nfce_overage_price_cents: number | null
           price_cents: number
           quarterly_price_cents: number | null
           sort_order: number
@@ -2663,6 +2720,8 @@ export type Database = {
           id?: string
           key: string
           name: string
+          nfce_monthly_quota?: number | null
+          nfce_overage_price_cents?: number | null
           price_cents?: number
           quarterly_price_cents?: number | null
           sort_order?: number
@@ -2680,6 +2739,8 @@ export type Database = {
           id?: string
           key?: string
           name?: string
+          nfce_monthly_quota?: number | null
+          nfce_overage_price_cents?: number | null
           price_cents?: number
           quarterly_price_cents?: number | null
           sort_order?: number
@@ -3604,6 +3665,29 @@ export type Database = {
       }
     }
     Views: {
+      fiscal_usage_current_month: {
+        Row: {
+          authorized_count: number | null
+          month_start: string | null
+          organization_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_usage_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_usage_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       top_stores_showcase: {
         Row: {
           id: string | null
@@ -3757,6 +3841,7 @@ export type Database = {
           started_at: string
         }[]
       }
+      fiscal_check_quota: { Args: { _org_id: string }; Returns: Json }
       get_cleanup_stats: { Args: never; Returns: Json }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
       get_internal_logs_sizes: { Args: never; Returns: Json }
