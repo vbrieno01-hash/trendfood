@@ -4,16 +4,16 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-const PLUGNOTAS_BASE = "https://api.plugnotas.com.br";
 
 function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-function mapPay(m: string | null | undefined): string {
+// Focus NFe forma_pagamento SEFAZ codes
+function mapPay(m: string | null | undefined): "01" | "03" | "04" | "17" | "99" {
   const s = (m || "").toLowerCase();
   if (s.includes("pix")) return "17";
-  if (s.includes("credit") || s.includes("crédit") || s.includes("credit")) return "03";
+  if (s.includes("credit") || s.includes("crédit")) return "03";
   if (s.includes("deb")) return "04";
   if (s.includes("dinh") || s.includes("cash") || s.includes("espec")) return "01";
   return "99";
@@ -22,8 +22,8 @@ function mapPay(m: string | null | undefined): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const apiKey = Deno.env.get("PLUGNOTAS_API_KEY");
-    if (!apiKey) return json({ error: "PLUGNOTAS_API_KEY not configured" }, 500);
+    const token = Deno.env.get("FOCUS_NFE_TOKEN");
+    if (!token) return json({ error: "FOCUS_NFE_TOKEN not configured" }, 500);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", order.organization_id).maybeSingle();
     if (!cfg || !cfg.enabled) return json({ error: "fiscal not enabled" }, 400);
-    if (!cfg.plugnotas_empresa_id) return json({ error: "empresa não cadastrada no PlugNotas" }, 400);
+    if (!cfg.cnpj) return json({ error: "CNPJ da empresa não configurado" }, 400);
 
     // Fetch menu_items for fiscal fields
     const menuIds = items.map((i: any) => i.menu_item_id).filter(Boolean);
@@ -65,21 +65,26 @@ Deno.serve(async (req) => {
       const total = +(unitPrice * qty).toFixed(2);
       totalProdutos += total;
       return {
-        numeroItem: idx + 1,
-        codigo: it.menu_item_id?.slice(0, 8) || String(idx + 1),
+        numero_item: idx + 1,
+        codigo_produto: (it.menu_item_id?.slice(0, 20) || String(idx + 1)),
         descricao: (it.name || "Item").slice(0, 120),
-        ncm: (m as any).ncm || cfg.default_ncm || "21069090",
-        cest: (m as any).cest || cfg.default_cest || undefined,
+        codigo_ncm: (m as any).ncm || cfg.default_ncm || "21069090",
+        codigo_cest: (m as any).cest || cfg.default_cest || undefined,
         cfop: (m as any).cfop || cfg.cfop_padrao || "5102",
-        unidade: (m as any).unidade || cfg.default_unidade || "UN",
-        quantidade: qty,
-        valorUnitario: unitPrice,
-        valorTotal: total,
+        unidade_comercial: (m as any).unidade || cfg.default_unidade || "UN",
+        quantidade_comercial: qty,
+        valor_unitario_comercial: unitPrice,
+        valor_unitario_tributavel: unitPrice,
+        unidade_tributavel: (m as any).unidade || cfg.default_unidade || "UN",
+        quantidade_tributavel: qty,
+        valor_bruto: total,
+        codigo_barras_comercial: (m as any).codigo_ean || "SEM GTIN",
+        codigo_barras_tributavel: (m as any).codigo_ean || "SEM GTIN",
         origem: (m as any).origem ?? cfg.default_origem ?? 0,
-        codigoBarras: (m as any).codigo_ean || "SEM GTIN",
-        icms: { situacaoTributaria: (m as any).cst_csosn || cfg.default_cst_csosn || "102" },
-        pis: { situacaoTributaria: "07" },
-        cofins: { situacaoTributaria: "07" },
+        icms_situacao_tributaria: (m as any).cst_csosn || cfg.default_cst_csosn || "102",
+        pis_situacao_tributaria: "07",
+        cofins_situacao_tributaria: "07",
+        inclui_no_total: 1,
       };
     });
 
@@ -87,24 +92,20 @@ Deno.serve(async (req) => {
     const totalNota = +(totalProdutos - discount).toFixed(2);
 
     const payload = {
-      idIntegracao: order_id,
-      emitente: { cpfCnpj: (cfg.cnpj || "").replace(/\D/g, "") },
-      natureza: "VENDA AO CONSUMIDOR",
-      serie: cfg.serie_nfce || 1,
-      presencial: 1,
-      finalidade: 1,
-      consumidorFinal: 1,
-      itens: nfItems,
-      totais: {
-        valorProdutos: +totalProdutos.toFixed(2),
-        valorDesconto: discount,
-        valorTotal: totalNota,
-      },
-      pagamentos: [{
-        formaPagamento: mapPay(order.payment_method),
-        valor: totalNota,
+      natureza_operacao: "VENDA AO CONSUMIDOR",
+      data_emissao: new Date().toISOString(),
+      tipo_documento: 1,
+      presenca_comprador: 1,
+      finalidade_emissao: 1,
+      consumidor_final: 1,
+      cnpj_emitente: (cfg.cnpj || "").replace(/\D/g, ""),
+      items: nfItems,
+      formas_pagamento: [{
+        forma_pagamento: mapPay(order.payment_method),
+        valor_pagamento: totalNota,
       }],
-      informacaoAdicional: { informacaoComplementar: `Pedido #${order.order_number || order.id.slice(0, 8)}` },
+      valor_desconto: discount || undefined,
+      informacoes_adicionais_contribuinte: `Pedido #${order.order_number || order.id.slice(0, 8)}`,
     };
 
     // Upsert as processing
@@ -125,9 +126,14 @@ Deno.serve(async (req) => {
       }).eq("id", invoiceId);
     }
 
-    const res = await fetch(`${PLUGNOTAS_BASE}/nfce`, {
+    // Focus NFe: POST /v2/nfce?ref=<idempotency-key>
+    // homologacao -> homologacao.focusnfe.com.br, producao -> api.focusnfe.com.br
+    const host = cfg.environment === "producao" ? "https://api.focusnfe.com.br" : "https://homologacao.focusnfe.com.br";
+    const ref = `order_${order_id}`;
+    const auth = "Basic " + btoa(`${token}:`);
+    const res = await fetch(`${host}/v2/nfce?ref=${encodeURIComponent(ref)}`, {
       method: "POST",
-      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      headers: { "Authorization": auth, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
@@ -141,11 +147,11 @@ Deno.serve(async (req) => {
       return json({ error: "plugnotas_error", status: res.status, detail: data }, 400);
     }
 
-    const pnId = data?.protocolo || data?.id || data?.data?.id;
-    await supabase.from("fiscal_invoices").update({ plugnotas_id: pnId }).eq("id", invoiceId!);
+    // Focus returns { status: "processando_autorizacao", ref, ... }
+    await supabase.from("fiscal_invoices").update({ plugnotas_id: ref }).eq("id", invoiceId!);
     await supabase.from("orders").update({ fiscal_status: "processing", fiscal_invoice_id: invoiceId }).eq("id", order_id);
 
-    return json({ ok: true, invoice_id: invoiceId, plugnotas_id: pnId });
+    return json({ ok: true, invoice_id: invoiceId, ref, upstream: data });
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);
   }
