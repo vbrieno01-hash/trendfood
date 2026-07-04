@@ -407,7 +407,7 @@ export default function TableOrderPage() {
               Mesa <strong>{tableNum}</strong> — R$ {orderTotal.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-sm font-medium text-foreground">Como deseja pagar?</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 max-[380px]:gap-2">
               <button
                 onClick={() => handleSelectPayment("pix")}
                 className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-card hover:border-green-400 hover:bg-green-50 transition-all"
