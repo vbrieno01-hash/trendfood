@@ -1,60 +1,51 @@
 import { openWhatsAppWithFallback } from "./whatsappRedirect";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+
+const PAID_PLANS = ["pro", "enterprise", "lifetime"];
 
 /**
- * Tenta enviar mensagem via bot (uazapi) automaticamente. Se não der (bot desligado,
- * sem instância, ou erro), abre wa.me como fallback.
+ * Retorna true se a loja tem o robô automático ativo:
+ * plano pago (pro/enterprise/lifetime) E uma instância whatsapp conectada.
+ * Quando true, o servidor (outbox) cuida do envio — não abrimos wa.me.
+ * Fail-open: em qualquer erro, retorna false para não deixar cliente sem aviso.
  */
-async function sendOrFallback(
+export async function hasActiveWhatsAppBot(organizationId: string): Promise<boolean> {
+  try {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("subscription_plan")
+      .eq("id", organizationId)
+      .maybeSingle();
+    const plan = ((org as any)?.subscription_plan ?? "free") as string;
+    if (!PAID_PLANS.includes(plan)) return false;
+
+    const { data: inst } = await supabase
+      .from("whatsapp_instances")
+      .select("status")
+      .eq("organization_id", organizationId)
+      .in("status", ["connected", "open"])
+      .maybeSingle();
+    return !!inst;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Abre wa.me manual APENAS quando não há robô ativo. Se o robô está ativo,
+ * o outbox no servidor já disparou — não faz nada aqui pra evitar mensagem duplicada.
+ */
+async function openManualIfNoBot(
   phone: string,
   message: string,
   organizationId?: string | null,
 ) {
+  if (organizationId) {
+    const botActive = await hasActiveWhatsAppBot(organizationId);
+    if (botActive) return;
+  }
   const fullPhone = phone.startsWith("55") ? phone : `55${phone}`;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-
-  // Descobre se o robô está liberado pra loja — se estiver, NUNCA cai no wa.me manual.
-  let botAllowed = false;
-  if (organizationId) {
-    try {
-      const { data: org } = await supabase
-        .from("organizations")
-        .select("whatsapp_bot_allowed")
-        .eq("id", organizationId)
-        .maybeSingle();
-      botAllowed = !!(org as any)?.whatsapp_bot_allowed;
-    } catch { /* ignora */ }
-
-    try {
-      const { data } = await supabase.functions.invoke("whatsapp-send-auto", {
-        body: { organization_id: organizationId, phone, message },
-      });
-      if (data?.sent) return;
-      if (botAllowed) {
-        console.warn("[whatsappNotify] envio automático falhou", data?.reason);
-        toast.error("Falha no envio automático do WhatsApp", {
-          description:
-            data?.reason === "token_invalid"
-              ? "Sessão do WhatsApp expirou. Vá em Robô → Reconectar."
-              : data?.reason === "no_instance"
-                ? "Nenhuma instância conectada. Vá em Robô → Conectar."
-                : "Verifique a conexão do robô na aba Robô.",
-          duration: 8000,
-        });
-        return; // não abre wa.me pra não regredir pro manual
-      }
-    } catch (e) {
-      console.warn("[whatsappNotify] auto send error", e);
-      if (botAllowed) {
-        toast.error("Falha no envio automático do WhatsApp", {
-          description: "Verifique a conexão do robô na aba Robô.",
-          duration: 8000,
-        });
-        return;
-      }
-    }
-  }
   openWhatsAppWithFallback(url);
 }
 
@@ -90,9 +81,9 @@ export function parseScheduledTimeFromNotes(notes: string | null): string | null
 }
 
 /**
- * @deprecated Envio duplicado com o outbox. Não chamar mais — as mensagens
- * de "aceito"/"pronto" saem via trigger do banco → whatsapp_outbox.
- * Mantido só pra compat de import; será removido em uma limpeza futura.
+ * Notifica o cliente que o pedido foi aceito e está sendo preparado.
+ * Só dispara wa.me se a loja NÃO tem robô automático — quando tem, o outbox no
+ * servidor cuida (e abrir wa.me aqui geraria mensagem duplicada).
  */
 export function notifyCustomerWhatsApp(
   phone: string,
@@ -124,12 +115,12 @@ export function notifyCustomerWhatsApp(
     loyaltyLine +
     (storeName ? `\n\n— ${storeName}` : "");
 
-  void sendOrFallback(phone, msg, organizationId);
+  void openManualIfNoBot(phone, msg, organizationId);
 }
 
 /**
- * @deprecated Envio duplicado com o outbox. Não chamar mais — as mensagens
- * de "aceito"/"pronto" saem via trigger do banco → whatsapp_outbox.
+ * Notifica o cliente que o pedido está pronto (ou saiu para entrega).
+ * Mesma regra: só cai no wa.me manual quando a loja não tem robô ativo.
  */
 export function notifyCustomerReady(
   phone: string,
@@ -152,5 +143,5 @@ export function notifyCustomerReady(
       reviewLine +
       (storeName ? `\n\n— ${storeName}` : "");
 
-  void sendOrFallback(phone, msg, organizationId);
+  void openManualIfNoBot(phone, msg, organizationId);
 }
