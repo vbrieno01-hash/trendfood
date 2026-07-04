@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
 
     let deleted = 0;
     const errors: string[] = [];
+    const orgsToDisable = new Set<string>();
 
     for (const inst of instances as any[]) {
       // Deleta no UazAPI (libera o slot). Sem adminToken, pula essa etapa
@@ -96,7 +97,18 @@ Deno.serve(async (req) => {
         errors.push(`db delete failed for ${inst.id}: ${delErr.message}`);
       } else {
         deleted++;
+        orgsToDisable.add(inst.organization_id);
       }
+    }
+
+    // Desliga a chavinha do admin (whatsapp_bot_allowed) só nas orgs
+    // que efetivamente tiveram instância purgada.
+    if (orgsToDisable.size > 0) {
+      const { error: updErr } = await supabase
+        .from("organizations")
+        .update({ whatsapp_bot_allowed: false })
+        .in("id", Array.from(orgsToDisable));
+      if (updErr) errors.push(`disable bot flag failed: ${updErr.message}`);
     }
 
     console.log(`[whatsapp-cleanup-expired] deleted=${deleted} errors=${errors.length}`);
