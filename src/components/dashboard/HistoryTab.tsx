@@ -419,6 +419,16 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                     📝 {order.notes}
                   </p>
                 )}
+                {fiscalEnabled && (
+                  <div className="pt-1">
+                    <OrderFiscalActions
+                      orgId={orgId}
+                      orderId={order.id}
+                      invoice={invoicesByOrder.get(order.id) ?? null}
+                      compact
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
