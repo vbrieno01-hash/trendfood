@@ -39,9 +39,24 @@ export default function OrderFiscalActions({
     setBusy("emit");
     try {
       const { data, error } = await supabase.functions.invoke("fiscal-emit-nfce", { body: { order_id: orderId } });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const status = (error as any)?.status ?? (error as any)?.context?.status;
+        console.error("[fiscal-emit] invoke error", {
+          name: (error as any)?.name,
+          message: (error as any)?.message,
+          status,
+          context: (error as any)?.context,
+          data,
+        });
+        const hint =
+          status === 404 ? "Função não encontrada (verifique deploy)"
+          : status === 401 ? "Não autorizado (sessão expirada?)"
+          : status === 504 ? "Gateway timeout ao contatar a função"
+          : (error as any)?.message || "Falha ao invocar função";
+        throw new Error(hint);
+      }
       if (!(data as any)?.ok) {
-        if ((data as any)?.detail) console.warn("[fiscal-emit] detail", (data as any).detail);
+        console.warn("[fiscal-emit] business error", data);
         throw new Error((data as any)?.message || (data as any)?.error || "Falha ao emitir");
       }
       toast.success("Emissão solicitada");

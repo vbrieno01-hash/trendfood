@@ -54,6 +54,13 @@ async function getFocusToken(supabase: any, orgId: string, mode: string | null |
 }
 
 Deno.serve(async (req) => {
+  console.log("[fiscal-emit-nfce] Função iniciada", {
+    method: req.method,
+    url: req.url,
+    has_auth: !!req.headers.get("Authorization"),
+    has_internal: !!req.headers.get("x-fiscal-token"),
+    ts: new Date().toISOString(),
+  });
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   let step = "init";
   let order_id_ctx: string | undefined;
