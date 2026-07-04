@@ -22,6 +22,25 @@ function mapPay(m: string | null | undefined): "01" | "03" | "04" | "17" | "99" 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    // Auth: aceita (a) token interno do auto-trigger  OU  (b) JWT do dono da loja
+    const internal = Deno.env.get("FISCAL_INTERNAL_TOKEN");
+    const gotToken = req.headers.get("x-fiscal-token");
+    const authHeader = req.headers.get("Authorization");
+    const viaInternal = !!(internal && gotToken && gotToken === internal);
+
+    let userId: string | null = null;
+    if (!viaInternal) {
+      if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+      const anonClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: u } = await anonClient.auth.getUser();
+      if (!u?.user) return json({ error: "Unauthorized" }, 401);
+      userId = u.user.id;
+    }
+
     const token = Deno.env.get("FOCUS_NFE_TOKEN");
     if (!token) return json({ error: "FOCUS_NFE_TOKEN not configured" }, 500);
 
@@ -33,6 +52,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { order_id } = body || {};
     if (!order_id) return json({ error: "order_id required" }, 400);
+    if (typeof order_id !== "string" || order_id.length > 64) return json({ error: "invalid order_id" }, 400);
 
     // Idempotency
     const { data: existing } = await supabase.from("fiscal_invoices").select("*").eq("order_id", order_id).maybeSingle();
@@ -43,12 +63,28 @@ Deno.serve(async (req) => {
     const { data: order, error: oErr } = await supabase.from("orders").select("*").eq("id", order_id).maybeSingle();
     if (oErr || !order) return json({ error: "order not found" }, 404);
 
+    // Se veio de usuário, exige que ele seja dono da org do pedido
+    if (userId) {
+      const { data: org } = await supabase.from("organizations").select("user_id").eq("id", order.organization_id).maybeSingle();
+      if (!org || org.user_id !== userId) return json({ error: "Forbidden" }, 403);
+    }
+
     const { data: items } = await supabase.from("order_items").select("*").eq("order_id", order_id);
     if (!items?.length) return json({ error: "order has no items" }, 400);
 
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", order.organization_id).maybeSingle();
     if (!cfg || !cfg.enabled) return json({ error: "fiscal not enabled" }, 400);
     if (!cfg.cnpj) return json({ error: "CNPJ da empresa não configurado" }, 400);
+
+    // Rate limit: máx 100 emissões/hora/org
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await supabase.from("fiscal_invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", order.organization_id)
+      .gte("created_at", oneHourAgo);
+    if ((recentCount || 0) >= 100) {
+      return json({ error: "rate_limit: máximo 100 emissões/hora por loja" }, 429);
+    }
 
     // Fetch menu_items for fiscal fields
     const menuIds = items.map((i: any) => i.menu_item_id).filter(Boolean);
