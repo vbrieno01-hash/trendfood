@@ -1498,6 +1498,11 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
                 </div>
               )}
 
+              {/* Fiscal (NFC-e) section — only for saved items */}
+              {(editItem?.id || editItemId) && (
+                <MenuItemFiscalSection orgId={organization.id} itemId={(editItem?.id || editItemId)!} />
+              )}
+
               {/* Addons section */}
               {canAccessAddons ? (
                 (editItem || editItemId) ? (
