@@ -748,140 +748,153 @@ Seja util, humano, rapido e nao enrole.`;
       );
     }
 
-    // 4) Cascata IA free: Groq → Cerebras (fallback automático se um zerar/falhar)
-    const aiT0 = Date.now();
-    let aiData = await callAICascade(messages, 200, supabase);
-    console.log(`[ai-bot] ai-call total ${Date.now() - aiT0}ms`);
-    if (aiData.status === "rate_limit") {
-      console.log(`[ai-bot] finalized reason=ai_rate_limit`);
-      recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_rate_limit", latency_ms: Date.now() - reqT0, phone });
-      const fb = await sendLinkFallback("ai_rate_limit");
-      if (fb) return fb;
-      return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!aiData.ok) {
-      console.error("[ai-bot-respond] all providers failed:", aiData.error);
-      console.log(`[ai-bot] finalized reason=ai_unavailable detail=${aiData.error}`);
-      recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_unavailable", latency_ms: Date.now() - reqT0, phone });
-      const fb = await sendLinkFallback("ai_unavailable");
-      if (fb) return fb;
-      return new Response(
-        JSON.stringify({ error: "ai_unavailable", fallback: true, detail: aiData.error }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-    console.log(`[ai-bot-respond] provider=${aiData.provider}`);
-    let reply =
-      aiData.content || "Desculpa, tive um problema aqui. Pode repetir?";
+    // 4) Roteador por palavra-chave (SEM IA). Se casar em algum bucket, responde
+    //    com dado real da loja. Se não casar, cai no pool de 50 mensagens prontas.
+    const url = orgSlug ? `https://trendfood.site/${orgSlug}` : null;
+    const m = msgLow;
 
-    // === Guard pós-geração: similaridade com últimas 3 respostas ===
-    const isDuplicateOf = (candidate: string): boolean => {
-      const cand = normalize(candidate);
-      if (!cand) return false;
-      const candTokens = new Set(cand.split(" ").filter((t) => t.length > 2));
-      const candFirst = cand.split(/[.!?\n]/)[0]?.trim() || cand;
-      for (const prev of lastBotReplies) {
-        const p = normalize(prev);
-        if (!p) continue;
-        const pFirst = p.split(/[.!?\n]/)[0]?.trim() || p;
-        if (candFirst && candFirst === pFirst) return true;
-        const pTokens = new Set(p.split(" ").filter((t) => t.length > 2));
-        if (candTokens.size === 0 || pTokens.size === 0) continue;
-        let inter = 0;
-        for (const t of candTokens) if (pTokens.has(t)) inter++;
-        const union = new Set([...candTokens, ...pTokens]).size;
-        const jaccard = union ? inter / union : 0;
-        if (jaccard >= 0.75) return true;
-      }
-      return false;
-    };
+    let routedReply: string | null = null;
+    let routedBucket: string | null = null;
 
-    let duplicate = false;
-    let retried = false;
-    let suppressed = false;
-    // Só re-chama o LLM se a resposta for longa o bastante pra valer a pena;
-    // saudações curtas ("opa tudo bem?") baterem em duplicate é esperado e o
-    // retry só adiciona ~1-2s de latência sem ganho real.
-    if (reply.length >= 40 && isDuplicateOf(reply)) {
-      duplicate = true;
-      retried = true;
-      const retryMessages = [
-        ...messages,
-        { role: "assistant", content: reply },
-        {
-          role: "system",
-          content:
-            "A resposta anterior ficou muito parecida com algo que voce ja mandou. Reformule com OUTRO angulo, outra pergunta, e NAO repita saudacao. Seja curto.",
-        },
-      ];
-      const retryData = await callAICascade(retryMessages, 200, supabase);
-      if (retryData.ok && retryData.content) {
-        reply = retryData.content;
-        if (isDuplicateOf(reply)) suppressed = true;
+    if (/\b(cardapio|menu|link|catalogo|quero\s+pedir|fazer\s+pedido|pedir|bora\s+pedir)\b/.test(m)) {
+      routedBucket = "menu";
+      routedReply = url ? `Aqui está o link do nosso cardápio: ${url}` : null;
+    } else if (/\b(horario|aberto|fechado|que\s+horas?|funciona|abre|fecha|funcionamento)\b/.test(m)) {
+      routedBucket = "hours";
+      const hours = orgData?.business_hours;
+      if (hours && typeof hours === "object") {
+        const days: Array<[string, string]> = [
+          ["monday", "Segunda"], ["tuesday", "Terça"], ["wednesday", "Quarta"],
+          ["thursday", "Quinta"], ["friday", "Sexta"], ["saturday", "Sábado"], ["sunday", "Domingo"],
+          ["segunda", "Segunda"], ["terca", "Terça"], ["quarta", "Quarta"],
+          ["quinta", "Quinta"], ["sexta", "Sexta"], ["sabado", "Sábado"], ["domingo", "Domingo"],
+        ];
+        const seen = new Set<string>();
+        const lines: string[] = [];
+        for (const [k, label] of days) {
+          const h = (hours as any)[k];
+          if (!h || seen.has(label)) continue;
+          seen.add(label);
+          if (h.closed) lines.push(`${label}: fechado`);
+          else if (h.open && h.close) lines.push(`${label}: ${h.open} - ${h.close}`);
+        }
+        routedReply = lines.length
+          ? `🕐 Nossos horários:\n${lines.join("\n")}${url ? `\n\nCardápio: ${url}` : ""}`
+          : (url ? `Confira nosso horário no cardápio: ${url}` : null);
       } else {
-        suppressed = true;
+        routedReply = url ? `Confira nosso horário no cardápio: ${url}` : null;
       }
-    }
-    console.log(`[ai-bot] anti-repeat org=${effectiveOrgId ?? "null"} duplicate=${duplicate} retried=${retried} suppressed=${suppressed}`);
-    if (suppressed) {
-      console.log(`[ai-bot] finalized reason=duplicate_reply_suppressed`);
-      recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "duplicate_reply_suppressed", latency_ms: Date.now() - reqT0, phone, reply });
-      return new Response(
-        JSON.stringify({ ok: true, skipped: true, reason: "duplicate_reply_suppressed" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    } else if (/\b(entrega|entregam|taxa|frete|bairro|bairros|delivery)\b/.test(m)) {
+      routedBucket = "delivery";
+      if (hoodsData.length) {
+        const lines = hoodsData.slice(0, 25).map((h) => `• ${h.name}: R$ ${Number(h.fee).toFixed(2)}`);
+        routedReply = `🛵 Bairros que entregamos:\n${lines.join("\n")}${url ? `\n\nMonta seu pedido: ${url}` : ""}`;
+      } else {
+        routedReply = url ? `A taxa aparece na hora de finalizar: ${url}` : null;
+      }
+    } else if (/\b(pix|pagamento|pagar|forma\s+de\s+pagamento|cartao|credito|debito|dinheiro|troco)\b/.test(m)) {
+      routedBucket = "payment";
+      routedReply = `💳 Aceitamos Pix, cartão (crédito/débito) e dinheiro na entrega.${url ? `\n\nMonta seu pedido: ${url}` : ""}`;
+    } else if (/\b(endereco|onde\s+fica|onde\s+voces?\s+ficam|localizacao|local\s+da\s+loja)\b/.test(m)) {
+      routedBucket = "address";
+      if (orgData?.store_address) {
+        routedReply = `📍 Nosso endereço: ${orgData.store_address}${url ? `\n\nCardápio: ${url}` : ""}`;
+      } else {
+        routedReply = url ? `Nosso atendimento é pelo cardápio digital: ${url}` : null;
+      }
+    } else if (/\b(whatsapp|whats|telefone|numero|contato|zap|falar\s+com\s+a\s+loja)\b/.test(m)) {
+      routedBucket = "contact";
+      if (orgData?.whatsapp) {
+        routedReply = `📱 Nosso contato: ${orgData.whatsapp}${url ? `\n\nOu peça direto: ${url}` : ""}`;
+      } else {
+        routedReply = url ? `Você já está no nosso canal. Cardápio: ${url}` : null;
+      }
     }
 
-    // === Anti-spam de link do cardápio ===
-    // 1) Só permite link se o cliente pediu explicitamente NESTA mensagem.
-    // 2) Se já mandamos o link nas últimas 3 respostas, não repete.
-    const askedForMenu = /\b(cardap|menu|link|pedir|pedido|fazer\s+pedido|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(message);
-    const recentReplies = (history || []).slice(0, 3).map(h => h.ai_response || "").join("\n");
-    const linkAlreadySentRecently = /https?:\/\/[^\s]*trendfood\.site/i.test(recentReplies);
-    const replyHasLink = /https?:\/\/[^\s]*trendfood\.site/i.test(reply);
-    if (askedForMenu) {
-      // Cliente pediu link/cardápio: NUNCA cortar URL. Se a IA esqueceu de
-      // mandar, a gente completa com o link determinístico.
-      if (!replyHasLink && orgSlug) {
-        const url = `https://trendfood.site/unidade/${orgSlug}`;
-        reply = reply.trim()
-          ? `${reply.trim()}\n${url}`
-          : `Aqui está o link do nosso cardápio: ${url}`;
-      }
-    } else {
-      // Cliente NÃO pediu link: remove URL para não spammar.
-      reply = reply
-        .replace(/https?:\/\/(?:www\.)?trendfood\.site\/\S*/gi, "")
-        .replace(/[ \t]{2,}/g, " ")
-        .replace(/\s*\n\s*\n\s*/g, "\n\n")
-        .replace(/^[\s•\-–—:]+$/gm, "")
-        .trim();
-      if (!reply) {
-        reply = "Tô por aqui! Me diz o que você quer que eu te ajudo.";
-      }
-    }
-    console.log(`[ai-bot] llm-reply len=${reply.length} askedMenu=${askedForMenu} linkRecent=${linkAlreadySentRecently} hasLink=${replyHasLink}`);
+    // Pool de 50 mensagens prontas (usado quando nenhum bucket casa)
+    const menuUrl = url ?? "";
+    const pool: string[] = [
+      `Olá! 😊 Aqui está o nosso cardápio:\n${menuUrl}`,
+      `Oi, tudo bem? 👋 Dá uma olhada no cardápio:\n${menuUrl}`,
+      `Fala! 🙌 Segue o link do cardápio digital:\n${menuUrl}`,
+      `Opa! 😄 Bora pedir? Nosso cardápio tá aqui:\n${menuUrl}`,
+      `Bem-vindo(a)! 🍔 Escolhe o que quiser no cardápio:\n${menuUrl}`,
+      `E aí! 😉 Cardápio completo:\n${menuUrl}`,
+      `Oi! Aqui você monta seu pedido rapidinho:\n${menuUrl}`,
+      `Tudo certo? 🙂 Nosso cardápio digital:\n${menuUrl}`,
+      `Salve! 🤙 Cardápio aqui ó:\n${menuUrl}`,
+      `Oi! ✨ Vem escolher pelo cardápio:\n${menuUrl}`,
+      `Olá 👋 é só clicar e pedir por aqui:\n${menuUrl}`,
+      `Fala meu amigo! 😃 Cardápio na mão:\n${menuUrl}`,
+      `Oiê! 💜 Bora fazer seu pedido? ${menuUrl}`,
+      `Boa! 👌 Segue o cardápio digital:\n${menuUrl}`,
+      `Prazer! 😊 Olha só o cardápio:\n${menuUrl}`,
+      `Opa, bem-vindo(a)! Monta seu pedido aqui:\n${menuUrl}`,
+      `Oi! 🍟 Confere as opções e finaliza por aqui:\n${menuUrl}`,
+      `Fala fera! 🔥 Cardápio digital:\n${menuUrl}`,
+      `Olá! Já tá com fome? 😋 Cardápio aqui:\n${menuUrl}`,
+      `Oi! 🥤 Nosso menu completo:\n${menuUrl}`,
+      `E aí, tudo joia? 😎 Cardápio pra você:\n${menuUrl}`,
+      `Oi 💫 escolhe o que quiser por aqui:\n${menuUrl}`,
+      `Olá! 🍕 Vem ver as opções:\n${menuUrl}`,
+      `Bom te ver por aqui! Cardápio:\n${menuUrl}`,
+      `Oi! Vamo pedir? 🚀 ${menuUrl}`,
+      `Salve! 🙏 Nosso cardápio digital:\n${menuUrl}`,
+      `Fala! Aqui você monta e finaliza:\n${menuUrl}`,
+      `Bem-vindo(a)! ✅ Cardápio completo:\n${menuUrl}`,
+      `Olá! 🌟 Escolhe pelo cardápio:\n${menuUrl}`,
+      `Oi, seja bem-vindo(a)! 💚 ${menuUrl}`,
+      `Opa! Cardápio na palma da mão:\n${menuUrl}`,
+      `Fala! 🍔 Faz seu pedido por aqui:\n${menuUrl}`,
+      `Oi! Aproveita e monta seu pedido:\n${menuUrl}`,
+      `Olá 👋 se joga no cardápio:\n${menuUrl}`,
+      `E aí! Tô com fome já 😅 Cardápio:\n${menuUrl}`,
+      `Oi! 🎯 Direto ao ponto — cardápio aqui: ${menuUrl}`,
+      `Fala! Escolhe o que tá com vontade:\n${menuUrl}`,
+      `Olá! Prazer te atender 😊 Cardápio:\n${menuUrl}`,
+      `Oi! 🛒 Adiciona no carrinho por aqui:\n${menuUrl}`,
+      `Opa! Segue o link pra pedir:\n${menuUrl}`,
+      `Fala fera 🤝 cardápio digital:\n${menuUrl}`,
+      `Oi! 🍽️ Bora escolher? ${menuUrl}`,
+      `Olá! Nossa carta de sabores tá aqui:\n${menuUrl}`,
+      `E aí! Vem experimentar 😋 ${menuUrl}`,
+      `Fala! Cardápio pra pedir agora:\n${menuUrl}`,
+      `Oi! Se joga nas opções:\n${menuUrl}`,
+      `Olá 🌈 monta seu pedido aqui:\n${menuUrl}`,
+      `Boa! Confere o cardápio e finaliza:\n${menuUrl}`,
+      `Oi! 💥 Cardápio completo, taxas certinho:\n${menuUrl}`,
+      `Fala! Rapidinho por aqui:\n${menuUrl}`,
+    ];
 
-    // 5) Enviar resposta de volta via uazapiGO
+    let finalReply = routedReply;
+    let provider = routedBucket ? `keyword:${routedBucket}` : "";
+
+    if (!finalReply) {
+      if (!menuUrl) {
+        console.log(`[ai-bot] finalized reason=no_org_slug`);
+        return new Response(JSON.stringify({ ok: true, skipped: true, reason: "no_org_slug" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const lastIdx = lastFallbackIdxByPhone.get(phone) ?? -1;
+      let idx = Math.floor(Math.random() * pool.length);
+      if (pool.length > 1 && idx === lastIdx) idx = (idx + 1) % pool.length;
+      lastFallbackIdxByPhone.set(phone, idx);
+      finalReply = pool[idx];
+      provider = "link-fallback:no_match";
+    }
+
+    // Enviar via uazapi
     let sent = false;
     let sendError: string | null = null;
     if (effectiveServerUrl && effectiveToken) {
       try {
         const sendT0 = Date.now();
-        const sendRes = await fetch(
-          `${effectiveServerUrl}/send/text`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              token: effectiveToken,
-            },
-            body: JSON.stringify({ number: phone, text: reply }),
-          },
-        );
+        const sendRes = await fetch(`${effectiveServerUrl}/send/text`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", token: effectiveToken },
+          body: JSON.stringify({ number: phone, text: finalReply }),
+        });
         sent = sendRes.ok;
         console.log(`[ai-bot] wa-send ${sendRes.status} in ${Date.now() - sendT0}ms`);
         if (!sendRes.ok) {
@@ -894,26 +907,26 @@ Seja util, humano, rapido e nao enrole.`;
       }
     }
 
-    // 6) Salvar
+    // Persistir na fila e registrar métrica
     await supabase.from("fila_whatsapp").insert({
       phone,
       incoming_message: message,
-      ai_response: reply,
+      ai_response: finalReply,
       status: "respondido",
       responded_at: new Date().toISOString(),
       organization_id: effectiveOrgId,
     });
 
-    console.log(`[ai-bot] finalized reason=${sent ? "sent" : "wa_send_failed"} err=${sendError ?? ""}`);
+    console.log(`[ai-bot] finalized reason=${sent ? "sent" : "wa_send_failed"} provider=${provider} err=${sendError ?? ""}`);
     recordBotMetric(supabase, {
       organization_id: effectiveOrgId,
-      provider: aiData.provider,
+      provider,
       status: sent ? "sent" : "wa_send_failed",
       latency_ms: Date.now() - reqT0,
       phone,
-      reply,
+      reply: finalReply,
     });
-    return new Response(JSON.stringify({ ok: true, response: reply, sent, sendError }), {
+    return new Response(JSON.stringify({ ok: true, response: finalReply, sent, sendError, provider }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
