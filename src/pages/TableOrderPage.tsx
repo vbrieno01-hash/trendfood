@@ -647,7 +647,7 @@ export default function TableOrderPage() {
     return (
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
+        <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4 max-[380px]:py-2">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate(-1)}
@@ -723,7 +723,7 @@ export default function TableOrderPage() {
   return (
     <div className="min-h-screen bg-background pb-40">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4">
+      <div className="sticky top-0 z-30 bg-card border-b border-border px-4 py-4 max-[380px]:py-2">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
@@ -744,7 +744,7 @@ export default function TableOrderPage() {
       </div>
 
       {/* Person selector chips */}
-      <div className="sticky top-[73px] z-20 bg-background border-b border-border">
+      <div className="sticky top-[73px] max-[380px]:top-[57px] z-20 bg-background border-b border-border">
         <div className="max-w-lg mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
           {peopleNames.map((name, index) => {
             const personItemCount = cartItems
