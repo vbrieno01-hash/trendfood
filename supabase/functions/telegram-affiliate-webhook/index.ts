@@ -270,6 +270,89 @@ Deno.serve(async (req) => {
         .eq("telegram_chat_id", String(chatId))
         .maybeSingle();
 
+      // ── Admin commands (admin_telegram_recipients) ──
+      const { data: adminRec } = await (supabase
+        .from("admin_telegram_recipients") as any)
+        .select("id, name, active")
+        .eq("chat_id", String(chatId))
+        .eq("active", true)
+        .maybeSingle();
+
+      const isAdminCmd = text === "/admin" || text === "/admin_ajuda" || text === "/admin_status" || text === "/admin_signups" || text === "/admin_mrr";
+      if (adminRec && isAdminCmd) {
+        await audit(supabase, { chat_id: String(chatId), command: text, update_type: "message" });
+
+        if (text === "/admin" || text === "/admin_ajuda") {
+          const body = `🛡️ <b>Painel Admin</b>\n\n` +
+            `• /admin_status — lojas, planos, ticket m\u00e9dio\n` +
+            `• /admin_signups — novos cadastros hoje\n` +
+            `• /admin_mrr — receita recorrente mensal`;
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        const nowBRT2 = new Date(Date.now() - 3 * 3600_000);
+        const yy = nowBRT2.getUTCFullYear();
+        const mm = String(nowBRT2.getUTCMonth() + 1).padStart(2, "0");
+        const dd = String(nowBRT2.getUTCDate()).padStart(2, "0");
+        const dStart = `${yy}-${mm}-${dd}T00:00:00-03:00`;
+        const dEnd = `${yy}-${mm}-${dd}T23:59:59-03:00`;
+
+        if (text === "/admin_status") {
+          const { data: all } = await (supabase.from("organizations") as any)
+            .select("subscription_plan, subscription_status, trial_ends_at");
+          const total = all?.length || 0;
+          const pro = (all || []).filter((o: any) => o.subscription_plan === "pro").length;
+          const ent = (all || []).filter((o: any) => o.subscription_plan === "enterprise").length;
+          const free = (all || []).filter((o: any) => o.subscription_plan === "free").length;
+          const trial = (all || []).filter((o: any) => o.trial_ends_at && new Date(o.trial_ends_at) > new Date()).length;
+          const body = `📊 <b>Plataforma</b>\n\n` +
+            `🏪 Lojas: <b>${total}</b>\n` +
+            `💎 Pro: ${pro} · Enterprise: ${ent} · Free: ${free}\n` +
+            `⏳ Em trial: ${trial}`;
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        if (text === "/admin_signups") {
+          const { data: signups } = await (supabase.from("organizations") as any)
+            .select("name, subscription_plan, created_at")
+            .gte("created_at", dStart).lte("created_at", dEnd)
+            .order("created_at", { ascending: false });
+          if (!signups?.length) {
+            await tg("sendMessage", { chat_id: chatId, text: "📭 Nenhum cadastro hoje." });
+            return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          let body = `🆕 <b>Cadastros de hoje (${signups.length})</b>\n\n`;
+          for (const s of signups as any[]) {
+            body += `• ${s.name} · <i>${s.subscription_plan}</i>\n`;
+          }
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        if (text === "/admin_mrr") {
+          const { data: plans } = await (supabase.from("platform_plans") as any)
+            .select("key, price_cents");
+          const priceMap = new Map((plans || []).map((p: any) => [p.key, p.price_cents]));
+          const { data: all } = await (supabase.from("organizations") as any)
+            .select("subscription_plan, subscription_status");
+          let mrr = 0;
+          let paying = 0;
+          for (const o of (all || []) as any[]) {
+            if (o.subscription_status === "active" && o.subscription_plan !== "free") {
+              mrr += Number(priceMap.get(o.subscription_plan) || 0);
+              paying++;
+            }
+          }
+          const body = `💰 <b>MRR estimado</b>\n\n` +
+            `Assinantes pagantes: <b>${paying}</b>\n` +
+            `Receita mensal: <b>${fmtBRL(mrr)}</b>`;
+          await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+          return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+
       if (ownerOrg && (text === "/start" || text === "/help" || text === "/ajuda" || text === "/status" || text === "/vendas" || text === "/pedidos")) {
         await audit(supabase, { chat_id: String(chatId), command: text, update_type: "message", organization_id: (ownerOrg as any).id });
         const orgId = (ownerOrg as any).id as string;
