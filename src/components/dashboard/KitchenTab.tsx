@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useOrders, useUpdateOrderStatus, useCancelOrder, Order } from "@/hooks/useOrders";
 import { createDeliveryForOrder } from "@/hooks/useCreateDelivery";
-import { parsePhoneFromNotes, parseScheduledTimeFromNotes } from "@/lib/whatsappNotify";
+import {
+  parsePhoneFromNotes,
+  parseScheduledTimeFromNotes,
+  notifyCustomerWhatsApp,
+  notifyCustomerReady,
+} from "@/lib/whatsappNotify";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -178,6 +183,18 @@ export default function KitchenTab({
             }
             // Note: table_number === -1 (balcão) does NOT create delivery
             // WhatsApp: enviado via outbox (trigger do banco → process-wa-outbox)
+            // quando a loja tem robô. Sem robô (Free), abre wa.me manual pro cliente.
+            const phone = order ? parsePhoneFromNotes(order.notes ?? null) : null;
+            if (phone) {
+              notifyCustomerReady(
+                phone,
+                (order as any)?.order_number ?? "",
+                orgName,
+                order?.notes ?? null,
+                orgSlug && order ? `${window.location.origin}/avaliar/${orgSlug}/${order.id}` : undefined,
+                orgId,
+              );
+            }
           }
         },
         onSettled: () => {
@@ -202,6 +219,18 @@ export default function KitchenTab({
       {
         onSuccess: async () => {
           // WhatsApp: enviado via outbox (trigger do banco → process-wa-outbox)
+          // quando a loja tem robô. Sem robô (Free), abre wa.me manual pro cliente.
+          const phone = parsePhoneFromNotes(order.notes ?? null);
+          if (phone) {
+            notifyCustomerWhatsApp(
+              phone,
+              (order as any).order_number ?? "",
+              orgName,
+              order.notes ?? null,
+              null,
+              orgId,
+            );
+          }
           toast.success(`Pedido #${(order as any).order_number || ""} aceito e enviado para preparo!`);
         },
         onSettled: () => {
