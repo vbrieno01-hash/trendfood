@@ -35,96 +35,97 @@ Deno.serve(async (req) => {
 
   try {
     const { serverUrl, adminToken } = await getUazapiConfig(supabase);
+    const now = new Date();
 
-    // Busca instâncias cuja org: (a) tem trial/período pago vencido E
-    // (b) NÃO é lifetime. Isso cobre free-trial expirado, pro vencido e enterprise vencido.
-    const nowIso = new Date().toISOString();
-    const { data: orgs, error: orgErr } = await supabase
-      .from("organizations")
-      .select("id, subscription_plan, trial_ends_at")
-      .in("subscription_plan", ["free", "pro", "enterprise"])
-      .not("trial_ends_at", "is", null)
-      .lte("trial_ends_at", nowIso);
-
-    if (orgErr) throw orgErr;
-    if (!orgs || orgs.length === 0) {
-      return new Response(JSON.stringify({ ok: true, deleted: 0, message: "no expired orgs" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const orgIds = orgs.map((o: any) => o.id);
-
-    // Desliga a chavinha de TODAS as orgs expiradas — mesmo que já não
-    // tenham instância ativa — pra o painel admin refletir o estado real.
-    const { error: disableAllErr } = await supabase
-      .from("organizations")
-      .update({ whatsapp_bot_allowed: false })
-      .in("id", orgIds)
-      .eq("whatsapp_bot_allowed", true);
-    if (disableAllErr) {
-      console.error("[whatsapp-cleanup-expired] disable flag error:", disableAllErr.message);
-    }
-
+    // Busca instâncias ativas para verificar se devem ser removidas
+    // (a) Org com trial vencido OU (b) Chave whatsapp_bot_allowed desligada manualmente
     const { data: instances, error: instErr } = await supabase
       .from("whatsapp_instances")
-      .select("id, instance_token, organization_id")
-      .in("organization_id", orgIds);
+      .select(`
+        id, 
+        instance_token, 
+        organization_id, 
+        organizations!inner(id, subscription_plan, trial_ends_at, whatsapp_bot_allowed)
+      `);
 
     if (instErr) throw instErr;
     if (!instances || instances.length === 0) {
-      return new Response(JSON.stringify({ ok: true, deleted: 0, message: "no instances to purge" }), {
+      return new Response(JSON.stringify({ ok: true, deleted: 0, message: "no instances to check" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const toDelete: any[] = [];
+    const orgsToDisable: string[] = [];
+
+    for (const inst of (instances as any[])) {
+      const org = inst.organizations;
+      const isExpired = org.trial_ends_at && new Date(org.trial_ends_at) <= now;
+      const isManualOff = org.whatsapp_bot_allowed === false;
+
+      if (isExpired || isManualOff) {
+        toDelete.push(inst);
+        if (isExpired && org.whatsapp_bot_allowed === true) {
+          orgsToDisable.push(org.id);
+        }
+      }
+    }
+
+    if (toDelete.length === 0) {
+      return new Response(JSON.stringify({ ok: true, deleted: 0, message: "all instances are valid" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 1) Desliga a chavinha das orgs que expiraram agora
+    if (orgsToDisable.length > 0) {
+      await supabase
+        .from("organizations")
+        .update({ whatsapp_bot_allowed: false })
+        .in("id", orgsToDisable);
     }
 
     let deleted = 0;
     const errors: string[] = [];
 
-    for (const inst of instances as any[]) {
-      // Deleta no UazAPI (libera o slot). Sem adminToken, pula essa etapa
-      // mas ainda remove do banco pra não deixar registro órfão.
+    for (const inst of toDelete) {
+      // 2) Deleta no UazAPI (libera slot)
       if (adminToken && inst.instance_token) {
         try {
-          // 1) Disconnect antes (mesma sequência do fluxo manual)
+          // Logout antes (fluxo padrão)
           await fetch(`${serverUrl}/instance/disconnect`, {
             method: "POST",
             headers: { "Content-Type": "application/json", token: inst.instance_token },
             body: "{}",
-          }).then((r) => r.text()).catch(() => "");
+          }).then(r => r.text()).catch(() => "");
 
-          // 2) Delete definitivo (libera slot na UazAPI)
+          // Delete definitivo
           const res = await fetch(`${serverUrl}/instance/delete`, {
             method: "DELETE",
             headers: { admintoken: adminToken, token: inst.instance_token },
           });
-          // Consome body pra evitar leak; qualquer erro só loga
-          await res.text().catch(() => "");
+          
           if (!res.ok && res.status !== 404) {
-            // Fallback: alguns servidores UazAPI aceitam POST em vez de DELETE
-            const res2 = await fetch(`${serverUrl}/instance/delete`, {
+            // Fallback POST (algumas versões de UazAPI)
+            await fetch(`${serverUrl}/instance/delete`, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                admintoken: adminToken,
-                token: inst.instance_token,
-              },
+              headers: { "Content-Type": "application/json", admintoken: adminToken, token: inst.instance_token },
               body: "{}",
-            });
-            await res2.text().catch(() => "");
-            if (!res2.ok && res2.status !== 404) {
-              errors.push(`uazapi delete ${res.status}/${res2.status} for ${inst.organization_id}`);
-            }
+            }).then(r => r.text()).catch(() => "");
           }
         } catch (e) {
-          errors.push(`uazapi delete threw for ${inst.organization_id}: ${(e as Error).message}`);
+          console.error(`[cleanup] uazapi error for ${inst.organization_id}:`, (e as Error).message);
+          // Prosseguimos para deletar do banco mesmo com erro na API para não travar o loop,
+          // mas note que isso pode deixar instâncias órfãs se o adminToken estiver errado.
         }
       }
 
+      // 3) Remove do banco local
       const { error: delErr } = await supabase
         .from("whatsapp_instances")
         .delete()
         .eq("id", inst.id);
+        
       if (delErr) {
         errors.push(`db delete failed for ${inst.id}: ${delErr.message}`);
       } else {
@@ -132,7 +133,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[whatsapp-cleanup-expired] deleted=${deleted} errors=${errors.length}`);
+    console.log(`[whatsapp-cleanup-expired] processed=${toDelete.length} deleted=${deleted} errors=${errors.length}`);
     return new Response(JSON.stringify({ ok: true, deleted, errors }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
