@@ -61,6 +61,7 @@ const IFoodTab = lazy(() => import("@/components/dashboard/IFoodTab"));
 const TelegramTab = lazy(() => import("@/components/dashboard/TelegramTab"));
 const AIBotTab = lazy(() => import("@/components/dashboard/AIBotTab"));
 const CounterTab = lazy(() => import("@/components/dashboard/CounterTab"));
+const FiscalTab = lazy(() => import("@/components/dashboard/FiscalTab"));
 import DashboardTour from "@/components/dashboard/DashboardTour";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
