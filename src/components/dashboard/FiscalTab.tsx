@@ -238,7 +238,27 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       const { data, error } = await supabase.functions.invoke("fiscal-focus-setup", {
         body: { organization_id: orgId },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const status = (error as any)?.status ?? (error as any)?.context?.status;
+        console.error("[fiscal-focus-setup] gateway/invoke error", {
+          name: (error as any)?.name,
+          message: (error as any)?.message,
+          status,
+          context: (error as any)?.context,
+          data,
+        });
+        let hint = (error as any)?.message || "Falha ao sincronizar com Focus NFe";
+        if (status === 404) hint = "Função não encontrada (deploy desatualizado?)";
+        else if (status === 401) hint = "Não autorizado — faça login novamente";
+        else if (status === 504) hint = "Gateway timeout ao contatar Focus NFe";
+        throw new Error(hint);
+      }
+      if ((data as any)?.ok === false) {
+        console.error("[fiscal-focus-setup] erro de negócio", data);
+        const detail = (data as any)?.detail;
+        const msg = (data as any)?.message || (data as any)?.code || "Erro ao sincronizar";
+        throw new Error(detail && typeof detail === "object" ? `${msg}: ${JSON.stringify(detail)}` : msg);
+      }
       if ((data as any)?.error) throw new Error(JSON.stringify((data as any).detail || (data as any).error));
       toast.success("Empresa sincronizada com Focus NFe");
       onSaved();
