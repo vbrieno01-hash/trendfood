@@ -374,6 +374,8 @@ Deno.serve(async (req) => {
     // 2) Carregar contexto da loja (multi-tenant ou test)
     let storeContext = "";
     let orgSlug: string | null = null;
+    let orgData: any = null;
+    let hoodsData: Array<{ name: string; fee: number }> = [];
     if (effectiveOrgId) {
       const [{ data: org }, { data: menu }, { data: hoods }] = await Promise.all([
         supabase
@@ -397,6 +399,7 @@ Deno.serve(async (req) => {
 
       if (org) {
         orgSlug = org.slug ?? null;
+        orgData = org;
         storeContext += `\n\n## LOJA: ${org.name}\n`;
         if (org.description) storeContext += `${org.description}\n`;
         if (org.store_address) storeContext += `Endereço: ${org.store_address}\n`;
@@ -424,6 +427,7 @@ Deno.serve(async (req) => {
       }
 
       if (hoods && hoods.length > 0) {
+        hoodsData = hoods as any;
         storeContext += `\n## ENTREGA - BAIRROS\n`;
         for (const h of hoods) {
           storeContext += `- ${h.name}: R$ ${Number(h.fee).toFixed(2)}\n`;
