@@ -416,6 +416,19 @@ Deno.serve(async (req) => {
         await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
         return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+
+      // ── Fallback: comando não reconhecido ou chat não vinculado ──
+      if (text.startsWith("/")) {
+        await audit(supabase, { chat_id: String(chatId), command: text.slice(0, 32), update_type: "message" });
+        const body =
+          `🤖 Olá! Seu <b>chat_id</b>: <code>${chatId}</code>\n\n` +
+          `Este chat ainda não está vinculado.\n\n` +
+          `• <b>Dono de loja:</b> cole esse ID em Dashboard → Configurações → Telegram e salve.\n` +
+          `• <b>Afiliado:</b> peça pro admin cadastrar seu chat_id.\n\n` +
+          `Depois de vincular, envie /ajuda de novo.`;
+        await tg("sendMessage", { chat_id: chatId, text: body, parse_mode: "HTML" });
+        return new Response(JSON.stringify({ ok: true, unlinked: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, ignored: true }), {
