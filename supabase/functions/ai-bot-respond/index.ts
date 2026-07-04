@@ -793,16 +793,38 @@ Seja util, humano, rapido e nao enrole.`;
     // NÃO manda link, cardápio, horários — só o aviso de fechado.
     const storeStatus = isStoreOpenNow(orgData?.business_hours, orgData?.paused, orgData?.force_open);
     if (storeStatus && !storeStatus.open) {
-      // Anti-spam: se as últimas 2 respostas já avisaram "fechado", manda curta.
+      // Anti-spam: se JÁ avisamos "fechado" em qualquer resposta recente (últimas 10),
+      // NÃO responde de novo — só arquiva a mensagem recebida.
       const recentClosed = (history || [])
-        .slice(0, 2)
-        .some((h: any) => /estamos\s+fechados|no\s+momento\s+estamos\s+fechad/i.test(h?.ai_response || ""));
+        .some((h: any) => /estamos\s+fechad/i.test(h?.ai_response || ""));
+
+      if (recentClosed) {
+        await supabase.from("fila_whatsapp").insert({
+          phone,
+          incoming_message: message,
+          ai_response: null,
+          status: "ignored_closed",
+          responded_at: new Date().toISOString(),
+          organization_id: effectiveOrgId,
+        });
+        recordBotMetric(supabase, {
+          organization_id: effectiveOrgId,
+          provider: "closed:skipped",
+          status: "skipped",
+          latency_ms: Date.now() - reqT0,
+          phone,
+        });
+        console.log(`[ai-bot] closed-skip org=${effectiveOrgId ?? "null"} phone=${maskPhone(phone)}`);
+        return new Response(
+          JSON.stringify({ ok: true, mode: "closed_skipped" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       const reopenStr = storeStatus.opensAt
         ? ` Abrimos ${storeStatus.opensDayLabel ? storeStatus.opensDayLabel + " " : ""}às ${storeStatus.opensAt}.`
         : "";
-      const closedReply = recentClosed
-        ? `Ainda estamos fechados 🙏`
-        : `😴 No momento estamos fechados.${reopenStr} Pode mandar sua mensagem que respondemos assim que abrirmos!`;
+      const closedReply = `😴 No momento estamos fechados.${reopenStr} Pode mandar sua mensagem que respondemos assim que abrirmos!`;
 
       let sentClosed = false;
       let closedErr: string | null = null;
@@ -827,13 +849,13 @@ Seja util, humano, rapido e nao enrole.`;
       });
       recordBotMetric(supabase, {
         organization_id: effectiveOrgId,
-        provider: recentClosed ? "closed:repeat" : "closed",
+        provider: "closed",
         status: sentClosed ? "sent" : "wa_send_failed",
         latency_ms: Date.now() - reqT0,
         phone,
         reply: closedReply,
       });
-      console.log(`[ai-bot] store-closed org=${effectiveOrgId ?? "null"} sent=${sentClosed} repeat=${recentClosed}`);
+      console.log(`[ai-bot] store-closed org=${effectiveOrgId ?? "null"} sent=${sentClosed}`);
       return new Response(
         JSON.stringify({ ok: true, mode: "closed", sent: sentClosed, sendError: closedErr, response: closedReply }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
