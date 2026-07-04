@@ -135,29 +135,6 @@ async function callAICascade(
       url: "https://api.groq.com/openai/v1/chat/completions",
       model: "llama-3.1-8b-instant",
     },
-    // Lovable AI Gateway — cobertura extra quando Groq/Cerebras falham.
-    // A chave LOVABLE_API_KEY é provisionada automaticamente pela plataforma.
-    {
-      name: "lovable-gemini-flash",
-      key: Deno.env.get("LOVABLE_API_KEY"),
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      model: "google/gemini-3-flash-preview",
-      authStyle: "lovable",
-    },
-    {
-      name: "lovable-gemini-lite",
-      key: Deno.env.get("LOVABLE_API_KEY"),
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      model: "google/gemini-3.1-flash-lite",
-      authStyle: "lovable",
-    },
-    {
-      name: "lovable-gpt5-nano",
-      key: Deno.env.get("LOVABLE_API_KEY"),
-      url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-      model: "openai/gpt-5-nano",
-      authStyle: "lovable",
-    },
   ];
 
   let lastStatus: "rate_limit" | "error" = "error";
