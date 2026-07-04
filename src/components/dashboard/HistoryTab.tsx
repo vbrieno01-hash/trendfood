@@ -23,6 +23,8 @@ import {
 import { useOrderHistory, useDeleteOrder, useDeleteOldOrders } from "@/hooks/useOrders";
 import { extractDeliveryFee } from "@/lib/formatReceiptText";
 import { useAuth } from "@/hooks/useAuth";
+import OrderFiscalActions from "@/components/dashboard/OrderFiscalActions";
+import { useFiscalInvoices, useFiscalInvoicesRealtime, useFiscalStatus } from "@/hooks/useFiscalInvoices";
 
 interface HistoryTabProps {
   orgId: string;
@@ -75,6 +77,11 @@ const fmtDateTime = (iso: string) => {
 export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) {
   const { user, organization, isAdmin } = useAuth();
   const isOwner = !!user && !!organization && organization.user_id === user.id;
+  useFiscalInvoicesRealtime(orgId);
+  const { data: fiscalCfg } = useFiscalStatus(orgId);
+  const { data: fiscalInvoices = [] } = useFiscalInvoices(orgId, { since: (() => { const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString(); })() });
+  const invoicesByOrder = new Map(fiscalInvoices.map(i => [i.order_id, i]));
+  const fiscalEnabled = !!fiscalCfg?.enabled;
   const canDelete = isOwner || isAdmin;
 
   const periodOptions = restrictTo7Days
@@ -411,6 +418,16 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                   <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1">
                     📝 {order.notes}
                   </p>
+                )}
+                {fiscalEnabled && (
+                  <div className="pt-1">
+                    <OrderFiscalActions
+                      orgId={orgId}
+                      orderId={order.id}
+                      invoice={invoicesByOrder.get(order.id) ?? null}
+                      compact
+                    />
+                  </div>
                 )}
               </div>
             );

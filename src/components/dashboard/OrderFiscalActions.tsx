@@ -1,0 +1,121 @@
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { FileText, Loader2, ExternalLink, X, RefreshCw } from "lucide-react";
+import type { FiscalInvoice } from "@/hooks/useFiscalInvoices";
+
+function statusMeta(s?: string) {
+  switch (s) {
+    case "authorized": return { label: "NFC-e autorizada", cls: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" };
+    case "processing":
+    case "pending":    return { label: "Emitindo…",        cls: "bg-amber-500/15 text-amber-600 border-amber-500/30" };
+    case "rejected":   return { label: "Rejeitada",        cls: "bg-destructive/15 text-destructive border-destructive/30" };
+    case "cancelled":  return { label: "Cancelada",        cls: "bg-muted text-muted-foreground border-border" };
+    default:           return { label: "Sem NFC-e",        cls: "bg-muted text-muted-foreground border-border" };
+  }
+}
+
+export default function OrderFiscalActions({
+  orgId, orderId, invoice, compact = false,
+}: {
+  orgId: string;
+  orderId: string;
+  invoice?: FiscalInvoice | null;
+  compact?: boolean;
+}) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<"emit" | "cancel" | null>(null);
+  const meta = statusMeta(invoice?.status);
+
+  async function emit() {
+    setBusy("emit");
+    try {
+      const { data, error } = await supabase.functions.invoke("fiscal-emit-nfce", { body: { order_id: orderId } });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Emissão solicitada");
+      qc.invalidateQueries({ queryKey: ["fiscal_invoices", orgId] });
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao emitir NFC-e");
+    } finally { setBusy(null); }
+  }
+
+  async function cancel() {
+    setBusy("cancel");
+    try {
+      const { data, error } = await supabase.functions.invoke("fiscal-cancel-nfce", {
+        body: { order_id: orderId, reason: "Cancelamento solicitado pelo lojista" },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Cancelamento solicitado");
+      qc.invalidateQueries({ queryKey: ["fiscal_invoices", orgId] });
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao cancelar");
+    } finally { setBusy(null); }
+  }
+
+  const canCancel = invoice?.status === "authorized" && invoice.emitted_at
+    && Date.now() - new Date(invoice.emitted_at).getTime() < 30 * 60 * 1000;
+  const canEmit = !invoice || invoice.status === "rejected";
+  const isBusyStatus = invoice?.status === "pending" || invoice?.status === "processing";
+
+  return (
+    <div className={`flex items-center gap-2 flex-wrap ${compact ? "text-xs" : "text-sm"}`}>
+      <Badge variant="outline" className={`${meta.cls} gap-1 px-2 py-0.5`}>
+        {isBusyStatus && <Loader2 className="w-3 h-3 animate-spin" />}
+        <FileText className="w-3 h-3" />
+        {meta.label}
+        {invoice?.numero ? <span className="opacity-70">#{invoice.numero}</span> : null}
+      </Badge>
+      {invoice?.status === "rejected" && invoice.rejection_reason && (
+        <span className="text-xs text-destructive line-clamp-1" title={invoice.rejection_reason}>
+          {invoice.rejection_reason}
+        </span>
+      )}
+      {canEmit && (
+        <Button size="sm" variant="outline" onClick={emit} disabled={busy === "emit"}>
+          {busy === "emit" ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+          {invoice?.status === "rejected" ? "Reemitir" : "Emitir NFC-e"}
+        </Button>
+      )}
+      {invoice?.danfe_url && (
+        <Button asChild size="sm" variant="secondary">
+          <a href={invoice.danfe_url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="w-3 h-3 mr-1" /> DANFE
+          </a>
+        </Button>
+      )}
+      {canCancel && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+              <X className="w-3 h-3 mr-1" /> Cancelar NFC-e
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancelar esta NFC-e?</AlertDialogTitle>
+              <AlertDialogDescription>
+                O cancelamento só é aceito em até 30 minutos após a emissão. Essa ação é definitiva.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Voltar</AlertDialogCancel>
+              <AlertDialogAction onClick={cancel} disabled={busy === "cancel"}>
+                {busy === "cancel" ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Cancelando…</> : "Sim, cancelar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
+  );
+}

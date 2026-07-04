@@ -15,6 +15,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { FileText, ShieldCheck, ShieldAlert, Upload, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import FiscalHistoryTab from "@/components/dashboard/FiscalHistoryTab";
 
 type Props = {
   orgId: string;
@@ -82,7 +84,28 @@ export default function FiscalTab({ orgId, organization, effectivePlan, promoEli
     return <div className="space-y-3"><Skeleton className="h-8 w-64"/><Skeleton className="h-32 w-full"/><Skeleton className="h-64 w-full"/></div>;
   }
 
-  return <FiscalTabContent orgId={orgId} cfg={cfg} onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["fiscal_config", orgId] }); }} />;
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <FileText className="w-5 h-5" /> Fiscal — NFC-e
+        </h2>
+        <p className="text-sm text-muted-foreground">Configuração e histórico de notas fiscais eletrônicas (Focus NFe).</p>
+      </div>
+      <Tabs defaultValue="config" className="w-full">
+        <TabsList>
+          <TabsTrigger value="config">Configuração</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
+        </TabsList>
+        <TabsContent value="config" className="mt-4">
+          <FiscalTabContent orgId={orgId} cfg={cfg} onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["fiscal_config", orgId] }); }} />
+        </TabsContent>
+        <TabsContent value="historico" className="mt-4">
+          <FiscalHistoryTab orgId={orgId} regime={cfg?.regime_tributario ?? null} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
 function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalConfig | null; onSaved: () => void }) {
@@ -208,13 +231,6 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <FileText className="w-5 h-5" /> Fiscal — NFC-e
-        </h2>
-        <p className="text-sm text-muted-foreground">Configuração da emissão de nota fiscal eletrônica de consumidor via Focus NFe.</p>
-      </div>
-
       {/* Status card */}
       <Card>
         <CardContent className="py-4 flex flex-wrap items-center gap-3">
