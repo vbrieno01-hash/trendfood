@@ -99,6 +99,7 @@ export default function MenuItemFiscalSection({ orgId, itemId }: { orgId: string
   }
 
   return (
+    (!flags?.fiscal_enabled && !isAdmin) ? null :
     <Collapsible open={open} onOpenChange={setOpen} className="border border-border rounded-lg">
       <CollapsibleTrigger asChild>
         <button type="button" className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/40 transition-colors">
