@@ -4,7 +4,6 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-const PLUGNOTAS_BASE = "https://api.plugnotas.com.br";
 function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
@@ -33,16 +32,19 @@ Deno.serve(async (req) => {
     if (Date.now() - new Date(inv.emitted_at).getTime() > 30 * 60 * 1000)
       return json({ error: "prazo de cancelamento (30min) expirado" }, 400);
 
-    const apiKey = Deno.env.get("PLUGNOTAS_API_KEY");
-    if (!apiKey) return json({ error: "PLUGNOTAS_API_KEY not configured" }, 500);
+    const token = Deno.env.get("FOCUS_NFE_TOKEN");
+    if (!token) return json({ error: "FOCUS_NFE_TOKEN not configured" }, 500);
 
-    const res = await fetch(`${PLUGNOTAS_BASE}/nfce/${inv.plugnotas_id}/cancelamento`, {
-      method: "POST",
-      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+    const host = inv.environment === "producao" ? "https://api.focusnfe.com.br" : "https://homologacao.focusnfe.com.br";
+    const auth = "Basic " + btoa(`${token}:`);
+    // Focus stores our ref (e.g. order_<uuid>) as plugnotas_id
+    const res = await fetch(`${host}/v2/nfce/${encodeURIComponent(inv.plugnotas_id!)}`, {
+      method: "DELETE",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
       body: JSON.stringify({ justificativa: motivo }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return json({ error: "plugnotas_error", status: res.status, detail: data }, 400);
+    if (!res.ok) return json({ error: "focus_error", status: res.status, detail: data }, 400);
 
     await supabase.from("fiscal_invoices").update({
       status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: motivo,

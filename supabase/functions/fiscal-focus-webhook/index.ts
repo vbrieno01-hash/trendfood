@@ -8,29 +8,40 @@ function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
+// Focus NFe webhook payload (form or json): { ref, status, chave_nfe, numero, serie, protocolo,
+//   caminho_xml_nota_fiscal, caminho_danfe, qrcode, motivo_status }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const expected = Deno.env.get("PLUGNOTAS_WEBHOOK_TOKEN");
-    const got = req.headers.get("x-webhook-token");
+    const expected = Deno.env.get("FOCUS_NFE_WEBHOOK_TOKEN");
+    const got = req.headers.get("x-webhook-token") || new URL(req.url).searchParams.get("token");
     if (expected && got !== expected) return json({ error: "invalid token" }, 401);
 
-    const payload = await req.json().catch(() => ({}));
+    // Focus can send form-urlencoded or json
+    let payload: any = {};
+    const ct = req.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      payload = await req.json().catch(() => ({}));
+    } else {
+      const form = await req.formData().catch(() => null);
+      if (form) form.forEach((v, k) => (payload[k] = v));
+    }
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const idIntegracao = payload.idIntegracao || payload.data?.idIntegracao;
-    const chave = payload.chave || payload.chaveAcesso || payload.data?.chave;
-    const status = String(payload.status || payload.situacao || payload.data?.status || "").toLowerCase();
-    const numero = payload.numero || payload.data?.numero;
-    const serie = payload.serie || payload.data?.serie;
-    const protocolo = payload.protocolo || payload.data?.protocolo;
-    const xml = payload.xml || payload.xmlUrl || payload.data?.xml;
-    const danfe = payload.danfe || payload.danfeUrl || payload.data?.danfe;
-    const qrcode = payload.qrCode || payload.qrcode || payload.data?.qrCode;
-    const motivo = payload.motivo || payload.mensagemSefaz || payload.data?.motivo;
+    const ref = String(payload.ref || "");
+    const chave = payload.chave_nfe || payload.chave;
+    const status = String(payload.status || "").toLowerCase();
+    const numero = payload.numero;
+    const serie = payload.serie;
+    const protocolo = payload.protocolo;
+    const xml = payload.caminho_xml_nota_fiscal ? `https://api.focusnfe.com.br${payload.caminho_xml_nota_fiscal}` : null;
+    const danfe = payload.caminho_danfe ? `https://api.focusnfe.com.br${payload.caminho_danfe}` : null;
+    const qrcode = payload.qrcode || payload.qrcode_url;
+    const motivo = payload.mensagem_sefaz || payload.motivo_status || payload.motivo;
+    const idIntegracao = ref.startsWith("order_") ? ref.slice("order_".length) : null;
 
     if (!idIntegracao && !chave) return json({ error: "missing identifier" }, 400);
 
@@ -42,9 +53,9 @@ Deno.serve(async (req) => {
     if (!inv) return json({ ok: true, ignored: true });
 
     let newStatus = inv.status;
-    if (["autorizado", "autorizada", "authorized", "concluid"].some(s => status.includes(s))) newStatus = "authorized";
-    else if (["rejeit", "rejected", "erro"].some(s => status.includes(s))) newStatus = "rejected";
-    else if (["cancel"].some(s => status.includes(s))) newStatus = "cancelled";
+    if (status.includes("autoriz")) newStatus = "authorized";
+    else if (["rejeit", "erro", "denegad"].some(s => status.includes(s))) newStatus = "rejected";
+    else if (status.includes("cancel")) newStatus = "cancelled";
 
     const patch: Record<string, unknown> = { status: newStatus };
     if (chave) patch.chave_acesso = chave;
