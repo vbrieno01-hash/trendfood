@@ -748,6 +748,8 @@ Seja util, humano, rapido e nao enrole.`;
     if (aiData.status === "rate_limit") {
       console.log(`[ai-bot] finalized reason=ai_rate_limit`);
       recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_rate_limit", latency_ms: Date.now() - reqT0, phone });
+      const fb = await sendLinkFallback("ai_rate_limit");
+      if (fb) return fb;
       return new Response(JSON.stringify({ error: "ai_rate_limit" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -757,6 +759,8 @@ Seja util, humano, rapido e nao enrole.`;
       console.error("[ai-bot-respond] all providers failed:", aiData.error);
       console.log(`[ai-bot] finalized reason=ai_unavailable detail=${aiData.error}`);
       recordBotMetric(supabase, { organization_id: effectiveOrgId, provider: aiData.provider, status: "ai_unavailable", latency_ms: Date.now() - reqT0, phone });
+      const fb = await sendLinkFallback("ai_unavailable");
+      if (fb) return fb;
       return new Response(
         JSON.stringify({ error: "ai_unavailable", fallback: true, detail: aiData.error }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
