@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,33 +32,35 @@ import { useFcmToken } from "@/hooks/useFcmToken";
 import ThemeToggle from "@/components/ThemeToggle";
 import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getBtUnsupportedMessage, getStoredDeviceId } from "@/lib/bluetoothPrinter";
 
-import HomeTab from "@/components/dashboard/HomeTab";
-import MenuTab from "@/components/dashboard/MenuTab";
-import TablesTab from "@/components/dashboard/TablesTab";
-import StoreProfileTab from "@/components/dashboard/StoreProfileTab";
-import SettingsTab from "@/components/dashboard/SettingsTab";
-import HistoryTab from "@/components/dashboard/HistoryTab";
-import CouponsTab from "@/components/dashboard/CouponsTab";
-import BestSellersTab from "@/components/dashboard/BestSellersTab";
-import CaixaTab from "@/components/dashboard/CaixaTab";
-import FeaturesTab from "@/components/dashboard/FeaturesTab";
-import GuideTab from "@/components/dashboard/GuideTab";
-import ReportsTab from "@/components/dashboard/ReportsTab";
-import CourierDashboardTab from "@/components/dashboard/CourierDashboardTab";
-import PrinterTab from "@/components/dashboard/PrinterTab";
+// Lazy-loaded tabs — cada aba vira um chunk separado, baixado sob demanda.
+// Reduz o bundle inicial do dashboard drasticamente.
+const HomeTab = lazy(() => import("@/components/dashboard/HomeTab"));
+const MenuTab = lazy(() => import("@/components/dashboard/MenuTab"));
+const TablesTab = lazy(() => import("@/components/dashboard/TablesTab"));
+const StoreProfileTab = lazy(() => import("@/components/dashboard/StoreProfileTab"));
+const SettingsTab = lazy(() => import("@/components/dashboard/SettingsTab"));
+const HistoryTab = lazy(() => import("@/components/dashboard/HistoryTab"));
+const CouponsTab = lazy(() => import("@/components/dashboard/CouponsTab"));
+const BestSellersTab = lazy(() => import("@/components/dashboard/BestSellersTab"));
+const CaixaTab = lazy(() => import("@/components/dashboard/CaixaTab"));
+const FeaturesTab = lazy(() => import("@/components/dashboard/FeaturesTab"));
+const GuideTab = lazy(() => import("@/components/dashboard/GuideTab"));
+const ReportsTab = lazy(() => import("@/components/dashboard/ReportsTab"));
+const CourierDashboardTab = lazy(() => import("@/components/dashboard/CourierDashboardTab"));
+const PrinterTab = lazy(() => import("@/components/dashboard/PrinterTab"));
 import OnboardingWizard from "@/components/dashboard/OnboardingWizard";
-import SubscriptionTab from "@/components/dashboard/SubscriptionTab";
-import StockTab from "@/components/dashboard/StockTab";
-import PricingTab from "@/components/dashboard/PricingTab";
-import ReferralSection from "@/components/dashboard/ReferralSection";
+const SubscriptionTab = lazy(() => import("@/components/dashboard/SubscriptionTab"));
+const StockTab = lazy(() => import("@/components/dashboard/StockTab"));
+const PricingTab = lazy(() => import("@/components/dashboard/PricingTab"));
+const ReferralSection = lazy(() => import("@/components/dashboard/ReferralSection"));
 import { usePlatformContent } from "@/hooks/usePlatformContent";
-import ReviewsTab from "@/components/dashboard/ReviewsTab";
-import LoyaltyTab from "@/components/dashboard/LoyaltyTab";
-import OperationsTab from "@/components/dashboard/OperationsTab";
-import IFoodTab from "@/components/dashboard/IFoodTab";
-import TelegramTab from "@/components/dashboard/TelegramTab";
-import AIBotTab from "@/components/dashboard/AIBotTab";
-import CounterTab from "@/components/dashboard/CounterTab";
+const ReviewsTab = lazy(() => import("@/components/dashboard/ReviewsTab"));
+const LoyaltyTab = lazy(() => import("@/components/dashboard/LoyaltyTab"));
+const OperationsTab = lazy(() => import("@/components/dashboard/OperationsTab"));
+const IFoodTab = lazy(() => import("@/components/dashboard/IFoodTab"));
+const TelegramTab = lazy(() => import("@/components/dashboard/TelegramTab"));
+const AIBotTab = lazy(() => import("@/components/dashboard/AIBotTab"));
+const CounterTab = lazy(() => import("@/components/dashboard/CounterTab"));
 import DashboardTour from "@/components/dashboard/DashboardTour";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
@@ -1032,6 +1034,13 @@ const DashboardPage = () => {
           )}
 
           <ErrorBoundary>
+          <Suspense fallback={
+            <div className="space-y-3 py-4" aria-busy="true" aria-live="polite">
+              <Skeleton className="h-8 w-1/3" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          }>
           {activeTab === "home" && <HomeTab organization={organization} onNavigate={handleTabChange} />}
           {activeTab === "menu" && <MenuTab organization={organization} menuItemLimit={planLimits.menuItemLimit} canAccessAddons={planLimits.canAccess("addons")} canAccessStockIngredients={planLimits.canAccess("stock_ingredients")} />}
           {activeTab === "tables" && <TablesTab organization={organization} tableLimit={planLimits.tableLimit} />}
@@ -1122,6 +1131,7 @@ const DashboardPage = () => {
             ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <AIBotTab orgId={organization.id} />)}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
+          </Suspense>
           </ErrorBoundary>
 
           {/* ── Rodapé institucional ─────────────────────────── */}
