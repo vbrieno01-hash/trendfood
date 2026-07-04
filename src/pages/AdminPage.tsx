@@ -175,6 +175,7 @@ interface OrgRow {
   business_hours: object | null;
   billing_cycle: string | null;
   whatsapp_bot_allowed: boolean;
+  ai_bot_enabled: boolean;
 }
 
 interface PaymentRow {
