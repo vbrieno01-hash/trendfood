@@ -354,9 +354,31 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[whatsapp-cleanup-expired] processed=${toDelete.length} deleted=${deleted} remoteOrphansDeleted=${remoteOrphansDeleted} errors=${errors.length}`);
+
+    await supabase.from("cron_health").upsert({
+      job_name: "whatsapp-cleanup-expired",
+      last_success_at: new Date().toISOString(),
+      last_run_count: toDelete.length,
+      notes: JSON.stringify({
+        processed: toDelete.length,
+        deleted,
+        remoteOrphansDeleted,
+        errors: errors.length,
+        errorSamples: errors.slice(0, 3),
+      }),
+    }, { onConflict: "job_name" });
+
     return json({ ok: true, processed: toDelete.length, deleted, remoteOrphansDeleted, errors });
   } catch (err) {
     console.error("[whatsapp-cleanup-expired] error:", err);
+    try {
+      await supabase.from("cron_health").upsert({
+        job_name: "whatsapp-cleanup-expired",
+        last_success_at: new Date().toISOString(),
+        last_run_count: 0,
+        notes: JSON.stringify({ error: (err as Error).message }),
+      }, { onConflict: "job_name" });
+    } catch { /* ignore */ }
     return json({ error: (err as Error).message }, 500);
   }
 });
