@@ -207,7 +207,7 @@ export default function StockTab({ orgId }: StockTabProps) {
               <Label>Nome</Label>
               <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Ex: Pão de hambúrguer" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-3">
               <div>
                 <Label>Unidade</Label>
                 <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>

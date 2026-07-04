@@ -272,7 +272,7 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
                   {loadingCep && <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-2">
                   <Label>Rua</Label>
                   <Input placeholder="Rua das Flores" value={street} onChange={(e) => setStreet(e.target.value)} />
@@ -292,7 +292,7 @@ export default function OnboardingWizard({ organization, onComplete }: Props) {
                   <Input placeholder="Centro" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-2">
                   <Label>Cidade</Label>
                   <Input placeholder="São Paulo" value={city} onChange={(e) => setCity(e.target.value)} />
