@@ -788,6 +788,58 @@ Seja util, humano, rapido e nao enrole.`;
     }
     messages.push({ role: "user", content: message });
 
+    // === LOJA FECHADA: curto-circuita antes de qualquer resposta ===
+    // Se a loja está pausada, fora do horário ou em pausa (almoço/janta),
+    // NÃO manda link, cardápio, horários — só o aviso de fechado.
+    const storeStatus = isStoreOpenNow(orgData?.business_hours, orgData?.paused, orgData?.force_open);
+    if (storeStatus && !storeStatus.open) {
+      // Anti-spam: se as últimas 2 respostas já avisaram "fechado", manda curta.
+      const recentClosed = (history || [])
+        .slice(0, 2)
+        .some((h: any) => /estamos\s+fechados|no\s+momento\s+estamos\s+fechad/i.test(h?.ai_response || ""));
+      const reopenStr = storeStatus.opensAt
+        ? ` Abrimos ${storeStatus.opensDayLabel ? storeStatus.opensDayLabel + " " : ""}às ${storeStatus.opensAt}.`
+        : "";
+      const closedReply = recentClosed
+        ? `Ainda estamos fechados 🙏`
+        : `😴 No momento estamos fechados.${reopenStr} Pode mandar sua mensagem que respondemos assim que abrirmos!`;
+
+      let sentClosed = false;
+      let closedErr: string | null = null;
+      if (effectiveServerUrl && effectiveToken) {
+        try {
+          const r = await fetch(`${effectiveServerUrl}/send/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", token: effectiveToken },
+            body: JSON.stringify({ number: phone, text: closedReply }),
+          });
+          sentClosed = r.ok;
+          if (!r.ok) closedErr = await r.text();
+        } catch (e) { closedErr = (e as Error).message; }
+      }
+      await supabase.from("fila_whatsapp").insert({
+        phone,
+        incoming_message: message,
+        ai_response: closedReply,
+        status: "respondido",
+        responded_at: new Date().toISOString(),
+        organization_id: effectiveOrgId,
+      });
+      recordBotMetric(supabase, {
+        organization_id: effectiveOrgId,
+        provider: recentClosed ? "closed:repeat" : "closed",
+        status: sentClosed ? "sent" : "wa_send_failed",
+        latency_ms: Date.now() - reqT0,
+        phone,
+        reply: closedReply,
+      });
+      console.log(`[ai-bot] store-closed org=${effectiveOrgId ?? "null"} sent=${sentClosed} repeat=${recentClosed}`);
+      return new Response(
+        JSON.stringify({ ok: true, mode: "closed", sent: sentClosed, sendError: closedErr, response: closedReply }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // === Fast-path: cliente pediu explicitamente o link/cardápio ===
     // Evita ~3-4s de latência do LLM só pra devolver um link que já sabemos.
     // Só dispara quando: (a) temos slug da loja, (b) msg é curta e claramente
