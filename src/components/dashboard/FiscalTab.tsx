@@ -354,6 +354,9 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
           </Button>
         </CardContent>
       </Card>
+
+      {/* 5. Credenciais Focus NFe + excedente */}
+      <FiscalCredentialsCard orgId={orgId} cfg={cfg} onSaved={onSaved} />
     </div>
   );
 }
@@ -364,5 +367,172 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
       <Label className="text-xs">{label}</Label>
       <Input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
     </div>
+  );
+}
+
+/* ---------- Card de consumo mensal ---------- */
+function FiscalQuotaCard({ orgId }: { orgId: string }) {
+  const { data: quota, isLoading } = useFiscalQuota(orgId);
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  if (!quota) return null;
+
+  const unlimited = quota.quota === null;
+  const used = quota.used || 0;
+  const total = quota.quota ?? 0;
+  const pct = unlimited ? 0 : Math.min(100, Math.round((used / Math.max(total, 1)) * 100));
+  const nearLimit = !unlimited && total > 0 && (quota.remaining ?? 0) <= Math.ceil(total * 0.1);
+  const blocked = quota.blocked && !quota.overage_allowed;
+
+  return (
+    <Card>
+      <CardContent className="py-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium">Consumo do mês</span>
+          <Badge variant="outline" className="text-xs uppercase">{quota.plan}</Badge>
+          {blocked && (
+            <Badge variant="outline" className="bg-amber-500/15 text-amber-600 border-amber-500/30 gap-1 text-xs">
+              <AlertTriangle className="w-3 h-3" /> Cota esgotada
+            </Badge>
+          )}
+          <span className="ml-auto text-sm text-muted-foreground">
+            {unlimited ? `${used} nota(s) — ilimitado` : `${used} / ${total} notas`}
+          </span>
+        </div>
+        {!unlimited && <Progress value={pct} className="h-2" />}
+        {(nearLimit || blocked) && (
+          <p className={`text-xs ${blocked ? "text-amber-600" : "text-muted-foreground"}`}>
+            {quota.reason || "Você está próximo de atingir o limite mensal do seu plano."}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ---------- Credenciais Focus NFe + excedente ---------- */
+function FiscalCredentialsCard({
+  orgId, cfg, onSaved,
+}: { orgId: string; cfg: FiscalConfig | null; onSaved: () => void }) {
+  const { data: quota } = useFiscalQuota(orgId);
+  const [mode, setMode] = useState<"platform" | "own">(
+    (cfg?.focus_token_mode as "platform" | "own") || "platform",
+  );
+  const [ownToken, setOwnToken] = useState("");
+  const [overage, setOverage] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Carrega toggle de excedente
+  const { data: org } = useQuery({
+    queryKey: ["org_overage", orgId],
+    queryFn: async () => {
+      const { data } = await supabase.from("organizations")
+        .select("nfce_overage_allowed").eq("id", orgId).maybeSingle();
+      return data as { nfce_overage_allowed: boolean } | null;
+    },
+    enabled: !!orgId,
+    staleTime: 30_000,
+  });
+
+  const effectiveOverage = overage ?? !!org?.nfce_overage_allowed;
+  const overagePriceCents = quota?.overage_price_cents ?? null;
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      // 1) Modo do token na fiscal_config
+      const { error: e1 } = await supabase.from("fiscal_config")
+        .update({ focus_token_mode: mode }).eq("organization_id", orgId);
+      if (e1) throw e1;
+
+      // 2) Token próprio (se informado) em organization_secrets
+      if (mode === "own" && ownToken.trim()) {
+        const { error: e2 } = await supabase.from("organization_secrets")
+          .upsert(
+            { organization_id: orgId, focus_nfe_token: ownToken.trim() },
+            { onConflict: "organization_id" },
+          );
+        if (e2) throw e2;
+      }
+
+      // 3) Excedente
+      if (overage !== null && overage !== !!org?.nfce_overage_allowed) {
+        const { error: e3 } = await supabase.from("organizations")
+          .update({ nfce_overage_allowed: overage }).eq("id", orgId);
+        if (e3) throw e3;
+      }
+
+      toast.success("Credenciais fiscais salvas");
+      setOwnToken("");
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao salvar credenciais");
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">5. Credenciais Focus NFe</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Escolha usar o token da nossa Software House (mais simples) ou seu próprio token Focus NFe (avançado).
+        </p>
+        <RadioGroup value={mode} onValueChange={(v) => setMode(v as "platform" | "own")}>
+          <div className="flex items-start gap-2">
+            <RadioGroupItem value="platform" id="fmode-plat" />
+            <Label htmlFor="fmode-plat" className="text-sm cursor-pointer">
+              <span className="font-medium">Usar plataforma</span>
+              <span className="block text-xs text-muted-foreground">Emissão pelo token da nossa Software House. Sujeito à cota do plano.</span>
+            </Label>
+          </div>
+          <div className="flex items-start gap-2">
+            <RadioGroupItem value="own" id="fmode-own" />
+            <Label htmlFor="fmode-own" className="text-sm cursor-pointer">
+              <span className="font-medium">Meu próprio token Focus NFe</span>
+              <span className="block text-xs text-muted-foreground">Você paga a Focus direto; sem cota da plataforma.</span>
+            </Label>
+          </div>
+        </RadioGroup>
+
+        {mode === "own" && (
+          <div className="space-y-1.5 max-w-md">
+            <Label className="text-xs">Token Focus NFe</Label>
+            <Input
+              type="password"
+              value={ownToken}
+              onChange={(e) => setOwnToken(e.target.value)}
+              placeholder="Cole aqui seu token de produção Focus NFe"
+              autoComplete="off"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Guardado de forma segura. Deixe em branco para manter o token atual.
+            </p>
+          </div>
+        )}
+
+        {overagePriceCents !== null && (
+          <>
+            <Separator />
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm font-medium">Permitir excedente pago</div>
+                <div className="text-xs text-muted-foreground">
+                  Continua emitindo após esgotar a cota — R$ {(overagePriceCents / 100).toFixed(2)} por nota extra.
+                </div>
+              </div>
+              <Switch
+                checked={effectiveOverage}
+                onCheckedChange={(v) => setOverage(v)}
+              />
+            </div>
+          </>
+        )}
+
+        <div className="pt-2">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Salvando…</> : "Salvar credenciais"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
