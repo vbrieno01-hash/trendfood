@@ -22,6 +22,12 @@ function mapPay(m: string | null | undefined): "01" | "03" | "04" | "17" | "99" 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    // Auth: exige FISCAL_INTERNAL_TOKEN (chamado pelo auto-trigger ou por edge sibling)
+    const internal = Deno.env.get("FISCAL_INTERNAL_TOKEN");
+    const got = req.headers.get("x-fiscal-token");
+    if (!internal) return json({ error: "server misconfigured" }, 503);
+    if (got !== internal) return json({ error: "Unauthorized" }, 401);
+
     const token = Deno.env.get("FOCUS_NFE_TOKEN");
     if (!token) return json({ error: "FOCUS_NFE_TOKEN not configured" }, 500);
 
@@ -49,6 +55,16 @@ Deno.serve(async (req) => {
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", order.organization_id).maybeSingle();
     if (!cfg || !cfg.enabled) return json({ error: "fiscal not enabled" }, 400);
     if (!cfg.cnpj) return json({ error: "CNPJ da empresa não configurado" }, 400);
+
+    // Rate limit: máx 100 emissões/hora/org
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await supabase.from("fiscal_invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", order.organization_id)
+      .gte("created_at", oneHourAgo);
+    if ((recentCount || 0) >= 100) {
+      return json({ error: "rate_limit: máximo 100 emissões/hora por loja" }, 429);
+    }
 
     // Fetch menu_items for fiscal fields
     const menuIds = items.map((i: any) => i.menu_item_id).filter(Boolean);
