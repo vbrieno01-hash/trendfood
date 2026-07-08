@@ -23,7 +23,7 @@ const Tooltip = TooltipRaw as any;
 const Bar = BarRaw as any;
 const Line = LineRaw as any;
 const Legend = LegendRaw as any;
-import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight, Flame, UtensilsCrossed, ShoppingCart, TableProperties, FileBarChart, Activity, Radio } from "lucide-react";
 import { subDays, subMonths, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
