@@ -16,6 +16,7 @@ import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { CommandHeader, CommandPanel, StatusPill, CommandEmpty } from "@/components/dashboard/command";
 
 interface AIBotTabProps {
   orgId: string;
@@ -69,14 +70,12 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
   if (!waEnabled) {
     return (
       <div className="space-y-8">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" /> Robô do WhatsApp
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Avisa o cliente em cada etapa do pedido sem você apertar nada.
-          </p>
-        </div>
+        <CommandHeader
+          eyebrow="Automação"
+          title="Robô do WhatsApp"
+          subtitle="Avisa o cliente em cada etapa do pedido sem você apertar nada."
+          icon={<Bot className="w-5 h-5" />}
+        />
         <ComingSoonBot />
       </div>
     );
@@ -85,23 +84,16 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
   if (!isAdmin && !loadingAllowed && botAllowed === false) {
     return (
       <div className="space-y-8">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" /> Robô do WhatsApp
-          </h2>
-        </div>
-        <Card>
-          <CardContent className="p-8 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 mx-auto flex items-center justify-center">
-              <Lock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <h3 className="font-bold text-base">Recurso bloqueado</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
-                O recurso de Robô de WhatsApp não está ativo no seu plano.
-                Entre em contato com o suporte para liberar.
-              </p>
-            </div>
+        <CommandHeader
+          eyebrow="Automação"
+          title="Robô do WhatsApp"
+          icon={<Bot className="w-5 h-5" />}
+        />
+        <CommandEmpty
+          icon={<Lock className="w-6 h-6" />}
+          title="Recurso bloqueado"
+          description="O recurso de Robô de WhatsApp não está ativo no seu plano. Entre em contato com o suporte para liberar."
+          action={
             <Button asChild>
               <a
                 href="https://wa.me/5583998244382?text=Olá%2C%20quero%20liberar%20o%20Robô%20de%20WhatsApp%20na%20minha%20loja"
@@ -111,8 +103,8 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
                 Falar com o suporte
               </a>
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       </div>
     );
   }
@@ -410,16 +402,19 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" /> Robô de Atendimento
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Atendimento automático 24h via WhatsApp.
-          </p>
-        </div>
-      </div>
+      <CommandHeader
+        eyebrow="Automação"
+        title="Robô de Atendimento"
+        subtitle="Atendimento automático 24h via WhatsApp."
+        icon={<Bot className="w-5 h-5" />}
+        actions={
+          isConnected ? (
+            <StatusPill variant="live" dot>Conectado</StatusPill>
+          ) : (
+            <StatusPill variant="warn" dot>Desconectado</StatusPill>
+          )
+        }
+      />
 
       {!isPaidPlan && (
         <Card className="border-amber-500/40 bg-amber-500/5">
@@ -440,8 +435,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
       )}
 
       {/* Status card */}
-      <Card>
-        <CardContent className="pt-6">
+      <CommandPanel eyebrow="Conexão" title="WhatsApp da loja">
           {isConnected ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -502,13 +496,12 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CommandPanel>
 
       {/* Bot config */}
       {config && (
-        <Card>
-          <CardContent className="pt-6 space-y-4">
+        <CommandPanel eyebrow="Configuração" title="Comportamento do robô">
+          <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">Bot ativo</p>
@@ -558,8 +551,8 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Salvar configurações
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </CommandPanel>
       )}
 
     </div>
