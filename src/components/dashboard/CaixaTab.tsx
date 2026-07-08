@@ -34,6 +34,7 @@ import {
   type CashSession,
 } from "@/hooks/useCashSession";
 import { useDeliveredOrders } from "@/hooks/useOrders";
+import { CommandHeader, CommandPanel, MetricTile, StatusPill, CommandEmpty } from "@/components/dashboard/command";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -57,21 +58,12 @@ function MetricCard({
   highlight?: boolean;
 }) {
   return (
-    <div
-      className={`dashboard-glass rounded-2xl p-4 flex flex-col gap-1 ${
-        highlight
-          ? "!border-emerald-500/30"
-          : ""
-      }`}
-    >
-      <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-        <Icon className="w-3.5 h-3.5" />
-        {label}
-      </div>
-      <p className={`text-lg font-bold ${highlight ? "text-emerald-500" : "text-foreground"}`}>
-        {value}
-      </p>
-    </div>
+    <MetricTile
+      label={label}
+      value={value}
+      icon={<Icon className="w-4 h-4" />}
+      className={highlight ? "border-primary/40" : ""}
+    />
   );
 }
 
@@ -99,7 +91,7 @@ function CaixaFechado({
     <div className="space-y-8">
       {/* Open card */}
       <div className="max-w-sm mx-auto">
-        <div className="dashboard-glass rounded-2xl p-8 text-center space-y-6">
+        <CommandPanel padding="lg" className="text-center space-y-6">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mx-auto text-white">
             <Wallet className="w-7 h-7" />
           </div>
@@ -128,58 +120,58 @@ function CaixaFechado({
           >
             {openSession.isPending ? "Abrindo..." : "Abrir Caixa"}
           </Button>
-        </div>
+        </CommandPanel>
       </div>
 
       {/* History */}
-      <div className="space-y-3">
-        <h3 className="font-semibold text-foreground text-base">Últimos turnos</h3>
+      <CommandPanel eyebrow="Histórico" title="Últimos turnos" padding="none">
         {historyLoading ? (
-          <div className="space-y-2">
+          <div className="p-4 space-y-2">
             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : history.length === 0 ? (
-          <div className="dashboard-glass rounded-2xl p-6 text-center text-muted-foreground text-sm">
-            Nenhum turno encerrado ainda
-          </div>
+          <div className="p-6 text-center text-muted-foreground text-sm">Nenhum turno encerrado ainda</div>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Abertura</TableHead>
-                  <TableHead>Fechamento</TableHead>
-                  <TableHead className="text-right">Saldo inicial</TableHead>
-                  <TableHead className="text-right">Saldo final</TableHead>
-                  <TableHead className="text-right">Diferença</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.map((s) => {
-                  const diff = (s.closing_balance ?? 0) - s.opening_balance;
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell className="text-sm">{fmtDate(s.opened_at)}</TableCell>
-                      <TableCell className="text-sm">{s.closed_at ? fmtDate(s.closed_at) : "—"}</TableCell>
-                      <TableCell className="text-right text-sm">{fmt(s.opening_balance)}</TableCell>
-                      <TableCell className="text-right text-sm">
-                        {s.closing_balance != null ? fmt(s.closing_balance) : "—"}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right text-sm font-medium ${
-                          diff >= 0 ? "text-green-500" : "text-red-500"
-                        }`}
-                      >
-                        {diff >= 0 ? "+" : ""}{fmt(diff)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Abertura</TableHead>
+                <TableHead>Fechamento</TableHead>
+                <TableHead className="text-right">Saldo inicial</TableHead>
+                <TableHead className="text-right">Saldo final</TableHead>
+                <TableHead className="text-right">Diferença</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.map((s) => {
+                const diff = (s.closing_balance ?? 0) - s.opening_balance;
+                return (
+                  <TableRow key={s.id}>
+                    <TableCell className="text-sm">{fmtDate(s.opened_at)}</TableCell>
+                    <TableCell className="text-sm">{s.closed_at ? fmtDate(s.closed_at) : "—"}</TableCell>
+                    <TableCell className="text-right text-sm">{fmt(s.opening_balance)}</TableCell>
+                    <TableCell className="text-right text-sm">
+                      {s.closing_balance != null ? fmt(s.closing_balance) : "—"}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right text-sm font-medium ${
+                        diff >= 0 ? "text-green-500" : "text-red-500"
+                      }`}
+                    >
+                      {diff >= 0 ? "+" : ""}{fmt(diff)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </CommandPanel>
+      {false && historyLoading && (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </div>
+      )}
     </div>
   );
 }
