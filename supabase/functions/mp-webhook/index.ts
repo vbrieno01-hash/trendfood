@@ -374,6 +374,95 @@ async function processAffiliateRefund(
   }
 }
 
+/** ── ADDON HANDLER ──
+ * Extends org_addons.current_period_end by 30 days on approved payment.
+ * Called for both preapproval `authorized` events and recurring/PIX payments
+ * whose external_reference matches `addon:ai_bot:<org_id>`.
+ */
+async function extendAiBotAddon(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  preapprovalId: string | null,
+  paymentId: string | number | null,
+  source: string,
+) {
+  try {
+    const { data: existing } = await supabase
+      .from("org_addons")
+      .select("id, current_period_end, mp_preapproval_id, price_monthly, billing_day")
+      .eq("organization_id", orgId)
+      .eq("addon_key", "ai_bot")
+      .maybeSingle();
+
+    const now = new Date();
+    const base =
+      existing && (existing as any).current_period_end && new Date((existing as any).current_period_end) > now
+        ? new Date((existing as any).current_period_end)
+        : now;
+    const nextEnd = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    if (existing) {
+      await supabase
+        .from("org_addons")
+        .update({
+          status: "active",
+          current_period_end: nextEnd,
+          mp_preapproval_id: (existing as any).mp_preapproval_id || preapprovalId || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", (existing as any).id);
+    } else {
+      await supabase.from("org_addons").insert({
+        organization_id: orgId,
+        addon_key: "ai_bot",
+        status: "active",
+        price_monthly: 50,
+        billing_day: 4,
+        current_period_end: nextEnd,
+        mp_preapproval_id: preapprovalId,
+      });
+    }
+
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", orgId)
+      .maybeSingle();
+
+    await supabase.from("activation_logs").insert({
+      organization_id: orgId,
+      org_name: (org as any)?.name || null,
+      old_plan: null,
+      new_plan: null,
+      old_status: null,
+      new_status: "active",
+      source: "mercadopago-addon",
+      notes: `Addon ai_bot renewed (+30d until ${nextEnd.slice(0, 10)}) via ${source}${paymentId ? ` payment ${paymentId}` : ""}${preapprovalId ? ` preapproval ${preapprovalId}` : ""}`,
+    });
+
+    // Mark pending PIX row as resolved (idempotent)
+    if (paymentId) {
+      try {
+        await supabase
+          .from("pending_subscription_payments")
+          .update({ status: "approved", resolved_at: new Date().toISOString() })
+          .eq("payment_id", String(paymentId));
+      } catch { /* non-blocking */ }
+    }
+
+    console.log(`[mp-webhook][addon] extended ai_bot for org ${orgId} until ${nextEnd}`);
+  } catch (err) {
+    console.error("[mp-webhook][addon] extendAiBotAddon error:", err);
+  }
+}
+
+function parseAddonRef(ref: string | null | undefined): { orgId: string; key: string } | null {
+  if (!ref) return null;
+  const m = /^addon:([a-z_]+):([0-9a-f-]{36})$/i.exec(ref);
+  if (!m) return null;
+  return { key: m[1], orgId: m[2] };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -418,6 +507,38 @@ Deno.serve(async (req) => {
       }
 
       console.log("[mp-webhook] Preapproval status:", sub.status, "external_reference:", sub.external_reference, "reason:", sub.reason);
+
+      // ── ADDON short-circuit ──
+      const addonRef = parseAddonRef(sub.external_reference);
+      if (addonRef && addonRef.key === "ai_bot") {
+        if (sub.status === "authorized") {
+          // "authorized" event only ties the preapproval; each real charge extends via payment event.
+          const admin = supabase;
+          const { data: existing } = await admin
+            .from("org_addons")
+            .select("id, mp_preapproval_id")
+            .eq("organization_id", addonRef.orgId)
+            .eq("addon_key", "ai_bot")
+            .maybeSingle();
+          if (existing && !(existing as any).mp_preapproval_id) {
+            await admin
+              .from("org_addons")
+              .update({ mp_preapproval_id: preapprovalId, updated_at: new Date().toISOString() })
+              .eq("id", (existing as any).id);
+          }
+          console.log("[mp-webhook][addon] preapproval authorized for", addonRef.orgId);
+        } else if (sub.status === "cancelled" || sub.status === "paused") {
+          await supabase
+            .from("org_addons")
+            .update({ status: "cancelled", updated_at: new Date().toISOString() })
+            .eq("organization_id", addonRef.orgId)
+            .eq("addon_key", "ai_bot");
+          console.log("[mp-webhook][addon] preapproval cancelled/paused for", addonRef.orgId);
+        }
+        return new Response(JSON.stringify({ success: true, addon: "ai_bot" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       const orgId = sub.external_reference;
       if (!orgId) {
@@ -563,6 +684,45 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ received: true, status: mpData.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // ── ADDON short-circuit (approved payments) ──
+      {
+        const addonRefPayment =
+          parseAddonRef(mpData.external_reference) ||
+          (mpData.metadata?.addon_key === "ai_bot" && mpData.metadata?.org_id
+            ? { key: "ai_bot", orgId: String(mpData.metadata.org_id) }
+            : null);
+
+        let addonRefFromPreapproval: { orgId: string; key: string } | null = null;
+        if (!addonRefPayment && mpData.metadata?.preapproval_id) {
+          try {
+            const pRes = await fetch(
+              `https://api.mercadopago.com/preapproval/${mpData.metadata.preapproval_id}`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            const pJson = await pRes.json();
+            if (pRes.ok) {
+              addonRefFromPreapproval = parseAddonRef(pJson.external_reference);
+            }
+          } catch (e) {
+            console.error("[mp-webhook][addon] preapproval lookup err:", e);
+          }
+        }
+
+        const addonRef = addonRefPayment || addonRefFromPreapproval;
+        if (addonRef && addonRef.key === "ai_bot") {
+          await extendAiBotAddon(
+            supabase,
+            addonRef.orgId,
+            mpData.metadata?.preapproval_id || null,
+            paymentId,
+            addonRefPayment ? "payment" : "recurring",
+          );
+          return new Response(JSON.stringify({ success: true, addon: "ai_bot" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       // Recurring subscription payment

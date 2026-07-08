@@ -421,7 +421,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
       />
 
       {showAddonCard && (
-        <AiBotAddonCard addon={aiBotAddon} loading={loadingAddon} />
+        <AiBotAddonCard addon={aiBotAddon} loading={loadingAddon} orgId={orgId} />
       )}
 
       {!isPaidPlan && (
