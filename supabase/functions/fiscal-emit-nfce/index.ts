@@ -137,6 +137,14 @@ Deno.serve(async (req) => {
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", order.organization_id).maybeSingle();
     if (!cfg || !cfg.enabled) return fail("fiscal_disabled", "Módulo fiscal desativado nas configurações");
     if (!cfg.cnpj) return fail("missing_cnpj", "CNPJ da empresa não configurado");
+    // Gate de produção: só emite em `producao` se o lojista tiver liberado explicitamente
+    // (e a trigger `fiscal_config_producao_guard` só deixa liberar com checklist 100%).
+    if (cfg.environment === "producao" && !cfg.producao_liberada) {
+      return fail(
+        "producao_bloqueada",
+        "Emissão em produção não liberada. Complete o checklist fiscal em Configurações → Fiscal.",
+      );
+    }
     log("cfg_loaded", { environment: cfg.environment, token_mode: cfg.focus_token_mode });
 
     // Quota gate — antes de qualquer chamada externa.
