@@ -455,15 +455,12 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center gap-3 animate-dashboard-fade-in">
-        <div className="dashboard-section-icon">
-          <Store className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Perfil da Loja</h1>
-          <p className="text-muted-foreground text-sm">Personalize como sua lanchonete aparece para os clientes</p>
-        </div>
-      </div>
+      <CommandHeader
+        eyebrow="Loja"
+        title="Perfil da Loja"
+        subtitle="Personalize como sua lanchonete aparece para os clientes"
+        icon={<Store className="w-5 h-5" />}
+      />
 
       {/* ── SEÇÃO 1: Identidade ────────────────────────────────────────── */}
       <div>
