@@ -411,6 +411,20 @@ Deno.serve(async (req) => {
         environment: cfg.environment,
       }, { onConflict: "invoice_id" });
       log("db_updated_sync_authorized", { invoice_id: invoiceId, chave });
+      // Envio automático de e-mail pós-autorização (fire-and-forget).
+      if (order.customer_email) {
+        const email = String(order.customer_email).trim().toLowerCase();
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          supabase.functions.invoke("fiscal-send-email", {
+            body: { invoice_id: invoiceId, emails: [email] },
+          }).then(({ error: sendErr }) => {
+            if (sendErr) console.warn("[fiscal-emit] auto_email_error", { message: sendErr.message });
+            else log("auto_email_dispatched", { invoice_id: invoiceId, to: email });
+          }).catch((err) => {
+            console.warn("[fiscal-emit] auto_email_exception", { err: String((err as Error).message || err) });
+          });
+        }
+      }
       return ok({ invoice_id: invoiceId, ref, status: "authorized", upstream: data });
     }
 
