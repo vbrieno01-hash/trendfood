@@ -162,6 +162,7 @@ const UnitPage = () => {
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerDoc, setBuyerDoc] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
   const [payment, setPayment] = useState("");
   const [changeFor, setChangeFor] = useState(0);
   const [changeForError, setChangeForError] = useState(false);
