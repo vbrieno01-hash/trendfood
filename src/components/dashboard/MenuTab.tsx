@@ -35,6 +35,7 @@ import { useGlobalAddonExclusions, useAddExclusion, useRemoveExclusion } from "@
 import GlobalAddonsSection from "@/components/dashboard/GlobalAddonsSection";
 import MenuItemFiscalSection from "@/components/dashboard/MenuItemFiscalSection";
 import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
+import { CommandHeader, MetricTile, CommandEmpty } from "@/components/dashboard/command";
 
 interface Organization {
   id: string;
@@ -919,21 +920,18 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(price);
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-5">
       <FirstAccessBanner
         tabKey="menu"
         title="Bem-vindo ao Cardápio! 🍔"
         description="Clique em 'Adicionar item' para criar seu primeiro produto. Adicione nome, preço, foto e categoria."
       />
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Meu Cardápio</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {isLoading ? "…" : `${totalItems} ${totalItems === 1 ? "item" : "itens"}${menuItemLimit != null ? ` / ${menuItemLimit}` : ""} · ${totalCategories} ${totalCategories === 1 ? "categoria" : "categorias"}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <CommandHeader
+        eyebrow="Catálogo / Cardápio"
+        title="Meu Cardápio"
+        subtitle={isLoading ? "Carregando…" : `${totalItems} ${totalItems === 1 ? "item" : "itens"}${menuItemLimit != null ? ` de ${menuItemLimit}` : ""} · ${totalCategories} ${totalCategories === 1 ? "categoria" : "categorias"}`}
+        icon={<UtensilsCrossed className="w-5 h-5" />}
+        actions={<>
           <Button
             variant="outline"
             size="sm"
@@ -991,8 +989,17 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
             <Plus className="w-4 h-4" />
             Novo item
           </Button>
+        </>}
+      />
+
+      {!isLoading && items.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <MetricTile label="Itens ativos" value={items.filter(i => i.available).length} sub={`de ${totalItems} total`} />
+          <MetricTile label="Categorias" value={totalCategories} />
+          <MetricTile label="Pausados" value={items.filter(i => !i.available).length} />
+          <MetricTile label="Preço médio" value={formatPrice(items.reduce((s,i)=>s+(i.price||0),0) / Math.max(1, items.length))} />
         </div>
-      </div>
+      )}
 
       {/* Global Addons */}
       {canAccessAddons && <GlobalAddonsSection organizationId={organization.id} />}
@@ -1008,6 +1015,14 @@ export default function MenuTab({ organization, menuItemLimit, canAccessAddons =
 
       {/* Empty state */}
       {!isLoading && items.length === 0 && (
+        <CommandEmpty
+          icon={<UtensilsCrossed className="w-7 h-7" />}
+          title="Nenhum item no cardápio"
+          description="Adicione seu primeiro produto para começar a vender. Nome, preço, foto e categoria."
+          action={<Button onClick={openCreate} size="sm" className="gap-1.5"><Plus className="w-4 h-4" /> Novo item</Button>}
+        />
+      )}
+      {false && (
         <div className="border border-dashed border-border rounded-xl p-12 text-center">
           <div className="flex justify-center mb-3">
             <div className="relative" style={{ animation: 'float 3s ease-in-out infinite' }}>

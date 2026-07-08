@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Minus, Trash2, ShoppingCart, Banknote, CreditCard, QrCode, Clock, Send } from "lucide-react";
+import { CommandHeader, CommandPanel, MetricTile } from "@/components/dashboard/command";
 
 interface CartItem {
   menu_item_id: string;
@@ -137,15 +138,24 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">🛒 Balcão</h2>
-        <p className="text-sm text-muted-foreground">Registre pedidos de clientes no balcão</p>
+    <div className="space-y-5">
+      <CommandHeader
+        eyebrow="PDV / Balcão"
+        title="Vendas no Balcão"
+        subtitle="Registre pedidos presenciais direto no balcão"
+        icon={<ShoppingCart className="w-5 h-5" />}
+      />
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <MetricTile label="Itens no carrinho" value={cart.length} />
+        <MetricTile label="Total parcial" value={`R$ ${cartTotal.toFixed(2).replace(".", ",")}`} />
+        <MetricTile label="Pagamento" value={paymentMethod ? paymentMethod.replace("_"," ").toUpperCase() : "—"} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Menu */}
-        <div className="lg:col-span-2 space-y-4">
+        <CommandPanel eyebrow="Cardápio" title="Selecione os itens" className="lg:col-span-2" padding="md">
+        <div className="space-y-4">
           <Input
             placeholder="Buscar item..."
             value={search}
@@ -159,7 +169,7 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
 
           {grouped.map(({ category, items: catItems }) => (
             <div key={category}>
-              <h3 className="font-semibold text-sm mb-2">
+              <h3 className="section-eyebrow mb-2">
                 {category}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -169,7 +179,7 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
                     <button
                       key={item.id}
                       onClick={() => addToCart(item)}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors text-left relative"
+                      className="action-tile flex-row items-center gap-3 text-left"
                     >
                       {item.image_url && (
                         <img
@@ -196,15 +206,11 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
             </div>
           ))}
         </div>
+        </CommandPanel>
 
         {/* Cart */}
-        <div className="space-y-3">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4" />
-                Carrinho ({cart.length})
-              </h3>
+        <CommandPanel eyebrow="Comanda" title={`Carrinho (${cart.length})`} variant={cart.length > 0 ? "accent" : "default"} padding="md">
+            <div className="space-y-3">
 
               {cart.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-4">
@@ -312,9 +318,8 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
                   Limpar tudo
                 </Button>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+        </CommandPanel>
       </div>
     </div>
   );

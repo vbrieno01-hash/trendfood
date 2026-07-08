@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
+import { CommandHeader, MetricTile, CommandEmpty } from "@/components/dashboard/command";
 
 interface Props { organization: Organization; tableLimit?: number | null }
 
@@ -69,74 +70,65 @@ export default function TablesTab({ organization, tableLimit }: Props) {
   const tableLimitReached = tableLimit != null && tables.length >= tableLimit;
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-5">
       <FirstAccessBanner
         tabKey="tables"
         title="Configure suas mesas! 🪑"
         description="Crie mesas e gere QR Codes para seus clientes fazerem pedidos pelo celular. Imprima e coloque sobre as mesas."
       />
-      {/* Header */}
-      <div className="flex items-center justify-between animate-dashboard-fade-in">
-        <div className="flex items-center gap-3">
-          <div className="dashboard-section-icon">
-            <Grid3X3 className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Mesas</h1>
-            <p className="text-sm text-muted-foreground">
-              {tables.length} {tables.length === 1 ? "mesa configurada" : "mesas configuradas"}{tableLimit != null ? ` / ${tableLimit}` : ""}
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => { if (tableLimitReached) { toast({ title: "Limite de mesas atingido", description: "Faça upgrade para criar mais mesas.", variant: "destructive" }); return; } setAddOpen(true); }} size="sm" className="gap-1.5 h-9" disabled={tableLimitReached}>
-          <Plus className="w-4 h-4" />
-          Nova Mesa
-        </Button>
+      <CommandHeader
+        eyebrow="Salão / Mesas"
+        title="Mesas & Comandas"
+        subtitle={`${tables.length} ${tables.length === 1 ? "mesa configurada" : "mesas configuradas"}${tableLimit != null ? ` de ${tableLimit}` : ""}`}
+        icon={<Grid3X3 className="w-5 h-5" />}
+        actions={
+          <Button onClick={() => { if (tableLimitReached) { toast({ title: "Limite de mesas atingido", description: "Faça upgrade para criar mais mesas.", variant: "destructive" }); return; } setAddOpen(true); }} size="sm" className="gap-1.5 h-9" disabled={tableLimitReached}>
+            <Plus className="w-4 h-4" /> Nova Mesa
+          </Button>
+        }
+      />
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <MetricTile label="Mesas cadastradas" value={tables.length} sub={tableLimit != null ? `limite ${tableLimit}` : "ilimitado"} />
+        <MetricTile label="Capacidade" value={tableLimit ?? "∞"} />
+        <MetricTile label="Slots restantes" value={tableLimit != null ? Math.max(0, tableLimit - tables.length) : "∞"} />
       </div>
 
 
       {/* Tables list */}
       {isLoading ? (
-        <div className="text-muted-foreground text-sm animate-dashboard-fade-in dash-delay-1">Carregando mesas…</div>
+        <div className="cmd-panel p-6 text-muted-foreground text-sm animate-dashboard-fade-in dash-delay-1">Carregando mesas…</div>
       ) : tables.length === 0 ? (
-        <div className="dashboard-glass rounded-2xl text-center py-14 animate-dashboard-fade-in dash-delay-1">
-          <Grid3X3 className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="font-semibold text-foreground text-sm">Nenhuma mesa cadastrada</p>
-          <p className="text-muted-foreground text-xs mt-1">
-            Crie mesas para gerar QR Codes e receber pedidos.
-          </p>
-        </div>
+        <CommandEmpty
+          icon={<Grid3X3 className="w-7 h-7" />}
+          title="Nenhuma mesa cadastrada"
+          description="Crie mesas para gerar QR Codes e receber pedidos direto do celular do cliente."
+        />
       ) : (
-        <div className="dashboard-glass rounded-2xl overflow-hidden divide-y divide-border animate-dashboard-fade-in dash-delay-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 animate-dashboard-fade-in dash-delay-1">
           {tables.map((t, idx) => (
             <div
               key={t.id}
               onClick={() => navigate(`/unidade/${organization.slug}/mesa/${t.number}`, { state: { from: "dashboard" } })}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors cursor-pointer"
-              style={{ animationDelay: `${(idx + 2) * 50}ms` }}
+              className="action-tile cursor-pointer group"
+              style={{ animationDelay: `${(idx + 2) * 40}ms` }}
             >
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary text-sm shrink-0">
-                {t.number}
+              <div className="flex items-start justify-between gap-2">
+                <span className="section-eyebrow">Mesa</span>
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="w-7 h-7" title="Ver QR Code" onClick={() => setQrModal({ number: t.number })}>
+                    <QrCode className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="w-7 h-7" title="Copiar link" onClick={() => copyLink(t.number)}>
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="w-7 h-7 hover:text-destructive" title="Excluir mesa" onClick={() => setDeleteId(t.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-foreground">
-                  Mesa {t.number}{t.label ? ` — ${t.label}` : ""}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  /unidade/{organization.slug}/mesa/{t.number}
-                </p>
-              </div>
-              <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="w-8 h-8" title="Ver QR Code" onClick={() => setQrModal({ number: t.number })}>
-                  <QrCode className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="w-8 h-8" title="Copiar link" onClick={() => copyLink(t.number)}>
-                  <Copy className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="w-8 h-8 hover:text-destructive" title="Excluir mesa" onClick={() => setDeleteId(t.id)}>
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+              <div className="font-display font-bold text-4xl text-foreground leading-none tracking-tight mt-1">{t.number}</div>
+              <div className="text-xs text-muted-foreground truncate">{t.label || `/mesa/${t.number}`}</div>
             </div>
           ))}
         </div>
