@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Store, UtensilsCrossed, History, Tag, BarChart2, Grid3X3, Package, Wallet, FileText, DollarSign, Bot, CheckCircle2, XCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -207,6 +208,7 @@ function RoboWhatsAppSubTab({
   requiresAiBotAddon: boolean;
   active: boolean;
 }) {
+  const queryClient = useQueryClient();
   const { data: addon, isLoading } = useOrgAddon(orgId, "ai_bot");
 
   const { data: lastPayment } = useQuery({
@@ -227,6 +229,20 @@ function RoboWhatsAppSubTab({
     staleTime: 30_000,
   });
 
+  // Force fresh data whenever the admin opens this tab — avoids showing
+  // stale "aguardando pagamento" when the addon row was created after the
+  // first fetch.
+  useEffect(() => {
+    if (!active) return;
+    queryClient.invalidateQueries({ queryKey: ["org-addon", orgId, "ai_bot"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-org-addon-last-payment", orgId] });
+  }, [active, orgId, queryClient]);
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["org-addon", orgId, "ai_bot"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-org-addon-last-payment", orgId] });
+  };
+
   const fmtDate = (d?: string | null) =>
     d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
   const fmtDateTime = (d?: string | null) =>
@@ -237,10 +253,16 @@ function RoboWhatsAppSubTab({
       <AiBotAddonCard addon={addon} loading={isLoading} orgId={orgId} />
 
       <div className="dashboard-glass rounded-2xl p-4 border-2 border-border/60 space-y-3">
-        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-          <Bot className="w-4 h-4" />
-          Diagnóstico do add-on (somente leitura)
-        </h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <Bot className="w-4 h-4" />
+            Diagnóstico do add-on (somente leitura)
+          </h3>
+          <Button size="sm" variant="ghost" onClick={handleRefresh} className="h-7 gap-1.5 text-xs">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Atualizar
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <DiagRow label="requires_ai_bot_addon" value={requiresAiBotAddon ? "true" : "false"} ok={requiresAiBotAddon} />
