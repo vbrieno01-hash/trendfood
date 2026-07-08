@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Star, Trash2, Copy, Share2, Link as LinkIcon } from "lucide-react";
+import { Star, Trash2, Copy, Share2, Link as LinkIcon, MessageSquareQuote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useReviews, useDeleteReview, useReviewStats } from "@/hooks/useReviews";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CommandHeader, CommandPanel, CommandEmpty } from "@/components/dashboard/command";
 
 interface ReviewsTabProps {
   orgId: string;
@@ -89,13 +90,15 @@ const ReviewsTab = ({ orgId }: ReviewsTabProps) => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">⭐ Avaliações dos Clientes</h2>
-        <p className="text-sm text-muted-foreground mt-1">Veja o que seus clientes estão dizendo sobre sua loja.</p>
-      </div>
+      <CommandHeader
+        eyebrow="Reputação"
+        title="Avaliações dos Clientes"
+        subtitle="Veja o que seus clientes estão dizendo sobre sua loja."
+        icon={<Star className="w-5 h-5" />}
+      />
 
       {/* Config: toggle + share link */}
-      <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+      <CommandPanel eyebrow="Coleta" title="Link de avaliação" className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-semibold text-foreground">Coletar avaliações</p>
@@ -129,10 +132,10 @@ const ReviewsTab = ({ orgId }: ReviewsTabProps) => {
             </Button>
           </div>
         </div>
-      </div>
+      </CommandPanel>
 
       {/* Stats card */}
-      <div className="bg-card border border-border rounded-2xl p-5">
+      <CommandPanel eyebrow="Ranking" title="Distribuição de notas">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="text-center">
             <p className="text-4xl font-bold text-foreground">{stats.count > 0 ? stats.avg.toFixed(1) : "—"}</p>
@@ -170,45 +173,17 @@ const ReviewsTab = ({ orgId }: ReviewsTabProps) => {
             Filtrando por {filterRating}★ · <button onClick={() => setFilterRating(null)} className="underline">Limpar filtro</button>
           </p>
         )}
-      </div>
+      </CommandPanel>
 
       {/* Reviews list */}
       {isLoading ? (
         <p className="text-muted-foreground text-sm">Carregando...</p>
       ) : filtered.length === 0 ? (
-        <div className="bg-card border border-dashed border-border rounded-2xl p-10 text-center">
-          <div className="relative mx-auto w-24 h-24 mb-3">
-            <div className="animate-[float_3s_ease-in-out_infinite]">
-              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-24 h-24">
-                <circle cx="60" cy="60" r="50" fill="url(#noteGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
-                <rect x="35" y="25" width="50" height="65" rx="6" fill="hsl(var(--primary))" opacity="0.15" />
-                <rect x="38" y="28" width="44" height="59" rx="4" fill="hsl(var(--primary))" opacity="0.25" />
-                <line x1="46" y1="42" x2="74" y2="42" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
-                <line x1="46" y1="52" x2="70" y2="52" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
-                <line x1="46" y1="62" x2="66" y2="62" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.3" />
-                <g className="animate-[penWrite_2.5s_ease-in-out_infinite]" style={{transformOrigin: '78px 72px'}}>
-                  <line x1="78" y1="55" x2="78" y2="80" stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
-                  <polygon points="78,82 75,88 81,88" fill="hsl(var(--primary))" />
-                </g>
-                <circle cx="92" cy="32" r="2" fill="#facc15" className="animate-[sparkle_2s_ease-in-out_infinite]" />
-                <circle cx="28" cy="50" r="1.5" fill="#facc15" className="animate-[sparkle_2s_ease-in-out_0.7s_infinite]" />
-                <defs>
-                  <radialGradient id="noteGlow" cx="0.5" cy="0.5" r="0.5">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-                  </radialGradient>
-                </defs>
-              </svg>
-            </div>
-          </div>
-          <p className="font-semibold text-foreground">Nenhuma avaliação ainda</p>
-          <p className="text-sm text-muted-foreground mt-1">Quando seus clientes avaliarem pedidos, as avaliações aparecerão aqui.</p>
-          <style>{`
-            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-            @keyframes penWrite { 0%, 100% { transform: translateY(0) rotate(0deg); } 25% { transform: translateY(-3px) rotate(-5deg); } 50% { transform: translateY(0) rotate(0deg); } 75% { transform: translateY(-2px) rotate(3deg); } }
-            @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1.3); } }
-          `}</style>
-        </div>
+        <CommandEmpty
+          icon={<MessageSquareQuote className="w-6 h-6" />}
+          title="Nenhuma avaliação ainda"
+          description="Quando seus clientes avaliarem pedidos, as avaliações aparecerão aqui."
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((review) => (
