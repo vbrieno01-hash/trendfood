@@ -736,8 +736,7 @@ const DashboardPage = () => {
   const showOnboarding = organization && !(organization as any).onboarding_done;
 
   return (
-    <div className="min-h-screen bg-background flex w-full">
-      {/* dashboard-dark wrapper aplicado abaixo via className adicional */}
+    <div className="dashboard-dark min-h-screen bg-background flex w-full">
       {showOnboarding && (
         <OnboardingWizard
           organization={organization}
