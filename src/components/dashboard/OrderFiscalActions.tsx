@@ -150,7 +150,7 @@ export default function OrderFiscalActions({
         </Button>
       )}
       {canEmail && (
-        <FiscalEmailModal invoiceId={invoice.id} />
+        <FiscalEmailModal invoiceId={invoice.id} defaultEmail={customerEmail || undefined} />
       )}
       {canEconf && (isAdmin || flags?.fiscal_enabled) && (
         <FiscalEconfModal invoiceId={invoice.id} />
