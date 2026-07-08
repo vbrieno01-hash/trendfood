@@ -135,15 +135,18 @@ Deno.serve(async (req) => {
 
     // Sincronizar mudanças no banco
     const updates: Record<string, unknown> = {};
-    if (liveStatus && liveStatus !== inst.status) updates.status = liveStatus;
-    if (liveStatus === "connected") {
+    // Token inválido no uazapi (instância apagada/deslogada) + sem QR = tratar como desconectado
+    const effectiveStatus =
+      liveStatus ?? (tokenInvalid && !qrcode ? "disconnected" : null);
+    if (effectiveStatus && effectiveStatus !== inst.status) updates.status = effectiveStatus;
+    if (effectiveStatus === "connected") {
       if (livePhone) {
         const normalized = String(livePhone).replace(/\D/g, "");
         if (normalized !== inst.phone_connected) updates.phone_connected = normalized;
       }
       if (!inst.connected_at) updates.connected_at = new Date().toISOString();
-    } else if (liveStatus === "disconnected") {
-      // uazapi confirmou desconectado — limpar número stale (ex: fake de teste)
+    } else if (effectiveStatus === "disconnected") {
+      // uazapi confirmou desconectado (ou token morto) — limpar número stale
       if (inst.phone_connected) updates.phone_connected = null;
     }
     if (Object.keys(updates).length > 0) {
