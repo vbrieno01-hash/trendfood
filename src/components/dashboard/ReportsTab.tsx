@@ -328,15 +328,15 @@ ${watermarkHtml}
   <div class="header">
     ${headerLogoHtml}
     <div>
-      <div class="store-name">${orgName}</div>
+      <div class="store-name">${esc(orgName)}</div>
       ${cnpjLine}
       <div class="store-info">
-        ${cleanAddress ? cleanAddress : ""}${cleanAddress && formattedWhatsapp ? " &nbsp;•&nbsp; " : ""}${formattedWhatsapp ? "WhatsApp: " + formattedWhatsapp : ""}
+        ${cleanAddress ? esc(cleanAddress) : ""}${cleanAddress && formattedWhatsapp ? " &nbsp;•&nbsp; " : ""}${formattedWhatsapp ? "WhatsApp: " + esc(formattedWhatsapp) : ""}
       </div>
     </div>
   </div>
 
-  <div class="report-title">Relatório de Vendas — ${periodLabel}</div>
+  <div class="report-title">Relatório de Vendas — ${esc(periodLabel)}</div>
   <div class="emission">Emitido em ${emissionDate}</div>
 
   <div class="kpi-grid">
