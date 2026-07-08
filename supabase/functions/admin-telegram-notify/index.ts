@@ -23,6 +23,70 @@ function planLabel(plan: string | null | undefined): string {
   }
 }
 
+/** Traduz status de assinatura/pagamento vindos crus do banco/MP. */
+function statusLabel(s: string | null | undefined): string {
+  if (!s) return "";
+  const map: Record<string, string> = {
+    active: "Ativa",
+    trialing: "Em trial",
+    trial: "Em trial",
+    past_due: "Pagamento atrasado",
+    cancelled: "Cancelada",
+    canceled: "Cancelada",
+    paused: "Pausada",
+    expired: "Expirada",
+    pending: "Pendente",
+    inactive: "Inativa",
+    suspended: "Suspensa",
+    authorized: "Autorizada",
+    rejected: "Recusada",
+    approved: "Aprovada",
+    refunded: "Reembolsada",
+    in_process: "Em processamento",
+    charged_back: "Chargeback",
+  };
+  return map[String(s).toLowerCase()] ?? s;
+}
+
+/** Traduz ciclo de cobrança. */
+function cycleLabel(c: string | null | undefined): string {
+  if (!c) return "";
+  const map: Record<string, string> = {
+    monthly: "Mensal",
+    yearly: "Anual",
+    annual: "Anual",
+    quarterly: "Trimestral",
+    semiannual: "Semestral",
+    weekly: "Semanal",
+  };
+  return map[String(c).toLowerCase()] ?? c;
+}
+
+/** Traduz motivos de recusa do Mercado Pago. */
+function reasonLabel(r: string | null | undefined): string {
+  if (!r) return "";
+  const map: Record<string, string> = {
+    cc_rejected_insufficient_amount: "Saldo/limite insuficiente",
+    cc_rejected_bad_filled_card_number: "Número do cartão inválido",
+    cc_rejected_bad_filled_date: "Validade do cartão inválida",
+    cc_rejected_bad_filled_security_code: "CVV inválido",
+    cc_rejected_bad_filled_other: "Dados do cartão inválidos",
+    cc_rejected_call_for_authorize: "Emissor pediu autorização — cliente precisa liberar",
+    cc_rejected_card_disabled: "Cartão desabilitado pelo emissor",
+    cc_rejected_duplicated_payment: "Pagamento duplicado",
+    cc_rejected_high_risk: "Recusado por risco",
+    cc_rejected_max_attempts: "Muitas tentativas — bloqueado",
+    cc_rejected_other_reason: "Recusado pelo emissor",
+    cc_rejected_blacklist: "Cartão bloqueado",
+    cc_rejected_card_type_not_allowed: "Tipo de cartão não aceito",
+    cc_rejected_invalid_installments: "Parcelamento inválido",
+    pending_review_manual: "Em análise manual",
+    pending_waiting_payment: "Aguardando pagamento",
+    pending_contingency: "Em contingência",
+  };
+  return map[String(r).toLowerCase()] ?? r;
+}
+
 function escapeHtml(s: string | null | undefined): string {
   if (!s) return "";
   return String(s)
