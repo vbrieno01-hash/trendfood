@@ -9,6 +9,7 @@ import {
   CreditCard, Bike, Package, Zap, BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { CommandHeader } from "@/components/dashboard/command";
 
 interface GuideSection {
   id: string;
