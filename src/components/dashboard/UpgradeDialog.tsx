@@ -8,6 +8,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import PlanCard from "@/components/pricing/PlanCard";
 import CardPaymentForm from "@/components/checkout/CardPaymentForm";
@@ -103,6 +105,26 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
             </div>
           </DialogHeader>
 
+          {currentPlan === "lifetime" ? (
+            <div className="py-8 flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-foreground">
+                  Você já tem o plano Vitalício
+                </p>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Acesso completo a todos os recursos, para sempre. Não há upgrade
+                  disponível — você já está no topo.
+                </p>
+              </div>
+              <Button onClick={() => onOpenChange(false)} className="mt-2">
+                Fechar
+              </Button>
+            </div>
+          ) : (
+          <>
           {/* Billing Selector */}
           <div className="flex items-center justify-center gap-1 pt-2">
             <div className="inline-flex rounded-lg border border-border p-1 bg-muted/50">
