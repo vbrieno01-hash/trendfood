@@ -447,6 +447,86 @@
               box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1),
               border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ═══ Dark Command Center — universal upgrade for every dashboard tab ═══
+   Promotes every legacy .dashboard-glass surface into a cmd-panel-like
+   surface when it is rendered inside the dashboard scope. This unifies
+   MenuTab, TablesTab, CounterTab, HistoryTab, ReportsTab, CaixaTab,
+   StockTab, CourierDashboardTab, SettingsTab, StoreProfileTab, PrinterTab,
+   SubscriptionTab, PricingTab, LoyaltyTab, CouponsTab, ReviewsTab,
+   BestSellersTab, FeaturesTab, TelegramTab, AIBotTab, IFoodTab, FiscalTab,
+   GuideTab, KitchenTab and WaiterTab visually without touching their JSX. */
+.dashboard-dark .dashboard-glass {
+  background: linear-gradient(180deg, hsl(240 15% 11% / 0.9), hsl(240 15% 8% / 0.9));
+  border: 1px solid hsl(240 10% 18%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 14px;
+  position: relative;
+}
+.dashboard-dark .dashboard-glass::before {
+  content: "";
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.035), transparent 42%);
+}
+.dashboard-dark button.dashboard-glass:hover,
+.dashboard-dark a.dashboard-glass:hover,
+.dashboard-dark .dashboard-glass.interactive:hover {
+  border-color: hsl(20 100% 55% / 0.4);
+  box-shadow: 0 12px 32px -18px hsl(20 100% 55% / 0.55);
+  transform: translateY(-1px);
+}
+
+/* Section headings across every tab pick up the display font automatically */
+.dashboard-dark h1,
+.dashboard-dark h2,
+.dashboard-dark h3 {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+.dashboard-dark .dashboard-section-icon {
+  box-shadow: 0 8px 24px -10px hsl(20 100% 55% / 0.65),
+              inset 0 0 0 1px hsl(20 100% 55% / 0.25);
+}
+
+/* Tables inside dashboard tabs adopt command-center density */
+.dashboard-dark table thead th {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(240 5% 62%);
+  font-weight: 700;
+  border-bottom: 1px solid hsl(240 10% 16%);
+  background: hsl(240 15% 8% / 0.6);
+}
+.dashboard-dark table tbody tr {
+  border-color: hsl(240 10% 14%);
+  transition: background .15s ease;
+}
+.dashboard-dark table tbody tr:hover {
+  background: linear-gradient(90deg, hsl(20 100% 55% / 0.06), transparent);
+}
+
+/* Inputs, selects and textareas — dark surface, consistent border */
+.dashboard-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dashboard-dark select,
+.dashboard-dark textarea {
+  background-color: hsl(240 15% 7%);
+  border-color: hsl(240 10% 18%);
+  color: hsl(var(--foreground));
+}
+.dashboard-dark input:focus-visible,
+.dashboard-dark select:focus-visible,
+.dashboard-dark textarea:focus-visible {
+  border-color: hsl(20 100% 55% / 0.55);
+  box-shadow: 0 0 0 3px hsl(20 100% 55% / 0.15);
+}
+
+/* Dialog / modal surface — no generic purple/white gradients */
+.dashboard-dark [role="dialog"] {
+  background-color: hsl(240 15% 9%);
+  border: 1px solid hsl(240 10% 18%);
+}
 /* Elevate interactive glass surfaces on hover */
 button.dashboard-glass:hover,
 a.dashboard-glass:hover,
