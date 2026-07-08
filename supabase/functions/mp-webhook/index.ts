@@ -508,6 +508,38 @@ Deno.serve(async (req) => {
 
       console.log("[mp-webhook] Preapproval status:", sub.status, "external_reference:", sub.external_reference, "reason:", sub.reason);
 
+      // ── ADDON short-circuit ──
+      const addonRef = parseAddonRef(sub.external_reference);
+      if (addonRef && addonRef.key === "ai_bot") {
+        if (sub.status === "authorized") {
+          // "authorized" event only ties the preapproval; each real charge extends via payment event.
+          const admin = supabase;
+          const { data: existing } = await admin
+            .from("org_addons")
+            .select("id, mp_preapproval_id")
+            .eq("organization_id", addonRef.orgId)
+            .eq("addon_key", "ai_bot")
+            .maybeSingle();
+          if (existing && !(existing as any).mp_preapproval_id) {
+            await admin
+              .from("org_addons")
+              .update({ mp_preapproval_id: preapprovalId, updated_at: new Date().toISOString() })
+              .eq("id", (existing as any).id);
+          }
+          console.log("[mp-webhook][addon] preapproval authorized for", addonRef.orgId);
+        } else if (sub.status === "cancelled" || sub.status === "paused") {
+          await supabase
+            .from("org_addons")
+            .update({ status: "cancelled", updated_at: new Date().toISOString() })
+            .eq("organization_id", addonRef.orgId)
+            .eq("addon_key", "ai_bot");
+          console.log("[mp-webhook][addon] preapproval cancelled/paused for", addonRef.orgId);
+        }
+        return new Response(JSON.stringify({ success: true, addon: "ai_bot" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const orgId = sub.external_reference;
       if (!orgId) {
         console.error("[mp-webhook] No external_reference in preapproval");
