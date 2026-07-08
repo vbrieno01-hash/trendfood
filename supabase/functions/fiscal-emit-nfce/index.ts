@@ -202,6 +202,9 @@ Deno.serve(async (req) => {
         valor_bruto: total,
         codigo_barras_comercial: (m as any).codigo_ean || "SEM GTIN",
         codigo_barras_tributavel: (m as any).codigo_ean || "SEM GTIN",
+        // Focus NFe v2 schema exige `icms_origem` (string). Mantemos `origem` como alias
+        // por compatibilidade com integrações internas antigas.
+        icms_origem: String((m as any).origem ?? cfg.default_origem ?? 0),
         origem: (m as any).origem ?? cfg.default_origem ?? 0,
         icms_situacao_tributaria: (m as any).cst_csosn || cfg.default_cst_csosn || "102",
         pis_situacao_tributaria: "07",
@@ -226,6 +229,9 @@ Deno.serve(async (req) => {
       presenca_comprador: 1,
       finalidade_emissao: 1,
       consumidor_final: 1,
+      // Campos obrigatórios pela spec OpenAPI oficial (Focus NFe v2)
+      modalidade_frete: "9", // 9 = sem frete (NFC-e balcão/delivery próprio)
+      local_destino: "1",    // 1 = operação interna (UF do consumidor = UF do emitente)
       cnpj_emitente: cnpjClean,
       items: nfItems,
       formas_pagamento: [{
@@ -279,10 +285,124 @@ Deno.serve(async (req) => {
       await supabase.from("orders").update({ fiscal_status: "rejected" }).eq("id", order_id);
       return fail(msg, msg === "timeout_sefaz" ? "Tempo esgotado ao contatar a SEFAZ" : "Falha de rede ao contatar Focus NFe");
     }
-    const data = await res.json().catch(() => ({}));
+    let data: any = await res.json().catch(() => ({}));
     log("focus_response", { status: res.status, ok: res.ok, body_keys: Object.keys(data || {}) });
 
     if (!res.ok) {
+      // 422 idempotentes — a nota pode já ter sido processada por chamada anterior.
+      const focusCode = String((data as any)?.codigo || "");
+      if (res.status === 422 && (focusCode === "already_processed" || focusCode === "pending_operation")) {
+        log("focus_idempotent_422", { focusCode });
+        try {
+          const consultRes = await fetchWithTimeout(`${host}/v2/nfce/${encodeURIComponent(ref)}`, {
+            method: "GET",
+            headers: { "Authorization": auth },
+          }, 10000);
+          const consultData = await consultRes.json().catch(() => ({}));
+          log("focus_consult_after_422", { status: consultRes.status, body_keys: Object.keys(consultData || {}) });
+          if (consultRes.ok && consultData && typeof consultData === "object") {
+            data = consultData;
+            // cai para o bloco síncrono abaixo
+          } else {
+            // Ainda pendente na SEFAZ — mantém processing e deixa webhook resolver.
+            return ok({ invoice_id: invoiceId, ref, pending: true, upstream: consultData });
+          }
+        } catch (consultErr) {
+          log("focus_consult_error", { err: String((consultErr as Error).message || consultErr) });
+          return ok({ invoice_id: invoiceId, ref, pending: true });
+        }
+      } else {
+        const detailMsg =
+          (data as any)?.mensagem ||
+          (data as any)?.mensagem_sefaz ||
+          (data as any)?.erros?.[0]?.mensagem ||
+          `Focus retornou ${res.status}`;
+        await supabase.from("fiscal_invoices").update({
+          status: "rejected",
+          rejection_reason: String(detailMsg).slice(0, 500),
+        }).eq("id", invoiceId!);
+        await supabase.from("orders").update({ fiscal_status: "rejected" }).eq("id", order_id);
+        return fail("focus_error", String(detailMsg), { status: res.status, body: data });
+      }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Emissão SÍNCRONA — Focus NFe v2 retorna o resultado final no 201.
+    // Ref: doc.focusnfe.com.br/reference/emitir_nfce.md
+    //   status: "autorizado"      → grava tudo agora
+    //   status: "erro_autorizacao"→ marca rejected
+    //   sem status                → fallback antigo (webhook resolve)
+    // ═════════════════════════════════════════════════════════════════════
+    step = "persist_sync_response";
+    const focusStatus = String((data as any)?.status || "").toLowerCase();
+    const chave = (data as any)?.chave_nfe || null;
+    const numero = (data as any)?.numero || null;
+    const serie = (data as any)?.serie || null;
+    const caminhoXml = (data as any)?.caminho_xml_nota_fiscal || null;
+    const caminhoDanfe = (data as any)?.caminho_danfe || null;
+    const qrcodeUrl = (data as any)?.qrcode_url || null;
+    const mensagemSefaz = (data as any)?.mensagem_sefaz || null;
+    // Focus retorna caminhos relativos — prefixamos com o host correto do ambiente.
+    const fullXml = caminhoXml ? (caminhoXml.startsWith("http") ? caminhoXml : `${host}${caminhoXml}`) : null;
+    const fullDanfe = caminhoDanfe ? (caminhoDanfe.startsWith("http") ? caminhoDanfe : `${host}${caminhoDanfe}`) : null;
+
+    if (focusStatus === "autorizado") {
+      await supabase.from("fiscal_invoices").update({
+        status: "authorized",
+        plugnotas_id: ref,
+        chave_acesso: chave,
+        numero,
+        serie,
+        xml_url: fullXml,
+        danfe_url: fullDanfe,
+        qrcode_url: qrcodeUrl,
+        emitted_at: new Date().toISOString(),
+        rejection_reason: null,
+      }).eq("id", invoiceId!);
+      await supabase.from("orders").update({
+        fiscal_status: "authorized",
+        fiscal_invoice_id: invoiceId,
+      }).eq("id", order_id);
+      // Contabilização de cota — upsert por invoice_id (UNIQUE) para evitar duplicação
+      // caso o webhook também chegue depois.
+      await supabase.from("fiscal_usage_log").upsert({
+        organization_id: order.organization_id,
+        invoice_id: invoiceId,
+        environment: cfg.environment,
+      }, { onConflict: "invoice_id" });
+      log("db_updated_sync_authorized", { invoice_id: invoiceId, chave });
+      return ok({ invoice_id: invoiceId, ref, status: "authorized", upstream: data });
+    }
+
+    if (focusStatus === "erro_autorizacao") {
+      const reason = mensagemSefaz || (data as any)?.mensagem || "Erro de autorização SEFAZ";
+      await supabase.from("fiscal_invoices").update({
+        status: "rejected",
+        plugnotas_id: ref,
+        rejection_reason: String(reason).slice(0, 500),
+      }).eq("id", invoiceId!);
+      await supabase.from("orders").update({ fiscal_status: "rejected" }).eq("id", order_id);
+      log("db_updated_sync_rejected", { invoice_id: invoiceId, reason });
+      return ok({ invoice_id: invoiceId, ref, status: "rejected", upstream: data });
+    }
+
+    // Fallback — resposta 2xx sem status conhecido: mantém processing e webhook decide.
+    step = "persist_ref";
+    await supabase.from("fiscal_invoices").update({ plugnotas_id: ref }).eq("id", invoiceId!);
+    await supabase.from("orders").update({ fiscal_status: "processing", fiscal_invoice_id: invoiceId }).eq("id", order_id);
+    log("db_updated_fallback_processing", { invoice_id: invoiceId, focusStatus });
+
+    return ok({ invoice_id: invoiceId, ref, upstream: data });
+  } catch (e) {
+    console.error("[fiscal-emit] fatal", {
+      step,
+      order_id: order_id_ctx,
+      message: String((e as Error)?.message || e),
+      stack: (e as Error)?.stack,
+    });
+    return fail("internal_error", String((e as Error)?.message || e), { step });
+  }
+});
       const detailMsg =
         (data as any)?.mensagem ||
         (data as any)?.mensagem_sefaz ||
