@@ -1357,6 +1357,136 @@ export type Database = {
           },
         ]
       }
+      fiscal_econf_events: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          created_at: string
+          id: string
+          invoice_id: string
+          organization_id: string
+          payload_json: Json | null
+          protocolo: string | null
+          response_json: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          invoice_id: string
+          organization_id: string
+          payload_json?: Json | null
+          protocolo?: string | null
+          response_json?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          organization_id?: string
+          payload_json?: Json | null
+          protocolo?: string | null
+          response_json?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_econf_events_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_econf_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_econf_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_inutilizations: {
+        Row: {
+          created_at: string
+          environment: string
+          id: string
+          justificativa: string
+          mensagem_sefaz: string | null
+          numero_final: number
+          numero_inicial: number
+          organization_id: string
+          protocolo: string | null
+          response_json: Json | null
+          serie: number
+          status: string
+          updated_at: string
+          xml_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          environment?: string
+          id?: string
+          justificativa: string
+          mensagem_sefaz?: string | null
+          numero_final: number
+          numero_inicial: number
+          organization_id: string
+          protocolo?: string | null
+          response_json?: Json | null
+          serie: number
+          status?: string
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          id?: string
+          justificativa?: string
+          mensagem_sefaz?: string | null
+          numero_final?: number
+          numero_inicial?: number
+          organization_id?: string
+          protocolo?: string | null
+          response_json?: Json | null
+          serie?: number
+          status?: string
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_inutilizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_inutilizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fiscal_invoices: {
         Row: {
           attempts: number
@@ -1365,6 +1495,7 @@ export type Database = {
           chave_acesso: string | null
           created_at: string
           danfe_url: string | null
+          emails_sent: Json
           emitted_at: string | null
           environment: string
           id: string
@@ -1388,6 +1519,7 @@ export type Database = {
           chave_acesso?: string | null
           created_at?: string
           danfe_url?: string | null
+          emails_sent?: Json
           emitted_at?: string | null
           environment?: string
           id?: string
@@ -1411,6 +1543,7 @@ export type Database = {
           chave_acesso?: string | null
           created_at?: string
           danfe_url?: string | null
+          emails_sent?: Json
           emitted_at?: string | null
           environment?: string
           id?: string
