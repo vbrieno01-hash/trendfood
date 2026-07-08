@@ -23,7 +23,7 @@ const Tooltip = TooltipRaw as any;
 const Bar = BarRaw as any;
 const Line = LineRaw as any;
 const Legend = LegendRaw as any;
-import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight } from "lucide-react";
+import { DollarSign, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, PauseCircle, PlayCircle, Loader2, ClipboardList, LayoutGrid, AlertTriangle, Wallet, Bell, BellOff, Download, Smartphone, ChevronRight, Flame, UtensilsCrossed, ShoppingCart, TableProperties, FileBarChart, Activity, Radio } from "lucide-react";
 import { subDays, subMonths, format, isSameDay, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -225,74 +225,117 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
     );
   }
 
+  // Cálculos para o cockpit
+  const monthStart = startOfMonth(new Date());
+  const monthRevenue = delivered
+    .filter((o) => o.paid && new Date(o.created_at) >= monthStart)
+    .reduce((acc, o) => acc + orderTotal(o), 0);
+  const billingLimit = (organization as any).billing_alert_limit as number | undefined;
+  const taxRegime = (organization as any).tax_regime as string | null;
+  const annualLimits: Record<string, { limit: number; label: string }> = {
+    mei: { limit: 81000, label: "MEI" },
+    cpf: { limit: 27110.4, label: "CPF" },
+    me: { limit: 360000, label: "ME" },
+  };
+  const taxCfg = taxRegime ? annualLimits[taxRegime] : null;
+  const twelveMonthsAgo = subMonths(new Date(), 12);
+  const yearRevenue = taxCfg
+    ? delivered.filter((o) => o.paid && new Date(o.created_at) >= twelveMonthsAgo).reduce((acc, o) => acc + orderTotal(o), 0)
+    : 0;
+  const nowTime = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+  const quickActions = [
+    { key: "operations", label: "Produção", desc: "Cozinha & Pedidos", icon: <Flame className="w-4 h-4" /> },
+    { key: "counter", label: "Balcão", desc: "Venda rápida", icon: <ShoppingCart className="w-4 h-4" /> },
+    { key: "tables", label: "Mesas", desc: "Comandas ativas", icon: <TableProperties className="w-4 h-4" /> },
+    { key: "menu", label: "Catálogo", desc: "Cardápio", icon: <UtensilsCrossed className="w-4 h-4" /> },
+    { key: "reports", label: "Relatórios", desc: "Análise financeira", icon: <FileBarChart className="w-4 h-4" /> },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* ── Push activation prompt (first-time users) ─────── */}
+    <div className="space-y-5">
       <PushActivationBanner orgId={organization.id} />
 
-      {/* ── Header ────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 animate-dashboard-fade-in">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground leading-tight tracking-tight">
-            {organization.name}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">{todayCapitalized}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {pushSupported && (
-            <button
-              onClick={async () => {
-                if (isSubscribed) {
-                  await pushUnsubscribe();
-                  toast.success("Notificações desativadas");
-                } else {
-                  const ok = await pushSubscribe();
-                  if (ok) toast.success("Notificações ativadas! 🔔");
-                  else toast("Permissão de notificação negada", { description: "Ative nas configurações do navegador" });
-                }
-              }}
-              disabled={pushLoading}
-              className={`relative p-2 rounded-xl transition-colors ${
-                isSubscribed
-                  ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                  : "bg-muted text-muted-foreground border border-border hover:bg-accent"
-              }`}
-              title={isSubscribed ? "Notificações ativas" : "Ativar notificações"}
-            >
-              {pushLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isSubscribed ? (
-                <Bell className="w-4 h-4" />
-              ) : (
-                <BellOff className="w-4 h-4" />
-              )}
-              {isSubscribed && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500" />
-              )}
-            </button>
-          )}
-          {organization.subscription_status && (
-            <span
-              className={`mt-1 text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0 ${
-                organization.subscription_status === "active"
-                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                  : organization.subscription_status === "inactive"
-                  ? "bg-destructive/10 text-destructive border-destructive/20"
-                  : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-              }`}
-            >
-              {organization.subscription_status === "active"
-                ? "✓ Plano Ativo"
-                : organization.subscription_status === "inactive"
-                ? "✗ Inativo"
-                : "Período de Teste"}
+      {/* ══ COMMAND HEADER ══════════════════════════════════════ */}
+      <div className="cmd-panel p-5 md:p-6 animate-dashboard-fade-in">
+        <span aria-hidden className="cmd-scanline" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="section-eyebrow mb-2">
+              <Radio className="w-3 h-3" /> Central de Operação
+            </div>
+            <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground leading-tight tracking-tight truncate">
+              {organization.name}
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-2">
+              <Clock className="w-3 h-3" />
+              <span>{todayCapitalized}</span>
+              <span className="text-muted-foreground/40">·</span>
+              <span className="tabular-nums font-mono">{nowTime}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`status-pill ${organization.paused ? "status-pill--warn" : "status-pill--live"}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${organization.paused ? "bg-amber-500" : "bg-emerald-500 animate-pulse"}`} />
+              {organization.paused ? "Pausada" : "Operando"}
             </span>
-          )}
-          <span className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2.5 py-1 animate-admin-pulse-live">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            live
-          </span>
+            {organization.subscription_status === "active" && (
+              <span className="status-pill status-pill--accent">
+                <Activity className="w-3 h-3" /> Plano Ativo
+              </span>
+            )}
+            {organization.subscription_status === "trial" && (
+              <span className="status-pill status-pill--warn">Trial</span>
+            )}
+            {pushSupported && (
+              <button
+                onClick={async () => {
+                  if (isSubscribed) { await pushUnsubscribe(); toast.success("Notificações desativadas"); }
+                  else { const ok = await pushSubscribe(); ok ? toast.success("Notificações ativadas! 🔔") : toast("Permissão negada"); }
+                }}
+                disabled={pushLoading}
+                className={`relative p-2 rounded-lg border transition-colors ${
+                  isSubscribed
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    : "bg-secondary text-muted-foreground border-border hover:bg-accent"
+                }`}
+                title={isSubscribed ? "Notificações ativas" : "Ativar notificações"}
+              >
+                {pushLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isSubscribed ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+              </button>
+            )}
+            <button
+              onClick={togglePause}
+              disabled={pauseLoading}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                organization.paused
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+              }`}
+            >
+              {pauseLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : organization.paused ? <PlayCircle className="w-3.5 h-3.5" /> : <PauseCircle className="w-3.5 h-3.5" />}
+              {organization.paused ? "Reativar loja" : "Pausar loja"}
+            </button>
+          </div>
         </div>
+
+        {/* Quick action tiles */}
+        {onNavigate && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mt-5 pt-5 border-t border-border">
+            {quickActions.map((qa) => (
+              <button key={qa.key} onClick={() => onNavigate(qa.key)} className="action-tile group">
+                <div className="flex items-center justify-between">
+                  <span className="action-tile__icon">{qa.icon}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground leading-tight">{qa.label}</p>
+                  <p className="text-[10.5px] text-muted-foreground mt-0.5">{qa.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Setup Checklist ─────────────────────────────── */}
@@ -308,7 +351,6 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
         />
       )}
 
-      {/* ── Aviso de recuperação de banner (incidente 22/05) ─ */}
       {onNavigate && (
         <BannerRecoveryBanner
           orgId={organization.id}
@@ -317,348 +359,222 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
         />
       )}
 
-      {/* ── Aviso de assinatura expirando (3 dias) ────────── */}
-      {planLimits.subscriptionDaysLeft > 0 && planLimits.subscriptionDaysLeft <= 3 && onNavigate && (
-        <button
-          onClick={() => onNavigate("subscription")}
-          className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-destructive/40 bg-destructive/5 hover:bg-destructive/10 transition-colors group animate-dashboard-fade-in"
-        >
-          <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">
-              Sua assinatura expira em {planLimits.subscriptionDaysLeft} dia{planLimits.subscriptionDaysLeft !== 1 ? "s" : ""}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Renove agora pra não perder acesso aos recursos premium. Seus dados continuam salvos.
-            </p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-        </button>
-      )}
-
-      {/* ── Aviso de assinatura expirada ──────────────────── */}
-      {planLimits.subscriptionExpired && onNavigate && (
-        <button
-          onClick={() => onNavigate("subscription")}
-          className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 transition-colors group animate-dashboard-fade-in"
-        >
-          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">Assinatura expirada — recursos premium bloqueados</p>
-            <p className="text-xs text-muted-foreground">
-              Seus cupons, fidelidade, KDS e demais dados continuam salvos. Renove pra liberar tudo de volta.
-            </p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-        </button>
-      )}
-
-      {/* ── Avisos críticos de configuração de horário ─────── */}
-      {(!organization.business_hours?.enabled || organization.force_open) && onNavigate && (
-        <div className="space-y-3 animate-dashboard-fade-in">
-          {!organization.business_hours?.enabled && (
-            <button
-              onClick={() => onNavigate("settings")}
-              className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-destructive/40 bg-destructive/5 hover:bg-destructive/10 transition-colors group"
-            >
-              <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">Horário de funcionamento não configurado</p>
-                <p className="text-xs text-muted-foreground">Sua loja aparece como sempre aberta para os clientes. Configure agora.</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          )}
-          {organization.force_open && (
-            <button
-              onClick={() => onNavigate("settings")}
-              className="w-full dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 transition-colors group"
-            >
-              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">"Forçar abertura" ativado</p>
-                <p className="text-xs text-muted-foreground">A loja aceita pedidos mesmo fora do horário. Lembre-se de desativar quando fechar.</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── Action Cards ──────────────────────────────────── */}
-      {(activeOrders.length > 0 || lowStockCount > 0) && onNavigate && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-dashboard-fade-in">
-          {activeOrders.length > 0 && (
-            <button
-              onClick={() => onNavigate("operations")}
-              className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors group"
-            >
-              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-                <ClipboardList className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{activeOrders.length} pedido{activeOrders.length !== 1 ? "s" : ""} ativo{activeOrders.length !== 1 ? "s" : ""}</p>
-                <p className="text-xs text-muted-foreground">Toque para gerenciar</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          )}
-          {lowStockCount > 0 && (
-            <button
-              onClick={() => onNavigate("stock")}
-              className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 text-left hover:bg-accent/50 transition-colors group border-destructive/30"
-            >
-              <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{lowStockCount} item{lowStockCount !== 1 ? "ns" : ""} com estoque baixo</p>
-                <p className="text-xs text-muted-foreground">Toque para repor</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── Quick Summary ─────────────────────────────────── */}
-      <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-3 md:gap-4">
-        <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-1">
-          <div className="dashboard-section-icon">
-            <ClipboardList className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="font-display text-3xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{activeOrders.length}</p>
-            <p className="text-xs text-muted-foreground font-medium">Pedidos ativos</p>
-          </div>
-        </div>
-        <div className="dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-2">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white flex items-center justify-center">
-            <LayoutGrid className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="font-display text-3xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{occupiedTables}</p>
-            <p className="text-xs text-muted-foreground font-medium">Mesas ocupadas</p>
-          </div>
-        </div>
-        <div className={`dashboard-glass rounded-2xl p-4 flex items-center gap-3 animate-dashboard-fade-in dash-delay-3 ${lowStockCount > 0 ? "!border-destructive/40 animate-neon-pulse shadow-lg shadow-destructive/20" : ""}`}>
-          <div className={`p-2 rounded-xl flex items-center justify-center text-white ${lowStockCount > 0 ? "bg-gradient-to-br from-red-500 to-red-600" : "bg-gradient-to-br from-emerald-500 to-emerald-600"}`}>
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="font-display text-3xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{lowStockCount}</p>
-            <p className="text-xs text-muted-foreground font-medium">Estoque baixo</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Install App Card ──────────────────────────────── */}
-      {!isStandalone && (
-        <button
-          onClick={() => navigate("/instalar")}
-          className="w-full dashboard-glass rounded-2xl p-4 flex items-center justify-between gap-3 animate-dashboard-fade-in dash-delay-4 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Instalar TrendFood</p>
-              <p className="text-xs text-muted-foreground">Acesse direto da tela inicial do celular</p>
-            </div>
-          </div>
-          <Download className="w-5 h-5 text-primary flex-shrink-0" />
-        </button>
-      )}
-
-      {/* ── Pause toggle ─────────────────────────────────── */}
-      <div className={`dashboard-glass rounded-2xl p-4 flex items-center justify-between gap-3 animate-dashboard-fade-in dash-delay-4 ${organization.paused ? "!border-amber-500/30" : ""}`}>
-        <div className="flex items-center gap-3">
-          {organization.paused ? (
-            <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-              <PauseCircle className="w-5 h-5" />
-            </div>
-          ) : (
-            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-              <PlayCircle className="w-5 h-5" />
-            </div>
-          )}
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {organization.paused ? "Loja Pausada" : "Loja Ativa"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {organization.paused ? "Clientes não podem fazer pedidos" : "Pedidos sendo recebidos normalmente"}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {pauseLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-          <Switch
-            checked={!organization.paused}
-            onCheckedChange={togglePause}
-            disabled={pauseLoading}
+      {/* ══ HERO GRID ═══════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Revenue hero — spans 2 cols */}
+        <div className="lg:col-span-2 cmd-panel cmd-panel--accent p-6 md:p-7 relative overflow-hidden animate-dashboard-slide-up">
+          <span aria-hidden className="cmd-scanline" />
+          <div
+            className="absolute inset-0 opacity-[0.05] pointer-events-none"
+            style={{ backgroundImage: "radial-gradient(circle, hsl(20 100% 55%) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
           />
-        </div>
-      </div>
-
-      {/* ── Billing Alert ─────────────────────────────────── */}
-      {(() => {
-        const limit = (organization as any).billing_alert_limit;
-        if (!limit || limit <= 0) return null;
-        const monthStart = startOfMonth(new Date());
-        const monthRevenue = delivered
-          .filter((o) => o.paid && new Date(o.created_at) >= monthStart)
-          .reduce((acc, o) => acc + orderTotal(o), 0);
-        const pct = Math.min(Math.round((monthRevenue / limit) * 100), 100);
-        const color = pct >= 80 ? "from-red-500 to-red-600" : pct >= 60 ? "from-amber-500 to-amber-600" : "from-emerald-500 to-emerald-600";
-        const barColor = pct >= 80 ? "[&>div]:bg-red-500" : pct >= 60 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500";
-        return (
-          <div className={`dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-4 ${pct >= 80 ? "!border-red-500/40" : ""}`}>
-            <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
-              <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Limite de Faturamento Mensal</p>
-            </div>
-            <div className="px-4 py-4 space-y-3">
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm font-medium text-foreground">
-                  {fmtBRL(monthRevenue)} <span className="text-muted-foreground font-normal">de {fmtBRL(limit)}</span>
-                </p>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white bg-gradient-to-r ${color}`}>{pct}%</span>
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="flex items-center justify-between">
+              <div className="section-eyebrow">
+                <DollarSign className="w-3 h-3" /> Faturamento Hoje
               </div>
-              <Progress value={pct} className={`h-2.5 ${barColor}`} />
-              {pct >= 80 && (
-                <p className="text-xs text-red-500 font-medium flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Atenção: próximo do limite definido
-                </p>
+              {revenueDelta !== null && (
+                <span className={`status-pill ${revenueDelta > 0 ? "status-pill--live" : revenueDelta < 0 ? "status-pill--danger" : "status-pill--info"}`}>
+                  {revenueDelta > 0 ? <TrendingUp className="w-3 h-3" /> : revenueDelta < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                  {revenueDelta > 0 ? "+" : ""}{revenueDelta}% vs ontem
+                </span>
               )}
             </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Annual Revenue Alert (tax regime) ─────────────── */}
-      {(() => {
-        const taxRegime = (organization as any).tax_regime as string | null;
-        if (!taxRegime) return null;
-        const annualLimits: Record<string, { limit: number; label: string }> = {
-          mei: { limit: 81000, label: "MEI" },
-          cpf: { limit: 27110.4, label: "CPF" },
-          me: { limit: 360000, label: "ME" },
-        };
-        const cfg = annualLimits[taxRegime];
-        if (!cfg) return null;
-        const twelveMonthsAgo = subMonths(new Date(), 12);
-        const yearRevenue = delivered
-          .filter((o) => o.paid && new Date(o.created_at) >= twelveMonthsAgo)
-          .reduce((acc, o) => acc + orderTotal(o), 0);
-        const pct = Math.min(Math.round((yearRevenue / cfg.limit) * 100), 100);
-        const color = pct >= 85 ? "from-red-500 to-red-600" : pct >= 70 ? "from-amber-500 to-amber-600" : "from-emerald-500 to-emerald-600";
-        const barColor = pct >= 85 ? "[&>div]:bg-red-500" : pct >= 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500";
-        return (
-          <div className={`dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-4 ${pct >= 85 ? "!border-red-500/40" : ""}`}>
-            <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Limite Anual — {cfg.label}</p>
-            </div>
-            <div className="px-4 py-4 space-y-3">
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm font-medium text-foreground">
-                  {fmtBRL(yearRevenue)} <span className="text-muted-foreground font-normal">de {fmtBRL(cfg.limit)}</span>
-                </p>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white bg-gradient-to-r ${color}`}>{pct}%</span>
-              </div>
-              <Progress value={pct} className={`h-2.5 ${barColor}`} />
-              <p className="text-[10px] text-muted-foreground">Faturamento dos últimos 12 meses (pedidos pagos)</p>
-              {pct >= 85 && (
-                <p className="text-xs text-red-500 font-medium flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Atenção: Você atingiu {pct}% do limite anual do {cfg.label}. Procure seu contador para evitar multas.
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Today revenue hero ────────────────────────────── */}
-      <div
-        className="rounded-2xl text-white p-5 md:p-6 flex items-center justify-between shadow-elev-lg overflow-hidden relative animate-dashboard-slide-up dash-delay-5"
-        style={{
-          background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.75))",
-        }}
-      >
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
-            backgroundSize: "18px 18px",
-          }}
-        />
-        <div className="relative z-10">
-          <p className="text-xs text-white/70 font-semibold uppercase tracking-[0.14em]">Faturamento hoje</p>
-          <p className="font-display text-5xl md:text-6xl font-bold mt-1.5 tracking-tight tabular-nums">{fmtBRL(todayRevenue)}</p>
-          <div className="flex items-center gap-3 mt-2">
-            <p className="text-xs text-white/60">{todayDelivered.filter((o) => o.paid).length} pedido(s) pago(s)</p>
-            {revenueDelta !== null && (
-              <span
-                className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
-                  revenueDelta > 0
-                    ? "bg-white/20 text-white"
-                    : revenueDelta < 0
-                    ? "bg-black/20 text-white/80"
-                    : "bg-white/10 text-white/60"
-                }`}
-              >
-                {revenueDelta > 0 ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : revenueDelta < 0 ? (
-                  <TrendingDown className="w-3 h-3" />
-                ) : (
-                  <Minus className="w-3 h-3" />
-                )}
-                {revenueDelta > 0 ? "+" : ""}{revenueDelta}% vs ontem
+            <p className="font-display text-5xl md:text-6xl lg:text-7xl font-bold mt-3 tracking-tight tabular-nums text-foreground leading-none">
+              {fmtBRL(todayRevenue)}
+            </p>
+            <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-primary" />
+                {todayDelivered.filter((o) => o.paid).length} pagos hoje
               </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/60" />
+                {activeOrders.length} em andamento
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/60" />
+                Mês: {fmtBRL(monthRevenue)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Alerts column */}
+        <div className="cmd-panel p-5 animate-dashboard-fade-in">
+          <div className="section-eyebrow mb-3">
+            <AlertTriangle className="w-3 h-3" /> Alertas
+          </div>
+          <div className="space-y-2">
+            {activeOrders.length === 0 && lowStockCount === 0 && !planLimits.subscriptionExpired && organization.business_hours?.enabled && !organization.force_open ? (
+              <div className="text-center py-6 text-xs text-muted-foreground">
+                <div className="w-10 h-10 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+                Tudo tranquilo por aqui.
+              </div>
+            ) : (
+              <>
+                {activeOrders.length > 0 && onNavigate && (
+                  <button onClick={() => onNavigate("operations")} className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/15 transition-colors text-left">
+                    <ClipboardList className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">{activeOrders.length} pedido{activeOrders.length !== 1 ? "s" : ""} ativo{activeOrders.length !== 1 ? "s" : ""}</p>
+                      <p className="text-[10px] text-muted-foreground">Ir para Produção</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                )}
+                {lowStockCount > 0 && onNavigate && (
+                  <button onClick={() => onNavigate("stock")} className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/25 hover:bg-red-500/15 transition-colors text-left">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">{lowStockCount} item{lowStockCount !== 1 ? "ns" : ""} c/ estoque baixo</p>
+                      <p className="text-[10px] text-muted-foreground">Repor no Estoque</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                )}
+                {pendingPayment > 0 && (
+                  <div className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25">
+                    <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">{pendingPayment} aguardando pagamento</p>
+                      <p className="text-[10px] text-muted-foreground">{fmtBRL(unpaid.reduce((s, o) => s + orderTotal(o), 0))}</p>
+                    </div>
+                  </div>
+                )}
+                {!organization.business_hours?.enabled && onNavigate && (
+                  <button onClick={() => onNavigate("settings")} className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/25 hover:bg-red-500/15 transition-colors text-left">
+                    <Clock className="w-4 h-4 text-red-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">Horário não configurado</p>
+                      <p className="text-[10px] text-muted-foreground">Loja aparece sempre aberta</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                )}
+                {organization.force_open && onNavigate && (
+                  <button onClick={() => onNavigate("settings")} className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/15 transition-colors text-left">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">"Forçar abertura" ligado</p>
+                      <p className="text-[10px] text-muted-foreground">Recebendo fora do horário</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                )}
+                {planLimits.subscriptionDaysLeft > 0 && planLimits.subscriptionDaysLeft <= 3 && onNavigate && (
+                  <button onClick={() => onNavigate("subscription")} className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/25 hover:bg-red-500/15 transition-colors text-left">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">Assina expira em {planLimits.subscriptionDaysLeft}d</p>
+                      <p className="text-[10px] text-muted-foreground">Renovar agora</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                )}
+                {planLimits.subscriptionExpired && onNavigate && (
+                  <button onClick={() => onNavigate("subscription")} className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/15 transition-colors text-left">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">Assinatura expirada</p>
+                      <p className="text-[10px] text-muted-foreground">Renovar para reativar Pro</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
-        <TrendingUp className="relative z-10 w-14 h-14 text-white/20 flex-shrink-0" />
       </div>
 
-      {/* ── Stats cards ───────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat, idx) => (
-          <div
-            key={stat.label}
-            className={`dashboard-glass rounded-2xl p-4 flex flex-col gap-3 animate-dashboard-fade-in dash-delay-${idx + 1}`}
-          >
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.gradient} text-white flex items-center justify-center shadow-lg`}>
-              {stat.icon}
-            </div>
-            <div>
-              <p className="text-2xl font-black text-foreground leading-tight">{stat.value}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5 leading-tight">{stat.label}</p>
-            </div>
+      {/* ══ METRIC TILES ════════════════════════════════════════ */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="metric-tile">
+          <div className="flex items-center justify-between">
+            <span className="metric-tile__label">Total</span>
+            <DollarSign className="w-3.5 h-3.5 text-primary/60" />
           </div>
-        ))}
+          <p className="metric-tile__value text-foreground">{fmtBRL(totalRevenue)}</p>
+          <p className="metric-tile__sub">Histórico completo</p>
+        </div>
+        <div className="metric-tile">
+          <div className="flex items-center justify-between">
+            <span className="metric-tile__label">Entregues hoje</span>
+            <ShoppingBag className="w-3.5 h-3.5 text-primary/60" />
+          </div>
+          <p className="metric-tile__value text-foreground">{todayDelivered.length}</p>
+          <p className="metric-tile__sub">{todayDelivered.filter((o) => o.paid).length} pagos</p>
+        </div>
+        <div className="metric-tile">
+          <div className="flex items-center justify-between">
+            <span className="metric-tile__label">Ticket médio</span>
+            <TrendingUp className="w-3.5 h-3.5 text-primary/60" />
+          </div>
+          <p className="metric-tile__value text-foreground">{fmtBRL(avgTicket)}</p>
+          <p className="metric-tile__sub">Por pedido pago</p>
+        </div>
+        <div className="metric-tile">
+          <div className="flex items-center justify-between">
+            <span className="metric-tile__label">Mesas ocupadas</span>
+            <LayoutGrid className="w-3.5 h-3.5 text-primary/60" />
+          </div>
+          <p className="metric-tile__value text-foreground">{occupiedTables}</p>
+          <p className="metric-tile__sub">Comandas ativas agora</p>
+        </div>
       </div>
+
+      {/* ══ FISCAL LIMITS ═══════════════════════════════════════ */}
+      {(billingLimit && billingLimit > 0) || taxCfg ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {billingLimit && billingLimit > 0 && (() => {
+            const pct = Math.min(Math.round((monthRevenue / billingLimit) * 100), 100);
+            const critical = pct >= 80;
+            return (
+              <div className={`cmd-panel p-4 ${critical ? "cmd-panel--danger" : ""}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="section-eyebrow"><Wallet className="w-3 h-3" /> Limite Mensal</span>
+                  <span className={`status-pill ${critical ? "status-pill--danger" : pct >= 60 ? "status-pill--warn" : "status-pill--live"}`}>{pct}%</span>
+                </div>
+                <p className="text-sm font-semibold text-foreground tabular-nums">
+                  {fmtBRL(monthRevenue)} <span className="text-muted-foreground font-normal text-xs">de {fmtBRL(billingLimit)}</span>
+                </p>
+                <Progress value={pct} className={`h-1.5 mt-2 ${critical ? "[&>div]:bg-red-500" : pct >= 60 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`} />
+              </div>
+            );
+          })()}
+          {taxCfg && (() => {
+            const pct = Math.min(Math.round((yearRevenue / taxCfg.limit) * 100), 100);
+            const critical = pct >= 85;
+            return (
+              <div className={`cmd-panel p-4 ${critical ? "cmd-panel--danger" : ""}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="section-eyebrow"><AlertTriangle className="w-3 h-3" /> Limite Anual · {taxCfg.label}</span>
+                  <span className={`status-pill ${critical ? "status-pill--danger" : pct >= 70 ? "status-pill--warn" : "status-pill--live"}`}>{pct}%</span>
+                </div>
+                <p className="text-sm font-semibold text-foreground tabular-nums">
+                  {fmtBRL(yearRevenue)} <span className="text-muted-foreground font-normal text-xs">de {fmtBRL(taxCfg.limit)}</span>
+                </p>
+                <Progress value={pct} className={`h-1.5 mt-2 ${critical ? "[&>div]:bg-red-500" : pct >= 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`} />
+                <p className="text-[10px] text-muted-foreground mt-1.5">Últimos 12 meses (pedidos pagos)</p>
+              </div>
+            );
+          })()}
+        </div>
+      ) : null}
 
       {/* ── Chart ─────────────────────────────────────────── */}
-      <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-6">
-        <div className="p-5">
-          <div className="mb-4">
-            <h2 className="font-black text-foreground text-base">Últimos 7 dias</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
+      <div className="cmd-panel p-5 animate-dashboard-slide-up">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="section-eyebrow"><Activity className="w-3 h-3" /> Últimos 7 dias</div>
+            <p className="text-xs text-muted-foreground mt-1">
               {totalLast7Orders} pedido{totalLast7Orders !== 1 ? "s" : ""} no período · faturamento em R$
             </p>
           </div>
+        </div>
           {delivered.length === 0 ? (
             <div className="text-center py-12">
               <div className="flex justify-center mb-3">
@@ -730,18 +646,14 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
               </ComposedChart>
             </ResponsiveContainer>
           )}
-        </div>
       </div>
 
       {/* ── Payment method chart ──────────────────────────── */}
-      <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-7">
-        <div className="p-5">
-          <div className="mb-4">
-            <h2 className="font-black text-foreground text-base">Faturamento por Método de Pagamento</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Total no período: {fmtBRL(paymentTotal)}
-            </p>
-          </div>
+      <div className="cmd-panel p-5 animate-dashboard-slide-up">
+        <div className="mb-4">
+          <div className="section-eyebrow"><Wallet className="w-3 h-3" /> Faturamento por método</div>
+          <p className="text-xs text-muted-foreground mt-1">Total no período: {fmtBRL(paymentTotal)}</p>
+        </div>
           {delivered.filter(o => o.paid).length === 0 ? (
             <div className="text-center py-12">
               <div className="flex justify-center mb-3">
@@ -793,8 +705,24 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
               </BarChart>
             </ResponsiveContainer>
           )}
-        </div>
       </div>
+
+      {/* ── Install app (subtle) ─────────────────────────── */}
+      {!isStandalone && (
+        <button
+          onClick={() => navigate("/instalar")}
+          className="w-full cmd-panel p-4 flex items-center gap-3 hover:cmd-panel--accent transition-all text-left group"
+        >
+          <div className="action-tile__icon w-9 h-9">
+            <Smartphone className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-foreground">Instalar TrendFood no celular</p>
+            <p className="text-[11px] text-muted-foreground">Acesso 1-clique direto da home screen</p>
+          </div>
+          <Download className="w-4 h-4 text-primary group-hover:translate-y-0.5 transition-transform" />
+        </button>
+      )}
 
       {/* Versão do build — diagnóstico rápido */}
       <p className="text-center text-[10px] text-muted-foreground/60 font-mono pt-2">

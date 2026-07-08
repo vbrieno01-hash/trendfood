@@ -53,12 +53,14 @@ export default function OperationsTab(props: OperationsTabProps) {
   return (
     <div className="w-full space-y-4">
       {/* Shared controls bar */}
-      <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
+      <div className="cmd-panel p-4 flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
+        <span aria-hidden className="cmd-scanline" />
         <div className="flex items-center gap-3">
-          <h2 className="font-semibold text-foreground text-xl tracking-tight">Operações</h2>
-          <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+          <div className="section-eyebrow"><Flame className="w-3 h-3" /> Central de Produção</div>
+          <h2 className="font-display font-bold text-foreground text-xl tracking-tight">Operações</h2>
+          <span className="status-pill status-pill--live">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            ao vivo
+            Ao vivo
           </span>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
@@ -89,11 +91,14 @@ export default function OperationsTab(props: OperationsTabProps) {
       {/* 3-column grid on desktop, stacked on mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Column 1: Cozinha (pendentes + preparando) */}
-        <div className="relative rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto shadow-elev-sm overflow-hidden">
-          <span aria-hidden className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-orange-500 via-orange-500/80 to-transparent" />
-          <div className="flex items-center gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-sm py-2 -mt-2 -mx-4 px-4 z-10 rounded-t-2xl border-b border-border">
-            <Flame className="w-5 h-5 text-orange-500" />
-            <h3 className="font-semibold text-foreground tracking-tight">Cozinha</h3>
+        <div className="cmd-panel cmd-panel--accent relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden">
+          <span aria-hidden className="cmd-scanline" />
+          <div className="flex items-center justify-between gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-md py-2 -mt-2 -mx-4 px-4 z-10 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Flame className="w-4 h-4 text-primary" />
+              <h3 className="font-display font-bold text-foreground tracking-tight uppercase text-sm">Cozinha</h3>
+            </div>
+            <span className="status-pill status-pill--accent">Novos</span>
           </div>
           <KitchenTab
             embedded
@@ -121,11 +126,14 @@ export default function OperationsTab(props: OperationsTabProps) {
         </div>
 
         {/* Column 2: Prontos para Entrega */}
-        <div className="relative rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto shadow-elev-sm overflow-hidden">
-          <span aria-hidden className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-emerald-500/80 to-transparent" />
-          <div className="flex items-center gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-sm py-2 -mt-2 -mx-4 px-4 z-10 rounded-t-2xl border-b border-border">
-            <BellRing className="w-5 h-5 text-emerald-500" />
-            <h3 className="font-semibold text-foreground tracking-tight">Prontos</h3>
+        <div className="cmd-panel cmd-panel--success relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden">
+          <span aria-hidden className="cmd-scanline" style={{ background: "linear-gradient(90deg, transparent, hsl(142 70% 45%), transparent)" }} />
+          <div className="flex items-center justify-between gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-md py-2 -mt-2 -mx-4 px-4 z-10 border-b border-border">
+            <div className="flex items-center gap-2">
+              <BellRing className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-display font-bold text-foreground tracking-tight uppercase text-sm">Prontos</h3>
+            </div>
+            <span className="status-pill status-pill--live">Entregar</span>
           </div>
           <WaiterTab
             {...waiterSharedProps}
@@ -134,11 +142,14 @@ export default function OperationsTab(props: OperationsTabProps) {
         </div>
 
         {/* Column 3: Aguardando Pagamento */}
-        <div className="relative rounded-2xl border border-border bg-card/50 p-4 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto shadow-elev-sm overflow-hidden">
-          <span aria-hidden className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-500 via-amber-500/80 to-transparent" />
-          <div className="flex items-center gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-sm py-2 -mt-2 -mx-4 px-4 z-10 rounded-t-2xl border-b border-border">
-            <Clock className="w-5 h-5 text-amber-500" />
-            <h3 className="font-semibold text-foreground tracking-tight">Pagamento</h3>
+        <div className="cmd-panel relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden" style={{ borderColor: "hsl(38 95% 50% / 0.35)" }}>
+          <span aria-hidden className="cmd-scanline" style={{ background: "linear-gradient(90deg, transparent, hsl(38 95% 50%), transparent)" }} />
+          <div className="flex items-center justify-between gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-md py-2 -mt-2 -mx-4 px-4 z-10 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <h3 className="font-display font-bold text-foreground tracking-tight uppercase text-sm">Pagamento</h3>
+            </div>
+            <span className="status-pill status-pill--warn">Aguardando</span>
           </div>
           <WaiterTab
             {...waiterSharedProps}
