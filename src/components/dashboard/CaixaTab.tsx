@@ -167,11 +167,6 @@ function CaixaFechado({
           </Table>
         )}
       </CommandPanel>
-      {false && historyLoading && (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-          </div>
-      )}
     </div>
   );
 }
