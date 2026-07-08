@@ -29,6 +29,7 @@ interface Organization {
   print_mode?: 'browser' | 'desktop' | 'bluetooth';
   billing_cycle?: string;
   used_first_month_promo?: boolean;
+  requires_ai_bot_addon?: boolean;
 }
 
 interface AuthContextType {
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const [{ data: orgData }, { data: roleData }] = await Promise.all([
         supabase
           .from("organizations")
-          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours, store_address, delivery_config, pix_confirmation_mode, banner_url, printer_width, courier_config, print_mode, cnpj, used_first_month_promo, billing_alert_limit, tax_regime, category_order, dashboard_tour_done, paused_categories, category_emojis, theme_config, scheduling_config, force_open, billing_cycle")
+          .select("id, name, slug, description, emoji, primary_color, logo_url, user_id, created_at, whatsapp, subscription_status, subscription_plan, onboarding_done, trial_ends_at, pix_key, paused, business_hours, store_address, delivery_config, pix_confirmation_mode, banner_url, printer_width, courier_config, print_mode, cnpj, used_first_month_promo, billing_alert_limit, tax_regime, category_order, dashboard_tour_done, paused_categories, category_emojis, theme_config, scheduling_config, force_open, billing_cycle, requires_ai_bot_addon")
           .eq("user_id", userId),
         supabase
           .from("user_roles")

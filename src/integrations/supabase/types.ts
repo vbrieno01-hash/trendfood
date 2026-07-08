@@ -2463,6 +2463,60 @@ export type Database = {
           },
         ]
       }
+      org_addons: {
+        Row: {
+          addon_key: string
+          billing_day: number
+          created_at: string
+          current_period_end: string | null
+          id: string
+          mp_preapproval_id: string | null
+          organization_id: string
+          price_monthly: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          addon_key: string
+          billing_day?: number
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          mp_preapproval_id?: string | null
+          organization_id: string
+          price_monthly: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          addon_key?: string
+          billing_day?: number
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          mp_preapproval_id?: string | null
+          organization_id?: string
+          price_monthly?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_addons_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_addons_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_secrets: {
         Row: {
           created_at: string | null
@@ -2546,6 +2600,7 @@ export type Database = {
           print_mode: string
           printer_width: string
           referred_by_id: string | null
+          requires_ai_bot_addon: boolean
           reviews_enabled: boolean
           scheduling_config: Json | null
           service_modes: Json
@@ -2601,6 +2656,7 @@ export type Database = {
           print_mode?: string
           printer_width?: string
           referred_by_id?: string | null
+          requires_ai_bot_addon?: boolean
           reviews_enabled?: boolean
           scheduling_config?: Json | null
           service_modes?: Json
@@ -2656,6 +2712,7 @@ export type Database = {
           print_mode?: string
           printer_width?: string
           referred_by_id?: string | null
+          requires_ai_bot_addon?: boolean
           reviews_enabled?: boolean
           scheduling_config?: Json | null
           service_modes?: Json

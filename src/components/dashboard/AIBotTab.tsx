@@ -14,6 +14,8 @@ import WhatsAppErrorLogPanel from "./WhatsAppErrorLogPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useOrgAddon } from "@/hooks/useOrgAddon";
+import AiBotAddonCard from "./AiBotAddonCard";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { CommandHeader, CommandPanel, StatusPill, CommandEmpty } from "@/components/dashboard/command";
@@ -148,14 +150,16 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     queryFn: async () => {
       const { data } = await supabase
         .from("organizations")
-        .select("subscription_plan, subscription_status, trial_ends_at, used_first_month_promo")
+        .select("subscription_plan, subscription_status, trial_ends_at, used_first_month_promo, requires_ai_bot_addon")
         .eq("id", orgId)
         .maybeSingle();
       return data;
     },
   });
-  const plan = usePlanLimits(org as any);
+  const { data: aiBotAddon, isLoading: loadingAddon } = useOrgAddon(orgId, "ai_bot");
+  const plan = usePlanLimits(org as any, aiBotAddon);
   const isPaidPlan = plan.canAccess("ai_bot");
+  const showAddonCard = !!(org as any)?.requires_ai_bot_addon;
   const [instance, setInstance] = useState<InstanceRow | null>(null);
   const [config, setConfig] = useState<BotConfig | null>(null);
   const [queue, setQueue] = useState<QueueRow[]>([]);
@@ -415,6 +419,10 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
           )
         }
       />
+
+      {showAddonCard && (
+        <AiBotAddonCard addon={aiBotAddon} loading={loadingAddon} />
+      )}
 
       {!isPaidPlan && (
         <Card className="border-amber-500/40 bg-amber-500/5">

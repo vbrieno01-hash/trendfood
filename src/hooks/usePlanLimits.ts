@@ -9,6 +9,12 @@ interface OrgLike {
   subscription_plan?: string;
   trial_ends_at?: string | null;
   used_first_month_promo?: boolean;
+  requires_ai_bot_addon?: boolean;
+}
+
+interface AiBotAddonLike {
+  status?: string;
+  current_period_end?: string | null;
 }
 
 interface PlanLimits {
@@ -53,10 +59,16 @@ const FEATURE_ACCESS: Record<Plan, Record<Feature, boolean>> = {
   },
 };
 
-export function usePlanLimits(organization: OrgLike | null | undefined): PlanLimits {
+export function usePlanLimits(
+  organization: OrgLike | null | undefined,
+  aiBotAddon?: AiBotAddonLike | null,
+): PlanLimits {
   const rawPlan = (organization?.subscription_plan ?? "free") as Plan;
   const trialEndsAtStr = organization?.trial_ends_at ?? null;
   const usedPromo = organization?.used_first_month_promo ?? false;
+  const requiresAiBotAddon = organization?.requires_ai_bot_addon ?? false;
+  const addonStatus = aiBotAddon?.status ?? null;
+  const addonPeriodEnd = aiBotAddon?.current_period_end ?? null;
 
   return useMemo(() => {
     const trialEndsAt = trialEndsAtStr ? new Date(trialEndsAtStr) : null;
@@ -82,7 +94,19 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
           ? "pro"
           : rawPlan;
 
-    const features = FEATURE_ACCESS[effectivePlan];
+    const baseFeatures = FEATURE_ACCESS[effectivePlan];
+
+    // Add-on gate: only affects orgs explicitly flagged as requires_ai_bot_addon.
+    // For every other org, features remain exactly as before.
+    let features = baseFeatures;
+    if (requiresAiBotAddon && baseFeatures.ai_bot) {
+      const periodEnd = addonPeriodEnd ? new Date(addonPeriodEnd) : null;
+      const addonActive =
+        addonStatus === "active" && !!periodEnd && periodEnd > now;
+      if (!addonActive) {
+        features = { ...baseFeatures, ai_bot: false };
+      }
+    }
 
     // Promo eligible: nunca pagou o 1º mês ainda. Aparece para todas as lojas
     // (trial Pro ativo, Free puro, Free expirado) até o 1º pagamento mensal aprovado.
@@ -102,5 +126,5 @@ export function usePlanLimits(organization: OrgLike | null | undefined): PlanLim
       subscriptionDaysLeft,
       promoEligible,
     };
-  }, [rawPlan, trialEndsAtStr, usedPromo]);
+  }, [rawPlan, trialEndsAtStr, usedPromo, requiresAiBotAddon, addonStatus, addonPeriodEnd]);
 }
