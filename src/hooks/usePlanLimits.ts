@@ -108,9 +108,14 @@ export function usePlanLimits(
       }
     }
 
-    // Promo eligible: nunca pagou o 1º mês ainda. Aparece para todas as lojas
-    // (trial Pro ativo, Free puro, Free expirado) até o 1º pagamento mensal aprovado.
-    const promoEligible = !usedPromo;
+    // Promo do 1º mês (50% OFF) só faz sentido pra quem AINDA pode se tornar
+    // assinante mensal Pro/Enterprise: Free puro, trial Pro ativo, ou Pro/Enterprise
+    // com assinatura EXPIRADA. Lifetime NUNCA recebe (já tem tudo pra sempre).
+    // Pro/Enterprise ATIVO também não recebe (já paga mensalidade).
+    const promoEligible =
+      !usedPromo &&
+      rawPlan !== "lifetime" &&
+      (rawPlan === "free" || subscriptionExpired);
 
     return {
       plan: rawPlan,

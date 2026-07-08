@@ -53,14 +53,23 @@ export default function AiBotAddonCard({ addon, loading, orgId }: AiBotAddonCard
               {Number(addon.price_monthly).toFixed(2).replace(".", ",")}/mês
             </p>
             {orgId && !addon?.mp_preapproval_id && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 h-7 text-xs"
-                onClick={() => setDialogOpen(true)}
-              >
-                Configurar cobrança automática
-              </Button>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Button
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setDialogOpen(true)}
+                >
+                  Renovar +30 dias — R$ 50
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => setDialogOpen(true)}
+                >
+                  Configurar cobrança automática
+                </Button>
+              </div>
             )}
           </div>
         </div>
