@@ -1137,6 +1137,7 @@ const DashboardPage = () => {
           {activeTab === "aibot" && (lockedFeatures.aibot
             ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <AIBotTab orgId={organization.id} />)}
+          {activeTab === "aibot_free" && <WhatsAppFreeTab orgId={organization.id} />}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
           {activeTab === "fiscal" && (
             !featureFlags?.fiscal_enabled && !isAdmin
