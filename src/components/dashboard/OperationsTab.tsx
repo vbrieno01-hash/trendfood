@@ -88,10 +88,10 @@ export default function OperationsTab(props: OperationsTabProps) {
         </div>
       </div>
 
-      {/* 3-column grid on desktop, stacked on mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Carrossel horizontal com snap no mobile/tablet; grid de 3 colunas no desktop */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 -mx-4 px-4 pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Column 1: Cozinha (pendentes + preparando) */}
-        <div className="cmd-panel cmd-panel--accent relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden">
+        <div className="snap-center shrink-0 w-[85vw] max-w-[420px] lg:w-auto lg:max-w-none lg:shrink cmd-panel cmd-panel--accent relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden">
           <span aria-hidden className="cmd-scanline" />
           <div className="flex items-center justify-between gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-md py-2 -mt-2 -mx-4 px-4 z-10 border-b border-border">
             <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export default function OperationsTab(props: OperationsTabProps) {
         </div>
 
         {/* Column 2: Prontos para Entrega */}
-        <div className="cmd-panel cmd-panel--success relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden">
+        <div className="snap-center shrink-0 w-[85vw] max-w-[420px] lg:w-auto lg:max-w-none lg:shrink cmd-panel cmd-panel--success relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden">
           <span aria-hidden className="cmd-scanline" style={{ background: "linear-gradient(90deg, transparent, hsl(142 70% 45%), transparent)" }} />
           <div className="flex items-center justify-between gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-md py-2 -mt-2 -mx-4 px-4 z-10 border-b border-border">
             <div className="flex items-center gap-2">
@@ -142,7 +142,7 @@ export default function OperationsTab(props: OperationsTabProps) {
         </div>
 
         {/* Column 3: Aguardando Pagamento */}
-        <div className="cmd-panel relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden" style={{ borderColor: "hsl(38 95% 50% / 0.35)" }}>
+        <div className="snap-center shrink-0 w-[85vw] max-w-[420px] lg:w-auto lg:max-w-none lg:shrink cmd-panel relative p-4 lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto overflow-hidden" style={{ borderColor: "hsl(38 95% 50% / 0.35)" }}>
           <span aria-hidden className="cmd-scanline" style={{ background: "linear-gradient(90deg, transparent, hsl(38 95% 50%), transparent)" }} />
           <div className="flex items-center justify-between gap-2 mb-4 sticky top-0 bg-card/80 backdrop-blur-md py-2 -mt-2 -mx-4 px-4 z-10 border-b border-border">
             <div className="flex items-center gap-2">
