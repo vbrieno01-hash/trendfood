@@ -25,6 +25,7 @@ import { extractDeliveryFee } from "@/lib/formatReceiptText";
 import { useAuth } from "@/hooks/useAuth";
 import OrderFiscalActions from "@/components/dashboard/OrderFiscalActions";
 import { useFiscalInvoices, useFiscalInvoicesRealtime, useFiscalStatus } from "@/hooks/useFiscalInvoices";
+import { CommandHeader, CommandPanel, MetricTile, StatusPill, CommandEmpty } from "@/components/dashboard/command";
 
 interface HistoryTabProps {
   orgId: string;
@@ -117,16 +118,13 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
   const totalRevenue = filtered.reduce((sum, order) => sum + orderTotal(order), 0);
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2 animate-dashboard-fade-in">
-        <div className="flex items-center gap-3">
-          <div className="dashboard-section-icon">
-            <History className="w-5 h-5" />
-          </div>
-          <h2 className="font-bold text-foreground text-xl">Histórico de Pedidos</h2>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="space-y-5">
+      <CommandHeader
+        eyebrow="Registro / Histórico"
+        title="Histórico de Pedidos"
+        subtitle={`${filtered.length} pedidos no filtro atual`}
+        icon={<History className="w-5 h-5" />}
+        actions={<>
           {canDelete && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -191,8 +189,8 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
               Exportar CSV
             </Button>
           )}
-        </div>
-      </div>
+        </>}
+      />
 
       {/* Cleanup confirmation dialog */}
       <AlertDialog open={!!cleanupConfirm} onOpenChange={(open) => !open && setCleanupConfirm(null)}>
@@ -219,13 +217,14 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
       </AlertDialog>
 
       {restrictTo7Days && (
-        <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm text-muted-foreground">
+        <div className="cmd-panel cmd-panel--accent px-4 py-2.5 text-sm text-muted-foreground">
           📊 No plano Grátis, o histórico é limitado aos últimos 7 dias.{" "}
           <a href="/planos" className="text-primary font-medium hover:underline">Fazer upgrade</a>
         </div>
       )}
 
       {/* Filters */}
+      <CommandPanel eyebrow="Filtros" padding="md">
       <div className="flex flex-wrap gap-3">
         <div className="flex gap-1 bg-secondary rounded-lg p-1">
           {periodOptions.map((opt) => (
@@ -282,26 +281,15 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
           />
         </div>
       </div>
+      </CommandPanel>
 
       {/* Summary */}
       {!isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-1">
-            <p className="text-xs text-muted-foreground">Pedidos</p>
-            <p className="font-bold text-foreground text-2xl">{filtered.length}</p>
-          </div>
-          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-2">
-            <p className="text-xs text-muted-foreground">Receita</p>
-            <p className="font-bold text-foreground text-2xl">{fmtBRL(totalRevenue)}</p>
-          </div>
-          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-3">
-            <p className="text-xs text-muted-foreground">🍽️ Loja</p>
-            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number !== 0).length}</p>
-          </div>
-          <div className="dashboard-glass rounded-2xl px-4 py-3 animate-dashboard-fade-in dash-delay-4">
-            <p className="text-xs text-muted-foreground">🛵 Entregas</p>
-            <p className="font-bold text-foreground text-2xl">{filtered.filter(o => o.table_number === 0).length}</p>
-          </div>
+          <MetricTile label="Pedidos" value={filtered.length} />
+          <MetricTile label="Receita" value={fmtBRL(totalRevenue)} />
+          <MetricTile label="Loja" value={filtered.filter(o => o.table_number !== 0).length} sub="mesas + balcão" />
+          <MetricTile label="Entregas" value={filtered.filter(o => o.table_number === 0).length} sub="delivery" />
         </div>
       )}
 
@@ -309,37 +297,11 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando histórico…</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 dashboard-glass rounded-2xl">
-          <div className="relative mx-auto w-24 h-24 mb-3">
-            <div className="animate-[float_3s_ease-in-out_infinite]">
-              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-24 h-24">
-                <circle cx="60" cy="60" r="50" fill="url(#clipGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
-                <rect x="36" y="20" width="48" height="70" rx="6" fill="hsl(var(--primary))" opacity="0.15" />
-                <rect x="40" y="24" width="40" height="62" rx="4" fill="hsl(var(--primary))" opacity="0.25" />
-                <rect x="46" y="14" width="28" height="14" rx="4" fill="hsl(var(--primary))" opacity="0.6" />
-                <line x1="48" y1="42" x2="72" y2="42" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
-                <line x1="48" y1="52" x2="68" y2="52" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
-                <line x1="48" y1="62" x2="64" y2="62" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
-                <g className="animate-[scanMove_3s_ease-in-out_infinite]">
-                  <circle cx="82" cy="82" r="14" stroke="hsl(var(--primary))" strokeWidth="3" fill="hsl(var(--primary))" fillOpacity="0.1" />
-                  <line x1="92" y1="92" x2="102" y2="102" stroke="hsl(var(--primary))" strokeWidth="3.5" strokeLinecap="round" />
-                </g>
-                <defs>
-                  <radialGradient id="clipGlow" cx="0.5" cy="0.5" r="0.5">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-                  </radialGradient>
-                </defs>
-              </svg>
-            </div>
-          </div>
-          <p className="font-semibold text-foreground">Nenhum pedido encontrado.</p>
-          <p className="text-muted-foreground text-sm mt-1">Tente ajustar os filtros.</p>
-          <style>{`
-            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-            @keyframes scanMove { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-4px, -4px); } }
-          `}</style>
-        </div>
+        <CommandEmpty
+          icon={<Receipt className="w-7 h-7" />}
+          title="Nenhum pedido encontrado"
+          description="Tente ajustar os filtros de período, pagamento ou tipo."
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((order) => {
@@ -347,30 +309,26 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
             return (
               <div
                 key={order.id}
-                className="dashboard-glass rounded-xl p-4 space-y-2 dashboard-table-row"
+                className="cmd-panel p-4 space-y-2 dashboard-table-row"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5">
                       <Receipt className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-bold text-foreground">
+                      <span className="font-display font-bold text-foreground">
                         {(order as any).order_number ? `#${(order as any).order_number} — ` : ""}
                         {order.table_number === -1 ? "🛒 Balcão" : order.table_number === 0 ? "🛵 Entrega" : `Mesa ${order.table_number}`}
                       </span>
                     </div>
                     {order.paid ? (
-                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 text-xs">
-                        ✓ Pago
-                      </Badge>
+                      <StatusPill variant="live" dot>Pago</StatusPill>
                     ) : (
-                      <Badge variant="outline" className="text-yellow-700 border-yellow-300 text-xs">
-                        Não pago
-                      </Badge>
+                      <StatusPill variant="warn" dot>Não pago</StatusPill>
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="text-right">
-                      <p className="font-bold text-foreground">{fmtBRL(total)}</p>
+                      <p className="font-display font-bold text-foreground kpi-number text-lg">{fmtBRL(total)}</p>
                       <p className="text-xs text-muted-foreground">{fmtDateTime(order.created_at)}</p>
                     </div>
                     {canDelete && (
