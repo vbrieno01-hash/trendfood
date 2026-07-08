@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Send, MessageCircle, CheckCircle2, Bell, Clock, BarChart3, Search, User, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { CommandHeader, CommandPanel } from "@/components/dashboard/command";
 
 function explainTelegramError(rawError: string, botRef: string): string {
   const err = (rawError || "").toLowerCase();
@@ -161,13 +162,16 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Hero / Explicação */}
-      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in">
-        <div className="px-5 py-4 border-b border-border/40 bg-muted/30 flex items-center gap-2">
-          <Send className="w-5 h-5 text-primary" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground/70">Telegram</h2>
-        </div>
-        <div className="px-5 py-5 space-y-4">
+      <CommandHeader
+        eyebrow="Notificações"
+        title="Telegram"
+        subtitle="Receba notificações instantâneas de novos pedidos direto no Telegram."
+        icon={<Send className="w-5 h-5" />}
+      />
+
+      {/* Explicação */}
+      <CommandPanel eyebrow="Como funciona" title="Notificações instantâneas" variant="accent">
+        <div className="space-y-4">
           <p className="text-sm text-foreground leading-relaxed">
             Receba <strong>notificações instantâneas</strong> de novos pedidos diretamente no Telegram.
             Funciona como um complemento às notificações push — sempre que um cliente fizer um pedido,
@@ -206,15 +210,11 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
             </div>
           </div>
         </div>
-      </div>
+      </CommandPanel>
 
       {/* Configuração */}
-      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in">
-        <div className="px-5 py-4 border-b border-border/40 bg-muted/30 flex items-center gap-2">
-          <MessageCircle className="w-4 h-4 text-primary" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Configuração</p>
-        </div>
-        <div className="px-5 py-5 space-y-4">
+      <CommandPanel eyebrow="Configuração" title="Chat ID">
+        <div className="space-y-4">
           <div>
             <Label htmlFor="telegram-chat-id" className="text-sm font-medium">Chat ID do Telegram</Label>
             <Input
@@ -276,16 +276,12 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
             </p>
           )}
         </div>
-      </div>
+      </CommandPanel>
 
       {/* Automações */}
       {telegramChatId.trim() && (
-        <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in">
-          <div className="px-5 py-4 border-b border-border/40 bg-muted/30 flex items-center gap-2">
-            <Bell className="w-4 h-4 text-primary" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Automações Ativas</p>
-          </div>
-          <div className="px-5 py-5 space-y-3">
+        <CommandPanel eyebrow="Automações" title="Ativas para esta loja">
+          <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Com o Chat ID configurado, você recebe automaticamente:
             </p>
@@ -320,7 +316,7 @@ export default function TelegramTab({ orgId }: { orgId: string }) {
               </div>
             </div>
           </div>
-        </div>
+        </CommandPanel>
       )}
     </div>
   );
