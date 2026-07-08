@@ -8,7 +8,7 @@
    container raiz do DashboardPage). Storefront público, auth,
    landing page e admin panel NÃO são afetados.
    ═══════════════════════════════════════════════════════════════ */
-.dashboard-dark {
+.dark .dashboard-cc {
   --background: 240 20% 4%;         /* #0a0a0f — fundo profundo */
   --foreground: 0 0% 98%;
 
@@ -67,32 +67,32 @@
 }
 
 /* ─── Command Center primitives ─────────────────────────────── */
-.dashboard-dark .cmd-panel {
+.dark .dashboard-cc .cmd-panel {
   background: linear-gradient(180deg, hsl(240 15% 11% / 0.85), hsl(240 15% 8% / 0.85));
   border: 1px solid hsl(240 10% 18%);
   border-radius: 14px;
   backdrop-filter: blur(14px);
   position: relative;
 }
-.dashboard-dark .cmd-panel::before {
+.dark .dashboard-cc .cmd-panel::before {
   content: "";
   position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: linear-gradient(180deg, hsl(0 0% 100% / 0.04), transparent 40%);
 }
-.dashboard-dark .cmd-panel--accent {
+.dark .dashboard-cc .cmd-panel--accent {
   border-color: hsl(20 100% 55% / 0.35);
   box-shadow: 0 0 0 1px hsl(20 100% 55% / 0.15), 0 20px 60px -30px hsl(20 100% 55% / 0.55);
 }
-.dashboard-dark .cmd-panel--danger { border-color: hsl(0 75% 55% / 0.35); }
-.dashboard-dark .cmd-panel--success { border-color: hsl(142 70% 45% / 0.35); }
+.dark .dashboard-cc .cmd-panel--danger { border-color: hsl(0 75% 55% / 0.35); }
+.dark .dashboard-cc .cmd-panel--success { border-color: hsl(142 70% 45% / 0.35); }
 
-.dashboard-dark .cmd-scanline {
+.dark .dashboard-cc .cmd-scanline {
   position: absolute; inset: 0 0 auto 0; height: 2px; border-radius: inherit;
   background: linear-gradient(90deg, transparent, hsl(20 100% 55%), transparent);
   opacity: 0.75;
 }
 
-.dashboard-dark .metric-tile {
+.dark .dashboard-cc .metric-tile {
   background: linear-gradient(180deg, hsl(240 15% 12%), hsl(240 15% 8%));
   border: 1px solid hsl(240 10% 16%);
   border-radius: 12px;
@@ -101,89 +101,89 @@
   overflow: hidden;
   transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
-.dashboard-dark .metric-tile:hover {
+.dark .dashboard-cc .metric-tile:hover {
   border-color: hsl(20 100% 55% / 0.35);
   box-shadow: 0 12px 32px -18px hsl(20 100% 55% / 0.55);
   transform: translateY(-1px);
 }
-.dashboard-dark .metric-tile__label {
+.dark .dashboard-cc .metric-tile__label {
   font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
   color: hsl(240 5% 60%); font-weight: 600;
 }
-.dashboard-dark .metric-tile__value {
+.dark .dashboard-cc .metric-tile__value {
   font-family: "Space Grotesk", system-ui, sans-serif;
   font-weight: 700; letter-spacing: -0.03em;
   font-size: 32px; line-height: 1.05; margin-top: 6px;
   font-variant-numeric: tabular-nums;
 }
-.dashboard-dark .metric-tile__sub { font-size: 11px; color: hsl(240 5% 55%); margin-top: 4px; }
+.dark .dashboard-cc .metric-tile__sub { font-size: 11px; color: hsl(240 5% 55%); margin-top: 4px; }
 
-.dashboard-dark .status-pill {
+.dark .dashboard-cc .status-pill {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 10px; border-radius: 999px;
   font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   border: 1px solid;
 }
-.dashboard-dark .status-pill--live { color: hsl(142 70% 55%); background: hsl(142 70% 45% / 0.1); border-color: hsl(142 70% 45% / 0.3); }
-.dashboard-dark .status-pill--warn { color: hsl(38 95% 60%); background: hsl(38 95% 50% / 0.1); border-color: hsl(38 95% 50% / 0.3); }
-.dashboard-dark .status-pill--danger { color: hsl(0 85% 65%); background: hsl(0 75% 55% / 0.1); border-color: hsl(0 75% 55% / 0.3); }
-.dashboard-dark .status-pill--info { color: hsl(195 90% 65%); background: hsl(195 90% 50% / 0.1); border-color: hsl(195 90% 50% / 0.3); }
-.dashboard-dark .status-pill--accent { color: hsl(20 100% 65%); background: hsl(20 100% 55% / 0.1); border-color: hsl(20 100% 55% / 0.35); }
+.dark .dashboard-cc .status-pill--live { color: hsl(142 70% 55%); background: hsl(142 70% 45% / 0.1); border-color: hsl(142 70% 45% / 0.3); }
+.dark .dashboard-cc .status-pill--warn { color: hsl(38 95% 60%); background: hsl(38 95% 50% / 0.1); border-color: hsl(38 95% 50% / 0.3); }
+.dark .dashboard-cc .status-pill--danger { color: hsl(0 85% 65%); background: hsl(0 75% 55% / 0.1); border-color: hsl(0 75% 55% / 0.3); }
+.dark .dashboard-cc .status-pill--info { color: hsl(195 90% 65%); background: hsl(195 90% 50% / 0.1); border-color: hsl(195 90% 50% / 0.3); }
+.dark .dashboard-cc .status-pill--accent { color: hsl(20 100% 65%); background: hsl(20 100% 55% / 0.1); border-color: hsl(20 100% 55% / 0.35); }
 
-.dashboard-dark .action-tile {
+.dark .dashboard-cc .action-tile {
   display: flex; flex-direction: column; gap: 8px;
   padding: 14px; border-radius: 12px;
   background: linear-gradient(160deg, hsl(240 15% 11%), hsl(240 15% 7%));
   border: 1px solid hsl(240 10% 16%);
   text-align: left; transition: all .18s ease; position: relative; overflow: hidden;
 }
-.dashboard-dark .action-tile:hover {
+.dark .dashboard-cc .action-tile:hover {
   border-color: hsl(20 100% 55% / 0.45);
   transform: translateY(-2px);
   box-shadow: 0 16px 40px -20px hsl(20 100% 55% / 0.5);
 }
-.dashboard-dark .action-tile__icon {
+.dark .dashboard-cc .action-tile__icon {
   width: 34px; height: 34px; border-radius: 10px;
   background: linear-gradient(135deg, hsl(20 100% 55%), hsl(20 100% 45%));
   color: white; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 24px -8px hsl(20 100% 55% / 0.6);
 }
 
-.dashboard-dark .section-eyebrow {
+.dark .dashboard-cc .section-eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
   color: hsl(20 100% 65%); font-weight: 700;
 }
-.dashboard-dark .section-eyebrow::before {
+.dark .dashboard-cc .section-eyebrow::before {
   content: ""; width: 18px; height: 2px; background: hsl(20 100% 55%); display: inline-block; border-radius: 2px;
 }
 
-.dashboard-dark .cmd-topbar {
+.dark .dashboard-cc .cmd-topbar {
   background: linear-gradient(180deg, hsl(240 20% 6% / 0.95), hsl(240 20% 4% / 0.85));
   border-bottom: 1px solid hsl(240 10% 15%);
   backdrop-filter: blur(16px);
 }
 
 /* Tipografia display pros números grandes de KPI */
-.dashboard-dark .font-display,
-.dashboard-dark .kpi-number {
+.dark .dashboard-cc .font-display,
+.dark .dashboard-cc .kpi-number {
   font-family: "Space Grotesk", system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 /* Cards com glow laranja sutil no hover */
-.dashboard-dark .card-hover-glow {
+.dark .dashboard-cc .card-hover-glow {
   transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
-.dashboard-dark .card-hover-glow:hover {
+.dark .dashboard-cc .card-hover-glow:hover {
   border-color: hsl(var(--primary) / 0.35);
   box-shadow: 0 0 24px -4px hsl(var(--primary) / 0.18);
 }
 
 /* Neutraliza bg-white puro dentro do painel (fallback pra qualquer componente
    legado que ainda use bg-white/text-white sem tokens semânticos) */
-.dashboard-dark .bg-white:not([class*="bg-white/"]) {
+.dark .dashboard-cc .bg-white:not([class*="bg-white/"]) {
   background-color: hsl(var(--card));
   color: hsl(var(--card-foreground));
 }
@@ -456,7 +456,7 @@
    SubscriptionTab, PricingTab, LoyaltyTab, CouponsTab, ReviewsTab,
    BestSellersTab, FeaturesTab, TelegramTab, AIBotTab, IFoodTab, FiscalTab,
    GuideTab, KitchenTab and WaiterTab visually without touching their JSX. */
-.dashboard-dark .dashboard-glass {
+.dark .dashboard-cc .dashboard-glass {
   background: linear-gradient(180deg, hsl(240 15% 11% / 0.9), hsl(240 15% 8% / 0.9));
   border: 1px solid hsl(240 10% 18%);
   backdrop-filter: blur(14px);
@@ -464,33 +464,33 @@
   border-radius: 14px;
   position: relative;
 }
-.dashboard-dark .dashboard-glass::before {
+.dark .dashboard-cc .dashboard-glass::before {
   content: "";
   position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: linear-gradient(180deg, hsl(0 0% 100% / 0.035), transparent 42%);
 }
-.dashboard-dark button.dashboard-glass:hover,
-.dashboard-dark a.dashboard-glass:hover,
-.dashboard-dark .dashboard-glass.interactive:hover {
+.dark .dashboard-cc button.dashboard-glass:hover,
+.dark .dashboard-cc a.dashboard-glass:hover,
+.dark .dashboard-cc .dashboard-glass.interactive:hover {
   border-color: hsl(20 100% 55% / 0.4);
   box-shadow: 0 12px 32px -18px hsl(20 100% 55% / 0.55);
   transform: translateY(-1px);
 }
 
 /* Section headings across every tab pick up the display font automatically */
-.dashboard-dark h1,
-.dashboard-dark h2,
-.dashboard-dark h3 {
+.dark .dashboard-cc h1,
+.dark .dashboard-cc h2,
+.dark .dashboard-cc h3 {
   font-family: "Space Grotesk", system-ui, sans-serif;
   letter-spacing: -0.02em;
 }
-.dashboard-dark .dashboard-section-icon {
+.dark .dashboard-cc .dashboard-section-icon {
   box-shadow: 0 8px 24px -10px hsl(20 100% 55% / 0.65),
               inset 0 0 0 1px hsl(20 100% 55% / 0.25);
 }
 
 /* Tables inside dashboard tabs adopt command-center density */
-.dashboard-dark table thead th {
+.dark .dashboard-cc table thead th {
   font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -499,31 +499,31 @@
   border-bottom: 1px solid hsl(240 10% 16%);
   background: hsl(240 15% 8% / 0.6);
 }
-.dashboard-dark table tbody tr {
+.dark .dashboard-cc table tbody tr {
   border-color: hsl(240 10% 14%);
   transition: background .15s ease;
 }
-.dashboard-dark table tbody tr:hover {
+.dark .dashboard-cc table tbody tr:hover {
   background: linear-gradient(90deg, hsl(20 100% 55% / 0.06), transparent);
 }
 
 /* Inputs, selects and textareas — dark surface, consistent border */
-.dashboard-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-.dashboard-dark select,
-.dashboard-dark textarea {
+.dark .dashboard-cc input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark .dashboard-cc select,
+.dark .dashboard-cc textarea {
   background-color: hsl(240 15% 7%);
   border-color: hsl(240 10% 18%);
   color: hsl(var(--foreground));
 }
-.dashboard-dark input:focus-visible,
-.dashboard-dark select:focus-visible,
-.dashboard-dark textarea:focus-visible {
+.dark .dashboard-cc input:focus-visible,
+.dark .dashboard-cc select:focus-visible,
+.dark .dashboard-cc textarea:focus-visible {
   border-color: hsl(20 100% 55% / 0.55);
   box-shadow: 0 0 0 3px hsl(20 100% 55% / 0.15);
 }
 
 /* Dialog / modal surface — no generic purple/white gradients */
-.dashboard-dark [role="dialog"] {
+.dark .dashboard-cc [role="dialog"] {
   background-color: hsl(240 15% 9%);
   border: 1px solid hsl(240 10% 18%);
 }
