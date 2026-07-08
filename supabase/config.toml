@@ -12,6 +12,12 @@ verify_jwt = false
 [functions.whatsapp-webhook]
 verify_jwt = false
 
+[functions.whatsapp-free-webhook]
+verify_jwt = false
+
+[functions.whatsapp-free-expire-cron]
+verify_jwt = false
+
 [functions.whatsapp-queue]
 verify_jwt = false
 
