@@ -227,6 +227,8 @@ export default function UpgradeDialog({ open, onOpenChange, orgId, currentPlan, 
               })}
             </div>
           )}
+          </>
+          )}
         </DialogContent>
       </Dialog>
 
