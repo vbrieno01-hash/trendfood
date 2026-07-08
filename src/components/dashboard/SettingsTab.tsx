@@ -12,11 +12,12 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Truck } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Truck, Settings as SettingsIcon } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import VersionCheckCard from "@/components/dashboard/VersionCheckCard";
+import { CommandHeader } from "@/components/dashboard/command";
 
 export default function SettingsTab() {
   const { user, signOut, organization: currentOrg, refreshOrganization } = useAuth();
