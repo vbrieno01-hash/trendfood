@@ -3532,6 +3532,72 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_free_instances: {
+        Row: {
+          connected_at: string | null
+          created_at: string
+          id: string
+          instance_name: string | null
+          instance_token: string | null
+          organization_id: string
+          phone_connected: string | null
+          server_url: string | null
+          status: string
+          trial_expired: boolean
+          trial_expires_at: string | null
+          trial_started_at: string | null
+          updated_at: string
+          webhook_configured: boolean
+        }
+        Insert: {
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          instance_name?: string | null
+          instance_token?: string | null
+          organization_id: string
+          phone_connected?: string | null
+          server_url?: string | null
+          status?: string
+          trial_expired?: boolean
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string
+          webhook_configured?: boolean
+        }
+        Update: {
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          instance_name?: string | null
+          instance_token?: string | null
+          organization_id?: string
+          phone_connected?: string | null
+          server_url?: string | null
+          status?: string
+          trial_expired?: boolean
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
+          updated_at?: string
+          webhook_configured?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_free_instances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_free_instances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_instances: {
         Row: {
           connected_at: string | null
