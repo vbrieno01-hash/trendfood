@@ -28,6 +28,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import UpgradeDialog from "@/components/dashboard/UpgradeDialog";
 import { useFcmToken } from "@/hooks/useFcmToken";
+import { useOrgAddon } from "@/hooks/useOrgAddon";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import { requestBluetoothPrinter, disconnectPrinter, isBluetoothSupported, reconnectStoredPrinter, autoReconnect, connectToDevice, getBluetoothStatus, getBtUnsupportedMessage, getStoredDeviceId } from "@/lib/bluetoothPrinter";
