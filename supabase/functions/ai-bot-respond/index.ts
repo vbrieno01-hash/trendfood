@@ -459,6 +459,37 @@ Deno.serve(async (req) => {
       }
     }
 
+    // GATE POR ADD-ON: se a loja está flageada como requires_ai_bot_addon,
+    // o add-on precisa estar 'active' E dentro do período pago.
+    // Espelha exatamente a lógica de usePlanLimits para não criar divergência.
+    if (effectiveOrgId) {
+      const { data: orgFlag } = await supabase
+        .from("organizations")
+        .select("requires_ai_bot_addon")
+        .eq("id", effectiveOrgId)
+        .maybeSingle();
+
+      if ((orgFlag as any)?.requires_ai_bot_addon) {
+        const { data: addon } = await supabase
+          .from("org_addons")
+          .select("status, current_period_end")
+          .eq("organization_id", effectiveOrgId)
+          .eq("addon_key", "ai_bot")
+          .maybeSingle();
+
+        const periodEnd = addon?.current_period_end ? new Date(addon.current_period_end) : null;
+        const addonActive = addon?.status === "active" && !!periodEnd && periodEnd > new Date();
+
+        if (!addonActive) {
+          console.log(`[ai-bot] skipped org=${effectiveOrgId} reason=addon_expired_or_missing`);
+          return new Response(
+            JSON.stringify({ ok: true, skipped: true, reason: "addon_expired_or_missing" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
+
     // 2) Carregar contexto da loja (multi-tenant ou test)
     let storeContext = "";
     let orgSlug: string | null = null;
