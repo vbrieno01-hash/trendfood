@@ -219,6 +219,8 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       if (error) throw error;
       toast.success("Dados fiscais salvos");
       onSaved();
+      refetchChecklist();
+      qc2.invalidateQueries({ queryKey: ["fiscal_checklist", orgId] });
     } catch (e: any) {
       toast.error(e?.message || "Erro ao salvar");
     } finally { setSaving(false); }
@@ -267,6 +269,8 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       setCertPassword("");
       if (fileRef.current) fileRef.current.value = "";
       onSaved();
+      refetchChecklist();
+      qc2.invalidateQueries({ queryKey: ["fiscal_checklist", orgId] });
     } catch (e: any) {
       toast.error(e?.message || "Erro no upload do certificado");
     } finally { setUploading(false); }
@@ -308,6 +312,8 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       if ((data as any)?.error) throw new Error(JSON.stringify((data as any).detail || (data as any).error));
       toast.success("Empresa sincronizada com Focus NFe");
       onSaved();
+      refetchChecklist();
+      qc2.invalidateQueries({ queryKey: ["fiscal_checklist", orgId] });
     } catch (e: any) {
       toast.error(e?.message || "Erro ao sincronizar");
     } finally { setSyncing(false); }
