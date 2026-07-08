@@ -191,10 +191,12 @@ export default function SettingsTab() {
 
   return (
     <div className="space-y-6 max-w-lg">
-      <div className="animate-dashboard-fade-in">
-        <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Gerencie sua conta e segurança</p>
-      </div>
+      <CommandHeader
+        eyebrow="Conta"
+        title="Configurações"
+        subtitle="Gerencie sua conta e segurança"
+        icon={<SettingsIcon className="w-5 h-5" />}
+      />
 
       {/* Account info */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-1">
