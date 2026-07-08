@@ -13,6 +13,7 @@ import { Package, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StockAlertsPanel from "./StockAlertsPanel";
+import { CommandHeader, CommandPanel, CommandEmpty, MetricTile } from "@/components/dashboard/command";
 
 const UNITS = ["un", "kg", "g", "L", "ml", "pct", "cx"];
 
@@ -95,53 +96,51 @@ export default function StockTab({ orgId }: StockTabProps) {
   return (
     <div className="space-y-4">
       <StockAlertsPanel orgId={orgId} />
-      <div className="flex items-center justify-between animate-dashboard-fade-in">
-        <div className="flex items-center gap-3">
-          <div className="dashboard-section-icon">
-            <Package className="w-5 h-5" />
-          </div>
-          <h2 className="text-lg font-bold">Estoque de Insumos</h2>
+      <CommandHeader
+        eyebrow="Operações"
+        title="Estoque de Insumos"
+        subtitle="Controle automático de consumo por ficha técnica."
+        icon={<Package className="w-5 h-5" />}
+        actions={
+          <Button size="sm" onClick={openNew} className="gap-1.5 shadow-lg shadow-primary/20">
+            <Plus className="w-4 h-4" /> Novo Insumo
+          </Button>
+        }
+      />
+
+      {items.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <MetricTile label="Insumos" value={items.length} />
+          <MetricTile
+            label="Em falta"
+            value={items.filter((i) => i.quantity <= 0).length}
+            trend={items.some((i) => i.quantity <= 0) ? "down" : "flat"}
+          />
+          <MetricTile
+            label="Estoque baixo"
+            value={items.filter((i) => i.min_quantity > 0 && i.quantity > 0 && i.quantity <= i.min_quantity).length}
+          />
+          <MetricTile
+            label="Valor em estoque"
+            value={`R$ ${items.reduce((s, i) => s + i.quantity * i.cost_per_unit, 0).toFixed(2).replace(".", ",")}`}
+          />
         </div>
-        <Button size="sm" onClick={openNew} className="gap-1.5 shadow-lg shadow-primary/20">
-          <Plus className="w-4 h-4" /> Novo Insumo
-        </Button>
-      </div>
+      )}
 
       {items.length === 0 ? (
-        <div className="dashboard-glass rounded-2xl">
-          <div className="py-12 text-center text-muted-foreground">
-            <div className="flex justify-center mb-3">
-              <div className="relative" style={{ animation: 'float 3s ease-in-out infinite' }}>
-                <svg width="96" height="96" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="60" cy="60" r="50" fill="url(#stockEmptyBg)" style={{ animation: 'pulse 3s ease-in-out infinite' }} />
-                  {/* Box body */}
-                  <rect x="35" y="52" width="50" height="32" rx="3" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeOpacity="0.5" fill="none" />
-                  {/* Box flap left */}
-                  <path d="M35 52 L45 40 L60 48 L60 52" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeOpacity="0.5" fill="none" />
-                  {/* Box flap right */}
-                  <path d="M85 52 L75 40 L60 48 L60 52" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeOpacity="0.5" fill="none" />
-                  {/* Arrow up (empty indicator) */}
-                  <path d="M60 70 L60 56 M54 62 L60 56 L66 62" stroke="hsl(var(--muted-foreground))" strokeWidth="2" strokeOpacity="0.35" strokeLinecap="round" strokeLinejoin="round" />
-                  {/* Sparkles */}
-                  <circle cx="30" cy="38" r="2" fill="hsl(var(--muted-foreground))" opacity="0.18" style={{ animation: 'pulse 2.5s ease-in-out infinite' }} />
-                  <circle cx="92" cy="42" r="1.5" fill="hsl(var(--muted-foreground))" opacity="0.15" style={{ animation: 'pulse 3.5s ease-in-out infinite' }} />
-                  <defs>
-                    <radialGradient id="stockEmptyBg" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
-                      <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0" />
-                    </radialGradient>
-                  </defs>
-                </svg>
-              </div>
-            </div>
-            <p className="font-medium">Nenhum insumo cadastrado</p>
-            <p className="text-sm">Adicione ingredientes para controlar o estoque automaticamente.</p>
-          </div>
-        </div>
+        <CommandEmpty
+          title="Nenhum insumo cadastrado"
+          description="Adicione ingredientes para controlar o estoque automaticamente conforme os pedidos entram."
+          icon={<Package className="w-8 h-8" />}
+          action={
+            <Button onClick={openNew} className="gap-1.5">
+              <Plus className="w-4 h-4" /> Cadastrar primeiro insumo
+            </Button>
+          }
+        />
       ) : (
-        <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-slide-up">
-          <div className="p-0">
-            <Table>
+        <CommandPanel eyebrow="Insumos" title="Catálogo de estoque" padding="none">
+          <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
@@ -193,8 +192,7 @@ export default function StockTab({ orgId }: StockTabProps) {
                 })}
               </TableBody>
             </Table>
-          </div>
-        </div>
+        </CommandPanel>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
