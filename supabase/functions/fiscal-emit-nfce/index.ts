@@ -403,33 +403,3 @@ Deno.serve(async (req) => {
     return fail("internal_error", String((e as Error)?.message || e), { step });
   }
 });
-      const detailMsg =
-        (data as any)?.mensagem ||
-        (data as any)?.mensagem_sefaz ||
-        (data as any)?.erros?.[0]?.mensagem ||
-        `Focus retornou ${res.status}`;
-      await supabase.from("fiscal_invoices").update({
-        status: "rejected",
-        rejection_reason: String(detailMsg).slice(0, 500),
-      }).eq("id", invoiceId!);
-      await supabase.from("orders").update({ fiscal_status: "rejected" }).eq("id", order_id);
-      return fail("focus_error", String(detailMsg), { status: res.status, body: data });
-    }
-
-    // Focus returns { status: "processando_autorizacao", ref, ... }
-    step = "persist_ref";
-    await supabase.from("fiscal_invoices").update({ plugnotas_id: ref }).eq("id", invoiceId!);
-    await supabase.from("orders").update({ fiscal_status: "processing", fiscal_invoice_id: invoiceId }).eq("id", order_id);
-    log("db_updated", { invoice_id: invoiceId, status: "processing" });
-
-    return ok({ invoice_id: invoiceId, ref, upstream: data });
-  } catch (e) {
-    console.error("[fiscal-emit] fatal", {
-      step,
-      order_id: order_id_ctx,
-      message: String((e as Error)?.message || e),
-      stack: (e as Error)?.stack,
-    });
-    return fail("internal_error", String((e as Error)?.message || e), { step });
-  }
-});
