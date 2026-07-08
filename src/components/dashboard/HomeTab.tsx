@@ -233,7 +233,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
       {/* ── Header ────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 animate-dashboard-fade-in">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight tracking-tight">
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground leading-tight tracking-tight">
             {organization.name}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">{todayCapitalized}</p>
@@ -436,7 +436,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
             <ClipboardList className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{activeOrders.length}</p>
+            <p className="font-display text-3xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{activeOrders.length}</p>
             <p className="text-xs text-muted-foreground font-medium">Pedidos ativos</p>
           </div>
         </div>
@@ -445,7 +445,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
             <LayoutGrid className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{occupiedTables}</p>
+            <p className="font-display text-3xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{occupiedTables}</p>
             <p className="text-xs text-muted-foreground font-medium">Mesas ocupadas</p>
           </div>
         </div>
@@ -454,7 +454,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{lowStockCount}</p>
+            <p className="font-display text-3xl font-bold text-foreground leading-tight tabular-nums tracking-tight">{lowStockCount}</p>
             <p className="text-xs text-muted-foreground font-medium">Estoque baixo</p>
           </div>
         </div>
@@ -604,7 +604,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
         />
         <div className="relative z-10">
           <p className="text-xs text-white/70 font-semibold uppercase tracking-[0.14em]">Faturamento hoje</p>
-          <p className="text-4xl md:text-5xl font-bold mt-1.5 tracking-tight tabular-nums">{fmtBRL(todayRevenue)}</p>
+          <p className="font-display text-5xl md:text-6xl font-bold mt-1.5 tracking-tight tabular-nums">{fmtBRL(todayRevenue)}</p>
           <div className="flex items-center gap-3 mt-2">
             <p className="text-xs text-white/60">{todayDelivered.filter((o) => o.paid).length} pedido(s) pago(s)</p>
             {revenueDelta !== null && (
