@@ -143,11 +143,8 @@ Deno.serve(async (req) => {
         environment: cfg.environment,
         rejection_reason: String(quota?.reason || "Cota mensal esgotada").slice(0, 500),
       };
-      if (existing?.id) {
-        await supabase.from("fiscal_invoices").update(blockedPatch).eq("id", existing.id);
-      } else {
-        await supabase.from("fiscal_invoices").insert(blockedPatch);
-      }
+      // upsert por order_id (UNIQUE) — evita race entre invocações concorrentes
+      await supabase.from("fiscal_invoices").upsert(blockedPatch, { onConflict: "order_id" });
       return fail("quota_exceeded", "Cota mensal de NFC-e esgotada", quota);
     }
 
