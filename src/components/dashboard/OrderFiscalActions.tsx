@@ -73,8 +73,9 @@ export default function OrderFiscalActions({
   async function cancel() {
     setBusy("cancel");
     try {
+      if (!invoice?.id) throw new Error("NFC-e ainda não emitida");
       const { data, error } = await supabase.functions.invoke("fiscal-cancel-nfce", {
-        body: { order_id: orderId, reason: "Cancelamento solicitado pelo lojista" },
+        body: { invoice_id: invoice.id, motivo: "Cancelamento solicitado pelo lojista pelo painel." },
       });
       if (error) throw new Error(error.message);
       if ((data as any)?.error) throw new Error((data as any).error);
