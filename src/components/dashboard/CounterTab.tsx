@@ -206,15 +206,11 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
             </div>
           ))}
         </div>
+        </CommandPanel>
 
         {/* Cart */}
-        <div className="space-y-3">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4" />
-                Carrinho ({cart.length})
-              </h3>
+        <CommandPanel eyebrow="Comanda" title={`Carrinho (${cart.length})`} variant={cart.length > 0 ? "accent" : "default"} padding="md">
+            <div className="space-y-3">
 
               {cart.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-4">
@@ -322,9 +318,8 @@ const CounterTab = ({ orgId, pausedCategories = [] }: CounterTabProps) => {
                   Limpar tudo
                 </Button>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+        </CommandPanel>
       </div>
     </div>
   );
