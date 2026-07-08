@@ -1134,9 +1134,23 @@ const DashboardPage = () => {
                 : <IFoodTab orgId={organization.id} />
           )}
           {activeTab === "telegram" && <TelegramTab orgId={organization.id} />}
-          {activeTab === "aibot" && (lockedFeatures.aibot
-            ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
-            : <AIBotTab orgId={organization.id} />)}
+          {activeTab === "aibot" && (() => {
+            const isLifetime = (organization as any).subscription_plan === "lifetime";
+            const requiresAddon = !!(organization as any).requires_ai_bot_addon;
+            // Lifetime sempre vê o painel do Robô (o AiBotAddonCard cuida do add-on por dentro).
+            // Para orgs que exigem add-on, aguarda o carregamento antes de decidir bloquear.
+            if (isLifetime) return <AIBotTab orgId={organization.id} />;
+            if (requiresAddon && aiBotAddonLoading) {
+              return (
+                <div className="flex items-center justify-center py-20">
+                  <Skeleton className="h-8 w-40" />
+                </div>
+              );
+            }
+            return lockedFeatures.aibot
+              ? <UpgradePrompt title="Robô IA de Vendas" description="Atendimento automático no WhatsApp com IA, fechando vendas 24/7. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+              : <AIBotTab orgId={organization.id} />;
+          })()}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
           {activeTab === "fiscal" && (
             !featureFlags?.fiscal_enabled && !isAdmin
