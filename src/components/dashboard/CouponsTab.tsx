@@ -26,6 +26,7 @@ import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from "@
 import type { Coupon, CreateCouponPayload } from "@/hooks/useCoupons";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import LockedFeatureBanner from "@/components/dashboard/LockedFeatureBanner";
+import { CommandHeader, CommandPanel, CommandEmpty, MetricTile, StatusPill } from "@/components/dashboard/command";
 
 interface CouponsTabProps {
   orgId: string;
@@ -40,11 +41,9 @@ const getCouponStatus = (coupon: Coupon): "active" | "inactive" | "expired" => {
 };
 
 const statusBadge = (status: "active" | "inactive" | "expired") => {
-  if (status === "active")
-    return <Badge variant="secondary" className="text-green-800 border-green-300">Ativo</Badge>;
-  if (status === "expired")
-    return <Badge variant="outline" className="text-orange-700 border-orange-300">Expirado</Badge>;
-  return <Badge variant="secondary">Inativo</Badge>;
+  if (status === "active") return <StatusPill variant="live" dot>Ativo</StatusPill>;
+  if (status === "expired") return <StatusPill variant="warn">Expirado</StatusPill>;
+  return <StatusPill variant="neutral">Inativo</StatusPill>;
 };
 
 const fmtDate = (iso: string) =>
@@ -98,66 +97,47 @@ export default function CouponsTab({ orgId, organization, onNavigate }: CouponsT
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3 animate-dashboard-fade-in">
-        <div className="flex items-center gap-3">
-          <div className="dashboard-section-icon">
-            <Tag className="w-5 h-5" />
-          </div>
-          <h2 className="font-bold text-foreground text-xl">Cupons de Desconto</h2>
-          <span className="text-sm text-muted-foreground ml-1">
-            {coupons.length} cupom{coupons.length !== 1 ? "ns" : ""}
-          </span>
+      <CommandHeader
+        eyebrow="Crescimento"
+        title="Cupons de Desconto"
+        subtitle={`${coupons.length} cupom${coupons.length !== 1 ? "ns" : ""} · códigos promocionais para seus clientes`}
+        icon={<Tag className="w-5 h-5" />}
+        actions={
+          <Button
+            size="sm"
+            onClick={() => { setForm(defaultForm); setDialogOpen(true); }}
+            className="shadow-lg shadow-primary/20"
+            disabled={!canCreate}
+            title={!canCreate ? "Disponível no plano Pro" : undefined}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Novo Cupom
+          </Button>
+        }
+      />
+
+      {coupons.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <MetricTile label="Ativos" value={coupons.filter((c) => getCouponStatus(c) === "active").length} />
+          <MetricTile label="Expirados" value={coupons.filter((c) => getCouponStatus(c) === "expired").length} />
+          <MetricTile label="Usos totais" value={coupons.reduce((s, c) => s + (c.uses ?? 0), 0)} />
         </div>
-        <Button
-          size="sm"
-          onClick={() => { setForm(defaultForm); setDialogOpen(true); }}
-          className="shadow-lg shadow-primary/20"
-          disabled={!canCreate}
-          title={!canCreate ? "Disponível no plano Pro" : undefined}
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Novo Cupom
-        </Button>
-      </div>
+      )}
 
       {/* List */}
       {isLoading ? (
         <p className="text-muted-foreground animate-pulse py-8 text-center">Carregando cupons…</p>
       ) : coupons.length === 0 ? (
-        <div className="text-center py-16 dashboard-glass rounded-2xl">
-          <div className="relative mx-auto w-24 h-24 mb-3">
-            <div className="animate-[float_3s_ease-in-out_infinite]">
-              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-24 h-24">
-                <circle cx="60" cy="60" r="50" fill="url(#tagGlow)" className="animate-[pulse_3s_ease-in-out_infinite]" />
-                <g className="animate-[tagBounce_2s_ease-in-out_infinite]" style={{transformOrigin: '60px 60px'}}>
-                  <path d="M30 50 L60 25 L90 50 L90 85 Q90 90 85 90 L35 90 Q30 90 30 85Z" fill="hsl(var(--primary))" opacity="0.2" />
-                  <path d="M34 52 L60 30 L86 52 L86 82 Q86 86 82 86 L38 86 Q34 86 34 82Z" fill="hsl(var(--primary))" opacity="0.35" />
-                  <circle cx="60" cy="50" r="6" fill="none" stroke="white" strokeWidth="2.5" />
-                  <line x1="48" y1="66" x2="72" y2="66" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
-                  <line x1="52" y1="74" x2="68" y2="74" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-                </g>
-                <path d="M20 40 Q60 20 100 40" stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none" opacity="0.15" className="animate-[shineArc_3s_ease-in-out_infinite]" />
-                <circle cx="92" cy="30" r="2.5" fill="#facc15" className="animate-[sparkle_2s_ease-in-out_infinite]" />
-                <circle cx="28" cy="35" r="2" fill="#facc15" className="animate-[sparkle_2s_ease-in-out_0.7s_infinite]" />
-                <defs>
-                  <radialGradient id="tagGlow" cx="0.5" cy="0.5" r="0.5">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-                  </radialGradient>
-                </defs>
-              </svg>
-            </div>
-          </div>
-          <p className="font-semibold text-foreground">Nenhum cupom criado ainda.</p>
-          <p className="text-muted-foreground text-sm mt-1">Crie cupons de desconto para seus clientes.</p>
-          <style>{`
-            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-            @keyframes tagBounce { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.05) rotate(-2deg); } }
-            @keyframes shineArc { 0% { stroke-dashoffset: 200; stroke-dasharray: 200; opacity: 0; } 50% { opacity: 0.3; } 100% { stroke-dashoffset: 0; stroke-dasharray: 200; opacity: 0; } }
-            @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1.3); } }
-          `}</style>
-        </div>
+        <CommandEmpty
+          title="Nenhum cupom criado"
+          description="Crie cupons promocionais para atrair e fidelizar clientes."
+          icon={<Tag className="w-8 h-8" />}
+          action={
+            <Button size="sm" onClick={() => { setForm(defaultForm); setDialogOpen(true); }} disabled={!canCreate}>
+              <Plus className="w-4 h-4 mr-1.5" /> Criar primeiro cupom
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {coupons.map((coupon) => {
