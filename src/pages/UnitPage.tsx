@@ -803,8 +803,11 @@ const UnitPage = () => {
           organizationId: org.id,
           tableNumber: 0,
           notes: noteParts.join("|"),
-          paymentMethod: effectivePayment.toLowerCase(),
+          paymentMethod: normalizePaymentMethod(effectivePayment),
           paid: false,
+          customerCpf: (() => { const d = buyerDoc.replace(/\D/g, ""); return d.length === 11 || d.length === 14 ? d : null; })(),
+          customerEmail: buyerEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail.trim()) ? buyerEmail.trim().toLowerCase() : null,
+          customerNameFiscal: buyerName.trim() || null,
           items: cartItems.map((i) => {
             let finalName = i.name;
             if (i.addons.length > 0) {
