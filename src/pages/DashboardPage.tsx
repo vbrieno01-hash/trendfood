@@ -729,10 +729,10 @@ const DashboardPage = () => {
 
   // Sidebar nav button style helper
   const navBtnClass = (key: TabKey) =>
-    `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left hover:scale-[1.02] ${
+    `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 text-left border-l-2 ${
       activeTab === key
-        ? "bg-primary text-white shadow-md shadow-primary/30"
-        : "text-white/60 hover:bg-white/10 hover:text-white"
+        ? "bg-primary/12 text-primary font-semibold border-primary [&_svg]:text-primary"
+        : "border-transparent text-white/70 hover:bg-white/[0.04] hover:text-white [&_svg]:text-white/50 hover:[&_svg]:text-white"
     }`;
 
   const showOnboarding = organization && !(organization as any).onboarding_done;
@@ -791,23 +791,31 @@ const DashboardPage = () => {
       <aside
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
-          w-64 transform transition-transform duration-300 sidebar-glow
+          w-64 transform transition-transform duration-300 backdrop-blur-xl border-r border-white/5
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:translate-x-0 lg:z-auto
         `}
-        style={{ background: "linear-gradient(180deg, hsl(220 15% 7%) 0%, hsl(25 20% 6%) 40%, hsl(220 15% 6%) 100%)" }}
+        style={{
+          background:
+            "radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.12) 0%, transparent 45%), hsl(220 15% 6%)",
+        }}
       >
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-white/10">
+        <div className="px-5 py-5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="block w-6 h-px bg-primary" aria-hidden="true" />
+            <span className="font-mono text-[10px] font-semibold tracking-[0.22em] text-primary/80">PAINEL</span>
+          </div>
           <Link to="/" className="flex items-center gap-2.5">
             <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-xl object-contain shadow-lg shadow-primary/30" />
-            <span className="font-extrabold text-white text-base tracking-tight">TrendFood</span>
+            <span className="font-black text-white text-base tracking-tight">TrendFood</span>
           </Link>
         </div>
 
         {/* Org switcher */}
-        <div className="px-4 py-4 border-b border-white/10">
-          <OrgSwitcher
+        <div className="px-4 py-4 border-b border-white/[0.06]">
+          <div className="rounded-xl bg-white/[0.03] border border-white/10 p-1">
+            <OrgSwitcher
             organizations={organizations}
             activeOrg={organization}
             onSwitch={(orgId) => {
@@ -820,7 +828,8 @@ const DashboardPage = () => {
               const org = organizations.find((o) => o.id === orgId);
               if (org) setDeleteUnit({ id: org.id, name: org.name });
             }}
-          />
+            />
+          </div>
         </div>
 
         {/* Search */}
@@ -832,7 +841,7 @@ const DashboardPage = () => {
               placeholder="Buscar aba…"
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 rounded-lg bg-white/10 text-sm text-white placeholder:text-white/40 border border-white/10 focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="w-full pl-8 pr-3 py-2 rounded-lg bg-white/[0.03] text-sm text-white placeholder:font-mono placeholder:text-xs placeholder:text-white/40 border border-white/10 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40"
             />
           </div>
         </div>
@@ -859,11 +868,11 @@ const DashboardPage = () => {
               : group.items;
             if (filteredItems.length === 0) return null;
             return (
-              <div key={group.id} className="mt-5 pt-3 border-t border-white/10 first:border-t-0 first:pt-0 first:mt-3">
-                <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary/80 cursor-default select-none">
-                  <span className="block w-0.5 h-4 bg-primary rounded-full" aria-hidden="true" />
-                  <span className="text-sm leading-none">{group.emoji}</span>
-                  <span>{group.title}</span>
+              <div key={group.id} className="mt-5 pt-3 border-t border-white/[0.06] first:border-t-0 first:pt-0 first:mt-3">
+                <div className="flex items-center gap-2 px-3 py-2 cursor-default select-none">
+                  <span className="block w-6 h-px bg-primary" aria-hidden="true" />
+                  <span className="text-[11px] leading-none opacity-80">{group.emoji}</span>
+                  <span className="font-mono text-[11px] font-semibold tracking-[0.18em] text-primary">{group.title}</span>
                 </div>
                 <div className="space-y-0.5">
                   {filteredItems.map((item) => (
@@ -875,7 +884,7 @@ const DashboardPage = () => {
                     >
                       {item.icon}
                       <span className="flex-1 text-left">{item.label}</span>
-                      {item.locked && <Lock className="w-3.5 h-3.5 opacity-50" />}
+                      {item.locked && <Lock className="w-3.5 h-3.5 text-amber-400/70" />}
                     </button>
                   ))}
                 </div>
@@ -885,41 +894,43 @@ const DashboardPage = () => {
         </nav>
 
         {/* Bottom actions */}
-        <div className="px-3 pb-5 pt-3 border-t border-white/10 space-y-0.5">
+        <div className="px-3 pb-5 pt-3 border-t border-white/[0.06] space-y-1">
           <button
             onClick={() => handleTabChange("referral")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/15 text-primary hover:bg-primary/25 transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/10 text-primary border border-primary/25 hover:bg-primary/20 transition-all duration-150"
           >
             <Gift className="w-4 h-4" />
             Ganhe Desconto
           </button>
+          <div className="pt-1 mt-1 border-t border-white/[0.06] space-y-0.5">
           <a
             href={communityWhatsAppUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/15 hover:text-emerald-300 transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/[0.04] hover:text-white transition-all duration-150"
           >
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-4 h-4 text-white/50" />
             Comunidade WhatsApp
           </a>
           <a
             href={`${getPublicBaseUrl()}/unidade/${organization.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white transition-all duration-150"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/[0.04] hover:text-white transition-all duration-150"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-4 h-4 text-white/50" />
             Ver página pública
           </a>
           <div className="flex items-center gap-2">
-            <ThemeToggle className="text-white/50 hover:text-white hover:bg-white/10" />
+            <ThemeToggle className="text-white/50 hover:text-white hover:bg-white/[0.04]" />
             <button
               onClick={handleSignOut}
-              className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/50 hover:bg-white/10 hover:text-red-400 transition-all duration-150"
+              className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/[0.04] hover:text-red-400 transition-all duration-150"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-4 h-4 text-white/50" />
               Sair
             </button>
+          </div>
           </div>
         </div>
       </aside>
