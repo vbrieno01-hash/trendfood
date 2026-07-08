@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Loader2, Link2, RefreshCw, Unplug, Copy, Zap, LifeBuoy,
+  Loader2, Link2, RefreshCw, Unplug, Copy, Zap, LifeBuoy, Utensils,
 } from "lucide-react";
 import IFoodDisputesPanel from "@/components/dashboard/IFoodDisputesPanel";
+import { CommandHeader, CommandPanel, StatusPill } from "@/components/dashboard/command";
 
 interface IFoodTabProps { orgId: string; }
 
@@ -156,35 +156,33 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
     toast.success("orderId copiado");
   };
 
-  const statusBadge = () => {
+  const statusPill = () => {
     const s = cred?.status || "disconnected";
-    const map: Record<string, { color: string; label: string }> = {
-      connected: { color: "bg-green-500", label: "Conectado" },
-      pending: { color: "bg-yellow-500", label: "Aguardando" },
-      error: { color: "bg-red-500", label: "Erro" },
-      disconnected: { color: "bg-gray-400", label: "Desconectado" },
+    const map: Record<string, { variant: "live" | "warn" | "danger" | "neutral"; label: string }> = {
+      connected: { variant: "live", label: "Conectado" },
+      pending: { variant: "warn", label: "Aguardando" },
+      error: { variant: "danger", label: "Erro" },
+      disconnected: { variant: "neutral", label: "Desconectado" },
     };
     const m = map[s] || map.disconnected;
-    return <Badge className={`${m.color} text-white`}>{m.label}</Badge>;
+    return <StatusPill variant={m.variant} dot>{m.label}</StatusPill>;
   };
 
   if (loading) return <div className="p-6 flex justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">Integração iFood</h2>
-        <p className="text-sm text-muted-foreground">Receba pedidos do iFood automaticamente na sua produção.</p>
-      </div>
+      <CommandHeader
+        eyebrow="Integração"
+        title="Integração iFood"
+        subtitle="Receba pedidos do iFood automaticamente na sua produção."
+        icon={<Utensils className="w-5 h-5" />}
+      />
 
       <IFoodDisputesPanel orgId={orgId} />
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Conexão</CardTitle>
-          {statusBadge()}
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CommandPanel eyebrow="Conexão" title="Credenciais iFood" actions={statusPill()}>
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label>Merchant ID (loja iFood)</Label>
             <Input value={merchantId} onChange={(e) => setMerchantId(e.target.value)}
@@ -243,15 +241,11 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
               <div className="italic">Varredura de pedidos órfãos rodando a cada 1 minuto via cron.</div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </CommandPanel>
 
       {canSeeDebug && (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Últimos eventos (debug homologação)</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CommandPanel eyebrow="Debug" title="Últimos eventos (homologação)">
           {events.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum evento recebido ainda.</p>
           ) : (
@@ -282,8 +276,7 @@ const IFoodTab = ({ orgId }: IFoodTabProps) => {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CommandPanel>
       )}
     </div>
   );
