@@ -17,6 +17,7 @@ import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { FileText, ShieldCheck, ShieldAlert, Upload, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FiscalHistoryTab from "@/components/dashboard/FiscalHistoryTab";
+import FiscalInutilizationBlock from "@/components/dashboard/FiscalInutilizationBlock";
 import { Progress } from "@/components/ui/progress";
 import { useFiscalQuota } from "@/hooks/useFiscalQuota";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
