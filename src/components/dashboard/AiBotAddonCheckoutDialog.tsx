@@ -222,8 +222,8 @@ export default function AiBotAddonCheckoutDialog({ open, onOpenChange, orgId, on
 
       pollRef.current = setInterval(async () => {
         try {
-          const { data: chk } = await supabase.functions.invoke("check-pix-status", {
-            body: { organization_id: orgId, payment_id: String(data.payment_id), order_id: null },
+          const { data: chk } = await supabase.functions.invoke("check-addon-pix", {
+            body: { org_id: orgId, payment_id: String(data.payment_id) },
           });
           if (chk?.paid) {
             if (pollRef.current) clearInterval(pollRef.current);
