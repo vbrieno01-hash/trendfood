@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Store, UtensilsCrossed, History, Tag, BarChart2, Grid3X3, Package, Wallet, FileText, DollarSign } from "lucide-react";
+import { ArrowLeft, Store, UtensilsCrossed, History, Tag, BarChart2, Grid3X3, Package, Wallet, FileText, DollarSign, Bot, CheckCircle2, XCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import CaixaTab from "@/components/dashboard/CaixaTab";
 import ReportsTab from "@/components/dashboard/ReportsTab";
 import StoreProfileTab from "@/components/dashboard/StoreProfileTab";
 import StorePaymentsTab from "@/components/admin/StorePaymentsTab";
+import AiBotAddonCard from "@/components/dashboard/AiBotAddonCard";
+import { useOrgAddon } from "@/hooks/useOrgAddon";
 
 interface AdminStoreManagerProps {
   org: {
@@ -101,6 +103,7 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
     { key: "caixa", label: "Caixa", icon: <Wallet className="w-3.5 h-3.5" /> },
     { key: "relatorios", label: "Relatórios", icon: <FileText className="w-3.5 h-3.5" /> },
     { key: "pagamentos", label: "Pagamentos", icon: <DollarSign className="w-3.5 h-3.5" /> },
+    { key: "robo", label: "Robô WhatsApp", icon: <Bot className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -181,8 +184,117 @@ export default function AdminStoreManager({ org, onBack }: AdminStoreManagerProp
           <TabsContent value="pagamentos" className="mt-4">
             <StorePaymentsTab orgId={org.id} orgName={org.name} />
           </TabsContent>
+
+          <TabsContent value="robo" className="mt-4">
+            <RoboWhatsAppSubTab
+              orgId={org.id}
+              requiresAiBotAddon={!!(fullOrg as any)?.requires_ai_bot_addon}
+              active={activeSubTab === "robo"}
+            />
+          </TabsContent>
         </Tabs>
       )}
+    </div>
+  );
+}
+
+function RoboWhatsAppSubTab({
+  orgId,
+  requiresAiBotAddon,
+  active,
+}: {
+  orgId: string;
+  requiresAiBotAddon: boolean;
+  active: boolean;
+}) {
+  const { data: addon, isLoading } = useOrgAddon(orgId, "ai_bot");
+
+  const { data: lastPayment } = useQuery({
+    queryKey: ["admin-org-addon-last-payment", orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pending_subscription_payments")
+        .select("payment_id, status, amount_cents, created_at, resolved_at, plan")
+        .eq("organization_id", orgId)
+        .eq("plan", "addon:ai_bot")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: active,
+    staleTime: 30_000,
+  });
+
+  const fmtDate = (d?: string | null) =>
+    d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+  const fmtDateTime = (d?: string | null) =>
+    d ? new Date(d).toLocaleString("pt-BR") : "—";
+
+  return (
+    <div className="space-y-4">
+      <AiBotAddonCard addon={addon} loading={isLoading} orgId={orgId} />
+
+      <div className="dashboard-glass rounded-2xl p-4 border-2 border-border/60 space-y-3">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <Bot className="w-4 h-4" />
+          Diagnóstico do add-on (somente leitura)
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <DiagRow label="requires_ai_bot_addon" value={requiresAiBotAddon ? "true" : "false"} ok={requiresAiBotAddon} />
+          <DiagRow label="Status" value={addon?.status ?? "—"} ok={addon?.status === "active"} />
+          <DiagRow label="Próxima cobrança" value={fmtDate(addon?.current_period_end)} />
+          <DiagRow label="Preço mensal" value={addon ? `R$ ${Number(addon.price_monthly).toFixed(2).replace(".", ",")}` : "—"} />
+          <DiagRow label="Dia da cobrança" value={addon?.billing_day ? String(addon.billing_day) : "—"} />
+          <DiagRow
+            label="Cartão recorrente (preapproval)"
+            value={addon?.mp_preapproval_id ? "configurado" : "não configurado"}
+            ok={!!addon?.mp_preapproval_id}
+          />
+        </div>
+
+        <div className="pt-3 border-t border-border/60">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Última cobrança conhecida</p>
+          {lastPayment ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <DiagRow label="payment_id" value={lastPayment.payment_id ?? "—"} />
+              <DiagRow label="status" value={lastPayment.status ?? "—"} ok={lastPayment.status === "approved"} />
+              <DiagRow
+                label="valor"
+                value={
+                  lastPayment.amount_cents != null
+                    ? `R$ ${(Number(lastPayment.amount_cents) / 100).toFixed(2).replace(".", ",")}`
+                    : "—"
+                }
+              />
+              <DiagRow label="criada em" value={fmtDateTime(lastPayment.created_at)} />
+              <DiagRow label="resolvida em" value={fmtDateTime(lastPayment.resolved_at)} />
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Nenhuma cobrança registrada ainda.</p>
+          )}
+        </div>
+
+        <p className="text-[11px] text-muted-foreground pt-2 border-t border-border/60">
+          Nenhuma ação de ativação manual disponível aqui. A ativação e a renovação do período são feitas
+          exclusivamente pelo webhook do Mercado Pago quando o pagamento é aprovado.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function DiagRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-muted/40">
+      <span className="text-muted-foreground font-mono">{label}</span>
+      <span className="font-semibold text-foreground flex items-center gap-1">
+        {ok === true && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+        {ok === false && <XCircle className="w-3 h-3 text-muted-foreground" />}
+        {value}
+      </span>
     </div>
   );
 }
