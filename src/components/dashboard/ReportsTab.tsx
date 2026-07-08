@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useOrderHistory, type CustomDateRange } from "@/hooks/useOrders";
+import { esc } from "@/lib/escapeHtml";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   BarChart,
@@ -268,31 +269,31 @@ export default function ReportsTab({ orgId, orgName, orgLogo, orgWhatsapp, orgAd
     const emissionDate = new Date().toLocaleString("pt-BR");
 
     const dailyRows = dailyRevenue
-      .map((d) => `<tr><td>${d.date}</td><td>${fmtBRL(d.revenue)}</td></tr>`)
+      .map((d) => `<tr><td>${esc(d.date)}</td><td>${fmtBRL(d.revenue)}</td></tr>`)
       .join("");
 
     const rankingRows = categoryRanking
-      .map((c, i) => `<tr><td>${i + 1}</td><td>${c.name}</td><td>${fmtBRL(c.revenue)}</td><td>${c.qty}</td></tr>`)
+      .map((c, i) => `<tr><td>${i + 1}</td><td>${esc(c.name)}</td><td>${fmtBRL(c.revenue)}</td><td>${c.qty}</td></tr>`)
       .join("");
 
     const orderDetailRows = orderRows
-      .map((r) => `<tr><td>#${r.orderNumber}</td><td>${r.date}</td><td>${fmtBRL(r.total)}</td><td>${r.paymentMethod}</td><td>${r.status}</td></tr>`)
+      .map((r) => `<tr><td>#${esc(r.orderNumber)}</td><td>${esc(r.date)}</td><td>${fmtBRL(r.total)}</td><td>${esc(r.paymentMethod)}</td><td>${esc(r.status)}</td></tr>`)
       .join("");
 
     const paymentBreakdownRows = paymentStats
-      .map((ps) => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ps.fill};margin-right:6px"></span>${ps.method}</td><td style="text-align:center">${ps.count}</td><td style="text-align:right">${fmtBRL(ps.total)}</td><td style="text-align:right">${ps.pct.toFixed(1)}%</td></tr>`)
+      .map((ps) => `<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ps.fill};margin-right:6px"></span>${esc(ps.method)}</td><td style="text-align:center">${ps.count}</td><td style="text-align:right">${fmtBRL(ps.total)}</td><td style="text-align:right">${ps.pct.toFixed(1)}%</td></tr>`)
       .join("");
 
     const trendfoodLogo = window.location.origin + "/logo-trendfood.png";
     const watermarkHtml = `<div style="position:${forImage ? "absolute" : "fixed"};top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${trendfoodLogo}" style="width:100%;height:auto" /></div>`;
 
     const headerLogoHtml = orgLogo
-      ? `<img src="${orgLogo}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
+      ? `<img src="${esc(orgLogo)}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
       : "";
 
-    const cnpjLine = orgCnpj ? `<div class="store-info">CNPJ: ${orgCnpj}</div>` : "";
+    const cnpjLine = orgCnpj ? `<div class="store-info">CNPJ: ${esc(orgCnpj)}</div>` : "";
 
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas - ${orgName}</title>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Vendas - ${esc(orgName)}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:system-ui,-apple-system,sans-serif;padding:32px 40px;color:#1a1a1a;position:relative;background:#fff}
@@ -327,15 +328,15 @@ ${watermarkHtml}
   <div class="header">
     ${headerLogoHtml}
     <div>
-      <div class="store-name">${orgName}</div>
+      <div class="store-name">${esc(orgName)}</div>
       ${cnpjLine}
       <div class="store-info">
-        ${cleanAddress ? cleanAddress : ""}${cleanAddress && formattedWhatsapp ? " &nbsp;•&nbsp; " : ""}${formattedWhatsapp ? "WhatsApp: " + formattedWhatsapp : ""}
+        ${cleanAddress ? esc(cleanAddress) : ""}${cleanAddress && formattedWhatsapp ? " &nbsp;•&nbsp; " : ""}${formattedWhatsapp ? "WhatsApp: " + esc(formattedWhatsapp) : ""}
       </div>
     </div>
   </div>
 
-  <div class="report-title">Relatório de Vendas — ${periodLabel}</div>
+  <div class="report-title">Relatório de Vendas — ${esc(periodLabel)}</div>
   <div class="emission">Emitido em ${emissionDate}</div>
 
   <div class="kpi-grid">

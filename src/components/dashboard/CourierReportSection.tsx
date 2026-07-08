@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { esc } from "@/lib/escapeHtml";
 import {
   useOrgDeliveries,
   useOrgCouriers,
@@ -169,18 +170,18 @@ export default function CourierReportSection({
     const watermarkHtml = `<div style="position:${forImage ? "absolute" : "fixed"};top:50%;left:50%;transform:translate(-50%,-50%);width:60%;opacity:0.06;pointer-events:none;z-index:0"><img src="${trendfoodLogo}" style="width:100%;height:auto" /></div>`;
 
     const headerLogoHtml = orgLogo
-      ? `<img src="${orgLogo}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
+      ? `<img src="${esc(orgLogo)}" style="width:48px;height:48px;border-radius:10px;object-fit:contain" />`
       : "";
 
     const rankingRows = ranking
-      .map((r, i) => `<tr><td>${i + 1}</td><td>${r.name}</td><td>${r.deliveries}</td><td>${r.km.toFixed(1)} km</td><td>${fmtBRL(r.fee)}</td><td>${formatHours(r.minutes)}</td></tr>`)
+      .map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.deliveries}</td><td>${r.km.toFixed(1)} km</td><td>${fmtBRL(r.fee)}</td><td>${formatHours(r.minutes)}</td></tr>`)
       .join("");
 
     const dailyRows = dailyDeliveries
-      .map((d) => `<tr><td>${d.date}</td><td>${d.entregas}</td></tr>`)
+      .map((d) => `<tr><td>${esc(d.date)}</td><td>${d.entregas}</td></tr>`)
       .join("");
 
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Motoboys - ${orgName}</title>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Motoboys - ${esc(orgName)}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:system-ui,-apple-system,sans-serif;padding:32px 40px;color:#1a1a1a;position:relative;background:#fff}
@@ -202,9 +203,9 @@ export default function CourierReportSection({
 </style></head><body>
 ${watermarkHtml}
 <div style="position:relative;z-index:1">
-  <div class="header">${headerLogoHtml}<div><div class="store-name">${orgName}</div>
-  <div class="store-info">${cleanAddress}${cleanAddress && formattedWhatsapp ? " • " : ""}${formattedWhatsapp ? "WhatsApp: " + formattedWhatsapp : ""}</div></div></div>
-  <div class="report-title">Relatório de Motoboys — ${periodLabel}</div>
+  <div class="header">${headerLogoHtml}<div><div class="store-name">${esc(orgName)}</div>
+  <div class="store-info">${esc(cleanAddress)}${cleanAddress && formattedWhatsapp ? " • " : ""}${formattedWhatsapp ? "WhatsApp: " + esc(formattedWhatsapp) : ""}</div></div></div>
+  <div class="report-title">Relatório de Motoboys — ${esc(periodLabel)}</div>
   <div class="emission">Emitido em ${emissionDate}</div>
   <div class="kpi-grid">
     <div class="kpi"><div class="label">Total de Entregas</div><div class="value">${kpis.totalDeliveries}</div></div>
