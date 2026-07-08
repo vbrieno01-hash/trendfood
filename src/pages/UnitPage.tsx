@@ -1710,6 +1710,22 @@ const UnitPage = () => {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="buyer-email" className="text-xs font-medium mb-1 block">
+                  E-mail para receber NFC-e <span className="text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="buyer-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="voce@exemplo.com"
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  maxLength={120}
+                />
+              </div>
+
                {orderType === "Entrega" && (
                  <div ref={addressRef} className="space-y-3">
                    {/* Bairro — dropdown com os bairros cadastrados */}
