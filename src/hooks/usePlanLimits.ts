@@ -99,10 +99,10 @@ export function usePlanLimits(
     // Add-on gate: only affects orgs explicitly flagged as requires_ai_bot_addon.
     // For every other org, features remain exactly as before.
     let features = baseFeatures;
-    if (requiresAiBotAddon && baseFeatures.ai_bot) {
+    if (requiresAiBotAddon && baseFeatures.ai_bot && effectivePlan !== "lifetime") {
       const periodEnd = addonPeriodEnd ? new Date(addonPeriodEnd) : null;
       const addonActive =
-        addonStatus === "active" && !!periodEnd && periodEnd > now;
+        addonStatus === "active" && (periodEnd === null || periodEnd > now);
       if (!addonActive) {
         features = { ...baseFeatures, ai_bot: false };
       }

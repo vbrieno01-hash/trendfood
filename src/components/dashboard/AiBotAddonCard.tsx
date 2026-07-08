@@ -30,12 +30,13 @@ export default function AiBotAddonCard({ addon, loading, orgId }: AiBotAddonCard
   const now = new Date();
   const periodEnd = addon?.current_period_end ? new Date(addon.current_period_end) : null;
   const isActive =
-    addon?.status === "active" && !!periodEnd && periodEnd > now;
+    addon?.status === "active" && (periodEnd === null || periodEnd > now);
+  const activeAddon = isActive && addon ? addon : null;
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-  if (isActive && periodEnd) {
+  if (activeAddon) {
     return (
       <>
         <div className="dashboard-glass rounded-2xl p-4 border-2 border-emerald-500/40 bg-emerald-500/10 flex items-start gap-3 animate-dashboard-fade-in">
@@ -49,10 +50,10 @@ export default function AiBotAddonCard({ addon, loading, orgId }: AiBotAddonCard
             </div>
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              Próxima cobrança em {formatDate(periodEnd)} · R${" "}
-              {Number(addon.price_monthly).toFixed(2).replace(".", ",")}/mês
+              {periodEnd ? `Próxima cobrança em ${formatDate(periodEnd)}` : "Liberação ativa sem expiração"} · R${" "}
+              {Number(activeAddon.price_monthly).toFixed(2).replace(".", ",")}/mês
             </p>
-            {orgId && !addon?.mp_preapproval_id && (
+            {orgId && !activeAddon.mp_preapproval_id && (
               <div className="flex flex-wrap gap-2 mt-3">
                 <Button
                   size="sm"
