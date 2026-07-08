@@ -41,6 +41,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { buildPixPayload } from "@/lib/pixPayload";
 import CourierReportSection from "./CourierReportSection";
 import { recalculateNullDistances } from "@/hooks/useCreateDelivery";
+import { CommandHeader, CommandPanel, MetricTile } from "@/components/dashboard/command";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30" },
@@ -213,18 +214,12 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, or
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 animate-dashboard-fade-in">
-        <div className="dashboard-section-icon">
-          <Bike className="w-5 h-5" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold">Motoboys & Entregas</h2>
-          <p className="text-sm text-muted-foreground">
-            Acompanhe entregas em tempo real e gerencie seus motoboys.
-          </p>
-        </div>
-      </div>
+      <CommandHeader
+        eyebrow="Logística"
+        title="Motoboys & Entregas"
+        subtitle="Acompanhe entregas em tempo real e gerencie seus motoboys."
+        icon={<Bike className="w-5 h-5" />}
+      />
 
       {/* Date filter */}
       <div className="flex flex-wrap items-center gap-2">
@@ -279,11 +274,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, or
       </div>
 
       {/* Fee config */}
-      <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-1">
-        <div className="flex items-center gap-2 mb-3">
-          <Settings className="w-4 h-4 text-muted-foreground" />
-          <p className="text-sm font-semibold">Taxa do motoboy</p>
-        </div>
+      <CommandPanel eyebrow="Configuração" title="Taxa do motoboy">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Taxa base (por corrida)</label>
@@ -302,47 +293,29 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, or
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Salvar
         </Button>
-      </div>
+      </CommandPanel>
 
       {/* Courier link */}
-      <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-2">
-        <p className="text-sm font-medium mb-1">Link para cadastro de motoboys:</p>
+      <CommandPanel eyebrow="Cadastro" title="Link para motoboys">
         <div className="flex items-center gap-2">
           <code className="text-xs bg-muted px-3 py-2 rounded-lg flex-1 break-all">{courierLink}</code>
           <button onClick={() => { navigator.clipboard.writeText(courierLink); toast.success("Copiado!"); }} className="text-xs text-primary font-medium shrink-0 hover:underline">
             Copiar
           </button>
         </div>
-      </div>
+      </CommandPanel>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-dashboard-fade-in dash-delay-3">
-        <div className="dashboard-glass rounded-2xl p-4 text-center">
-          <Users className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
-          <p className="text-2xl font-bold">{couriers.length}</p>
-          <p className="text-xs text-muted-foreground">Motoboys</p>
-        </div>
-        <div className="dashboard-glass rounded-2xl p-4 text-center">
-          <Clock className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "pendente").length}</p>
-          <p className="text-xs text-muted-foreground">Pendentes</p>
-        </div>
-        <div className="dashboard-glass rounded-2xl p-4 text-center">
-          <Navigation className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "em_rota").length}</p>
-          <p className="text-xs text-muted-foreground">Em rota</p>
-        </div>
-        <div className="dashboard-glass rounded-2xl p-4 text-center">
-          <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold">{deliveries.filter((d) => d.status === "entregue").length}</p>
-          <p className="text-xs text-muted-foreground">Entregues</p>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricTile label="Motoboys" value={couriers.length} icon={<Users className="w-4 h-4" />} />
+        <MetricTile label="Pendentes" value={deliveries.filter((d) => d.status === "pendente").length} icon={<Clock className="w-4 h-4" />} />
+        <MetricTile label="Em rota" value={deliveries.filter((d) => d.status === "em_rota").length} icon={<Navigation className="w-4 h-4" />} />
+        <MetricTile label="Entregues" value={deliveries.filter((d) => d.status === "entregue").length} icon={<CheckCircle2 className="w-4 h-4" />} />
       </div>
 
       {/* Day summary */}
       {summary.length > 0 && (
-        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-4">
-          <h3 className="font-semibold text-sm mb-3">📊 Resumo do Dia</h3>
+        <CommandPanel eyebrow="Turno" title="Resumo do dia">
           <div className="space-y-2">
             {summary.map((s, i) => (
               <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
@@ -355,7 +328,7 @@ const CourierDashboardTab = ({ orgId, orgSlug, orgName, orgLogo, orgWhatsapp, or
               <span>{totalSummary.count} entregas · {totalSummary.km.toFixed(1)} km · <span className="text-primary">R$ {totalSummary.fee.toFixed(2)}</span></span>
             </div>
           </div>
-        </div>
+        </CommandPanel>
       )}
 
       {/* Active deliveries */}

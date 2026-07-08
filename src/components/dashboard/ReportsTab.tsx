@@ -33,6 +33,8 @@ import { format, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import html2canvas from "html2canvas";
+import { CommandHeader, CommandPanel, MetricTile } from "@/components/dashboard/command";
+import { BarChart2 } from "lucide-react";
 
 interface ReportsTabProps {
   orgId: string;
@@ -425,57 +427,53 @@ ${watermarkHtml}
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Header + Period selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Relatórios Avançados</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Análise completa do desempenho da sua operação.
-          </p>
-          <p className="text-xs font-medium text-primary mt-1">
-            Período: {periodLabel}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1 bg-secondary rounded-lg p-1">
-            {PERIOD_OPTIONS.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => { setPeriod(opt.key); setVisibleOrders(50); }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  period === opt.key
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Download className="w-4 h-4 mr-1" />
-                Baixar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDownloadCSV}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                CSV (Excel)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadImage}>
-                <FileImage className="w-4 h-4 mr-2" />
-                Imagem (PNG)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadPDF}>
-                <FileText className="w-4 h-4 mr-2" />
-                PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      <CommandHeader
+        eyebrow="Financeiro"
+        title="Relatórios Avançados"
+        subtitle={`Período: ${periodLabel} · análise completa do desempenho.`}
+        icon={<BarChart2 className="w-5 h-5" />}
+        actions={
+          <>
+            <div className="flex gap-1 bg-secondary rounded-lg p-1">
+              {PERIOD_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => { setPeriod(opt.key); setVisibleOrders(50); }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    period === opt.key
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Download className="w-4 h-4 mr-1" />
+                  Baixar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleDownloadCSV}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  CSV (Excel)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadImage}>
+                  <FileImage className="w-4 h-4 mr-2" />
+                  Imagem (PNG)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadPDF}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
 
       {/* Custom date pickers */}
       {period === "custom" && (
@@ -511,50 +509,15 @@ ${watermarkHtml}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-1">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white">
-              <DollarSign className="w-4 h-4" />
-            </div>
-            <span className="text-xs text-muted-foreground">Faturamento</span>
-          </div>
-          <p className="font-bold text-foreground text-xl">{fmtBRL(kpis.totalRevenue)}</p>
-        </div>
-        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-2">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <span className="text-xs text-muted-foreground">Ticket Médio</span>
-          </div>
-          <p className="font-bold text-foreground text-xl">{fmtBRL(kpis.avgTicket)}</p>
-        </div>
-        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-3">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white">
-              <ShoppingCart className="w-4 h-4" />
-            </div>
-            <span className="text-xs text-muted-foreground">Total Pedidos</span>
-          </div>
-          <p className="font-bold text-foreground text-xl">{kpis.totalOrders}</p>
-        </div>
-        <div className="dashboard-glass rounded-2xl p-4 animate-dashboard-fade-in dash-delay-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center text-white">
-              <Clock className="w-4 h-4" />
-            </div>
-            <span className="text-xs text-muted-foreground">Pedidos/dia</span>
-          </div>
-          <p className="font-bold text-foreground text-xl">{kpis.avgOrdersPerDay.toFixed(1)}</p>
-        </div>
+        <MetricTile label="Faturamento" value={fmtBRL(kpis.totalRevenue)} icon={<DollarSign className="w-4 h-4" />} />
+        <MetricTile label="Ticket Médio" value={fmtBRL(kpis.avgTicket)} icon={<TrendingUp className="w-4 h-4" />} />
+        <MetricTile label="Total Pedidos" value={kpis.totalOrders} icon={<ShoppingCart className="w-4 h-4" />} />
+        <MetricTile label="Pedidos/dia" value={kpis.avgOrdersPerDay.toFixed(1)} icon={<Clock className="w-4 h-4" />} />
       </div>
 
       {/* Payment method summary */}
       {paymentStats.length > 0 && (
-        <div className="dashboard-glass rounded-2xl p-5 animate-dashboard-slide-up dash-delay-5">
-          <h3 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
-            💳 Resumo por Meio de Pagamento
-          </h3>
+        <CommandPanel eyebrow="Financeiro" title="Resumo por meio de pagamento">
           <div className="space-y-2">
             {paymentStats.map((ps) => (
               <div key={ps.method} className="flex items-center justify-between">
@@ -569,13 +532,11 @@ ${watermarkHtml}
               </div>
             ))}
           </div>
-        </div>
+        </CommandPanel>
       )}
 
       {/* Weekly comparison */}
-      <div className="dashboard-glass rounded-2xl animate-dashboard-slide-up dash-delay-5">
-        <div className="p-5">
-          <h3 className="font-semibold text-foreground text-sm mb-4">Comparativo Semanal</h3>
+      <CommandPanel eyebrow="Semana" title="Comparativo semanal">
           <div className="grid grid-cols-3 max-[380px]:grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-muted-foreground mb-1">Semana atual</p>
@@ -603,13 +564,10 @@ ${watermarkHtml}
               </div>
             </div>
           </div>
-        </div>
-      </div>
+      </CommandPanel>
 
       {/* Daily revenue chart */}
-      <Card>
-        <CardContent className="p-5">
-          <h3 className="font-semibold text-foreground text-sm mb-4">Faturamento Diário</h3>
+      <CommandPanel eyebrow="Vendas" title="Faturamento diário">
           {dailyRevenue.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Sem dados para o período.</p>
           ) : (
@@ -636,13 +594,10 @@ ${watermarkHtml}
               </BarChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
-      </Card>
+      </CommandPanel>
 
       {/* Peak hours */}
-      <Card>
-        <CardContent className="p-5">
-          <h3 className="font-semibold text-foreground text-sm mb-4">Horários de Pico</h3>
+      <CommandPanel eyebrow="Operação" title="Horários de pico">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={peakHours}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -672,14 +627,11 @@ ${watermarkHtml}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      </CommandPanel>
 
       {/* Payment method breakdown */}
       {paymentStats.length > 0 && (
-        <Card>
-          <CardContent className="p-5">
-            <h3 className="font-semibold text-foreground text-sm mb-4">💳 Faturamento por Meio de Pagamento</h3>
+        <CommandPanel eyebrow="Financeiro" title="Faturamento por meio de pagamento">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="rounded-md border">
                 <Table>
@@ -732,15 +684,12 @@ ${watermarkHtml}
                 </ResponsiveContainer>
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </CommandPanel>
       )}
 
       {/* Category ranking */}
       {categoryRanking.length > 0 && (
-        <Card>
-          <CardContent className="p-5">
-            <h3 className="font-semibold text-foreground text-sm mb-4">Ranking por Item / Categoria</h3>
+        <CommandPanel eyebrow="Ranking" title="Ranking por item / categoria">
             <div className="space-y-2">
               {categoryRanking.map((cat, i) => {
                 const maxRevenue = categoryRanking[0]?.revenue || 1;
@@ -768,17 +717,12 @@ ${watermarkHtml}
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+        </CommandPanel>
       )}
 
       {/* Detailed orders table */}
       {orderRows.length > 0 && (
-        <Card>
-          <CardContent className="p-5">
-            <h3 className="font-semibold text-foreground text-sm mb-4">
-              📋 Lista de Pedidos ({orderRows.length})
-            </h3>
+        <CommandPanel eyebrow="Pedidos" title={`Lista de pedidos (${orderRows.length})`}>
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -814,8 +758,7 @@ ${watermarkHtml}
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CommandPanel>
       )}
     </div>
   );

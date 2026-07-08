@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calculator, AlertTriangle, Check, CheckCheck } from "lucide-react";
+import { CommandHeader, CommandPanel } from "@/components/dashboard/command";
 
 interface PricingTabProps {
   orgId: string;
@@ -54,16 +55,14 @@ export default function PricingTab({ orgId }: PricingTabProps) {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3 animate-dashboard-fade-in">
-        <div className="dashboard-section-icon">
-          <Calculator className="w-5 h-5" />
-        </div>
-        <h2 className="text-xl font-bold">Precificação</h2>
-      </div>
+      <CommandHeader
+        eyebrow="Financeiro"
+        title="Precificação"
+        subtitle="Sugestão de preço a partir da margem desejada e do custo da ficha técnica."
+        icon={<Calculator className="w-5 h-5" />}
+      />
 
-      {/* Controls */}
-      <div className="dashboard-glass rounded-2xl p-5 space-y-4 animate-dashboard-fade-in dash-delay-1">
+      <CommandPanel eyebrow="Simulação" title="Margem alvo" className="space-y-4">
         <div>
           <label className="text-sm font-medium mb-2 block">
             Margem desejada: <span className="text-primary font-bold">{markup}%</span>
@@ -91,10 +90,9 @@ export default function PricingTab({ orgId }: PricingTabProps) {
             </span>
           )}
         </div>
-      </div>
+      </CommandPanel>
 
-      {/* Table */}
-      <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-2">
+      <CommandPanel eyebrow="Cardápio" title="Itens e sugestões" padding="none">
         <Table>
           <TableHeader>
             <TableRow>
@@ -172,7 +170,7 @@ export default function PricingTab({ orgId }: PricingTabProps) {
             })}
           </TableBody>
         </Table>
-      </div>
+      </CommandPanel>
 
       {/* Apply all */}
       {withIngredients.length > 0 && (

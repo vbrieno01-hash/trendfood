@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useStockAlerts, useAcknowledgeStockAlert, useAcknowledgeAllStockAlerts } from "@/hooks/useStockAlerts";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CommandPanel, StatusPill } from "@/components/dashboard/command";
 
 interface Props {
   orgId: string;
@@ -16,26 +17,22 @@ export default function StockAlertsPanel({ orgId }: Props) {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 space-y-3 backdrop-blur-sm">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-destructive animate-pulse" />
-          <div>
-            <h3 className="font-semibold text-destructive">
-              {alerts.length} {alerts.length === 1 ? "alerta de estoque" : "alertas de estoque"}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Pedidos consumiram mais do que havia disponível. Reponha o estoque e marque como resolvido.
-            </p>
-          </div>
-        </div>
-        {alerts.length > 1 && (
-          <Button size="sm" variant="outline" onClick={() => ackAll.mutate()} disabled={ackAll.isPending}>
-            <CheckCheck className="w-4 h-4 mr-1" /> Resolver todos
-          </Button>
-        )}
-      </div>
-
+    <CommandPanel
+      variant="danger"
+      eyebrow="Atenção"
+      title={`${alerts.length} ${alerts.length === 1 ? "alerta de estoque" : "alertas de estoque"}`}
+      description="Pedidos consumiram mais do que havia disponível. Reponha o estoque e marque como resolvido."
+      actions={
+        <>
+          <StatusPill variant="danger" dot>Crítico</StatusPill>
+          {alerts.length > 1 && (
+            <Button size="sm" variant="outline" onClick={() => ackAll.mutate()} disabled={ackAll.isPending}>
+              <CheckCheck className="w-4 h-4 mr-1" /> Resolver todos
+            </Button>
+          )}
+        </>
+      }
+    >
       <div className="space-y-2">
         {alerts.map((a) => (
           <div
@@ -67,6 +64,6 @@ export default function StockAlertsPanel({ orgId }: Props) {
           </div>
         ))}
       </div>
-    </div>
+    </CommandPanel>
   );
 }
