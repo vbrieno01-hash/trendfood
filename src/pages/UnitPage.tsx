@@ -15,9 +15,11 @@ import {
 import {
   Plus, X, Minus, UtensilsCrossed,
   ShoppingCart, ShoppingBag, Search,
+  Receipt,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useFiscalPublicStatus } from "@/hooks/useFiscalPublicStatus";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
@@ -66,6 +68,8 @@ const UnitPage = () => {
   const { data: org, isLoading: orgLoading, isError, refetch: refetchOrg, isFetching: orgFetching } = useOrganization(slug);
   const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
   const planLimits = usePlanLimits(org);
+  const { data: fiscalStatus } = useFiscalPublicStatus(org?.id);
+  const showFiscalFields = !!fiscalStatus?.enabled && !!fiscalStatus?.producao_liberada;
 
   const placeOrder = usePlaceOrder();
   const { registerForOrder } = useCustomerPush();
@@ -1704,34 +1708,56 @@ const UnitPage = () => {
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="buyer-doc" className="text-xs font-medium mb-1 block">
-                  CPF / CNPJ <span className="text-muted-foreground font-normal">(opcional)</span>
-                </Label>
-                <Input
-                  id="buyer-doc"
-                  placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                  value={buyerDoc}
-                  onChange={(e) => setBuyerDoc(e.target.value)}
-                  maxLength={20}
-                />
-              </div>
+              {showFiscalFields && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Receipt className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground">
+                        Quer CPF/CNPJ na nota fiscal?{" "}
+                        <span className="text-muted-foreground font-normal">(opcional)</span>
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Preencha se quiser que sua nota fiscal seja emitida em seu nome.
+                      </p>
+                    </div>
+                  </div>
 
-              <div>
-                <Label htmlFor="buyer-email" className="text-xs font-medium mb-1 block">
-                  E-mail para receber NFC-e <span className="text-muted-foreground font-normal">(opcional)</span>
-                </Label>
-                <Input
-                  id="buyer-email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="voce@exemplo.com"
-                  value={buyerEmail}
-                  onChange={(e) => setBuyerEmail(e.target.value)}
-                  maxLength={120}
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="buyer-doc" className="text-xs font-medium mb-1 block">
+                      Seu CPF ou CNPJ{" "}
+                      <span className="text-muted-foreground font-normal">(opcional)</span>
+                    </Label>
+                    <Input
+                      id="buyer-doc"
+                      placeholder="000.000.000-00"
+                      value={buyerDoc}
+                      onChange={(e) => setBuyerDoc(e.target.value)}
+                      maxLength={20}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="buyer-email" className="text-xs font-medium mb-1 block">
+                      Seu e-mail para receber a nota{" "}
+                      <span className="text-muted-foreground font-normal">(opcional)</span>
+                    </Label>
+                    <Input
+                      id="buyer-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      placeholder="seuemail@exemplo.com"
+                      value={buyerEmail}
+                      onChange={(e) => setBuyerEmail(e.target.value)}
+                      maxLength={120}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Enviamos o PDF e o XML da sua nota fiscal neste e-mail.
+                    </p>
+                  </div>
+                </div>
+              )}
 
                {orderType === "Entrega" && (
                  <div ref={addressRef} className="space-y-3">

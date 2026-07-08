@@ -3989,6 +3989,13 @@ export type Database = {
       fiscal_check_quota: { Args: { _org_id: string }; Returns: Json }
       get_cleanup_stats: { Args: never; Returns: Json }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
+      get_fiscal_public_status: {
+        Args: { _org_id: string }
+        Returns: {
+          enabled: boolean
+          producao_liberada: boolean
+        }[]
+      }
       get_internal_logs_sizes: { Args: never; Returns: Json }
       get_loyalty_points_by_phone: {
         Args: { _org_id: string; _phone: string }
