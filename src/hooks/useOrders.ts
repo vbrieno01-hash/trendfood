@@ -686,7 +686,7 @@ export const useDeleteOldOrders = (organizationId: string) => {
         .from("orders")
         .select("id")
         .eq("organization_id", organizationId)
-        .eq("status", "delivered");
+        .in("status", ["delivered", "cancelled"]);
 
       if (daysAgo !== null) {
         const cutoff = new Date();
