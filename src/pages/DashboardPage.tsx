@@ -82,7 +82,8 @@ const DashboardPage = () => {
   const ifoodBetaUser = !!user?.email && IFOOD_BETA_EMAILS.includes(user.email.toLowerCase());
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const [deleteUnit, setDeleteUnit] = useState<{ id: string; name: string } | null>(null);
-  const planLimits = usePlanLimits(organization);
+  const { data: aiBotAddon, isLoading: aiBotAddonLoading } = useOrgAddon(organization?.id, "ai_bot");
+  const planLimits = usePlanLimits(organization, aiBotAddon);
   const { content: platformContent } = usePlatformContent();
   const communityWhatsAppUrl =
     (typeof platformContent.community_whatsapp_url === "string" && platformContent.community_whatsapp_url.trim()) ||
