@@ -17,6 +17,7 @@ import {
 } from "@/hooks/useLoyalty";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import LockedFeatureBanner from "@/components/dashboard/LockedFeatureBanner";
+import { CommandHeader, CommandPanel, MetricTile, StatusPill } from "@/components/dashboard/command";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -98,8 +99,23 @@ export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
         />
       )}
 
-      {/* Sub-tabs */}
-      <div className="flex gap-2">
+      <CommandHeader
+        eyebrow="Crescimento"
+        title="Programa de Fidelidade"
+        subtitle="Recompense clientes recorrentes com pontos e descontos automáticos."
+        icon={<Gift className="w-5 h-5" />}
+        actions={
+          effectiveEnabled ? <StatusPill variant="live" dot>Ativo</StatusPill> : <StatusPill variant="neutral">Pausado</StatusPill>
+        }
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <MetricTile label="Clientes fidelizados" value={customers.length} />
+        <MetricTile label="Resgates" value={redemptions.length} />
+        <MetricTile label="Pontos em circulação" value={customers.reduce((s, c) => s + (c.points ?? 0), 0)} />
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
         {[
           { key: "config" as const, icon: Gift, label: "Configuração" },
           { key: "customers" as const, icon: Users, label: "Clientes" },
@@ -119,14 +135,7 @@ export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
       </div>
 
       {tab === "config" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Gift className="w-4 h-4 text-primary" />
-              Programa de Fidelidade
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
+        <CommandPanel eyebrow="Regras" title="Como o cliente ganha pontos" className="space-y-5">
             <div className="flex items-center justify-between">
               <Label>Ativar programa</Label>
               <Switch
@@ -228,19 +237,11 @@ export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
                 </>
               )}
             </div>
-          </CardContent>
-        </Card>
+        </CommandPanel>
       )}
 
       {tab === "customers" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
-              Clientes fidelizados ({customers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <CommandPanel eyebrow="Clientes" title={`Fidelizados (${customers.length})`}>
             {customers.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
                 Nenhum cliente acumulou pontos ainda.
@@ -260,19 +261,11 @@ export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CommandPanel>
       )}
 
       {tab === "history" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <History className="w-4 h-4 text-primary" />
-              Histórico de Resgates
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <CommandPanel eyebrow="Histórico" title="Resgates realizados">
             {redemptions.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
                 Nenhum resgate realizado.
@@ -294,8 +287,7 @@ export default function LoyaltyTab({ orgId, organization, onNavigate }: Props) {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+        </CommandPanel>
       )}
     </div>
   );
