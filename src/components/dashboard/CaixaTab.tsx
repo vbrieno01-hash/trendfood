@@ -409,12 +409,15 @@ export default function CaixaTab({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Controle de Caixa</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Gerencie turnos, sangrias e saldo do caixa
-        </p>
-      </div>
+      <CommandHeader
+        eyebrow="Financeiro"
+        title="Controle de Caixa"
+        subtitle="Gerencie turnos, sangrias e saldo do caixa."
+        icon={<Wallet className="w-5 h-5" />}
+        actions={
+          session ? <StatusPill variant="live" dot>Turno aberto</StatusPill> : <StatusPill variant="neutral">Fechado</StatusPill>
+        }
+      />
 
       {session ? (
         <CaixaAberto session={session} orgId={orgId} />
