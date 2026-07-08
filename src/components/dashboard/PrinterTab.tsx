@@ -18,6 +18,7 @@ import LockedFeatureBanner from "./LockedFeatureBanner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
+import { CommandHeader } from "@/components/dashboard/command";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
