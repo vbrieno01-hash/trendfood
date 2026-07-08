@@ -20,6 +20,8 @@ import FiscalHistoryTab from "@/components/dashboard/FiscalHistoryTab";
 import { Progress } from "@/components/ui/progress";
 import { useFiscalQuota } from "@/hooks/useFiscalQuota";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
+import { useAuth } from "@/hooks/useAuth";
 
 async function handleUnauthorized(): Promise<boolean> {
   const { data, error } = await supabase.auth.refreshSession();
@@ -69,6 +71,8 @@ function onlyDigits(v: string) { return (v || "").replace(/\D/g, ""); }
 
 export default function FiscalTab({ orgId, organization, effectivePlan, promoEligible }: Props) {
   const qc = useQueryClient();
+  const { data: flags } = usePlatformFeatureFlags();
+  const { isAdmin } = useAuth();
 
   const { data: cfg, isLoading, refetch } = useQuery({
     queryKey: ["fiscal_config", orgId],
@@ -92,6 +96,15 @@ export default function FiscalTab({ orgId, organization, effectivePlan, promoEli
         currentPlan={organization.subscription_plan ?? "free"}
         promoEligible={!!promoEligible}
       />
+    );
+  }
+
+  // Feature flag global — alinha com OrderFiscalActions
+  if (!flags?.fiscal_enabled && !isAdmin) {
+    return (
+      <div className="p-6 rounded-lg border bg-muted/30 text-sm text-muted-foreground">
+        O módulo fiscal está temporariamente indisponível. Tente novamente em instantes.
+      </div>
     );
   }
 

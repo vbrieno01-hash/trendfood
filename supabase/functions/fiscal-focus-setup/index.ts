@@ -57,6 +57,27 @@ Deno.serve(async (req) => {
     if (missing.length) {
       return json({ ok: false, code: "incomplete_fiscal_config", message: `Campos obrigatórios ausentes: ${missing.join(", ")}`, detail: { missing } });
     }
+
+    // Busca código IBGE do município (obrigatório em produção)
+    async function lookupIbge(uf: string, cidade: string): Promise<string | null> {
+      try {
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const r = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${encodeURIComponent(uf)}/municipios`);
+        if (!r.ok) return null;
+        const list = await r.json() as Array<{ id: number; nome: string }>;
+        const target = norm(cidade);
+        const hit = list.find(m => norm(m.nome) === target);
+        return hit ? String(hit.id) : null;
+      } catch (e) {
+        console.warn("[fiscal-focus-setup] IBGE lookup falhou", (e as Error).message);
+        return null;
+      }
+    }
+    const codigoMunicipio = await lookupIbge(end.uf, end.cidade);
+    if (!codigoMunicipio && cfg.environment === "producao") {
+      return json({ ok: false, code: "ibge_lookup_failed", message: `Não foi possível localizar o código IBGE do município "${end.cidade}/${end.uf}". Verifique a grafia.` });
+    }
+
     const payload = {
       cnpj,
       nome: cfg.razao_social,
@@ -69,6 +90,7 @@ Deno.serve(async (req) => {
       bairro: end.bairro,
       cep: (end.cep || "").replace(/\D/g, ""),
       municipio: end.cidade,
+      codigo_municipio: codigoMunicipio || undefined,
       uf: end.uf,
       email: end.email || undefined,
       telefone: end.telefone || undefined,
