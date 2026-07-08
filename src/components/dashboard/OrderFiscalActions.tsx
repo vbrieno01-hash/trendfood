@@ -8,10 +8,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { FileText, Loader2, ExternalLink, X, RefreshCw } from "lucide-react";
+import { FileText, Loader2, ExternalLink, X, RefreshCw, Search } from "lucide-react";
 import type { FiscalInvoice } from "@/hooks/useFiscalInvoices";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
 import { useAuth } from "@/hooks/useAuth";
+import FiscalEmailModal from "./FiscalEmailModal";
+import FiscalEconfModal from "./FiscalEconfModal";
 
 function statusMeta(s?: string) {
   switch (s) {
@@ -36,7 +38,7 @@ export default function OrderFiscalActions({
   const { data: flags } = usePlatformFeatureFlags();
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
-  const [busy, setBusy] = useState<"emit" | "cancel" | null>(null);
+  const [busy, setBusy] = useState<"emit" | "cancel" | "consult" | null>(null);
   const meta = statusMeta(invoice?.status);
 
   async function emit() {
@@ -87,10 +89,30 @@ export default function OrderFiscalActions({
     } finally { setBusy(null); }
   }
 
+  async function consult() {
+    if (!invoice?.id) return;
+    setBusy("consult");
+    try {
+      const { data, error } = await supabase.functions.invoke("fiscal-consult-nfce", {
+        body: { invoice_id: invoice.id },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.ok === false) throw new Error((data as any)?.message || "Falha ao consultar");
+      const st = (data as any)?.status;
+      toast.success(st === invoice.status ? "Sem alterações na SEFAZ" : `Nota atualizada para: ${st}`);
+      qc.invalidateQueries({ queryKey: ["fiscal_invoices", orgId] });
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao consultar SEFAZ");
+    } finally { setBusy(null); }
+  }
+
   const canCancel = invoice?.status === "authorized" && invoice.emitted_at
     && Date.now() - new Date(invoice.emitted_at).getTime() < 30 * 60 * 1000;
   const canEmit = !invoice || invoice.status === "rejected" || invoice.status === "blocked_quota";
   const isBusyStatus = invoice?.status === "pending" || invoice?.status === "processing";
+  const canConsult = !!invoice?.id && (isBusyStatus || invoice?.status === "authorized");
+  const canEmail = invoice?.status === "authorized" && !!invoice.id;
+  const canEconf = invoice?.status === "authorized" && !!invoice.id;
 
   if (!flags?.fiscal_enabled && !isAdmin) return null;
 
@@ -119,6 +141,18 @@ export default function OrderFiscalActions({
             <ExternalLink className="w-3 h-3 mr-1" /> DANFE
           </a>
         </Button>
+      )}
+      {canConsult && (
+        <Button size="sm" variant="ghost" onClick={consult} disabled={busy === "consult"} title="Reconciliar com SEFAZ">
+          {busy === "consult" ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Search className="w-3 h-3 mr-1" />}
+          Consultar SEFAZ
+        </Button>
+      )}
+      {canEmail && (
+        <FiscalEmailModal invoiceId={invoice.id} />
+      )}
+      {canEconf && (isAdmin || flags?.fiscal_enabled) && (
+        <FiscalEconfModal invoiceId={invoice.id} />
       )}
       {canCancel && (
         <AlertDialog>
