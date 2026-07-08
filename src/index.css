@@ -912,3 +912,54 @@ iframe {
     min-width: 0 !important;
   }
 }
+
+/* ─── Command Center — mobile performance hardening ──────────────
+   Preserva 100% do visual no desktop. No mobile degrada suavemente
+   os efeitos mais caros pra GPU (fixed bg, backdrop-blur, grid tático).
+   ───────────────────────────────────────────────────────────────── */
+
+/* Contain: isola layout/paint dos painéis e tiles → menos reflow no scroll */
+.dashboard-cc .cmd-panel {
+  contain: layout paint style;
+  content-visibility: auto;
+  contain-intrinsic-size: 400px;
+}
+.dashboard-cc .metric-tile,
+.dashboard-cc .action-tile {
+  contain: layout paint;
+}
+
+/* will-change só no hover — evita promover camadas eternamente */
+.dashboard-cc .metric-tile:hover,
+.dashboard-cc .action-tile:hover {
+  will-change: transform;
+}
+
+/* Tablet e menor: elimina o principal jank de scroll do iOS/Android */
+@media (max-width: 1024px) {
+  .dashboard-cc,
+  .dark .dashboard-cc {
+    background-attachment: scroll;
+  }
+}
+
+/* Mobile: desliga backdrop-blur (custo altíssimo por frame) e simplifica o grid */
+@media (max-width: 768px) {
+  .dashboard-cc .cmd-panel,
+  .dashboard-cc .cmd-topbar,
+  .dark .dashboard-cc .cmd-panel,
+  .dark .dashboard-cc .cmd-topbar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .dashboard-cc {
+    background-image:
+      radial-gradient(ellipse 90% 60% at 50% -10%, hsl(24 95% 53% / 0.06), transparent 70%);
+    background-size: 100% 100%;
+  }
+  .dark .dashboard-cc {
+    background-image:
+      radial-gradient(ellipse 90% 60% at 50% -10%, hsl(20 100% 55% / 0.08), transparent 70%);
+    background-size: 100% 100%;
+  }
+}
