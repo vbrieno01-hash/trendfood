@@ -20,13 +20,23 @@ function log(step: string, extra: Record<string, unknown> = {}) {
   console.log(`[fiscal-emit] ${step}`, extra);
 }
 
-// Focus NFe forma_pagamento SEFAZ codes
-function mapPay(m: string | null | undefined): "01" | "03" | "04" | "17" | "99" {
-  const s = (m || "").toLowerCase();
-  if (s.includes("pix")) return "17";
-  if (s.includes("credit") || s.includes("crédit")) return "03";
-  if (s.includes("deb")) return "04";
-  if (s.includes("dinh") || s.includes("cash") || s.includes("espec")) return "01";
+// Focus NFe forma_pagamento SEFAZ codes.
+//   01=Dinheiro, 02=Cheque, 03=Crédito, 04=Débito,
+//   05=Vale Alimentação, 10=Vale Refeição, 17=PIX, 99=Outros
+// Mantido alinhado com src/lib/paymentMethods.ts (fonte da verdade no frontend).
+function mapPay(m: string | null | undefined): "01" | "02" | "03" | "04" | "05" | "10" | "17" | "99" {
+  const s = (m || "").toLowerCase().trim();
+  if (!s) return "99";
+  // Chaves canônicas (novas)
+  if (s === "pix" || s.includes("pix")) return "17";
+  if (s === "cash" || s.includes("dinh") || s.includes("espec")) return "01";
+  if (s === "card_credit" || s.includes("credit") || s.includes("crédit")) return "03";
+  if (s === "card_debit" || s.includes("deb")) return "04";
+  if (s === "meal_voucher" || s.includes("refei")) return "10";
+  if (s === "food_voucher" || s.includes("alimen")) return "05";
+  if (s === "check" || s.includes("cheque")) return "02";
+  // Fallback defensivo — loga para observabilidade.
+  console.warn("[fiscal-emit] mapPay_fallback_99", { received: m });
   return "99";
 }
 
