@@ -18,6 +18,7 @@ import NeighborhoodManager from "@/components/dashboard/NeighborhoodManager";
 import UpgradePrompt from "@/components/dashboard/UpgradePrompt";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { getPublicBaseUrl } from "@/lib/publicUrl";
+import { CommandHeader } from "@/components/dashboard/command";
 
 
 
