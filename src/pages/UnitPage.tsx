@@ -29,6 +29,7 @@ import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliver
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 
 import { supabase } from "@/integrations/supabase/client";
+import { normalizePaymentMethod } from "@/lib/paymentMethods";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
 import TicketScreen from "@/components/TicketScreen";
