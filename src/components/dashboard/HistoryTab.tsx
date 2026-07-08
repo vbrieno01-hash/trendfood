@@ -56,10 +56,10 @@ const typeOptions: { key: TypeFilter; label: string }[] = [
 ];
 
 const cleanupOptions: { label: string; daysAgo: number | null; description: string }[] = [
-  { label: "Mais de 24 horas", daysAgo: 1, description: "pedidos entregues com mais de 24 horas" },
-  { label: "Mais de 7 dias", daysAgo: 7, description: "pedidos entregues com mais de 7 dias" },
-  { label: "Mais de 30 dias", daysAgo: 30, description: "pedidos entregues com mais de 30 dias" },
-  { label: "Limpar Tudo", daysAgo: null, description: "todos os pedidos entregues do histórico" },
+  { label: "Mais de 24 horas", daysAgo: 1, description: "pedidos finalizados (entregues e cancelados) com mais de 24 horas" },
+  { label: "Mais de 7 dias", daysAgo: 7, description: "pedidos finalizados (entregues e cancelados) com mais de 7 dias" },
+  { label: "Mais de 30 dias", daysAgo: 30, description: "pedidos finalizados (entregues e cancelados) com mais de 30 dias" },
+  { label: "Limpar Tudo", daysAgo: null, description: "todos os pedidos finalizados (entregues e cancelados) do histórico" },
 ];
 
 const fmtBRL = (v: number) =>
