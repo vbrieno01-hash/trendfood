@@ -6,7 +6,9 @@ import {
   Lock, Zap, MessageCircle, Printer, Compass, Wallet,
   Flame, Tag, BarChart2, BellRing, Building2, UtensilsCrossed,
   TableProperties, History, ListPlus, CreditCard, Package, Bike, Heart,
+  Sparkles,
 } from "lucide-react";
+import { CommandHeader } from "@/components/dashboard/command";
 
 type MinPlan = "free" | "pro" | "enterprise" | "lifetime";
 
@@ -178,12 +180,12 @@ export default function FeaturesTab({ effectivePlan }: FeaturesTabProps) {
 
   return (
     <div className="space-y-6">
-      <div className="animate-dashboard-fade-in">
-        <h1 className="text-xl font-bold text-foreground">Funcionalidades</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Veja todas as funcionalidades da plataforma e o que está disponível no seu plano.
-        </p>
-      </div>
+      <CommandHeader
+        eyebrow="Plataforma"
+        title="Funcionalidades"
+        subtitle="Veja todas as funcionalidades da plataforma e o que está disponível no seu plano."
+        icon={<Sparkles className="w-5 h-5" />}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((f) => {
