@@ -41,6 +41,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { buildPixPayload } from "@/lib/pixPayload";
 import CourierReportSection from "./CourierReportSection";
 import { recalculateNullDistances } from "@/hooks/useCreateDelivery";
+import { CommandHeader, CommandPanel, MetricTile } from "@/components/dashboard/command";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30" },
