@@ -30,7 +30,7 @@ export default function AiBotAddonCard({ addon, loading, orgId }: AiBotAddonCard
   const now = new Date();
   const periodEnd = addon?.current_period_end ? new Date(addon.current_period_end) : null;
   const isActive =
-    addon?.status === "active" && !!periodEnd && periodEnd > now;
+    addon?.status === "active" && (periodEnd === null || periodEnd > now);
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -49,7 +49,7 @@ export default function AiBotAddonCard({ addon, loading, orgId }: AiBotAddonCard
             </div>
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              Próxima cobrança em {formatDate(periodEnd)} · R${" "}
+              {periodEnd ? `Próxima cobrança em ${formatDate(periodEnd)}` : "Liberação ativa sem expiração"} · R${" "}
               {Number(addon.price_monthly).toFixed(2).replace(".", ",")}/mês
             </p>
             {orgId && !addon?.mp_preapproval_id && (
