@@ -737,6 +737,7 @@ const DashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex w-full">
+      {/* dashboard-dark wrapper aplicado abaixo via className adicional */}
       {showOnboarding && (
         <OnboardingWizard
           organization={organization}
