@@ -24,6 +24,7 @@ import { useFiscalQuota } from "@/hooks/useFiscalQuota";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
 import { useAuth } from "@/hooks/useAuth";
+import { CommandHeader, StatusPill } from "@/components/dashboard/command";
 
 async function handleUnauthorized(): Promise<boolean> {
   const { data, error } = await supabase.auth.refreshSession();
@@ -116,12 +117,12 @@ export default function FiscalTab({ orgId, organization, effectivePlan, promoEli
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <FileText className="w-5 h-5" /> Fiscal — NFC-e
-        </h2>
-        <p className="text-sm text-muted-foreground">Configuração e histórico de notas fiscais eletrônicas (Focus NFe).</p>
-      </div>
+      <CommandHeader
+        eyebrow="Fiscal"
+        title="NFC-e"
+        subtitle="Configuração e histórico de notas fiscais eletrônicas (Focus NFe)."
+        icon={<FileText className="w-5 h-5" />}
+      />
       <Tabs defaultValue="config" className="w-full">
         <TabsList>
           <TabsTrigger value="config">Configuração</TabsTrigger>
@@ -320,19 +321,18 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
   }
 
   const StatusIcon = status.icon;
-  const badgeClass =
-    status.tone === "success" ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30" :
-    status.tone === "warning" ? "bg-amber-500/15 text-amber-600 border-amber-500/30" :
-    "bg-destructive/15 text-destructive border-destructive/30";
+  const statusVariant: "live" | "warn" | "danger" =
+    status.tone === "success" ? "live" :
+    status.tone === "warning" ? "warn" : "danger";
 
   return (
     <div className="space-y-6">
       {/* Status card */}
       <Card>
         <CardContent className="py-4 flex flex-wrap items-center gap-3">
-          <Badge variant="outline" className={`${badgeClass} gap-1.5 px-3 py-1.5 text-xs`}>
+          <StatusPill variant={statusVariant} dot>
             <StatusIcon className="w-3.5 h-3.5" /> {status.label}
-          </Badge>
+          </StatusPill>
           {cfg?.certificado_expira_em && (
             <span className="text-xs text-muted-foreground">Certificado expira em <b>{cfg.certificado_expira_em}</b></span>
           )}
