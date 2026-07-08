@@ -515,6 +515,12 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
                 <p className="text-sm text-muted-foreground">
                   Conecte um número do WhatsApp para o robô atender seus clientes.
                 </p>
+                {instance && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Instância: <span className="font-mono">{instance.instance_name}</span>
+                    {" · "}Status: <span className="font-mono">{instance.status}</span>
+                  </p>
+                )}
               </div>
               {qrcode ? (
                 <div className="space-y-2">
@@ -532,10 +538,16 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
                   </Button>
                 </div>
               ) : (
-                <Button onClick={connect} disabled={connecting}>
-                  {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
-                  Conectar WhatsApp
-                </Button>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <Button size="lg" onClick={connect} disabled={connecting}>
+                    {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <QrCode className="h-4 w-4 mr-1" />}
+                    Conectar WhatsApp agora
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={refreshStatus} disabled={refreshing}>
+                    {refreshing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                    Atualizar status
+                  </Button>
+                </div>
               )}
             </div>
           )}
