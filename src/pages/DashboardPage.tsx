@@ -60,6 +60,7 @@ const OperationsTab = lazy(() => import("@/components/dashboard/OperationsTab"))
 const IFoodTab = lazy(() => import("@/components/dashboard/IFoodTab"));
 const TelegramTab = lazy(() => import("@/components/dashboard/TelegramTab"));
 const AIBotTab = lazy(() => import("@/components/dashboard/AIBotTab"));
+const WhatsAppFreeTab = lazy(() => import("@/components/dashboard/WhatsAppFreeTab"));
 const CounterTab = lazy(() => import("@/components/dashboard/CounterTab"));
 const FiscalTab = lazy(() => import("@/components/dashboard/FiscalTab"));
 import DashboardTour from "@/components/dashboard/DashboardTour";
@@ -69,7 +70,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter" | "fiscal";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "aibot_free" | "counter" | "fiscal";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
