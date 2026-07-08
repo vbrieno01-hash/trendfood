@@ -18,6 +18,7 @@ import { FileText, ShieldCheck, ShieldAlert, Upload, Loader2, CheckCircle2, Aler
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FiscalHistoryTab from "@/components/dashboard/FiscalHistoryTab";
 import FiscalInutilizationBlock from "@/components/dashboard/FiscalInutilizationBlock";
+import FiscalChecklist, { useFiscalChecklist } from "@/components/dashboard/FiscalChecklist";
 import { Progress } from "@/components/ui/progress";
 import { useFiscalQuota } from "@/hooks/useFiscalQuota";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -129,6 +130,8 @@ export default function FiscalTab({ orgId, organization, effectivePlan, promoEli
         <TabsContent value="config" className="mt-4">
           <FiscalQuotaCard orgId={orgId} />
           <div className="h-4" />
+          <FiscalChecklist orgId={orgId} />
+          <div className="h-4" />
           <FiscalTabContent orgId={orgId} cfg={cfg} onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["fiscal_config", orgId] }); }} />
           <div className="h-4" />
           <FiscalInutilizationBlock organizationId={orgId} />
@@ -145,6 +148,9 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [togglingProd, setTogglingProd] = useState(false);
+  const { data: checklist, refetch: refetchChecklist } = useFiscalChecklist(orgId);
+  const qc2 = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [certPassword, setCertPassword] = useState("");
 
@@ -213,6 +219,8 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       if (error) throw error;
       toast.success("Dados fiscais salvos");
       onSaved();
+      refetchChecklist();
+      qc2.invalidateQueries({ queryKey: ["fiscal_checklist", orgId] });
     } catch (e: any) {
       toast.error(e?.message || "Erro ao salvar");
     } finally { setSaving(false); }
@@ -261,6 +269,8 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       setCertPassword("");
       if (fileRef.current) fileRef.current.value = "";
       onSaved();
+      refetchChecklist();
+      qc2.invalidateQueries({ queryKey: ["fiscal_checklist", orgId] });
     } catch (e: any) {
       toast.error(e?.message || "Erro no upload do certificado");
     } finally { setUploading(false); }
@@ -302,6 +312,8 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
       if ((data as any)?.error) throw new Error(JSON.stringify((data as any).detail || (data as any).error));
       toast.success("Empresa sincronizada com Focus NFe");
       onSaved();
+      refetchChecklist();
+      qc2.invalidateQueries({ queryKey: ["fiscal_checklist", orgId] });
     } catch (e: any) {
       toast.error(e?.message || "Erro ao sincronizar");
     } finally { setSyncing(false); }
@@ -394,6 +406,40 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
                 <SelectItem value="producao">Produção (notas reais)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <Separator />
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm font-medium flex items-center gap-2">
+                Liberar emissão em produção
+                {cfg?.producao_liberada
+                  ? <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 gap-1"><CheckCircle2 className="w-3 h-3"/>Liberado</Badge>
+                  : <Badge variant="outline" className="bg-amber-500/15 text-amber-600 border-amber-500/30 gap-1"><AlertTriangle className="w-3 h-3"/>Bloqueado</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {checklist?.allOk
+                  ? "Todos os requisitos foram atendidos. Você pode emitir NFC-e reais."
+                  : `Complete o checklist acima antes de liberar. Faltam: ${(checklist?.pending || []).map(p => p.detail).join(", ") || "…"}`}
+              </p>
+            </div>
+            <Switch
+              disabled={togglingProd || !checklist?.allOk}
+              checked={!!cfg?.producao_liberada}
+              onCheckedChange={async (v) => {
+                setTogglingProd(true);
+                try {
+                  const { error } = await supabase.from("fiscal_config")
+                    .update({ producao_liberada: v }).eq("organization_id", orgId);
+                  if (error) throw error;
+                  toast.success(v ? "Emissão em produção liberada" : "Emissão em produção bloqueada");
+                  onSaved();
+                  refetchChecklist();
+                  qc2.invalidateQueries({ queryKey: ["fiscal_checklist", orgId] });
+                } catch (e: any) {
+                  toast.error(e?.message || "Não foi possível alterar");
+                } finally { setTogglingProd(false); }
+              }}
+            />
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <Button onClick={handleSave} disabled={saving}>

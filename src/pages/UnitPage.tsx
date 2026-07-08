@@ -29,6 +29,7 @@ import { useDeliveryNeighborhoods, useNeighborhoodFee } from "@/hooks/useDeliver
 import PixPaymentScreen from "@/components/checkout/PixPaymentScreen";
 
 import { supabase } from "@/integrations/supabase/client";
+import { normalizePaymentMethod } from "@/lib/paymentMethods";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import StoreReviews from "@/components/unit/StoreReviews";
 import TicketScreen from "@/components/TicketScreen";
@@ -162,6 +163,7 @@ const UnitPage = () => {
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerDoc, setBuyerDoc] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
   const [payment, setPayment] = useState("");
   const [changeFor, setChangeFor] = useState(0);
   const [changeForError, setChangeForError] = useState(false);
@@ -712,6 +714,9 @@ const UnitPage = () => {
             initialStatus: "awaiting_payment",
             paymentMethod: "pix",
             paid: false,
+            customerCpf: (() => { const d = buyerDoc.replace(/\D/g, ""); return d.length === 11 || d.length === 14 ? d : null; })(),
+            customerEmail: buyerEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail.trim()) ? buyerEmail.trim().toLowerCase() : null,
+            customerNameFiscal: buyerName.trim() || null,
           },
           {
             onSuccess: (order) => {
@@ -798,8 +803,11 @@ const UnitPage = () => {
           organizationId: org.id,
           tableNumber: 0,
           notes: noteParts.join("|"),
-          paymentMethod: effectivePayment.toLowerCase(),
+          paymentMethod: normalizePaymentMethod(effectivePayment),
           paid: false,
+          customerCpf: (() => { const d = buyerDoc.replace(/\D/g, ""); return d.length === 11 || d.length === 14 ? d : null; })(),
+          customerEmail: buyerEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail.trim()) ? buyerEmail.trim().toLowerCase() : null,
+          customerNameFiscal: buyerName.trim() || null,
           items: cartItems.map((i) => {
             let finalName = i.name;
             if (i.addons.length > 0) {
@@ -951,6 +959,7 @@ const UnitPage = () => {
     setBuyerPhone("");
     setPhoneError(false);
     setBuyerDoc("");
+    setBuyerEmail("");
      setSelectedNeighborhood("");
      setCustomerStreet("");
      setCustomerNumber("");
@@ -1705,6 +1714,22 @@ const UnitPage = () => {
                   value={buyerDoc}
                   onChange={(e) => setBuyerDoc(e.target.value)}
                   maxLength={20}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="buyer-email" className="text-xs font-medium mb-1 block">
+                  E-mail para receber NFC-e <span className="text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <Input
+                  id="buyer-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="voce@exemplo.com"
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  maxLength={120}
                 />
               </div>
 

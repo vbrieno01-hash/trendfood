@@ -28,12 +28,13 @@ function statusMeta(s?: string) {
 }
 
 export default function OrderFiscalActions({
-  orgId, orderId, invoice, compact = false,
+  orgId, orderId, invoice, compact = false, customerEmail = null,
 }: {
   orgId: string;
   orderId: string;
   invoice?: FiscalInvoice | null;
   compact?: boolean;
+  customerEmail?: string | null;
 }) {
   const { data: flags } = usePlatformFeatureFlags();
   const { isAdmin } = useAuth();
@@ -149,7 +150,7 @@ export default function OrderFiscalActions({
         </Button>
       )}
       {canEmail && (
-        <FiscalEmailModal invoiceId={invoice.id} />
+        <FiscalEmailModal invoiceId={invoice.id} defaultEmail={customerEmail || undefined} />
       )}
       {canEconf && (isAdmin || flags?.fiscal_enabled) && (
         <FiscalEconfModal invoiceId={invoice.id} />

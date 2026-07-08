@@ -425,6 +425,7 @@ export default function HistoryTab({ orgId, restrictTo7Days }: HistoryTabProps) 
                       orgId={orgId}
                       orderId={order.id}
                       invoice={invoicesByOrder.get(order.id) ?? null}
+                      customerEmail={(order as any).customer_email ?? null}
                       compact
                     />
                   </div>

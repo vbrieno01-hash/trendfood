@@ -161,6 +161,9 @@ export const usePlaceOrder = () => {
       initialStatus,
       paymentMethod,
       paid,
+      customerCpf,
+      customerEmail,
+      customerNameFiscal,
     }: {
       organizationId: string;
       tableNumber: number;
@@ -169,6 +172,9 @@ export const usePlaceOrder = () => {
       initialStatus?: string;
       paymentMethod?: string;
       paid?: boolean;
+      customerCpf?: string | null;
+      customerEmail?: string | null;
+      customerNameFiscal?: string | null;
     }) => {
       // Guard: empty cart
       if (!items || items.length === 0) {
@@ -210,6 +216,9 @@ export const usePlaceOrder = () => {
           status: initialStatus || "pending",
           ...(paymentMethod ? { payment_method: paymentMethod } : {}),
           ...(paid !== undefined ? { paid } : {}),
+          ...(customerCpf ? { customer_cpf: customerCpf } : {}),
+          ...(customerEmail ? { customer_email: customerEmail } : {}),
+          ...(customerNameFiscal ? { customer_name_fiscal: customerNameFiscal } : {}),
         })
         .select()
         .single();

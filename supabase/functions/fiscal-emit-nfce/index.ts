@@ -20,13 +20,23 @@ function log(step: string, extra: Record<string, unknown> = {}) {
   console.log(`[fiscal-emit] ${step}`, extra);
 }
 
-// Focus NFe forma_pagamento SEFAZ codes
-function mapPay(m: string | null | undefined): "01" | "03" | "04" | "17" | "99" {
-  const s = (m || "").toLowerCase();
-  if (s.includes("pix")) return "17";
-  if (s.includes("credit") || s.includes("crédit")) return "03";
-  if (s.includes("deb")) return "04";
-  if (s.includes("dinh") || s.includes("cash") || s.includes("espec")) return "01";
+// Focus NFe forma_pagamento SEFAZ codes.
+//   01=Dinheiro, 02=Cheque, 03=Crédito, 04=Débito,
+//   05=Vale Alimentação, 10=Vale Refeição, 17=PIX, 99=Outros
+// Mantido alinhado com src/lib/paymentMethods.ts (fonte da verdade no frontend).
+function mapPay(m: string | null | undefined): "01" | "02" | "03" | "04" | "05" | "10" | "17" | "99" {
+  const s = (m || "").toLowerCase().trim();
+  if (!s) return "99";
+  // Chaves canônicas (novas)
+  if (s === "pix" || s.includes("pix")) return "17";
+  if (s === "cash" || s.includes("dinh") || s.includes("espec")) return "01";
+  if (s === "card_credit" || s.includes("credit") || s.includes("crédit")) return "03";
+  if (s === "card_debit" || s.includes("deb")) return "04";
+  if (s === "meal_voucher" || s.includes("refei")) return "10";
+  if (s === "food_voucher" || s.includes("alimen")) return "05";
+  if (s === "check" || s.includes("cheque")) return "02";
+  // Fallback defensivo — loga para observabilidade.
+  console.warn("[fiscal-emit] mapPay_fallback_99", { received: m });
   return "99";
 }
 
@@ -127,6 +137,14 @@ Deno.serve(async (req) => {
     const { data: cfg } = await supabase.from("fiscal_config").select("*").eq("organization_id", order.organization_id).maybeSingle();
     if (!cfg || !cfg.enabled) return fail("fiscal_disabled", "Módulo fiscal desativado nas configurações");
     if (!cfg.cnpj) return fail("missing_cnpj", "CNPJ da empresa não configurado");
+    // Gate de produção: só emite em `producao` se o lojista tiver liberado explicitamente
+    // (e a trigger `fiscal_config_producao_guard` só deixa liberar com checklist 100%).
+    if (cfg.environment === "producao" && !cfg.producao_liberada) {
+      return fail(
+        "producao_bloqueada",
+        "Emissão em produção não liberada. Complete o checklist fiscal em Configurações → Fiscal.",
+      );
+    }
     log("cfg_loaded", { environment: cfg.environment, token_mode: cfg.focus_token_mode });
 
     // Quota gate — antes de qualquer chamada externa.
@@ -222,6 +240,27 @@ Deno.serve(async (req) => {
     if (!(totalNota > 0)) return fail("invalid_payload", "Valor total da nota deve ser positivo", { totalNota });
     if (cnpjClean.length !== 14) return fail("invalid_payload", "CNPJ do emitente inválido", { cnpj_len: cnpjClean.length });
 
+    // Destinatário — só inclui campos quando o cliente informou no checkout.
+    // NFC-e permite consumidor não identificado até o limite estadual (ex.: R$ 10 mil em SP).
+    const destinatario: Record<string, unknown> = {};
+    const cpfClean = (order.customer_cpf || "").replace(/\D/g, "");
+    if (cpfClean.length === 11) {
+      destinatario.cpf_destinatario = cpfClean;
+    } else if (cpfClean.length === 14) {
+      destinatario.cnpj_destinatario = cpfClean;
+    } else if (order.customer_cpf) {
+      return fail("invalid_payload", "CPF/CNPJ do consumidor inválido", { customer_cpf_len: cpfClean.length });
+    }
+    if (cpfClean && order.customer_name_fiscal) {
+      destinatario.nome_destinatario = String(order.customer_name_fiscal).slice(0, 60);
+    }
+    if (order.customer_email) {
+      const email = String(order.customer_email).trim();
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        destinatario.email_destinatario = email.toLowerCase();
+      }
+    }
+
     const payload = {
       natureza_operacao: "VENDA AO CONSUMIDOR",
       data_emissao: new Date().toISOString(),
@@ -233,6 +272,7 @@ Deno.serve(async (req) => {
       modalidade_frete: "9", // 9 = sem frete (NFC-e balcão/delivery próprio)
       local_destino: "1",    // 1 = operação interna (UF do consumidor = UF do emitente)
       cnpj_emitente: cnpjClean,
+      ...destinatario,
       items: nfItems,
       formas_pagamento: [{
         forma_pagamento: mapPay(order.payment_method),
@@ -371,6 +411,20 @@ Deno.serve(async (req) => {
         environment: cfg.environment,
       }, { onConflict: "invoice_id" });
       log("db_updated_sync_authorized", { invoice_id: invoiceId, chave });
+      // Envio automático de e-mail pós-autorização (fire-and-forget).
+      if (order.customer_email) {
+        const email = String(order.customer_email).trim().toLowerCase();
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          supabase.functions.invoke("fiscal-send-email", {
+            body: { invoice_id: invoiceId, emails: [email] },
+          }).then(({ error: sendErr }) => {
+            if (sendErr) console.warn("[fiscal-emit] auto_email_error", { message: sendErr.message });
+            else log("auto_email_dispatched", { invoice_id: invoiceId, to: email });
+          }).catch((err) => {
+            console.warn("[fiscal-emit] auto_email_exception", { err: String((err as Error).message || err) });
+          });
+        }
+      }
       return ok({ invoice_id: invoiceId, ref, status: "authorized", upstream: data });
     }
 

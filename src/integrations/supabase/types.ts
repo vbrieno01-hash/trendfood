@@ -2346,6 +2346,9 @@ export type Database = {
           cancellation_reason: string | null
           coupon_id: string | null
           created_at: string
+          customer_cpf: string | null
+          customer_email: string | null
+          customer_name_fiscal: string | null
           discount_value: number
           fiscal_invoice_id: string | null
           fiscal_status: string | null
@@ -2373,6 +2376,9 @@ export type Database = {
           cancellation_reason?: string | null
           coupon_id?: string | null
           created_at?: string
+          customer_cpf?: string | null
+          customer_email?: string | null
+          customer_name_fiscal?: string | null
           discount_value?: number
           fiscal_invoice_id?: string | null
           fiscal_status?: string | null
@@ -2400,6 +2406,9 @@ export type Database = {
           cancellation_reason?: string | null
           coupon_id?: string | null
           created_at?: string
+          customer_cpf?: string | null
+          customer_email?: string | null
+          customer_name_fiscal?: string | null
           discount_value?: number
           fiscal_invoice_id?: string | null
           fiscal_status?: string | null
@@ -4112,6 +4121,14 @@ export type Database = {
       validate_coupon_by_code: {
         Args: { _cart_total: number; _code: string; _org_id: string }
         Returns: Json
+      }
+      validate_fiscal_ready: {
+        Args: { _org_id: string }
+        Returns: {
+          detail: string
+          item: string
+          ok: boolean
+        }[]
       }
       wa_enqueue_status: {
         Args: { p_event: string; p_order_id: string; p_org_id: string }
