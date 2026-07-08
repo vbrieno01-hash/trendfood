@@ -230,31 +230,29 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
 
   return (
     <div className="space-y-6">
-      {/* Hero card */}
-      <div className="dashboard-glass rounded-2xl border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1.5">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            Turno ativo desde {fmtDate(session.opened_at)}
-          </p>
-          <p className="text-3xl font-extrabold text-foreground mt-1">{fmt(projected)}</p>
-          <p className="text-muted-foreground text-xs mt-0.5">Saldo projetado no caixa</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => setWithdrawalOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" />
-            Sangria
-          </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => setCloseOpen(true)}
-          >
-            <Lock className="w-4 h-4 mr-1" />
-            Fechar Caixa
-          </Button>
-        </div>
-      </div>
+      <CommandPanel
+        variant="accent"
+        eyebrow="Turno em andamento"
+        title={fmt(projected)}
+        description={`Saldo projetado · aberto em ${fmtDate(session.opened_at)}`}
+        actions={
+          <>
+            <StatusPill variant="live" dot>Aberto</StatusPill>
+            <Button variant="outline" size="sm" onClick={() => setWithdrawalOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" />
+              Sangria
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setCloseOpen(true)}>
+              <Lock className="w-4 h-4 mr-1" />
+              Fechar Caixa
+            </Button>
+          </>
+        }
+      >
+        <p className="text-xs text-muted-foreground">
+          Todos os pedidos pagos entram automaticamente na receita do turno.
+        </p>
+      </CommandPanel>
 
       {/* Metrics 2×2 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -264,38 +262,32 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
         <MetricCard label="Saldo projetado" value={fmt(projected)} icon={DollarSign} highlight />
       </div>
 
-      {/* Withdrawals list */}
-      <div className="space-y-3">
-        <h3 className="font-semibold text-foreground text-base">Sangrias do turno</h3>
+      <CommandPanel eyebrow="Movimentações" title="Sangrias do turno" padding="none">
         {withdrawals.length === 0 ? (
-          <div className="dashboard-glass rounded-2xl p-5 text-center text-muted-foreground text-sm">
-            Nenhuma sangria registrada neste turno
-          </div>
+          <div className="p-5 text-center text-muted-foreground text-sm">Nenhuma sangria registrada neste turno</div>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Horário</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Horário</TableHead>
+                <TableHead>Motivo</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {withdrawals.map((w) => (
+                <TableRow key={w.id}>
+                  <TableCell className="text-sm">{fmtDate(w.created_at)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{w.reason || "—"}</TableCell>
+                  <TableCell className="text-right text-sm font-medium text-destructive">
+                    -{fmt(w.amount)}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {withdrawals.map((w) => (
-                  <TableRow key={w.id}>
-                    <TableCell className="text-sm">{fmtDate(w.created_at)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{w.reason || "—"}</TableCell>
-                    <TableCell className="text-right text-sm font-medium text-destructive">
-                      -{fmt(w.amount)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </CommandPanel>
 
       {/* Withdrawal modal */}
       <Dialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen}>
