@@ -23,23 +23,23 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") || "daily"; // daily | weekly
 
-  // Read config
+  // Read platform-level config (kill switch global + fallback chat_id)
   const { data: cfg } = await supabase
     .from("platform_config")
     .select("admin_telegram_chat_id, admin_telegram_events")
     .limit(1)
     .maybeSingle();
 
-  const chatId = (cfg as any)?.admin_telegram_chat_id;
-  const toggles = (cfg as any)?.admin_telegram_events ?? {};
+  const fallbackChatId = (cfg as any)?.admin_telegram_chat_id;
+  const globalToggles = (cfg as any)?.admin_telegram_events ?? {};
+  const toggleKey = mode === "weekly" ? "weekly_digest" : "daily_digest";
 
-  if (!chatId || !LOVABLE_API_KEY || !TELEGRAM_API_KEY) {
+  if (!LOVABLE_API_KEY || !TELEGRAM_API_KEY) {
     return new Response(JSON.stringify({ ok: false, reason: "not_configured" }));
   }
-
-  const toggleKey = mode === "weekly" ? "weekly_digest" : "daily_digest";
-  if (toggles[toggleKey] === false) {
-    return new Response(JSON.stringify({ ok: false, reason: "disabled" }));
+  // Kill switch global — se desligado ali, nada roda
+  if (globalToggles[toggleKey] === false) {
+    return new Response(JSON.stringify({ ok: false, reason: "disabled_global" }));
   }
 
   const now = getNowBRT();
@@ -97,26 +97,64 @@ Deno.serve(async (req) => {
     `📋 Pro: ${proCount} • Enterprise: ${entCount} • Vitalício: ${lifetimeCount}`,
   ].join("\n");
 
-  const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": TELEGRAM_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "HTML" }),
-  });
+  // Fan-out respeitando toggle por destinatário (mesmo padrão do admin-telegram-notify)
+  const { data: recipients } = await supabase
+    .from("admin_telegram_recipients")
+    .select("id, name, chat_id, active, events")
+    .eq("active", true);
 
-  const ok = tgRes.ok;
-  const body = await tgRes.text();
+  type Target = { chat_id: string; name: string };
+  const targets: Target[] = [];
 
-  await supabase.from("admin_telegram_log").insert({
-    event_type: mode === "weekly" ? "weekly_digest" : "daily_digest",
+  if (recipients && recipients.length > 0) {
+    for (const r of recipients as any[]) {
+      const t = (r.events ?? {}) as Record<string, boolean>;
+      if (t[toggleKey] === false) continue; // destinatário desmarcou
+      if (!r.chat_id) continue;
+      targets.push({ chat_id: String(r.chat_id), name: r.name ?? "" });
+    }
+  } else if (fallbackChatId) {
+    // Fallback: sem destinatários cadastrados → chat singleton antigo
+    targets.push({ chat_id: String(fallbackChatId), name: "(chat global)" });
+  }
+
+  if (targets.length === 0) {
+    return new Response(JSON.stringify({ ok: false, reason: "no_eligible_recipients", mode }));
+  }
+
+  const eventType = mode === "weekly" ? "weekly_digest" : "daily_digest";
+  const payloadLog = { mrr, newSignups, ordersCount, errorsCount, proCount, entCount, lifetimeCount };
+
+  const results = await Promise.all(targets.map(async (t) => {
+    try {
+      const tgRes = await fetch(`${GATEWAY_URL}/sendMessage`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "X-Connection-Api-Key": TELEGRAM_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ chat_id: t.chat_id, text: message, parse_mode: "HTML" }),
+      });
+      const body = await tgRes.text();
+      return { target: t, ok: tgRes.ok, status: tgRes.status, body };
+    } catch (err: any) {
+      return { target: t, ok: false, error: err?.message || String(err) };
+    }
+  }));
+
+  const logRows = results.map((r: any) => ({
+    event_type: eventType,
     message,
-    payload: { mrr, newSignups, ordersCount, errorsCount, proCount, entCount, lifetimeCount },
-    status: ok ? "sent" : "error",
-    error: ok ? null : `HTTP ${tgRes.status}: ${body.slice(0, 500)}`,
-  });
+    payload: payloadLog,
+    status: r.ok ? "sent" : "error",
+    recipient_name: r.target.name,
+    error: r.ok ? null : (r.error ?? `HTTP ${r.status}: ${String(r.body || "").slice(0, 500)}`),
+  }));
+  if (logRows.length > 0) {
+    await supabase.from("admin_telegram_log").insert(logRows);
+  }
 
-  return new Response(JSON.stringify({ ok, mode }));
+  const sent = results.filter((r) => r.ok).length;
+  return new Response(JSON.stringify({ ok: sent > 0, mode, sent, total: targets.length }));
 });
