@@ -10,6 +10,7 @@ import { format, startOfMonth, endOfDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { esc } from "@/lib/escapeHtml";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -113,11 +114,11 @@ export default function AdminReportsTab() {
       .map(
         (o) =>
           `<tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee">#${o.order_number ?? o.id.slice(0, 8)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee">${o.org_name}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee">#${esc(o.order_number ?? o.id.slice(0, 8))}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee">${esc(o.org_name)}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #eee">${format(new Date(o.created_at), "dd/MM/yyyy HH:mm")}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${fmt(o.total)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee">${PAYMENT_LABELS[o.payment_method ?? ""] || o.payment_method || "—"}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee">${esc(PAYMENT_LABELS[o.payment_method ?? ""] || o.payment_method || "—")}</td>
           </tr>`
       )
       .join("");
