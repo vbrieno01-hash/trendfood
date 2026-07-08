@@ -686,6 +686,45 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ── ADDON short-circuit (approved payments) ──
+      {
+        const addonRefPayment =
+          parseAddonRef(mpData.external_reference) ||
+          (mpData.metadata?.addon_key === "ai_bot" && mpData.metadata?.org_id
+            ? { key: "ai_bot", orgId: String(mpData.metadata.org_id) }
+            : null);
+
+        let addonRefFromPreapproval: { orgId: string; key: string } | null = null;
+        if (!addonRefPayment && mpData.metadata?.preapproval_id) {
+          try {
+            const pRes = await fetch(
+              `https://api.mercadopago.com/preapproval/${mpData.metadata.preapproval_id}`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            const pJson = await pRes.json();
+            if (pRes.ok) {
+              addonRefFromPreapproval = parseAddonRef(pJson.external_reference);
+            }
+          } catch (e) {
+            console.error("[mp-webhook][addon] preapproval lookup err:", e);
+          }
+        }
+
+        const addonRef = addonRefPayment || addonRefFromPreapproval;
+        if (addonRef && addonRef.key === "ai_bot") {
+          await extendAiBotAddon(
+            supabase,
+            addonRef.orgId,
+            mpData.metadata?.preapproval_id || null,
+            paymentId,
+            addonRefPayment ? "payment" : "recurring",
+          );
+          return new Response(JSON.stringify({ success: true, addon: "ai_bot" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
       // Recurring subscription payment
       if (mpData.point_of_interaction?.type === "SUBSCRIPTIONS" || mpData.metadata?.preapproval_id) {
         const preapprovalId = mpData.metadata?.preapproval_id;
