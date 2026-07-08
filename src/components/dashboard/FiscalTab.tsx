@@ -148,6 +148,9 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [togglingProd, setTogglingProd] = useState(false);
+  const { data: checklist, refetch: refetchChecklist } = useFiscalChecklist(orgId);
+  const qc2 = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [certPassword, setCertPassword] = useState("");
 
