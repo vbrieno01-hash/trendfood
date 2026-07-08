@@ -221,6 +221,7 @@
   font-weight: 700; letter-spacing: -0.03em;
   font-size: 32px; line-height: 1.05; margin-top: 6px;
   font-variant-numeric: tabular-nums;
+  color: hsl(0 0% 98%);
 }
 .dark .dashboard-cc .metric-tile__sub { font-size: 11px; color: hsl(240 5% 55%); margin-top: 4px; }
 
@@ -242,6 +243,7 @@
   background: linear-gradient(160deg, hsl(240 15% 11%), hsl(240 15% 7%));
   border: 1px solid hsl(240 10% 16%);
   text-align: left; transition: all .18s ease; position: relative; overflow: hidden;
+  color: hsl(0 0% 95%);
 }
 .dark .dashboard-cc .action-tile:hover {
   border-color: hsl(20 100% 55% / 0.45);
