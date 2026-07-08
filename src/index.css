@@ -2,6 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD DARK COMMAND CENTER
+   Escopo isolado — só afeta o painel do lojista (aplicado no
+   container raiz do DashboardPage). Storefront público, auth,
+   landing page e admin panel NÃO são afetados.
+   ═══════════════════════════════════════════════════════════════ */
+.dashboard-dark {
+  --background: 240 20% 4%;         /* #0a0a0f — fundo profundo */
+  --foreground: 0 0% 98%;
+
+  --card: 240 15% 10%;              /* #151520 — superfícies */
+  --card-foreground: 0 0% 98%;
+
+  --popover: 240 15% 10%;
+  --popover-foreground: 0 0% 98%;
+
+  --primary: 20 100% 55%;           /* #ff6b1a — laranja elétrico */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 240 12% 14%;
+  --secondary-foreground: 0 0% 95%;
+
+  --muted: 240 12% 12%;
+  --muted-foreground: 240 5% 65%;
+
+  --accent: 20 100% 55%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 75% 55%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 240 10% 15%;
+  --input: 240 10% 15%;
+  --ring: 20 100% 55%;
+
+  --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+  --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.5), 0 1px 2px -1px hsl(0 0% 0% / 0.4);
+  --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.6), 0 2px 6px -2px hsl(0 0% 0% / 0.45);
+  --shadow-lg: 0 12px 32px -8px hsl(0 0% 0% / 0.7), 0 4px 12px -4px hsl(0 0% 0% / 0.5);
+  --shadow-glow: 0 0 0 1px hsl(20 100% 55% / 0.25), 0 8px 32px -8px hsl(20 100% 55% / 0.5);
+
+  --sidebar-background: 240 20% 4%;
+  --sidebar-foreground: 0 0% 90%;
+  --sidebar-primary: 20 100% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 15% 10%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 240 10% 15%;
+  --sidebar-ring: 20 100% 55%;
+
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  color-scheme: dark;
+  font-family: "Archivo", system-ui, sans-serif;
+}
+
+/* Tipografia display pros números grandes de KPI */
+.dashboard-dark .font-display,
+.dashboard-dark .kpi-number {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Cards com glow laranja sutil no hover */
+.dashboard-dark .card-hover-glow {
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+.dashboard-dark .card-hover-glow:hover {
+  border-color: hsl(var(--primary) / 0.35);
+  box-shadow: 0 0 24px -4px hsl(var(--primary) / 0.18);
+}
+
+/* Neutraliza bg-white puro dentro do painel (fallback pra qualquer componente
+   legado que ainda use bg-white/text-white sem tokens semânticos) */
+.dashboard-dark .bg-white:not([class*="bg-white/"]) {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
 /* ── Page transitions (150ms fade, opacity-only, safe for KDS/dashboard) ── */
 @keyframes page-fade-in {
   from { opacity: 0; }
