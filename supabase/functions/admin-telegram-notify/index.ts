@@ -249,7 +249,7 @@ function buildMessage(eventType: string, payload: any): string | null {
         "",
         `🏪 <b>${escapeHtml(payload.org_name)}</b>`,
         `🔗 /unidade/${escapeHtml(payload.slug)}`,
-        `📋 Plano: ${planLabel(payload.plan)} • ${escapeHtml(payload.status)}`,
+        `📋 Plano: ${planLabel(payload.plan)} • ${escapeHtml(statusLabel(payload.status))}`,
         payload.whatsapp ? `📱 WhatsApp: ${escapeHtml(payload.whatsapp)}` : "",
         payload.referred_by_id ? "🤝 <i>Veio por indicação</i>" : "",
       ].filter(Boolean).join("\n");
@@ -270,8 +270,8 @@ function buildMessage(eventType: string, payload: any): string | null {
         "",
         `🏪 <b>${escapeHtml(payload.org_name)}</b>`,
         `📋 ${oldP} → <b>${newP}</b>`,
-        payload.billing_cycle ? `🔁 Ciclo: ${escapeHtml(payload.billing_cycle)}` : "",
-        `📊 Status: ${escapeHtml(payload.new_status)}`,
+        payload.billing_cycle ? `🔁 Ciclo: ${escapeHtml(cycleLabel(payload.billing_cycle))}` : "",
+        `📊 Status: ${escapeHtml(statusLabel(payload.new_status))}`,
       ].filter(Boolean).join("\n");
     }
 
@@ -315,7 +315,7 @@ function buildMessage(eventType: string, payload: any): string | null {
         "💰 <b>Pagamento confirmado!</b>",
         "",
         `🏪 <b>${escapeHtml(payload.org_name)}</b>`,
-        `📋 Plano: ${planLabel(payload.plan)}${payload.billing_cycle ? ` (${escapeHtml(payload.billing_cycle)})` : ""}`,
+        `📋 Plano: ${planLabel(payload.plan)}${payload.billing_cycle ? ` (${escapeHtml(cycleLabel(payload.billing_cycle))})` : ""}`,
         payload.amount ? `💵 ${fmtBRL(Math.round(Number(payload.amount) * 100))} via ${escapeHtml(payload.payment_method || "MP")}` : "",
         payload.mrr_estimate ? `📈 MRR estimado: ${fmtBRL(payload.mrr_estimate)}` : "",
       ].filter(Boolean).join("\n");
@@ -325,8 +325,8 @@ function buildMessage(eventType: string, payload: any): string | null {
         "❌ <b>Cobrança recusada</b>",
         "",
         `🏪 <b>${escapeHtml(payload.org_name)}</b>`,
-        `📋 Plano: ${planLabel(payload.plan)}${payload.billing_cycle ? ` (${escapeHtml(payload.billing_cycle)})` : ""}`,
-        payload.reason ? `💳 Motivo: ${escapeHtml(payload.reason)}` : "",
+        `📋 Plano: ${planLabel(payload.plan)}${payload.billing_cycle ? ` (${escapeHtml(cycleLabel(payload.billing_cycle))})` : ""}`,
+        payload.reason ? `💳 Motivo: ${escapeHtml(reasonLabel(payload.reason))}` : "",
         "⚠️ Loja perde acesso se não regularizar",
       ].filter(Boolean).join("\n");
 
