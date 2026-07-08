@@ -129,6 +129,8 @@ export default function FiscalTab({ orgId, organization, effectivePlan, promoEli
           <FiscalQuotaCard orgId={orgId} />
           <div className="h-4" />
           <FiscalTabContent orgId={orgId} cfg={cfg} onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["fiscal_config", orgId] }); }} />
+          <div className="h-4" />
+          <FiscalInutilizationBlock organizationId={orgId} />
         </TabsContent>
         <TabsContent value="historico" className="mt-4">
           <FiscalHistoryTab orgId={orgId} regime={cfg?.regime_tributario ?? null} />
