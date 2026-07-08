@@ -952,6 +952,7 @@ const UnitPage = () => {
     setBuyerPhone("");
     setPhoneError(false);
     setBuyerDoc("");
+    setBuyerEmail("");
      setSelectedNeighborhood("");
      setCustomerStreet("");
      setCustomerNumber("");
