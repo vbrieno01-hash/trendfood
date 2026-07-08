@@ -594,6 +594,7 @@ const DashboardPage = () => {
         { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood", locked: lockedFeatures.ifood },
         { key: "telegram" as TabKey, icon: <Send className="w-4 h-4" />, label: "Telegram" },
         { key: "aibot" as TabKey, icon: <span className="text-sm">🤖</span>, label: "Robô IA", locked: lockedFeatures.aibot },
+        { key: "aibot_free" as TabKey, icon: <span className="text-sm">🎁</span>, label: "WhatsApp Grátis (2h)" },
       ],
     },
     {
