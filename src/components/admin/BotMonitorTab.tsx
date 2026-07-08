@@ -17,6 +17,7 @@ import {
   YAxis,
   Tooltip,
   Legend,
+  CartesianGrid,
 } from "recharts";
 
 type Period = "24h" | "7d" | "30d";
@@ -122,8 +123,54 @@ export default function BotMonitorTab() {
 
   const statusData = (dash?.by_status ?? []).map((s) => ({
     name: STATUS_LABEL[s.status] ?? s.status,
+    rawStatus: s.status,
     count: s.count,
   }));
+
+  // Top 6 providers + agrupa resto em "Outros"
+  const providerChartData = (() => {
+    const sorted = [...providerData].sort((a, b) => b.value - a.value);
+    if (sorted.length <= 6) return sorted;
+    const top = sorted.slice(0, 6);
+    const rest = sorted.slice(6);
+    const restTotal = rest.reduce((sum, r) => sum + r.value, 0);
+    return [
+      ...top,
+      { name: "Outros", value: restTotal, color: "hsl(var(--muted-foreground))" },
+    ];
+  })();
+  const providerTotal = providerChartData.reduce((sum, p) => sum + p.value, 0);
+
+  const statusColorFor = (raw: string): string => {
+    const s = raw.toLowerCase();
+    if (s === "sent") return "hsl(var(--primary))";
+    if (s.includes("duplicate") || s.includes("skip")) return "hsl(var(--muted-foreground))";
+    return "hsl(var(--destructive))";
+  };
+
+  const shortStatusLabel = (label: string): string =>
+    label.replace("Falha WhatsApp", "Falha WA").replace("Duplicada suprimida", "Duplicada");
+
+  const renderPieLabel = (props: any) => {
+    const { cx, cy, midAngle, outerRadius, percent, name } = props;
+    if (!percent || percent < 0.05) return null;
+    const RADIAN = Math.PI / 180;
+    const r = outerRadius + 14;
+    const x = cx + r * Math.cos(-midAngle * RADIAN);
+    const y = cy + r * Math.sin(-midAngle * RADIAN);
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="hsl(var(--foreground))"
+        fontSize={11}
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+      >
+        {`${name} ${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -219,21 +266,41 @@ export default function BotMonitorTab() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <h3 className="font-medium mb-3">Split por provider</h3>
-          <div className="h-64">
-            {providerData.length === 0 ? (
+        <Card className="p-4">
+          <h3 className="text-sm font-medium mb-2 text-muted-foreground">Split por provider</h3>
+          <div className="h-72">
+            {providerChartData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem dados no período.</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={providerData} dataKey="value" nameKey="name" outerRadius={90} label>
-                    {providerData.map((d, i) => (
+                <PieChart margin={{ top: 8, right: 24, left: 24, bottom: 8 }}>
+                  <Pie
+                    data={providerChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    label={renderPieLabel}
+                    labelLine={{ stroke: "hsl(var(--border))" }}
+                  >
+                    {providerChartData.map((d, i) => (
                       <Cell key={i} fill={d.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip
+                    formatter={(value: number, name: string) => {
+                      const pct = providerTotal ? ((value / providerTotal) * 100).toFixed(1) : "0";
+                      return [`${value} · ${pct}%`, name];
+                    }}
+                  />
+                  <Legend
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    align="center"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: 11 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -247,18 +314,31 @@ export default function BotMonitorTab() {
             ))}
           </div>
         </Card>
-        <Card className="p-5">
-          <h3 className="font-medium mb-3">Por status</h3>
-          <div className="h-64">
+        <Card className="p-4">
+          <h3 className="text-sm font-medium mb-2 text-muted-foreground">Por status</h3>
+          <div className="h-72">
             {statusData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem dados no período.</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={statusData}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={60} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <BarChart data={statusData} margin={{ top: 8, right: 12, left: 0, bottom: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                    height={56}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={shortStatusLabel}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} width={32} allowDecimals={false} />
+                  <Tooltip cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={56}>
+                    {statusData.map((s, i) => (
+                      <Cell key={i} fill={statusColorFor(s.rawStatus)} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
