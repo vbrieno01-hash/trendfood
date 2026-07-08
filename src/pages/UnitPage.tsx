@@ -714,6 +714,9 @@ const UnitPage = () => {
             initialStatus: "awaiting_payment",
             paymentMethod: "pix",
             paid: false,
+            customerCpf: (() => { const d = buyerDoc.replace(/\D/g, ""); return d.length === 11 || d.length === 14 ? d : null; })(),
+            customerEmail: buyerEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail.trim()) ? buyerEmail.trim().toLowerCase() : null,
+            customerNameFiscal: buyerName.trim() || null,
           },
           {
             onSuccess: (order) => {
