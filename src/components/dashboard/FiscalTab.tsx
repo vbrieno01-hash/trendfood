@@ -18,6 +18,7 @@ import { FileText, ShieldCheck, ShieldAlert, Upload, Loader2, CheckCircle2, Aler
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FiscalHistoryTab from "@/components/dashboard/FiscalHistoryTab";
 import FiscalInutilizationBlock from "@/components/dashboard/FiscalInutilizationBlock";
+import FiscalChecklist, { useFiscalChecklist } from "@/components/dashboard/FiscalChecklist";
 import { Progress } from "@/components/ui/progress";
 import { useFiscalQuota } from "@/hooks/useFiscalQuota";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -128,6 +129,8 @@ export default function FiscalTab({ orgId, organization, effectivePlan, promoEli
         </TabsList>
         <TabsContent value="config" className="mt-4">
           <FiscalQuotaCard orgId={orgId} />
+          <div className="h-4" />
+          <FiscalChecklist orgId={orgId} />
           <div className="h-4" />
           <FiscalTabContent orgId={orgId} cfg={cfg} onSaved={() => { refetch(); qc.invalidateQueries({ queryKey: ["fiscal_config", orgId] }); }} />
           <div className="h-4" />
