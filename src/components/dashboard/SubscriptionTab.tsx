@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import PlanCard from "@/components/pricing/PlanCard";
+import { CommandHeader } from "@/components/dashboard/command";
 import {
   AlertDialog,
   AlertDialogContent,
