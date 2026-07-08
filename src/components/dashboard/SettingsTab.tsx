@@ -12,11 +12,12 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Truck } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, KeyRound, Store, Clock, Wallet, Scale, Truck, Settings as SettingsIcon } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import VersionCheckCard from "@/components/dashboard/VersionCheckCard";
+import { CommandHeader } from "@/components/dashboard/command";
 
 export default function SettingsTab() {
   const { user, signOut, organization: currentOrg, refreshOrganization } = useAuth();
@@ -191,10 +192,12 @@ export default function SettingsTab() {
 
   return (
     <div className="space-y-6 max-w-lg">
-      <div className="animate-dashboard-fade-in">
-        <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Gerencie sua conta e segurança</p>
-      </div>
+      <CommandHeader
+        eyebrow="Conta"
+        title="Configurações"
+        subtitle="Gerencie sua conta e segurança"
+        icon={<SettingsIcon className="w-5 h-5" />}
+      />
 
       {/* Account info */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in dash-delay-1">

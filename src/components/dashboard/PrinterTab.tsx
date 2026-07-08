@@ -18,6 +18,7 @@ import LockedFeatureBanner from "./LockedFeatureBanner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
+import { CommandHeader } from "@/components/dashboard/command";
 
 interface PrinterTabProps {
   btDevice: BluetoothDevice | null;
@@ -199,15 +200,12 @@ export default function PrinterTab({ btDevice, btConnected, onPairBluetooth, onD
       )}
 
       {/* Header */}
-      <div className="flex items-center gap-3 animate-dashboard-fade-in">
-        <div className="dashboard-section-icon">
-          <Printer className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Impressora Térmica</h1>
-          <p className="text-muted-foreground text-sm">Configure o modo e hardware de impressão</p>
-        </div>
-      </div>
+      <CommandHeader
+        eyebrow="Hardware"
+        title="Impressora Térmica"
+        subtitle="Configure o modo e hardware de impressão"
+        icon={<Printer className="w-5 h-5" />}
+      />
 
       {/* Quick setup guide */}
       <div className="dashboard-glass rounded-2xl overflow-hidden animate-dashboard-fade-in">

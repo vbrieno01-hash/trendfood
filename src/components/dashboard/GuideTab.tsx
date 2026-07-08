@@ -9,6 +9,7 @@ import {
   CreditCard, Bike, Package, Zap, BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { CommandHeader } from "@/components/dashboard/command";
 
 interface GuideSection {
   id: string;
@@ -349,17 +350,12 @@ export default function GuideTab() {
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Header */}
-      <div className="flex items-center gap-3 animate-dashboard-fade-in">
-        <div className="dashboard-section-icon">
-          <BookOpen className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Como Usar</h1>
-          <p className="text-sm text-muted-foreground">
-            Guia completo de cada seção do app. Clique para expandir e ver o passo a passo.
-          </p>
-        </div>
-      </div>
+      <CommandHeader
+        eyebrow="Ajuda"
+        title="Como Usar"
+        subtitle="Guia completo de cada seção do app. Clique para expandir e ver o passo a passo."
+        icon={<BookOpen className="w-5 h-5" />}
+      />
 
       <Accordion type="multiple" className="space-y-2 animate-dashboard-fade-in dash-delay-1">
         {GUIDE_SECTIONS.map((section, idx) => (

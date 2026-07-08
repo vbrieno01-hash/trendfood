@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import PlanCard from "@/components/pricing/PlanCard";
+import { CommandHeader } from "@/components/dashboard/command";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -252,18 +253,12 @@ const SubscriptionTab = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="text-center space-y-2 animate-dashboard-fade-in">
-        <div className="flex items-center justify-center gap-3">
-          <div className="dashboard-section-icon">
-            <CreditCard className="w-5 h-5" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Gerenciar Assinatura</h1>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          Assinando para:{" "}
-          <span className="font-medium text-foreground">{organization?.name}</span>
-        </p>
-      </div>
+      <CommandHeader
+        eyebrow="Plano"
+        title="Gerenciar Assinatura"
+        subtitle={`Assinando para: ${organization?.name ?? ""}`}
+        icon={<CreditCard className="w-5 h-5" />}
+      />
 
       {/* Current subscription status */}
       {pendingPix && (
