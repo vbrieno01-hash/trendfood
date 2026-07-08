@@ -4135,6 +4135,7 @@ export type Database = {
         Args: { _event_type: string; _payload: Json }
         Returns: undefined
       }
+      notify_ai_bot_expiring: { Args: never; Returns: number }
       redeem_loyalty_points: {
         Args: {
           _discount_value: number
@@ -4177,6 +4178,7 @@ export type Database = {
         Args: { _as: string; _conversation_id: string }
         Returns: undefined
       }
+      sweep_ai_bot_addons: { Args: never; Returns: number }
       toggle_cleanup_dry_run: { Args: { _dry_run: boolean }; Returns: Json }
       validate_coupon: {
         Args: { _code: string; _order_total?: number; _organization_id: string }
