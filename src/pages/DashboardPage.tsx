@@ -619,7 +619,7 @@ const DashboardPage = () => {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="dashboard-dark min-h-screen bg-background flex items-center justify-center">
         <div className="space-y-3 w-64">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-4 w-3/4" />
@@ -631,7 +631,7 @@ const DashboardPage = () => {
 
   if (!organization) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="dashboard-dark min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <p className="text-4xl mb-4">🏪</p>
           <h1 className="font-bold text-xl mb-2">Nenhuma loja vinculada</h1>
@@ -655,7 +655,7 @@ const DashboardPage = () => {
 
   if (subscriptionStatus === "inactive") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="dashboard-dark min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center max-w-sm bg-card border border-border rounded-2xl p-8 shadow-sm">
           <p className="text-5xl mb-4">🔒</p>
           <h1 className="font-bold text-foreground text-xl mb-2">Sua assinatura está inativa</h1>
