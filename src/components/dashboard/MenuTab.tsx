@@ -36,7 +36,6 @@ import GlobalAddonsSection from "@/components/dashboard/GlobalAddonsSection";
 import MenuItemFiscalSection from "@/components/dashboard/MenuItemFiscalSection";
 import FirstAccessBanner from "@/components/dashboard/FirstAccessBanner";
 import { CommandHeader, MetricTile, CommandEmpty } from "@/components/dashboard/command";
-import { UtensilsCrossed } from "lucide-react";
 
 interface Organization {
   id: string;
