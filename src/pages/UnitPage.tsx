@@ -15,9 +15,11 @@ import {
 import {
   Plus, X, Minus, UtensilsCrossed,
   ShoppingCart, ShoppingBag, Search,
+  Receipt,
 } from "lucide-react";
 import ItemDetailDrawer from "@/components/unit/ItemDetailDrawer";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useFiscalPublicStatus } from "@/hooks/useFiscalPublicStatus";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
@@ -66,6 +68,8 @@ const UnitPage = () => {
   const { data: org, isLoading: orgLoading, isError, refetch: refetchOrg, isFetching: orgFetching } = useOrganization(slug);
   const { data: menuItems = [], isLoading: menuLoading } = useMenuItems(org?.id);
   const planLimits = usePlanLimits(org);
+  const { data: fiscalStatus } = useFiscalPublicStatus(org?.id);
+  const showFiscalFields = !!fiscalStatus?.enabled && !!fiscalStatus?.producao_liberada;
 
   const placeOrder = usePlaceOrder();
   const { registerForOrder } = useCustomerPush();
