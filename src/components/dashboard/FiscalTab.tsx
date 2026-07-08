@@ -333,7 +333,6 @@ function FiscalTabContent({ orgId, cfg, onSaved }: { orgId: string; cfg: FiscalC
                   <SelectItem value="1">Simples Nacional</SelectItem>
                   <SelectItem value="2">Simples Nacional — excesso de sublimite</SelectItem>
                   <SelectItem value="3">Regime Normal</SelectItem>
-                  <SelectItem value="4">MEI</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -42,11 +42,8 @@ Deno.serve(async (req) => {
         environment: cfg?.environment || "homologacao",
         rejection_reason: String(quota?.reason || "Cota mensal esgotada").slice(0, 500),
       };
-      if (existing?.id) {
-        await supabase.from("fiscal_invoices").update(patch).eq("id", existing.id);
-      } else {
-        await supabase.from("fiscal_invoices").insert(patch);
-      }
+      // upsert por order_id (UNIQUE) — evita race entre triggers concorrentes
+      await supabase.from("fiscal_invoices").upsert(patch, { onConflict: "order_id" });
       return json({ blocked: true, quota });
     }
 

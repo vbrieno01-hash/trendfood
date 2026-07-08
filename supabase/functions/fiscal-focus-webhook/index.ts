@@ -39,11 +39,10 @@ Deno.serve(async (req) => {
     const numero = payload.numero;
     const serie = payload.serie;
     const protocolo = payload.protocolo;
-    const xml = payload.caminho_xml_nota_fiscal ? `https://api.focusnfe.com.br${payload.caminho_xml_nota_fiscal}` : null;
-    const danfe = payload.caminho_danfe ? `https://api.focusnfe.com.br${payload.caminho_danfe}` : null;
     const qrcode = payload.qrcode || payload.qrcode_url;
     const motivo = payload.mensagem_sefaz || payload.motivo_status || payload.motivo;
     const idIntegracao = ref.startsWith("order_") ? ref.slice("order_".length) : null;
+    console.log("[fiscal-focus-webhook] recebido", { ref, status, chave });
 
     if (!idIntegracao && !chave) return json({ error: "missing identifier" }, 400);
 
@@ -53,6 +52,13 @@ Deno.serve(async (req) => {
     const { data: invRows } = await query;
     const inv = invRows?.[0];
     if (!inv) return json({ ok: true, ignored: true });
+
+    // Escolhe host correto pelo ambiente da nota (homologacao vs producao)
+    const hostByEnv = inv.environment === "producao"
+      ? "https://api.focusnfe.com.br"
+      : "https://homologacao.focusnfe.com.br";
+    const xml = payload.caminho_xml_nota_fiscal ? `${hostByEnv}${payload.caminho_xml_nota_fiscal}` : null;
+    const danfe = payload.caminho_danfe ? `${hostByEnv}${payload.caminho_danfe}` : null;
 
     let newStatus = inv.status;
     if (status.includes("autoriz")) newStatus = "authorized";
