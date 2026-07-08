@@ -136,11 +136,15 @@ Deno.serve(async (req) => {
     // Sincronizar mudanças no banco
     const updates: Record<string, unknown> = {};
     if (liveStatus && liveStatus !== inst.status) updates.status = liveStatus;
-    if (livePhone && livePhone !== inst.phone_connected) {
-      updates.phone_connected = String(livePhone).replace(/\D/g, "");
-    }
-    if (liveStatus === "connected" && !inst.connected_at) {
-      updates.connected_at = new Date().toISOString();
+    if (liveStatus === "connected") {
+      if (livePhone) {
+        const normalized = String(livePhone).replace(/\D/g, "");
+        if (normalized !== inst.phone_connected) updates.phone_connected = normalized;
+      }
+      if (!inst.connected_at) updates.connected_at = new Date().toISOString();
+    } else if (liveStatus === "disconnected") {
+      // uazapi confirmou desconectado — limpar número stale (ex: fake de teste)
+      if (inst.phone_connected) updates.phone_connected = null;
     }
     if (Object.keys(updates).length > 0) {
       await supabase

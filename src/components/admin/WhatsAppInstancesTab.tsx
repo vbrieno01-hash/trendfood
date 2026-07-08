@@ -39,6 +39,21 @@ export default function WhatsAppInstancesTab() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [health, setHealth] = useState<CleanupHealth | null>(null);
   const [runningCleanup, setRunningCleanup] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  async function syncAllWithUazapi(orgIds: string[]) {
+    if (orgIds.length === 0) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    await Promise.allSettled(
+      orgIds.map((oid) =>
+        fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${oid}`,
+          { headers: { Authorization: `Bearer ${session.access_token}` } },
+        ).then((r) => r.text()).catch(() => null),
+      ),
+    );
+  }
 
   async function load() {
     setLoading(true);
@@ -64,6 +79,19 @@ export default function WhatsAppInstancesTab() {
     setInstances(enriched);
     await loadHealth();
     setLoading(false);
+  }
+
+  async function reloadWithSync() {
+    setSyncing(true);
+    try {
+      const { data: rows } = await (supabase.from("whatsapp_instances") as any)
+        .select("organization_id");
+      const orgIds: string[] = Array.from(new Set((rows || []).map((r: any) => r.organization_id as string)));
+      await syncAllWithUazapi(orgIds);
+      await load();
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function loadHealth() {
@@ -103,7 +131,7 @@ export default function WhatsAppInstancesTab() {
   }
 
   useEffect(() => {
-    load();
+    reloadWithSync();
     const id = setInterval(load, 30_000);
     return () => clearInterval(id);
   }, []);
@@ -179,8 +207,9 @@ export default function WhatsAppInstancesTab() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-2 rounded-xl">
-          <RefreshCw className="w-4 h-4" /> Recarregar
+        <Button variant="outline" size="sm" onClick={reloadWithSync} disabled={syncing} className="gap-2 rounded-xl">
+          {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          {syncing ? "Sincronizando..." : "Recarregar"}
         </Button>
       </div>
 
