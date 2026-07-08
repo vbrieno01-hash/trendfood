@@ -306,10 +306,45 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
     setConnecting(true);
     setQrcode(null);
     try {
-      const { data, error } = await supabase.functions.invoke("uazapi-create-instance", {
-        body: { organization_id: orgId },
-      });
-      if (error) throw error;
+      // fetch direto pra conseguir ler o corpo JSON de erro (invoke engole o body em 4xx/5xx)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Sessão expirada. Recarregue a página e faça login novamente.");
+        return;
+      }
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-create-instance`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ organization_id: orgId }),
+        },
+      );
+      let data: any = null;
+      try { data = await resp.json(); } catch { /* noop */ }
+      if (!resp.ok) {
+        const map: Record<string, string> = {
+          missing_auth: "Sessão expirada. Recarregue a página e faça login novamente.",
+          unauthorized: "Sessão expirada. Recarregue a página e faça login novamente.",
+          forbidden: "Você não tem permissão pra conectar o WhatsApp dessa loja.",
+          bot_not_allowed: "Robô do WhatsApp não está liberado pra essa loja. Fale com o suporte.",
+          uazapi_not_configured: "Servidor do WhatsApp não configurado. Avise o administrador.",
+          uazapi_quota_exceeded: "Limite de instâncias do servidor atingido. Tente de novo em alguns minutos.",
+          uazapi_init_failed: "Servidor do WhatsApp recusou criar a instância. Verifique conexão do servidor.",
+          uazapi_init_not_json: "Servidor do WhatsApp respondeu de forma inválida. Tente novamente.",
+          no_token_returned: "Servidor do WhatsApp não devolveu token. Tente novamente.",
+          db_save_failed: "Falha ao salvar a instância no banco. Tente novamente.",
+          "organization not found": "Loja não encontrada.",
+          "organization_id required": "Loja não identificada. Recarregue a página.",
+        };
+        const key = String(data?.error ?? "");
+        const friendly = map[key] || data?.message || data?.hint || key || `Erro ${resp.status} ao conectar`;
+        toast.error(friendly);
+        return;
+      }
       if (data?.instance) setInstance(data.instance);
       if (data?.qrcode) {
         setQrcode(data.qrcode);
@@ -322,10 +357,10 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
         for (let i = 0; i < 6 && !got; i++) {
           await new Promise((r) => setTimeout(r, 2000));
           try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session: s2 } } = await supabase.auth.getSession();
             const res = await fetch(
               `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uazapi-instance-status?organization_id=${orgId}`,
-              { headers: { Authorization: `Bearer ${session?.access_token}` } },
+              { headers: { Authorization: `Bearer ${s2?.access_token}` } },
             );
             const json = await res.json();
             if (json.instance) setInstance(json.instance);
@@ -345,8 +380,8 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
           toast.error("Servidor Uazapi não respondeu com QR. Tente Atualizar Status em alguns segundos.");
         }
       }
-    } catch (e) {
-      toast.error("Falha ao iniciar conexão");
+    } catch (e: any) {
+      toast.error("Falha ao iniciar conexão: " + (e?.message ?? "erro desconhecido"));
     } finally {
       setConnecting(false);
     }
@@ -480,6 +515,12 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
                 <p className="text-sm text-muted-foreground">
                   Conecte um número do WhatsApp para o robô atender seus clientes.
                 </p>
+                {instance && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Instância: <span className="font-mono">{instance.instance_name}</span>
+                    {" · "}Status: <span className="font-mono">{instance.status}</span>
+                  </p>
+                )}
               </div>
               {qrcode ? (
                 <div className="space-y-2">
@@ -497,10 +538,16 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
                   </Button>
                 </div>
               ) : (
-                <Button onClick={connect} disabled={connecting}>
-                  {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
-                  Conectar WhatsApp
-                </Button>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <Button size="lg" onClick={connect} disabled={connecting}>
+                    {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <QrCode className="h-4 w-4 mr-1" />}
+                    Conectar WhatsApp agora
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={refreshStatus} disabled={refreshing}>
+                    {refreshing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                    Atualizar status
+                  </Button>
+                </div>
               )}
             </div>
           )}
