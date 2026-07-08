@@ -240,6 +240,27 @@ Deno.serve(async (req) => {
     if (!(totalNota > 0)) return fail("invalid_payload", "Valor total da nota deve ser positivo", { totalNota });
     if (cnpjClean.length !== 14) return fail("invalid_payload", "CNPJ do emitente inválido", { cnpj_len: cnpjClean.length });
 
+    // Destinatário — só inclui campos quando o cliente informou no checkout.
+    // NFC-e permite consumidor não identificado até o limite estadual (ex.: R$ 10 mil em SP).
+    const destinatario: Record<string, unknown> = {};
+    const cpfClean = (order.customer_cpf || "").replace(/\D/g, "");
+    if (cpfClean.length === 11) {
+      destinatario.cpf_destinatario = cpfClean;
+    } else if (cpfClean.length === 14) {
+      destinatario.cnpj_destinatario = cpfClean;
+    } else if (order.customer_cpf) {
+      return fail("invalid_payload", "CPF/CNPJ do consumidor inválido", { customer_cpf_len: cpfClean.length });
+    }
+    if (cpfClean && order.customer_name_fiscal) {
+      destinatario.nome_destinatario = String(order.customer_name_fiscal).slice(0, 60);
+    }
+    if (order.customer_email) {
+      const email = String(order.customer_email).trim();
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        destinatario.email_destinatario = email.toLowerCase();
+      }
+    }
+
     const payload = {
       natureza_operacao: "VENDA AO CONSUMIDOR",
       data_emissao: new Date().toISOString(),
@@ -251,6 +272,7 @@ Deno.serve(async (req) => {
       modalidade_frete: "9", // 9 = sem frete (NFC-e balcão/delivery próprio)
       local_destino: "1",    // 1 = operação interna (UF do consumidor = UF do emitente)
       cnpj_emitente: cnpjClean,
+      ...destinatario,
       items: nfItems,
       formas_pagamento: [{
         forma_pagamento: mapPay(order.payment_method),
