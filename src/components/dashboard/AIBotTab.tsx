@@ -420,6 +420,10 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
         }
       />
 
+      {showAddonCard && (
+        <AiBotAddonCard addon={aiBotAddon} loading={loadingAddon} />
+      )}
+
       {!isPaidPlan && (
         <Card className="border-amber-500/40 bg-amber-500/5">
           <CardContent className="pt-6 flex items-start gap-3">
