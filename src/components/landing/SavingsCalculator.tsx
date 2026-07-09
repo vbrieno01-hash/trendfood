@@ -54,28 +54,37 @@ const SavingsCalculator = () => {
   const display = revenue.toLocaleString("pt-BR");
 
   return (
-    <section id="calculadora" className="relative py-24 px-4">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] to-[#111]" />
+    <section id="calculadora" className="relative py-16 md:py-24 px-4 overflow-hidden" style={{ background: "hsl(var(--landing-bg))" }}>
+      {/* Blob radial cream/laranja atrás do número de destaque */}
+      <div
+        aria-hidden
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full opacity-60 pointer-events-none"
+        style={{ background: "radial-gradient(circle, hsl(var(--landing-surface) / 0.9), transparent 60%)" }}
+      />
 
       <div className="relative max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-semibold text-white mb-4 tracking-tight">
-            Quanto você <span className="text-red-500">perde</span> por mês?
+        <div className="text-center mb-12">
+          <div className="hairline-accent mx-auto mb-5" />
+          <h2 className="font-display font-bold text-4xl md:text-5xl mb-3 tracking-tight" style={{ color: "hsl(var(--landing-ink))" }}>
+            Quanto você <span style={{ color: "hsl(var(--landing-accent))" }}>perde</span> por mês?
           </h2>
-          <p className="text-white/70 text-base">
+          <p className="text-base" style={{ color: "hsl(var(--landing-ink) / 0.65)" }}>
             Veja quanto do seu faturamento vai direto pro marketplace
           </p>
         </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 md:p-12">
+        {/* Card papel branco */}
+        <div
+          className="rounded-3xl p-8 md:p-12 shadow-[0_30px_80px_-30px_hsl(24_60%_25%/0.25)]"
+          style={{ background: "#fff", border: "1px solid hsl(var(--landing-surface))" }}
+        >
           {/* Input */}
-          <label htmlFor="revenue" className="block text-xs font-medium text-white/70 mb-6 tracking-widest uppercase">
+          <label htmlFor="revenue" className="block text-xs font-bold mb-4 tracking-widest uppercase" style={{ color: "hsl(var(--landing-ink) / 0.55)" }}>
             Faturamento mensal em marketplaces
           </label>
           <div className="relative mb-2">
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-medium text-white/60 select-none">
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-display font-bold select-none" style={{ color: "hsl(var(--landing-ink) / 0.4)" }}>
               R$
             </span>
             <input
@@ -84,7 +93,11 @@ const SavingsCalculator = () => {
               inputMode="numeric"
               value={display}
               onChange={handleChange}
-              className="w-full bg-transparent border-b border-white/30 pl-12 pb-3 text-3xl font-medium text-white placeholder:text-white/70 focus-visible:outline-none focus-visible:border-white/60 transition-colors"
+              className="w-full bg-transparent pl-12 pb-3 text-3xl md:text-4xl font-display font-bold focus-visible:outline-none transition-colors"
+              style={{
+                color: "hsl(var(--landing-ink))",
+                borderBottom: "2px solid hsl(var(--landing-surface))",
+              }}
             />
           </div>
 
@@ -96,70 +109,70 @@ const SavingsCalculator = () => {
             step={1000}
             value={revenue}
             onChange={(e) => setRevenue(Number(e.target.value))}
-            className="w-full h-[2px] mt-6 mb-8 appearance-none bg-white/[0.08] rounded-none cursor-pointer
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer
-              [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+            className="w-full h-1 mt-8 mb-8 appearance-none rounded-full cursor-pointer accent-[hsl(var(--landing-accent))]"
+            style={{ background: "hsl(var(--landing-surface))" }}
           />
 
           {/* Preset chips */}
-          <div className="flex flex-wrap gap-3 mb-12">
+          <div className="flex flex-wrap gap-2 mb-10">
             {PRESETS.map((v) => (
               <button
                 key={v}
                 onClick={() => setRevenue(v)}
-                className={`px-4 py-1.5 rounded-full text-sm transition-colors ${
+                className="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                style={
                   revenue === v
-                    ? "bg-white/10 text-white"
-                    : "text-white/70 hover:text-white"
-                }`}
+                    ? { background: "hsl(var(--landing-accent))", color: "#fff" }
+                    : { background: "hsl(var(--landing-surface) / 0.5)", color: "hsl(var(--landing-ink) / 0.7)" }
+                }
               >
                 {formatBRL(v)}
               </button>
             ))}
           </div>
 
-          {/* Divider */}
-          <div className="border-t border-white/[0.06]" />
+          <div style={{ borderTop: "1px solid hsl(var(--landing-surface))" }} />
 
-          {/* Loss block */}
-          <div className="py-8">
-            <p className="text-xs font-medium text-white/70 tracking-widest uppercase mb-4">
+          {/* Loss block — número gigante em Space Grotesk laranja */}
+          <div className="py-8 text-center">
+            <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: "hsl(var(--landing-ink) / 0.55)" }}>
               Você perde para o marketplace
             </p>
-            <div className="flex items-baseline gap-3 mb-2">
-              <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
+            <div className="flex items-baseline gap-2 justify-center flex-wrap font-display font-bold tabular-nums leading-none" style={{ color: "hsl(var(--landing-accent))" }}>
+              <span className="text-5xl md:text-7xl">
                 <FlipNumber value={formatBRL(lossMin)} />
               </span>
-              <span className="text-white/60 text-lg">a</span>
-              <span className="text-3xl md:text-4xl font-semibold text-red-500 tabular-nums">
+              <span className="text-2xl opacity-50">a</span>
+              <span className="text-5xl md:text-7xl">
                 <FlipNumber value={formatBRL(lossMax)} />
               </span>
-              <span className="text-white/60 text-sm">/mês</span>
             </div>
-            <p className="text-sm text-white/70">12% a 27% de taxa sobre vendas</p>
+            <p className="text-sm mt-3" style={{ color: "hsl(var(--landing-ink) / 0.55)" }}>12% a 27% de taxa sobre vendas / mês</p>
           </div>
 
-          {/* Divider */}
-          <div className="border-t border-white/[0.06]" />
+          <div style={{ borderTop: "1px solid hsl(var(--landing-surface))" }} />
 
           {/* TrendFood block */}
-          <div className="py-8">
-            <p className="text-xs font-medium text-white/70 tracking-widest uppercase mb-4">
+          <div className="py-8 text-center">
+            <p className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: "hsl(var(--landing-ink) / 0.55)" }}>
               Com o TrendFood
             </p>
-            <p className="text-3xl md:text-4xl font-semibold text-emerald-400 tabular-nums mb-2">
-              <FlipNumber value={formatBRL(revenue)} /> <span className="text-white/70 text-lg font-normal">fica com você</span>
+            <p className="font-display font-bold text-4xl md:text-5xl tabular-nums mb-2" style={{ color: "hsl(var(--landing-ink))" }}>
+              <FlipNumber value={formatBRL(revenue)} />
             </p>
-            <p className="text-sm text-emerald-400/90">0% de comissão sobre vendas</p>
+            <p className="text-sm font-semibold" style={{ color: "hsl(var(--landing-accent))" }}>
+              100% fica com você · 0% de comissão
+            </p>
           </div>
 
           {/* CTA */}
           <div className="pt-4">
             <Link
               to="/auth"
-              className="inline-flex items-center justify-center gap-2 bg-white text-black rounded-lg h-12 px-8 text-base font-medium hover:bg-white/90 transition-colors w-full md:w-auto"
+              className="inline-flex items-center justify-center gap-2 rounded-full h-14 px-8 text-base font-display font-bold transition-transform hover:-translate-y-0.5 w-full md:w-auto shadow-[0_15px_35px_-10px_hsl(24_95%_45%/0.55)]"
+              style={{ background: "hsl(var(--landing-accent))", color: "#fff" }}
             >
-              Começar Grátis
+              Começar Grátis Agora
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
