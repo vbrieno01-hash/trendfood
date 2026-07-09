@@ -33,6 +33,9 @@ const CardapioQrPage = lazy(routeLoaders.cardapioQr);
 const AltIfoodPage = lazy(routeLoaders.altIfood);
 const PdvGratisPage = lazy(routeLoaders.pdvGratis);
 const DeliverySemTaxaPage = lazy(routeLoaders.deliverySemTaxa);
+const SistemaLanchonetePage = lazy(routeLoaders.sistemaLanchonete);
+const SistemaPizzariaPage = lazy(routeLoaders.sistemaPizzaria);
+const CardapioRestaurantePage = lazy(routeLoaders.cardapioRestaurante);
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
@@ -238,6 +241,9 @@ const AppInner = () => {
               <Route path="/alternativa-ao-ifood" element={<AltIfoodPage />} />
               <Route path="/pdv-restaurante-gratis" element={<PdvGratisPage />} />
               <Route path="/delivery-sem-taxa" element={<DeliverySemTaxaPage />} />
+              <Route path="/sistema-para-lanchonete" element={<SistemaLanchonetePage />} />
+              <Route path="/sistema-para-pizzaria" element={<SistemaPizzariaPage />} />
+              <Route path="/cardapio-digital-para-restaurante" element={<CardapioRestaurantePage />} />
               <Route path="/_preview/fallback" element={<PreviewFallback />} />
               {/* Short link: /:slug — mantém /unidade/:slug funcional para compat */}
               <Route path="/:slug" element={<UnitPage />} />
