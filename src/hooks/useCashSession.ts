@@ -90,6 +90,33 @@ export function useCashHistory(orgId: string) {
   });
 }
 
+// Histórico de turnos fechados em um período específico (para analytics).
+// Limite hard de 200 turnos — suficiente pra 90 dias em qualquer loja realista.
+export function useCashHistoryRange(
+  orgId: string,
+  fromIso: string,
+  toIso: string
+) {
+  return useQuery({
+    queryKey: ["cash_sessions", "range", orgId, fromIso, toIso],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("cash_sessions")
+        .select("id, organization_id, opened_at, closed_at, opening_balance, closing_balance, notes, created_at, opened_by, closed_by, divergence_reason")
+        .eq("organization_id", orgId)
+        .not("closed_at", "is", null)
+        .gte("opened_at", fromIso)
+        .lte("opened_at", toIso)
+        .order("opened_at", { ascending: true })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as CashSession[];
+    },
+    enabled: !!orgId && !!fromIso && !!toIso,
+    staleTime: 60_000,
+  });
+}
+
 // Resolve nomes dos operadores a partir da tabela profiles (join manual)
 export function useOperatorNames(userIds: (string | null | undefined)[]) {
   const clean = Array.from(new Set(userIds.filter((v): v is string => !!v)));
