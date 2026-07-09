@@ -830,11 +830,14 @@ export default function CaixaTab({ orgId }: { orgId: string }) {
       />
 
       {session ? (
-        <CaixaAberto session={session} orgId={orgId} />
+        <>
+          <CaixaAberto session={session} orgId={orgId} />
+          <CashAnalytics orgId={orgId} />
+        </>
       ) : (
         <>
-          <CaixaFechado orgId={orgId} history={history} historyLoading={historyLoading} />
           <CashAnalytics orgId={orgId} />
+          <CaixaFechado orgId={orgId} history={history} historyLoading={historyLoading} />
         </>
       )}
     </div>
