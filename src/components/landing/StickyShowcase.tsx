@@ -27,19 +27,19 @@ export default function StickyShowcase() {
 
   if (isMobile) {
     return (
-      <section className="relative bg-background py-14 px-4">
+      <section className="relative bg-ink py-16 px-4 overflow-hidden">
         <div
           className="absolute inset-0 opacity-30 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse 60% 40% at 50% 30%, rgba(249,115,22,0.18), transparent)",
+              "radial-gradient(ellipse 60% 40% at 50% 30%, hsl(var(--landing-accent) / 0.25), transparent)",
           }}
         />
         <div className="relative max-w-2xl mx-auto">
           <div className="text-center mb-10">
-            <Badge className="mb-3 bg-primary/10 text-primary border-primary/20">Tudo num lugar só</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-              Um sistema. <span className="text-primary">Operação inteira.</span>
+            <div className="hairline-accent mx-auto mb-5" />
+            <h2 className="font-display font-bold text-4xl md:text-5xl tracking-tight" style={{ color: "hsl(var(--landing-bg))" }}>
+              Um sistema. <span style={{ color: "hsl(var(--landing-accent))" }}>Operação inteira.</span>
             </h2>
           </div>
 
@@ -69,14 +69,15 @@ export default function StickyShowcase() {
               return (
                 <div
                   key={tab.label}
-                  className="flex items-start gap-4 p-4 rounded-2xl bg-card border border-border/60"
+                  className="flex items-start gap-4 p-4 rounded-2xl border border-white/10"
+                  style={{ background: "hsl(var(--landing-bg) / 0.04)" }}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-white" style={{ background: "hsl(var(--landing-accent))" }}>
                     <Icon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-foreground text-lg mb-1">{tab.label}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">{tab.desc}</p>
+                    <h3 className="font-display font-bold text-lg mb-1" style={{ color: "hsl(var(--landing-bg))" }}>{tab.label}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: "hsl(var(--landing-bg) / 0.65)" }}>{tab.desc}</p>
                   </div>
                 </div>
               );
@@ -88,21 +89,21 @@ export default function StickyShowcase() {
   }
 
   return (
-    <section ref={ref} className="relative bg-background" style={{ height: `${tabs.length * 80}vh` }}>
+    <section ref={ref} className="relative bg-ink" style={{ height: `${tabs.length * 80}vh` }}>
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
         <div
           className="absolute inset-0 opacity-40"
           style={{
             background:
-              "radial-gradient(ellipse 50% 60% at 70% 50%, rgba(249,115,22,0.2), transparent)",
+              "radial-gradient(ellipse 50% 60% at 70% 50%, hsl(var(--landing-accent) / 0.3), transparent)",
           }}
         />
         <div className="relative max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center">
           {/* Left: tabs list */}
           <div className="space-y-2">
-            <Badge className="mb-3 bg-primary/10 text-primary border-primary/20">Tudo num lugar só</Badge>
-            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-8 tracking-tight">
-              Um sistema. <span className="text-primary">Operação inteira.</span>
+            <div className="hairline-accent mb-5" />
+            <h2 className="font-display font-bold text-4xl md:text-6xl mb-8 tracking-tight leading-[0.95]" style={{ color: "hsl(var(--landing-bg))" }}>
+              Um sistema.<br /><span style={{ color: "hsl(var(--landing-accent))" }}>Operação inteira.</span>
             </h2>
             {tabs.map((tab, i) => {
               const Icon = tab.icon;
@@ -151,13 +152,14 @@ function TabRow({ tab, index, active, Icon }: { tab: { label: string; desc: stri
     <motion.div style={{ opacity, x }} className="flex items-start gap-4 p-4 rounded-2xl transition-colors">
       <motion.div
         animate={{ scale: 1 }}
-        className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0"
+        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-white"
+        style={{ background: "hsl(var(--landing-accent))" }}
       >
         <Icon className="w-6 h-6" />
       </motion.div>
       <div>
-        <h3 className="font-bold text-foreground text-lg mb-1">{tab.label}</h3>
-        <p className="text-muted-foreground text-sm leading-relaxed">{tab.desc}</p>
+        <h3 className="font-display font-bold text-lg mb-1" style={{ color: "hsl(var(--landing-bg))" }}>{tab.label}</h3>
+        <p className="text-sm leading-relaxed" style={{ color: "hsl(var(--landing-bg) / 0.7)" }}>{tab.desc}</p>
       </div>
     </motion.div>
   );
