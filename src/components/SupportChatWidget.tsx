@@ -1,249 +1,255 @@
+// Reclame Aqui — widget flutuante one-way. Envia bugs/sugestões/reclamações direto
+// pro Telegram do dono da plataforma. Sem histórico, sem thread, sem realtime.
 import { useState, useRef, useEffect } from "react";
-import { HeadphonesIcon, X, Send, Image as ImageIcon, Loader2 } from "lucide-react";
+import { MessageCircleWarning, X, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupportChat, isSupportOnline } from "@/hooks/useSupportChat";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
-const formatTime = (iso: string) => {
-  try {
-    return new Date(iso).toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "America/Sao_Paulo",
-    });
-  } catch {
-    return "";
-  }
-};
+const MIN_INTERVAL_MS = 30_000;
+const SESSION_LIMIT = 5;
+const APP_VERSION = "trendfood-web";
 
-const SupportChatWidget = () => {
-  const { organization } = useAuth();
+type Category = "bug" | "suggestion" | "complaint" | "other";
+const CATEGORIES: { value: Category; label: string; hint: string }[] = [
+  { value: "bug", label: "🐛 Erro/Bug", hint: "Alguma coisa quebrou ou travou" },
+  { value: "suggestion", label: "💡 Sugestão", hint: "Ideia pra melhorar o app" },
+  { value: "complaint", label: "😠 Reclamação", hint: "Algo tá te incomodando" },
+  { value: "other", label: "💬 Outro", hint: "Qualquer outra coisa" },
+];
+
+const stripTags = (s: string) => s.replace(/<[^>]*>/g, "");
+
+const ReclameAquiWidget = () => {
+  const { organization, user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [input, setInput] = useState("");
-  const [online, setOnline] = useState(isSupportOnline());
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [sending, setSending] = useState(false);
+  const [category, setCategory] = useState<Category>("bug");
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [message, setMessage] = useState("");
+  const [includeTechContext, setIncludeTechContext] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastSentAtRef = useRef<number>(0);
+  const sentCountRef = useRef<number>(0);
 
-  const { conversation, messages, loading, sending, sendText, sendImage, markRead } =
-    useSupportChat(organization?.id);
-
-  // tick a cada minuto pra atualizar badge online/offline
+  // Pré-preenche com dados da sessão
   useEffect(() => {
-    const id = setInterval(() => setOnline(isSupportOnline()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+    if (!name && (user as any)?.email) {
+      const meta = (user as any)?.user_metadata || {};
+      setName(meta.full_name || meta.name || (user as any).email.split("@")[0] || "");
+    }
+  }, [user, name]);
 
-  // autoscroll
+  // Foca textarea ao abrir
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, open]);
+    if (open) setTimeout(() => textareaRef.current?.focus(), 50);
+  }, [open]);
 
-  // marcar lida ao abrir + focar input
-  useEffect(() => {
-    if (open) {
-      markRead();
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [open, markRead]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (sending) return;
 
-  if (!organization) return null;
+    const cleanName = stripTags(name).trim();
+    const cleanMessage = stripTags(message).trim();
+    const cleanContact = stripTags(contact).trim();
 
-  const unread = conversation?.unread_for_store ?? 0;
-
-  const handleSendText = async () => {
-    const text = input.trim();
-    if (!text || sending) return;
-    setInput("");
-    try {
-      await sendText(text);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao enviar mensagem");
-      setInput(text);
-    }
-  };
-
-  const handlePickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Imagem muito grande (máx 5 MB).");
+    if (cleanName.length < 2) {
+      toast.error("Informe seu nome (mín. 2 letras).");
       return;
     }
-    try {
-      await sendImage(file);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao enviar imagem");
+    if (cleanMessage.length < 5) {
+      toast.error("Mensagem muito curta (mín. 5 caracteres).");
+      return;
     }
-  };
+    if (cleanMessage.length > 2000) {
+      toast.error("Mensagem muito longa (máx. 2000 caracteres).");
+      return;
+    }
 
-  // Resolve URL para imagens (algumas podem ser apenas o path).
-  const resolveAttachment = (url: string | null): string | null => {
-    if (!url) return null;
-    if (url.startsWith("http")) return url;
-    const { data } = supabase.storage.from("support-attachments").getPublicUrl(url);
-    return data.publicUrl;
+    // Rate-limit client
+    const now = Date.now();
+    if (now - lastSentAtRef.current < MIN_INTERVAL_MS) {
+      const wait = Math.ceil((MIN_INTERVAL_MS - (now - lastSentAtRef.current)) / 1000);
+      toast.error(`Aguarde ${wait}s antes de enviar outra.`);
+      return;
+    }
+    if (sentCountRef.current >= SESSION_LIMIT) {
+      toast.error("Limite de envios atingido nesta sessão.");
+      return;
+    }
+
+    setSending(true);
+    try {
+      const payload: Record<string, unknown> = {
+        category,
+        name: cleanName,
+        contact: cleanContact,
+        message: cleanMessage,
+        org_id: organization?.id ?? null,
+        org_name: organization?.name ?? null,
+        org_slug: (organization as any)?.slug ?? null,
+      };
+      if (includeTechContext) {
+        payload.page_url = typeof window !== "undefined" ? window.location.pathname + window.location.search : null;
+        payload.user_agent = typeof navigator !== "undefined" ? navigator.userAgent : null;
+        payload.app_version = APP_VERSION;
+      }
+
+      const { data, error } = await supabase.functions.invoke("reclame-aqui-send", { body: payload });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any)?.error || "erro_desconhecido");
+
+      lastSentAtRef.current = now;
+      sentCountRef.current += 1;
+      toast.success("Recebido! O dono da plataforma foi avisado. 🙌");
+      setMessage("");
+      setOpen(false);
+    } catch (err: any) {
+      const raw = String(err?.message || err || "");
+      if (raw.includes("rate_limited") || raw.includes("429")) {
+        toast.error("Muitos envios recentes. Tente novamente em alguns minutos.");
+      } else {
+        toast.error("Não foi possível enviar. Tente novamente.");
+      }
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <>
-      {/* Floating button */}
+      {/* Botão flutuante */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
-          aria-label="Abrir chat de suporte"
+          className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] group flex items-center gap-2 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 px-4 py-3 text-white shadow-lg shadow-orange-500/40 transition-transform hover:scale-105 active:scale-95"
+          aria-label="Abrir Reclame Aqui"
         >
-          <HeadphonesIcon className="h-6 w-6" />
-          {unread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">
-              {unread > 9 ? "9+" : unread}
-            </span>
-          )}
-          <span
-            className={cn(
-              "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
-              online ? "bg-emerald-500" : "bg-amber-500"
-            )}
-          />
+          <MessageCircleWarning className="h-5 w-5" />
+          <span className="text-sm font-semibold pr-1 hidden sm:inline">Reclame Aqui</span>
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-300 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-400" />
+          </span>
         </button>
       )}
 
-      {/* Panel */}
+      {/* Modal */}
       {open && (
-        <div className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl sm:w-[400px] animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div className="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border bg-background shadow-2xl sm:w-[420px] animate-in slide-in-from-bottom-4 fade-in duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between rounded-t-2xl bg-primary px-4 py-3 text-primary-foreground">
+          <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-br from-orange-500 to-orange-600 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
-              <HeadphonesIcon className="h-5 w-5" />
+              <MessageCircleWarning className="h-5 w-5" />
               <div className="flex flex-col leading-tight">
-                <span className="font-semibold text-sm">Suporte TrendFood</span>
-                <span className="text-[11px] opacity-90 flex items-center gap-1">
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      online ? "bg-emerald-300" : "bg-amber-300"
-                    )}
-                  />
-                  {online ? "Online agora" : "Atendimento 08h–22h"}
-                </span>
+                <span className="font-semibold text-sm">Reclame Aqui</span>
+                <span className="text-[11px] opacity-90">Sua mensagem chega direto no dono</span>
               </div>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="rounded-full p-1 hover:bg-primary-foreground/20 transition-colors"
-              aria-label="Fechar chat"
+              className="rounded-full p-1 hover:bg-white/20 transition-colors"
+              aria-label="Fechar"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Off-hours notice */}
-          {!online && (
-            <div className="bg-amber-500/10 border-b border-amber-500/30 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300 leading-snug">
-              Fora do horário oficial (08h–22h). Pode mandar mesmo assim que respondo assim que vir 🙂
-            </div>
-          )}
-
-          {/* Messages */}
-          <div
-            ref={scrollRef}
-            className="flex flex-col gap-2 overflow-y-auto px-4 py-3 h-[380px] sm:h-[420px] bg-muted/20"
-          >
-            {loading && messages.length === 0 && (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-            {!loading && messages.length === 0 && (
-              <div className="text-center text-xs text-muted-foreground py-6 px-2 leading-relaxed">
-                Mande sua dúvida, sugestão ou problema. Pode anexar fotos também 📎
-              </div>
-            )}
-            {messages.map((msg) => {
-              const mine = msg.sender === "store";
-              const att = resolveAttachment(msg.attachment_url);
-              return (
-                <div
-                  key={msg.id}
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3 px-4 py-4">
+            {/* Categoria */}
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setCategory(c.value)}
                   className={cn(
-                    "max-w-[85%] flex flex-col gap-1",
-                    mine ? "self-end items-end" : "self-start items-start"
+                    "rounded-lg border px-2 py-2 text-xs font-medium text-left transition-colors",
+                    category === c.value
+                      ? "border-orange-500 bg-orange-500/10 text-foreground"
+                      : "border-border hover:bg-muted"
                   )}
                 >
-                  <div
-                    className={cn(
-                      "rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap shadow-sm",
-                      mine
-                        ? "bg-primary text-primary-foreground rounded-br-sm"
-                        : "bg-card border rounded-bl-sm"
-                    )}
-                  >
-                    {att && (
-                      <a href={att} target="_blank" rel="noreferrer" className="block">
-                        <img
-                          src={att}
-                          alt="anexo"
-                          className="max-w-[220px] rounded-lg mb-1"
-                          loading="lazy"
-                        />
-                      </a>
-                    )}
-                    {msg.content}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground px-1">
-                    {mine ? "Você" : "Suporte"} · {formatTime(msg.created_at)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                  <div>{c.label}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{c.hint}</div>
+                </button>
+              ))}
+            </div>
 
-          {/* Input */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendText();
-            }}
-            className="flex items-center gap-2 border-t px-3 py-2 bg-background rounded-b-2xl"
-          >
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePickFile}
-            />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={sending}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors disabled:opacity-40"
-              aria-label="Anexar foto"
-            >
-              <ImageIcon className="h-4 w-4" />
-            </button>
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua mensagem..."
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              disabled={sending}
-            />
+            {/* Nome + contato */}
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Seu nome"
+                maxLength={80}
+                required
+                disabled={sending}
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-orange-500"
+              />
+              <input
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                placeholder="WhatsApp ou e-mail (opcional)"
+                maxLength={120}
+                disabled={sending}
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-orange-500"
+              />
+            </div>
+
+            {/* Mensagem */}
+            <div className="flex flex-col gap-1">
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Descreva o problema, a sugestão ou a reclamação..."
+                rows={5}
+                maxLength={2000}
+                required
+                disabled={sending}
+                className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-orange-500 resize-none"
+              />
+              <span className="text-[10px] text-muted-foreground self-end">
+                {message.length}/2000
+              </span>
+            </div>
+
+            {/* Contexto técnico */}
+            <label className="flex items-center gap-2 text-[11px] text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeTechContext}
+                onChange={(e) => setIncludeTechContext(e.target.checked)}
+                className="rounded border-border"
+                disabled={sending}
+              />
+              Anexar contexto técnico (URL, navegador, versão do app)
+            </label>
+
+            {/* Ações */}
             <button
               type="submit"
-              disabled={sending || !input.trim()}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40 transition-opacity"
-              aria-label="Enviar"
+              disabled={sending || message.trim().length < 5 || name.trim().length < 2}
+              className="mt-1 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-orange-500/30 hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             >
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Enviando…
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" /> Enviar para o dono
+                </>
+              )}
             </button>
+
+            <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+              Sua mensagem chega direto no Telegram do dono da plataforma. Não abre chat aqui — se quiser retorno, deixe seu contato acima.
+            </p>
           </form>
         </div>
       )}
@@ -251,4 +257,4 @@ const SupportChatWidget = () => {
   );
 };
 
-export default SupportChatWidget;
+export default ReclameAquiWidget;
