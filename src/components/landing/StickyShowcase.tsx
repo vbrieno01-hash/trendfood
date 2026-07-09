@@ -16,7 +16,7 @@ const tabs = [
 export default function StickyShowcase() {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
-  const activeIndex = useTransform(scrollYProgress, (v) => Math.min(Math.floor(v * tabs.length), tabs.length - 1));
+  const activeIndex = useTransform(scrollYProgress, (v) => Math.min(Math.floor(v * (tabs.length + 0.2)), tabs.length - 1));
 
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -90,8 +90,8 @@ export default function StickyShowcase() {
   }
 
   return (
-    <section ref={ref} className="relative bg-ink" style={{ height: `${tabs.length * 45}vh` }}>
-      <div className="sticky top-0 h-screen flex items-center overflow-hidden">
+    <section ref={ref} className="relative bg-ink" style={{ height: `180vh` }}>
+      <div className="sticky top-0 min-h-screen flex items-start pt-24 pb-16 overflow-hidden">
         <div
           className="absolute inset-0 opacity-40"
           style={{
