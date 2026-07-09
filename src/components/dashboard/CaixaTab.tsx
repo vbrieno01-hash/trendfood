@@ -399,7 +399,7 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
         variant="accent"
         eyebrow="Turno em andamento"
         title={fmt(projected)}
-        description={`Dinheiro em caixa (projetado) · aberto em ${fmtDate(session.opened_at)}`}
+        description={`Dinheiro em caixa (projetado) · aberto em ${fmtDate(session.opened_at)} por ${openedByName}`}
         actions={
           <>
             <StatusPill variant="live" dot>Aberto</StatusPill>
