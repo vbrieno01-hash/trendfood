@@ -21,6 +21,12 @@ const IGNORABLE_PATTERNS = [
   /Cannot read properties of null \(reading 'removeChild'\)/i,
   /Failed to execute 'removeChild' on 'Node'/i,
   /Failed to execute 'insertBefore' on 'Node'/i,
+  // WhatsApp/bot: estados operacionais esperados, não são bugs
+  /Robô não liberado/i,
+  /Nenhuma instância uazapi/i,
+  /Instância existe mas status=/i,
+  /UazAPI 503.*disconnected/i,
+  /WhatsApp disconnected/i,
 ];
 
 export function isIgnorableError(message: string): boolean {
