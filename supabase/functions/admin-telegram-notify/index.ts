@@ -412,6 +412,7 @@ const VALID_EVENT_TYPES = new Set([
   "payment_confirmed", "payment_failed", "trial_expiring", "subscription_expiring",
   "hot_lead", "cold_store", "critical_error", "phantom_orders",
   "referral_flagged", "referral_blocked", "cron_lagging",
+  "reclame_aqui",
 ]);
 
 // Limite defensivo do tamanho total do payload — evita DoS por payload gigante
