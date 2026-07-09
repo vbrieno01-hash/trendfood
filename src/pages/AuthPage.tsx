@@ -86,7 +86,16 @@ const AuthPage = () => {
   const location = useLocation();
   const { user, organization, loading: authLoading, refreshOrganizationForUser } = useAuth();
 
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  // Bloqueia open redirect: aceita apenas caminhos relativos same-origin.
+  const safeRedirect = (raw: string | null | undefined): string => {
+    if (!raw) return "/dashboard";
+    const v = raw.trim();
+    if (!v.startsWith("/")) return "/dashboard";
+    if (v.startsWith("//")) return "/dashboard";
+    if (/^\/+(https?:|javascript:|data:|vbscript:)/i.test(v)) return "/dashboard";
+    return v;
+  };
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
   const planParam = searchParams.get("plan");
   const refParam = searchParams.get("ref") || null;
   const affParam = searchParams.get("aff") || (typeof window !== "undefined" ? localStorage.getItem("aff_code") : null);
@@ -323,73 +332,15 @@ const AuthPage = () => {
         password: signupData.password,
       });
 
-      // Se o usuário já existe, tentar login automático e recuperar org/profile
+      // Se o usuário já existe, NÃO fazer auto-login silencioso (risco de sequestro de conta).
+      // Mostrar mensagem clara para que o usuário entre pelo fluxo normal.
       if (authError) {
         if (authError.message?.includes("already registered")) {
-          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
-            email: signupData.email,
-            password: signupData.password,
-          });
-          if (loginErr) throw loginErr;
-
-          const userId = loginData.user.id;
-
-          // Verificar/criar profile
-          const { data: existingProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("user_id", userId)
-            .maybeSingle();
-          if (!existingProfile) {
-            await supabase.from("profiles").insert({
-              user_id: userId,
-              full_name: signupData.fullName,
-            });
-          }
-
-          // Verificar/criar organização (preservando indicação)
-          const { data: existingOrg } = await supabase
-            .from("organizations")
-            .select("id")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-          if (!existingOrg) {
-            const orgPayload: any = {
-              user_id: userId,
-              name: signupData.businessName,
-              slug: signupData.slug,
-              emoji: "🍔",
-              description: "Bem-vindo à nossa loja!",
-              primary_color: "#f97316",
-              whatsapp: null,
-            };
-            if (refParam) orgPayload.referred_by_id = refParam;
-            if (affiliateId) orgPayload.affiliate_id = affiliateId;
-            const { data: insOrg, error: orgError } = await supabase
-              .from("organizations").insert(orgPayload).select("id").maybeSingle();
-            if (orgError) {
-              if (orgError.code === "23505") {
-                toast.error("Este slug já está em uso. Escolha outro nome para a lanchonete.");
-              } else {
-                throw orgError;
-              }
-              setSignupLoading(false);
-              return;
-            }
-            if (affiliateId && insOrg?.id) {
-              try {
-                await supabase.functions.invoke("notify-affiliate-telegram", {
-                  body: { event_type: "new_signup", affiliate_id: affiliateId, organization_id: insOrg.id },
-                });
-              } catch (e) { console.warn("[notify-affiliate new_signup]", e); }
-              try { localStorage.removeItem("aff_code"); } catch {}
-            }
-          }
-
-          toast.success("Conta criada com sucesso! Bem-vindo! 🎉");
-          await refreshOrganizationForUser(userId);
-          navigate(fullRedirect, { replace: true });
+          toast.error(
+            'Este e-mail já está cadastrado. Vá em "Entrar" e use sua senha, ou clique em "Esqueci minha senha".',
+            { duration: 7000 }
+          );
+          setSignupLoading(false);
           return;
         }
         throw authError;
