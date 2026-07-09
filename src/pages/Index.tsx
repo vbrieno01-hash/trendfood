@@ -274,12 +274,37 @@ const Index = () => {
         <StickyShowcase />
       </Suspense>
 
+      {/* Depoimentos de clientes */}
+      <section className="py-12 md:py-20 px-4 bg-secondary/40 border-y border-border/60">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Quem usa recomenda</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">Restaurantes que saíram do iFood e não voltam mais</h2>
+            <p className="text-muted-foreground text-lg">Histórias reais de quem trocou comissão por lucro</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {testimonialsData.map((t: any) => (
+              <figure key={t.name} className="bg-card rounded-2xl p-6 border border-border shadow-elev-sm hover:shadow-elev-md transition-premium flex flex-col">
+                <div className="flex gap-0.5 mb-3 text-primary">
+                  {[0,1,2,3,4].map((i) => <Star key={i} className="w-4 h-4 fill-current" />)}
+                </div>
+                <blockquote className="text-foreground text-sm leading-relaxed flex-1">"{t.quote}"</blockquote>
+                <figcaption className="mt-4 pt-4 border-t border-border/60">
+                  <div className="font-semibold text-foreground text-sm">{t.name}</div>
+                  <div className="text-muted-foreground text-xs">{t.role}</div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section id="funcionalidades" className="py-12 md:py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Tudo em um só lugar</Badge>
-            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Funcionalidades completas</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Funcionalidades completas do cardápio digital</h2>
             <p className="text-muted-foreground text-lg">Do cardápio digital ao controle de caixa — sem precisar de vários sistemas</p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 perspective-[1200px]" style={{ perspective: 1200 }}>
