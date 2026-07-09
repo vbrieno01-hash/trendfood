@@ -825,11 +825,13 @@ const AuthPage = () => {
                         </button>
                       </div>
                     </div>
-                    <Button type="submit" className="w-full h-12 rounded-xl text-base font-bold text-black mt-2 bg-[#e85d3a] hover:bg-[#ff6d4a] shadow-lg shadow-[#e85d3a]/25 hover:shadow-[#e85d3a]/40 active:scale-[0.98] transition-all" disabled={loginLoading}>
+                    <Button type="submit" className="w-full h-12 rounded-xl text-base font-bold text-black mt-2 bg-[#e85d3a] hover:bg-[#ff6d4a] shadow-lg shadow-[#e85d3a]/25 hover:shadow-[#e85d3a]/40 active:scale-[0.98] transition-all" disabled={loginLoading || lockRemaining > 0}>
                       {loginLoading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" /> Entrando...
                         </>
+                      ) : lockRemaining > 0 ? (
+                        `Aguarde ${lockRemaining}s...`
                       ) : (
                         "Entrar no painel"
                       )}
