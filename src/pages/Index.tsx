@@ -178,6 +178,18 @@ const Index = () => {
   const stepsData = cArr("steps_cards", defaultSteps);
   const featuresData = cArr("features_cards", defaultFeatures);
   const comparisonData = cArr("comparison_rows", defaultComparisonRows);
+  const testimonialsData = cArr("testimonials_cards", defaultTestimonials);
+  const faqsData = cArr("faq_items", defaultFaqs);
+
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqsData.map((f: any) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,6 +198,9 @@ const Index = () => {
         description="TrendFood é o cardápio digital e sistema de delivery com taxa 0% para restaurantes. Receba pedidos no WhatsApp, gerencie cozinha e aumente seu lucro real."
         path="/"
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
+      </Helmet>
       {/* Banner de oferta + urgência */}
       <HeroOfferBanner />
 
