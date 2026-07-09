@@ -27,6 +27,7 @@ const PrivacyPage = lazy(routeLoaders.privacy);
 const ResetPasswordPage = lazy(routeLoaders.resetPassword);
 const ReviewPage = lazy(routeLoaders.review);
 const InstallPage = lazy(routeLoaders.install);
+const IndiquePage = lazy(routeLoaders.indique);
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
