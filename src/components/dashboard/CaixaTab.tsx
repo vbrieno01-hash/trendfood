@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Lock, AlertCircle, Banknote, QrCode, CreditCard, HelpCircle, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Wallet, Lock, AlertCircle, Banknote, QrCode, CreditCard, HelpCircle, ArrowDownCircle, ArrowUpCircle, User, Printer, Download, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,10 +39,17 @@ import {
   useOpenCashSession,
   useCloseCashSession,
   useAddWithdrawal,
+  useOperatorNames,
   type CashSession,
 } from "@/hooks/useCashSession";
 import { useDeliveredOrders } from "@/hooks/useOrders";
-import { CommandHeader, CommandPanel, MetricTile, StatusPill, CommandEmpty } from "@/components/dashboard/command";
+import { CommandHeader, CommandPanel, MetricTile, StatusPill } from "@/components/dashboard/command";
+import { supabase } from "@/integrations/supabase/client";
+import { enqueuePrint } from "@/lib/printQueue";
+import { buildCashReceipt } from "@/lib/cashReceipt";
+
+// Limite acima do qual uma divergência exige justificativa obrigatória
+const DIVERGENCE_THRESHOLD = 5;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -120,6 +128,93 @@ function CaixaFechado({
   const [opening, setOpening] = useState("");
   const openSession = useOpenCashSession(orgId);
 
+  // Resolve nomes de todos os operadores que aparecem no histórico (opened_by + closed_by)
+  const allIds = history.flatMap((s) => [s.opened_by, s.closed_by]);
+  const { data: opNames = {} } = useOperatorNames(allIds);
+
+  const nameOf = (uid: string | null | undefined) =>
+    uid ? (opNames[uid] || "Operador") : "—";
+
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const exportSessionCsv = async (s: CashSession) => {
+    setExportingId(s.id);
+    try {
+      const [{ data: withdrawalsData }, { data: ordersData }] = await Promise.all([
+        supabase
+          .from("cash_withdrawals")
+          .select("created_at, movement_type, category, reason, amount")
+          .eq("session_id", s.id)
+          .order("created_at"),
+        supabase
+          .from("orders")
+          .select("id, created_at, payment_method, table_number, paid, order_items(price, quantity)")
+          .eq("organization_id", orgId)
+          .eq("paid", true)
+          .gte("created_at", s.opened_at)
+          .lte("created_at", s.closed_at || new Date().toISOString())
+          .order("created_at"),
+      ]);
+
+      const rows: string[][] = [];
+      rows.push(["=== CABEÇALHO DO TURNO ==="]);
+      rows.push(["Abertura", fmtDate(s.opened_at)]);
+      rows.push(["Fechamento", s.closed_at ? fmtDate(s.closed_at) : "—"]);
+      rows.push(["Operador abertura", nameOf(s.opened_by)]);
+      rows.push(["Operador fechamento", nameOf(s.closed_by)]);
+      rows.push(["Saldo inicial", fmt(s.opening_balance)]);
+      rows.push(["Saldo final contado", s.closing_balance != null ? fmt(s.closing_balance) : "—"]);
+      rows.push(["Observações", s.notes || ""]);
+      rows.push(["Justificativa divergência", s.divergence_reason || ""]);
+      rows.push([]);
+      rows.push(["=== MOVIMENTAÇÕES ==="]);
+      rows.push(["Horário", "Tipo", "Categoria", "Motivo", "Valor"]);
+      for (const w of (withdrawalsData ?? []) as Array<{ created_at: string; movement_type: string; category: string | null; reason: string | null; amount: number }>) {
+        rows.push([
+          fmtDate(w.created_at),
+          w.movement_type,
+          w.category || "",
+          w.reason || "",
+          w.amount.toString().replace(".", ","),
+        ]);
+      }
+      rows.push([]);
+      rows.push(["=== PEDIDOS PAGOS ==="]);
+      rows.push(["Horário", "Mesa/Pedido", "Forma pagamento", "Total"]);
+      for (const o of (ordersData ?? []) as Array<{ created_at: string; payment_method: string | null; table_number: number | null; order_items: Array<{ price: number; quantity: number }> | null }>) {
+        const total = (o.order_items ?? []).reduce((s2, i) => s2 + (i.price || 0) * (i.quantity || 0), 0);
+        rows.push([
+          fmtDate(o.created_at),
+          o.table_number != null ? `Mesa ${o.table_number}` : "Delivery",
+          o.payment_method || "—",
+          total.toFixed(2).replace(".", ","),
+        ]);
+      }
+
+      const csv = rows
+        .map((r) => r.map((cell) => `"${(cell || "").replace(/"/g, '""')}"`).join(";"))
+        .join("\n");
+
+      const bom = "\uFEFF"; // UTF-8 BOM pra Excel abrir com acentos
+      const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const filename = `caixa-${new Date(s.opened_at).toISOString().slice(0, 16).replace(/[:T]/g, "-")}.csv`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("CSV exportado");
+    } catch (err) {
+      console.error("[CaixaTab] Falha ao exportar CSV:", err);
+      toast.error("Erro ao exportar CSV");
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   const handleOpen = () => {
     const val = parseFloat(opening.replace(",", "."));
     if (isNaN(val) || val < 0) return;
@@ -176,18 +271,27 @@ function CaixaFechado({
               <TableRow>
                 <TableHead>Abertura</TableHead>
                 <TableHead>Fechamento</TableHead>
+                <TableHead>Operador</TableHead>
                 <TableHead className="text-right">Saldo inicial</TableHead>
                 <TableHead className="text-right">Saldo final</TableHead>
                 <TableHead className="text-right">Diferença</TableHead>
+                <TableHead className="text-right w-16"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((s) => {
                 const diff = (s.closing_balance ?? 0) - s.opening_balance;
+                const hasDivergence = !!s.divergence_reason;
                 return (
                   <TableRow key={s.id}>
                     <TableCell className="text-sm">{fmtDate(s.opened_at)}</TableCell>
                     <TableCell className="text-sm">{s.closed_at ? fmtDate(s.closed_at) : "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        {nameOf(s.closed_by || s.opened_by)}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right text-sm">{fmt(s.opening_balance)}</TableCell>
                     <TableCell className="text-right text-sm">
                       {s.closing_balance != null ? fmt(s.closing_balance) : "—"}
@@ -198,6 +302,20 @@ function CaixaFechado({
                       }`}
                     >
                       {diff >= 0 ? "+" : ""}{fmt(diff)}
+                      {hasDivergence && (
+                        <AlertTriangle className="inline-block w-3 h-3 ml-1 text-amber-500" />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => exportSessionCsv(s)}
+                        disabled={exportingId === s.id}
+                        title="Exportar CSV"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -215,6 +333,8 @@ function CaixaFechado({
 function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }) {
   const { data: withdrawals = [] } = useCashWithdrawals(session.id);
   const { data: allDelivered = [] } = useDeliveredOrders(orgId);
+  const { data: operatorNames = {} } = useOperatorNames([session.opened_by]);
+  const openedByName = session.opened_by ? (operatorNames[session.opened_by] || "Operador") : "—";
 
   // Filter paid orders created on or after session opened_at
   const sessionOpenedAt = new Date(session.opened_at);
@@ -262,6 +382,17 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
   const [mCategory, setMCategory] = useState<string>("outro");
   const [closingBal, setClosingBal] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
+  const [divReason, setDivReason] = useState("");
+  const [receiptText, setReceiptText] = useState<string | null>(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+
+  // Cálculo em tempo real da divergência dentro do modal de fechamento
+  const countedValue = parseFloat(closingBal.replace(",", ".")) || 0;
+  const divergence = countedValue - projected;
+  const divergenceAbs = Math.abs(divergence);
+  const divergenceCritical = closingBal !== "" && divergenceAbs > DIVERGENCE_THRESHOLD;
+  const canConfirmClose =
+    closingBal !== "" && !closeSession.isPending && (!divergenceCritical || divReason.trim().length >= 3);
 
   const openMovementModal = (type: "sangria" | "suprimento") => {
     setMovementType(type);
@@ -294,10 +425,82 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
   const handleClose = () => {
     const val = parseFloat(closingBal.replace(",", "."));
     if (isNaN(val) || val < 0) return;
+    const diff = val - projected;
+    const isCritical = Math.abs(diff) > DIVERGENCE_THRESHOLD;
+    const combinedNotes = isCritical
+      ? `[DIVERGÊNCIA ${diff >= 0 ? "SOBRA" : "FALTA"} ${fmt(Math.abs(diff))}] ${divReason.trim()}${closeNotes ? " | " + closeNotes : ""}`
+      : (closeNotes || undefined);
     closeSession.mutate(
-      { sessionId: session.id, closingBalance: val, notes: closeNotes || undefined },
-      { onSuccess: () => setCloseOpen(false) }
+      {
+        sessionId: session.id,
+        closingBalance: val,
+        notes: combinedNotes || undefined,
+        divergenceReason: isCritical ? divReason.trim() : undefined,
+      },
+      {
+        onSuccess: async (updated) => {
+          setCloseOpen(false);
+          // Montar e imprimir cupom Z
+          try {
+            const { data: orgRow } = await supabase
+              .from("organizations")
+              .select("nome_loja, name")
+              .eq("id", orgId)
+              .maybeSingle();
+            const storeName =
+              (orgRow as { nome_loja?: string; name?: string } | null)?.nome_loja ||
+              (orgRow as { nome_loja?: string; name?: string } | null)?.name ||
+              "TrendFood";
+            const text = buildCashReceipt({
+              storeName,
+              openedAt: session.opened_at,
+              closedAt: updated.closed_at || new Date().toISOString(),
+              openedByName,
+              closedByName: "Operador atual",
+              openingBalance: session.opening_balance,
+              revenueByMethod,
+              totalSuprimentos,
+              totalSangrias,
+              expected: projected,
+              counted: val,
+              divergence: diff,
+              divergenceReason: isCritical ? divReason.trim() : null,
+              movements: withdrawals.map((w) => ({
+                time: fmtDate(w.created_at),
+                type: w.movement_type,
+                category: w.category,
+                reason: w.reason,
+                amount: w.amount,
+              })),
+              orderCount: paidOrders.length,
+            });
+            setReceiptText(text);
+            setReceiptOpen(true);
+            // Envia pra fila de impressão (idempotente; falha silenciosa se impressora não tiver)
+            try {
+              await enqueuePrint(orgId, null, text);
+              toast.success("Cupom Z enviado pra impressora");
+            } catch (err) {
+              console.warn("[CaixaTab] Falha ao enfileirar cupom Z:", err);
+              toast.info("Cupom Z gerado — impressora não conectada");
+            }
+          } catch (err) {
+            console.error("[CaixaTab] Erro ao gerar cupom Z:", err);
+          }
+        },
+      }
     );
+  };
+
+  const handleReprint = async () => {
+    if (!receiptText) return;
+    try {
+      await enqueuePrint(orgId, null, receiptText);
+      toast.success("Cupom enviado pra impressora novamente");
+    } catch (err) {
+      console.error("[CaixaTab] Falha ao reimprimir cupom:", err);
+      toast.error("Não foi possível enviar pra impressora");
+    }
   };
 
   return (
@@ -306,7 +509,7 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
         variant="accent"
         eyebrow="Turno em andamento"
         title={fmt(projected)}
-        description={`Dinheiro em caixa (projetado) · aberto em ${fmtDate(session.opened_at)}`}
+        description={`Dinheiro em caixa (projetado) · aberto em ${fmtDate(session.opened_at)} por ${openedByName}`}
         actions={
           <>
             <StatusPill variant="live" dot>Aberto</StatusPill>
@@ -498,6 +701,55 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
                 onChange={(e) => setClosingBal(e.target.value)}
               />
             </div>
+
+            {/* Alerta de divergência */}
+            {closingBal !== "" && (
+              <div
+                className={`rounded-xl p-3 border text-sm flex items-start gap-2 ${
+                  divergenceCritical
+                    ? "bg-destructive/10 border-destructive/40 text-destructive"
+                    : divergenceAbs > 0
+                    ? "bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-400"
+                    : "bg-green-500/10 border-green-500/40 text-green-600 dark:text-green-400"
+                }`}
+              >
+                {divergenceCritical ? (
+                  <AlertTriangle className="w-5 h-5 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                )}
+                <div className="flex-1">
+                  <div className="font-semibold">
+                    {divergence === 0
+                      ? "Caixa bateu certinho! 🎉"
+                      : divergence > 0
+                      ? `Sobra de ${fmt(divergenceAbs)}`
+                      : `Falta de ${fmt(divergenceAbs)}`}
+                  </div>
+                  {divergenceCritical && (
+                    <div className="text-xs mt-0.5 opacity-90">
+                      Divergência acima de {fmt(DIVERGENCE_THRESHOLD)}. Justificativa obrigatória.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {divergenceCritical && (
+              <div className="space-y-1.5">
+                <Label className="text-destructive">
+                  Justificativa da divergência <span className="text-xs">(obrigatória)</span>
+                </Label>
+                <Textarea
+                  placeholder="Ex: Cliente pagou a mais e deixou de troco / Erro ao dar troco / Perdeu dinheiro..."
+                  value={divReason}
+                  onChange={(e) => setDivReason(e.target.value)}
+                  rows={2}
+                  className="border-destructive/50 focus-visible:ring-destructive"
+                />
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>Observações (opcional)</Label>
               <Textarea
@@ -513,9 +765,33 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
             <Button
               variant="destructive"
               onClick={handleClose}
-              disabled={closeSession.isPending || closingBal === ""}
+              disabled={!canConfirmClose}
             >
               {closeSession.isPending ? "Fechando..." : "Confirmar Fechamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal do Cupom Z (após fechamento) */}
+      <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="w-5 h-5 text-primary" />
+              Cupom Z — Fechamento de Caixa
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto rounded-lg bg-muted/50 border border-border p-4">
+            <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed">
+              {receiptText || ""}
+            </pre>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiptOpen(false)}>Fechar</Button>
+            <Button onClick={handleReprint}>
+              <Printer className="w-4 h-4 mr-1" />
+              Reimprimir
             </Button>
           </DialogFooter>
         </DialogContent>
