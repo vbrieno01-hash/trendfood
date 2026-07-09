@@ -2,7 +2,10 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Flame, QrCode } from "lucide-react";
-import dashboardImg from "@/assets/dashboard-screenshot.webp";
+import dashboardDesktopAsset from "@/assets/dashboard-desktop.png.asset.json";
+import dashboardMobileAsset from "@/assets/dashboard-mobile.png.asset.json";
+const dashboardImg = dashboardDesktopAsset.url;
+const dashboardMobileImg = dashboardMobileAsset.url;
 
 interface HeroProps {
   badgeText: string;
@@ -182,11 +185,12 @@ export default function HeroCinematic({
                   <div className="w-2 h-2 rounded-full" style={{ background: `hsl(var(--landing-accent) / 0.25)` }} />
                   <div className="w-2 h-2 rounded-full" style={{ background: `hsl(var(--landing-accent) / 0.15)` }} />
                 </div>
-                {heroImageUrl ? (
-                  <img src={heroImageUrl} alt="Dashboard TrendFood" className="w-full block" />
-                ) : (
-                  <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
-                )}
+                <img
+                  src={heroImageUrl || dashboardImg}
+                  alt="Dashboard TrendFood"
+                  loading="eager"
+                  className="w-full block"
+                />
               </div>
 
               {/* Floating "Faturamento" badge */}
@@ -210,15 +214,13 @@ export default function HeroCinematic({
                 className="absolute -bottom-4 left-2 md:left-0 w-[38%] p-1.5 rounded-[2.2rem] z-30 border-4"
                 style={{ background: inkColor, borderColor: inkColor, boxShadow: "0 30px 50px -15px hsl(var(--landing-ink) / 0.35)" }}
               >
-                <div className="bg-white rounded-[1.8rem] overflow-hidden aspect-[9/19] p-3 flex flex-col">
-                  <div className="mx-auto h-1 w-8 rounded-full mb-3" style={{ background: `hsl(var(--landing-ink) / 0.2)` }} />
-                  <div className="w-10 h-10 rounded-full mx-auto mb-2" style={{ background: `hsl(var(--landing-surface))` }} />
-                  <div className="h-1.5 w-3/4 rounded-full mx-auto mb-3" style={{ background: `hsl(var(--landing-ink) / 0.15)` }} />
-                  <div className="space-y-1.5 flex-1">
-                    <div className="h-8 w-full rounded-lg" style={{ background: `hsl(var(--landing-surface) / 0.6)` }} />
-                    <div className="h-8 w-full rounded-lg" style={{ background: `hsl(var(--landing-surface) / 0.6)` }} />
-                  </div>
-                  <div className="h-9 w-full rounded-lg mt-2" style={{ background: accentColor }} />
+                <div className="bg-white rounded-[1.8rem] overflow-hidden aspect-[9/19]">
+                  <img
+                    src={dashboardMobileImg}
+                    alt="App TrendFood no celular"
+                    loading="eager"
+                    className="w-full h-full object-cover object-top block"
+                  />
                 </div>
               </motion.div>
 
