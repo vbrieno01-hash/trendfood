@@ -382,6 +382,31 @@ const Index = () => {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="py-12 md:py-20 px-4 bg-background">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Perguntas frequentes</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">Tudo o que você precisa saber sobre cardápio digital</h2>
+            <p className="text-muted-foreground">Ainda em dúvida? Fale com a gente no WhatsApp.</p>
+          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {faqsData.map((f: any, i: number) => (
+              <AccordionItem key={i} value={`faq-${i}`}>
+                <AccordionTrigger className="text-left text-base font-semibold">{f.q}</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">{f.a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+          <p className="mt-8 text-center text-sm text-muted-foreground">
+            Novo por aqui? Veja também{" "}
+            <Link to="/cardapio-digital-whatsapp" className="text-primary hover:underline font-medium">Como fazer cardápio digital para WhatsApp</Link>
+            {" "}ou{" "}
+            <Link to="/indique" className="text-primary hover:underline font-medium">Indique e ganhe</Link>.
+          </p>
+        </div>
+      </section>
+
       {/* CTA final */}
       <section className="relative overflow-hidden py-14 md:py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
@@ -397,7 +422,15 @@ const Index = () => {
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
-          <p className="mt-4 text-white/75 text-sm">Sem cartão de crédito · Cancele quando quiser</p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-white/80 text-sm">
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Grátis para começar</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Sem cartão de crédito</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Setup em 2 minutos</span>
+          </div>
+          <p className="mt-4 text-white/60 text-sm">
+            <Link to="/planos" className="underline underline-offset-4 hover:text-white">Ver todos os planos</Link>
+            {" · "}Cancele quando quiser
+          </p>
         </div>
       </section>
 
