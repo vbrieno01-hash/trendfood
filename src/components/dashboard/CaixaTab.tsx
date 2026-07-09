@@ -223,6 +223,8 @@ function CaixaFechado({
 function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }) {
   const { data: withdrawals = [] } = useCashWithdrawals(session.id);
   const { data: allDelivered = [] } = useDeliveredOrders(orgId);
+  const { data: operatorNames = {} } = useOperatorNames([session.opened_by]);
+  const openedByName = session.opened_by ? (operatorNames[session.opened_by] || "Operador") : "—";
 
   // Filter paid orders created on or after session opened_at
   const sessionOpenedAt = new Date(session.opened_at);
@@ -270,6 +272,17 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
   const [mCategory, setMCategory] = useState<string>("outro");
   const [closingBal, setClosingBal] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
+  const [divReason, setDivReason] = useState("");
+  const [receiptText, setReceiptText] = useState<string | null>(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+
+  // Cálculo em tempo real da divergência dentro do modal de fechamento
+  const countedValue = parseFloat(closingBal.replace(",", ".")) || 0;
+  const divergence = countedValue - projected;
+  const divergenceAbs = Math.abs(divergence);
+  const divergenceCritical = closingBal !== "" && divergenceAbs > DIVERGENCE_THRESHOLD;
+  const canConfirmClose =
+    closingBal !== "" && !closeSession.isPending && (!divergenceCritical || divReason.trim().length >= 3);
 
   const openMovementModal = (type: "sangria" | "suprimento") => {
     setMovementType(type);
@@ -302,10 +315,82 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
   const handleClose = () => {
     const val = parseFloat(closingBal.replace(",", "."));
     if (isNaN(val) || val < 0) return;
+    const diff = val - projected;
+    const isCritical = Math.abs(diff) > DIVERGENCE_THRESHOLD;
+    const combinedNotes = isCritical
+      ? `[DIVERGÊNCIA ${diff >= 0 ? "SOBRA" : "FALTA"} ${fmt(Math.abs(diff))}] ${divReason.trim()}${closeNotes ? " | " + closeNotes : ""}`
+      : (closeNotes || undefined);
     closeSession.mutate(
-      { sessionId: session.id, closingBalance: val, notes: closeNotes || undefined },
-      { onSuccess: () => setCloseOpen(false) }
+      {
+        sessionId: session.id,
+        closingBalance: val,
+        notes: combinedNotes || undefined,
+        divergenceReason: isCritical ? divReason.trim() : undefined,
+      },
+      {
+        onSuccess: async (updated) => {
+          setCloseOpen(false);
+          // Montar e imprimir cupom Z
+          try {
+            const { data: orgRow } = await supabase
+              .from("organizations")
+              .select("nome_loja, name")
+              .eq("id", orgId)
+              .maybeSingle();
+            const storeName =
+              (orgRow as { nome_loja?: string; name?: string } | null)?.nome_loja ||
+              (orgRow as { nome_loja?: string; name?: string } | null)?.name ||
+              "TrendFood";
+            const text = buildCashReceipt({
+              storeName,
+              openedAt: session.opened_at,
+              closedAt: updated.closed_at || new Date().toISOString(),
+              openedByName,
+              closedByName: "Operador atual",
+              openingBalance: session.opening_balance,
+              revenueByMethod,
+              totalSuprimentos,
+              totalSangrias,
+              expected: projected,
+              counted: val,
+              divergence: diff,
+              divergenceReason: isCritical ? divReason.trim() : null,
+              movements: withdrawals.map((w) => ({
+                time: fmtDate(w.created_at),
+                type: w.movement_type,
+                category: w.category,
+                reason: w.reason,
+                amount: w.amount,
+              })),
+              orderCount: paidOrders.length,
+            });
+            setReceiptText(text);
+            setReceiptOpen(true);
+            // Envia pra fila de impressão (idempotente; falha silenciosa se impressora não tiver)
+            try {
+              await enqueuePrint(orgId, null, text);
+              toast.success("Cupom Z enviado pra impressora");
+            } catch (err) {
+              console.warn("[CaixaTab] Falha ao enfileirar cupom Z:", err);
+              toast.info("Cupom Z gerado — impressora não conectada");
+            }
+          } catch (err) {
+            console.error("[CaixaTab] Erro ao gerar cupom Z:", err);
+          }
+        },
+      }
     );
+  };
+
+  const handleReprint = async () => {
+    if (!receiptText) return;
+    try {
+      await enqueuePrint(orgId, null, receiptText);
+      toast.success("Cupom enviado pra impressora novamente");
+    } catch (err) {
+      console.error("[CaixaTab] Falha ao reimprimir cupom:", err);
+      toast.error("Não foi possível enviar pra impressora");
+    }
   };
 
   return (
