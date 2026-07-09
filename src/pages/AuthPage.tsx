@@ -259,7 +259,7 @@ const AuthPage = () => {
     <>
       <Button
         type="button"
-        className="w-full h-12 rounded-full text-sm font-semibold gap-3 bg-white text-zinc-900 hover:bg-white/90 shadow-lg shadow-black/30"
+        className="w-full h-12 rounded-xl text-sm font-semibold gap-3 bg-[#1a1a1a] border border-white/10 text-white hover:bg-[#252525] transition-colors"
         onClick={handleGoogleLogin}
         disabled={googleLoading}
       >
@@ -275,10 +275,13 @@ const AuthPage = () => {
         )}
         Continuar com Google
       </Button>
-      <div className="flex items-center gap-3 my-5">
-        <div className="flex-1 h-px bg-white/10" />
-        <span className="text-[11px] uppercase tracking-widest text-white/70 font-medium">ou</span>
-        <div className="flex-1 h-px bg-white/10" />
+      <div className="relative py-4 my-1">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5" /></div>
+        <div className="relative flex justify-center">
+          <span className="bg-[#0a0a0a] px-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">
+            ou continue com e-mail
+          </span>
+        </div>
       </div>
     </>
   );
