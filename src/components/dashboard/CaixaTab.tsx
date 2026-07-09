@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Lock, AlertCircle } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Lock, AlertCircle, Banknote, QrCode, CreditCard, HelpCircle, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +50,38 @@ const fmt = (n: number) =>
 
 const fmtDate = (iso: string) =>
   format(new Date(iso), "dd/MM/yy HH:mm", { locale: ptBR });
+
+type PaymentBucket = "dinheiro" | "pix" | "cartao" | "outros";
+
+// Normaliza qualquer valor de payment_method nos 4 baldes utilizados pelo caixa.
+// Só o balde "dinheiro" impacta o saldo físico projetado.
+function normalizePaymentMethod(raw: string | null | undefined): PaymentBucket {
+  if (!raw) return "outros";
+  const v = raw.toString().trim().toLowerCase();
+  if (v === "dinheiro" || v === "cash" || v === "money") return "dinheiro";
+  if (v === "pix") return "pix";
+  if (
+    v.includes("card") ||
+    v.includes("cartão") ||
+    v.includes("cartao") ||
+    v.includes("maquin") ||
+    v.includes("débito") ||
+    v.includes("debito") ||
+    v.includes("crédito") ||
+    v.includes("credito")
+  ) {
+    return "cartao";
+  }
+  return "outros";
+}
+
+const CATEGORY_OPTIONS = [
+  { value: "troco", label: "Troco" },
+  { value: "fornecedor", label: "Fornecedor" },
+  { value: "retirada", label: "Retirada do sócio" },
+  { value: "despesa", label: "Despesa" },
+  { value: "outro", label: "Outro" },
+];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -183,37 +222,70 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
     (o) => o.paid && new Date(o.created_at) >= sessionOpenedAt
   );
 
-  // Revenue: sum of order_items price * qty for paid orders in this session
-  const revenue = paidOrders.reduce((sum, o) => {
-    const items = o.order_items ?? [];
-    return sum + items.reduce((s, i) => s + i.price * i.quantity, 0);
-  }, 0);
+  // Receita por forma de pagamento (só "dinheiro" impacta o caixa físico)
+  const revenueByMethod: Record<PaymentBucket, number> = {
+    dinheiro: 0,
+    pix: 0,
+    cartao: 0,
+    outros: 0,
+  };
+  for (const o of paidOrders) {
+    const bucket = normalizePaymentMethod((o as { payment_method?: string | null }).payment_method);
+    const total = (o.order_items ?? []).reduce((s, i) => s + i.price * i.quantity, 0);
+    revenueByMethod[bucket] += total;
+  }
+  const revenueTotal =
+    revenueByMethod.dinheiro + revenueByMethod.pix + revenueByMethod.cartao + revenueByMethod.outros;
 
-  const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0);
-  const projected = session.opening_balance + revenue - totalWithdrawals;
+  // Sangrias (saídas) e suprimentos (entradas)
+  const totalSangrias = withdrawals
+    .filter((w) => w.movement_type !== "suprimento")
+    .reduce((s, w) => s + w.amount, 0);
+  const totalSuprimentos = withdrawals
+    .filter((w) => w.movement_type === "suprimento")
+    .reduce((s, w) => s + w.amount, 0);
+
+  // Saldo físico projetado = só considera o que entra/sai do caixa em espécie
+  const projected =
+    session.opening_balance + revenueByMethod.dinheiro + totalSuprimentos - totalSangrias;
 
   // Modal state
-  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const [movementOpen, setMovementOpen] = useState(false);
+  const [movementType, setMovementType] = useState<"sangria" | "suprimento">("sangria");
   const [closeOpen, setCloseOpen] = useState(false);
 
   const addWithdrawal = useAddWithdrawal(orgId, session.id);
   const closeSession = useCloseCashSession(orgId);
 
-  const [wAmount, setWAmount] = useState("");
-  const [wReason, setWReason] = useState("");
+  const [mAmount, setMAmount] = useState("");
+  const [mReason, setMReason] = useState("");
+  const [mCategory, setMCategory] = useState<string>("outro");
   const [closingBal, setClosingBal] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
 
-  const handleWithdrawal = () => {
-    const val = parseFloat(wAmount.replace(",", "."));
+  const openMovementModal = (type: "sangria" | "suprimento") => {
+    setMovementType(type);
+    setMAmount("");
+    setMReason("");
+    setMCategory(type === "suprimento" ? "troco" : "outro");
+    setMovementOpen(true);
+  };
+
+  const handleSaveMovement = () => {
+    const val = parseFloat(mAmount.replace(",", "."));
     if (isNaN(val) || val <= 0) return;
     addWithdrawal.mutate(
-      { amount: val, reason: wReason || undefined },
+      {
+        amount: val,
+        reason: mReason || undefined,
+        movement_type: movementType,
+        category: mCategory || undefined,
+      },
       {
         onSuccess: () => {
-          setWithdrawalOpen(false);
-          setWAmount("");
-          setWReason("");
+          setMovementOpen(false);
+          setMAmount("");
+          setMReason("");
         },
       }
     );
@@ -234,12 +306,16 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
         variant="accent"
         eyebrow="Turno em andamento"
         title={fmt(projected)}
-        description={`Saldo projetado · aberto em ${fmtDate(session.opened_at)}`}
+        description={`Dinheiro em caixa (projetado) · aberto em ${fmtDate(session.opened_at)}`}
         actions={
           <>
             <StatusPill variant="live" dot>Aberto</StatusPill>
-            <Button variant="outline" size="sm" onClick={() => setWithdrawalOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" />
+            <Button variant="outline" size="sm" onClick={() => openMovementModal("suprimento")}>
+              <ArrowUpCircle className="w-4 h-4 mr-1" />
+              Suprimento
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => openMovementModal("sangria")}>
+              <ArrowDownCircle className="w-4 h-4 mr-1" />
               Sangria
             </Button>
             <Button size="sm" variant="destructive" onClick={() => setCloseOpen(true)}>
@@ -250,52 +326,89 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
         }
       >
         <p className="text-xs text-muted-foreground">
-          Todos os pedidos pagos entram automaticamente na receita do turno.
+          Só o dinheiro em espécie entra no saldo físico. PIX e cartão são mostrados só como referência.
         </p>
       </CommandPanel>
 
-      {/* Metrics 2×2 */}
+      {/* Métricas do saldo físico */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard label="Saldo inicial" value={fmt(session.opening_balance)} icon={Wallet} />
-        <MetricCard label="Receita do turno" value={fmt(revenue)} icon={TrendingUp} />
-        <MetricCard label="Total de sangrias" value={fmt(totalWithdrawals)} icon={TrendingDown} />
-        <MetricCard label="Saldo projetado" value={fmt(projected)} icon={DollarSign} highlight />
+        <MetricCard label="Receita em dinheiro" value={fmt(revenueByMethod.dinheiro)} icon={Banknote} />
+        <MetricCard label="Suprimentos" value={fmt(totalSuprimentos)} icon={ArrowUpCircle} />
+        <MetricCard label="Sangrias" value={fmt(totalSangrias)} icon={ArrowDownCircle} />
       </div>
 
-      <CommandPanel eyebrow="Movimentações" title="Sangrias do turno" padding="none">
+      {/* Receita total por forma de pagamento (referência) */}
+      <CommandPanel eyebrow="Receita do turno" title={`Total: ${fmt(revenueTotal)}`} padding="lg">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <MetricCard label="Dinheiro" value={fmt(revenueByMethod.dinheiro)} icon={Banknote} highlight />
+          <MetricCard label="PIX" value={fmt(revenueByMethod.pix)} icon={QrCode} />
+          <MetricCard label="Cartão" value={fmt(revenueByMethod.cartao)} icon={CreditCard} />
+          <MetricCard label="Outros" value={fmt(revenueByMethod.outros)} icon={HelpCircle} />
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Apenas a receita em <strong>Dinheiro</strong> impacta o saldo físico do caixa. Os demais são referência contábil.
+        </p>
+      </CommandPanel>
+
+      <CommandPanel eyebrow="Movimentações" title="Sangrias e suprimentos do turno" padding="none">
         {withdrawals.length === 0 ? (
-          <div className="p-5 text-center text-muted-foreground text-sm">Nenhuma sangria registrada neste turno</div>
+          <div className="p-5 text-center text-muted-foreground text-sm">Nenhuma movimentação registrada neste turno</div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Horário</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Motivo</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {withdrawals.map((w) => (
-                <TableRow key={w.id}>
-                  <TableCell className="text-sm">{fmtDate(w.created_at)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{w.reason || "—"}</TableCell>
-                  <TableCell className="text-right text-sm font-medium text-destructive">
-                    -{fmt(w.amount)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {withdrawals.map((w) => {
+                const isSup = w.movement_type === "suprimento";
+                return (
+                  <TableRow key={w.id}>
+                    <TableCell className="text-sm">{fmtDate(w.created_at)}</TableCell>
+                    <TableCell className="text-sm">
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${isSup ? "text-green-500" : "text-destructive"}`}>
+                        {isSup ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
+                        {isSup ? "Suprimento" : "Sangria"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground capitalize">{w.category || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{w.reason || "—"}</TableCell>
+                    <TableCell className={`text-right text-sm font-medium ${isSup ? "text-green-500" : "text-destructive"}`}>
+                      {isSup ? "+" : "-"}{fmt(w.amount)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
       </CommandPanel>
 
-      {/* Withdrawal modal */}
-      <Dialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen}>
+      {/* Modal de movimentação (sangria ou suprimento) */}
+      <Dialog open={movementOpen} onOpenChange={setMovementOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Registrar Sangria</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {movementType === "suprimento" ? (
+                <ArrowUpCircle className="w-5 h-5 text-green-500" />
+              ) : (
+                <ArrowDownCircle className="w-5 h-5 text-destructive" />
+              )}
+              {movementType === "suprimento" ? "Registrar Suprimento" : "Registrar Sangria"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              {movementType === "suprimento"
+                ? "Entrada de dinheiro no caixa (ex: reforço de troco)."
+                : "Saída de dinheiro do caixa (ex: pagamento a fornecedor)."}
+            </p>
             <div className="space-y-1.5">
               <Label>Valor (R$)</Label>
               <Input
@@ -303,23 +416,36 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
                 min="0.01"
                 step="0.01"
                 placeholder="0,00"
-                value={wAmount}
-                onChange={(e) => setWAmount(e.target.value)}
+                value={mAmount}
+                onChange={(e) => setMAmount(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Motivo (opcional)</Label>
+              <Label>Categoria</Label>
+              <Select value={mCategory} onValueChange={setMCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observação (opcional)</Label>
               <Input
-                placeholder="Ex: Troco para caixa menor"
-                value={wReason}
-                onChange={(e) => setWReason(e.target.value)}
+                placeholder={movementType === "suprimento" ? "Ex: Reforço de troco" : "Ex: Pagamento fornecedor X"}
+                value={mReason}
+                onChange={(e) => setMReason(e.target.value)}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setWithdrawalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleWithdrawal} disabled={addWithdrawal.isPending || !wAmount}>
-              {addWithdrawal.isPending ? "Salvando..." : "Confirmar Sangria"}
+            <Button variant="outline" onClick={() => setMovementOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveMovement} disabled={addWithdrawal.isPending || !mAmount}>
+              {addWithdrawal.isPending ? "Salvando..." : "Confirmar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -342,20 +468,27 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
                 <span className="font-medium">{fmt(session.opening_balance)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Receita do turno</span>
-                <span className="font-medium text-green-500">+{fmt(revenue)}</span>
+                <span className="text-muted-foreground">Receita em dinheiro</span>
+                <span className="font-medium text-green-500">+{fmt(revenueByMethod.dinheiro)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Total de sangrias</span>
-                <span className="font-medium text-destructive">-{fmt(totalWithdrawals)}</span>
+                <span className="text-muted-foreground">Suprimentos</span>
+                <span className="font-medium text-green-500">+{fmt(totalSuprimentos)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Sangrias</span>
+                <span className="font-medium text-destructive">-{fmt(totalSangrias)}</span>
               </div>
               <div className="border-t border-border pt-2 flex justify-between">
-                <span className="font-semibold">Saldo projetado</span>
+                <span className="font-semibold">Dinheiro esperado em caixa</span>
                 <span className="font-bold">{fmt(projected)}</span>
               </div>
+              <p className="text-xs text-muted-foreground pt-1">
+                Receita não-dinheiro (PIX/Cartão): {fmt(revenueByMethod.pix + revenueByMethod.cartao + revenueByMethod.outros)} — não entra no caixa físico.
+              </p>
             </div>
             <div className="space-y-1.5">
-              <Label>Saldo final contado (R$)</Label>
+              <Label>Dinheiro contado na gaveta (R$)</Label>
               <Input
                 type="number"
                 min="0"
