@@ -1166,43 +1166,45 @@ const UnitPage = () => {
       <main className="max-w-2xl lg:max-w-5xl mx-auto px-4 pb-32 pt-4">
         {/* Banner */}
         <div
-          className="rounded-2xl p-4 mb-6 bg-card border border-border shadow-sm flex gap-4 relative overflow-hidden"
+          className="rounded-2xl p-4 mb-6 bg-card border border-border shadow-sm relative overflow-hidden"
         >
           <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: primaryColor }} />
-          <div
-            className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
-          >
-            <ShoppingBag className="w-6 h-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-start gap-2">
-              <h3 className="font-bold text-foreground text-base truncate tracking-tight">{org.name}</h3>
-              {storeStatus && (
-                <span
-                  className={`flex-shrink-0 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                    storeStatus.open
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                      : (storeStatus as any).reason === "break"
-                      ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
-                      : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400"
-                  }`}
-                >
-                  {storeStatus.open
-                    ? "Online"
-                    : (storeStatus as any).reason === "break"
-                    ? "Em pausa"
-                    : "Fechado"}
-                </span>
-              )}
+          <div className="flex gap-4">
+            <div
+              className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+            >
+              <ShoppingBag className="w-6 h-6" />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2">
-              {org.description || "Monte seu pedido e envie direto pelo WhatsApp"}
-            </p>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start gap-2">
+                <h3 className="font-bold text-foreground text-base truncate tracking-tight">{org.name}</h3>
+                {storeStatus && (
+                  <span
+                    className={`flex-shrink-0 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      storeStatus.open
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                        : (storeStatus as any).reason === "break"
+                        ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                        : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                    }`}
+                  >
+                    {storeStatus.open
+                      ? "Online"
+                      : (storeStatus as any).reason === "break"
+                      ? "Em pausa"
+                      : "Fechado"}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2">
+                {org.description || "Monte seu pedido e envie direto pelo WhatsApp"}
+              </p>
+            </div>
           </div>
           {isClosed && (
             storeStatus && !storeStatus.open && (storeStatus as any).reason === "break" ? (
-              <div className="absolute inset-x-4 bottom-3 mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
+              <div className="mt-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
                 <span className="text-lg shrink-0 mt-0.5">⏸</span>
                 <div>
                   <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
@@ -1214,7 +1216,7 @@ const UnitPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="absolute inset-x-4 bottom-3 mt-2 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
+              <div className="mt-3 flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5">
                 <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-red-600 dark:text-red-400">
