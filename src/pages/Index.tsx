@@ -192,7 +192,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="landing-cream min-h-screen bg-cream text-ink">
       <PageSeo
         title="TrendFood — Cardápio Digital e Delivery com Taxa 0%"
         description="TrendFood é o cardápio digital e sistema de delivery com taxa 0% para restaurantes. Receba pedidos no WhatsApp, gerencie cozinha e aumente seu lucro real."
