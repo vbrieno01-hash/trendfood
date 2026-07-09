@@ -417,12 +417,15 @@ const Index = () => {
           </p>
           <div className="mt-10 pt-8 border-t border-ink/10">
             <p className="text-center text-xs uppercase tracking-wider text-ink-muted font-semibold mb-4">Soluções por caso de uso</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-sm text-center">
               <Link to="/cardapio-digital-whatsapp" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Cardápio WhatsApp</Link>
               <Link to="/cardapio-digital-qr-code" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">QR Code na mesa</Link>
               <Link to="/alternativa-ao-ifood" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Alternativa ao iFood</Link>
               <Link to="/pdv-restaurante-gratis" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">PDV grátis</Link>
               <Link to="/delivery-sem-taxa" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Delivery sem taxa</Link>
+              <Link to="/sistema-para-lanchonete" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Lanchonete</Link>
+              <Link to="/sistema-para-pizzaria" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Pizzaria</Link>
+              <Link to="/cardapio-digital-para-restaurante" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Restaurante</Link>
             </div>
           </div>
         </div>
