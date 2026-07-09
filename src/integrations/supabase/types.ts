@@ -598,24 +598,30 @@ export type Database = {
       cash_withdrawals: {
         Row: {
           amount: number
+          category: string | null
           created_at: string
           id: string
+          movement_type: string
           organization_id: string
           reason: string | null
           session_id: string
         }
         Insert: {
           amount: number
+          category?: string | null
           created_at?: string
           id?: string
+          movement_type?: string
           organization_id: string
           reason?: string | null
           session_id: string
         }
         Update: {
           amount?: number
+          category?: string | null
           created_at?: string
           id?: string
+          movement_type?: string
           organization_id?: string
           reason?: string | null
           session_id?: string
