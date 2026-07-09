@@ -766,6 +766,19 @@ a[href*="lovable.dev"][style*="position: fixed"] {
   animation: landing-marquee 40s linear infinite;
 }
 
+/* ── Cream landing scope (hero refinado) ── */
+.landing-cream {
+  --landing-bg: 33 100% 97%;         /* #fff8f0 */
+  --landing-surface: 28 100% 90%;    /* #ffe4cc */
+  --landing-accent: 24 95% 53%;      /* #f97316 */
+  --landing-accent-hover: 22 92% 48%;/* #ea580c */
+  --landing-ink: 20 33% 9%;          /* #1a1410 */
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+.landing-cream .font-display {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
