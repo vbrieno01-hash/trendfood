@@ -211,10 +211,10 @@ export default function HeroCinematic({
                 initial={{ opacity: 0, y: 30, rotate: 0 }}
                 animate={{ opacity: 1, y: 0, rotate: -6 }}
                 transition={{ duration: 0.7, delay: 0.55 }}
-                className="absolute -bottom-4 left-2 md:left-0 w-[38%] p-1.5 rounded-[2.2rem] z-30 border-4"
+                className="absolute -bottom-4 left-2 md:left-0 w-[38%] p-[3px] rounded-[2.2rem] z-30 border-2"
                 style={{ background: inkColor, borderColor: inkColor, boxShadow: "0 30px 50px -15px hsl(var(--landing-ink) / 0.35)" }}
               >
-                <div className="bg-white rounded-[1.8rem] overflow-hidden aspect-[9/19]">
+                <div className="bg-white rounded-[2rem] overflow-hidden aspect-[9/19]">
                   <img
                     src={dashboardMobileImg}
                     alt="App TrendFood no celular"
