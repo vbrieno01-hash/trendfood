@@ -5,7 +5,9 @@
   "theme_color": "#f97316",
   "background_color": "#ffffff",
   "display": "standalone",
-  "start_url": "/",
+  "start_url": "/auth?utm_source=pwa",
+  "scope": "/",
+  "id": "/",
   "icons": [
     {
       "src": "/pwa-192.png",
