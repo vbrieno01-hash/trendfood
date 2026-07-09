@@ -21,6 +21,8 @@ export interface CashWithdrawal {
   amount: number;
   reason: string | null;
   created_at: string;
+  movement_type: "sangria" | "suprimento";
+  category: string | null;
 }
 
 // Helper to get a typed client for tables not yet in generated types
@@ -56,7 +58,7 @@ export function useCashWithdrawals(sessionId: string | undefined) {
       if (!sessionId) return [] as CashWithdrawal[];
       const { data, error } = await db
         .from("cash_withdrawals")
-        .select("id, session_id, organization_id, amount, reason, created_at")
+        .select("id, session_id, organization_id, amount, reason, created_at, movement_type, category")
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -141,7 +143,17 @@ export function useCloseCashSession(orgId: string) {
 export function useAddWithdrawal(orgId: string, sessionId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ amount, reason }: { amount: number; reason?: string }) => {
+    mutationFn: async ({
+      amount,
+      reason,
+      movement_type = "sangria",
+      category,
+    }: {
+      amount: number;
+      reason?: string;
+      movement_type?: "sangria" | "suprimento";
+      category?: string;
+    }) => {
       const { data, error } = await db
         .from("cash_withdrawals")
         .insert({
@@ -149,6 +161,8 @@ export function useAddWithdrawal(orgId: string, sessionId: string) {
           organization_id: orgId,
           amount,
           reason: reason ?? null,
+          movement_type,
+          category: category ?? null,
         })
         .select()
         .single();
