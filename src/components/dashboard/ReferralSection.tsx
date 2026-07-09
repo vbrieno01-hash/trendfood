@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
 import { getShareableBaseUrl } from "@/lib/publicUrl";
+import { Link } from "react-router-dom";
 
 interface ReferralBonus {
   id: string;
@@ -125,12 +126,20 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
         <div className="dashboard-section-icon">
           <Gift className="w-5 h-5" />
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-xl font-bold text-foreground">Ganhe Desconto</h2>
           <p className="text-sm text-muted-foreground">
             Indique amigos e ganhe dias grátis no seu plano!
           </p>
         </div>
+        <Link
+          to="/indique"
+          target="_blank"
+          rel="noopener"
+          className="text-xs font-medium text-primary hover:underline shrink-0"
+        >
+          Ver página pública →
+        </Link>
       </div>
 
       {/* Reward highlight card */}

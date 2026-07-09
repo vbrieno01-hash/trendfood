@@ -27,6 +27,7 @@ const PrivacyPage = lazy(routeLoaders.privacy);
 const ResetPasswordPage = lazy(routeLoaders.resetPassword);
 const ReviewPage = lazy(routeLoaders.review);
 const InstallPage = lazy(routeLoaders.install);
+const IndiquePage = lazy(routeLoaders.indique);
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
@@ -226,6 +227,7 @@ const AppInner = () => {
               <Route path="/avaliar/:slug/:orderId" element={<ReviewPage />} />
               <Route path="/avaliar/:slug" element={<ReviewPage />} />
               <Route path="/instalar" element={<InstallPage />} />
+              <Route path="/indique" element={<IndiquePage />} />
               <Route path="/_preview/fallback" element={<PreviewFallback />} />
               {/* Short link: /:slug — mantém /unidade/:slug funcional para compat */}
               <Route path="/:slug" element={<UnitPage />} />
