@@ -395,22 +395,75 @@ function buildMessage(eventType: string, payload: any): string | null {
     }
 
     case "reclame_aqui": {
-      const lines = [
-        `📣 <b>RECLAME AQUI — ${escapeHtml(payload.category_label || payload.category || "")}</b>`,
-        `🕒 ${escapeHtml(payload.sent_at || "")}`,
-        "",
-        `👤 <b>${escapeHtml(payload.name || "Anônimo")}</b>`,
-      ];
-      if (payload.contact) lines.push(`📱 ${escapeHtml(payload.contact)}`);
-      if (payload.org_name || payload.org_slug) {
-        lines.push(`🏪 ${escapeHtml(payload.org_name || payload.org_slug)}${payload.org_slug ? ` (/${escapeHtml(payload.org_slug)})` : ""}`);
+      // Emoji + rótulo curto por categoria (mais escaneável que "RECLAME AQUI — 💡 Sugestão")
+      const cat = String(payload.category || "other").toLowerCase();
+      const catHeader: Record<string, string> = {
+        bug: "🐛 BUG",
+        suggestion: "💡 SUGESTÃO",
+        complaint: "😠 RECLAMAÇÃO",
+        other: "💬 MENSAGEM",
+      };
+      const header = catHeader[cat] ?? "💬 MENSAGEM";
+      const author = escapeHtml(payload.name || "Anônimo");
+
+      // Formata telefone BR: 11 dígitos -> "XX XXXXX-XXXX", 10 -> "XX XXXX-XXXX"
+      const formatPhone = (raw: string): string => {
+        const d = raw.replace(/\D/g, "");
+        if (d.length === 11) return `${d.slice(0, 2)} ${d.slice(2, 7)}-${d.slice(7)}`;
+        if (d.length === 10) return `${d.slice(0, 2)} ${d.slice(2, 6)}-${d.slice(6)}`;
+        return raw;
+      };
+      const contactStr = payload.contact ? formatPhone(String(payload.contact)) : "";
+
+      // Data curta "DD/MM HH:MM" — remove segundos e ano
+      const shortDate = (raw: string): string => {
+        // input esperado: "08/07/2026, 23:26:23" ou ISO
+        const m = /^(\d{2}\/\d{2})\/\d{4},?\s+(\d{2}:\d{2})/.exec(raw || "");
+        if (m) return `${m[1]} ${m[2]}`;
+        return String(raw || "").slice(0, 16);
+      };
+
+      // Path curto — remove querystring poluidora (cache busters etc.)
+      const shortPath = (raw: string): string => {
+        try {
+          const s = String(raw || "");
+          // se for URL completa, pega só path+"?param=1" mais relevante
+          const withoutHash = s.split("#")[0];
+          const [pathPart, query] = withoutHash.split("?");
+          const path = pathPart.replace(/^https?:\/\/[^/]+/, "") || "/";
+          if (!query) return path;
+          // Mantém só params curtos e úteis; descarta _v, cache-buster, tokens gigantes
+          const kept = query.split("&")
+            .filter((kv) => {
+              const [k, v] = kv.split("=");
+              if (!k) return false;
+              if (k.startsWith("_")) return false;
+              if ((v || "").length > 40) return false;
+              return true;
+            })
+            .slice(0, 3)
+            .join("&");
+          return kept ? `${path}?${kept}` : path;
+        } catch { return String(raw || ""); }
+      };
+
+      const messageBody = String(payload.message || "").slice(0, 1500).trim();
+      const store = payload.org_name || payload.org_slug || "";
+
+      const lines: string[] = [];
+      lines.push(`<b>${header}</b> — ${author}`);
+      if (store) lines.push(`🏪 ${escapeHtml(String(store))}`);
+      lines.push("");
+      lines.push(`<i>"${escapeHtml(messageBody)}"</i>`);
+      lines.push("");
+      lines.push("━━━━━━━━━━━━━━━━━━━━");
+      if (contactStr) lines.push(`📱 ${escapeHtml(contactStr)}`);
+      if (payload.sent_at) lines.push(`🕒 ${escapeHtml(shortDate(String(payload.sent_at)))}`);
+      if (payload.page_url) lines.push(`🌐 ${escapeHtml(shortPath(String(payload.page_url)))}`);
+      // User-Agent só faz sentido pra bug (info técnica pra reproduzir)
+      if (cat === "bug" && payload.user_agent) {
+        lines.push(`💻 ${escapeHtml(String(payload.user_agent).slice(0, 120))}`);
       }
-      if (payload.page_url) lines.push(`🌐 ${escapeHtml(payload.page_url)}`);
-      if (payload.user_agent) lines.push(`💻 ${escapeHtml(String(payload.user_agent).slice(0, 120))}`);
-      lines.push("", "━━━━━━━━━━━━━━━━━━━━",
-        escapeHtml(String(payload.message || "").slice(0, 1500)),
-        "━━━━━━━━━━━━━━━━━━━━");
-      if (payload.app_version) lines.push("", `🔖 v${escapeHtml(payload.app_version)}`);
       return lines.join("\n");
     }
 
