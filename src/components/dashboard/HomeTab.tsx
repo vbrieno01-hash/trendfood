@@ -38,7 +38,6 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
 import BannerRecoveryBanner from "@/components/dashboard/BannerRecoveryBanner";
 import PushActivationBanner from "@/components/dashboard/PushActivationBanner";
-import CashUpdateBanner from "@/components/dashboard/CashUpdateBanner";
 
 interface Organization {
   id: string;
@@ -256,7 +255,6 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
   return (
     <div className="space-y-5">
       <PushActivationBanner orgId={organization.id} />
-      <CashUpdateBanner onOpen={onNavigate ? () => onNavigate("caixa") : undefined} />
 
       {/* ══ COMMAND HEADER ══════════════════════════════════════ */}
       <div className="cmd-panel p-5 md:p-6 animate-dashboard-fade-in">
