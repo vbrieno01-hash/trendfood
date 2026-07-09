@@ -28,6 +28,7 @@ const ResetPasswordPage = lazy(routeLoaders.resetPassword);
 const ReviewPage = lazy(routeLoaders.review);
 const InstallPage = lazy(routeLoaders.install);
 const IndiquePage = lazy(routeLoaders.indique);
+const CardapioWhatsappPage = lazy(routeLoaders.cardapioWhatsapp);
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
@@ -228,6 +229,7 @@ const AppInner = () => {
               <Route path="/avaliar/:slug" element={<ReviewPage />} />
               <Route path="/instalar" element={<InstallPage />} />
               <Route path="/indique" element={<IndiquePage />} />
+              <Route path="/cardapio-digital-whatsapp" element={<CardapioWhatsappPage />} />
               <Route path="/_preview/fallback" element={<PreviewFallback />} />
               {/* Short link: /:slug — mantém /unidade/:slug funcional para compat */}
               <Route path="/:slug" element={<UnitPage />} />

@@ -224,6 +224,7 @@ export default function IndiquePage() {
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span>© {new Date().getFullYear()} TrendFood — Cardápio digital taxa 0%</span>
           <div className="flex gap-4">
+            <Link to="/cardapio-digital-whatsapp" className="hover:text-foreground">Cardápio WhatsApp</Link>
             <Link to="/termos" className="hover:text-foreground">Termos</Link>
             <Link to="/privacidade" className="hover:text-foreground">Privacidade</Link>
             <Link to="/planos" className="hover:text-foreground">Planos</Link>
