@@ -186,7 +186,7 @@ export default function HeroCinematic({
                   <div className="w-2 h-2 rounded-full" style={{ background: `hsl(var(--landing-accent) / 0.15)` }} />
                 </div>
                 <img
-                  src={heroImageUrl || dashboardImg}
+                  src={dashboardImg}
                   alt="Dashboard TrendFood"
                   loading="eager"
                   className="w-full block"
