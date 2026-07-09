@@ -359,6 +359,8 @@ const Index = () => {
             <ul className="space-y-2 text-sm">
               <li><a href="#funcionalidades" className="text-muted-foreground hover:text-foreground transition-colors">Funcionalidades</a></li>
               <li><Link to="/planos" className="text-muted-foreground hover:text-foreground transition-colors">Planos</Link></li>
+              <li><Link to="/cardapio-digital-whatsapp" className="text-muted-foreground hover:text-foreground transition-colors">Cardápio digital WhatsApp</Link></li>
+              <li><Link to="/indique" className="text-muted-foreground hover:text-foreground transition-colors">Indique e ganhe</Link></li>
               <li><a href="#como-funciona" className="text-muted-foreground hover:text-foreground transition-colors">Como Funciona</a></li>
               <li><a href="#calculadora" className="text-muted-foreground hover:text-foreground transition-colors">Calculadora de Economia</a></li>
               <li><a href="#comparativo" className="text-muted-foreground hover:text-foreground transition-colors">Comparativo</a></li>

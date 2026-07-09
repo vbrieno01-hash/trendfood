@@ -19,6 +19,7 @@ export const routeLoaders = {
   review: () => import("@/pages/ReviewPage"),
   install: () => import("@/pages/InstallPage"),
   indique: () => import("@/pages/Indique"),
+  cardapioWhatsapp: () => import("@/pages/CardapioDigitalWhatsapp"),
 } as const;
 
 export type RouteKey = keyof typeof routeLoaders;
