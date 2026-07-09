@@ -255,7 +255,6 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
   return (
     <div className="space-y-5">
       <PushActivationBanner orgId={organization.id} />
-      <CashUpdateBanner onOpen={onNavigate ? () => onNavigate("caixa") : undefined} />
 
       {/* ══ COMMAND HEADER ══════════════════════════════════════ */}
       <div className="cmd-panel p-5 md:p-6 animate-dashboard-fade-in">
