@@ -128,6 +128,92 @@ function CaixaFechado({
   const [opening, setOpening] = useState("");
   const openSession = useOpenCashSession(orgId);
 
+  // Resolve nomes de todos os operadores que aparecem no histórico (opened_by + closed_by)
+  const allIds = history.flatMap((s) => [s.opened_by, s.closed_by]);
+  const { data: opNames = {} } = useOperatorNames(allIds);
+
+  const nameOf = (uid: string | null | undefined) =>
+    uid ? (opNames[uid] || "Operador") : "—";
+
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const exportSessionCsv = async (s: CashSession) => {
+    setExportingId(s.id);
+    try {
+      const [{ data: withdrawalsData }, { data: ordersData }] = await Promise.all([
+        supabase
+          .from("cash_withdrawals")
+          .select("created_at, movement_type, category, reason, amount")
+          .eq("session_id", s.id)
+          .order("created_at"),
+        supabase
+          .from("orders")
+          .select("id, created_at, payment_method, total, table_number, paid")
+          .eq("organization_id", orgId)
+          .eq("paid", true)
+          .gte("created_at", s.opened_at)
+          .lte("created_at", s.closed_at || new Date().toISOString())
+          .order("created_at"),
+      ]);
+
+      const rows: string[][] = [];
+      rows.push(["=== CABEÇALHO DO TURNO ==="]);
+      rows.push(["Abertura", fmtDate(s.opened_at)]);
+      rows.push(["Fechamento", s.closed_at ? fmtDate(s.closed_at) : "—"]);
+      rows.push(["Operador abertura", nameOf(s.opened_by)]);
+      rows.push(["Operador fechamento", nameOf(s.closed_by)]);
+      rows.push(["Saldo inicial", fmt(s.opening_balance)]);
+      rows.push(["Saldo final contado", s.closing_balance != null ? fmt(s.closing_balance) : "—"]);
+      rows.push(["Observações", s.notes || ""]);
+      rows.push(["Justificativa divergência", s.divergence_reason || ""]);
+      rows.push([]);
+      rows.push(["=== MOVIMENTAÇÕES ==="]);
+      rows.push(["Horário", "Tipo", "Categoria", "Motivo", "Valor"]);
+      for (const w of (withdrawalsData ?? []) as Array<{ created_at: string; movement_type: string; category: string | null; reason: string | null; amount: number }>) {
+        rows.push([
+          fmtDate(w.created_at),
+          w.movement_type,
+          w.category || "",
+          w.reason || "",
+          w.amount.toString().replace(".", ","),
+        ]);
+      }
+      rows.push([]);
+      rows.push(["=== PEDIDOS PAGOS ==="]);
+      rows.push(["Horário", "Mesa/Pedido", "Forma pagamento", "Total"]);
+      for (const o of (ordersData ?? []) as Array<{ created_at: string; payment_method: string | null; total: number | null; table_number: number | null }>) {
+        rows.push([
+          fmtDate(o.created_at),
+          o.table_number != null ? `Mesa ${o.table_number}` : "Delivery",
+          o.payment_method || "—",
+          (o.total ?? 0).toString().replace(".", ","),
+        ]);
+      }
+
+      const csv = rows
+        .map((r) => r.map((cell) => `"${(cell || "").replace(/"/g, '""')}"`).join(";"))
+        .join("\n");
+
+      const bom = "\uFEFF"; // UTF-8 BOM pra Excel abrir com acentos
+      const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const filename = `caixa-${new Date(s.opened_at).toISOString().slice(0, 16).replace(/[:T]/g, "-")}.csv`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("CSV exportado");
+    } catch (err) {
+      console.error("[CaixaTab] Falha ao exportar CSV:", err);
+      toast.error("Erro ao exportar CSV");
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   const handleOpen = () => {
     const val = parseFloat(opening.replace(",", "."));
     if (isNaN(val) || val < 0) return;
@@ -184,18 +270,27 @@ function CaixaFechado({
               <TableRow>
                 <TableHead>Abertura</TableHead>
                 <TableHead>Fechamento</TableHead>
+                <TableHead>Operador</TableHead>
                 <TableHead className="text-right">Saldo inicial</TableHead>
                 <TableHead className="text-right">Saldo final</TableHead>
                 <TableHead className="text-right">Diferença</TableHead>
+                <TableHead className="text-right w-16"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {history.map((s) => {
                 const diff = (s.closing_balance ?? 0) - s.opening_balance;
+                const hasDivergence = !!s.divergence_reason;
                 return (
                   <TableRow key={s.id}>
                     <TableCell className="text-sm">{fmtDate(s.opened_at)}</TableCell>
                     <TableCell className="text-sm">{s.closed_at ? fmtDate(s.closed_at) : "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        {nameOf(s.closed_by || s.opened_by)}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right text-sm">{fmt(s.opening_balance)}</TableCell>
                     <TableCell className="text-right text-sm">
                       {s.closing_balance != null ? fmt(s.closing_balance) : "—"}
@@ -206,6 +301,20 @@ function CaixaFechado({
                       }`}
                     >
                       {diff >= 0 ? "+" : ""}{fmt(diff)}
+                      {hasDivergence && (
+                        <AlertTriangle className="inline-block w-3 h-3 ml-1 text-amber-500" />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => exportSessionCsv(s)}
+                        disabled={exportingId === s.id}
+                        title="Exportar CSV"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
