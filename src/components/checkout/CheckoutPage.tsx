@@ -132,7 +132,7 @@ export default function CheckoutPage({ items, onConfirm, onBack }: CheckoutPageP
                   id="ck-name"
                   placeholder="Seu nome completo"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { if (!e?.target) return; setName(e.target.value); }}
                 />
               </div>
 
@@ -145,7 +145,7 @@ export default function CheckoutPage({ items, onConfirm, onBack }: CheckoutPageP
                   placeholder="(00) 00000-0000"
                   inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  onChange={(e) => { if (!e?.target) return; setPhone(formatPhone(e.target.value)); }}
                 />
               </div>
 

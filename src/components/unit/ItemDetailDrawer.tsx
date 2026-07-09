@@ -227,7 +227,7 @@ const ItemDetailDrawer = ({ item, onClose, onAdd, primaryColor, accentColor, but
             <Textarea
               placeholder="Ex: Sem cebola, ponto da carne..."
               value={itemNotes}
-              onChange={(e) => setItemNotes(e.target.value)}
+              onChange={(e) => { if (!e?.target) return; setItemNotes(e.target.value); }}
               maxLength={200}
               rows={2}
               className="resize-none text-sm"

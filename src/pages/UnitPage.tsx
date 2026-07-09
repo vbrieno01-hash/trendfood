@@ -1144,7 +1144,7 @@ const UnitPage = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { if (!e?.target) return; setSearchQuery(e.target.value); }}
                 placeholder="Buscar no cardápio..."
                 className="pl-9 pr-9 h-10 rounded-full bg-muted/60 border-0 text-sm shadow-inner focus-visible:ring-1 focus-visible:ring-primary/30"
               />
@@ -1644,7 +1644,7 @@ const UnitPage = () => {
                   id="buyer-name"
                   placeholder="Seu nome"
                   value={buyerName}
-                  onChange={(e) => { setBuyerName(e.target.value); setNameError(false); }}
+                  onChange={(e) => { if (!e?.target) return; setBuyerName(e.target.value); setNameError(false); }}
                   maxLength={100}
                   className={nameError ? "border-destructive" : ""}
                 />
@@ -1660,7 +1660,7 @@ const UnitPage = () => {
                   id="buyer-phone"
                   placeholder="(11) 99999-0000"
                   value={buyerPhone}
-                  onChange={(e) => { setBuyerPhone(formatPhone(e.target.value)); setPhoneError(false); }}
+                  onChange={(e) => { if (!e?.target) return; setBuyerPhone(formatPhone(e.target.value)); setPhoneError(false); }}
                   inputMode="tel"
                   maxLength={15}
                   className={phoneError ? "border-destructive" : ""}
@@ -1732,7 +1732,7 @@ const UnitPage = () => {
                       id="buyer-doc"
                       placeholder="000.000.000-00"
                       value={buyerDoc}
-                      onChange={(e) => setBuyerDoc(e.target.value)}
+                      onChange={(e) => { if (!e?.target) return; setBuyerDoc(e.target.value); }}
                       maxLength={20}
                     />
                   </div>
@@ -1749,7 +1749,7 @@ const UnitPage = () => {
                       autoComplete="email"
                       placeholder="seuemail@exemplo.com"
                       value={buyerEmail}
-                      onChange={(e) => setBuyerEmail(e.target.value)}
+                      onChange={(e) => { if (!e?.target) return; setBuyerEmail(e.target.value); }}
                       maxLength={120}
                     />
                     <p className="text-[11px] text-muted-foreground mt-1">
@@ -1809,7 +1809,7 @@ const UnitPage = () => {
                          id="buyer-street"
                          placeholder="Nome da rua"
                          value={customerStreet}
-                         onChange={(e) => { setCustomerStreet(e.target.value); setAddressError(false); }}
+                         onChange={(e) => { if (!e?.target) return; setCustomerStreet(e.target.value); setAddressError(false); }}
                          className={addressError && !customerStreet.trim() ? "border-destructive" : ""}
                        />
                      </div>
@@ -1821,7 +1821,7 @@ const UnitPage = () => {
                          id="buyer-number"
                          placeholder="123"
                          value={customerNumber}
-                         onChange={(e) => { setCustomerNumber(e.target.value); setAddressError(false); }}
+                         onChange={(e) => { if (!e?.target) return; setCustomerNumber(e.target.value); setAddressError(false); }}
                          className={addressError && !customerNumber.trim() ? "border-destructive" : ""}
                        />
                      </div>
@@ -1836,7 +1836,7 @@ const UnitPage = () => {
                        id="buyer-complement"
                        placeholder="Apto, Bloco, Sala..."
                        value={customerComplement}
-                       onChange={(e) => setCustomerComplement(e.target.value)}
+                       onChange={(e) => { if (!e?.target) return; setCustomerComplement(e.target.value); }}
                      />
                    </div>
 
@@ -1927,7 +1927,7 @@ const UnitPage = () => {
                   id="buyer-notes"
                   placeholder="Ex: Sem cebola, ponto da carne..."
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => { if (!e?.target) return; setNotes(e.target.value); }}
                   maxLength={300}
                   rows={2}
                   className="resize-none"
