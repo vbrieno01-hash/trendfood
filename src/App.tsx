@@ -227,6 +227,7 @@ const AppInner = () => {
               <Route path="/avaliar/:slug/:orderId" element={<ReviewPage />} />
               <Route path="/avaliar/:slug" element={<ReviewPage />} />
               <Route path="/instalar" element={<InstallPage />} />
+              <Route path="/indique" element={<IndiquePage />} />
               <Route path="/_preview/fallback" element={<PreviewFallback />} />
               {/* Short link: /:slug — mantém /unidade/:slug funcional para compat */}
               <Route path="/:slug" element={<UnitPage />} />
