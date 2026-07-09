@@ -188,7 +188,7 @@ export function CashAnalytics({ orgId }: { orgId: string }) {
         <MetricTile
           label="Divergência acumulada"
           value={fmt(totals.divergenceAbs)}
-          hint={`${totals.divergencePct.toFixed(2)}% da receita`}
+          sub={`${totals.divergencePct.toFixed(2)}% da receita`}
           icon={<AlertCircle className="w-4 h-4" />}
         />
         <MetricTile
