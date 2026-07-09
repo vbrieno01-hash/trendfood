@@ -4176,6 +4176,7 @@ export type Database = {
       }
       run_cleanup_internal_logs_manual: { Args: never; Returns: Json }
       run_cleanup_orgs_manual: { Args: never; Returns: Json }
+      storage_maintenance_job: { Args: never; Returns: Json }
       support_get_or_create_conversation: {
         Args: { _org_id: string }
         Returns: {
