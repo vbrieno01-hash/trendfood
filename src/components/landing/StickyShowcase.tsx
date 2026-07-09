@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, Wallet, TrendingUp, UtensilsCrossed, Flame } from "lucide-react";
+import { BarChart3, Wallet, TrendingUp, UtensilsCrossed, Flame, type LucideIcon } from "lucide-react";
 import dashboardDesktopAsset from "@/assets/dashboard-desktop.png.asset.json";
 const dashboardImg = dashboardDesktopAsset.url;
 
-const tabs = [
+interface ShowcaseTab {
+  icon: LucideIcon;
+  label: string;
+  desc: string;
+}
+
+const tabs: ShowcaseTab[] = [
   { icon: TrendingUp, label: "Pedidos ao vivo", desc: "Receba pedidos em tempo real, com alerta sonoro e impressão automática para a cozinha." },
   { icon: Wallet, label: "Caixa em 1 clique", desc: "Abertura, fechamento e sangria do caixa com relatório completo do turno." },
   { icon: BarChart3, label: "Mais vendidos", desc: "Ranking de produtos por período com receita gerada por cada item — saiba o que vende." },
@@ -15,9 +21,7 @@ const tabs = [
 
 export default function StickyShowcase() {
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
-  const activeIndex = useTransform(scrollYProgress, (v) => Math.min(Math.floor(v * (tabs.length + 0.2)), tabs.length - 1));
-
+  const [activeIndex, setActiveIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
@@ -90,67 +94,90 @@ export default function StickyShowcase() {
   }
 
   return (
-    <section ref={ref} className="relative bg-ink" style={{ height: `180vh` }}>
-      <div className="sticky top-0 min-h-screen flex items-start pt-24 pb-16 overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            background:
-              "radial-gradient(ellipse 50% 60% at 70% 50%, hsl(var(--landing-accent) / 0.3), transparent)",
-          }}
-        />
-        <div className="relative max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left: tabs list */}
-          <div className="space-y-2">
-            <div className="hairline-accent mb-5" />
-            <h2 className="font-display font-bold text-4xl md:text-6xl mb-8 tracking-tight leading-[0.95]" style={{ color: "hsl(var(--landing-bg))" }}>
-              Um sistema.<br /><span style={{ color: "hsl(var(--landing-accent))" }}>Operação inteira.</span>
-            </h2>
-            {tabs.map((tab, i) => {
-              const Icon = tab.icon;
-              return <TabRow key={tab.label} tab={tab} index={i} active={activeIndex} Icon={Icon} />;
-            })}
-          </div>
-
-          {/* Right: dashboard mockup */}
-          <div className="relative perspective-[1400px]" style={{ perspective: 1400 }}>
-            <motion.div
-              style={{ rotateY: -8, rotateX: 4, transformStyle: "preserve-3d" }}
-              className="relative w-full max-w-[600px] mx-auto"
-            >
-              <div
-                className="absolute -inset-12 rounded-[2rem] opacity-60 blur-3xl"
-                style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.4), transparent 70%)" }}
+    <section ref={ref} className="relative bg-ink overflow-hidden py-20 lg:py-24">
+      <div
+        className="absolute inset-0 opacity-40 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 50% 60% at 70% 50%, hsl(var(--landing-accent) / 0.3), transparent)",
+        }}
+      />
+      <div className="relative max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center">
+        {/* Left: tabs list */}
+        <div className="space-y-2">
+          <div className="hairline-accent mb-5" />
+          <h2 className="font-display font-bold text-4xl md:text-6xl mb-8 tracking-tight leading-[0.95]" style={{ color: "hsl(var(--landing-bg))" }}>
+            Um sistema.<br /><span style={{ color: "hsl(var(--landing-accent))" }}>Operação inteira.</span>
+          </h2>
+          {tabs.map((tab, i) => {
+            const Icon = tab.icon;
+            return (
+              <TabRow
+                key={tab.label}
+                tab={tab}
+                index={i}
+                activeIndex={activeIndex}
+                Icon={Icon}
+                onActivate={() => setActiveIndex(i)}
               />
-              <div
-                className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10"
-                style={{ background: "#1a1a2e" }}
-              >
-                <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                </div>
-                <div className="relative">
-                  <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
-                  {tabs.map((tab, i) => (
-                    <ScreenLabel key={tab.label} index={i} active={activeIndex} label={tab.label} />
-                  ))}
-                </div>
+            );
+          })}
+        </div>
+
+        {/* Right: dashboard mockup */}
+        <div className="relative perspective-[1400px]" style={{ perspective: 1400 }}>
+          <motion.div
+            style={{ rotateY: -8, rotateX: 4, transformStyle: "preserve-3d" }}
+            className="relative w-full max-w-[600px] mx-auto"
+          >
+            <div
+              className="absolute -inset-12 rounded-[2rem] opacity-60 blur-3xl"
+              style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.4), transparent 70%)" }}
+            />
+            <div
+              className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              style={{ background: "#1a1a2e" }}
+            >
+              <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
               </div>
-            </motion.div>
-          </div>
+              <div className="relative">
+                <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
+                {tabs.map((tab, i) => (
+                  <ScreenLabel key={tab.label} index={i} activeIndex={activeIndex} label={tab.label} />
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
   );
 }
 
-function TabRow({ tab, index, active, Icon }: { tab: { label: string; desc: string }; index: number; active: any; Icon: any }) {
-  const opacity = useTransform(active, (v: number) => (v === index ? 1 : 0.35));
-  const x = useTransform(active, (v: number) => (v === index ? 8 : 0));
+interface TabRowProps {
+  tab: ShowcaseTab;
+  index: number;
+  activeIndex: number;
+  Icon: LucideIcon;
+  onActivate: () => void;
+}
+
+function TabRow({ tab, index, activeIndex, Icon, onActivate }: TabRowProps) {
+  const isActive = activeIndex === index;
+
   return (
-    <motion.div style={{ opacity, x }} className="flex items-start gap-4 p-4 rounded-2xl transition-colors">
+    <motion.button
+      type="button"
+      onMouseEnter={onActivate}
+      onFocus={onActivate}
+      animate={{ opacity: isActive ? 1 : 0.42, x: isActive ? 8 : 0 }}
+      transition={{ duration: 0.2 }}
+      className="flex w-full items-start gap-4 rounded-2xl p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+      aria-pressed={isActive}
+    >
       <motion.div
         animate={{ scale: 1 }}
         className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-white"
@@ -162,16 +189,23 @@ function TabRow({ tab, index, active, Icon }: { tab: { label: string; desc: stri
         <h3 className="font-display font-bold text-lg mb-1" style={{ color: "hsl(var(--landing-bg))" }}>{tab.label}</h3>
         <p className="text-sm leading-relaxed" style={{ color: "hsl(var(--landing-bg) / 0.7)" }}>{tab.desc}</p>
       </div>
-    </motion.div>
+    </motion.button>
   );
 }
 
-function ScreenLabel({ index, active, label }: { index: number; active: any; label: string }) {
-  const opacity = useTransform(active, (v: number) => (v === index ? 1 : 0));
-  const y = useTransform(active, (v: number) => (v === index ? 0 : 10));
+interface ScreenLabelProps {
+  index: number;
+  activeIndex: number;
+  label: string;
+}
+
+function ScreenLabel({ index, activeIndex, label }: ScreenLabelProps) {
+  const isActive = activeIndex === index;
+
   return (
     <motion.div
-      style={{ opacity, y }}
+      animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 10 }}
+      transition={{ duration: 0.2 }}
       className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-primary/90 backdrop-blur-md text-primary-foreground text-xs font-bold shadow-xl"
     >
       {label}
