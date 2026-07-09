@@ -1,11 +1,8 @@
-import { useRef } from "react";
 import { Link } from "react-router-dom";
-import { motion, useMotionValue, useSpring, useTransform, useScroll } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap, Flame } from "lucide-react";
+import { ArrowRight, Flame, QrCode } from "lucide-react";
 import dashboardImg from "@/assets/dashboard-screenshot.webp";
-import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 interface HeroProps {
   badgeText: string;
@@ -21,253 +18,237 @@ interface HeroProps {
   heroImageUrl: string;
 }
 
-const Particle = ({ i }: { i: number }) => {
-  const left = (i * 37) % 100;
-  const top = (i * 53) % 100;
-  const size = 2 + (i % 4);
-  const delay = (i % 7) * 0.7;
-  const duration = 6 + (i % 5);
-  return (
-    <span
-      className="absolute rounded-full bg-orange-400/60 blur-[1px]"
-      style={{
-        left: `${left}%`,
-        top: `${top}%`,
-        width: size,
-        height: size,
-        animation: `landing-float-particle ${duration}s ease-in-out ${delay}s infinite`,
-      }}
-    />
-  );
-};
-
 export default function HeroCinematic({
   badgeText, title, titleHighlight, subtitle, subtitle2, ctaText,
   proofBadges, orderCount, displayCount, orderCounterText, heroImageUrl,
 }: HeroProps) {
-  const isDesktop = useIsDesktop();
-  const mockupRef = useRef<HTMLDivElement>(null);
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [8, -8]), { stiffness: 150, damping: 20 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-12, 12]), { stiffness: 150, damping: 20 });
-
-  function handleMove(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mx.set((e.clientX - rect.left) / rect.width - 0.5);
-    my.set((e.clientY - rect.top) / rect.height - 0.5);
-  }
-  function handleLeave() {
-    mx.set(0);
-    my.set(0);
-  }
-
-  const { scrollY } = useScroll();
-  const heroYRaw = useTransform(scrollY, [0, 600], [0, 120]);
-  const heroOpacityRaw = useTransform(scrollY, [0, 500], [1, 0.4]);
-  const heroY = isDesktop ? heroYRaw : 0;
-  const heroOpacity = isDesktop ? heroOpacityRaw : 1;
+  const inkColor = "hsl(var(--landing-ink))";
+  const accentColor = "hsl(var(--landing-accent))";
 
   return (
-    <section className="relative overflow-hidden min-h-[640px] md:min-h-screen">
-      {/* Background image with parallax */}
-      <motion.div className="absolute inset-0 z-0 bg-[#0a0806]" style={{ y: heroY }}>
-        {heroImageUrl ? (
-          <img
-            src={heroImageUrl}
-            alt=""
-            width={1920}
-            height={1080}
-            fetchPriority="high"
-            decoding="async"
-            onLoad={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "1"; }}
-            style={{ opacity: 0, transition: "opacity 250ms ease-out" }}
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          />
-        ) : null}
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(to right, rgba(10,8,6,0.95) 0%, rgba(15,10,5,0.85) 45%, rgba(10,8,6,0.6) 100%)" }}
-        />
-      </motion.div>
-
-      {/* Particles layer */}
-      {isDesktop && (
-        <div className="absolute inset-0 z-[1] overflow-hidden pointer-events-none">
-          {Array.from({ length: 28 }).map((_, i) => (
-            <Particle key={i} i={i} />
-          ))}
-        </div>
-      )}
-
-      {/* Radial orange glow center-bottom */}
-      <div
-        className="absolute z-[1] left-1/2 -translate-x-1/2 bottom-0 w-[900px] h-[600px] pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse at center, rgba(249,115,22,0.18) 0%, transparent 70%)",
-        }}
-      />
-
-      <header className="relative z-10 border-b border-white/[0.06]">
-        <div className="max-w-6xl mx-auto px-6 py-3.5 md:py-4 flex items-center justify-between backdrop-blur-xl bg-white/[0.04] rounded-b-2xl">
+    <section
+      className="landing-cream relative overflow-hidden bg-[hsl(var(--landing-bg))]"
+      style={{ color: inkColor }}
+    >
+      {/* Top nav */}
+      <header className="relative z-20">
+        <div className="max-w-7xl mx-auto px-6 py-4 md:py-5 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 transition-premium hover:opacity-90" aria-label="Ir para o início">
             <img src="/pwa-192.png" alt="TrendFood" className="w-8 h-8 rounded-lg object-contain" />
-            <span className="font-semibold text-white text-lg tracking-tight">TrendFood</span>
+            <span className="font-display font-bold text-lg tracking-tight" style={{ color: inkColor }}>TrendFood</span>
           </Link>
           <div className="hidden md:flex items-center gap-8 mr-auto ml-10">
-            <a href="#funcionalidades" className="link-underline text-white/70 hover:text-white text-sm font-medium transition-premium">Recursos</a>
-            <Link to="/planos" className="link-underline text-white/70 hover:text-white text-sm font-medium transition-premium">Preços</Link>
+            <a href="#funcionalidades" className="text-sm font-medium transition-premium hover:opacity-70" style={{ color: `hsl(var(--landing-ink) / 0.75)` }}>Recursos</a>
+            <Link to="/planos" className="text-sm font-medium transition-premium hover:opacity-70" style={{ color: `hsl(var(--landing-ink) / 0.75)` }}>Preços</Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" className="h-10 px-4 text-white/80 hover:text-white hover:bg-white/[0.08] rounded-full transition-premium" asChild>
+            <Button size="sm" variant="ghost" className="h-10 px-4 rounded-full font-semibold hover:bg-[hsl(var(--landing-surface))]" style={{ color: inkColor }} asChild>
               <Link to="/auth">Entrar</Link>
             </Button>
-            <Button size="sm" className="h-10 px-5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-semibold shadow-glow transition-premium hover:-translate-y-0.5" asChild>
+            <Button size="sm" className="h-10 px-5 rounded-full font-semibold text-white shadow-[0_8px_24px_-8px_hsl(var(--landing-accent)/0.6)] hover:brightness-110 transition-premium" style={{ background: accentColor }} asChild>
               <Link to="/auth">Começar Agora</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <motion.div className="relative z-10 flex items-center" style={{ opacity: heroOpacity }}>
-        <div className="max-w-6xl mx-auto px-4 pt-12 pb-16 md:pt-20 md:pb-32 w-full grid md:grid-cols-[1.1fr_1fr] gap-8 md:gap-12 items-center">
-          {/* Left: text */}
-          <div className="text-center lg:text-left">
+      {/* Body */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 py-12 lg:py-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          {/* Left: content */}
+          <div className="flex flex-col space-y-7 text-center lg:text-left">
+            {/* Badge */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center w-fit mx-auto lg:mx-0 px-4 py-1.5 rounded-full border font-semibold text-xs md:text-sm tracking-wide uppercase"
+              style={{
+                background: `hsl(var(--landing-surface))`,
+                borderColor: `hsl(var(--landing-accent) / 0.2)`,
+                color: accentColor,
+              }}
             >
-              <Badge className="mb-8 bg-white/[0.08] text-white/90 border-white/20 hover:bg-white/[0.14] backdrop-blur-md rounded-full px-4 py-1.5 text-sm font-medium shadow-[0_0_24px_rgba(249,115,22,0.25)]">
-                <Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
-                {badgeText}
-              </Badge>
+              <span className="flex h-2 w-2 rounded-full mr-2 animate-pulse" style={{ background: accentColor }} />
+              {badgeText}
             </motion.div>
 
+            {/* Headline */}
             <motion.h1
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="text-4xl md:text-5xl lg:text-[4.25rem] font-bold text-white mb-6 leading-[1.02] tracking-[-0.02em]"
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="font-display font-bold text-4xl md:text-5xl lg:text-6xl leading-[1.05] tracking-tight"
+              style={{ color: inkColor }}
             >
               {title}
-              <br />
-              <span className="landing-gradient-text">{titleHighlight}</span>
+              {titleHighlight && (
+                <span className="block mt-2" style={{ color: accentColor }}>
+                  {titleHighlight}
+                </span>
+              )}
             </motion.h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.25 }}
-              className="text-base md:text-lg text-white/75 max-w-xl mx-auto lg:mx-0 mb-3 leading-[1.7]"
-            >
-              {subtitle}
-            </motion.p>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-sm md:text-base text-white/75 max-w-lg mx-auto lg:mx-0 mb-10 leading-relaxed"
-            >
-              {subtitle2}
-            </motion.p>
-
+            {/* Subtitles */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="flex justify-center lg:justify-start"
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="space-y-2"
             >
-              <Link
-                to="/auth"
-                className="group relative overflow-hidden inline-flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-base md:text-lg font-semibold px-8 md:px-10 py-3.5 md:py-4 rounded-full shadow-[0_8px_32px_rgba(249,115,22,0.5)] hover:shadow-[0_16px_48px_rgba(249,115,22,0.7)] hover:-translate-y-0.5 transition-premium w-full sm:w-auto justify-center"
-              >
-                <span className="relative z-10">{ctaText}</span>
-                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-0.5 transition-premium" />
-                <div className="landing-shimmer-overlay" />
-              </Link>
+              <p className="text-base md:text-lg leading-relaxed max-w-xl mx-auto lg:mx-0" style={{ color: `hsl(var(--landing-ink) / 0.7)` }}>
+                {subtitle}
+              </p>
+              {subtitle2 && (
+                <p className="text-sm md:text-base leading-relaxed max-w-xl mx-auto lg:mx-0" style={{ color: `hsl(var(--landing-ink) / 0.6)` }}>
+                  {subtitle2}
+                </p>
+              )}
             </motion.div>
 
+            {/* CTA row */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-col space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 justify-center lg:justify-start">
+                <Link
+                  to="/auth"
+                  className="group inline-flex items-center gap-2.5 px-8 py-4 rounded-xl font-bold text-base md:text-lg text-white shadow-[0_12px_32px_-8px_hsl(var(--landing-accent)/0.55)] hover:-translate-y-0.5 hover:brightness-110 transition-premium"
+                  style={{ background: accentColor }}
+                >
+                  <span>{ctaText}</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                {orderCount > 0 && (
+                  <div className="inline-flex items-center gap-2 text-sm md:text-base font-semibold" style={{ color: `hsl(var(--landing-ink) / 0.85)` }}>
+                    <Flame className="w-4 h-4 animate-pulse" style={{ color: accentColor }} />
+                    +{displayCount.toLocaleString("pt-BR")} {orderCounterText}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center lg:justify-start text-xs md:text-sm font-medium" style={{ color: `hsl(var(--landing-ink) / 0.6)` }}>
+                <span>✓ Grátis para começar</span>
+                <span>✓ Sem cartão de crédito</span>
+                <span>✓ Pronto em 2 minutos</span>
+              </div>
+            </motion.div>
+
+            {/* Proof pills */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.7 }}
-              className="mt-10 flex flex-wrap gap-2.5 justify-center lg:justify-start"
+              transition={{ duration: 0.6, delay: 0.45 }}
+              className="flex flex-wrap gap-2 justify-center lg:justify-start pt-2"
             >
               {proofBadges.map((b) => (
-                <span key={b} className="px-4 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-white/85 text-sm font-medium transition-premium hover:border-white/30 hover:bg-black/50">{b}</span>
+                <span
+                  key={b}
+                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-white border transition-premium hover:-translate-y-0.5"
+                  style={{
+                    borderColor: `hsl(var(--landing-surface))`,
+                    color: `hsl(var(--landing-ink) / 0.8)`,
+                  }}
+                >
+                  {b}
+                </span>
               ))}
             </motion.div>
-
-            {orderCount > 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.9 }}
-                className="mt-6 flex justify-center lg:justify-start"
-              >
-                <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-300 text-sm font-semibold tracking-wide">
-                  <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
-                  +{displayCount.toLocaleString("pt-BR")} {orderCounterText}
-                </span>
-              </motion.div>
-            )}
           </div>
 
-          {/* Right: 3D mockup (md+) — tilt only on lg+ */}
+          {/* Right: layered visual */}
           <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.9, delay: 0.3 }}
-            className="hidden md:block perspective-[1400px]"
-            style={{ perspective: 1400 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="relative flex items-center justify-center min-h-[420px] lg:min-h-[520px]"
           >
-            <motion.div
-              ref={mockupRef}
-              onMouseMove={(e) => { if (window.innerWidth >= 1024) handleMove(e); }}
-              onMouseLeave={() => { if (window.innerWidth >= 1024) handleLeave(); }}
-              style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}
-              className="relative w-full max-w-[420px] lg:max-w-[560px] mx-auto"
-            >
-              {/* Glow behind */}
+            {/* Decorative cream blob */}
+            <div
+              className="absolute w-[110%] h-[110%] rounded-full blur-3xl -z-10"
+              style={{ background: `hsl(var(--landing-surface) / 0.6)` }}
+            />
+
+            <div className="relative w-full aspect-square max-w-[520px]">
+              {/* Dashboard mockup */}
               <div
-                className="absolute -inset-10 rounded-[2rem] opacity-60 blur-3xl"
-                style={{ background: "radial-gradient(ellipse at center, rgba(249,115,22,0.45), transparent 70%)" }}
-              />
-              <div
-                className="relative rounded-2xl overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.7)] border border-white/10 ring-1 ring-white/5"
-                style={{ background: "#1a1a2e", transform: "translateZ(40px)" }}
+                className="absolute top-0 right-0 w-[92%] bg-white rounded-2xl overflow-hidden border border-black/5 transform rotate-2 z-10"
+                style={{ boxShadow: "0 30px 60px -20px hsl(var(--landing-ink) / 0.18)" }}
               >
-                <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: "#2a2a3e" }}>
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                  <div className="flex-1 mx-3">
-                    <div className="h-3.5 rounded bg-white/10 w-40 mx-auto" />
-                  </div>
+                <div className="bg-[hsl(var(--landing-surface))/0.4] px-4 py-2 border-b border-black/5 flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full" style={{ background: `hsl(var(--landing-accent) / 0.5)` }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: `hsl(var(--landing-accent) / 0.25)` }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: `hsl(var(--landing-accent) / 0.15)` }} />
                 </div>
-                <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
+                {heroImageUrl ? (
+                  <img src={heroImageUrl} alt="Dashboard TrendFood" className="w-full block" />
+                ) : (
+                  <img src={dashboardImg} alt="Dashboard TrendFood" className="w-full block" />
+                )}
               </div>
-              {/* Floating badges */}
-              <div
-                className="absolute -left-4 md:-left-6 top-1/3 bg-white rounded-2xl shadow-2xl px-4 py-3 border border-orange-100 ring-1 ring-orange-500/10"
-                style={{ transform: "translateZ(80px)" }}
+
+              {/* Floating "Faturamento" badge */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+                className="absolute top-8 -left-2 md:-left-6 bg-white rounded-2xl px-4 py-3 z-20 border border-black/5"
+                style={{ boxShadow: "0 20px 40px -12px hsl(var(--landing-ink) / 0.2)" }}
               >
-                <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-[0.14em]">Faturamento</div>
-                <div className="text-lg font-bold text-foreground tabular-nums">R$ 4.872</div>
-                <div className="text-[10px] text-emerald-600 font-semibold tabular-nums">↑ 23% hoje</div>
-              </div>
-              <div
-                className="absolute -right-3 md:-right-4 bottom-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl shadow-2xl px-4 py-3 text-white ring-1 ring-white/10"
-                style={{ transform: "translateZ(80px)" }}
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: `hsl(var(--landing-ink) / 0.5)` }}>Faturamento</div>
+                <div className="text-lg font-bold tabular-nums font-display" style={{ color: inkColor }}>R$ 4.872</div>
+                <div className="text-[10px] font-semibold tabular-nums" style={{ color: "hsl(142 71% 35%)" }}>↑ 23% hoje</div>
+              </motion.div>
+
+              {/* Phone mockup */}
+              <motion.div
+                initial={{ opacity: 0, y: 30, rotate: 0 }}
+                animate={{ opacity: 1, y: 0, rotate: -6 }}
+                transition={{ duration: 0.7, delay: 0.55 }}
+                className="absolute -bottom-4 left-2 md:left-0 w-[38%] p-1.5 rounded-[2.2rem] z-30 border-4"
+                style={{ background: inkColor, borderColor: inkColor, boxShadow: "0 30px 50px -15px hsl(var(--landing-ink) / 0.35)" }}
               >
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-80">Novo pedido</div>
-                <div className="text-base font-bold tabular-nums">Mesa 4 · R$ 87</div>
-              </div>
-            </motion.div>
+                <div className="bg-white rounded-[1.8rem] overflow-hidden aspect-[9/19] p-3 flex flex-col">
+                  <div className="mx-auto h-1 w-8 rounded-full mb-3" style={{ background: `hsl(var(--landing-ink) / 0.2)` }} />
+                  <div className="w-10 h-10 rounded-full mx-auto mb-2" style={{ background: `hsl(var(--landing-surface))` }} />
+                  <div className="h-1.5 w-3/4 rounded-full mx-auto mb-3" style={{ background: `hsl(var(--landing-ink) / 0.15)` }} />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-8 w-full rounded-lg" style={{ background: `hsl(var(--landing-surface) / 0.6)` }} />
+                    <div className="h-8 w-full rounded-lg" style={{ background: `hsl(var(--landing-surface) / 0.6)` }} />
+                  </div>
+                  <div className="h-9 w-full rounded-lg mt-2" style={{ background: accentColor }} />
+                </div>
+              </motion.div>
+
+              {/* QR / Pedido card */}
+              <motion.div
+                initial={{ opacity: 0, y: -12, rotate: 0 }}
+                animate={{ opacity: 1, y: 0, rotate: 8 }}
+                transition={{ duration: 0.7, delay: 0.7 }}
+                className="absolute bottom-16 md:bottom-20 -right-2 md:-right-4 rounded-2xl px-4 py-3 z-20 text-white border border-white/20"
+                style={{ background: accentColor, boxShadow: "0 20px 40px -12px hsl(var(--landing-accent) / 0.55)" }}
+              >
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-85">Novo pedido</div>
+                <div className="text-base font-bold tabular-nums font-display">Mesa 4 · R$ 87</div>
+              </motion.div>
+
+              {/* QR feature chip */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.85 }}
+                className="absolute top-1/2 -translate-y-1/2 -left-4 md:-left-8 w-24 h-24 md:w-28 md:h-28 bg-white rounded-2xl border border-black/5 flex flex-col items-center justify-center gap-1"
+                style={{ boxShadow: "0 20px 40px -12px hsl(var(--landing-ink) / 0.2)" }}
+              >
+                <QrCode className="w-10 h-10 md:w-12 md:h-12" style={{ color: inkColor }} />
+                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-tighter" style={{ color: `hsl(var(--landing-ink) / 0.5)` }}>Menu QR</span>
+              </motion.div>
+            </div>
           </motion.div>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
