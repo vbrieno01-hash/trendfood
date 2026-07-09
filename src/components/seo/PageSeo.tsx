@@ -21,7 +21,7 @@ export default function PageSeo({ title, description, path, noindex }: PageSeoPr
       <meta property="og:url" content={url} />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
-      {noindex && <meta name="robots" content="noindex,nofollow" />}
+      {noindex && <meta name="robots" content="noindex,follow" />}
     </Helmet>
   );
 }

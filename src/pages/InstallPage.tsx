@@ -3,6 +3,7 @@ import { Download, Smartphone, Share, Plus, CheckCircle2, Zap, Bell, Wifi } from
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPublicHost } from "@/lib/publicUrl";
+import PageSeo from "@/components/seo/PageSeo";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -57,6 +58,7 @@ const InstallPage = () => {
   if (isInstalled) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <PageSeo title="Instalar TrendFood" description="Instale o TrendFood no seu dispositivo." path="/instalar" noindex />
         <Card className="max-w-md w-full text-center">
           <CardContent className="pt-8 pb-8 space-y-4">
             <CheckCircle2 className="mx-auto h-16 w-16 text-green-500" />
@@ -72,6 +74,7 @@ const InstallPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <PageSeo title="Instalar TrendFood" description="Instale o TrendFood no seu dispositivo." path="/instalar" noindex />
       <div className="max-w-md w-full space-y-6">
         {/* Header */}
         <div className="text-center space-y-3">
