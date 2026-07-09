@@ -18,6 +18,7 @@ export const routeLoaders = {
   resetPassword: () => import("@/pages/ResetPasswordPage"),
   review: () => import("@/pages/ReviewPage"),
   install: () => import("@/pages/InstallPage"),
+  indique: () => import("@/pages/Indique"),
 } as const;
 
 export type RouteKey = keyof typeof routeLoaders;
