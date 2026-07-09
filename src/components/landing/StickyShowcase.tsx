@@ -90,7 +90,7 @@ export default function StickyShowcase() {
   }
 
   return (
-    <section ref={ref} className="relative bg-ink" style={{ height: `${tabs.length * 80}vh` }}>
+    <section ref={ref} className="relative bg-ink" style={{ height: `${tabs.length * 45}vh` }}>
       <div className="sticky top-0 h-screen flex items-center overflow-hidden">
         <div
           className="absolute inset-0 opacity-40"
