@@ -20,6 +20,10 @@ export const routeLoaders = {
   install: () => import("@/pages/InstallPage"),
   indique: () => import("@/pages/Indique"),
   cardapioWhatsapp: () => import("@/pages/CardapioDigitalWhatsapp"),
+  cardapioQr: () => import("@/pages/CardapioDigitalQrCode"),
+  altIfood: () => import("@/pages/AlternativaAoIfood"),
+  pdvGratis: () => import("@/pages/PdvRestauranteGratis"),
+  deliverySemTaxa: () => import("@/pages/DeliverySemTaxa"),
 } as const;
 
 export type RouteKey = keyof typeof routeLoaders;

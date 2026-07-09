@@ -415,6 +415,16 @@ const Index = () => {
             {" "}ou{" "}
             <Link to="/indique" className="text-accent hover:underline font-semibold">Indique e ganhe</Link>.
           </p>
+          <div className="mt-10 pt-8 border-t border-ink/10">
+            <p className="text-center text-xs uppercase tracking-wider text-ink-muted font-semibold mb-4">Soluções por caso de uso</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm text-center">
+              <Link to="/cardapio-digital-whatsapp" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Cardápio WhatsApp</Link>
+              <Link to="/cardapio-digital-qr-code" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">QR Code na mesa</Link>
+              <Link to="/alternativa-ao-ifood" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Alternativa ao iFood</Link>
+              <Link to="/pdv-restaurante-gratis" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">PDV grátis</Link>
+              <Link to="/delivery-sem-taxa" className="rounded-xl border border-ink/10 bg-white/50 hover:bg-white hover:border-accent transition px-3 py-3 font-medium text-ink">Delivery sem taxa</Link>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -474,6 +484,10 @@ const Index = () => {
               <li><a href="#funcionalidades" className="text-white/60 hover:text-white transition-colors">Funcionalidades</a></li>
               <li><Link to="/planos" className="text-white/60 hover:text-white transition-colors">Planos</Link></li>
               <li><Link to="/cardapio-digital-whatsapp" className="text-white/60 hover:text-white transition-colors">Cardápio digital WhatsApp</Link></li>
+              <li><Link to="/cardapio-digital-qr-code" className="text-white/60 hover:text-white transition-colors">QR Code na mesa</Link></li>
+              <li><Link to="/alternativa-ao-ifood" className="text-white/60 hover:text-white transition-colors">Alternativa ao iFood</Link></li>
+              <li><Link to="/pdv-restaurante-gratis" className="text-white/60 hover:text-white transition-colors">PDV grátis</Link></li>
+              <li><Link to="/delivery-sem-taxa" className="text-white/60 hover:text-white transition-colors">Delivery sem taxa</Link></li>
               <li><Link to="/indique" className="text-white/60 hover:text-white transition-colors">Indique e ganhe</Link></li>
               <li><a href="#como-funciona" className="text-white/60 hover:text-white transition-colors">Como Funciona</a></li>
               <li><a href="#calculadora" className="text-white/60 hover:text-white transition-colors">Calculadora de Economia</a></li>
