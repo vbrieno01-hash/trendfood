@@ -38,7 +38,6 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import SetupChecklist from "@/components/dashboard/SetupChecklist";
 import BannerRecoveryBanner from "@/components/dashboard/BannerRecoveryBanner";
 import PushActivationBanner from "@/components/dashboard/PushActivationBanner";
-import CashUpdateBanner from "@/components/dashboard/CashUpdateBanner";
 
 interface Organization {
   id: string;
