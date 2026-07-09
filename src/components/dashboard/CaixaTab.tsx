@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Lock, AlertCircle, Banknote, QrCode, CreditCard, HelpCircle, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Wallet, Lock, AlertCircle, Banknote, QrCode, CreditCard, HelpCircle, ArrowDownCircle, ArrowUpCircle, User, Printer, Download, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,10 +39,17 @@ import {
   useOpenCashSession,
   useCloseCashSession,
   useAddWithdrawal,
+  useOperatorNames,
   type CashSession,
 } from "@/hooks/useCashSession";
 import { useDeliveredOrders } from "@/hooks/useOrders";
-import { CommandHeader, CommandPanel, MetricTile, StatusPill, CommandEmpty } from "@/components/dashboard/command";
+import { CommandHeader, CommandPanel, MetricTile, StatusPill } from "@/components/dashboard/command";
+import { supabase } from "@/integrations/supabase/client";
+import { enqueuePrint } from "@/lib/printQueue";
+import { buildCashReceipt } from "@/lib/cashReceipt";
+
+// Limite acima do qual uma divergência exige justificativa obrigatória
+const DIVERGENCE_THRESHOLD = 5;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
