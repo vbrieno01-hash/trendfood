@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Lock, AlertCircle } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Lock, AlertCircle, Banknote, QrCode, CreditCard, HelpCircle, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +50,38 @@ const fmt = (n: number) =>
 
 const fmtDate = (iso: string) =>
   format(new Date(iso), "dd/MM/yy HH:mm", { locale: ptBR });
+
+type PaymentBucket = "dinheiro" | "pix" | "cartao" | "outros";
+
+// Normaliza qualquer valor de payment_method nos 4 baldes utilizados pelo caixa.
+// Só o balde "dinheiro" impacta o saldo físico projetado.
+function normalizePaymentMethod(raw: string | null | undefined): PaymentBucket {
+  if (!raw) return "outros";
+  const v = raw.toString().trim().toLowerCase();
+  if (v === "dinheiro" || v === "cash" || v === "money") return "dinheiro";
+  if (v === "pix") return "pix";
+  if (
+    v.includes("card") ||
+    v.includes("cartão") ||
+    v.includes("cartao") ||
+    v.includes("maquin") ||
+    v.includes("débito") ||
+    v.includes("debito") ||
+    v.includes("crédito") ||
+    v.includes("credito")
+  ) {
+    return "cartao";
+  }
+  return "outros";
+}
+
+const CATEGORY_OPTIONS = [
+  { value: "troco", label: "Troco" },
+  { value: "fornecedor", label: "Fornecedor" },
+  { value: "retirada", label: "Retirada do sócio" },
+  { value: "despesa", label: "Despesa" },
+  { value: "outro", label: "Outro" },
+];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
