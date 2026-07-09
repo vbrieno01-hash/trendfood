@@ -24,6 +24,22 @@ export function getPublicBaseUrl(): string {
 }
 
 /**
+ * URL de marca — SEMPRE o domínio oficial, independente de onde o app roda.
+ * Use em links compartilhados publicamente (indicação, marketing, redes sociais)
+ * para nunca vazar hosts feios tipo "preview--...lovable.app".
+ */
+const BRAND_URL = "https://trendfood.site";
+
+export function getShareableBaseUrl(): string {
+  return BRAND_URL;
+}
+
+export function shareableUrl(path = "/"): string {
+  if (!path) return BRAND_URL;
+  return `${BRAND_URL}/${path.replace(/^\/+/, "")}`;
+}
+
+/**
  * Concatena um caminho à URL pública base, normalizando barras.
  */
 export function publicUrl(path = "/"): string {
