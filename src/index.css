@@ -774,9 +774,62 @@ a[href*="lovable.dev"][style*="position: fixed"] {
   --landing-accent-hover: 22 92% 48%;/* #ea580c */
   --landing-ink: 20 33% 9%;          /* #1a1410 */
   font-family: "DM Sans", system-ui, sans-serif;
+
+  /* Remap shadcn tokens inside the cream landing so every child component
+     (Badge, Accordion, PlanCard, cards genéricos) herda a paleta automaticamente. */
+  --background: 33 100% 97%;
+  --foreground: 20 33% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 33% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 33% 9%;
+  --primary: 24 95% 53%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 28 100% 94%;
+  --secondary-foreground: 20 33% 9%;
+  --muted: 28 60% 92%;
+  --muted-foreground: 20 15% 38%;
+  --accent: 28 100% 90%;
+  --accent-foreground: 20 33% 9%;
+  --destructive: 0 75% 52%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 28 60% 86%;
+  --input: 28 60% 86%;
+  --ring: 24 95% 53%;
+
+  background-color: hsl(var(--landing-bg));
+  color: hsl(var(--landing-ink));
 }
 .landing-cream .font-display {
   font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+/* ── Cream landing utilities ── */
+.landing-cream .bg-cream         { background-color: hsl(var(--landing-bg)); }
+.landing-cream .bg-cream-surface { background-color: hsl(var(--landing-surface) / 0.45); }
+.landing-cream .bg-accent-solid  { background-color: hsl(var(--landing-accent)); color: #fff; }
+.landing-cream .bg-ink           { background-color: hsl(var(--landing-ink)); color: hsl(var(--landing-bg)); }
+.landing-cream .text-accent      { color: hsl(var(--landing-accent)); }
+.landing-cream .text-ink         { color: hsl(var(--landing-ink)); }
+.landing-cream .text-ink-muted   { color: hsl(var(--landing-ink) / 0.62); }
+.landing-cream .border-cream     { border-color: hsl(var(--landing-surface)); }
+.landing-cream .border-accent    { border-color: hsl(var(--landing-accent)); }
+.landing-cream .paper-card {
+  background: #fff;
+  border: 1px solid hsl(var(--landing-surface));
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px hsl(var(--landing-ink) / 0.04), 0 12px 32px -18px hsl(24 60% 30% / 0.18);
+}
+.landing-cream .hairline-accent {
+  height: 4px; width: 56px; background: hsl(var(--landing-accent)); border-radius: 999px;
+}
+.landing-cream .watermark-text {
+  position: absolute; pointer-events: none; user-select: none;
+  font-family: "Space Grotesk", sans-serif; font-weight: 900;
+  color: hsl(var(--landing-accent) / 0.06);
+  letter-spacing: -0.06em; line-height: 0.82;
+  font-size: clamp(6rem, 18vw, 15rem);
+  white-space: nowrap;
 }
 
 .scrollbar-hide {

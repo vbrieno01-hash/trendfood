@@ -192,7 +192,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="landing-cream min-h-screen bg-cream text-ink">
       <PageSeo
         title="TrendFood — Cardápio Digital e Delivery com Taxa 0%"
         description="TrendFood é o cardápio digital e sistema de delivery com taxa 0% para restaurantes. Receba pedidos no WhatsApp, gerencie cozinha e aumente seu lucro real."
@@ -235,19 +235,22 @@ const Index = () => {
       </Suspense>
 
       {/* Benefit Cards */}
-      <section className="py-12 md:py-20 px-4 bg-background md:border-b md:border-border/60">
+      <section className="py-12 md:py-20 px-4 bg-cream">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-3 gap-4 md:gap-6">
             {benefitsData.map((card: any, idx: number) => (
               <div
                 key={card.title}
-                className="group bg-card rounded-2xl p-6 border border-border shadow-elev-sm hover:shadow-elev-md hover:border-primary/40 hover:-translate-y-0.5 transition-premium text-center"
+                className="group relative paper-card p-7 hover:-translate-y-1 transition-transform overflow-hidden"
               >
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 transition-premium group-hover:bg-primary/15 group-hover:shadow-glow">
+                <span className="absolute top-4 right-5 font-display font-bold text-5xl text-accent/15 tabular-nums leading-none select-none">
+                  {String(idx + 1).padStart(2, "0")}
+                </span>
+                <div className="w-14 h-14 rounded-2xl bg-accent-solid flex items-center justify-center mb-5 shadow-[0_10px_24px_-10px_hsl(24_95%_45%/0.55)]">
                   {benefitIcons[idx] || <Zap className="w-7 h-7" />}
                 </div>
-                <h3 className="font-semibold text-foreground text-lg mb-2 tracking-tight">{card.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{card.description}</p>
+                <h3 className="font-display font-bold text-ink text-xl mb-2 tracking-tight">{card.title}</h3>
+                <p className="text-ink-muted text-sm leading-relaxed">{card.description}</p>
               </div>
             ))}
           </div>
@@ -275,23 +278,27 @@ const Index = () => {
       </Suspense>
 
       {/* Depoimentos de clientes */}
-      <section className="py-12 md:py-20 px-4 bg-secondary/40 border-y border-border/60">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Quem usa recomenda</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">Restaurantes que saíram do iFood e não voltam mais</h2>
-            <p className="text-muted-foreground text-lg">Histórias reais de quem trocou comissão por lucro</p>
+      <section className="relative py-14 md:py-24 px-4 bg-cream-surface overflow-hidden">
+        <span aria-hidden className="watermark-text left-1/2 -translate-x-1/2 top-4">DEPOIMENTOS</span>
+        <div className="relative max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="hairline-accent mx-auto mb-5" />
+            <h2 className="font-display font-bold text-4xl md:text-5xl text-ink mb-3 tracking-tight">
+              Saíram do iFood.<br className="hidden md:block" /> <span className="text-accent">Não voltam mais.</span>
+            </h2>
+            <p className="text-ink-muted text-lg">Histórias reais de quem trocou comissão por lucro</p>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
             {testimonialsData.map((t: any) => (
-              <figure key={t.name} className="bg-card rounded-2xl p-6 border border-border shadow-elev-sm hover:shadow-elev-md transition-premium flex flex-col">
-                <div className="flex gap-0.5 mb-3 text-primary">
+              <figure key={t.name} className="relative paper-card p-7 flex flex-col">
+                <span className="absolute -top-4 left-6 font-display font-bold text-6xl text-accent leading-none select-none">"</span>
+                <div className="flex gap-0.5 mb-4 text-accent mt-2">
                   {[0,1,2,3,4].map((i) => <Star key={i} className="w-4 h-4 fill-current" />)}
                 </div>
-                <blockquote className="text-foreground text-sm leading-relaxed flex-1">"{t.quote}"</blockquote>
-                <figcaption className="mt-4 pt-4 border-t border-border/60">
-                  <div className="font-semibold text-foreground text-sm">{t.name}</div>
-                  <div className="text-muted-foreground text-xs">{t.role}</div>
+                <blockquote className="text-ink text-[15px] leading-relaxed flex-1 font-medium">{t.quote}</blockquote>
+                <figcaption className="mt-5 pt-4 border-t border-cream">
+                  <div className="font-display font-bold text-ink text-sm">{t.name}</div>
+                  <div className="text-ink-muted text-xs mt-0.5">{t.role}</div>
                 </figcaption>
               </figure>
             ))}
@@ -300,12 +307,16 @@ const Index = () => {
       </section>
 
       {/* Features */}
-      <section id="funcionalidades" className="py-12 md:py-20 px-4 bg-background">
-        <div className="max-w-5xl mx-auto">
+      <section id="funcionalidades" className="relative py-14 md:py-24 px-4 bg-cream overflow-hidden">
+        <span aria-hidden className="watermark-text right-[-2rem] top-6">TRENDFOOD</span>
+        <div className="relative max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Tudo em um só lugar</Badge>
-            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Funcionalidades completas do cardápio digital</h2>
-            <p className="text-muted-foreground text-lg">Do cardápio digital ao controle de caixa — sem precisar de vários sistemas</p>
+            <div className="hairline-accent mx-auto mb-5" />
+            <h2 className="font-display font-bold text-4xl md:text-5xl text-ink mb-3 tracking-tight">
+              Tudo o que seu delivery precisa.<br className="hidden md:block" />
+              <span className="text-accent">Num sistema só.</span>
+            </h2>
+            <p className="text-ink-muted text-lg">Do cardápio digital ao controle de caixa — sem juntar 4 apps diferentes</p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 perspective-[1200px]" style={{ perspective: 1200 }}>
             <Suspense fallback={null}>
@@ -324,12 +335,12 @@ const Index = () => {
       </section>
 
       {/* Plans Section */}
-      <section id="planos" className="py-12 md:py-20 px-4 bg-secondary/40 border-y border-border/60">
+      <section id="planos" className="py-14 md:py-24 px-4 bg-cream-surface">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Planos</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Escolha o plano ideal para seu negócio</h2>
-            <p className="text-muted-foreground text-lg">Comece grátis e evolua conforme sua operação cresce</p>
+            <div className="hairline-accent mx-auto mb-5" />
+            <h2 className="font-display font-bold text-4xl md:text-5xl text-ink mb-3 tracking-tight">Escolha o plano ideal</h2>
+            <p className="text-ink-muted text-lg">Comece grátis e evolua conforme sua operação cresce</p>
           </div>
           <div className="flex items-center justify-center gap-1 bg-muted rounded-xl p-1 w-fit mx-auto mb-8">
             {([
@@ -383,116 +394,119 @@ const Index = () => {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="py-12 md:py-20 px-4 bg-background">
+      <section id="faq" className="py-14 md:py-24 px-4 bg-cream">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Perguntas frequentes</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">Tudo o que você precisa saber sobre cardápio digital</h2>
-            <p className="text-muted-foreground">Ainda em dúvida? Fale com a gente no WhatsApp.</p>
+            <div className="hairline-accent mx-auto mb-5" />
+            <h2 className="font-display font-bold text-4xl md:text-5xl text-ink mb-3 tracking-tight">Perguntas frequentes</h2>
+            <p className="text-ink-muted">Ainda em dúvida? Fale com a gente no WhatsApp.</p>
           </div>
           <Accordion type="single" collapsible className="w-full">
             {faqsData.map((f: any, i: number) => (
               <AccordionItem key={i} value={`faq-${i}`}>
-                <AccordionTrigger className="text-left text-base font-semibold">{f.q}</AccordionTrigger>
-                <AccordionContent className="text-muted-foreground leading-relaxed">{f.a}</AccordionContent>
+                <AccordionTrigger className="text-left text-base md:text-lg font-display font-bold text-ink hover:text-accent [&[data-state=open]]:text-accent">{f.q}</AccordionTrigger>
+                <AccordionContent className="text-ink-muted leading-relaxed text-[15px]">{f.a}</AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
-          <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-8 text-center text-sm text-ink-muted">
             Novo por aqui? Veja também{" "}
-            <Link to="/cardapio-digital-whatsapp" className="text-primary hover:underline font-medium">Como fazer cardápio digital para WhatsApp</Link>
+            <Link to="/cardapio-digital-whatsapp" className="text-accent hover:underline font-semibold">Como fazer cardápio digital para WhatsApp</Link>
             {" "}ou{" "}
-            <Link to="/indique" className="text-primary hover:underline font-medium">Indique e ganhe</Link>.
+            <Link to="/indique" className="text-accent hover:underline font-semibold">Indique e ganhe</Link>.
           </p>
         </div>
       </section>
 
       {/* CTA final */}
-      <section className="relative overflow-hidden py-14 md:py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
+      <section className="relative overflow-hidden py-16 md:py-28 px-4 bg-accent-solid">
+        <span aria-hidden className="watermark-text left-1/2 -translate-x-1/2 top-2" style={{ color: "hsl(var(--landing-ink) / 0.08)" }}>
+          COMECE HOJE
+        </span>
         <div className="relative max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
+          <h2 className="font-display font-bold text-4xl md:text-6xl text-ink mb-5 leading-[0.95] tracking-tight">
             {c("cta_title", "Pare de pagar comissão. Comece hoje.")}
           </h2>
-          <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
+          <p className="text-ink/75 text-lg md:text-xl mb-9 max-w-xl mx-auto">
             {c("cta_subtitle", "Mesmo sistema, zero taxa. Configure em minutos e veja a diferença no seu caixa.")}
           </p>
-          <Button size="lg" className="text-base font-bold gap-2 bg-white text-primary hover:bg-white/90 shadow-xl" asChild>
+          <Button size="lg" className="text-base font-bold gap-2 bg-white text-ink hover:bg-white/95 shadow-[0_20px_50px_-15px_hsl(20_33%_9%/0.4)] rounded-full h-14 px-8" asChild>
             <Link to="/auth">
               {c("cta_button_text", "Começar Grátis Agora")}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-white/80 text-sm">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-ink/85 text-sm font-medium">
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Grátis para começar</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Sem cartão de crédito</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Setup em 2 minutos</span>
           </div>
-          <p className="mt-4 text-white/60 text-sm">
-            <Link to="/planos" className="underline underline-offset-4 hover:text-white">Ver todos os planos</Link>
+          <p className="mt-5 text-ink/70 text-sm">
+            <Link to="/planos" className="underline underline-offset-4 hover:text-ink font-medium">Ver todos os planos</Link>
             {" · "}Cancele quando quiser
           </p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/60 bg-muted/50 pt-14 pb-8 px-4">
+      <footer className="border-t border-cream bg-ink pt-14 pb-8 px-4 text-[hsl(var(--landing-bg))]">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
               <img src="/pwa-192.png" alt="TrendFood" className="w-7 h-7 rounded-md object-contain" />
-              <span className="font-bold text-foreground text-lg tracking-tight">TrendFood</span>
+              <span className="font-display font-bold text-white text-lg tracking-tight">TrendFood</span>
             </div>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+            <p className="text-white/60 text-sm leading-relaxed mb-4">
               {c("footer_description", "Sistema completo para seu negócio de alimentação. Zero taxas, zero comissão.")}
             </p>
             <div className="flex items-center gap-3">
-              <a href={c("footer_instagram_url", "https://www.instagram.com/_trend.food")} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href={c("footer_instagram_url", "https://www.instagram.com/_trend.food")} target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-accent transition-colors">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+              <a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-accent transition-colors">
                 <MessageCircle className="w-5 h-5" />
               </a>
             </div>
           </div>
           <div>
-            <h4 className="font-semibold text-foreground text-sm mb-3">Produto</h4>
+            <h4 className="font-display font-bold text-white text-sm mb-3 tracking-wide uppercase">Produto</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#funcionalidades" className="text-muted-foreground hover:text-foreground transition-colors">Funcionalidades</a></li>
-              <li><Link to="/planos" className="text-muted-foreground hover:text-foreground transition-colors">Planos</Link></li>
-              <li><Link to="/cardapio-digital-whatsapp" className="text-muted-foreground hover:text-foreground transition-colors">Cardápio digital WhatsApp</Link></li>
-              <li><Link to="/indique" className="text-muted-foreground hover:text-foreground transition-colors">Indique e ganhe</Link></li>
-              <li><a href="#como-funciona" className="text-muted-foreground hover:text-foreground transition-colors">Como Funciona</a></li>
-              <li><a href="#calculadora" className="text-muted-foreground hover:text-foreground transition-colors">Calculadora de Economia</a></li>
-              <li><a href="#comparativo" className="text-muted-foreground hover:text-foreground transition-colors">Comparativo</a></li>
+              <li><a href="#funcionalidades" className="text-white/60 hover:text-white transition-colors">Funcionalidades</a></li>
+              <li><Link to="/planos" className="text-white/60 hover:text-white transition-colors">Planos</Link></li>
+              <li><Link to="/cardapio-digital-whatsapp" className="text-white/60 hover:text-white transition-colors">Cardápio digital WhatsApp</Link></li>
+              <li><Link to="/indique" className="text-white/60 hover:text-white transition-colors">Indique e ganhe</Link></li>
+              <li><a href="#como-funciona" className="text-white/60 hover:text-white transition-colors">Como Funciona</a></li>
+              <li><a href="#calculadora" className="text-white/60 hover:text-white transition-colors">Calculadora de Economia</a></li>
+              <li><a href="#comparativo" className="text-white/60 hover:text-white transition-colors">Comparativo</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-foreground text-sm mb-3">Suporte</h4>
+            <h4 className="font-display font-bold text-white text-sm mb-3 tracking-wide uppercase">Suporte</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/termos" className="text-muted-foreground hover:text-foreground transition-colors">Termos de Uso</Link></li>
-              <li><Link to="/privacidade" className="text-muted-foreground hover:text-foreground transition-colors">Política de Privacidade</Link></li>
-              <li><a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">WhatsApp</a></li>
-              <li><a href="#problemas" className="text-muted-foreground hover:text-foreground transition-colors">Problemas Comuns</a></li>
+              <li><Link to="/termos" className="text-white/60 hover:text-white transition-colors">Termos de Uso</Link></li>
+              <li><Link to="/privacidade" className="text-white/60 hover:text-white transition-colors">Política de Privacidade</Link></li>
+              <li><a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors">WhatsApp</a></li>
+              <li><a href="#problemas" className="text-white/60 hover:text-white transition-colors">Problemas Comuns</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-foreground text-sm mb-3">Contato</h4>
+            <h4 className="font-display font-bold text-white text-sm mb-3 tracking-wide uppercase">Contato</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href={`mailto:${c("footer_email", "contato@trendfood.com.br")}`} className="text-muted-foreground hover:text-foreground transition-colors">{c("footer_email", "contato@trendfood.com.br")}</a></li>
+              <li><a href={`mailto:${c("footer_email", "contato@trendfood.com.br")}`} className="text-white/60 hover:text-white transition-colors">{c("footer_email", "contato@trendfood.com.br")}</a></li>
               <li>
-                <a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                <a href={c("footer_whatsapp_url", "http://wa.me/message/H632HC5C5XX5C1")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-white/60 hover:text-white transition-colors">
                   <MessageCircle className="w-4 h-4" /> Fale conosco
                 </a>
               </li>
             </ul>
           </div>
         </div>
-        <div className="max-w-5xl mx-auto border-t border-border/60 pt-6 text-center text-muted-foreground text-sm space-y-1">
+        <div className="max-w-5xl mx-auto border-t border-white/10 pt-6 text-center text-white/60 text-sm space-y-1">
           <p>{c("footer_copyright", "TrendFood © 2026 - Todos os direitos reservados")}</p>
           <p className="text-xs">CNPJ 66.067.207/0001-91</p>
           <div className="flex justify-center gap-4 mt-2">
-            <Link to="/termos" className="hover:text-foreground transition-colors">Termos de Uso</Link>
-            <Link to="/privacidade" className="hover:text-foreground transition-colors">Política de Privacidade</Link>
+            <Link to="/termos" className="hover:text-white transition-colors">Termos de Uso</Link>
+            <Link to="/privacidade" className="hover:text-white transition-colors">Política de Privacidade</Link>
           </div>
         </div>
       </footer>

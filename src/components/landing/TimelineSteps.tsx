@@ -59,12 +59,12 @@ export default function TimelineSteps({ steps }: Props) {
   const lineLength = useTransform(scrollYProgress, [0, 1], [0, 1]);
 
   return (
-    <section id="como-funciona" className="bg-secondary/40 border-y border-border/60 py-14 md:py-24 px-4">
+    <section id="como-funciona" className="bg-cream-surface py-16 md:py-28 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-10 md:mb-16">
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Como funciona</Badge>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Quatro passos simples</h2>
-          <p className="text-muted-foreground text-lg">Do cardápio ao fechamento do caixa, tudo integrado</p>
+          <div className="hairline-accent mx-auto mb-5" />
+          <h2 className="font-display font-bold text-4xl md:text-5xl text-ink mb-3 tracking-tight">Quatro passos simples</h2>
+          <p className="text-ink-muted text-lg">Do cardápio ao fechamento do caixa, tudo integrado</p>
         </div>
 
         <div ref={ref} className="relative">

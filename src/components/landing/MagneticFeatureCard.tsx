@@ -44,7 +44,7 @@ export default function MagneticFeatureCard({ title, description, icon, index }:
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.5, delay: index * 0.05 }}
-      className="group relative bg-card rounded-2xl p-6 border border-border hover:border-primary/40 transition-colors overflow-hidden"
+      className="group relative paper-card p-6 hover:-translate-y-0.5 transition-transform overflow-hidden"
     >
       {isDesktop && <div className="landing-conic-border" />}
       {isDesktop && (
@@ -54,11 +54,11 @@ export default function MagneticFeatureCard({ title, description, icon, index }:
         />
       )}
       <div className="relative" style={isDesktop ? { transform: "translateZ(20px)" } : undefined}>
-        <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3 transition-colors bg-accent-solid">
           {icon}
         </div>
-        <h3 className="font-semibold text-foreground mb-1">{title}</h3>
-        <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
+        <h3 className="font-display font-bold text-ink mb-1">{title}</h3>
+        <p className="text-ink-muted text-sm leading-relaxed">{description}</p>
       </div>
     </motion.div>
   );
