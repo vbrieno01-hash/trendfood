@@ -44,6 +44,17 @@ const RULES: Rule[] = [
 
   // ⚪ IGNORÁVEIS — ruído conhecido
   {
+    key: "whatsapp_operational",
+    match: (m) =>
+      /Robô não liberado|Nenhuma instância uazapi|Instância existe mas status=|UazAPI 503.*disconnected|WhatsApp disconnected/i.test(m),
+    severity: "ignorable",
+    title: "Estado operacional do WhatsApp",
+    whatItIs:
+      "Loja sem robô liberado, sem instância configurada, ou WhatsApp desconectado. Não é bug — é estado esperado.",
+    impact: "Nenhum — a UI da aba Robô já orienta o lojista a reconectar/configurar.",
+    suggestedAction: "Ignorar. Ação fica na aba WhatsApp/Bot da própria loja.",
+  },
+  {
     key: "old_chunk",
     match: (m) =>
       /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/i.test(m),
