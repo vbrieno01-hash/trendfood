@@ -65,6 +65,21 @@ const defaultBenefitCards = [
 
 const defaultProofBadges = ["0% comissão", "Motoboys próprios", "Impressão térmica", "PIX integrado", "Sem app para baixar"];
 
+const defaultTestimonials = [
+  { name: "Rafael Almeida", role: "Pizzaria — São Paulo/SP", quote: "Saí do iFood e em 2 semanas já tinha meus clientes pedindo direto pelo WhatsApp. Economizei R$ 3.200 só no primeiro mês em comissão." },
+  { name: "Juliana Souza", role: "Hamburgueria — Belo Horizonte/MG", quote: "O QR Code na mesa foi um divisor de águas. Meus atendentes só entregam — o cliente pede sozinho. Giro dobrou no fim de semana." },
+  { name: "Diego Ribeiro", role: "Açaiteria — Recife/PE", quote: "Impressão térmica automática, PIX no recibo e controle de caixa completo. Substituiu 3 sistemas que eu pagava separado." },
+];
+
+const defaultFaqs = [
+  { q: "Quanto custa um cardápio digital?", a: "No TrendFood você começa 100% grátis, sem cartão de crédito. O plano Free já inclui cardápio digital ilimitado, QR Code, pedidos pelo WhatsApp e recebimento por PIX. Planos pagos a partir de R$ 0/mês desbloqueiam recursos avançados como KDS, motoboys e relatórios." },
+  { q: "Preciso baixar algum app para usar?", a: "Não. O TrendFood é 100% web — funciona no navegador do celular, tablet ou computador. Seus clientes também não precisam baixar nada: escaneiam o QR Code ou abrem o link do cardápio direto no WhatsApp." },
+  { q: "O TrendFood cobra taxa por pedido como o iFood?", a: "Não. Zero comissão, zero taxa por pedido. Você paga apenas a mensalidade do plano escolhido (ou usa o Free) e fica com 100% do valor de cada venda. Enquanto o iFood cobra até 27% por pedido, aqui o lucro é todo seu." },
+  { q: "Funciona para delivery e para atendimento em mesa/balcão?", a: "Sim. O TrendFood é multi-modo: delivery com motoboys próprios, atendimento em mesa via QR Code, pedidos no balcão (PDV), e venda direta pelo WhatsApp. Tudo no mesmo painel, com KDS de cozinha integrado." },
+  { q: "Aceita pagamento por PIX automático?", a: "Sim. O TrendFood tem PIX integrado via Mercado Pago (conta CNPJ). O QR Code do PIX é impresso automaticamente no recibo térmico e o pagamento é confirmado em tempo real, sem maquininha." },
+  { q: "Consigo migrar do iFood sem perder clientes?", a: "Sim. Você exporta seu cardápio, cria o QR Code do TrendFood e distribui via Instagram, WhatsApp e adesivo na embalagem. A maioria dos restaurantes migra em menos de 1 semana e mantém os clientes ativos com o programa de fidelidade nativo do TrendFood." },
+];
+
 const defaultComparisonRows = [
   { label: "Comissão por venda", marketplace: "12% a 27%", trendfood: "0%", badge: "Grátis" },
   { label: "Dados dos clientes", marketplace: "Ficam com a plataforma", trendfood: "São seus" },
