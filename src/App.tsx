@@ -29,6 +29,10 @@ const ReviewPage = lazy(routeLoaders.review);
 const InstallPage = lazy(routeLoaders.install);
 const IndiquePage = lazy(routeLoaders.indique);
 const CardapioWhatsappPage = lazy(routeLoaders.cardapioWhatsapp);
+const CardapioQrPage = lazy(routeLoaders.cardapioQr);
+const AltIfoodPage = lazy(routeLoaders.altIfood);
+const PdvGratisPage = lazy(routeLoaders.pdvGratis);
+const DeliverySemTaxaPage = lazy(routeLoaders.deliverySemTaxa);
 import ScrollToTop from "./components/ScrollToTop";
 import SupportChatWidget from "./components/SupportChatWidget";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
@@ -230,6 +234,10 @@ const AppInner = () => {
               <Route path="/instalar" element={<InstallPage />} />
               <Route path="/indique" element={<IndiquePage />} />
               <Route path="/cardapio-digital-whatsapp" element={<CardapioWhatsappPage />} />
+              <Route path="/cardapio-digital-qr-code" element={<CardapioQrPage />} />
+              <Route path="/alternativa-ao-ifood" element={<AltIfoodPage />} />
+              <Route path="/pdv-restaurante-gratis" element={<PdvGratisPage />} />
+              <Route path="/delivery-sem-taxa" element={<DeliverySemTaxaPage />} />
               <Route path="/_preview/fallback" element={<PreviewFallback />} />
               {/* Short link: /:slug — mantém /unidade/:slug funcional para compat */}
               <Route path="/:slug" element={<UnitPage />} />
