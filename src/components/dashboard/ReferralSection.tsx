@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Gift, Users, CalendarPlus, BadgeDollarSign, Share2, MessageCircle, UserPlus, CreditCard } from "lucide-react";
+import { Copy, Check, Gift, Users, CalendarPlus, BadgeDollarSign, Share2, MessageCircle, UserPlus, CreditCard, ClipboardCopy } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { openWhatsAppWithFallback } from "@/lib/whatsappRedirect";
@@ -26,11 +26,30 @@ interface ReferralSectionProps {
 export default function ReferralSection({ orgId, subscriptionPlan = "free" }: ReferralSectionProps) {
   const [count, setCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedMsg, setCopiedMsg] = useState(false);
+  const [templateKey, setTemplateKey] = useState<"direct" | "friendly" | "pro">("direct");
   const [bonuses, setBonuses] = useState<ReferralBonus[]>([]);
   const [totalDays, setTotalDays] = useState(0);
   const [priceCents, setPriceCents] = useState(0);
 
   const referralLink = `${getShareableBaseUrl()}/cadastro?ref=${orgId}`;
+
+  const messageTemplates: Record<"direct" | "friendly" | "pro", { label: string; text: string }> = {
+    direct: {
+      label: "Direta",
+      text: `🔥 Descobri um sistema de cardápio digital pra restaurante SEM TAXA — 0% mesmo, sem pegadinha.\n\nTô usando aqui, tá dando muito certo. Se você se cadastrar pelo meu link, a gente ganha vantagens no plano:\n\n👉 ${referralLink}\n\n(Cardápio, delivery, PDV, cozinha — tudo em um só sistema.)`,
+    },
+    friendly: {
+      label: "Amigável",
+      text: `Oi! Lembrei de você 👋\n\nComecei a usar um sistema chamado TrendFood pro meu delivery/cardápio digital. É zero de taxa por pedido (diferente do iFood que come 27%). Tô economizando bastante.\n\nSe topar testar, usa meu link que a gente ganha bônus:\n${referralLink}`,
+    },
+    pro: {
+      label: "Profissional",
+      text: `Recomendação: TrendFood — plataforma de cardápio digital, delivery e PDV com taxa 0% por pedido.\n\nDiferenciais:\n• Sem comissão sobre vendas\n• Pedidos direto no WhatsApp\n• PDV, cozinha (KDS) e mesas incluídos\n• Fechamento de caixa profissional\n\nCadastro pelo meu link (bônus pra ambos):\n${referralLink}`,
+    },
+  };
+
+  const currentMessage = messageTemplates[templateKey].text;
 
   useEffect(() => {
     (supabase
@@ -79,8 +98,18 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
   };
 
   const handleShareWhatsApp = () => {
-    const msg = `🔥 Conheça o TrendFood! O melhor sistema de cardápio digital para lanchonetes.\n\nCadastre-se pelo meu link e ganhe vantagens:\n${referralLink}`;
-    openWhatsAppWithFallback(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+    openWhatsAppWithFallback(`https://wa.me/?text=${encodeURIComponent(currentMessage)}`);
+  };
+
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(currentMessage);
+      setCopiedMsg(true);
+      toast.success("Mensagem copiada! Cole onde quiser 📋");
+      setTimeout(() => setCopiedMsg(false), 2000);
+    } catch {
+      toast.error("Não foi possível copiar. Copie manualmente.");
+    }
   };
 
   const motivationalMessage = (() => {
@@ -180,13 +209,48 @@ export default function ReferralSection({ orgId, subscriptionPlan = "free" }: Re
             {copied ? "Copiado" : "Copiar"}
           </Button>
         </div>
-        <Button
-          onClick={handleShareWhatsApp}
-          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-        >
-          <MessageCircle className="w-5 h-5" />
-          Enviar no WhatsApp
-        </Button>
+
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-foreground">Mensagem pronta</p>
+            <div className="inline-flex rounded-lg bg-muted/50 p-1 gap-1">
+              {(Object.keys(messageTemplates) as Array<keyof typeof messageTemplates>).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setTemplateKey(k)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    templateKey === k
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {messageTemplates[k].label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="bg-muted/40 border border-border rounded-lg p-3 text-sm text-foreground whitespace-pre-line max-h-40 overflow-y-auto">
+            {currentMessage}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Button
+              onClick={handleShareWhatsApp}
+              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <MessageCircle className="w-5 h-5" />
+              Enviar no WhatsApp
+            </Button>
+            <Button
+              onClick={handleCopyMessage}
+              variant="outline"
+              className="w-full gap-2"
+            >
+              {copiedMsg ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
+              {copiedMsg ? "Mensagem copiada" : "Copiar mensagem"}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Stats */}
