@@ -24,6 +24,9 @@ export const routeLoaders = {
   altIfood: () => import("@/pages/AlternativaAoIfood"),
   pdvGratis: () => import("@/pages/PdvRestauranteGratis"),
   deliverySemTaxa: () => import("@/pages/DeliverySemTaxa"),
+  sistemaLanchonete: () => import("@/pages/SistemaParaLanchonete"),
+  sistemaPizzaria: () => import("@/pages/SistemaParaPizzaria"),
+  cardapioRestaurante: () => import("@/pages/CardapioDigitalParaRestaurante"),
 } as const;
 
 export type RouteKey = keyof typeof routeLoaders;
