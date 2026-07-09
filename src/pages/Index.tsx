@@ -16,11 +16,13 @@ const MagneticFeatureCard = lazy(() => import("@/components/landing/MagneticFeat
 import PlanCard from "@/components/pricing/PlanCard";
 import { supabase } from "@/integrations/supabase/client";
 import PageSeo from "@/components/seo/PageSeo";
+import { Helmet } from "react-helmet-async";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import {
   BarChart3, Zap, ArrowRight, QrCode, UtensilsCrossed, TrendingUp,
   Flame, BellRing, Wallet, Tag, Printer, BarChart2,
-  Bike, MessageCircle, Instagram, Smartphone, Package, CreditCard, Loader2,
+  Bike, MessageCircle, Instagram, Smartphone, Package, CreditCard, Loader2, Star, CheckCircle2,
 } from "lucide-react";
 
 /* ── Default data (fallbacks when CMS is empty) ── */
