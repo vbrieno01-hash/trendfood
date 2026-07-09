@@ -169,6 +169,7 @@ export default function DocsTerminalPage() {
         title="Documentação de Impressora Térmica — TrendFood"
         description="Guia completo para configurar impressoras térmicas Bluetooth e USB no TrendFood. Passo a passo de pareamento, testes e solução de problemas."
         path="/docs/impressora-termica"
+        noindex
       />
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-10">
