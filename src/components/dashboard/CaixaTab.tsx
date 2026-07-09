@@ -148,7 +148,7 @@ function CaixaFechado({
           .order("created_at"),
         supabase
           .from("orders")
-          .select("id, created_at, payment_method, total, table_number, paid")
+          .select("id, created_at, payment_method, table_number, paid, order_items(price, quantity)")
           .eq("organization_id", orgId)
           .eq("paid", true)
           .gte("created_at", s.opened_at)
@@ -181,12 +181,13 @@ function CaixaFechado({
       rows.push([]);
       rows.push(["=== PEDIDOS PAGOS ==="]);
       rows.push(["Horário", "Mesa/Pedido", "Forma pagamento", "Total"]);
-      for (const o of (ordersData ?? []) as Array<{ created_at: string; payment_method: string | null; total: number | null; table_number: number | null }>) {
+      for (const o of (ordersData ?? []) as Array<{ created_at: string; payment_method: string | null; table_number: number | null; order_items: Array<{ price: number; quantity: number }> | null }>) {
+        const total = (o.order_items ?? []).reduce((s2, i) => s2 + (i.price || 0) * (i.quantity || 0), 0);
         rows.push([
           fmtDate(o.created_at),
           o.table_number != null ? `Mesa ${o.table_number}` : "Delivery",
           o.payment_method || "—",
-          (o.total ?? 0).toString().replace(".", ","),
+          total.toFixed(2).replace(".", ","),
         ]);
       }
 
