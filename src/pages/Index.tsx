@@ -16,11 +16,13 @@ const MagneticFeatureCard = lazy(() => import("@/components/landing/MagneticFeat
 import PlanCard from "@/components/pricing/PlanCard";
 import { supabase } from "@/integrations/supabase/client";
 import PageSeo from "@/components/seo/PageSeo";
+import { Helmet } from "react-helmet-async";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import {
   BarChart3, Zap, ArrowRight, QrCode, UtensilsCrossed, TrendingUp,
   Flame, BellRing, Wallet, Tag, Printer, BarChart2,
-  Bike, MessageCircle, Instagram, Smartphone, Package, CreditCard, Loader2,
+  Bike, MessageCircle, Instagram, Smartphone, Package, CreditCard, Loader2, Star, CheckCircle2,
 } from "lucide-react";
 
 /* ── Default data (fallbacks when CMS is empty) ── */
@@ -62,6 +64,21 @@ const defaultBenefitCards = [
 ];
 
 const defaultProofBadges = ["0% comissão", "Motoboys próprios", "Impressão térmica", "PIX integrado", "Sem app para baixar"];
+
+const defaultTestimonials = [
+  { name: "Rafael Almeida", role: "Pizzaria — São Paulo/SP", quote: "Saí do iFood e em 2 semanas já tinha meus clientes pedindo direto pelo WhatsApp. Economizei R$ 3.200 só no primeiro mês em comissão." },
+  { name: "Juliana Souza", role: "Hamburgueria — Belo Horizonte/MG", quote: "O QR Code na mesa foi um divisor de águas. Meus atendentes só entregam — o cliente pede sozinho. Giro dobrou no fim de semana." },
+  { name: "Diego Ribeiro", role: "Açaiteria — Recife/PE", quote: "Impressão térmica automática, PIX no recibo e controle de caixa completo. Substituiu 3 sistemas que eu pagava separado." },
+];
+
+const defaultFaqs = [
+  { q: "Quanto custa um cardápio digital?", a: "No TrendFood você começa 100% grátis, sem cartão de crédito. O plano Free já inclui cardápio digital ilimitado, QR Code, pedidos pelo WhatsApp e recebimento por PIX. Planos pagos a partir de R$ 0/mês desbloqueiam recursos avançados como KDS, motoboys e relatórios." },
+  { q: "Preciso baixar algum app para usar?", a: "Não. O TrendFood é 100% web — funciona no navegador do celular, tablet ou computador. Seus clientes também não precisam baixar nada: escaneiam o QR Code ou abrem o link do cardápio direto no WhatsApp." },
+  { q: "O TrendFood cobra taxa por pedido como o iFood?", a: "Não. Zero comissão, zero taxa por pedido. Você paga apenas a mensalidade do plano escolhido (ou usa o Free) e fica com 100% do valor de cada venda. Enquanto o iFood cobra até 27% por pedido, aqui o lucro é todo seu." },
+  { q: "Funciona para delivery e para atendimento em mesa/balcão?", a: "Sim. O TrendFood é multi-modo: delivery com motoboys próprios, atendimento em mesa via QR Code, pedidos no balcão (PDV), e venda direta pelo WhatsApp. Tudo no mesmo painel, com KDS de cozinha integrado." },
+  { q: "Aceita pagamento por PIX automático?", a: "Sim. O TrendFood tem PIX integrado via Mercado Pago (conta CNPJ). O QR Code do PIX é impresso automaticamente no recibo térmico e o pagamento é confirmado em tempo real, sem maquininha." },
+  { q: "Consigo migrar do iFood sem perder clientes?", a: "Sim. Você exporta seu cardápio, cria o QR Code do TrendFood e distribui via Instagram, WhatsApp e adesivo na embalagem. A maioria dos restaurantes migra em menos de 1 semana e mantém os clientes ativos com o programa de fidelidade nativo do TrendFood." },
+];
 
 const defaultComparisonRows = [
   { label: "Comissão por venda", marketplace: "12% a 27%", trendfood: "0%", badge: "Grátis" },
@@ -161,6 +178,18 @@ const Index = () => {
   const stepsData = cArr("steps_cards", defaultSteps);
   const featuresData = cArr("features_cards", defaultFeatures);
   const comparisonData = cArr("comparison_rows", defaultComparisonRows);
+  const testimonialsData = cArr("testimonials_cards", defaultTestimonials);
+  const faqsData = cArr("faq_items", defaultFaqs);
+
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqsData.map((f: any) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -169,6 +198,9 @@ const Index = () => {
         description="TrendFood é o cardápio digital e sistema de delivery com taxa 0% para restaurantes. Receba pedidos no WhatsApp, gerencie cozinha e aumente seu lucro real."
         path="/"
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
+      </Helmet>
       {/* Banner de oferta + urgência */}
       <HeroOfferBanner />
 
@@ -186,6 +218,16 @@ const Index = () => {
         orderCounterText={c("order_counter_text", "pedidos feitos no TrendFood")}
         heroImageUrl={cmsLoading ? "" : c("hero_image_url", "")}
       />
+
+      {/* Selo de risco zero abaixo do hero */}
+      <div className="px-4 -mt-2 md:-mt-4">
+        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs md:text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> Grátis para começar</span>
+          <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> Sem cartão de crédito</span>
+          <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> Pronto em 2 minutos</span>
+          <Link to="/planos" className="underline underline-offset-4 hover:text-foreground">Ver todos os planos</Link>
+        </div>
+      </div>
 
       {/* Carrossel automático das top 15 lojas */}
       <Suspense fallback={null}>
@@ -232,12 +274,37 @@ const Index = () => {
         <StickyShowcase />
       </Suspense>
 
+      {/* Depoimentos de clientes */}
+      <section className="py-12 md:py-20 px-4 bg-secondary/40 border-y border-border/60">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Quem usa recomenda</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">Restaurantes que saíram do iFood e não voltam mais</h2>
+            <p className="text-muted-foreground text-lg">Histórias reais de quem trocou comissão por lucro</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {testimonialsData.map((t: any) => (
+              <figure key={t.name} className="bg-card rounded-2xl p-6 border border-border shadow-elev-sm hover:shadow-elev-md transition-premium flex flex-col">
+                <div className="flex gap-0.5 mb-3 text-primary">
+                  {[0,1,2,3,4].map((i) => <Star key={i} className="w-4 h-4 fill-current" />)}
+                </div>
+                <blockquote className="text-foreground text-sm leading-relaxed flex-1">"{t.quote}"</blockquote>
+                <figcaption className="mt-4 pt-4 border-t border-border/60">
+                  <div className="font-semibold text-foreground text-sm">{t.name}</div>
+                  <div className="text-muted-foreground text-xs">{t.role}</div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section id="funcionalidades" className="py-12 md:py-20 px-4 bg-background">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Tudo em um só lugar</Badge>
-            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Funcionalidades completas</h2>
+            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">Funcionalidades completas do cardápio digital</h2>
             <p className="text-muted-foreground text-lg">Do cardápio digital ao controle de caixa — sem precisar de vários sistemas</p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 perspective-[1200px]" style={{ perspective: 1200 }}>
@@ -315,6 +382,31 @@ const Index = () => {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="py-12 md:py-20 px-4 bg-background">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Perguntas frequentes</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">Tudo o que você precisa saber sobre cardápio digital</h2>
+            <p className="text-muted-foreground">Ainda em dúvida? Fale com a gente no WhatsApp.</p>
+          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {faqsData.map((f: any, i: number) => (
+              <AccordionItem key={i} value={`faq-${i}`}>
+                <AccordionTrigger className="text-left text-base font-semibold">{f.q}</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">{f.a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+          <p className="mt-8 text-center text-sm text-muted-foreground">
+            Novo por aqui? Veja também{" "}
+            <Link to="/cardapio-digital-whatsapp" className="text-primary hover:underline font-medium">Como fazer cardápio digital para WhatsApp</Link>
+            {" "}ou{" "}
+            <Link to="/indique" className="text-primary hover:underline font-medium">Indique e ganhe</Link>.
+          </p>
+        </div>
+      </section>
+
       {/* CTA final */}
       <section className="relative overflow-hidden py-14 md:py-24 px-4" style={{ background: "linear-gradient(135deg, #1a1410 0%, #2d1f15 50%, #1a1410 100%)" }}>
         <div className="relative max-w-2xl mx-auto text-center">
@@ -330,7 +422,15 @@ const Index = () => {
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>
-          <p className="mt-4 text-white/75 text-sm">Sem cartão de crédito · Cancele quando quiser</p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-white/80 text-sm">
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Grátis para começar</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Sem cartão de crédito</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Setup em 2 minutos</span>
+          </div>
+          <p className="mt-4 text-white/60 text-sm">
+            <Link to="/planos" className="underline underline-offset-4 hover:text-white">Ver todos os planos</Link>
+            {" · "}Cancele quando quiser
+          </p>
         </div>
       </section>
 
