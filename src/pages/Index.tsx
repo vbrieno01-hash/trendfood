@@ -219,6 +219,16 @@ const Index = () => {
         heroImageUrl={cmsLoading ? "" : c("hero_image_url", "")}
       />
 
+      {/* Selo de risco zero abaixo do hero */}
+      <div className="px-4 -mt-2 md:-mt-4">
+        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs md:text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> Grátis para começar</span>
+          <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> Sem cartão de crédito</span>
+          <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> Pronto em 2 minutos</span>
+          <Link to="/planos" className="underline underline-offset-4 hover:text-foreground">Ver todos os planos</Link>
+        </div>
+      </div>
+
       {/* Carrossel automático das top 15 lojas */}
       <Suspense fallback={null}>
         <TopStoresMarquee />
