@@ -41,18 +41,19 @@ export default function StackedProblemCards({ title, subtitle, problems }: Props
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start end", "end start"] });
 
   return (
-    <section id="problemas" ref={sectionRef} className="py-24 px-4 bg-background">
-      <div className="max-w-6xl mx-auto">
+    <section id="problemas" ref={sectionRef} className="relative py-20 md:py-28 px-4 bg-cream-surface overflow-hidden">
+      <span aria-hidden className="watermark-text left-1/2 -translate-x-1/2 top-8">PROBLEMAS</span>
+      <div className="relative max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-14"
+          className="text-center mb-14 relative"
         >
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">O problema real</Badge>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-3 tracking-tight">{title}</h2>
-          <p className="text-muted-foreground text-lg">{subtitle}</p>
+          <div className="hairline-accent mx-auto mb-5" />
+          <h2 className="font-display font-bold text-4xl md:text-5xl text-ink mb-3 tracking-tight">{title}</h2>
+          <p className="text-ink-muted text-lg">{subtitle}</p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-6 perspective-[1200px]" style={{ perspective: 1200 }}>
@@ -70,9 +71,9 @@ export default function StackedProblemCards({ title, subtitle, problems }: Props
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="text-center mt-12 text-lg font-semibold text-foreground"
+          className="text-center mt-14 text-lg md:text-xl font-display font-bold text-ink"
         >
-          A TrendFood resolve tudo isso. <span className="text-primary">Veja como 👇</span>
+          A TrendFood resolve tudo isso. <span className="text-accent">Veja como ↓</span>
         </motion.p>
       </div>
     </section>
