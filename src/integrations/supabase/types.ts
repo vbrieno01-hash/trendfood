@@ -3040,6 +3040,27 @@ export type Database = {
           },
         ]
       }
+      reclame_aqui_ratelimit: {
+        Row: {
+          created_at: string
+          id: string
+          ip_hash: string
+          org_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_hash: string
+          org_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_hash?: string
+          org_id?: string | null
+        }
+        Relationships: []
+      }
       referral_block_logs: {
         Row: {
           created_at: string
