@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import PageSeo from "@/components/seo/PageSeo";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,6 +79,23 @@ const generateSlug = (name: string) =>
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-");
+
+// Normaliza e-mail para evitar duplicatas (Fulano@X.com vs fulano@x.com)
+const normalizeEmail = (raw: string) => raw.trim().toLowerCase();
+
+// Valida força mínima de senha no client (defesa em profundidade; Cloud também valida).
+// Aplicado apenas em signup / troca de senha. Login aceita qualquer senha antiga.
+const validatePassword = (pw: string): string | null => {
+  if (!pw || pw.length < 8) return "Senha muito curta. Use pelo menos 8 caracteres.";
+  if (!/[a-z]/.test(pw)) return "A senha precisa ter ao menos 1 letra minúscula.";
+  if (!/[A-Z]/.test(pw)) return "A senha precisa ter ao menos 1 letra maiúscula.";
+  if (!/\d/.test(pw)) return "A senha precisa ter ao menos 1 número.";
+  return null;
+};
+
+// Rate limit client-side por e-mail (UX + defesa em profundidade).
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCK_MS = 30_000;
 
 const AuthPage = () => {
   const navigate = useNavigate();
@@ -225,6 +242,25 @@ const AuthPage = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
 
+  // Rate limit de login (por e-mail digitado)
+  const loginAttemptsRef = useRef<Map<string, { count: number; lockedUntil: number }>>(new Map());
+  const [lockRemaining, setLockRemaining] = useState(0);
+
+  useEffect(() => {
+    const email = normalizeEmail(loginData.email);
+    const entry = loginAttemptsRef.current.get(email);
+    const until = entry?.lockedUntil ?? 0;
+    const tick = () => {
+      const rem = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+      setLockRemaining(rem);
+    };
+    tick();
+    if (until > Date.now()) {
+      const iv = setInterval(tick, 500);
+      return () => clearInterval(iv);
+    }
+  }, [loginData.email, loginLoading]);
+
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail.trim()) {
@@ -233,7 +269,7 @@ const AuthPage = () => {
     }
     setForgotLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(forgotEmail), {
         redirectTo: `${getPublicBaseUrl()}/redefinir-senha`,
       });
       if (error) throw error;
@@ -313,6 +349,11 @@ const AuthPage = () => {
       toast.error("As senhas não coincidem.");
       return;
     }
+    const pwError = validatePassword(signupData.password);
+    if (pwError) {
+      toast.error(pwError, { duration: 6000 });
+      return;
+    }
     if (!signupData.slug.trim()) {
       toast.error("Informe o slug da sua lanchonete.");
       return;
@@ -328,7 +369,7 @@ const AuthPage = () => {
       }
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: signupData.email,
+        email: normalizeEmail(signupData.email),
         password: signupData.password,
       });
 
@@ -406,13 +447,22 @@ const AuthPage = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const emailKey = normalizeEmail(loginData.email);
+    const entry = loginAttemptsRef.current.get(emailKey);
+    if (entry && entry.lockedUntil > Date.now()) {
+      const rem = Math.ceil((entry.lockedUntil - Date.now()) / 1000);
+      toast.error(`Muitas tentativas. Aguarde ${rem}s e tente novamente.`);
+      return;
+    }
     setLoginLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
+        email: emailKey,
         password: loginData.password,
       });
       if (error) throw error;
+      // Sucesso: limpa contador desse e-mail
+      loginAttemptsRef.current.delete(emailKey);
       toast.success("Login realizado com sucesso!");
 
       // Redirecionar admin para /admin, demais usuários para /dashboard
@@ -433,6 +483,11 @@ const AuthPage = () => {
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
+      // Registra falha e aplica lock após N tentativas
+      const cur = loginAttemptsRef.current.get(emailKey) ?? { count: 0, lockedUntil: 0 };
+      const nextCount = cur.count + 1;
+      const nextLock = nextCount >= LOGIN_MAX_ATTEMPTS ? Date.now() + LOGIN_LOCK_MS : 0;
+      loginAttemptsRef.current.set(emailKey, { count: nextCount, lockedUntil: nextLock });
       toast.error(translateAuthError(error.message), { duration: 7000 });
     } finally {
       setLoginLoading(false);
