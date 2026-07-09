@@ -47,6 +47,7 @@ import { CommandHeader, CommandPanel, MetricTile, StatusPill } from "@/component
 import { supabase } from "@/integrations/supabase/client";
 import { enqueuePrint } from "@/lib/printQueue";
 import { buildCashReceipt } from "@/lib/cashReceipt";
+import { CashAnalytics } from "@/components/dashboard/caixa/CashAnalytics";
 
 // Limite acima do qual uma divergência exige justificativa obrigatória
 const DIVERGENCE_THRESHOLD = 5;
@@ -831,7 +832,10 @@ export default function CaixaTab({ orgId }: { orgId: string }) {
       {session ? (
         <CaixaAberto session={session} orgId={orgId} />
       ) : (
-        <CaixaFechado orgId={orgId} history={history} historyLoading={historyLoading} />
+        <>
+          <CaixaFechado orgId={orgId} history={history} historyLoading={historyLoading} />
+          <CashAnalytics orgId={orgId} />
+        </>
       )}
     </div>
   );
