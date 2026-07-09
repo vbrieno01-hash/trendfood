@@ -63,6 +63,7 @@ const EVENT_LABELS: { key: string; label: string; description: string }[] = [
   { key: "trial_expiring", label: "⏰ Trial acabando (D-3 / D-1 / hoje)", description: "Aviso pra você ligar e converter antes do trial expirar" },
   { key: "hot_lead", label: "🔥 Lead quente (loja Free movimentada)", description: "Loja Free com 30+ pedidos no dia — pronta pra upgrade" },
   { key: "cold_store", label: "😴 Loja fria (risco de churn)", description: "Loja Pro/Enterprise sem pedidos há 7+ dias" },
+  { key: "reclame_aqui", label: "📣 Reclame Aqui (feedback dos usuários)", description: "Bugs, sugestões e reclamações enviados pelo widget flutuante do app" },
 ];
 
 export default function AdminTelegramTab() {

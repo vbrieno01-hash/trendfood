@@ -394,6 +394,26 @@ function buildMessage(eventType: string, payload: any): string | null {
       return lines.join("\n");
     }
 
+    case "reclame_aqui": {
+      const lines = [
+        `📣 <b>RECLAME AQUI — ${escapeHtml(payload.category_label || payload.category || "")}</b>`,
+        `🕒 ${escapeHtml(payload.sent_at || "")}`,
+        "",
+        `👤 <b>${escapeHtml(payload.name || "Anônimo")}</b>`,
+      ];
+      if (payload.contact) lines.push(`📱 ${escapeHtml(payload.contact)}`);
+      if (payload.org_name || payload.org_slug) {
+        lines.push(`🏪 ${escapeHtml(payload.org_name || payload.org_slug)}${payload.org_slug ? ` (/${escapeHtml(payload.org_slug)})` : ""}`);
+      }
+      if (payload.page_url) lines.push(`🌐 ${escapeHtml(payload.page_url)}`);
+      if (payload.user_agent) lines.push(`💻 ${escapeHtml(String(payload.user_agent).slice(0, 120))}`);
+      lines.push("", "━━━━━━━━━━━━━━━━━━━━",
+        escapeHtml(String(payload.message || "").slice(0, 1500)),
+        "━━━━━━━━━━━━━━━━━━━━");
+      if (payload.app_version) lines.push("", `🔖 v${escapeHtml(payload.app_version)}`);
+      return lines.join("\n");
+    }
+
     default:
       return null;
   }
@@ -412,6 +432,7 @@ const VALID_EVENT_TYPES = new Set([
   "payment_confirmed", "payment_failed", "trial_expiring", "subscription_expiring",
   "hot_lead", "cold_store", "critical_error", "phantom_orders",
   "referral_flagged", "referral_blocked", "cron_lagging",
+  "reclame_aqui",
 ]);
 
 // Limite defensivo do tamanho total do payload — evita DoS por payload gigante
