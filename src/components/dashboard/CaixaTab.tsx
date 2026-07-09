@@ -591,6 +591,55 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
                 onChange={(e) => setClosingBal(e.target.value)}
               />
             </div>
+
+            {/* Alerta de divergência */}
+            {closingBal !== "" && (
+              <div
+                className={`rounded-xl p-3 border text-sm flex items-start gap-2 ${
+                  divergenceCritical
+                    ? "bg-destructive/10 border-destructive/40 text-destructive"
+                    : divergenceAbs > 0
+                    ? "bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-400"
+                    : "bg-green-500/10 border-green-500/40 text-green-600 dark:text-green-400"
+                }`}
+              >
+                {divergenceCritical ? (
+                  <AlertTriangle className="w-5 h-5 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                )}
+                <div className="flex-1">
+                  <div className="font-semibold">
+                    {divergence === 0
+                      ? "Caixa bateu certinho! 🎉"
+                      : divergence > 0
+                      ? `Sobra de ${fmt(divergenceAbs)}`
+                      : `Falta de ${fmt(divergenceAbs)}`}
+                  </div>
+                  {divergenceCritical && (
+                    <div className="text-xs mt-0.5 opacity-90">
+                      Divergência acima de {fmt(DIVERGENCE_THRESHOLD)}. Justificativa obrigatória.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {divergenceCritical && (
+              <div className="space-y-1.5">
+                <Label className="text-destructive">
+                  Justificativa da divergência <span className="text-xs">(obrigatória)</span>
+                </Label>
+                <Textarea
+                  placeholder="Ex: Cliente pagou a mais e deixou de troco / Erro ao dar troco / Perdeu dinheiro..."
+                  value={divReason}
+                  onChange={(e) => setDivReason(e.target.value)}
+                  rows={2}
+                  className="border-destructive/50 focus-visible:ring-destructive"
+                />
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>Observações (opcional)</Label>
               <Textarea
@@ -606,9 +655,33 @@ function CaixaAberto({ session, orgId }: { session: CashSession; orgId: string }
             <Button
               variant="destructive"
               onClick={handleClose}
-              disabled={closeSession.isPending || closingBal === ""}
+              disabled={!canConfirmClose}
             >
               {closeSession.isPending ? "Fechando..." : "Confirmar Fechamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal do Cupom Z (após fechamento) */}
+      <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="w-5 h-5 text-primary" />
+              Cupom Z — Fechamento de Caixa
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto rounded-lg bg-muted/50 border border-border p-4">
+            <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed">
+              {receiptText || ""}
+            </pre>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiptOpen(false)}>Fechar</Button>
+            <Button onClick={handleReprint}>
+              <Printer className="w-4 h-4 mr-1" />
+              Reimprimir
             </Button>
           </DialogFooter>
         </DialogContent>
