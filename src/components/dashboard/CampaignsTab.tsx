@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Megaphone, Plus, Loader2, Bot, Zap, Check, Clock, Send } from "lucide-react";
+import { Megaphone, Plus, Loader2, Bot, Zap, Check, Clock, Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCampaignCredits, useCampaigns, useDailySendStats, type Campaign } from "@/hooks/useCampaignCredits";
 import { useWhatsappConnected } from "@/hooks/useWhatsappConnected";
 import CampaignUpgradeCard from "./campaigns/CampaignUpgradeCard";
 import CampaignWizard from "./campaigns/CampaignWizard";
 import CampaignTestDialog from "./campaigns/CampaignTestDialog";
+import CampaignRealTestDialog from "./campaigns/CampaignRealTestDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { ShieldCheck } from "lucide-react";
 
@@ -20,6 +21,7 @@ export default function CampaignsTab({ orgId }: Props) {
   const { data: dailyStats } = useDailySendStats(orgId);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [testOpen, setTestOpen] = useState(false);
+  const [realTestOpen, setRealTestOpen] = useState(false);
   const [org, setOrg] = useState<{ name: string; whatsapp: string | null } | null>(null);
 
   useEffect(() => {
@@ -108,6 +110,14 @@ export default function CampaignsTab({ orgId }: Props) {
               <Send className="w-4 h-4 mr-1" />
               Enviar teste
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setRealTestOpen(true)}
+              disabled={available <= 0}
+            >
+              <Users className="w-4 h-4 mr-1" />
+              Campanha real (teste)
+            </Button>
             <Button onClick={() => setWizardOpen(true)} disabled={available <= 0}>
               <Plus className="w-4 h-4 mr-1" />
               Nova campanha
@@ -183,6 +193,16 @@ export default function CampaignsTab({ orgId }: Props) {
           creditsAvailable={available}
           open={testOpen}
           onOpenChange={setTestOpen}
+        />
+      )}
+
+      {realTestOpen && (
+        <CampaignRealTestDialog
+          orgId={orgId}
+          orgName={org?.name ?? "sua loja"}
+          creditsAvailable={available}
+          open={realTestOpen}
+          onOpenChange={setRealTestOpen}
         />
       )}
     </div>
