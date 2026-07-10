@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Megaphone, Sparkles, Users, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import CampaignPixDialog from "./CampaignPixDialog";
 
 /**
  * Card de ativação da assinatura Campanhas WhatsApp.
  * Onda 2 vai plugar o Mercado Pago aqui. Por enquanto avisa o usuário.
  */
 export default function CampaignUpgradeCard({ orgId }: { orgId: string }) {
+  const [open, setOpen] = useState(false);
   return (
+    <>
     <div className="dashboard-glass rounded-2xl p-6 border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
       <div className="flex items-start gap-4">
         <div className="p-3 rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shrink-0">
@@ -25,46 +28,34 @@ export default function CampaignUpgradeCard({ orgId }: { orgId: string }) {
           </p>
 
           <div className="grid sm:grid-cols-3 gap-3 mt-4">
-            <Feat icon={<Users className="w-4 h-4" />} label="250 mensagens/mês" />
+            <Feat icon={<Users className="w-4 h-4" />} label="250 mensagens" />
             <Feat icon={<Sparkles className="w-4 h-4" />} label="Envio automático" />
-            <Feat icon={<CheckCircle2 className="w-4 h-4" />} label="Cancele quando quiser" />
+            <Feat icon={<CheckCircle2 className="w-4 h-4" />} label="Válido por 30 dias" />
           </div>
 
           <div className="mt-5 flex items-center gap-3 flex-wrap">
             <div>
               <div className="text-3xl font-bold text-foreground">
                 R$ 19<span className="text-lg">,90</span>
-                <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                <span className="text-sm font-normal text-muted-foreground"> · pagamento único</span>
               </div>
-              <div className="text-xs text-muted-foreground">Requer Robô WhatsApp ativo</div>
+              <div className="text-xs text-muted-foreground">
+                Requer Robô WhatsApp ativo · Sem renovação automática
+              </div>
             </div>
             <Button
               size="lg"
-              onClick={() => {
-                toast.info("Cobrança automática chega em breve.", {
-                  description:
-                    "Enquanto isso, chame o suporte no WhatsApp pra liberar de graça pro teu teste.",
-                  action: {
-                    label: "Falar com suporte",
-                    onClick: () =>
-                      window.open(
-                        "https://wa.me/5516988083263?text=" +
-                          encodeURIComponent(
-                            "Oi! Quero ativar o add-on Campanhas WhatsApp na minha loja."
-                          ),
-                        "_blank"
-                      ),
-                  },
-                });
-              }}
+              onClick={() => setOpen(true)}
               className="ml-auto"
             >
-              Ativar por R$ 19,90/mês
+              Comprar por R$ 19,90
             </Button>
           </div>
         </div>
       </div>
     </div>
+    <CampaignPixDialog open={open} onOpenChange={setOpen} orgId={orgId} />
+    </>
   );
 }
 
