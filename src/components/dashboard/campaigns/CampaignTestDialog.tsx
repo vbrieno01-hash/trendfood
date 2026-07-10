@@ -16,8 +16,8 @@ interface Props {
   onOpenChange: (v: boolean) => void;
 }
 
-const DEFAULT_TEMPLATE =
-  "Oi! Sentimos sua falta na {loja} 🍔\nPassa aqui hoje: pedido acima de R$40 ganha 10% off. Cupom: VOLTA10\n\n_Para não receber mais, responda SAIR._";
+const buildDefaultTemplate = (loja: string) =>
+  `Oi! Sentimos sua falta na ${loja} 🍔\nPassa aqui hoje: pedido acima de R$40 ganha 10% off. Cupom: VOLTA10\n\n_Para não receber mais, responda SAIR._`;
 
 function normalizePhone(p: string) {
   return p.replace(/\D/g, "");
@@ -32,7 +32,7 @@ export default function CampaignTestDialog({
   onOpenChange,
 }: Props) {
   const qc = useQueryClient();
-  const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
+  const [template, setTemplate] = useState(() => buildDefaultTemplate(orgName || "sua loja"));
   const [sending, setSending] = useState(false);
 
   const phone = orgWhatsapp ? normalizePhone(orgWhatsapp) : "";
@@ -99,7 +99,7 @@ export default function CampaignTestDialog({
 
           <div>
             <label className="text-xs font-semibold text-foreground mb-1 block">
-              Mensagem (use {"{loja}"} para o nome da loja)
+              Mensagem
             </label>
             <Textarea
               value={template}

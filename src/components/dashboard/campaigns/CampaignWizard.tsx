@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,22 +11,30 @@ import { useInactiveCustomersCount, useCreateAndSendCampaign, type CampaignCredi
 
 interface Props {
   orgId: string;
+  orgName: string;
   credits: CampaignCredits;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const TEMPLATE_EXAMPLES = [
-  "Oi! Sentimos sua falta na {loja} 🍔 Passa aqui hoje: pedido acima de R$40 ganha 10% off. Cupom: VOLTA10",
-  "E aí, faz tempo hein! Bora comer algo? Hoje na {loja} tem frete grátis pra você. Vem!",
-  "Fala! A {loja} tá com saudade. Passa lá que caprichamos no seu pedido 😉",
+const buildTemplateExamples = (loja: string) => [
+  `Oi! Sentimos sua falta na ${loja} 🍔 Passa aqui hoje: pedido acima de R$40 ganha 10% off. Cupom: VOLTA10`,
+  `E aí, faz tempo hein! Bora comer algo? Hoje na ${loja} tem frete grátis pra você. Vem!`,
+  `Fala! A ${loja} tá com saudade. Passa lá que caprichamos no seu pedido 😉`,
 ];
 
-export default function CampaignWizard({ orgId, credits, open, onOpenChange }: Props) {
+export default function CampaignWizard({ orgId, orgName, credits, open, onOpenChange }: Props) {
+  const TEMPLATE_EXAMPLES = useMemo(() => buildTemplateExamples(orgName || "sua loja"), [orgName]);
   const [step, setStep] = useState(1);
   const [inactiveDays, setInactiveDays] = useState(30);
   const [name, setName] = useState("");
   const [message, setMessage] = useState(TEMPLATE_EXAMPLES[0]);
+
+  // Se o nome da loja carregar depois, atualiza a mensagem default enquanto o usuário não editou
+  useEffect(() => {
+    setMessage((prev) => (buildTemplateExamples("sua loja").includes(prev) || prev === "" ? TEMPLATE_EXAMPLES[0] : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgName]);
 
   const { data: recipientCount = 0, isLoading: countLoading } = useInactiveCustomersCount(orgId, inactiveDays);
   const send = useCreateAndSendCampaign(orgId);
@@ -134,7 +142,7 @@ export default function CampaignWizard({ orgId, credits, open, onOpenChange }: P
             <div>
               <Label htmlFor="camp-msg" className="text-sm font-semibold">Mensagem</Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Use <code className="text-primary">{"{loja}"}</code> pro nome da loja. O rodapé de descadastro é adicionado automaticamente.
+                O nome da sua loja já está incluído automaticamente. O rodapé de descadastro é adicionado no envio.
               </p>
               <Textarea
                 id="camp-msg"
