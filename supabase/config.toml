@@ -142,6 +142,3 @@ verify_jwt = false
 
 [functions.fiscal-auto-emit-trigger]
 verify_jwt = false
-
-[functions.migrate-helper]
-verify_jwt = false
