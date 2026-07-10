@@ -22,7 +22,7 @@ export default function CampaignsAnnouncementBanner({ orgId, onNavigate, dismiss
     queryFn: async () => {
       const { data } = await supabase
         .from("campaign_credits")
-        .select("total_credits")
+        .select("credits_total")
         .eq("organization_id", orgId)
         .maybeSingle();
       return data;
@@ -31,7 +31,7 @@ export default function CampaignsAnnouncementBanner({ orgId, onNavigate, dismiss
     staleTime: 60_000,
   });
 
-  const alreadyCustomer = (credits?.total_credits ?? 0) > 0;
+  const alreadyCustomer = (credits?.credits_total ?? 0) > 0;
 
   if (dismissed || alreadyCustomer) return null;
 
