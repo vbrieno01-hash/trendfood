@@ -49,33 +49,22 @@ export default function CampaignTestDialog({
     }
     setSending(true);
     try {
-      // 1) Debita 1 crédito
-      const { data: cur, error: selErr } = await supabase
-        .from("campaign_credits")
-        .select("credits_used, credits_total")
-        .eq("organization_id", orgId)
-        .maybeSingle();
-      if (selErr) throw selErr;
-      if (!cur) throw new Error("no_credits");
-      const { error: updErr } = await supabase
-        .from("campaign_credits")
-        .update({ credits_used: (cur.credits_used ?? 0) + 1 })
-        .eq("organization_id", orgId);
-      if (updErr) throw updErr;
-
-      // 2) Enfileira mensagem
-      const { error: outErr } = await supabase.from("whatsapp_outbox").insert({
-        organization_id: orgId,
-        phone,
-        message: finalMessage,
-        event_type: "campaign_test",
-        status: "pending",
+      const { data, error } = await supabase.functions.invoke("campaign-send-test", {
+        body: { orgId, message: finalMessage },
       });
-      if (outErr) throw outErr;
-
-      // 3) Dispara worker imediatamente
-      supabase.functions.invoke("whatsapp-outbox-dispatch", { body: {} }).catch(() => {});
-
+      if (error) throw error;
+      const res = data as { ok: boolean; error?: string };
+      if (!res?.ok) {
+        const map: Record<string, string> = {
+          no_whatsapp: "Cadastre o WhatsApp da loja em Configurações antes de testar.",
+          no_credits: "Sem créditos. Compre um pacote pra testar.",
+          forbidden: "Você não tem permissão nesta loja.",
+          unauthorized: "Sessão expirada. Faça login novamente.",
+          race_retry: "Tente novamente em instantes.",
+        };
+        toast.error(map[res?.error ?? ""] ?? "Não foi possível enviar o teste. Tente novamente.");
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["campaign_credits", orgId] });
       toast.success("Teste enviado! Confira seu WhatsApp em alguns segundos.");
       onOpenChange(false);
