@@ -18,28 +18,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = user.id;
+    const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { payment_id, org_id, plan } = await req.json();
 
@@ -50,16 +30,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate org ownership
-    const { data: org, error: orgError } = await supabase
+    // Ownership via posse do payment_id opaco + org_id (registro criado ao gerar o PIX)
+    const { data: pending } = await serviceClient
+      .from("pending_subscription_payments")
+      .select("payment_id, organization_id")
+      .eq("payment_id", String(payment_id))
+      .eq("organization_id", org_id)
+      .maybeSingle();
+    if (!pending) {
+      return new Response(JSON.stringify({ paid: false, status: "not_found" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: org, error: orgError } = await serviceClient
       .from("organizations")
-      .select("id, name, user_id, subscription_plan")
+      .select("id, name, subscription_plan")
       .eq("id", org_id)
       .single();
 
-    if (orgError || !org || org.user_id !== userId) {
-      return new Response(JSON.stringify({ error: "Organization not found or unauthorized" }), {
-        status: 403,
+    if (orgError || !org) {
+      return new Response(JSON.stringify({ paid: false, status: "not_found" }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -92,8 +85,6 @@ Deno.serve(async (req) => {
 
     // If approved, activate the subscription
     if (paid) {
-      const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
       // Read billing cycle and promo from payment metadata
       const billing = mpData.metadata?.billing || "monthly";
       const promoApplied = mpData.metadata?.promo_applied === true || mpData.metadata?.promo_applied === "true";
