@@ -12,31 +12,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const supabase = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims?.sub) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = claimsData.claims.sub as string;
+    const admin = createClient(supabaseUrl, serviceKey);
 
     let payload: any = {};
     try {
@@ -55,17 +33,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const admin = createClient(supabaseUrl, serviceKey);
-
-    const { data: org } = await admin
-      .from("organizations")
-      .select("id, user_id")
-      .eq("id", org_id)
+    // Ownership via posse do payment_id opaco + org_id (registro criado ao gerar o PIX)
+    const { data: pending } = await admin
+      .from("pending_subscription_payments")
+      .select("payment_id, organization_id")
+      .eq("payment_id", String(payment_id))
+      .eq("organization_id", org_id)
       .maybeSingle();
-
-    if (!org || (org as any).user_id !== userId) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
+    if (!pending) {
+      return new Response(JSON.stringify({ paid: false, status: "not_found" }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
