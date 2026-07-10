@@ -562,6 +562,12 @@ const DashboardPage = () => {
 
   const sidebarGroups = useMemo(() => [
     {
+      id: "premium", emoji: "👑", title: "PREMIUM",
+      items: [
+        { key: "intelligence" as TabKey, icon: <span className="text-sm">👑</span>, label: "Inteligência (BI)", locked: lockedFeatures.intelligence },
+      ],
+    },
+    {
       id: "operacional", emoji: "⚡", title: "OPERACIONAL",
       items: [
         { key: "counter" as TabKey, icon: <ShoppingCart className="w-4 h-4" />, label: "Balcão" },
@@ -583,7 +589,6 @@ const DashboardPage = () => {
     {
       id: "financeiro", emoji: "💰", title: "FINANCEIRO",
       items: [
-        { key: "intelligence" as TabKey, icon: <span className="text-sm">👑</span>, label: "Inteligência (BI)", locked: lockedFeatures.intelligence },
         { key: "caixa" as TabKey, icon: <Wallet className="w-4 h-4" />, label: "Fluxo de Caixa", locked: lockedFeatures.caixa },
         { key: "pricing" as TabKey, icon: <Calculator className="w-4 h-4" />, label: "Precificação", locked: lockedFeatures.pricing },
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
