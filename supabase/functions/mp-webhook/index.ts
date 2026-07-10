@@ -765,6 +765,19 @@ Deno.serve(async (req) => {
         }
 
         const addonRef = addonRefPayment || addonRefFromPreapproval;
+        if (addonRef && addonRef.key === "campaign_250") {
+          const credits = Number(mpData.metadata?.credits) || 250;
+          await applyCampaignCreditsPurchase(
+            supabase,
+            addonRef.orgId,
+            paymentId,
+            credits,
+            30,
+          );
+          return new Response(JSON.stringify({ success: true, addon: "campaign_250" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         if (addonRef && addonRef.key === "ai_bot") {
           await extendAiBotAddon(
             supabase,
