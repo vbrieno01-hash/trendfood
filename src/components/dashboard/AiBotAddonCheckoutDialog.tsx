@@ -235,6 +235,18 @@ export default function AiBotAddonCheckoutDialog({ open, onOpenChange, orgId, on
               onSuccess?.();
               onOpenChange(false);
             }, 1500);
+            return;
+          }
+          const st = chk?.status;
+          if (st === "rejected" || st === "cancelled" || st === "expired") {
+            if (pollRef.current) clearInterval(pollRef.current);
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setPixData(null);
+            toast.error(
+              st === "expired"
+                ? "PIX expirado. Gere um novo."
+                : "Pagamento recusado pelo Mercado Pago. Gere um novo PIX.",
+            );
           }
         } catch { /* retry */ }
       }, 5000);

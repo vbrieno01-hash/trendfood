@@ -115,6 +115,62 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── DEDUP: se já existe um PIX pending recente pra essa org+plano, reaproveita
+    // Evita múltiplos QRs simultâneos que causam "Pix já foi feito" no banco do cliente.
+    if (payment_method === "pix") {
+      try {
+        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const { data: recentPending } = await serviceClient
+          .from("pending_subscription_payments")
+          .select("payment_id, created_at")
+          .eq("organization_id", org_id)
+          .eq("plan", plan)
+          .eq("status", "pending")
+          .gte("created_at", tenMinAgo)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (recentPending?.payment_id) {
+          const chkRes = await fetch(
+            `https://api.mercadopago.com/v1/payments/${recentPending.payment_id}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+          );
+          if (chkRes.ok) {
+            const chkData = await chkRes.json();
+            if (chkData.status === "pending") {
+              const qr = chkData.point_of_interaction?.transaction_data;
+              if (qr?.qr_code) {
+                return new Response(
+                  JSON.stringify({
+                    status: chkData.status,
+                    status_detail: chkData.status_detail || null,
+                    payment_id: chkData.id,
+                    pix_qr_code: qr.qr_code,
+                    pix_qr_code_base64: qr.qr_code_base64 || null,
+                    pix_expiration: chkData.date_of_expiration || null,
+                    reused: true,
+                  }),
+                  { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+                );
+              }
+            } else if (
+              chkData.status === "rejected" ||
+              chkData.status === "cancelled" ||
+              chkData.status === "expired"
+            ) {
+              await serviceClient
+                .from("pending_subscription_payments")
+                .update({ status: "failed", resolved_at: new Date().toISOString() })
+                .eq("payment_id", String(recentPending.payment_id));
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[create-mp-payment] dedup lookup (non-blocking):", e);
+      }
+    }
+
     // Build MP payment body
     const cleanDoc = cpf_cnpj.replace(/\D/g, "");
     const docType = cleanDoc.length <= 11 ? "CPF" : "CNPJ";

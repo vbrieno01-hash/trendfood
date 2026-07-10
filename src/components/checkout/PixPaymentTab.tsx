@@ -141,6 +141,18 @@ const PixPaymentTab = ({ orgId, plan, planPrice, billing = "monthly", promo, onS
               onClose();
               onSuccess();
             }, 1500);
+            return;
+          }
+          const st = checkData?.status;
+          if (st === "rejected" || st === "cancelled" || st === "expired") {
+            if (pollingRef.current) clearInterval(pollingRef.current);
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setPixData(null);
+            toast.error(
+              st === "expired"
+                ? "PIX expirado. Gere um novo código."
+                : "Pagamento recusado pelo Mercado Pago. Gere um novo PIX.",
+            );
           }
         } catch {
           // silently retry
