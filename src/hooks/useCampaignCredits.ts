@@ -103,7 +103,24 @@ export function useCreateAndSendCampaign(orgId: string | undefined) {
       const phones = ((recipients ?? []) as Array<{ phone: string }>).map((r) => r.phone);
       if (phones.length === 0) throw new Error("no_recipients");
 
-      // 2) Cria campanha (draft)
+      // 2) Valida números com a API do WhatsApp (descarta quem não tem conta)
+      const uniquePhones = Array.from(new Set(phones));
+      let validPhones = uniquePhones;
+      let invalidCount = 0;
+      try {
+        const { data: check } = await supabase.functions.invoke("campaign-check-numbers", {
+          body: { orgId, phones: uniquePhones },
+        });
+        if (check?.ok && Array.isArray(check.valid)) {
+          validPhones = check.valid as string[];
+          invalidCount = (check.invalid as string[] | undefined)?.length ?? 0;
+        }
+      } catch {
+        // fail-open: se a checagem falhar, segue com todos
+      }
+      if (validPhones.length === 0) throw new Error("no_recipients");
+
+      // 3) Cria campanha (draft)
       const { data: campaign, error: cErr } = await supabase
         .from("campaigns")
         .insert({
@@ -111,17 +128,16 @@ export function useCreateAndSendCampaign(orgId: string | undefined) {
           name: input.name,
           target_filter: { inactive_days: input.inactive_days },
           message_template: input.message_template,
-          total_recipients: phones.length,
+          total_recipients: validPhones.length,
           status: "draft",
         })
         .select()
         .single();
       if (cErr) throw cErr;
 
-      // 3) Insere recipients (unique por phone)
-      const uniquePhones = Array.from(new Set(phones));
+      // 4) Insere recipients válidos (unique por phone)
       const { error: rInsErr } = await supabase.from("campaign_recipients").insert(
-        uniquePhones.map((phone) => ({
+        validPhones.map((phone) => ({
           campaign_id: campaign.id,
           organization_id: orgId,
           phone,
@@ -130,19 +146,19 @@ export function useCreateAndSendCampaign(orgId: string | undefined) {
       );
       if (rInsErr) throw rInsErr;
 
-      // 4) Chama RPC atômica que valida saldo, debita e enfileira na outbox
+      // 5) RPC atômica: valida saldo, debita e enfileira na outbox
       const { data: result, error: eErr } = await supabase.rpc("enqueue_campaign", {
         _campaign_id: campaign.id,
       });
       if (eErr) throw eErr;
 
-      return result as {
+      return { ...(result as {
         ok: boolean;
         error?: string;
         enqueued?: number;
         skipped?: number;
         remaining_credits?: number;
-      };
+      }), invalid_numbers: invalidCount };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["campaigns", orgId] });
