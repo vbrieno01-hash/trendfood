@@ -585,7 +585,11 @@ export default function KitchenTab({
                             <span className="w-6 h-6 rounded-md bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
                               {item.quantity}×
                             </span>
-                            <span>{item.name}</span>
+                            {item.name && item.name.trim() && item.name.trim() !== "." ? (
+                              <span>{item.name}</span>
+                            ) : (
+                              <span className="italic text-muted-foreground">(sem nome)</span>
+                            )}
                             {(item as any).customer_name && (
                               <span className="text-xs text-muted-foreground">— {(item as any).customer_name}</span>
                             )}
@@ -594,6 +598,11 @@ export default function KitchenTab({
                       </ul>
 
                       <OrderMetadataDisplay notes={order.notes} />
+
+                      <div className="flex items-center justify-between text-sm border-t border-border/60 pt-2">
+                        <span className="text-muted-foreground">Total</span>
+                        <span className="font-semibold text-primary">R$ {calcOrderTotal(order).toFixed(2).replace(".", ",")}</span>
+                      </div>
 
                       {/* Printed badge */}
                       {wasPrinted && (
