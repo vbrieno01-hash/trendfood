@@ -3960,6 +3960,7 @@ export type Database = {
         Row: {
           connected_at: string | null
           created_at: string
+          daily_send_limit: number
           id: string
           instance_name: string
           instance_token: string
@@ -3973,6 +3974,7 @@ export type Database = {
         Insert: {
           connected_at?: string | null
           created_at?: string
+          daily_send_limit?: number
           id?: string
           instance_name: string
           instance_token: string
@@ -3986,6 +3988,7 @@ export type Database = {
         Update: {
           connected_at?: string | null
           created_at?: string
+          daily_send_limit?: number
           id?: string
           instance_name?: string
           instance_token?: string
