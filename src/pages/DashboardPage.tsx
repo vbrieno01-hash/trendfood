@@ -64,6 +64,7 @@ const AIBotTab = lazy(() => import("@/components/dashboard/AIBotTab"));
 const CounterTab = lazy(() => import("@/components/dashboard/CounterTab"));
 const FiscalTab = lazy(() => import("@/components/dashboard/FiscalTab"));
 const CampaignsTab = lazy(() => import("@/components/dashboard/CampaignsTab"));
+const IntelligenceTab = lazy(() => import("@/components/dashboard/IntelligenceTab"));
 import DashboardTour from "@/components/dashboard/DashboardTour";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
@@ -71,7 +72,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter" | "fiscal" | "campaigns";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter" | "fiscal" | "campaigns" | "intelligence";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -556,6 +557,7 @@ const DashboardPage = () => {
     ifood: !planLimits.canAccess("ifood"),
     aibot: !planLimits.canAccess("ai_bot"),
     campaigns: !planLimits.canAccess("campaigns"),
+    intelligence: !planLimits.canAccess("intelligence_panel"),
   }), [planLimits.effectivePlan]);
 
   const sidebarGroups = useMemo(() => [
@@ -581,6 +583,7 @@ const DashboardPage = () => {
     {
       id: "financeiro", emoji: "💰", title: "FINANCEIRO",
       items: [
+        { key: "intelligence" as TabKey, icon: <span className="text-sm">👑</span>, label: "Inteligência (BI)", locked: lockedFeatures.intelligence },
         { key: "caixa" as TabKey, icon: <Wallet className="w-4 h-4" />, label: "Fluxo de Caixa", locked: lockedFeatures.caixa },
         { key: "pricing" as TabKey, icon: <Calculator className="w-4 h-4" />, label: "Precificação", locked: lockedFeatures.pricing },
         { key: "reports" as TabKey, icon: <FileBarChart className="w-4 h-4" />, label: "Relatórios", locked: lockedFeatures.reports },
@@ -1169,6 +1172,10 @@ const DashboardPage = () => {
           {activeTab === "campaigns" && (lockedFeatures.campaigns
             ? <UpgradePrompt title="Campanhas WhatsApp" description="Recupere clientes inativos no automático via WhatsApp com anti-ban incluso. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
             : <CampaignsTab orgId={organization.id} />
+          )}
+          {activeTab === "intelligence" && (lockedFeatures.intelligence
+            ? <UpgradePrompt title="Inteligência do Negócio (BI)" description="Descubra qual produto realmente te dá lucro, quando sua loja bomba, sua projeção da semana e alertas automáticos. Exclusivo dos planos Enterprise e Vitalício." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            : <IntelligenceTab orgId={organization.id} onNavigate={(tab) => setActiveTab(tab as TabKey)} />
           )}
           {activeTab === "fiscal" && (
             !featureFlags?.fiscal_enabled && !isAdmin
