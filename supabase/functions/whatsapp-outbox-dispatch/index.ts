@@ -32,17 +32,16 @@ Deno.serve(async (req) => {
   const stuckCutoff = new Date(Date.now() - PROCESSING_STUCK_MINUTES * 60_000).toISOString();
   await supabase
     .from("whatsapp_outbox")
-    .update({ status: "pending", last_error: "recovered from stuck processing" })
+    .update({ status: "pending", last_error: "recovered from stuck processing", processing_started_at: null })
     .eq("status", "processing")
-    .lt("created_at", stuckCutoff);
+    .lt("processing_started_at", stuckCutoff);
 
-  const { data: pending, error: pendErr } = await supabase
-    .from("whatsapp_outbox")
-    .select("id, organization_id, phone, message, attempts, event_type")
-    .eq("status", "pending")
-    .lt("attempts", MAX_ATTEMPTS)
-    .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE);
+  // Claim atômico: SKIP LOCKED garante que dois dispatchers concorrentes
+  // nunca peguem a mesma mensagem (impede duplicação de envio).
+  const { data: pending, error: pendErr } = await supabase.rpc("claim_outbox_batch", {
+    _limit: BATCH_SIZE,
+    _max_attempts: MAX_ATTEMPTS,
+  });
 
   if (pendErr) {
     return new Response(JSON.stringify({ error: pendErr.message }), {
@@ -80,13 +79,25 @@ Deno.serve(async (req) => {
     return state;
   }
 
-  for (const row of pending ?? []) {
+  for (const row of (pending as Array<{
+    id: string;
+    organization_id: string;
+    phone: string;
+    message: string;
+    attempts: number;
+    event_type: string;
+  }>) ?? []) {
     // Cap diário: só se aplica a campanhas.
     if (row.event_type === "campaign") {
       const state = await getCapState(row.organization_id);
       if (state.sentToday >= state.limit) {
+        // Devolve pra pending (attempts já foi incrementado no claim; decrementa)
+        await supabase
+          .from("whatsapp_outbox")
+          .update({ status: "pending", attempts: row.attempts - 1, processing_started_at: null, last_error: "daily_cap_reached" })
+          .eq("id", row.id);
         capped++;
-        continue; // deixa como pending pra rodar amanhã
+        continue;
       }
     }
 
@@ -103,6 +114,7 @@ Deno.serve(async (req) => {
         .update({
           status: "skipped",
           last_error: "WhatsApp da loja não está conectado",
+          processing_started_at: null,
         })
         .eq("id", row.id);
       skipped++;
@@ -126,7 +138,7 @@ Deno.serve(async (req) => {
       if (res.ok) {
         await supabase
           .from("whatsapp_outbox")
-          .update({ status: "sent", sent_at: new Date().toISOString(), attempts: row.attempts + 1 })
+          .update({ status: "sent", sent_at: new Date().toISOString(), processing_started_at: null })
           .eq("id", row.id);
         sent++;
         if (row.event_type === "campaign") {
@@ -141,25 +153,26 @@ Deno.serve(async (req) => {
             .update({ status: "disconnected", connected_at: null, phone_connected: null })
             .eq("organization_id", row.organization_id);
         }
-        const newAttempts = row.attempts + 1;
+        // attempts já foi incrementado no claim → row.attempts é o valor pós-incremento
+        const currentAttempts = row.attempts;
         await supabase
           .from("whatsapp_outbox")
           .update({
-            status: newAttempts >= MAX_ATTEMPTS ? "failed" : "pending",
+            status: currentAttempts >= MAX_ATTEMPTS ? "failed" : "pending",
             last_error: `HTTP ${res.status}: ${errText.slice(0, 200)}`,
-            attempts: newAttempts,
+            processing_started_at: null,
           })
           .eq("id", row.id);
         failed++;
       }
     } catch (e) {
-      const newAttempts = row.attempts + 1;
+      const currentAttempts = row.attempts;
       await supabase
         .from("whatsapp_outbox")
         .update({
-          status: newAttempts >= MAX_ATTEMPTS ? "failed" : "pending",
+          status: currentAttempts >= MAX_ATTEMPTS ? "failed" : "pending",
           last_error: (e as Error).message.slice(0, 200),
-          attempts: newAttempts,
+          processing_started_at: null,
         })
         .eq("id", row.id);
       failed++;
