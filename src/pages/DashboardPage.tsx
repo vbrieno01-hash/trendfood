@@ -1165,6 +1165,12 @@ const DashboardPage = () => {
               : <AIBotTab orgId={organization.id} />;
           })()}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
+          {activeTab === "campaigns" && (
+            <CampaignsTab
+              orgId={organization.id}
+              whatsappBotAllowed={!!(organization as any).whatsapp_bot_allowed}
+            />
+          )}
           {activeTab === "fiscal" && (
             !featureFlags?.fiscal_enabled && !isAdmin
               ? (
