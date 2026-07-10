@@ -36,7 +36,7 @@ export default function CampaignTestDialog({
   const [sending, setSending] = useState(false);
 
   const phone = orgWhatsapp ? normalizePhone(orgWhatsapp) : "";
-  const finalMessage = template.replaceAll("{loja}", orgName);
+  const finalMessage = template.split("{loja}").join(orgName);
 
   async function handleSend() {
     if (!phone) {
@@ -50,25 +50,18 @@ export default function CampaignTestDialog({
     setSending(true);
     try {
       // 1) Debita 1 crédito
-      const { error: updErr } = await supabase.rpc("increment_campaign_credits_used", {
-        _organization_id: orgId,
-        _amount: 1,
-      });
-      if (updErr) {
-        // Fallback: update direto
-        const { data: cur } = await supabase
-          .from("campaign_credits")
-          .select("credits_used")
-          .eq("organization_id", orgId)
-          .maybeSingle();
-        if (cur) {
-          const { error: e2 } = await supabase
-            .from("campaign_credits")
-            .update({ credits_used: (cur.credits_used ?? 0) + 1 })
-            .eq("organization_id", orgId);
-          if (e2) throw e2;
-        }
-      }
+      const { data: cur, error: selErr } = await supabase
+        .from("campaign_credits")
+        .select("credits_used, credits_total")
+        .eq("organization_id", orgId)
+        .maybeSingle();
+      if (selErr) throw selErr;
+      if (!cur) throw new Error("no_credits");
+      const { error: updErr } = await supabase
+        .from("campaign_credits")
+        .update({ credits_used: (cur.credits_used ?? 0) + 1 })
+        .eq("organization_id", orgId);
+      if (updErr) throw updErr;
 
       // 2) Enfileira mensagem
       const { error: outErr } = await supabase.from("whatsapp_outbox").insert({
