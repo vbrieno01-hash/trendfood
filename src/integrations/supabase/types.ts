@@ -4163,6 +4163,33 @@ export type Database = {
         Returns: Json
       }
       admin_unblock_groq: { Args: never; Returns: Json }
+      apply_campaign_credits_purchase: {
+        Args: {
+          _credits?: number
+          _days?: number
+          _org_id: string
+          _payment_id?: string
+        }
+        Returns: {
+          created_at: string
+          credits_total: number
+          credits_used: number
+          id: string
+          mp_subscription_id: string | null
+          organization_id: string
+          period_end: string
+          period_start: string
+          plan_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaign_credits"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       calc_trial_ends_at: { Args: never; Returns: string }
       claim_print_jobs: {
         Args: { _org_id: string }

@@ -458,9 +458,63 @@ async function extendAiBotAddon(
 
 function parseAddonRef(ref: string | null | undefined): { orgId: string; key: string } | null {
   if (!ref) return null;
-  const m = /^addon:([a-z_]+):([0-9a-f-]{36})$/i.exec(ref);
+  const m = /^addon:([a-z_0-9]+):([0-9a-f-]{36})$/i.exec(ref);
   if (!m) return null;
   return { key: m[1], orgId: m[2] };
+}
+
+/** ── CAMPAIGN CREDITS HANDLER ──
+ * Avulso: cada pagamento aprovado adiciona N msgs + N dias via RPC atômico.
+ */
+async function applyCampaignCreditsPurchase(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  paymentId: string | number | null,
+  credits: number,
+  days: number,
+) {
+  try {
+    const { error } = await supabase.rpc("apply_campaign_credits_purchase", {
+      _org_id: orgId,
+      _credits: credits,
+      _days: days,
+      _payment_id: paymentId ? String(paymentId) : null,
+    });
+    if (error) {
+      console.error("[mp-webhook][campaign] rpc err:", error);
+      return;
+    }
+
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", orgId)
+      .maybeSingle();
+
+    await supabase.from("activation_logs").insert({
+      organization_id: orgId,
+      org_name: (org as any)?.name || null,
+      old_plan: null,
+      new_plan: null,
+      old_status: null,
+      new_status: "active",
+      source: "mercadopago-campaign-addon",
+      notes: `Campanhas WhatsApp: +${credits} msgs / +${days}d${paymentId ? ` (payment ${paymentId})` : ""}`,
+    });
+
+    if (paymentId) {
+      try {
+        await supabase
+          .from("pending_subscription_payments")
+          .update({ status: "approved", resolved_at: new Date().toISOString() })
+          .eq("payment_id", String(paymentId));
+      } catch { /* non-blocking */ }
+    }
+
+    console.log(`[mp-webhook][campaign] +${credits} msgs / +${days}d applied to org ${orgId}`);
+  } catch (err) {
+    console.error("[mp-webhook][campaign] error:", err);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -711,6 +765,19 @@ Deno.serve(async (req) => {
         }
 
         const addonRef = addonRefPayment || addonRefFromPreapproval;
+        if (addonRef && addonRef.key === "campaign_250") {
+          const credits = Number(mpData.metadata?.credits) || 250;
+          await applyCampaignCreditsPurchase(
+            supabase,
+            addonRef.orgId,
+            paymentId,
+            credits,
+            30,
+          );
+          return new Response(JSON.stringify({ success: true, addon: "campaign_250" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         if (addonRef && addonRef.key === "ai_bot") {
           await extendAiBotAddon(
             supabase,
