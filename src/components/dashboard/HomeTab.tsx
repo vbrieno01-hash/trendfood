@@ -39,6 +39,7 @@ import SetupChecklist from "@/components/dashboard/SetupChecklist";
 import BannerRecoveryBanner from "@/components/dashboard/BannerRecoveryBanner";
 import PushActivationBanner from "@/components/dashboard/PushActivationBanner";
 import UpdateBanner from "@/components/dashboard/UpdateBanner";
+import CampaignsAnnouncementBanner from "@/components/dashboard/CampaignsAnnouncementBanner";
 
 interface Organization {
   id: string;
@@ -257,6 +258,7 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
     <div className="space-y-5">
       <PushActivationBanner orgId={organization.id} />
       <UpdateBanner onNavigate={onNavigate} />
+      <CampaignsAnnouncementBanner orgId={organization.id} onNavigate={onNavigate} />
 
       {/* ══ COMMAND HEADER ══════════════════════════════════════ */}
       <div className="cmd-panel p-5 md:p-6 animate-dashboard-fade-in">
