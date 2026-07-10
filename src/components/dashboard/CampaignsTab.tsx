@@ -2,21 +2,30 @@ import { useState } from "react";
 import { Megaphone, Plus, Loader2, Bot, Zap, Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCampaignCredits, useCampaigns, type Campaign } from "@/hooks/useCampaignCredits";
+import { useWhatsappConnected } from "@/hooks/useWhatsappConnected";
 import CampaignUpgradeCard from "./campaigns/CampaignUpgradeCard";
 import CampaignWizard from "./campaigns/CampaignWizard";
 
 interface Props {
   orgId: string;
-  whatsappBotAllowed: boolean;
 }
 
-export default function CampaignsTab({ orgId, whatsappBotAllowed }: Props) {
+export default function CampaignsTab({ orgId }: Props) {
   const { data: credits, isLoading: creditsLoading } = useCampaignCredits(orgId);
   const { data: campaigns = [], isLoading: campaignsLoading } = useCampaigns(orgId);
+  const { data: botConnected, isLoading: botLoading } = useWhatsappConnected(orgId);
   const [wizardOpen, setWizardOpen] = useState(false);
 
+  if (botLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   // Sem robô conectado → orienta e sai
-  if (!whatsappBotAllowed) {
+  if (!botConnected) {
     return (
       <div className="dashboard-glass rounded-2xl p-6 border-2 border-amber-500/40 bg-amber-500/5">
         <div className="flex items-start gap-4">
