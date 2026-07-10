@@ -179,6 +179,7 @@ export default function CampaignsTab({ orgId }: Props) {
       {wizardOpen && credits && (
         <CampaignWizard
           orgId={orgId}
+          orgName={org?.name ?? "sua loja"}
           credits={credits}
           open={wizardOpen}
           onOpenChange={setWizardOpen}

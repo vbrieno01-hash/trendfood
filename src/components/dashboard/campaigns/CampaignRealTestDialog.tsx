@@ -25,8 +25,8 @@ interface Props {
 
 const MAX_PHONES = 5;
 
-const DEFAULT_TEMPLATE =
-  "Oi! Esse é um teste real da campanha da {loja} 🍔\nSe você recebeu isso, o disparo está funcionando perfeitamente.";
+const buildDefaultTemplate = (loja: string) =>
+  `Oi! Esse é um teste real da campanha da ${loja} 🍔\nSe você recebeu isso, o disparo está funcionando perfeitamente.`;
 
 function normalizePhone(p: string) {
   return p.replace(/\D/g, "");
@@ -48,7 +48,7 @@ export default function CampaignRealTestDialog({
   const [name, setName] = useState(
     `Teste real ${new Date().toLocaleDateString("pt-BR")}`,
   );
-  const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
+  const [template, setTemplate] = useState(() => buildDefaultTemplate(orgName || "sua loja"));
   const [phones, setPhones] = useState<string[]>([]);
   const [phoneInput, setPhoneInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -219,7 +219,7 @@ export default function CampaignRealTestDialog({
 
           <div>
             <label className="text-xs font-semibold text-foreground mb-1 block">
-              Mensagem (use {"{loja}"} para o nome da loja)
+              Mensagem
             </label>
             <Textarea
               value={template}
