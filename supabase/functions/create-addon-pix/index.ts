@@ -84,6 +84,58 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── DEDUP: se já existe um PIX pending recente pra essa org+addon, reaproveita
+    try {
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: recentPending } = await admin
+        .from("pending_subscription_payments")
+        .select("payment_id, created_at")
+        .eq("organization_id", org_id)
+        .eq("plan", "addon:ai_bot")
+        .eq("status", "pending")
+        .gte("created_at", tenMinAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentPending?.payment_id) {
+        const chkRes = await fetch(
+          `https://api.mercadopago.com/v1/payments/${recentPending.payment_id}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        );
+        if (chkRes.ok) {
+          const chkData = await chkRes.json();
+          if (chkData.status === "pending") {
+            const qr = chkData.point_of_interaction?.transaction_data;
+            if (qr?.qr_code) {
+              return new Response(
+                JSON.stringify({
+                  payment_id: chkData.id,
+                  status: chkData.status,
+                  pix_qr_code: qr.qr_code,
+                  pix_qr_code_base64: qr.qr_code_base64 || null,
+                  pix_expiration: chkData.date_of_expiration || null,
+                  reused: true,
+                }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+              );
+            }
+          } else if (
+            chkData.status === "rejected" ||
+            chkData.status === "cancelled" ||
+            chkData.status === "expired"
+          ) {
+            await admin
+              .from("pending_subscription_payments")
+              .update({ status: "failed", resolved_at: new Date().toISOString() })
+              .eq("payment_id", String(recentPending.payment_id));
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[create-addon-pix] dedup lookup (non-blocking):", e);
+    }
+
     const cleanDoc = String(cpf_cnpj).replace(/\D/g, "");
     const docType = cleanDoc.length <= 11 ? "CPF" : "CNPJ";
 
