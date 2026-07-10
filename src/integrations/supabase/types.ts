@@ -4413,6 +4413,35 @@ export type Database = {
         Returns: undefined
       }
       increment_vote: { Args: { suggestion_id: string }; Returns: undefined }
+      intel_orders_heatmap: {
+        Args: { p_days?: number; p_org_id: string }
+        Returns: {
+          day_of_week: number
+          hour_of_day: number
+          order_count: number
+        }[]
+      }
+      intel_profit_analysis: {
+        Args: { p_days?: number; p_org_id: string }
+        Returns: {
+          cost: number
+          has_recipe: boolean
+          margin_pct: number
+          menu_item_id: string
+          name: string
+          profit: number
+          quantity_sold: number
+          revenue: number
+        }[]
+      }
+      intel_smart_alerts: { Args: { p_org_id: string }; Returns: Json }
+      intel_week_forecast: {
+        Args: { p_org_id: string }
+        Returns: {
+          revenue: number
+          weeks_ago: number
+        }[]
+      }
       notify_admin_telegram: {
         Args: { _event_type: string; _payload: Json }
         Returns: undefined
