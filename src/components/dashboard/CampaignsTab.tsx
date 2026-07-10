@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { Megaphone, Plus, Loader2, Bot, Zap, Check, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Megaphone, Plus, Loader2, Bot, Zap, Check, Clock, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCampaignCredits, useCampaigns, useDailySendStats, type Campaign } from "@/hooks/useCampaignCredits";
 import { useWhatsappConnected } from "@/hooks/useWhatsappConnected";
 import CampaignUpgradeCard from "./campaigns/CampaignUpgradeCard";
 import CampaignWizard from "./campaigns/CampaignWizard";
+import CampaignTestDialog from "./campaigns/CampaignTestDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { ShieldCheck } from "lucide-react";
 
 interface Props {
@@ -17,6 +19,20 @@ export default function CampaignsTab({ orgId }: Props) {
   const { data: botConnected, isLoading: botLoading } = useWhatsappConnected(orgId);
   const { data: dailyStats } = useDailySendStats(orgId);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
+  const [org, setOrg] = useState<{ name: string; whatsapp: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!orgId) return;
+    supabase
+      .from("organizations")
+      .select("name, whatsapp")
+      .eq("id", orgId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setOrg({ name: data.name, whatsapp: data.whatsapp });
+      });
+  }, [orgId]);
 
   if (botLoading) {
     return (
@@ -83,10 +99,20 @@ export default function CampaignsTab({ orgId }: Props) {
               </p>
             </div>
           </div>
-          <Button onClick={() => setWizardOpen(true)} disabled={available <= 0}>
-            <Plus className="w-4 h-4 mr-1" />
-            Nova campanha
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setTestOpen(true)}
+              disabled={available <= 0}
+            >
+              <Send className="w-4 h-4 mr-1" />
+              Enviar teste
+            </Button>
+            <Button onClick={() => setWizardOpen(true)} disabled={available <= 0}>
+              <Plus className="w-4 h-4 mr-1" />
+              Nova campanha
+            </Button>
+          </div>
         </div>
         <div className="mt-4">
           <div className="flex justify-between text-xs mb-1.5">
@@ -146,6 +172,17 @@ export default function CampaignsTab({ orgId }: Props) {
           credits={credits}
           open={wizardOpen}
           onOpenChange={setWizardOpen}
+        />
+      )}
+
+      {testOpen && (
+        <CampaignTestDialog
+          orgId={orgId}
+          orgName={org?.name ?? "sua loja"}
+          orgWhatsapp={org?.whatsapp ?? null}
+          creditsAvailable={available}
+          open={testOpen}
+          onOpenChange={setTestOpen}
         />
       )}
     </div>
