@@ -84,6 +84,36 @@ export function useInactiveCustomersCount(orgId: string | undefined, days: numbe
   });
 }
 
+export function useDailySendStats(orgId: string | undefined) {
+  return useQuery({
+    queryKey: ["daily_send_stats", orgId],
+    queryFn: async () => {
+      if (!orgId) return { limit: 300, sentToday: 0 };
+      const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+      const [instRes, countRes] = await Promise.all([
+        supabase
+          .from("whatsapp_instances")
+          .select("daily_send_limit")
+          .eq("organization_id", orgId)
+          .maybeSingle(),
+        supabase
+          .from("whatsapp_outbox")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", orgId)
+          .eq("event_type", "campaign")
+          .eq("status", "sent")
+          .gte("sent_at", since),
+      ]);
+      return {
+        limit: (instRes.data as any)?.daily_send_limit ?? 300,
+        sentToday: countRes.count ?? 0,
+      };
+    },
+    enabled: !!orgId,
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateAndSendCampaign(orgId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
