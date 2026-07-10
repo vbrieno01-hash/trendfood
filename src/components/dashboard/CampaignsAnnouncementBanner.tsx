@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Megaphone, X, Sparkles, ArrowRight, MessageCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 
 const DISMISS_KEY = "campaigns-announcement-dismissed";
 
@@ -17,23 +15,7 @@ export default function CampaignsAnnouncementBanner({ orgId, onNavigate, dismiss
     return localStorage.getItem(DISMISS_KEY) === "1";
   });
 
-  const { data: credits } = useQuery({
-    queryKey: ["campaign-credits-banner", orgId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("campaign_credits")
-        .select("credits_total")
-        .eq("organization_id", orgId)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!orgId,
-    staleTime: 60_000,
-  });
-
-  const alreadyCustomer = (credits?.credits_total ?? 0) > 0;
-
-  if (dismissed || alreadyCustomer) return null;
+  if (dismissed) return null;
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY, "1");
