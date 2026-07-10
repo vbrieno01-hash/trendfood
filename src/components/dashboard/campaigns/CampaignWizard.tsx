@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Users, ArrowRight, ArrowLeft, Send, Loader2, AlertCircle } from "lucide-react";
+import { Users, ArrowRight, ArrowLeft, Send, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useInactiveCustomersCount, useCreateAndSendCampaign, type CampaignCredits } from "@/hooks/useCampaignCredits";
 
@@ -63,6 +63,8 @@ export default function CampaignWizard({ orgId, credits, open, onOpenChange }: P
       toast.success(`${result.enqueued} mensagens enfileiradas!`, {
         description: result.skipped
           ? `${result.skipped} foram ignoradas por falta de saldo.`
+          : result.invalid_numbers
+          ? `${result.invalid_numbers} números sem WhatsApp foram descartados.`
           : `Saldo restante: ${result.remaining_credits}`,
       });
       handleClose(false);
@@ -110,6 +112,10 @@ export default function CampaignWizard({ orgId, credits, open, onOpenChange }: P
                 Nenhum cliente inativo nesse período.
               </div>
             )}
+            <div className="text-xs text-emerald-700 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2.5 flex items-start gap-2">
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>Antes do envio, validamos cada número na API do WhatsApp. Quem não tem conta é descartado e não consome créditos.</span>
+            </div>
           </div>
         )}
 
