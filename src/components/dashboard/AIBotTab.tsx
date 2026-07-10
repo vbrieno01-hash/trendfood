@@ -98,7 +98,7 @@ const AIBotTab = ({ orgId }: AIBotTabProps) => {
           action={
             <Button asChild>
               <a
-                href="https://wa.me/5583998244382?text=Olá%2C%20quero%20liberar%20o%20Robô%20de%20WhatsApp%20na%20minha%20loja"
+                href="https://wa.me/5516988083263?text=Olá%2C%20quero%20liberar%20o%20Robô%20de%20WhatsApp%20na%20minha%20loja"
                 target="_blank"
                 rel="noopener noreferrer"
               >

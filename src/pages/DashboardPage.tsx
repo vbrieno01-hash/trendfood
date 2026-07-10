@@ -666,7 +666,7 @@ const DashboardPage = () => {
           </p>
           <div className="flex flex-col gap-3">
             <a
-              href={`https://wa.me/${organization?.whatsapp || "5583998244382"}?text=Quero+reativar+minha+assinatura+TrendFood`}
+              href={`https://wa.me/${organization?.whatsapp || "5516988083263"}?text=Quero+reativar+minha+assinatura+TrendFood`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white font-semibold text-sm"
