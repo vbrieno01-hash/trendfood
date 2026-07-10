@@ -547,6 +547,195 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_credits: {
+        Row: {
+          created_at: string
+          credits_total: number
+          credits_used: number
+          id: string
+          mp_subscription_id: string | null
+          organization_id: string
+          period_end: string
+          period_start: string
+          plan_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits_total?: number
+          credits_used?: number
+          id?: string
+          mp_subscription_id?: string | null
+          organization_id: string
+          period_end?: string
+          period_start?: string
+          plan_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits_total?: number
+          credits_used?: number
+          id?: string
+          mp_subscription_id?: string | null
+          organization_id?: string
+          period_end?: string
+          period_start?: string
+          plan_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_credits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_credits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          error: string | null
+          id: string
+          organization_id: string
+          outbox_id: string | null
+          phone: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          organization_id: string
+          outbox_id?: string | null
+          phone: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          organization_id?: string
+          outbox_id?: string | null
+          phone?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_outbox_id_fkey"
+            columns: ["outbox_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_outbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          completed_at: string | null
+          coupon_id: string | null
+          created_at: string
+          id: string
+          message_template: string
+          name: string
+          organization_id: string
+          sent_count: number
+          status: string
+          target_filter: Json
+          total_recipients: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          coupon_id?: string | null
+          created_at?: string
+          id?: string
+          message_template: string
+          name: string
+          organization_id: string
+          sent_count?: number
+          status?: string
+          target_filter?: Json
+          total_recipients?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          coupon_id?: string | null
+          created_at?: string
+          id?: string
+          message_template?: string
+          name?: string
+          organization_id?: string
+          sent_count?: number
+          status?: string
+          target_filter?: Json
+          total_recipients?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "top_stores_showcase"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_sessions: {
         Row: {
           closed_at: string | null
@@ -3998,6 +4187,10 @@ export type Database = {
       cleanup_inactive_organizations: { Args: never; Returns: Json }
       cleanup_infra_logs: { Args: never; Returns: Json }
       cleanup_internal_postgres_logs: { Args: never; Returns: Json }
+      count_inactive_customers: {
+        Args: { _inactive_days?: number; _organization_id: string }
+        Returns: number
+      }
       courier_accept_delivery: {
         Args: { _courier_id: string; _delivery_id: string }
         Returns: undefined
@@ -4079,6 +4272,7 @@ export type Database = {
           started_at: string
         }[]
       }
+      enqueue_campaign: { Args: { _campaign_id: string }; Returns: Json }
       fiscal_check_quota: { Args: { _org_id: string }; Returns: Json }
       get_cleanup_stats: { Args: never; Returns: Json }
       get_effective_plan: { Args: { _org_id: string }; Returns: string }
@@ -4087,6 +4281,14 @@ export type Database = {
         Returns: {
           enabled: boolean
           producao_liberada: boolean
+        }[]
+      }
+      get_inactive_customers: {
+        Args: { _inactive_days?: number; _organization_id: string }
+        Returns: {
+          last_order_at: string
+          phone: string
+          total_spent: number
         }[]
       }
       get_internal_logs_sizes: { Args: never; Returns: Json }
