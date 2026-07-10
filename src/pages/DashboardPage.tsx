@@ -63,6 +63,7 @@ const TelegramTab = lazy(() => import("@/components/dashboard/TelegramTab"));
 const AIBotTab = lazy(() => import("@/components/dashboard/AIBotTab"));
 const CounterTab = lazy(() => import("@/components/dashboard/CounterTab"));
 const FiscalTab = lazy(() => import("@/components/dashboard/FiscalTab"));
+const CampaignsTab = lazy(() => import("@/components/dashboard/CampaignsTab"));
 import DashboardTour from "@/components/dashboard/DashboardTour";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 import { usePlatformFeatureFlags } from "@/hooks/usePlatformFeatureFlags";
@@ -70,7 +71,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 
-type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter" | "fiscal";
+type TabKey = "home" | "menu" | "tables" | "operations" | "kitchen" | "waiter" | "profile" | "settings" | "history" | "coupons" | "bestsellers" | "caixa" | "features" | "guide" | "reports" | "courier" | "printer" | "subscription" | "stock" | "referral" | "pricing" | "reviews" | "loyalty" | "ifood" | "telegram" | "aibot" | "counter" | "fiscal" | "campaigns";
 
 const DashboardPage = () => {
   console.log("[Dashboard] Mount");
@@ -595,6 +596,7 @@ const DashboardPage = () => {
         { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood", locked: lockedFeatures.ifood },
         { key: "telegram" as TabKey, icon: <Send className="w-4 h-4" />, label: "Telegram" },
         { key: "aibot" as TabKey, icon: <span className="text-sm">🤖</span>, label: "Robô IA", locked: lockedFeatures.aibot },
+        { key: "campaigns" as TabKey, icon: <span className="text-sm">📣</span>, label: "Campanhas WhatsApp" },
       ],
     },
     {
