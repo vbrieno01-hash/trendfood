@@ -555,6 +555,7 @@ const DashboardPage = () => {
     pricing: !planLimits.canAccess("pricing"),
     ifood: !planLimits.canAccess("ifood"),
     aibot: !planLimits.canAccess("ai_bot"),
+    campaigns: !planLimits.canAccess("campaigns"),
   }), [planLimits.effectivePlan]);
 
   const sidebarGroups = useMemo(() => [
@@ -596,7 +597,7 @@ const DashboardPage = () => {
         { key: "ifood" as TabKey, icon: <span className="text-sm">🛵</span>, label: "iFood", locked: lockedFeatures.ifood },
         { key: "telegram" as TabKey, icon: <Send className="w-4 h-4" />, label: "Telegram" },
         { key: "aibot" as TabKey, icon: <span className="text-sm">🤖</span>, label: "Robô IA", locked: lockedFeatures.aibot },
-        { key: "campaigns" as TabKey, icon: <span className="text-sm">📣</span>, label: "Campanhas WhatsApp" },
+        { key: "campaigns" as TabKey, icon: <span className="text-sm">📣</span>, label: "Campanhas WhatsApp", locked: lockedFeatures.campaigns },
       ],
     },
     {
@@ -1165,8 +1166,9 @@ const DashboardPage = () => {
               : <AIBotTab orgId={organization.id} />;
           })()}
           {activeTab === "counter" && <CounterTab orgId={organization.id} pausedCategories={(organization as any).paused_categories ?? []} />}
-          {activeTab === "campaigns" && (
-            <CampaignsTab orgId={organization.id} />
+          {activeTab === "campaigns" && (lockedFeatures.campaigns
+            ? <UpgradePrompt title="Campanhas WhatsApp" description="Recupere clientes inativos no automático via WhatsApp com anti-ban incluso. Disponível nos planos Pro e Enterprise." orgId={organization.id} currentPlan={organization.subscription_plan} promoEligible={planLimits.promoEligible} />
+            : <CampaignsTab orgId={organization.id} />
           )}
           {activeTab === "fiscal" && (
             !featureFlags?.fiscal_enabled && !isAdmin
