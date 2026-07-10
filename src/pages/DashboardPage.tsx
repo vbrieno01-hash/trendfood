@@ -859,6 +859,36 @@ const DashboardPage = () => {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {/* Premium group – rendered above Home to grab attention */}
+          {(() => {
+            const premium = sidebarGroups.find((g) => g.id === "premium");
+            if (!premium) return null;
+            const q = sidebarSearch.toLowerCase();
+            const filteredItems = q
+              ? premium.items.filter((item) => item.label.toLowerCase().includes(q))
+              : premium.items;
+            if (filteredItems.length === 0) return null;
+            return (
+              <div className="mb-3 rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-500/10 via-primary/5 to-transparent p-2">
+                <div className="flex items-center gap-2 px-2 py-1 cursor-default select-none">
+                  <span className="text-[11px] leading-none">👑</span>
+                  <span className="text-[10px] font-mono tracking-widest text-amber-400/90">PREMIUM</span>
+                </div>
+                {filteredItems.map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => { handleTabChange(item.key); setSidebarOpen(false); }}
+                    className={navBtnClass(item.key)}
+                  >
+                    {item.icon}
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.locked && <Lock className="w-3.5 h-3.5 text-amber-400/70" />}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Home – fixed at top */}
           {(!sidebarSearch || "home".includes(sidebarSearch.toLowerCase())) && (
             <button
@@ -873,6 +903,7 @@ const DashboardPage = () => {
 
           {/* Always-visible groups (filtered) */}
           {sidebarGroups.map((group) => {
+            if (group.id === "premium") return null;
             const q = sidebarSearch.toLowerCase();
             const filteredItems = q
               ? group.items.filter((item) => item.label.toLowerCase().includes(q))
