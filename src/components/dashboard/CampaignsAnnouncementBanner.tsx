@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Megaphone, X, Sparkles, ArrowRight } from "lucide-react";
+import { Megaphone, X, Sparkles, ArrowRight, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -45,9 +45,9 @@ export default function CampaignsAnnouncementBanner({ orgId, onNavigate, dismiss
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-lg animate-dashboard-fade-in"
+    <div className="relative overflow-hidden rounded-2xl border border-orange-500/30 shadow-lg animate-dashboard-fade-in"
          style={{
-           background: "linear-gradient(135deg, #128C7E 0%, #25D366 55%, #1a6f5f 100%)",
+           background: "linear-gradient(135deg, #ff6b1a 0%, #f97316 55%, #c2410c 100%)",
          }}>
       {/* decorative blob */}
       <div aria-hidden className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
@@ -59,9 +59,12 @@ export default function CampaignsAnnouncementBanner({ orgId, onNavigate, dismiss
             <Megaphone className="w-6 h-6 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-emerald-700 text-[10px] font-bold tracking-wider uppercase">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-orange-600 text-[10px] font-bold tracking-wider uppercase">
                 <Sparkles className="w-3 h-3" /> Novo
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 border border-white/25 text-white text-[10px] font-medium">
+                <MessageCircle className="w-3 h-3" /> via WhatsApp
               </span>
               <span className="text-white/80 text-xs font-medium">Add-on TrendFood</span>
             </div>
@@ -77,7 +80,7 @@ export default function CampaignsAnnouncementBanner({ orgId, onNavigate, dismiss
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleCta}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-emerald-700 font-semibold text-sm hover:bg-white/95 hover:scale-[1.02] transition shadow-md whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-orange-600 font-semibold text-sm hover:bg-white/95 hover:scale-[1.02] transition shadow-md whitespace-nowrap"
           >
             Conhecer agora
             <ArrowRight className="w-4 h-4" />
