@@ -628,7 +628,7 @@ export default function DocsTerminalPage() {
             </p>
           </div>
           <a
-            href="https://wa.me/5583998244382?text=Olá%2C%20preciso%20de%20ajuda%20com%20a%20impressora%20térmica%20no%20TrendFood"
+            href="https://wa.me/5516988083263?text=Olá%2C%20preciso%20de%20ajuda%20com%20a%20impressora%20térmica%20no%20TrendFood"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors shrink-0"
