@@ -1,0 +1,1 @@
+ALTER TABLE public.whatsapp_instances ADD COLUMN IF NOT EXISTS daily_send_limit integer NOT NULL DEFAULT 300;
