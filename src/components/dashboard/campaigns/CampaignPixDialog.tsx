@@ -149,7 +149,21 @@ export default function CampaignPixDialog({ open, onOpenChange, orgId, onSuccess
           const { data: chk } = await supabase.functions.invoke("check-addon-pix", {
             body: { org_id: orgId, payment_id: paymentId },
           });
-          if (chk?.paid) markPaid();
+          if (chk?.paid) {
+            markPaid();
+            return;
+          }
+          const st = chk?.status;
+          if (st === "rejected" || st === "cancelled" || st === "expired") {
+            clearTimers();
+            teardownRealtime();
+            setPix(null);
+            toast.error(
+              st === "expired"
+                ? "PIX expirado. Gere um novo."
+                : "Pagamento recusado pelo Mercado Pago. Gere um novo PIX.",
+            );
+          }
         } catch { /* retry */ }
       }, 5000);
     } catch (err: any) {
