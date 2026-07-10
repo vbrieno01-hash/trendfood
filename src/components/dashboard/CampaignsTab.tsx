@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Megaphone, Plus, Loader2, Bot, Zap, Check, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCampaignCredits, useCampaigns, type Campaign } from "@/hooks/useCampaignCredits";
+import { useCampaignCredits, useCampaigns, useDailySendStats, type Campaign } from "@/hooks/useCampaignCredits";
 import { useWhatsappConnected } from "@/hooks/useWhatsappConnected";
 import CampaignUpgradeCard from "./campaigns/CampaignUpgradeCard";
 import CampaignWizard from "./campaigns/CampaignWizard";
+import { ShieldCheck } from "lucide-react";
 
 interface Props {
   orgId: string;
@@ -14,6 +15,7 @@ export default function CampaignsTab({ orgId }: Props) {
   const { data: credits, isLoading: creditsLoading } = useCampaignCredits(orgId);
   const { data: campaigns = [], isLoading: campaignsLoading } = useCampaigns(orgId);
   const { data: botConnected, isLoading: botLoading } = useWhatsappConnected(orgId);
+  const { data: dailyStats } = useDailySendStats(orgId);
   const [wizardOpen, setWizardOpen] = useState(false);
 
   if (botLoading) {
@@ -61,6 +63,9 @@ export default function CampaignsTab({ orgId }: Props) {
 
   const available = credits!.credits_total - credits!.credits_used;
   const usedPct = (credits!.credits_used / credits!.credits_total) * 100;
+  const dailyLimit = dailyStats?.limit ?? 300;
+  const dailySent = dailyStats?.sentToday ?? 0;
+  const dailyPct = Math.min(100, (dailySent / dailyLimit) * 100);
 
   return (
     <div className="space-y-5">
@@ -96,7 +101,25 @@ export default function CampaignsTab({ orgId }: Props) {
               style={{ width: `${Math.min(100, usedPct)}%` }}
             />
           </div>
+          <div className="flex justify-between text-xs mt-4 mb-1.5">
+            <span className="font-semibold text-foreground">Enviadas hoje</span>
+            <span className="text-muted-foreground">{dailySent} / {dailyLimit} (últimas 24h)</span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all ${dailyPct >= 100 ? "bg-red-500" : "bg-emerald-500"}`}
+              style={{ width: `${dailyPct}%` }}
+            />
+          </div>
         </div>
+      </div>
+
+      {/* Aviso anti-ban */}
+      <div className="dashboard-glass rounded-2xl p-4 border border-emerald-500/30 bg-emerald-500/5 flex items-start gap-3">
+        <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-foreground/80 leading-relaxed">
+          <strong>Proteção anti-ban ativa:</strong> envios espaçados 4–10s automaticamente e limitados a {dailyLimit}/dia para proteger seu número. Contatos sem WhatsApp são descartados na validação e não consomem créditos.
+        </p>
       </div>
 
       {/* Histórico */}
