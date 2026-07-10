@@ -4062,6 +4062,7 @@ export type Database = {
           order_id: string | null
           organization_id: string
           phone: string
+          processing_started_at: string | null
           sent_at: string | null
           status: string
         }
@@ -4075,6 +4076,7 @@ export type Database = {
           order_id?: string | null
           organization_id: string
           phone: string
+          processing_started_at?: string | null
           sent_at?: string | null
           status?: string
         }
@@ -4088,6 +4090,7 @@ export type Database = {
           order_id?: string | null
           organization_id?: string
           phone?: string
+          processing_started_at?: string | null
           sent_at?: string | null
           status?: string
         }
@@ -4194,6 +4197,17 @@ export type Database = {
         }
       }
       calc_trial_ends_at: { Args: never; Returns: string }
+      claim_outbox_batch: {
+        Args: { _limit?: number; _max_attempts?: number }
+        Returns: {
+          attempts: number
+          event_type: string
+          id: string
+          message: string
+          organization_id: string
+          phone: string
+        }[]
+      }
       claim_print_jobs: {
         Args: { _org_id: string }
         Returns: {
