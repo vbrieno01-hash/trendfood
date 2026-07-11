@@ -19,6 +19,52 @@ async function activateOrg(
   source: string,
 ) {
   const { organization_id, plan, billing_cycle, promo_applied, payment_id } = pending;
+
+  // ── Addon flow: NEVER overwrite subscription_plan/status ──
+  // Addon rows are stored with plan like "addon:campaign_250".
+  // They must be handled by their own RPC, not as a plan upgrade.
+  if (typeof plan === "string" && plan.startsWith("addon:")) {
+    const addonKey = plan.slice("addon:".length);
+
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("id, name")
+      .eq("id", organization_id)
+      .single();
+
+    if (addonKey === "campaign_250") {
+      try {
+        await supabase.rpc("apply_campaign_credits_purchase", {
+          _org_id: organization_id,
+          _credits: 250,
+          _days: 30,
+          _payment_id: String(payment_id),
+        });
+      } catch (rpcErr) {
+        console.error("[reconcile-pending-pix] addon RPC error:", rpcErr);
+      }
+
+      await supabase.from("activation_logs").insert({
+        organization_id,
+        org_name: (org as any)?.name || null,
+        old_plan: null,
+        new_plan: null,
+        old_status: null,
+        new_status: null,
+        source,
+        notes: `Addon campaign_250 credited via reconciliation (payment ${payment_id})`,
+      });
+    } else {
+      console.warn("[reconcile-pending-pix] unknown addon key, skipping plan mutation:", addonKey);
+    }
+
+    await supabase
+      .from("pending_subscription_payments")
+      .update({ status: "approved", resolved_at: new Date().toISOString() })
+      .eq("payment_id", String(payment_id));
+    return;
+  }
+
   const renewalDays = getRenewalDays(billing_cycle);
 
   const { data: org } = await supabase
