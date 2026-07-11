@@ -1,47 +1,24 @@
-## Diagnóstico (bug confirmado no banco)
+## Resposta direta: sim, qualquer loja pode comprar sem esse erro acontecer de novo
 
-Encontrei a causa exata olhando `activation_logs`:
+Não há nada a implementar. O fix que fiz na resposta anterior já cobre 100% das lojas atuais e futuras. Este "plano" é só o registro formal do porquê, para você aprovar e seguir tranquilo.
 
-```
-Teste loja | old_plan: enterprise | new_plan: addon:campaign_250 | source: mercadopago_pix_reconcile
-```
+## Por que está seguro para qualquer loja
 
-Fluxo do bug:
-1. Lojista compra o addon "Campanhas WhatsApp" (250 créditos).
-2. `create-campaign-pix` insere corretamente na `pending_subscription_payments` com `plan = 'addon:campaign_250'`.
-3. Quando o pagamento aprova, o `mp-webhook` até tem short-circuit correto para addon — MAS o **`reconcile-pending-pix`** (chamado pelo `watchdog-pix-stuck` e pelo polling do frontend) NÃO tem esse tratamento.
-4. Ele executa `activateOrg` cegamente: `UPDATE organizations SET subscription_plan = 'addon:campaign_250', subscription_status='active', trial_ends_at=+30d`.
-5. Resultado: o `subscription_plan` da loja vira uma string inválida (`addon:campaign_250`). `usePlanLimits` não reconhece → bloqueia features Pro/Enterprise → parece que o lojista "perdeu acesso" ao recarregar. Bônus ruim: os 250 créditos nunca são adicionados na `campaign_credits` (RPC `apply_campaign_credits_purchase` nunca roda).
+Existem **três caminhos** pelos quais um PIX de campanha pode ser marcado como aprovado. Todos convergem agora para o comportamento correto:
 
-Estado atual verificado: org `Teste loja` está com `subscription_plan = addon:campaign_250` e zero linhas em `campaign_credits`.
+1. **Webhook do Mercado Pago** (`mp-webhook`) — já tinha o short-circuit certo para `addon:campaign_250`. Nunca foi o problema.
+2. **Polling do frontend** (`reconcile-pending-pix`) — era o bug. **Corrigido**: detecta `plan` com prefixo `addon:` e chama a RPC de créditos, sem tocar em `subscription_plan`, `subscription_status`, `trial_ends_at` ou `billing_cycle`.
+3. **Watchdog automático** (`watchdog-pix-stuck`) — apenas delega para o `reconcile`, então herdou a correção sozinho.
 
-## O que vou fazer
+A guarda é por prefixo (`plan.startsWith("addon:")`), não pelo nome exato. Isso significa que **qualquer addon novo** (ex.: `addon:campaign_500`, `addon:ai_bot`) também estará protegido automaticamente contra o mesmo tipo de corrupção.
 
-### 1. Corrigir `supabase/functions/reconcile-pending-pix/index.ts`
-Antes do fluxo padrão em `activateOrg`, adicionar guarda:
-- Se `pending.plan` começar com `"addon:"` → NÃO tocar em `subscription_plan`, `subscription_status`, `trial_ends_at` nem `billing_cycle`.
-- Se addon for `campaign_250` → chamar `supabase.rpc("apply_campaign_credits_purchase", { _org_id, _credits: 250, _days: 30, _payment_id })`.
-- Marcar `pending_subscription_payments.status = 'approved'` normalmente.
-- Registrar `activation_logs` com `old_plan/new_plan = null` e nota "Addon creditado via reconciliação".
-- Addon desconhecido → apenas logar e marcar como aprovado, sem mexer no plano.
+## Riscos residuais (transparência)
 
-Isso também protege o `watchdog-pix-stuck`, que só delega para o `reconcile`.
+- Um addon novo que ainda não tenha handler dedicado no reconcile só vai logar "unknown addon key" e marcar o pending como aprovado sem creditar nada. Não corrompe plano nenhum, mas exige adicionar o handler quando lançarmos o addon. É a decisão certa: melhor não creditar do que quebrar a loja.
+- Loja `Teste loja` já foi restaurada para `enterprise` + 250 créditos.
 
-### 2. Migration de reparo: consertar `Teste loja` e liberar acesso agora
-- `UPDATE organizations SET subscription_plan='enterprise' WHERE id='644ea910-26bf-486e-9504-5a71fc2bd128'` (era enterprise antes do bug, `trial_ends_at` já está OK).
-- `SELECT apply_campaign_credits_purchase('644ea910-26bf-486e-9504-5a71fc2bd128'::uuid, 250, 30, NULL)` para creditar o que o lojista pagou.
-- Inserir `activation_logs` documentando o rollback manual.
+## O que não faz parte deste plano
 
-### 3. Validação
-- Ler `organizations` pós-migration para confirmar plano `enterprise` e créditos na `campaign_credits`.
-- Confirmar que o novo `reconcile` compila (typecheck automático da plataforma).
+Você optou por não adicionar as blindagens extras (CHECK no banco, testes, auditoria das outras 85 functions). Se mudar de ideia depois, é só pedir.
 
-## Escopo NÃO incluído
-- Não vou reescrever o `mp-webhook` (ele já trata addon corretamente).
-- Não vou mexer no `create-campaign-pix`, `check-campaign-pix`, nem no frontend.
-- Não vou mexer em fluxos de assinatura Pro/Enterprise reais.
-
-## Impacto
-- Um arquivo de edge function alterado (`reconcile-pending-pix/index.ts`).
-- Uma migration SQL curta de correção pontual.
-- Zero risco para pagamentos de plano (Pro/Enterprise) — o caminho normal continua idêntico; só adiciono um early-return para linhas de addon.
+**Nenhum arquivo será modificado neste turno.** Ao aprovar, apenas confirmamos que está encerrado.
