@@ -1,24 +1,27 @@
-## Resposta direta: sim, qualquer loja pode comprar sem esse erro acontecer de novo
+## Objetivo
+Criar 1 imagem promocional (formato quadrado 1080x1080, ideal pra WhatsApp/Instagram) anunciando **50% OFF no primeiro mês** do TrendFood, usando as cores da marca (laranja/creme da landing atual), + copy pronta pra colar no grupo.
 
-Não há nada a implementar. O fix que fiz na resposta anterior já cobre 100% das lojas atuais e futuras. Este "plano" é só o registro formal do porquê, para você aprovar e seguir tranquilo.
+## Entregáveis
 
-## Por que está seguro para qualquer loja
+### 1. Imagem promocional
+- **Arquivo**: `/mnt/documents/trendfood-promo-50off.jpg` (1080x1080, alta qualidade)
+- **Estilo visual**: Fundo creme claro com bloco laranja vibrante (mesma paleta da HeroCinematic — laranja quente #FF6B35 e creme #FFF8F0), tipografia bold moderna, sensação premium tipo Apple/Nubank — NÃO cartoony, NÃO genérico AI
+- **Elementos**:
+  - Selo grande "50% OFF" em destaque
+  - "Primeiro mês" como subtítulo
+  - Logo/marca "TrendFood" 
+  - Chamada: "Sistema completo pro seu delivery — Zero taxa por venda"
+  - Micro-detalhes: badge "oferta relâmpago", ícone de chama sutil
+- **Modelo**: `premium` (texto precisa ficar legível e nítido)
 
-Existem **três caminhos** pelos quais um PIX de campanha pode ser marcado como aprovado. Todos convergem agora para o comportamento correto:
+### 2. Copy pronta pra grupos WhatsApp
+Texto curto, direto, com emojis estratégicos e CTA claro. Vou entregar 2 versões:
+- **Versão A — Direta/Urgência**: foco no desconto + escassez
+- **Versão B — Benefício**: foco no "quanto você economiza vs iFood"
 
-1. **Webhook do Mercado Pago** (`mp-webhook`) — já tinha o short-circuit certo para `addon:campaign_250`. Nunca foi o problema.
-2. **Polling do frontend** (`reconcile-pending-pix`) — era o bug. **Corrigido**: detecta `plan` com prefixo `addon:` e chama a RPC de créditos, sem tocar em `subscription_plan`, `subscription_status`, `trial_ends_at` ou `billing_cycle`.
-3. **Watchdog automático** (`watchdog-pix-stuck`) — apenas delega para o `reconcile`, então herdou a correção sozinho.
+Ambas com link `https://trendfood.site` e menção ao WhatsApp de suporte `+55 16 98808-3263`.
 
-A guarda é por prefixo (`plan.startsWith("addon:")`), não pelo nome exato. Isso significa que **qualquer addon novo** (ex.: `addon:campaign_500`, `addon:ai_bot`) também estará protegido automaticamente contra o mesmo tipo de corrupção.
-
-## Riscos residuais (transparência)
-
-- Um addon novo que ainda não tenha handler dedicado no reconcile só vai logar "unknown addon key" e marcar o pending como aprovado sem creditar nada. Não corrompe plano nenhum, mas exige adicionar o handler quando lançarmos o addon. É a decisão certa: melhor não creditar do que quebrar a loja.
-- Loja `Teste loja` já foi restaurada para `enterprise` + 250 créditos.
-
-## O que não faz parte deste plano
-
-Você optou por não adicionar as blindagens extras (CHECK no banco, testes, auditoria das outras 85 functions). Se mudar de ideia depois, é só pedir.
-
-**Nenhum arquivo será modificado neste turno.** Ao aprovar, apenas confirmamos que está encerrado.
+## Observações
+- Nenhuma alteração de código — é só geração de imagem + texto de marketing.
+- A imagem fica em `/mnt/documents` pra você baixar direto e mandar nos grupos.
+- Se preferir formato **story (9:16, 1080x1920)** em vez de quadrado, me avisa antes que eu ajusto.
