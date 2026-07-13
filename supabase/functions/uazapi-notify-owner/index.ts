@@ -16,6 +16,16 @@ function fmt(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }
 
+function parseFreteValue(freteStr: string | null | undefined): number | null {
+  if (!freteStr) return null;
+  const lower = freteStr.toLowerCase().trim();
+  if (lower === "grátis" || lower === "gratis" || lower === "free") return 0;
+  const cleaned = freteStr.replace(/[^\d,\.]/g, "").replace(",", ".");
+  if (!cleaned) return null;
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? null : parsed;
+}
+
 function buildOwnerMessage(
   order: {
     id: string;
@@ -48,8 +58,9 @@ function buildOwnerMessage(
     .map((i) => `  • ${i.quantity}x ${i.name} — ${fmt(i.price * i.quantity)}`)
     .join("\n");
 
-  const total = order.total_price
-    ?? items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const itemsTotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const freteValue = parseFreteValue(frete);
+  const total = (order.total_price ?? itemsTotal) + (freteValue ?? 0);
 
   const lines = [
     `🛎️ *Novo Pedido — ${orgName}*`,
