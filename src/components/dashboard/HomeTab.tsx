@@ -366,9 +366,6 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
         />
       )}
 
-      {/* ── Referral CTA ────────────────────────────────── */}
-      <ReferralHomeCard orgId={organization.id} onNavigate={onNavigate} />
-
       {/* ══ HERO GRID ═══════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Revenue hero — spans 2 cols */}
@@ -716,6 +713,9 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
             </ResponsiveContainer>
           )}
       </div>
+
+      {/* ── Referral CTA ────────────────────────────────── */}
+      <ReferralHomeCard orgId={organization.id} onNavigate={onNavigate} />
 
       {/* ── Install app (subtle) ─────────────────────────── */}
       {!isStandalone && (
