@@ -939,10 +939,11 @@ const DashboardPage = () => {
         <div className="px-3 pb-5 pt-3 border-t border-white/[0.06] space-y-1">
           <button
             onClick={() => handleTabChange("referral")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary/10 text-primary border border-primary/25 hover:bg-primary/20 transition-all duration-150"
+            className="relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-primary/20 to-primary/10 text-primary border border-primary/40 hover:from-primary/30 hover:to-primary/20 transition-all duration-150 shadow-[0_0_0_0_hsl(var(--primary)/0.5)] hover:shadow-[0_0_16px_0_hsl(var(--primary)/0.35)]"
           >
             <Gift className="w-4 h-4" />
-            Ganhe Desconto
+            <span className="flex-1 text-left">Ganhe meses grátis</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground rounded px-1.5 py-0.5">Novo</span>
           </button>
           <div className="pt-1 mt-1 border-t border-white/[0.06] space-y-0.5">
           <a

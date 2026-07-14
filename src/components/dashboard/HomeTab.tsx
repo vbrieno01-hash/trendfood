@@ -40,6 +40,7 @@ import BannerRecoveryBanner from "@/components/dashboard/BannerRecoveryBanner";
 import PushActivationBanner from "@/components/dashboard/PushActivationBanner";
 import UpdateBanner from "@/components/dashboard/UpdateBanner";
 import CampaignsAnnouncementBanner from "@/components/dashboard/CampaignsAnnouncementBanner";
+import ReferralHomeCard from "@/components/dashboard/ReferralHomeCard";
 
 interface Organization {
   id: string;
@@ -364,6 +365,9 @@ export default function HomeTab({ organization, onNavigate }: { organization: Or
           onNavigate={onNavigate}
         />
       )}
+
+      {/* ── Referral CTA ────────────────────────────────── */}
+      <ReferralHomeCard orgId={organization.id} onNavigate={onNavigate} />
 
       {/* ══ HERO GRID ═══════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
