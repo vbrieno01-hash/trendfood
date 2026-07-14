@@ -40,6 +40,7 @@ import BannerRecoveryBanner from "@/components/dashboard/BannerRecoveryBanner";
 import PushActivationBanner from "@/components/dashboard/PushActivationBanner";
 import UpdateBanner from "@/components/dashboard/UpdateBanner";
 import CampaignsAnnouncementBanner from "@/components/dashboard/CampaignsAnnouncementBanner";
+import ReferralHomeCard from "@/components/dashboard/ReferralHomeCard";
 
 interface Organization {
   id: string;
