@@ -110,6 +110,7 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_enforce_cash_session_integrity ON public.cash_sessions;
+DROP TRIGGER IF EXISTS trg_enforce_cash_session_integrity ON public.cash_sessions;
 CREATE TRIGGER trg_enforce_cash_session_integrity
   BEFORE INSERT OR UPDATE ON public.cash_sessions
   FOR EACH ROW EXECUTE FUNCTION public.enforce_cash_session_integrity();
@@ -168,6 +169,7 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_enforce_cash_withdrawal_integrity ON public.cash_withdrawals;
+DROP TRIGGER IF EXISTS trg_enforce_cash_withdrawal_integrity ON public.cash_withdrawals;
 CREATE TRIGGER trg_enforce_cash_withdrawal_integrity
   BEFORE INSERT OR UPDATE ON public.cash_withdrawals
   FOR EACH ROW EXECUTE FUNCTION public.enforce_cash_withdrawal_integrity();
@@ -181,7 +183,7 @@ CREATE TRIGGER trg_enforce_cash_withdrawal_integrity
 -- ============================================================
 
 -- 1) TABELA: campaign_credits (saldo mensal por loja)
-CREATE TABLE public.campaign_credits (
+CREATE TABLE IF NOT EXISTS public.campaign_credits (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   plan_id         text NOT NULL DEFAULT 'basic_250',
@@ -195,29 +197,35 @@ CREATE TABLE public.campaign_credits (
   updated_at      timestamptz NOT NULL DEFAULT now(),
   UNIQUE (organization_id)
 );
-CREATE INDEX idx_campaign_credits_org ON public.campaign_credits(organization_id);
-CREATE INDEX idx_campaign_credits_status ON public.campaign_credits(status) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_campaign_credits_org ON public.campaign_credits(organization_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_credits_status ON public.campaign_credits(status) WHERE status = 'active';
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaign_credits TO authenticated;
 GRANT ALL ON public.campaign_credits TO service_role;
 
 ALTER TABLE public.campaign_credits ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "campaign_credits_select_owner" ON public.campaign_credits;
 CREATE POLICY "campaign_credits_select_owner" ON public.campaign_credits FOR SELECT
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaign_credits.organization_id));
+DROP POLICY IF EXISTS "campaign_credits_select_admin" ON public.campaign_credits;
 CREATE POLICY "campaign_credits_select_admin" ON public.campaign_credits FOR SELECT
   USING (public.has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "campaign_credits_insert_owner" ON public.campaign_credits;
 CREATE POLICY "campaign_credits_insert_owner" ON public.campaign_credits FOR INSERT
   WITH CHECK (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaign_credits.organization_id));
+DROP POLICY IF EXISTS "campaign_credits_update_owner" ON public.campaign_credits;
 CREATE POLICY "campaign_credits_update_owner" ON public.campaign_credits FOR UPDATE
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaign_credits.organization_id));
+DROP POLICY IF EXISTS "campaign_credits_update_admin" ON public.campaign_credits;
 CREATE POLICY "campaign_credits_update_admin" ON public.campaign_credits FOR UPDATE
   USING (public.has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "campaign_credits_delete_admin" ON public.campaign_credits;
 CREATE POLICY "campaign_credits_delete_admin" ON public.campaign_credits FOR DELETE
   USING (public.has_role(auth.uid(), 'admin'));
 
 -- 2) TABELA: campaigns (campanhas criadas)
-CREATE TABLE public.campaigns (
+CREATE TABLE IF NOT EXISTS public.campaigns (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id   uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   name              text NOT NULL,
@@ -231,27 +239,32 @@ CREATE TABLE public.campaigns (
   updated_at        timestamptz NOT NULL DEFAULT now(),
   completed_at      timestamptz
 );
-CREATE INDEX idx_campaigns_org_created ON public.campaigns(organization_id, created_at DESC);
-CREATE INDEX idx_campaigns_status ON public.campaigns(status) WHERE status IN ('draft','sending');
+CREATE INDEX IF NOT EXISTS idx_campaigns_org_created ON public.campaigns(organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_campaigns_status ON public.campaigns(status) WHERE status IN ('draft','sending');
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaigns TO authenticated;
 GRANT ALL ON public.campaigns TO service_role;
 
 ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "campaigns_select_owner" ON public.campaigns;
 CREATE POLICY "campaigns_select_owner" ON public.campaigns FOR SELECT
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaigns.organization_id));
+DROP POLICY IF EXISTS "campaigns_select_admin" ON public.campaigns;
 CREATE POLICY "campaigns_select_admin" ON public.campaigns FOR SELECT
   USING (public.has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "campaigns_insert_owner" ON public.campaigns;
 CREATE POLICY "campaigns_insert_owner" ON public.campaigns FOR INSERT
   WITH CHECK (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaigns.organization_id));
+DROP POLICY IF EXISTS "campaigns_update_owner" ON public.campaigns;
 CREATE POLICY "campaigns_update_owner" ON public.campaigns FOR UPDATE
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaigns.organization_id));
+DROP POLICY IF EXISTS "campaigns_delete_owner" ON public.campaigns;
 CREATE POLICY "campaigns_delete_owner" ON public.campaigns FOR DELETE
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaigns.organization_id));
 
 -- 3) TABELA: campaign_recipients (telefones de cada campanha)
-CREATE TABLE public.campaign_recipients (
+CREATE TABLE IF NOT EXISTS public.campaign_recipients (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   campaign_id   uuid NOT NULL REFERENCES public.campaigns(id) ON DELETE CASCADE,
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
@@ -263,22 +276,27 @@ CREATE TABLE public.campaign_recipients (
   sent_at       timestamptz,
   UNIQUE (campaign_id, phone)
 );
-CREATE INDEX idx_campaign_recipients_campaign ON public.campaign_recipients(campaign_id, status);
-CREATE INDEX idx_campaign_recipients_org ON public.campaign_recipients(organization_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_recipients_campaign ON public.campaign_recipients(campaign_id, status);
+CREATE INDEX IF NOT EXISTS idx_campaign_recipients_org ON public.campaign_recipients(organization_id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.campaign_recipients TO authenticated;
 GRANT ALL ON public.campaign_recipients TO service_role;
 
 ALTER TABLE public.campaign_recipients ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "campaign_recipients_select_owner" ON public.campaign_recipients;
 CREATE POLICY "campaign_recipients_select_owner" ON public.campaign_recipients FOR SELECT
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaign_recipients.organization_id));
+DROP POLICY IF EXISTS "campaign_recipients_select_admin" ON public.campaign_recipients;
 CREATE POLICY "campaign_recipients_select_admin" ON public.campaign_recipients FOR SELECT
   USING (public.has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "campaign_recipients_insert_owner" ON public.campaign_recipients;
 CREATE POLICY "campaign_recipients_insert_owner" ON public.campaign_recipients FOR INSERT
   WITH CHECK (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaign_recipients.organization_id));
+DROP POLICY IF EXISTS "campaign_recipients_update_owner" ON public.campaign_recipients;
 CREATE POLICY "campaign_recipients_update_owner" ON public.campaign_recipients FOR UPDATE
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaign_recipients.organization_id));
+DROP POLICY IF EXISTS "campaign_recipients_delete_owner" ON public.campaign_recipients;
 CREATE POLICY "campaign_recipients_delete_owner" ON public.campaign_recipients FOR DELETE
   USING (auth.uid() = (SELECT user_id FROM public.organizations WHERE id = campaign_recipients.organization_id));
 
@@ -291,10 +309,12 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_campaign_credits_updated ON public.campaign_credits;
 CREATE TRIGGER trg_campaign_credits_updated
   BEFORE UPDATE ON public.campaign_credits
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_campaigns_updated ON public.campaigns;
 CREATE TRIGGER trg_campaigns_updated
   BEFORE UPDATE ON public.campaigns
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -577,6 +597,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_wa_outbox_dedup ON public.whatsapp_outbox;
 DROP TRIGGER IF EXISTS trg_wa_outbox_dedup ON public.whatsapp_outbox;
 CREATE TRIGGER trg_wa_outbox_dedup
   BEFORE INSERT ON public.whatsapp_outbox
