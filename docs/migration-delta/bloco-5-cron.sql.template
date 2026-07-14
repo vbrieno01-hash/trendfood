@@ -1,0 +1,274 @@
+-- =========================================================================
+-- Bloco 5 — Recriação dos 26 pg_cron jobs no espelho
+-- =========================================================================
+--
+-- ANTES DE RODAR:
+--   1. Substitua GLOBALMENTE (Ctrl+H):
+--        __NEW_PROJECT_REF__   →  eqyklkrigshbjuneuxrz
+--        __NEW_ANON_KEY__      →  <anon key do espelho, Settings → API Keys>
+--
+--   2. Confirme que as extensões estão ativas:
+--        CREATE EXTENSION IF NOT EXISTS pg_cron;
+--        CREATE EXTENSION IF NOT EXISTS pg_net;
+--
+--   3. Rode no SQL Editor do espelho (eqyklkrigshbjuneuxrz).
+-- =========================================================================
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- Limpa jobs preexistentes com o mesmo nome (idempotente)
+DO $$
+DECLARE j RECORD;
+BEGIN
+  FOR j IN SELECT jobname FROM cron.job WHERE jobname IN (
+    'addon-expiration-sweep',
+    'admin-telegram-daily-digest',
+    'admin-telegram-dedupe-cleanup',
+    'admin-telegram-watchdog-business',
+    'admin-telegram-watchdog-morning',
+    'admin-telegram-weekly-digest',
+    'affiliate-auto-choose-hourly',
+    'affiliate-monthly-payout-day5',
+    'cleanup_inactive_orgs_weekly',
+    'cleanup_orphan_storage_daily',
+    'cleanup-broken-banners-daily',
+    'cleanup-infra-logs-daily',
+    'cleanup-internal-postgres-logs',
+    'cleanup-phantom-orders',
+    'expire-stuck-prints',
+    'fiscal-consult-reconcile',
+    'ifood-disputes-expire',
+    'ifood-orphan-sweeper-every-minute',
+    'ifood-poll-events-1min',
+    'reclaim-stuck-prints',
+    'reclame_aqui_ratelimit_cleanup',
+    'reconcile-pending-pix-every-minute',
+    'referral-cron-watchdog-30m',
+    'refresh-top-stores-showcase',
+    'release-affiliate-commissions-hourly',
+    'release-referral-bonuses-hourly',
+    'storage_maintenance_daily',
+    'telegram-automations-every-minute',
+    'watchdog-pix-stuck',
+    'whatsapp-cleanup-expired-every-5-minutes',
+    'whatsapp-outbox-dispatch'
+  ) LOOP
+    PERFORM cron.unschedule(j.jobname);
+  END LOOP;
+END $$;
+
+-- =========================================================================
+-- Jobs que só chamam funções SQL locais (sem project ref)
+-- =========================================================================
+
+SELECT cron.schedule('addon-expiration-sweep', '0 3 * * *', $$
+  SELECT public.sweep_ai_bot_addons();
+  SELECT public.notify_ai_bot_expiring();
+$$);
+
+SELECT cron.schedule('admin-telegram-dedupe-cleanup', '0 3 * * 0',
+  $$SELECT public.cleanup_admin_telegram_dedupe();$$);
+
+SELECT cron.schedule('cleanup_inactive_orgs_weekly', '0 7 * * 1',
+  $$SELECT public.cleanup_inactive_organizations();$$);
+
+SELECT cron.schedule('cleanup-infra-logs-daily', '30 6 * * *',
+  $$SELECT public.cleanup_infra_logs();$$);
+
+SELECT cron.schedule('cleanup-internal-postgres-logs', '30 6 * * *',
+  $$SELECT public.cleanup_internal_postgres_logs();$$);
+
+SELECT cron.schedule('expire-stuck-prints', '0 */6 * * *', $$
+  UPDATE public.fila_impressao
+  SET status = 'expirado'
+  WHERE status = 'pendente'
+    AND created_at < (now() - interval '24 hours');
+$$);
+
+SELECT cron.schedule('ifood-disputes-expire', '*/5 * * * *', $$
+  UPDATE public.ifood_disputes
+  SET status = 'expired'
+  WHERE status = 'open' AND expires_at IS NOT NULL AND expires_at < now();
+$$);
+
+SELECT cron.schedule('reclaim-stuck-prints', '* * * * *', $$
+  UPDATE public.fila_impressao
+  SET status = 'pendente', claimed_at = NULL
+  WHERE status = 'imprimindo'
+    AND claimed_at < now() - interval '60 seconds';
+$$);
+
+SELECT cron.schedule('reclame_aqui_ratelimit_cleanup', '17 * * * *',
+  $$DELETE FROM public.reclame_aqui_ratelimit WHERE created_at < now() - interval '24 hours';$$);
+
+SELECT cron.schedule('refresh-top-stores-showcase', '0 * * * *',
+  $$SELECT public.refresh_top_stores_showcase();$$);
+
+SELECT cron.schedule('release-referral-bonuses-hourly', '17 * * * *',
+  $$SELECT public.release_pending_referral_bonuses();$$);
+
+SELECT cron.schedule('storage_maintenance_daily', '30 3 * * *',
+  $$SELECT public.storage_maintenance_job();$$);
+
+-- =========================================================================
+-- Jobs que chamam Edge Functions via net.http_post
+-- =========================================================================
+
+SELECT cron.schedule('admin-telegram-daily-digest', '0 12 * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/admin-telegram-digest?mode=daily',
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer __NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('admin-telegram-watchdog-business', '0 14,18,22 * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/admin-telegram-watchdog',
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := '{"mode":"business"}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('admin-telegram-watchdog-morning', '0 12 * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/admin-telegram-watchdog',
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := '{"mode":"morning"}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('admin-telegram-weekly-digest', '0 13 * * 0', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/admin-telegram-digest?mode=weekly',
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer __NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('affiliate-auto-choose-hourly', '23 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/affiliate-auto-choose',
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('affiliate-monthly-payout-day5', '0 12 5 * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/affiliate-monthly-payout',
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('cleanup_orphan_storage_daily', '0 6 * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/cleanup-orphan-storage?secret=' ||
+           (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'UNIVERSAL_WEBHOOK_SECRET' LIMIT 1),
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('cleanup-broken-banners-daily', '0 3 * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/cleanup-broken-banners',
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('cleanup-phantom-orders', '*/5 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/cleanup-phantom-orders',
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer __NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('fiscal-consult-reconcile', '*/10 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/fiscal-consult-cron',
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer __NEW_ANON_KEY__"}'::jsonb,
+    body := jsonb_build_object('ts', now())
+  );
+$$);
+
+SELECT cron.schedule('ifood-orphan-sweeper-every-minute', '* * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/ifood-orphan-sweeper',
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('ifood-poll-events-1min', '* * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/ifood-poll-events',
+    headers := jsonb_build_object('Content-Type','application/json','apikey','__NEW_ANON_KEY__'),
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('reconcile-pending-pix-every-minute', '* * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/reconcile-pending-pix',
+    headers := '{"Content-Type":"application/json","apikey":"__NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('referral-cron-watchdog-30m', '*/30 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/referral-cron-watchdog',
+    headers := '{"Content-Type":"application/json","apikey":"__NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('release-affiliate-commissions-hourly', '0 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/release-affiliate-commissions',
+    headers := '{"Content-Type":"application/json","apikey":"__NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('telegram-automations-every-minute', '* * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/telegram-automations',
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer __NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('watchdog-pix-stuck', '*/5 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/watchdog-pix-stuck',
+    headers := '{"Content-Type":"application/json","apikey":"__NEW_ANON_KEY__"}'::jsonb,
+    body := '{"source":"cron"}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('whatsapp-cleanup-expired-every-5-minutes', '*/5 * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/whatsapp-cleanup-expired',
+    headers := '{"Content-Type":"application/json","apikey":"__NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+SELECT cron.schedule('whatsapp-outbox-dispatch', '* * * * *', $$
+  SELECT net.http_post(
+    url := 'https://__NEW_PROJECT_REF__.supabase.co/functions/v1/whatsapp-outbox-dispatch',
+    headers := '{"Content-Type":"application/json","apikey":"__NEW_ANON_KEY__"}'::jsonb,
+    body := '{}'::jsonb
+  );
+$$);
+
+-- =========================================================================
+-- Validação
+-- =========================================================================
+SELECT jobname, schedule FROM cron.job ORDER BY jobname;
