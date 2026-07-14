@@ -287,15 +287,11 @@ const AuthPage = () => {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth`,
-          queryParams: { prompt: "select_account" },
-        },
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: `${window.location.origin}/auth`,
       });
-      if (error) {
-        toast.error(error.message || "Erro ao entrar com Google. Tente novamente.");
+      if (result?.error) {
+        toast.error("Erro ao entrar com Google. Tente novamente.");
       }
     } catch {
       toast.error("Erro ao entrar com Google. Tente novamente.");
