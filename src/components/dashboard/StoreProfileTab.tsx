@@ -115,6 +115,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
   const [gatewayToken, setGatewayToken] = useState("");
   const [secretsLoading, setSecretsLoading] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [testingGateway, setTestingGateway] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const bannerFileRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -1155,6 +1156,48 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
                         {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    {gatewayProvider && gatewayToken && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={testingGateway}
+                        onClick={async () => {
+                          setTestingGateway(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke("test-pix-gateway", {
+                              body: { provider: gatewayProvider, token: gatewayToken },
+                            });
+                            if (error) {
+                              toast.error("Falha ao testar: " + error.message);
+                              return;
+                            }
+                            if (data?.ok) {
+                              if (data.skipped) {
+                                toast.info(data.error);
+                              } else {
+                                toast.success(
+                                  `Conectado como ${data.account}${data.sandbox ? " (sandbox)" : ""}`
+                                );
+                              }
+                            } else {
+                              toast.error(data?.error || "Token inválido");
+                            }
+                          } catch (e: any) {
+                            toast.error("Erro: " + (e?.message || "desconhecido"));
+                          } finally {
+                            setTestingGateway(false);
+                          }
+                        }}
+                        className="mt-2"
+                      >
+                        {testingGateway ? (
+                          <><Loader2 className="w-3 h-3 mr-2 animate-spin" /> Testando...</>
+                        ) : (
+                          <><Check className="w-3 h-3 mr-2" /> Testar conexão</>
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   {gatewayProvider === "mercadopago" && (
