@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
     let livePhone: string | null = null;
     let qrcode: string | null = null;
     let tokenInvalid = false;
+    let sessionDead = false;
     const probes: Array<{ endpoint: string; status: number; hasQr: boolean; rawStatus: string | null }> = [];
 
     try {
@@ -91,6 +92,11 @@ Deno.serve(async (req) => {
         headers: { token: inst.instance_token },
       });
       const stext = await sres.text();
+      const sLower = stext.toLowerCase();
+      if (
+        sLower.includes("session is not reconnectable") ||
+        sLower.includes("whatsapp disconnected")
+      ) sessionDead = true;
       let sdata: any = null;
       try { sdata = JSON.parse(stext); } catch { /* noop */ }
       const rawStatus = sdata?.instance?.status || sdata?.status || null;
@@ -115,6 +121,11 @@ Deno.serve(async (req) => {
           body: JSON.stringify({}),
         });
         const ctext = await cres.text();
+        const cLower = ctext.toLowerCase();
+        if (
+          cLower.includes("session is not reconnectable") ||
+          cLower.includes("whatsapp disconnected")
+        ) sessionDead = true;
         let cdata: any = null;
         try { cdata = JSON.parse(ctext); } catch { /* noop */ }
         const cStatus = cdata?.instance?.status || cdata?.status || null;
@@ -131,7 +142,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[uazapi-status] org=${organization_id} probes=${JSON.stringify(probes)} qr=${!!qrcode} status=${liveStatus} tokenInvalid=${tokenInvalid}`);
+    console.log(`[uazapi-status] org=${organization_id} probes=${JSON.stringify(probes)} qr=${!!qrcode} status=${liveStatus} tokenInvalid=${tokenInvalid} sessionDead=${sessionDead}`);
 
     // Sincronizar mudanças no banco — regra conservadora:
     // - Só rebaixa `connected` quando o uazapi confirmar estado TERMINAL
@@ -143,7 +154,7 @@ Deno.serve(async (req) => {
     const updates: Record<string, unknown> = {};
     const tokenDead = tokenInvalid && !qrcode;
     const effectiveStatus =
-      liveStatus ?? (tokenDead ? "disconnected" : null);
+      sessionDead ? "disconnected" : (liveStatus ?? (tokenDead ? "disconnected" : null));
     const isTerminal = effectiveStatus === "disconnected";
     const isConnected = effectiveStatus === "connected";
     const isTransient = !!effectiveStatus && !isTerminal && !isConnected;

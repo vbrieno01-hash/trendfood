@@ -101,11 +101,29 @@ Deno.serve(async (req) => {
         if (!res.ok) {
           const body = await res.text();
           sendError = `UazAPI ${res.status}: ${body.slice(0, 200)}`;
-          if (res.status === 401 || res.status === 403) {
+          const bodyLower = body.toLowerCase();
+          const sessionDead =
+            bodyLower.includes("session is not reconnectable") ||
+            bodyLower.includes("whatsapp disconnected");
+          if (res.status === 401 || res.status === 403 || sessionDead) {
             await supabase
               .from("whatsapp_instances")
               .update({ status: "disconnected", connected_at: null, phone_connected: null })
               .eq("organization_id", row.organization_id);
+          }
+          // Sessão morta: não gasta retries — vai direto pra skipped
+          if (sessionDead) {
+            await supabase
+              .from("whatsapp_outbox" as any)
+              .update({
+                status: "skipped",
+                last_error: sendError,
+                attempts: (row.attempts ?? 0) + 1,
+              })
+              .eq("id", row.id);
+            console.error(`[process-wa-outbox] session dead id=${row.id}, marked skipped`);
+            failed++;
+            continue;
           }
         }
       } catch (e) {

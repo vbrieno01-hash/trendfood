@@ -147,7 +147,11 @@ Deno.serve(async (req) => {
         }
       } else {
         const errText = await res.text();
-        if (res.status === 401 || res.status === 403) {
+        const errLower = errText.toLowerCase();
+        const sessionDead =
+          errLower.includes("session is not reconnectable") ||
+          errLower.includes("whatsapp disconnected");
+        if (res.status === 401 || res.status === 403 || sessionDead) {
           await supabase
             .from("whatsapp_instances")
             .update({ status: "disconnected", connected_at: null, phone_connected: null })
@@ -155,10 +159,14 @@ Deno.serve(async (req) => {
         }
         // attempts já foi incrementado no claim → row.attempts é o valor pós-incremento
         const currentAttempts = row.attempts;
+        // Sessão morta é terminal — pula direto, não gasta retries
+        const nextStatus = sessionDead
+          ? "skipped"
+          : currentAttempts >= MAX_ATTEMPTS ? "failed" : "pending";
         await supabase
           .from("whatsapp_outbox")
           .update({
-            status: currentAttempts >= MAX_ATTEMPTS ? "failed" : "pending",
+            status: nextStatus,
             last_error: `HTTP ${res.status}: ${errText.slice(0, 200)}`,
             processing_started_at: null,
           })

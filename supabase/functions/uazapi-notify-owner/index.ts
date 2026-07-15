@@ -235,11 +235,16 @@ Deno.serve(async (req) => {
         sendCode = res.status === 401 || res.status === 403
           ? `WA-NOTIFY-OWNER-${res.status}`
           : "WA-NOTIFY-OWNER-UAZAPI";
-        if (res.status === 401 || res.status === 403) {
+        const bodyLower = body.toLowerCase();
+        const sessionDead =
+          bodyLower.includes("session is not reconnectable") ||
+          bodyLower.includes("whatsapp disconnected");
+        if (res.status === 401 || res.status === 403 || sessionDead) {
           await supabase
             .from("whatsapp_instances")
             .update({ status: "disconnected", connected_at: null, phone_connected: null })
             .eq("organization_id", org.id);
+          if (sessionDead) sendCode = "WA-NOTIFY-OWNER-SESSION-DEAD";
         }
       }
     } catch (e) {
