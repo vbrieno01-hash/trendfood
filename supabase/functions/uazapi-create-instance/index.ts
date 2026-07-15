@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
           instance_token: recreated.instanceToken,
           status: qr2.status || "connecting",
           webhook_configured: webhookOk,
+          server_url: serverUrl,
           phone_connected: null,
           connected_at: null,
         })
@@ -215,6 +216,7 @@ Deno.serve(async (req) => {
         instance_token: instanceToken,
         status: qr.status || "connecting",
         webhook_configured: webhookConfigured,
+        server_url: serverUrl,
       })
       .select()
       .single();
