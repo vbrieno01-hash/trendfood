@@ -54,8 +54,20 @@ export default function CreateStoreTab() {
           trial_days: Number(trialDays) || 0,
         },
       });
-      if (error) throw error;
-      const d = data as any;
+      // supabase.functions.invoke throws for non-2xx and hides the body.
+      // Try to read the body from error.context to surface the real reason.
+      let d: any = data;
+      if (error) {
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") d = await ctx.json();
+          else if (ctx && typeof ctx.text === "function") {
+            const t = await ctx.text();
+            try { d = JSON.parse(t); } catch { d = { error: t }; }
+          }
+        } catch { /* ignore */ }
+        if (!d) throw error;
+      }
       if (!d?.ok) {
         const map: Record<string, string> = {
           slug_in_use: "Este slug já está em uso.",
@@ -63,8 +75,13 @@ export default function CreateStoreTab() {
           invalid_email: "E-mail inválido.",
           weak_password: "Senha fraca (mínimo 8 caracteres).",
           invalid_slug: "Slug inválido.",
+          missing_name: "Informe o nome da loja.",
           forbidden: "Somente o admin pode criar lojas.",
           unauthorized: "Sessão expirada. Entre novamente.",
+          profile_create_failed: "Falha ao criar perfil do usuário.",
+          org_create_failed: "Falha ao criar a organização.",
+          auth_create_failed: "Falha ao criar o usuário.",
+          db_error: "Erro no banco de dados.",
         };
         throw new Error(map[d?.error] || d?.detail || d?.error || "Falha ao criar loja");
       }
