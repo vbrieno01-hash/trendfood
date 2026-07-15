@@ -146,6 +146,23 @@ const AuthPage = () => {
     setGoogleOnboarding(true);
   }, [user?.id, organization?.id, authLoading, fullRedirect, navigate]);
 
+  // Reaproveita dados do cadastro salvos antes da confirmação de e-mail
+  useEffect(() => {
+    if (!googleOnboarding) return;
+    try {
+      const raw = localStorage.getItem("pending_signup_org");
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (p && typeof p === "object") {
+        setGoogleBiz((prev) => ({
+          name: prev.name || p.name || "",
+          slug: prev.slug || p.slug || "",
+          whatsapp: prev.whatsapp || p.whatsapp || "",
+        }));
+      }
+    } catch {}
+  }, [googleOnboarding]);
+
   const handleGoogleOnboard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!googleBiz.name.trim() || !googleBiz.slug.trim()) {
@@ -206,6 +223,7 @@ const AuthPage = () => {
       }
       toast.success("Loja criada com sucesso! 🎉");
       await refreshOrganizationForUser(user!.id);
+      try { localStorage.removeItem("pending_signup_org"); } catch {}
       navigate(fullRedirect, { replace: true });
     } catch (err: unknown) {
       const error = err as { message?: string };
