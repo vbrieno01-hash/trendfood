@@ -36,19 +36,19 @@ Deno.serve(async (req) => {
   const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   const authHeader = req.headers.get("Authorization") || "";
-  if (!authHeader.startsWith("Bearer ")) return json(401, { error: "unauthorized" });
+  if (!authHeader.startsWith("Bearer ")) return json(200, { ok: false, error: "unauthorized" });
 
   // Verify caller is the admin
   const userClient = createClient(SUPABASE_URL, ANON, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: userData, error: userErr } = await userClient.auth.getUser();
-  if (userErr || !userData?.user) return json(401, { error: "unauthorized" });
+  if (userErr || !userData?.user) return json(200, { ok: false, error: "unauthorized" });
   const callerEmail = (userData.user.email || "").toLowerCase();
-  if (callerEmail !== ADMIN_EMAIL) return json(403, { error: "forbidden" });
+  if (callerEmail !== ADMIN_EMAIL) return json(200, { ok: false, error: "forbidden" });
 
   let body: any;
-  try { body = await req.json(); } catch { return json(400, { error: "invalid_json" }); }
+  try { body = await req.json(); } catch { return json(200, { ok: false, error: "invalid_json" }); }
 
   const name = String(body?.name ?? "").trim();
   const email = String(body?.email ?? "").trim().toLowerCase();
@@ -61,10 +61,10 @@ Deno.serve(async (req) => {
   const trialDays = Number.isFinite(Number(body?.trial_days)) ? Number(body.trial_days) : 0;
   const fullName = String(body?.full_name ?? name).trim();
 
-  if (!name) return json(400, { error: "missing_name" });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { error: "invalid_email" });
-  if (password.length < 8) return json(400, { error: "weak_password" });
-  if (!slug || slug.length < 2) return json(400, { error: "invalid_slug" });
+  if (!name) return json(200, { ok: false, error: "missing_name" });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(200, { ok: false, error: "invalid_email" });
+  if (password.length < 8) return json(200, { ok: false, error: "weak_password" });
+  if (!slug || slug.length < 2) return json(200, { ok: false, error: "invalid_slug" });
 
   const admin = createClient(SUPABASE_URL, SERVICE, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -74,8 +74,8 @@ Deno.serve(async (req) => {
   {
     const { data: existing, error: e } = await admin
       .from("organizations").select("id").eq("slug", slug).maybeSingle();
-    if (e) return json(500, { error: "db_error", detail: e.message });
-    if (existing) return json(409, { error: "slug_in_use" });
+    if (e) return json(200, { ok: false, error: "db_error", detail: e.message });
+    if (existing) return json(200, { ok: false, error: "slug_in_use" });
   }
 
   // Create user (already confirmed)
@@ -88,19 +88,23 @@ Deno.serve(async (req) => {
 
   if (createErr || !created?.user) {
     const msg = createErr?.message || "";
-    if (/already been registered|already registered|duplicate/i.test(msg)) {
-      return json(409, { error: "email_in_use" });
+    if (/already been registered|already registered|duplicate|email_exists/i.test(msg)) {
+      return json(200, { ok: false, error: "email_in_use" });
     }
-    return json(500, { error: "auth_create_failed", detail: msg });
+    return json(200, { ok: false, error: "auth_create_failed", detail: msg });
   }
 
   const userId = created.user.id;
 
   // Profile
-  await admin.from("profiles").upsert(
+  const { error: profErr } = await admin.from("profiles").upsert(
     { user_id: userId, full_name: fullName },
     { onConflict: "user_id" },
   );
+  if (profErr) {
+    await admin.auth.admin.deleteUser(userId).catch(() => {});
+    return json(200, { ok: false, error: "profile_create_failed", detail: profErr.message });
+  }
 
   // Organization
   const orgPayload: Record<string, unknown> = {
@@ -123,8 +127,8 @@ Deno.serve(async (req) => {
   if (orgErr) {
     // rollback user to avoid orphan
     await admin.auth.admin.deleteUser(userId).catch(() => {});
-    if ((orgErr as any).code === "23505") return json(409, { error: "slug_in_use" });
-    return json(500, { error: "org_create_failed", detail: orgErr.message });
+    if ((orgErr as any).code === "23505") return json(200, { ok: false, error: "slug_in_use" });
+    return json(200, { ok: false, error: "org_create_failed", detail: orgErr.message });
   }
 
   return json(200, {
