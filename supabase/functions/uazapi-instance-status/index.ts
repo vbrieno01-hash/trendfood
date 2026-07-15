@@ -133,21 +133,52 @@ Deno.serve(async (req) => {
 
     console.log(`[uazapi-status] org=${organization_id} probes=${JSON.stringify(probes)} qr=${!!qrcode} status=${liveStatus} tokenInvalid=${tokenInvalid}`);
 
-    // Sincronizar mudanças no banco
+    // Sincronizar mudanças no banco — regra conservadora:
+    // - Só rebaixa `connected` quando o uazapi confirmar estado TERMINAL
+    //   (`disconnected`/`close`/`logout`) ou o token estiver morto sem QR.
+    // - Estados transitórios (`connecting`, `pairing`, `syncing`, ...) NÃO
+    //   sobrescrevem `connected` — apenas voltam no response pra UI.
+    // - Se o banco já estava em transitório e o uazapi devolve outro
+    //   transitório, mantém como está (não piora).
     const updates: Record<string, unknown> = {};
-    // Token inválido no uazapi (instância apagada/deslogada) + sem QR = tratar como desconectado
+    const tokenDead = tokenInvalid && !qrcode;
     const effectiveStatus =
-      liveStatus ?? (tokenInvalid && !qrcode ? "disconnected" : null);
-    if (effectiveStatus && effectiveStatus !== inst.status) updates.status = effectiveStatus;
-    if (effectiveStatus === "connected") {
+      liveStatus ?? (tokenDead ? "disconnected" : null);
+    const isTerminal = effectiveStatus === "disconnected";
+    const isConnected = effectiveStatus === "connected";
+    const isTransient = !!effectiveStatus && !isTerminal && !isConnected;
+
+    let nextStatus: string | null = null;
+    if (isConnected) {
+      nextStatus = "connected";
+    } else if (isTerminal) {
+      // só rebaixa se o uazapi confirmar terminal
+      nextStatus = "disconnected";
+    } else if (isTransient) {
+      // NÃO derruba `connected` por causa de status transitório.
+      // Só grava o transitório se o banco não estava em `connected`.
+      if (inst.status !== "connected") {
+        // e mesmo assim só se for diferente do atual — evita churn
+        if (effectiveStatus !== inst.status) nextStatus = effectiveStatus;
+      }
+    }
+
+    if (nextStatus && nextStatus !== inst.status) updates.status = nextStatus;
+
+    if (isConnected) {
       if (livePhone) {
         const normalized = String(livePhone).replace(/\D/g, "");
         if (normalized !== inst.phone_connected) updates.phone_connected = normalized;
       }
       if (!inst.connected_at) updates.connected_at = new Date().toISOString();
-    } else if (effectiveStatus === "disconnected") {
+    } else if (nextStatus === "disconnected") {
       // uazapi confirmou desconectado (ou token morto) — limpar número stale
       if (inst.phone_connected) updates.phone_connected = null;
+    }
+
+    // Preenche server_url se estava nulo — útil pra lojas criadas antes do fix
+    if (!(inst as any).server_url && serverUrl) {
+      updates.server_url = serverUrl;
     }
     if (Object.keys(updates).length > 0) {
       await supabase
