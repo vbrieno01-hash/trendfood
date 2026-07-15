@@ -36,6 +36,7 @@ import AffiliatesTab from "@/components/admin/AffiliatesTab";
 import CapacityTab from "@/components/admin/CapacityTab";
 import CleanupTab from "@/components/admin/CleanupTab";
 import SupportInboxTab from "@/components/admin/SupportInboxTab";
+import CreateStoreTab from "@/components/admin/CreateStoreTab";
 import { useVersionHeartbeat } from "@/hooks/useVersionHeartbeat";
 
 import ThemeToggle from "@/components/ThemeToggle";
@@ -255,7 +256,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; className: string }>
   planned: { label: "Planejado", className: "bg-muted text-muted-foreground" },
 };
 
-type AdminTab = "home" | "lojas" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "bot_monitor" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "ifood_merchant" | "capacidade" | "limpeza" | "suporte";
+type AdminTab = "home" | "lojas" | "criar_loja" | "config" | "features" | "vendas" | "logs" | "ativacoes" | "whatsapp" | "wa_instances" | "guia" | "indicacoes" | "gerenciar" | "site" | "relatorios" | "melhorias" | "aibot" | "bot_monitor" | "versoes" | "telegram_admin" | "afiliados" | "ifood_homolog" | "ifood_merchant" | "capacidade" | "limpeza" | "suporte";
 
 interface NavGroup {
   label: string;
@@ -268,6 +269,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "home", icon: <Home className="w-4 h-4" />, label: "Dashboard" },
       { key: "lojas", icon: <Store className="w-4 h-4" />, label: "Lojas" },
+      { key: "criar_loja", icon: <Store className="w-4 h-4" />, label: "Criar loja" },
       { key: "indicacoes", icon: <Share2 className="w-4 h-4" />, label: "Indicações" },
       { key: "afiliados", icon: <Share2 className="w-4 h-4" />, label: "Afiliados (50%)" },
     ],
@@ -1200,6 +1202,7 @@ function AdminContent() {
           {activeTab === "capacidade" && <CapacityTab />}
           {activeTab === "limpeza" && <CleanupTab />}
           {activeTab === "suporte" && <SupportInboxTab />}
+          {activeTab === "criar_loja" && <CreateStoreTab />}
           {activeTab === "gerenciar" && selectedOrg && (
             <AdminStoreManager
               org={selectedOrg}
