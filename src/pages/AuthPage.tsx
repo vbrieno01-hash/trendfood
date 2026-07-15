@@ -408,8 +408,34 @@ const AuthPage = () => {
 
       const userId = authData.user.id;
 
-      // Aguardar sessão RLS ficar ativa (race condition em conexões lentas)
-      await new Promise((r) => setTimeout(r, 600));
+      // Se a confirmação de e-mail estiver ativa, NÃO há sessão ativa aqui.
+      // Tentar inserir profile/organization agora falharia por RLS (auth.uid() é null),
+      // resultando no erro genérico. Guardamos os dados e pedimos confirmação.
+      if (!authData.session) {
+        try {
+          localStorage.setItem(
+            "pending_signup_org",
+            JSON.stringify({
+              name: signupData.businessName,
+              slug: signupData.slug,
+              whatsapp: null,
+              fullName: signupData.fullName,
+              refParam: refParam || null,
+              affiliateId: affiliateId || null,
+            })
+          );
+        } catch {}
+        toast.success(
+          "Conta criada! Confirme seu e-mail e faça login para finalizar o cadastro da loja.",
+          { duration: 10000 }
+        );
+        setSignupLoading(false);
+        setMode("login");
+        return;
+      }
+
+      // Sessão ativa (auto-confirm) — segue o fluxo direto
+      await new Promise((r) => setTimeout(r, 300));
 
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: userId,
@@ -457,7 +483,14 @@ const AuthPage = () => {
       navigate(fullRedirect, { replace: true });
     } catch (err: unknown) {
       const error = err as { message?: string };
-      toast.error(translateAuthError(error.message), { duration: 7000 });
+      const msg = error.message || "";
+      if (/rate limit|only request this after/i.test(msg)) {
+        toast.error("Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.", { duration: 8000 });
+      } else if (/row-level security|permission denied|violates/i.test(msg)) {
+        toast.error("Cadastro criado, mas não conseguimos finalizar a loja agora. Confirme seu e-mail, entre e complete o cadastro.", { duration: 9000 });
+      } else {
+        toast.error(translateAuthError(msg), { duration: 7000 });
+      }
     } finally {
       setSignupLoading(false);
     }
