@@ -208,7 +208,7 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
     }, 1500);
     return () => clearTimeout(saveTimeoutRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, businessHours, addressFields, freeAbove, themeConfig]);
+  }, [form, businessHours, addressFields, freeAbove, themeConfig, gatewayProvider, gatewayToken]);
 
   // Reseta tema visual para o padrão (limpa estilos personalizados)
   const handleResetTheme = () => {
@@ -274,21 +274,29 @@ export default function StoreProfileTab({ organization, effectivePlan = "free" }
           .maybeSingle();
 
         if (existing) {
-          await supabase
+          const { error: upErr } = await supabase
             .from("organization_secrets" as any)
             .update({
               pix_gateway_provider: gatewayProvider,
               pix_gateway_token: gatewayToken,
             } as any)
             .eq("organization_id", organization.id);
+          if (upErr) {
+            toast.error("Erro ao salvar gateway PIX: " + upErr.message);
+            throw upErr;
+          }
         } else {
-          await supabase
+          const { error: insErr } = await supabase
             .from("organization_secrets" as any)
             .insert({
               organization_id: organization.id,
               pix_gateway_provider: gatewayProvider,
               pix_gateway_token: gatewayToken,
             } as any);
+          if (insErr) {
+            toast.error("Erro ao salvar gateway PIX: " + insErr.message);
+            throw insErr;
+          }
         }
       }
 
