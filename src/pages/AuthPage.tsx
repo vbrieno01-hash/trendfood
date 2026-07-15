@@ -430,7 +430,6 @@ const AuthPage = () => {
           { duration: 10000 }
         );
         setSignupLoading(false);
-        setMode("login");
         return;
       }
 
