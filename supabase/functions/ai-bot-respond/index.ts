@@ -645,12 +645,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // === Flag: envio automático de link ===
+    // Quando `send_menu_link === false`, o robô só envia o link do cardápio se
+    // o cliente PEDIR explicitamente. Default `true` = comportamento antigo.
+    const sendMenuLinkAllowed = config?.send_menu_link !== false;
+    const msgLowForLinkAsk = String(message)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const clientAskedForLink =
+      /\b(link|cardap[io]o?|menu|catalogo|url|site|quero\s+pedir|fazer\s+pedido|bora\s+pedir|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(
+        msgLowForLinkAsk,
+      );
+    const canSendLink = sendMenuLinkAllowed || clientAskedForLink;
+
     // === FALLBACK LINK-ONLY (rede de segurança) ===
     // Só é chamado se Groq E Cerebras falharem. Nunca substitui a IA
     // quando ela está disponível — apenas cobre o pior cenário para o
     // cliente nunca ficar sem resposta.
     const sendLinkFallback = async (reason: string): Promise<Response | null> => {
       if (!orgSlug) return null;
+      // Loja desligou envio automático e o cliente não pediu → não manda link.
+      if (!canSendLink) return null;
       const menuUrl = `https://trendfood.site/${orgSlug}`;
       const variations = [
         `Olá! 😊 Aqui está o nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`,
