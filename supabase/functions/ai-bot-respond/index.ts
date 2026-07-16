@@ -645,12 +645,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // === Flag: envio automático de link ===
+    // Quando `send_menu_link === false`, o robô só envia o link do cardápio se
+    // o cliente PEDIR explicitamente. Default `true` = comportamento antigo.
+    const sendMenuLinkAllowed = config?.send_menu_link !== false;
+    const msgLowForLinkAsk = String(message)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const clientAskedForLink =
+      /\b(link|cardap[io]o?|menu|catalogo|url|site|quero\s+pedir|fazer\s+pedido|bora\s+pedir|como\s+pe[cç]o|onde\s+pe[cç]o)\b/i.test(
+        msgLowForLinkAsk,
+      );
+    const canSendLink = sendMenuLinkAllowed || clientAskedForLink;
+
     // === FALLBACK LINK-ONLY (rede de segurança) ===
     // Só é chamado se Groq E Cerebras falharem. Nunca substitui a IA
     // quando ela está disponível — apenas cobre o pior cenário para o
     // cliente nunca ficar sem resposta.
     const sendLinkFallback = async (reason: string): Promise<Response | null> => {
       if (!orgSlug) return null;
+      // Loja desligou envio automático e o cliente não pediu → não manda link.
+      if (!canSendLink) return null;
       const menuUrl = `https://trendfood.site/${orgSlug}`;
       const variations = [
         `Olá! 😊 Aqui está o nosso cardápio:\n${menuUrl}\n\nÉ só escolher os itens e finalizar o pedido por lá.`,
@@ -953,9 +969,12 @@ Seja util, humano, rapido e nao enrole.`;
     const linkAlreadySent = (history || []).some((h: any) =>
       /trendfood\.site/i.test(h?.ai_response || ""),
     );
-    const urlFooter = linkAlreadySent ? "" : (url ? `\n\nCardápio: ${url}` : "");
-    const urlFooterOrder = linkAlreadySent ? "" : (url ? `\n\nMonta seu pedido: ${url}` : "");
-    const urlFooterContact = linkAlreadySent ? "" : (url ? `\n\nOu peça direto: ${url}` : "");
+    // Se o envio automático de link está desligado E o cliente não pediu,
+    // suprime o rodapé com link em todas as respostas de bucket.
+    const suppressLink = linkAlreadySent || !canSendLink;
+    const urlFooter = suppressLink ? "" : (url ? `\n\nCardápio: ${url}` : "");
+    const urlFooterOrder = suppressLink ? "" : (url ? `\n\nMonta seu pedido: ${url}` : "");
+    const urlFooterContact = suppressLink ? "" : (url ? `\n\nOu peça direto: ${url}` : "");
 
     let routedReply: string | null = null;
     let routedBucket: string | null = null;
@@ -1097,13 +1116,15 @@ Seja util, humano, rapido e nao enrole.`;
         `Fechou! Tô por aqui.`,
         `Certo! Se pintar dúvida é só mandar.`,
       ];
-      const activePool = linkAlreadySent ? poolNoLink : pool;
+      const activePool = suppressLink ? poolNoLink : pool;
       const lastIdx = lastFallbackIdxByPhone.get(phone) ?? -1;
       let idx = Math.floor(Math.random() * activePool.length);
       if (activePool.length > 1 && idx === lastIdx) idx = (idx + 1) % activePool.length;
       lastFallbackIdxByPhone.set(phone, idx);
       finalReply = activePool[idx];
-      provider = linkAlreadySent ? "link-fallback:already_sent" : "link-fallback:no_match";
+      provider = suppressLink
+        ? (linkAlreadySent ? "link-fallback:already_sent" : "link-fallback:disabled")
+        : "link-fallback:no_match";
     }
 
     // Enviar via uazapi

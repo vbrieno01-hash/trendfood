@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_bot_config ADD COLUMN IF NOT EXISTS send_menu_link boolean NOT NULL DEFAULT true;

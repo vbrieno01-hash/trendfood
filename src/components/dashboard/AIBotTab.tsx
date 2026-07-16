@@ -38,6 +38,7 @@ interface BotConfig {
   greeting_message: string;
   system_prompt: string;
   model: string;
+  send_menu_link: boolean;
 }
 
 interface QueueRow {
@@ -399,6 +400,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
           greeting_message: config.greeting_message,
           system_prompt: config.system_prompt,
           model: config.model,
+          send_menu_link: config.send_menu_link,
         },
         { onConflict: "organization_id" },
       );
@@ -567,6 +569,39 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
               <Switch
                 checked={config.enabled}
                 onCheckedChange={toggleEnabled}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">Enviar link do cardápio automaticamente</p>
+                <p className="text-xs text-muted-foreground">
+                  Se desativado, o robô só manda o link quando o cliente pedir
+                  (ex: "manda o cardápio"). Ideal pra quem usa WhatsApp Business.
+                </p>
+              </div>
+              <Switch
+                checked={config.send_menu_link !== false}
+                onCheckedChange={async (next) => {
+                  const prev = config.send_menu_link !== false;
+                  setConfig({ ...config, send_menu_link: next });
+                  const { error } = await supabase
+                    .from("ai_bot_config")
+                    .upsert(
+                      { organization_id: orgId, send_menu_link: next },
+                      { onConflict: "organization_id" },
+                    );
+                  if (error) {
+                    setConfig((c) => (c ? { ...c, send_menu_link: prev } : c));
+                    toast.error(error.message || "Falha ao alterar envio de link");
+                    return;
+                  }
+                  toast.success(
+                    next
+                      ? "Robô vai enviar link do cardápio automaticamente"
+                      : "Robô só envia link quando o cliente pedir",
+                  );
+                }}
               />
             </div>
 
