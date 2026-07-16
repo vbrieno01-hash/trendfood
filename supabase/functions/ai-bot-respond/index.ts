@@ -715,6 +715,35 @@ Deno.serve(async (req) => {
     // Sem orgSlug (config singleton sem loja): fallback pra saudação simples se configurada.
     const greetingMessage: string | null = (config?.greeting_message || "").toString().trim() || null;
     if ((!history || history.length === 0) && greetingMessage) {
+      // Gate 1: se o lojista desativou o "enviar link do cardápio", a saudação
+      // faz parte desse pacote de boas-vindas — não envia (deixa o WA Business assumir).
+      if (!sendMenuLinkAllowed) {
+        console.log(`[ai-bot] greeting-skipped reason=send_menu_link_disabled org=${effectiveOrgId ?? "null"}`);
+        return new Response(
+          JSON.stringify({ ok: true, greeting: false, skipped: "send_menu_link_disabled" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      // Gate 2: dedupe anti-rajada — se já mandamos a mesma saudação pra esse
+      // phone/org nos últimos 60s, não reenvia (evita duplicar quando o cliente
+      // manda 2 mensagens rápidas antes do INSERT da primeira ser lido).
+      const sixtySecAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const dedupeQuery = supabase
+        .from("fila_whatsapp")
+        .select("id")
+        .eq("phone", phone)
+        .eq("ai_response", greetingMessage)
+        .gte("created_at", sixtySecAgo)
+        .limit(1);
+      if (effectiveOrgId) dedupeQuery.eq("organization_id", effectiveOrgId);
+      const { data: recentGreet } = await dedupeQuery;
+      if (recentGreet && recentGreet.length > 0) {
+        console.log(`[ai-bot] greeting-skipped reason=recent_duplicate org=${effectiveOrgId ?? "null"} phone=${phone}`);
+        return new Response(
+          JSON.stringify({ ok: true, greeting: false, skipped: "recent_duplicate" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       let sentGreet = false;
       let greetErr: string | null = null;
       try {
