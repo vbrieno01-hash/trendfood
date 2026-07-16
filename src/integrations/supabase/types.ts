@@ -450,6 +450,7 @@ export type Database = {
           id: string
           model: string
           organization_id: string | null
+          send_menu_link: boolean
           system_prompt: string
           test_instance_name: string | null
           test_instance_token: string | null
@@ -463,6 +464,7 @@ export type Database = {
           id?: string
           model?: string
           organization_id?: string | null
+          send_menu_link?: boolean
           system_prompt?: string
           test_instance_name?: string | null
           test_instance_token?: string | null
@@ -476,6 +478,7 @@ export type Database = {
           id?: string
           model?: string
           organization_id?: string | null
+          send_menu_link?: boolean
           system_prompt?: string
           test_instance_name?: string | null
           test_instance_token?: string | null
