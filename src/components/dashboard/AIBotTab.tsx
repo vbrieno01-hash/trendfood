@@ -400,6 +400,7 @@ const BotPanel = ({ orgId }: { orgId: string }) => {
           greeting_message: config.greeting_message,
           system_prompt: config.system_prompt,
           model: config.model,
+          send_menu_link: config.send_menu_link,
         },
         { onConflict: "organization_id" },
       );
