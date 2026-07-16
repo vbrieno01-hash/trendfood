@@ -969,9 +969,12 @@ Seja util, humano, rapido e nao enrole.`;
     const linkAlreadySent = (history || []).some((h: any) =>
       /trendfood\.site/i.test(h?.ai_response || ""),
     );
-    const urlFooter = linkAlreadySent ? "" : (url ? `\n\nCardápio: ${url}` : "");
-    const urlFooterOrder = linkAlreadySent ? "" : (url ? `\n\nMonta seu pedido: ${url}` : "");
-    const urlFooterContact = linkAlreadySent ? "" : (url ? `\n\nOu peça direto: ${url}` : "");
+    // Se o envio automático de link está desligado E o cliente não pediu,
+    // suprime o rodapé com link em todas as respostas de bucket.
+    const suppressLink = linkAlreadySent || !canSendLink;
+    const urlFooter = suppressLink ? "" : (url ? `\n\nCardápio: ${url}` : "");
+    const urlFooterOrder = suppressLink ? "" : (url ? `\n\nMonta seu pedido: ${url}` : "");
+    const urlFooterContact = suppressLink ? "" : (url ? `\n\nOu peça direto: ${url}` : "");
 
     let routedReply: string | null = null;
     let routedBucket: string | null = null;
