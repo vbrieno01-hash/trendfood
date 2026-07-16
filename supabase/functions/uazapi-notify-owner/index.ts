@@ -112,6 +112,33 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Guard anti-duplicação ────────────────────────────────────────────────
+    // O trigger SQL `trg_orders_wa_auto_status` já enfileira `new_order_owner`
+    // automaticamente na inserção do pedido. Se essa edge for chamada em <2min
+    // após um enqueue/envio recente pro mesmo pedido, aborta pra não duplicar.
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data: recentOutbox } = await supabase
+      .from("whatsapp_outbox")
+      .select("id")
+      .eq("order_id", order_id)
+      .eq("event_type", "new_order_owner")
+      .gte("created_at", twoMinAgo)
+      .limit(1);
+    if (recentOutbox && recentOutbox.length > 0) {
+      return ok("duplicate suppressed: recent new_order_owner in outbox");
+    }
+    const { data: recentLog } = await supabase
+      .from("whatsapp_notification_log")
+      .select("id")
+      .eq("order_id", order_id)
+      .eq("event", "new_order_owner")
+      .eq("status", "sent")
+      .gte("created_at", twoMinAgo)
+      .limit(1);
+    if (recentLog && recentLog.length > 0) {
+      return ok("duplicate suppressed: recent new_order_owner already sent");
+    }
+
     // ── Busca pedido + itens ─────────────────────────────────────────────────
     const { data: order } = await supabase
       .from("orders")
