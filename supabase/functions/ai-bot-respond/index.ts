@@ -1116,13 +1116,15 @@ Seja util, humano, rapido e nao enrole.`;
         `Fechou! Tô por aqui.`,
         `Certo! Se pintar dúvida é só mandar.`,
       ];
-      const activePool = linkAlreadySent ? poolNoLink : pool;
+      const activePool = suppressLink ? poolNoLink : pool;
       const lastIdx = lastFallbackIdxByPhone.get(phone) ?? -1;
       let idx = Math.floor(Math.random() * activePool.length);
       if (activePool.length > 1 && idx === lastIdx) idx = (idx + 1) % activePool.length;
       lastFallbackIdxByPhone.set(phone, idx);
       finalReply = activePool[idx];
-      provider = linkAlreadySent ? "link-fallback:already_sent" : "link-fallback:no_match";
+      provider = suppressLink
+        ? (linkAlreadySent ? "link-fallback:already_sent" : "link-fallback:disabled")
+        : "link-fallback:no_match";
     }
 
     // Enviar via uazapi
