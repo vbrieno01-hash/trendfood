@@ -38,6 +38,7 @@ interface BotConfig {
   greeting_message: string;
   system_prompt: string;
   model: string;
+  send_menu_link: boolean;
 }
 
 interface QueueRow {
