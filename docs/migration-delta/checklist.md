@@ -15,6 +15,10 @@ Marque conforme for aplicando. Zero impacto no Lovable Cloud.
 
 ## Edge Functions
 Mínimo obrigatório:
+- [ ] `admin-create-store` **(NOVA)**
+- [ ] `reconcile-pending-orders` **(NOVA — cron 30s)**
+- [ ] `test-pix-gateway` **(NOVA)**
+- [ ] `ai-bot-respond` **(comportamento mudou — send_menu_link + dedupe)**
 - [ ] `campaign-check-numbers`
 - [ ] `campaign-create-manual`
 - [ ] `campaign-send-test`
@@ -31,7 +35,7 @@ Mínimo obrigatório:
 - [ ] `check-pix-status`
 - [ ] `mp-webhook`
 
-Ideal (todas as 86):
+Ideal (todas as 89):
 - [ ] Redeploy completo de `supabase/functions/*`
 
 ## Secrets no espelho

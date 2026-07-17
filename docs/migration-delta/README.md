@@ -1,12 +1,13 @@
-# Migration Delta — 2026-07-09 → hoje
+# Migration Delta — 2026-07-09 → 2026-07-17
 
 Sincronização do espelho `eqyklkrigshbjuneuxrz` (Supabase próprio) com o
 projeto Lovable atual. Cutoff do backup: **2026-07-09 23:55 UTC**
-(`trendfood_260709-2.backup`).
+(`trendfood_260709-2.backup`). Última atualização deste delta:
+**2026-07-17**.
 
 ## Arquivos
 
-- `schema-delta.sql` — as 9 migrations desde o cutoff, concatenadas em ordem cronológica. Cole no SQL Editor do espelho e clique em **Run**.
+- `schema-delta.sql` — as **15 migrations** desde o cutoff, concatenadas em ordem cronológica (2 do 09/07 + 13 entre 10/07 e 17/07). Cole no SQL Editor do espelho e clique em **Run**.
 - `functions-delta.md` — lista de edge functions e como redeployar.
 - `storage-delta.md` — bucket `support-attachments` e policies.
 - `checklist.md` — passo a passo pra marcar conforme aplica.
