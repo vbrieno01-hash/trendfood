@@ -1,6 +1,6 @@
 -- ============================================================
 -- TrendFood — schema delta desde backup 2026-07-09
--- Gerado em: 2026-07-14T11:10:11Z
+-- Gerado em: 2026-07-17 (atualizado — inclui migrations até 17/07)
 -- Aplicar no projeto espelho: eqyklkrigshbjuneuxrz
 -- Cole tudo no SQL Editor e clique em Run.
 -- Reexecutável: erros de "already exists" são esperados/ignorados.
@@ -1083,3 +1083,415 @@ BEGIN
   VALUES (p_org_id, p_order_id, p_event, v_phone, v_message, 'pending');
 END;
 $function$;
+
+-- ============================================================
+-- >>> 20260715042557_864cfad3-1f1d-4078-b9e6-1cab9c5b193a.sql
+-- ============================================================
+-- Reset Lanchonete RM: sessão UazAPI morreu, força re-pareamento QR
+UPDATE public.whatsapp_instances
+   SET status='disconnected', connected_at=NULL, phone_connected=NULL
+ WHERE organization_id='6988dee2-483e-4b9d-aa71-50ac11a8c758';
+
+-- Limpa mensagens presas na fila (evita retries inúteis contra sessão morta)
+UPDATE public.whatsapp_outbox
+   SET status='skipped',
+       last_error=COALESCE(last_error,'') || ' [manual skip: session dead, awaiting QR re-pair]'
+ WHERE organization_id='6988dee2-483e-4b9d-aa71-50ac11a8c758'
+   AND status IN ('failed','pending','processing');
+-- ============================================================
+-- >>> 20260716121549_4d6f9e5c-7bbb-49a1-ba17-88ceffd31744.sql
+-- ============================================================
+ALTER TABLE public.ai_bot_config ADD COLUMN IF NOT EXISTS send_menu_link boolean NOT NULL DEFAULT true;
+-- ============================================================
+-- >>> 20260716124044_053ddbeb-206d-4636-ad05-9bc324b6eb56.sql
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.wa_enqueue_status(p_org_id uuid, p_order_id uuid, p_event text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_org   organizations%ROWTYPE;
+  v_order orders%ROWTYPE;
+  v_phone text;
+  v_name  text;
+  v_total text;
+  v_short text;
+  v_template text;
+  v_message  text;
+  v_plan text;
+  v_instance_ok boolean;
+  v_recent boolean;
+  v_items_sum numeric;
+  v_frete_num numeric;
+  v_frete_clean text;
+  v_tipo text;
+  v_tel_cli text;
+  v_endereco text;
+  v_frete text;
+  v_pagamento text;
+  v_obs text;
+  v_agendado text;
+  v_itens text;
+  v_line text;
+  v_out text;
+  v_review_url text;
+BEGIN
+  SELECT * INTO v_org FROM organizations WHERE id = p_org_id;
+  IF v_org.id IS NULL THEN RETURN; END IF;
+
+  v_plan := public.get_effective_plan(v_org.id);
+  IF v_plan NOT IN ('pro','enterprise','lifetime') THEN RETURN; END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM whatsapp_instances
+    WHERE organization_id = p_org_id AND status IN ('connected','open')
+  ) INTO v_instance_ok;
+  IF NOT v_instance_ok THEN
+    INSERT INTO whatsapp_notification_log (order_id, event, status, error)
+    VALUES (p_order_id, p_event, 'skipped', 'instância desconectada');
+    RETURN;
+  END IF;
+
+  SELECT * INTO v_order FROM orders WHERE id = p_order_id;
+  IF v_order.id IS NULL THEN RETURN; END IF;
+
+  IF p_event = 'new_order_owner' THEN
+    v_phone := regexp_replace(COALESCE(v_org.whatsapp,''), '\D', '', 'g');
+    IF char_length(v_phone) < 10 THEN RETURN; END IF;
+    IF left(v_phone,2) <> '55' THEN v_phone := '55' || v_phone; END IF;
+  ELSE
+    v_phone := wa_extract_phone(v_order.notes);
+    IF v_phone IS NULL THEN RETURN; END IF;
+  END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM whatsapp_outbox
+    WHERE order_id = p_order_id AND event_type = p_event
+      AND created_at > now() - interval '60 seconds'
+  ) OR EXISTS(
+    SELECT 1 FROM whatsapp_notification_log
+    WHERE order_id = p_order_id AND event = p_event AND status = 'sent'
+      AND created_at > now() - interval '60 seconds'
+  ) INTO v_recent;
+  IF v_recent THEN RETURN; END IF;
+
+  v_name := wa_extract_name(v_order.notes);
+  IF v_name IS NULL OR length(trim(v_name)) = 0 OR v_name ~ '^\d+$' THEN
+    v_name := 'Cliente';
+  END IF;
+
+  SELECT COALESCE(SUM(price * quantity), 0) INTO v_items_sum
+  FROM order_items WHERE order_id = v_order.id;
+
+  IF p_event IN ('new_order_customer','new_order_owner') AND COALESCE(v_items_sum,0) <= 0 THEN
+    RETURN;
+  END IF;
+
+  v_frete      := NULLIF(trim((regexp_match(COALESCE(v_order.notes,''), 'FRETE:([^|]+)'))[1]), '');
+  v_frete_num  := 0;
+  IF v_frete IS NOT NULL THEN
+    IF lower(v_frete) IN ('grátis','gratis','free','0','r$ 0,00','r$0,00') THEN
+      v_frete_num := 0;
+    ELSE
+      v_frete_clean := regexp_replace(v_frete, '[^0-9,\.]', '', 'g');
+      v_frete_clean := replace(v_frete_clean, ',', '.');
+      IF (length(v_frete_clean) - length(replace(v_frete_clean, '.', ''))) > 1 THEN
+        v_frete_clean := regexp_replace(v_frete_clean, '\.(?=.*\.)', '', 'g');
+      END IF;
+      BEGIN
+        v_frete_num := COALESCE(v_frete_clean::numeric, 0);
+      EXCEPTION WHEN OTHERS THEN
+        v_frete_num := 0;
+      END;
+    END IF;
+  END IF;
+
+  v_total := replace(
+    to_char(
+      GREATEST(v_items_sum + COALESCE(v_frete_num, 0) - COALESCE(v_order.discount_value, 0), 0),
+      'FM999G990D00'
+    ),
+    ',', '.'
+  );
+
+  v_short := COALESCE(v_order.order_number::text, upper(substr(v_order.id::text,1,6)));
+
+  v_template := v_org.wa_auto_status->'templates'->>p_event;
+  IF v_template IS NULL OR length(trim(v_template)) = 0 THEN
+    v_template := CASE p_event
+      WHEN 'new_order_customer' THEN
+        'Olá, {nome}! 👋 Recebemos seu pedido #{numero} no valor de *R$ {total}*. Ele está aguardando a confirmação do estabelecimento! 📝 — {loja}'
+      WHEN 'new_order_owner' THEN
+        E'🛎️ *Novo Pedido — {loja}*\n📋 *#{numero}*\n\n👤 *Cliente:* {nome}\n📱 *Tel:* {telefone}\n📦 *Tipo:* {tipo}\n📍 *Endereço:* {endereco}\n🚚 *Frete:* {frete}\n🕐 *Agendado:* {agendado}\n\n🧾 *Itens:*\n{itens}\n\n💰 *Total:* R$ {total}\n💳 *Pagamento:* {pagamento}\n📝 *Obs:* {obs}\n\nAcesse o painel para aceitar.'
+      WHEN 'preparing' THEN
+        E'Seu pedido #{numero} foi aceito e já entrou em preparação na nossa cozinha! 🍳\n💰 Total: *R$ {total}* — {loja}'
+      WHEN 'ready_pickup' THEN
+        'Ótimas notícias, {nome}! Seu pedido #{numero} está pronto para retirada! 🎉 — {loja}'
+      WHEN 'ready_delivery' THEN
+        'Ótimas notícias, {nome}! Seu pedido #{numero} ficou pronto e está sendo embalado! 🎉 — {loja}'
+      WHEN 'out_for_delivery' THEN
+        'Seu pedido #{numero} já saiu com o motoboy e está a caminho! 🚀 — {loja}'
+      WHEN 'delivered' THEN
+        'Pedido #{numero} entregue! Bom apetite 🍽️ — {loja}'
+      WHEN 'cancelled' THEN
+        'Pedido #{numero} cancelado. Em caso de dúvida, fale com a gente. — {loja}'
+      WHEN 'awaiting_payment' THEN
+        'Pedido #{numero}: aguardando confirmação do pagamento PIX. Assim que cair, começamos a preparar. — {loja}'
+      ELSE NULL
+    END;
+  END IF;
+  IF v_template IS NULL THEN RETURN; END IF;
+
+  v_tipo       := NULLIF(trim((regexp_match(COALESCE(v_order.notes,''), 'TIPO:([^|]+)'))[1]), '');
+  v_tel_cli    := NULLIF(trim((regexp_match(COALESCE(v_order.notes,''), 'TEL:([^|]+)'))[1]), '');
+  v_endereco   := NULLIF(trim((regexp_match(COALESCE(v_order.notes,''), 'END\.:([^|]+)'))[1]), '');
+  v_pagamento  := NULLIF(trim((regexp_match(COALESCE(v_order.notes,''), 'PGTO:([^|]+)'))[1]), '');
+  v_obs        := NULLIF(trim((regexp_match(COALESCE(v_order.notes,''), 'OBS:([^|]+)'))[1]), '');
+  v_agendado   := NULLIF(trim((regexp_match(COALESCE(v_order.notes,''), 'AGENDADO:([^|]+)'))[1]), '');
+
+  SELECT COALESCE(string_agg(
+    '  • ' || quantity || 'x ' || name || ' — R$ ' ||
+    replace(to_char(price * quantity, 'FM999G990D00'), ',', '.'),
+    E'\n'
+  ), '') INTO v_itens
+  FROM order_items WHERE order_id = v_order.id;
+
+  IF COALESCE(v_org.reviews_enabled, true) THEN
+    v_review_url := 'https://trendfood.site/avaliar/' || COALESCE(v_org.slug,'') || '/' || v_order.id::text;
+  ELSE
+    v_review_url := '';
+  END IF;
+
+  v_message := v_template;
+  v_message := replace(v_message, '{nome}',       v_name);
+  v_message := replace(v_message, '{numero}',     v_short);
+  v_message := replace(v_message, '{loja}',       COALESCE(v_org.name,''));
+  v_message := replace(v_message, '{total}',      v_total);
+  v_message := replace(v_message, '{telefone}',   COALESCE(v_tel_cli, ''));
+  v_message := replace(v_message, '{tipo}',       COALESCE(v_tipo, ''));
+  v_message := replace(v_message, '{endereco}',   COALESCE(v_endereco, ''));
+  v_message := replace(v_message, '{frete}',      COALESCE(v_frete, ''));
+  v_message := replace(v_message, '{pagamento}',  COALESCE(v_pagamento, ''));
+  v_message := replace(v_message, '{obs}',        COALESCE(v_obs, ''));
+  v_message := replace(v_message, '{agendado}',   COALESCE(v_agendado, ''));
+  v_message := replace(v_message, '{itens}',      v_itens);
+  v_message := replace(v_message, '{avaliacao_url}', v_review_url);
+
+  -- Cleanup: só remove linhas de LABEL VAZIA (terminando em ":" ou ":*"),
+  -- preservando headers como "🛎️ *Novo Pedido — Loja*" ou "📋 *#1234*".
+  v_out := '';
+  FOREACH v_line IN ARRAY string_to_array(v_message, E'\n') LOOP
+    IF v_line ~ ':\*?\s*$' THEN
+      CONTINUE;
+    END IF;
+    v_out := v_out || v_line || E'\n';
+  END LOOP;
+  v_message := rtrim(v_out, E'\n');
+
+  INSERT INTO whatsapp_outbox (organization_id, order_id, event_type, phone, message, status)
+  VALUES (p_org_id, p_order_id, p_event, v_phone, v_message, 'pending');
+END;
+$function$;
+-- ============================================================
+-- >>> 20260716134122_3c2b8b3a-9f5d-4e3b-932e-18bab893525f.sql
+-- ============================================================
+
+-- 1) Ajusta o trigger de auto-status: não enfileira new_order_* enquanto o pedido está awaiting_payment;
+--    enfileira quando transiciona de awaiting_payment -> pending (confirmação do PIX automático).
+CREATE OR REPLACE FUNCTION public.tg_orders_wa_auto_status()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_tipo text;
+  v_is_delivery boolean;
+  v_event text;
+BEGIN
+  BEGIN
+    IF TG_OP = 'INSERT' THEN
+      -- Só enfileira mensagens de "novo pedido" se o pedido já nasce confirmado.
+      -- Pedidos em awaiting_payment aguardam a confirmação do PIX para disparar.
+      IF NEW.status <> 'awaiting_payment' THEN
+        PERFORM wa_enqueue_status(NEW.organization_id, NEW.id, 'new_order_customer');
+        PERFORM wa_enqueue_status(NEW.organization_id, NEW.id, 'new_order_owner');
+      END IF;
+      RETURN NEW;
+    END IF;
+
+    IF NEW.status IS NOT DISTINCT FROM OLD.status THEN
+      RETURN NEW;
+    END IF;
+
+    -- Transição awaiting_payment -> pending (PIX confirmado): dispara novo pedido agora.
+    IF OLD.status = 'awaiting_payment' AND NEW.status = 'pending' THEN
+      PERFORM wa_enqueue_status(NEW.organization_id, NEW.id, 'new_order_customer');
+      PERFORM wa_enqueue_status(NEW.organization_id, NEW.id, 'new_order_owner');
+      RETURN NEW;
+    END IF;
+
+    v_tipo := wa_extract_tipo(NEW.notes);
+    v_is_delivery := (v_tipo = 'Entrega');
+
+    v_event := CASE NEW.status
+      WHEN 'preparing'        THEN 'preparing'
+      WHEN 'awaiting_payment' THEN 'awaiting_payment'
+      WHEN 'ready'            THEN CASE WHEN v_is_delivery THEN 'ready_delivery' ELSE 'ready_pickup' END
+      WHEN 'delivered'        THEN 'delivered'
+      WHEN 'cancelled'        THEN 'cancelled'
+      ELSE NULL
+    END;
+
+    IF v_event IS NOT NULL THEN
+      PERFORM wa_enqueue_status(NEW.organization_id, NEW.id, v_event);
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE LOG 'tg_orders_wa_auto_status suprimido order=% op=% err=% state=%',
+      COALESCE(NEW.id::text, 'nil'), TG_OP, SQLERRM, SQLSTATE;
+  END;
+  RETURN NEW;
+END;
+$function$;
+
+-- 2) Agendamento do reconciliador de pedidos PIX (a cada 30 segundos).
+--    Requer pg_cron e pg_net já habilitados no projeto.
+DO $$
+BEGIN
+  -- Desagenda se já existir para evitar duplicidade
+  PERFORM cron.unschedule('reconcile-pending-orders')
+  WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reconcile-pending-orders');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+SELECT cron.schedule(
+  'reconcile-pending-orders',
+  '30 seconds',
+  $$
+  SELECT net.http_post(
+    url := 'https://xrzudhylpphnzousilye.supabase.co/functions/v1/reconcile-pending-orders',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyenVkaHlscHBobnpvdXNpbHllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NTM1NzMsImV4cCI6MjA4NzAyOTU3M30.eEvmxp2aUsjdYAa-crOgB-NtdgPlfgfyT6fyyPA85Nc'
+    ),
+    body := jsonb_build_object('cron', true)
+  ) AS request_id;
+  $$
+);
+
+-- ============================================================
+-- >>> 20260717143800_e58c48b2-d665-4e0b-a437-bc8f0eaebd21.sql
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.cleanup_infra_logs()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _net int; _cron int; _ifood int; _fila int; _err int;
+  _tg int; _cl int; _tgauto int; _hb int; _wa int;
+  _filawa int; _dedupe int; _aimetrics int;
+BEGIN
+  DELETE FROM net._http_response WHERE created < now() - interval '1 day';
+  GET DIAGNOSTICS _net = ROW_COUNT;
+
+  DELETE FROM cron.job_run_details WHERE start_time < now() - interval '3 days';
+  GET DIAGNOSTICS _cron = ROW_COUNT;
+
+  DELETE FROM public.ifood_event_log WHERE received_at < now() - interval '3 days';
+  GET DIAGNOSTICS _ifood = ROW_COUNT;
+
+  DELETE FROM public.fila_impressao WHERE status = 'impresso' AND created_at < now() - interval '2 days';
+  GET DIAGNOSTICS _fila = ROW_COUNT;
+
+  DELETE FROM public.client_error_logs WHERE created_at < now() - interval '14 days';
+  GET DIAGNOSTICS _err = ROW_COUNT;
+
+  DELETE FROM public.admin_telegram_log WHERE created_at < now() - interval '30 days';
+  GET DIAGNOSTICS _tg = ROW_COUNT;
+
+  DELETE FROM public.cleanup_logs WHERE created_at < now() - interval '60 days';
+  GET DIAGNOSTICS _cl = ROW_COUNT;
+
+  DELETE FROM public.telegram_automations_log WHERE sent_at < now() - interval '30 days';
+  GET DIAGNOSTICS _tgauto = ROW_COUNT;
+
+  DELETE FROM public.store_version_heartbeat WHERE last_seen_at < now() - interval '7 days';
+  GET DIAGNOSTICS _hb = ROW_COUNT;
+
+  DELETE FROM public.whatsapp_outbox WHERE status IN ('sent','failed') AND created_at < now() - interval '7 days';
+  GET DIAGNOSTICS _wa = ROW_COUNT;
+
+  DELETE FROM public.fila_whatsapp WHERE created_at < now() - interval '7 days';
+  GET DIAGNOSTICS _filawa = ROW_COUNT;
+
+  DELETE FROM public.wa_message_dedupe WHERE created_at < now() - interval '1 day';
+  GET DIAGNOSTICS _dedupe = ROW_COUNT;
+
+  DELETE FROM public.ai_bot_metrics WHERE created_at < now() - interval '30 days';
+  GET DIAGNOSTICS _aimetrics = ROW_COUNT;
+
+  INSERT INTO public.cron_health (job_name, last_success_at, last_run_count)
+  VALUES ('cleanup_infra_logs', now(),
+          _net + _cron + _ifood + _fila + _err + _tg + _cl + _tgauto + _hb + _wa + _filawa + _dedupe + _aimetrics)
+  ON CONFLICT (job_name) DO UPDATE
+    SET last_success_at = EXCLUDED.last_success_at,
+        last_run_count  = EXCLUDED.last_run_count;
+
+  RETURN jsonb_build_object(
+    'net_http_response', _net,
+    'cron_job_run_details', _cron,
+    'ifood_event_log', _ifood,
+    'fila_impressao', _fila,
+    'client_error_logs', _err,
+    'admin_telegram_log', _tg,
+    'cleanup_logs', _cl,
+    'telegram_automations_log', _tgauto,
+    'store_version_heartbeat', _hb,
+    'whatsapp_outbox', _wa,
+    'fila_whatsapp', _filawa,
+    'wa_message_dedupe', _dedupe,
+    'ai_bot_metrics', _aimetrics
+  );
+END;
+$function$;
+-- ============================================================
+-- >>> 20260717144605_84391922-ac5b-438e-b9a4-61d01f339f2e.sql
+-- ============================================================
+DO $$
+DECLARE _kept int;
+BEGIN
+  CREATE TEMP TABLE _tmp_ifood ON COMMIT DROP AS
+    SELECT * FROM public.ifood_event_log WHERE received_at > now() - interval '3 days';
+  TRUNCATE public.ifood_event_log;
+  INSERT INTO public.ifood_event_log SELECT * FROM _tmp_ifood;
+  GET DIAGNOSTICS _kept = ROW_COUNT; RAISE NOTICE 'ifood_event_log kept: %', _kept;
+
+  CREATE TEMP TABLE _tmp_filawa ON COMMIT DROP AS
+    SELECT * FROM public.fila_whatsapp WHERE created_at > now() - interval '2 days';
+  TRUNCATE public.fila_whatsapp;
+  INSERT INTO public.fila_whatsapp SELECT * FROM _tmp_filawa;
+  GET DIAGNOSTICS _kept = ROW_COUNT; RAISE NOTICE 'fila_whatsapp kept: %', _kept;
+
+  CREATE TEMP TABLE _tmp_dedupe ON COMMIT DROP AS
+    SELECT * FROM public.wa_message_dedupe WHERE created_at > now() - interval '1 day';
+  TRUNCATE public.wa_message_dedupe;
+  INSERT INTO public.wa_message_dedupe SELECT * FROM _tmp_dedupe;
+  GET DIAGNOSTICS _kept = ROW_COUNT; RAISE NOTICE 'wa_message_dedupe kept: %', _kept;
+
+  CREATE TEMP TABLE _tmp_err ON COMMIT DROP AS
+    SELECT * FROM public.client_error_logs WHERE created_at > now() - interval '7 days';
+  TRUNCATE public.client_error_logs;
+  INSERT INTO public.client_error_logs SELECT * FROM _tmp_err;
+  GET DIAGNOSTICS _kept = ROW_COUNT; RAISE NOTICE 'client_error_logs kept: %', _kept;
+
+  CREATE TEMP TABLE _tmp_fila ON COMMIT DROP AS
+    SELECT * FROM public.fila_impressao
+    WHERE status <> 'impresso' OR created_at > now() - interval '1 day';
+  TRUNCATE public.fila_impressao;
+  INSERT INTO public.fila_impressao SELECT * FROM _tmp_fila;
+  GET DIAGNOSTICS _kept = ROW_COUNT; RAISE NOTICE 'fila_impressao kept: %', _kept;
+END $$;
