@@ -1,0 +1,1 @@
+CREATE POLICY "temp_full_export_anon" ON storage.objects FOR SELECT TO anon USING (bucket_id IN ('logos','menu-images','downloads','guide-images','site-images','support-attachments','database_export_09_07_26','database_export_14_07_26','database_export_18_07_26','database_export_20_07_26'));
