@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "temp_full_export_anon" ON storage.objects;
