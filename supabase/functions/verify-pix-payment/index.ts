@@ -17,6 +17,7 @@ const PROVIDER_NAMES: Record<string, string> = {
 };
 
 Deno.serve(async (req) => {
+  console.log("[verify-pix-payment] hit", req.method);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
