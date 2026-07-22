@@ -21,29 +21,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // ── AUTH CHECK ──────────────────────────────────────────
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
-
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-  // ── FIM AUTH CHECK ──────────────────────────────────────
 
   try {
     const { organization_id, order_id, amount, description } = await req.json();
@@ -55,20 +36,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── OWNERSHIP CHECK ─────────────────────────────────────
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("id")
-      .eq("id", organization_id)
-      .eq("user_id", user.id)
+    // ── ORDER VALIDATION (checkout público — sem login) ─────
+    const { data: orderRow } = await supabase
+      .from("orders")
+      .select("id, organization_id")
+      .eq("id", order_id)
       .maybeSingle();
-    if (!org) {
+    if (!orderRow || orderRow.organization_id !== organization_id) {
       return new Response(
-        JSON.stringify({ error: "Forbidden" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "invalid_order" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    // ── FIM OWNERSHIP CHECK ─────────────────────────────────
+    // ── FIM ORDER VALIDATION ────────────────────────────────
 
     const { data: secrets, error: secretsError } = await supabase
       .from("organization_secrets")
