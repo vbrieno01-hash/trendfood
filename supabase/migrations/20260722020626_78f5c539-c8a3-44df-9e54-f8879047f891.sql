@@ -1,0 +1,1 @@
+TRUNCATE TABLE public.ifood_event_log;
