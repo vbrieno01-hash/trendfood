@@ -56,6 +56,7 @@ verify_jwt = false
 
 [functions.verify-pix-payment]
 verify_jwt = false
+# public checkout endpoint — customer is anonymous
 
 [functions.create-admin-user]
 verify_jwt = false
